@@ -3,7 +3,11 @@ import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import type { TableActor } from "@/helpers/data-table";
-import { createDataTable } from "@/helpers/data-table";
+import {
+  batchTableRows,
+  createDataTable,
+  requireDataTable,
+} from "@/helpers/data-table";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { chunkExtractedText } from "@/lib/files/extraction";
@@ -11,6 +15,7 @@ import { writeVersionChunks } from "@/services/file-index.service";
 import { searchFiles } from "@/services/file-search.service";
 import {
   indexDataTable,
+  processStaleTableIndexes,
   renderTableRow,
   TABLE_INDEX_MAX_ROWS,
 } from "@/services/file-table-index.service";
@@ -306,7 +311,150 @@ describe.skipIf(!enabled)("indexing a native table", () => {
       });
     }
   });
+  /**
+   * The four properties this staleness signal depends on, asserted rather
+   * than assumed — a signal that goes backwards or stops on deletion leaves
+   * a stale index looking fresh.
+   */
+  it("indexes a table that has never been indexed, then leaves it alone", async () => {
+    await prisma.fileResource.deleteMany({
+      where: { workspaceId, sourceKind: "NATIVE_TABLE" },
+    });
+
+    // The sweep is global and this database is shared with other suites, so
+    // assert on *this* table rather than on a global count.
+    await sweepUntilIndexed(tableId);
+
+    const indexed = await prisma.fileResource.findFirstOrThrow({
+      where: { workspaceId, sourceKind: "NATIVE_TABLE", sourceId: tableId },
+      select: { sourceSequence: true },
+    });
+    expect(indexed.sourceSequence).not.toBeNull();
+
+    // Nothing has changed, so this table is no longer in the stale set.
+    expect(await isStale(tableId)).toBe(false);
+  });
+
+  it("notices an edit, and a deletion, because both advance the log", async () => {
+    await sweepUntilIndexed(tableId);
+
+    const before = await prisma.fileResource.findFirstOrThrow({
+      where: { workspaceId, sourceKind: "NATIVE_TABLE", sourceId: tableId },
+      select: { sourceSequence: true },
+    });
+
+    const table = await requireDataTable(
+      tableActor(ownerId, workspaceId),
+      tableId,
+    );
+    const row = await prisma.tableRow.findFirstOrThrow({
+      where: { tableId, archivedAt: null },
+      select: { id: true, version: true },
+    });
+
+    // An edit.
+    await batchTableRows(tableActor(ownerId, workspaceId), tableId, {
+      key: randomUUID(),
+      insert: [],
+      patch: [
+        {
+          id: row.id,
+          version: row.version,
+          values: { [table.columns[0].id]: "Renamed Supplier" },
+          evidence: {},
+        },
+      ],
+    });
+
+    expect(await isStale(tableId)).toBe(true);
+    await sweepUntilIndexed(tableId);
+
+    const middle = await prisma.fileResource.findFirstOrThrow({
+      where: { workspaceId, sourceKind: "NATIVE_TABLE", sourceId: tableId },
+      select: { sourceSequence: true },
+    });
+    expect(Number(middle.sourceSequence)).toBeGreaterThan(
+      Number(before.sourceSequence),
+    );
+
+    // A deletion, of *the row just renamed* — picking an arbitrary live row
+    // would leave "Renamed" in the index and prove nothing.
+    const renamed = await prisma.tableRow.findUniqueOrThrow({
+      where: { id: row.id },
+      select: { id: true, version: true },
+    });
+    await batchTableRows(tableActor(ownerId, workspaceId), tableId, {
+      key: randomUUID(),
+      insert: [],
+      patch: [
+        {
+          id: renamed.id,
+          version: renamed.version,
+          values: {},
+          evidence: {},
+          archived: true,
+        },
+      ],
+    });
+
+    expect(await isStale(tableId)).toBe(true);
+    await sweepUntilIndexed(tableId);
+
+    const end = await prisma.fileResource.findFirstOrThrow({
+      where: { workspaceId, sourceKind: "NATIVE_TABLE", sourceId: tableId },
+      select: { sourceSequence: true },
+    });
+    expect(Number(end.sourceSequence)).toBeGreaterThan(
+      Number(middle.sourceSequence),
+    );
+
+    // And the deleted row's text is gone from the index.
+    const search = await searchFiles({
+      workspaceId,
+      actor: fileActor(ownerId),
+      query: "Renamed",
+      limit: 10,
+      ...SEARCH_DEFAULTS,
+    });
+    expect(search.items).toHaveLength(0);
+  });
 });
+
+/** Is this table in the set the sweep would pick up? */
+async function isStale(id: string): Promise<boolean> {
+  const [row] = await prisma.$queryRawUnsafe<{ stale: boolean }[]>(
+    `SELECT EXISTS (
+       SELECT 1 FROM data_table dt
+       JOIN LATERAL (
+         SELECT MAX(tc.sequence) AS sequence
+         FROM table_change tc WHERE tc."tableId" = dt.id
+       ) latest ON TRUE
+       LEFT JOIN file_resource fr
+         ON fr."workspaceId" = dt."workspaceId"
+        AND fr."sourceKind" = 'NATIVE_TABLE'::"FileSourceKind"
+        AND fr."sourceId" = dt.id::text
+       WHERE dt.id = $1::uuid
+         AND dt."archivedAt" IS NULL
+         AND latest.sequence IS NOT NULL
+         AND (fr.id IS NULL OR fr."sourceSequence" IS DISTINCT FROM latest.sequence)
+     ) AS stale`,
+    id,
+  );
+  return row?.stale ?? false;
+}
+
+/** Run the global sweep until this table is no longer stale. */
+async function sweepUntilIndexed(id: string): Promise<void> {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    if (!(await isStale(id))) return;
+    const result = await processStaleTableIndexes({
+      shouldContinue: () => true,
+      maxTables: 50,
+    });
+    if (result.scanned === 0) break;
+  }
+  expect(await isStale(id)).toBe(false);
+}
 
 describe("renderTableRow", () => {
   const columns = [

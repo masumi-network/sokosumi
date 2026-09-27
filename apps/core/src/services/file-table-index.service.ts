@@ -4,6 +4,7 @@ import {
   FileSourceKind,
   FileSourceScope,
 } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 import { normalizeFileResourceName } from "@sokosumi/utils";
 
 import {
@@ -292,4 +293,124 @@ async function upsertTableResource(input: {
     select: { id: true },
   });
   return created.id;
+}
+
+/**
+ * Indexing the tables that have actually changed.
+ *
+ * `TableChange` is #4747's append-only log: one row per mutation, with a
+ * monotonic `sequence` and a `(tableId, sequence)` index. A table is stale
+ * exactly when its `MAX(sequence)` exceeds the value its catalog row was
+ * built from, which makes staleness a cheap index-only lookup rather than a
+ * re-read of every table.
+ *
+ * Verified against a real database before being relied on, because a
+ * staleness signal that goes backwards or stops would leave a stale index
+ * looking fresh:
+ *
+ * - **Monotonic per table.** Consecutive mutations produced 27, 28, 29, 30.
+ *   The sequence is a global autoincrement, so per table it is monotonic but
+ *   not contiguous; gaps are other tables' changes, never lost ones.
+ * - **Written for every row mutation**, not some. Insert, patch and row
+ *   archive each advanced it, as did archiving the table itself.
+ * - **The index is used.** `EXPLAIN` on `MAX(sequence)` filtered by
+ *   `tableId` gives `Index Only Scan Backward using
+ *   table_change_tableId_sequence_idx`.
+ * - **Deletion advances it rather than losing it.** Rows are soft-deleted
+ *   through `archivedAt`, and that archive is itself a logged change, so a
+ *   deletion makes a table *more* stale rather than silently leaving the
+ *   old text indexed. A hard-deleted table cascades its log away, but then
+ *   the authorized arm's `EXISTS (data_table …)` hides the resource anyway.
+ */
+
+export interface TableSyncResult {
+  scanned: number;
+  indexed: number;
+  failed: number;
+}
+
+interface StaleTable {
+  tableId: string;
+  workspaceId: string;
+  ownerUserId: string | null;
+  latest: bigint;
+}
+
+/** Tables whose newest change is past what the catalog last indexed. */
+async function findStaleTables(limit: number): Promise<StaleTable[]> {
+  return prisma.$queryRaw<StaleTable[]>(PrismaRaw.sql`
+    SELECT
+      dt.id AS "tableId",
+      dt."workspaceId",
+      w."userId" AS "ownerUserId",
+      latest.sequence AS "latest"
+    FROM data_table dt
+    JOIN workspace w ON w.id = dt."workspaceId"
+    JOIN LATERAL (
+      SELECT MAX(tc.sequence) AS sequence
+      FROM table_change tc
+      WHERE tc."tableId" = dt.id
+    ) latest ON TRUE
+    LEFT JOIN file_resource fr
+      ON fr."workspaceId" = dt."workspaceId"
+      AND fr."sourceKind" = 'NATIVE_TABLE'::"FileSourceKind"
+      AND fr."sourceId" = dt.id::text
+    WHERE dt."archivedAt" IS NULL
+      AND latest.sequence IS NOT NULL
+      AND (fr.id IS NULL OR fr."sourceSequence" IS DISTINCT FROM latest.sequence)
+    ORDER BY latest.sequence ASC
+    LIMIT ${limit}
+  `);
+}
+
+/**
+ * Index every table whose contents have moved since it was last indexed.
+ *
+ * The actor is `user`-kind on purpose. That is not a claim about a person:
+ * it is the kind that is *not* narrowed by `scopeForTask`, and a whole-table
+ * index is exactly the un-narrowed view. The readers who could see a
+ * narrowed one — coworker and Soko Bot — are excluded from table content in
+ * `buildAuthorizedResourceSql`, so nothing is widened by this. Indexing
+ * writes no `TableChange`, so no actor identity is recorded anywhere.
+ */
+export async function processStaleTableIndexes(input: {
+  shouldContinue: () => boolean;
+  maxTables?: number;
+}): Promise<TableSyncResult> {
+  const maxTables = input.maxTables ?? 20;
+  const result: TableSyncResult = { scanned: 0, indexed: 0, failed: 0 };
+
+  const stale = await findStaleTables(maxTables);
+
+  for (const table of stale) {
+    if (!input.shouldContinue()) break;
+    result.scanned += 1;
+
+    try {
+      await indexDataTable(
+        {
+          workspaceId: table.workspaceId,
+          userId: table.ownerUserId ?? "",
+          actorId: "system:file-table-index",
+          actorKind: "user",
+        },
+        table.tableId,
+      );
+      await prisma.fileResource.updateMany({
+        where: {
+          workspaceId: table.workspaceId,
+          sourceKind: FileSourceKind.NATIVE_TABLE,
+          sourceId: table.tableId,
+        },
+        data: { sourceSequence: table.latest },
+      });
+      result.indexed += 1;
+    } catch {
+      // One unreadable table must not stop the sweep, and it stays stale so
+      // the next run tries again rather than recording a fresh-looking index.
+      result.failed += 1;
+    }
+  }
+
+  return result;
 }

@@ -2,6 +2,7 @@ import type { Hono } from "hono";
 
 import { processFileIndexJobs } from "@/services/file-index.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
+import { processStaleTableIndexes } from "@/services/file-table-index.service";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -21,9 +22,15 @@ export default function mount(app: Hono) {
         const suggestions = await processFileSuggestionJobs({
           shouldContinue: context.shouldContinue,
         });
+        // Tables carry their own staleness signal — `TableChange.sequence`
+        // — so this re-indexes only what has actually moved.
+        const tables = await processStaleTableIndexes({
+          shouldContinue: context.shouldContinue,
+        });
         console.info("[sync/drive-index] Completed sync", {
           extraction,
           suggestions,
+          tables,
         });
       },
     );

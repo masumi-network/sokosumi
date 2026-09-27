@@ -4974,6 +4974,14 @@ model FileResource {
   mimeType String?
   sizeBytes Int?
 
+  /// For a `NATIVE_TABLE` resource: the `TableChange.sequence` this index
+  /// was built from. A table is stale when `MAX(sequence)` for it exceeds
+  /// this. Null for every other source kind, and for a table never indexed.
+  ///
+  /// The sequence is a global autoincrement, so per table it is monotonic
+  /// but not contiguous — gaps are other tables' changes, never lost ones.
+  sourceSequence BigInt?
+
   /// Bumped when the bytes change.
   contentRevision Int @default(1)
   /// Bumped by a metadata edit that does not change audience.
