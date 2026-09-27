@@ -5,6 +5,9 @@ import type {
   GetNotificationsCountsResponses,
   GetNotificationsData,
   GetNotificationsErrors,
+  GetNotificationsPushDevicesErrors,
+  GetNotificationsPushDevicesResponse,
+  GetNotificationsPushDevicesResponses,
   GetNotificationsResponse,
   GetNotificationsResponses,
   PatchNotificationsByIdReadData,
@@ -77,6 +80,22 @@ async function transformNotificationItemResponse(data: unknown) {
 }
 
 export const notificationsBrowserClient = {
+  async getPushDevices(): Promise<GetNotificationsPushDevicesResponse> {
+    return executeCoreOperation(
+      getNotificationsGeneratedClient,
+      (client) =>
+        client.get<
+          GetNotificationsPushDevicesResponses,
+          GetNotificationsPushDevicesErrors
+        >({
+          url: "/notifications/push-devices",
+          cache: "no-store",
+          responseTransformer: transformMetaTimestampResponse,
+        }),
+      "Failed to fetch push devices",
+    );
+  },
+
   async getNotifications(
     query?: GetNotificationsData["query"],
   ): Promise<GetNotificationsResponse> {

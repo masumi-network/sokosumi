@@ -4484,6 +4484,39 @@
         "kindFollowUp": "Recordatorios",
         "kindFollowUpHint": "Un recordatorio un día después si no has abierto algo que te está esperando."
       },
+      "PushDevices": {
+        "title": "Dispositivos para notificaciones push",
+        "description": "Dispositivos registrados para recibir notificaciones push. Los permisos del navegador y los ajustes de notificaciones siguen controlando la entrega.",
+        "refresh": "Actualizar",
+        "loading": "Cargando dispositivos…",
+        "error": "No se pudieron cargar los dispositivos. Intenta actualizar la lista.",
+        "empty": "No hay dispositivos registrados. Activa Push para una categoría de notificaciones en cada dispositivo que quieras usar.",
+        "thisDevice": "Este dispositivo",
+        "deviceLabel": "{platform} ({formFactor})",
+        "deviceId": "ID del dispositivo: {id}",
+        "states": {
+          "active": "Registrado",
+          "failing": "Problemas de entrega",
+          "failed": "Entrega fallida",
+          "unknown": "Estado desconocido"
+        },
+        "platforms": {
+          "browser": "Navegador",
+          "ios": "iOS",
+          "android": "Android",
+          "unknown": "Dispositivo"
+        },
+        "formFactors": {
+          "desktop": "Ordenador",
+          "phone": "Teléfono",
+          "tablet": "Tableta",
+          "tv": "Televisor",
+          "watch": "Reloj",
+          "car": "Coche",
+          "embedded": "Dispositivo integrado",
+          "other": "Otro"
+        }
+      },
       "ChatDisplay": {
         "title": "Visualización del chat",
         "roomUnreadCountTitle": "Mostrar el número de mensajes no leídos",

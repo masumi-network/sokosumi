@@ -44,6 +44,35 @@ describe("core.notifications.browser.client", () => {
     });
   });
 
+  it("reads push devices with cookies and without caching", async () => {
+    const devices = [
+      {
+        id: "device-1",
+        platform: "browser",
+        formFactor: "desktop",
+        state: "active",
+      },
+    ];
+    await withTransformer(getMock, {
+      data: devices,
+      meta: { timestamp: "2026-09-27T00:00:00Z", requestId: "request-1" },
+    });
+    const { notificationsBrowserClient } = await import(
+      "./core.notifications.browser.client"
+    );
+    const response = await notificationsBrowserClient.getPushDevices();
+    expect(response.data).toEqual(devices);
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({ credentials: "include" }),
+    );
+    expect(getMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/notifications/push-devices",
+        cache: "no-store",
+      }),
+    );
+  });
+
   it("creates a cookie-credentials client and lists notifications", async () => {
     await withTransformer(getMock, {
       data: [

@@ -1,5 +1,5 @@
+import { PushDevices } from "@/app/account/components/push-devices";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-
 import { ChatDisplayPreferences } from "../components/chat-display-preferences";
 import { NotificationPreferences } from "../components/notification-preferences";
 
@@ -19,9 +19,12 @@ export default async function AccountNotificationsPage() {
       <NotificationPreferences
         marketingOptIn={session.user.marketingOptIn ?? false}
       >
-        <ChatDisplayPreferences
-          showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
-        />
+        <div className="space-y-6">
+          <PushDevices userId={session.user.id} />
+          <ChatDisplayPreferences
+            showRoomUnreadCount={session.user.hideRoomUnreadCount !== true}
+          />
+        </div>
       </NotificationPreferences>
     </div>
   );
