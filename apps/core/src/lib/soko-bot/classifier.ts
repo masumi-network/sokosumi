@@ -135,7 +135,7 @@ export function classifyDeterministically(
       /(^|[.!?;]\s*)(?:do not|don['’]t|never)\s+(?:touch|change|modify)\s+(?:(?:any\s+)?other\s+tasks?|anything else)(?:,\s*(?:or\s+)?(?:create schedules|delegate work|send external messages))*(?=[.!?;]|$)/g,
       "$1",
     );
-  if (!normalized) {
+  if (!normalized.replace(/[.!?;:\s]+$/g, "")) {
     return baseClassification(
       "CLARIFY",
       message,

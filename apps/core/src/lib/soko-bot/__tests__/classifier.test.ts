@@ -69,6 +69,26 @@ describe("Soko Bot turn classifier", () => {
       expect(classification?.requestedOutcome).toBe(message.slice(0, 500));
     },
   );
+  it("treats punctuation left by an isolated restriction as empty", () => {
+    expect(
+      classifyDeterministically("Do not touch any other task."),
+    ).toMatchObject({
+      route: "CLARIFY",
+      confidence: 1,
+      rationaleSummary: "Message has no actionable content.",
+    });
+  });
+
+  it("keeps how-to contact questions read-only after restriction normalization", () => {
+    const classification = classifyDeterministically(
+      "How do I get in touch with Nina?",
+    );
+    expect(classification?.route).toBe("DIRECT_RESPONSE");
+    expect(classification?.rationaleSummary).not.toMatch(
+      /chat|file|integration|memory/i,
+    );
+  });
+
   it.each([
     "Do not archive task synthetic-one. Do not touch any other task.",
     "Archive task synthetic-one, but do not archive it yet.",

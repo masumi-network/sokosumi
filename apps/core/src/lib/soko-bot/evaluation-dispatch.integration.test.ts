@@ -17,8 +17,9 @@ import {
 import { z } from "zod";
 
 const config = vi.hoisted(() => ({ raw: "" }));
-const EVALUATION_DATABASE_URL =
-  "postgresql://patrick@127.0.0.1:55439/soko_reliability_evaluation";
+const EVALUATION_DATABASE_HOST = "127.0.0.1";
+const EVALUATION_DATABASE_PORT = "55439";
+const EVALUATION_DATABASE_PATH = "/soko_reliability_evaluation";
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     NETWORK: "Preprod",
@@ -30,11 +31,30 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", async () => {
   const { createPrismaClient } = await import("@sokosumi/database/client");
   const url = process.env.LOCAL_EVALUATION_DATABASE_URL;
-  if (url !== EVALUATION_DATABASE_URL)
+  const databaseUrl = url;
+  if (!databaseUrl) {
     throw new Error(
-      `Explicit disposable evaluation database required: set LOCAL_EVALUATION_DATABASE_URL=${EVALUATION_DATABASE_URL}`,
+      "Explicit disposable evaluation database required: LOCAL_EVALUATION_DATABASE_URL must use postgres:// or postgresql:// with host 127.0.0.1, port 55439 and database /soko_reliability_evaluation",
     );
-  return { default: createPrismaClient(url) };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(databaseUrl);
+  } catch {
+    throw new Error(
+      "Explicit disposable evaluation database required: LOCAL_EVALUATION_DATABASE_URL must use postgres:// or postgresql:// with host 127.0.0.1, port 55439 and database /soko_reliability_evaluation",
+    );
+  }
+  if (
+    !["postgres:", "postgresql:"].includes(parsed.protocol) ||
+    parsed.hostname !== EVALUATION_DATABASE_HOST ||
+    parsed.port !== EVALUATION_DATABASE_PORT ||
+    parsed.pathname.replace(/\/$/, "") !== EVALUATION_DATABASE_PATH
+  )
+    throw new Error(
+      "Explicit disposable evaluation database required: LOCAL_EVALUATION_DATABASE_URL must use postgres:// or postgresql:// with host 127.0.0.1, port 55439 and database /soko_reliability_evaluation",
+    );
+  return { default: createPrismaClient(databaseUrl) };
 });
 describe.skipIf(!process.env.LOCAL_EVALUATION_DATABASE_URL)(
   "durable preview dispatch fence",
