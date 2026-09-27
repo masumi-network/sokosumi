@@ -11,6 +11,8 @@
  * than in a test file because more than one test file needs it.
  */
 
+import { deflateSync } from "node:zlib";
+
 export interface PdfFixtureOptions {
   /** One string per page. An empty string gives a page with no text. */
   pages: string[];
@@ -44,8 +46,26 @@ const MAX_LINES = Math.floor((PAGE_HEIGHT - TOP_MARGIN * 2) / LINE_LEADING);
  * makes a cap test pass for the wrong reason: the cap never fires because
  * the text never arrives.
  */
+/**
+ * Compress the content stream, and do it by default.
+ *
+ * Not for size — these files are under 2 KB either way. An uncompressed
+ * content stream leaves the page's text in the file as plain ASCII, so
+ * `grep` finds it in the raw bytes. That is fatal to any *end-to-end* proof
+ * built on one of these fixtures: if a marker string can reach a stored
+ * excerpt without the parser having run, then finding the marker in the
+ * excerpt proves nothing about the parser. FlateDecode makes the text
+ * unrecoverable by a byte-level read, so the marker's presence downstream
+ * can only mean a PDF reader produced it.
+ *
+ * It also means every test here exercises pdfjs's Flate path, which is what
+ * a real PDF uses, rather than an uncompressed stream that almost none do.
+ */
 function contentStream(text: string): string {
-  if (text.length === 0) return "<< /Length 0 >>\nstream\n\nendstream";
+  if (text.length === 0) {
+    // An empty stream has nothing to hide and nothing to compress.
+    return "<< /Length 0 >>\nstream\n\nendstream";
+  }
 
   const lines: string[] = [];
   for (
@@ -66,7 +86,14 @@ function contentStream(text: string): string {
     })
     .join("\n");
 
-  return `<< /Length ${body.length} >>\nstream\n${body}\nendstream`;
+  // latin1 round-trips arbitrary bytes one-for-one, so the deflated stream
+  // can travel as a string and be recovered exactly when the file is
+  // encoded back to bytes.
+  const deflated = deflateSync(Buffer.from(body, "latin1")).toString("latin1");
+  return (
+    `<< /Length ${deflated.length} /Filter /FlateDecode >>\n` +
+    `stream\n${deflated}\nendstream`
+  );
 }
 
 /**

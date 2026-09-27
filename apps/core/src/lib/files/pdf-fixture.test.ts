@@ -47,6 +47,40 @@ describe("the PDF fixture carries the text it is given", () => {
   );
 
   it(
+    "hides the text from a byte-level read",
+    async () => {
+      /**
+       * The property that makes an end-to-end proof mean anything.
+       *
+       * An uncompressed content stream leaves the page text in the file as
+       * plain ASCII. A marker string could then reach a stored excerpt
+       * without any PDF reader having run, and "the excerpt contains the
+       * marker" would prove nothing about the parser — a check that passes
+       * honestly while answering a question nobody asked.
+       *
+       * With FlateDecode the marker is not in the bytes, so downstream it
+       * can only have come from a reader that decompressed and interpreted
+       * the page.
+       */
+      const marker = "Zarbrinthquarterlyreconciliation";
+      const bytes = buildPdfFixture({ pages: [marker] });
+
+      // Not present as raw bytes, in any single-byte encoding.
+      const asLatin1 = Buffer.from(bytes).toString("latin1");
+      expect(asLatin1).not.toContain(marker);
+      expect(Buffer.from(bytes).toString("utf8")).not.toContain(marker);
+      // And the stream really is declared compressed.
+      expect(asLatin1).toContain("/Filter /FlateDecode");
+
+      // But a reader still gets it back.
+      const outcome = await extractPdfText(bytes);
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) expect(outcome.text).toContain(marker);
+    },
+    TIMEOUT,
+  );
+
+  it(
     "keeps pages separate and in order",
     async () => {
       const outcome = await extractPdfText(
