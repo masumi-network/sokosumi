@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node";
 import {
   FileExtractionState,
   FileResourceLifecycle,
@@ -405,9 +406,27 @@ export async function processStaleTableIndexes(input: {
         data: { sourceSequence: table.latest },
       });
       result.indexed += 1;
-    } catch {
+    } catch (error) {
       // One unreadable table must not stop the sweep, and it stays stale so
-      // the next run tries again rather than recording a fresh-looking index.
+      // the next run tries again rather than recording a fresh-looking
+      // index.
+      //
+      // The reason is reported rather than only counted. A bare
+      // `failed += 1` hid a real client-regeneration error during
+      // development, and in production nobody is there to temporarily
+      // unswallow it — a count with no reason is how a broken indexer looks
+      // healthy.
+      Sentry.captureException(error, {
+        level: "warning",
+        tags: { function: "processStaleTableIndexes" },
+        extra: {
+          tableId: table.tableId,
+          workspaceId: table.workspaceId,
+          latestSequence: String(table.latest),
+          consequence:
+            "This table stays stale and will be retried on the next sync.",
+        },
+      });
       result.failed += 1;
     }
   }

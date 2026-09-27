@@ -6408,7 +6408,20 @@
         "previewDownload": "Descargar",
         "previewLoading": "Cargando vista previa",
         "previewUnavailable": "No se pudo cargar esta vista previa. La descarga sigue funcionando.",
-        "previewNotRenderable": "No hay vista previa integrada para este tipo de archivo. Ábrelo en una pestaña o descárgalo."
+        "previewNotRenderable": "No hay vista previa integrada para este tipo de archivo. Ábrelo en una pestaña o descárgalo.",
+        "collectionSave": "Guardar como colección",
+        "collectionNamePrompt": "Nombre de esta colección",
+        "collectionSaved": "Se guardó «{name}»",
+        "collectionUpdated": "Se actualizó «{name}»",
+        "collectionSaveFailed": "No se pudo guardar esa colección.",
+        "collectionDeleteFailed": "No se pudo eliminar esa colección.",
+        "collectionsLoading": "Cargando colecciones",
+        "collectionsEmpty": "Aún no hay colecciones guardadas",
+        "collectionsUnavailable": "No se pudieron cargar las colecciones.",
+        "collectionActions": "Acciones para {name}",
+        "collectionResave": "Guardar los filtros actuales aquí",
+        "collectionRename": "Cambiar el nombre",
+        "collectionDelete": "Eliminar"
       }
     },
     "SokoBot": {

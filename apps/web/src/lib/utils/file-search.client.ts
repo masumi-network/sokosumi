@@ -8,12 +8,15 @@ import type {
   WorkspaceLabel,
 } from "@/lib/clients/generated/core";
 import {
+  deleteDriveCollectionsById,
   getDriveCollections,
   getDriveLabels,
   getDriveResourcesById,
   getDriveResourcesByIdRelated,
   getDriveSearch,
+  patchDriveCollectionsById,
   patchDriveResourcesByIdMetadata,
+  postDriveCollections,
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   postDriveResourcesMetadataBatch,
   postDriveResourcesSelectionToken,
@@ -137,6 +140,78 @@ export async function fetchFileCollections(input: {
     throwOnError: true,
   });
   return response.data.data;
+}
+
+/**
+ * Save the current filters and sort as a collection.
+ *
+ * The store is the caller's own, deliberately: creating in one scope and
+ * listing in another is how an author ends up unable to see what they just
+ * saved. Both calls take the same `store`.
+ */
+export async function createFileCollection(input: {
+  store: FileStore;
+  name: string;
+  definition: Record<string, unknown>;
+  sortBy?: string | null;
+  sortOrder?: "asc" | "desc" | null;
+  signal?: AbortSignal;
+}): Promise<FileCollection> {
+  const response = await postDriveCollections({
+    client: getBrowserCoreClient(),
+    body: {
+      ...storeQuery(input.store),
+      name: input.name,
+      definition: input.definition,
+      sortBy: input.sortBy ?? null,
+      sortOrder: input.sortOrder ?? null,
+    },
+    signal: input.signal,
+    throwOnError: true,
+  });
+  return response.data.data;
+}
+
+/** Rename a collection, or re-save it over the current filters. */
+export async function updateFileCollection(input: {
+  store: FileStore;
+  collectionId: string;
+  name?: string;
+  definition?: Record<string, unknown>;
+  sortBy?: string | null;
+  sortOrder?: "asc" | "desc" | null;
+  signal?: AbortSignal;
+}): Promise<FileCollection> {
+  const response = await patchDriveCollectionsById({
+    client: getBrowserCoreClient(),
+    path: { id: input.collectionId },
+    body: {
+      ...storeQuery(input.store),
+      ...(input.name === undefined ? {} : { name: input.name }),
+      ...(input.definition === undefined
+        ? {}
+        : { definition: input.definition }),
+      ...(input.sortBy === undefined ? {} : { sortBy: input.sortBy }),
+      ...(input.sortOrder === undefined ? {} : { sortOrder: input.sortOrder }),
+    },
+    signal: input.signal,
+    throwOnError: true,
+  });
+  return response.data.data;
+}
+
+export async function deleteFileCollection(input: {
+  store: FileStore;
+  collectionId: string;
+  signal?: AbortSignal;
+}): Promise<void> {
+  await deleteDriveCollectionsById({
+    client: getBrowserCoreClient(),
+    path: { id: input.collectionId },
+    query: storeQuery(input.store),
+    signal: input.signal,
+    throwOnError: true,
+  });
 }
 
 export async function fetchFileResource(input: {

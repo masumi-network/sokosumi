@@ -22762,6 +22762,109 @@ export type DeleteDriveCollectionsByIdResponses = {
 
 export type DeleteDriveCollectionsByIdResponse = DeleteDriveCollectionsByIdResponses[keyof DeleteDriveCollectionsByIdResponses];
 
+export type PatchDriveCollectionsByIdData = {
+    body: {
+        name?: string;
+        definition?: {
+            [key: string]: unknown;
+        };
+        sortBy?: string | null;
+        sortOrder?: 'asc' | 'desc' | null;
+        isShared?: boolean;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/collections/{id}';
+};
+
+export type PatchDriveCollectionsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveCollectionsByIdError = PatchDriveCollectionsByIdErrors[keyof PatchDriveCollectionsByIdErrors];
+
+export type PatchDriveCollectionsByIdResponses = {
+    /**
+     * Collection updated
+     */
+    200: {
+        data: FileCollection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveCollectionsByIdResponse = PatchDriveCollectionsByIdResponses[keyof PatchDriveCollectionsByIdResponses];
+
 export type GetDriveFilesData = {
     body?: never;
     path?: never;

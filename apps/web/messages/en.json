@@ -6408,7 +6408,20 @@
         "previewDownload": "Download",
         "previewLoading": "Loading preview",
         "previewUnavailable": "This preview could not be loaded. The download still works.",
-        "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it."
+        "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it.",
+        "collectionSave": "Save as collection",
+        "collectionNamePrompt": "Name for this collection",
+        "collectionSaved": "Saved “{name}”",
+        "collectionUpdated": "Updated “{name}”",
+        "collectionSaveFailed": "That collection could not be saved.",
+        "collectionDeleteFailed": "That collection could not be deleted.",
+        "collectionsLoading": "Loading collections",
+        "collectionsEmpty": "No saved collections yet",
+        "collectionsUnavailable": "Collections could not be loaded.",
+        "collectionActions": "Actions for {name}",
+        "collectionResave": "Save current filters here",
+        "collectionRename": "Rename",
+        "collectionDelete": "Delete"
       }
     },
     "SokoBot": {

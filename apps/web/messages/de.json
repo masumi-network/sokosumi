@@ -6408,7 +6408,20 @@
         "previewDownload": "Herunterladen",
         "previewLoading": "Vorschau wird geladen",
         "previewUnavailable": "Diese Vorschau konnte nicht geladen werden. Der Download funktioniert weiterhin.",
-        "previewNotRenderable": "Keine Inline-Vorschau für diesen Dateityp. Öffne sie in einem Tab oder lade sie herunter."
+        "previewNotRenderable": "Keine Inline-Vorschau für diesen Dateityp. Öffne sie in einem Tab oder lade sie herunter.",
+        "collectionSave": "Als Sammlung speichern",
+        "collectionNamePrompt": "Name für diese Sammlung",
+        "collectionSaved": "„{name}“ gespeichert",
+        "collectionUpdated": "„{name}“ aktualisiert",
+        "collectionSaveFailed": "Diese Sammlung konnte nicht gespeichert werden.",
+        "collectionDeleteFailed": "Diese Sammlung konnte nicht gelöscht werden.",
+        "collectionsLoading": "Sammlungen werden geladen",
+        "collectionsEmpty": "Noch keine gespeicherten Sammlungen",
+        "collectionsUnavailable": "Sammlungen konnten nicht geladen werden.",
+        "collectionActions": "Aktionen für {name}",
+        "collectionResave": "Aktuelle Filter hier speichern",
+        "collectionRename": "Umbenennen",
+        "collectionDelete": "Löschen"
       }
     },
     "SokoBot": {
