@@ -10,8 +10,6 @@ const catalogSchema = z.object({
   data: z.array(
     z.object({
       id: z.string(),
-      regions: z.array(z.string()).optional(),
-      zdr: z.string().optional(),
     }),
   ),
 });
@@ -33,7 +31,7 @@ const resultSchema = z.object({
   }),
 });
 
-/** No content leaves Core until the live catalog advertises EU and retention support. */
+/** Discover the model; Gateway enforces retention on each evaluation request. */
 export async function taskTagProviderAvailable(
   signal: AbortSignal,
 ): Promise<boolean> {
@@ -45,13 +43,9 @@ export async function taskTagProviderAvailable(
   if (!response.ok) return false;
   const parsed = catalogSchema.safeParse(await response.json());
   if (!parsed.success) return false;
-  const model = parsed.data.data.find(
-    (entry) => entry.id === JEV_TASK_TAG_MODEL,
-  );
-  return (
-    model?.regions?.includes("eu") === true &&
-    ["all", "some"].includes(model.zdr ?? "")
-  );
+  // The public catalog omits the TypeSafe ZDR route; do not use its aggregate
+  // retention flags to reject a route that Gateway can enforce per request.
+  return parsed.data.data.some((entry) => entry.id === JEV_TASK_TAG_MODEL);
 }
 
 export async function classifyTaskTags(
@@ -83,7 +77,6 @@ export async function classifyTaskTags(
       ),
       providerOptions: {
         gateway: {
-          inferenceRegion: { scope: "zone", geoRegion: "eu" },
           zeroDataRetention: true,
           disallowPromptTraining: true,
         },

@@ -78,6 +78,22 @@ describe("TaskListItem privacy cue", () => {
 });
 
 describe("TaskListItem description preview", () => {
+  it("hides only the description when switching to Compact", () => {
+    const task = {
+      ...buildTask(TaskVisibility.PRIVATE),
+      descriptionPlain: "Full instructions remain in task detail.",
+    };
+    const { rerender } = render(<TaskListItem task={task} />);
+    expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();
+    rerender(<TaskListItem task={task} compact />);
+    expect(screen.queryByText(task.descriptionPlain)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
+    expect(screen.getByLabelText("Private")).toBeInTheDocument();
+    expect(screen.getByText("Mar 1")).toBeInTheDocument();
+  });
   it("shows an em dash instead of raw context attachment markdown", () => {
     const task = {
       ...buildTask(TaskVisibility.PUBLIC),
