@@ -47,6 +47,59 @@ describe("the PDF fixture carries the text it is given", () => {
   );
 
   it(
+    "lays out everything it is given, across as many pages as it needs",
+    async () => {
+      /**
+       * The clamp this replaces is why a truncation bug at ~143 KB of
+       * extracted text survived review.
+       *
+       * The layout stopped at 50 lines and discarded the rest, so a page
+       * could hold 2,250 characters and asking for more silently returned
+       * 2,250. Reaching the truncation needed 64 pages; nothing in the
+       * suite could build more than one page's worth, so no test could
+       * have caught it. That is this file's own stated failure mode —
+       * "a fixture that drops the tail of its own text makes a cap test
+       * pass because the text never arrived" — at a different threshold.
+       */
+      for (const asked of [2_250, 2_251, 10_000]) {
+        const text = "Q".repeat(asked);
+        const outcome = await extractPdfText(
+          buildPdfFixture({ pages: [text] }),
+        );
+
+        expect(outcome.ok).toBe(true);
+        if (!outcome.ok) return;
+        expect(withoutWhitespace(outcome.text)).toHaveLength(asked);
+        // And it really did use more pages rather than a longer one.
+        expect(outcome.pages).toBe(Math.ceil(asked / 2_250));
+      }
+    },
+    TIMEOUT,
+  );
+
+  it(
+    "round-trips every printable ASCII character",
+    async () => {
+      /**
+       * Including the apostrophe and the backtick, which the default
+       * StandardEncoding rewrites to typographic quotes. A marker string
+       * containing "doesn't" would otherwise fail a `toContain` for a
+       * reason that has nothing to do with the code under test.
+       */
+      const ascii = Array.from({ length: 0x7e - 0x21 + 1 }, (_, i) =>
+        String.fromCharCode(0x21 + i),
+      ).join("");
+
+      const outcome = await extractPdfText(buildPdfFixture({ pages: [ascii] }));
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(withoutWhitespace(outcome.text)).toBe(ascii);
+    },
+    TIMEOUT,
+  );
+
+  it(
     "hides the text from a byte-level read",
     async () => {
       /**

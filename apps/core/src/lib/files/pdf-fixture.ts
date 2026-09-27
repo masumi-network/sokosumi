@@ -61,18 +61,46 @@ const MAX_LINES = Math.floor((PAGE_HEIGHT - TOP_MARGIN * 2) / LINE_LEADING);
  * It also means every test here exercises pdfjs's Flate path, which is what
  * a real PDF uses, rather than an uncompressed stream that almost none do.
  */
+/** Characters one physical page can hold at this layout. */
+const PAGE_CAPACITY = LINE_CHARS * MAX_LINES;
+
+/**
+ * Spread one requested page's text over as many physical pages as it needs.
+ *
+ * The layout previously stopped at `MAX_LINES` and threw the rest away, so
+ * asking for a 10,000 character page produced 2,250 characters and no
+ * error. That is the defect this file's own comment says it exists to
+ * prevent — "a fixture that drops the tail of its own text makes a cap test
+ * pass because the text never arrived" — reintroduced at a different
+ * threshold, and it is the direct reason a truncation bug at ~143 KB of
+ * extracted output survived: reaching it needs 64 pages and nothing in the
+ * suite used more than 12.
+ *
+ * Paginating rather than throwing, because the callers that matter want to
+ * say "give me this much text" without doing the arithmetic themselves.
+ * An empty page stays one empty page: that is how a scan is asked for.
+ */
+function paginate(text: string): string[] {
+  if (text.length === 0) return [""];
+
+  const out: string[] = [];
+  for (let at = 0; at < text.length; at += PAGE_CAPACITY) {
+    out.push(text.slice(at, at + PAGE_CAPACITY));
+  }
+  return out;
+}
+
 function contentStream(text: string): string {
   if (text.length === 0) {
     // An empty stream has nothing to hide and nothing to compress.
     return "<< /Length 0 >>\nstream\n\nendstream";
   }
 
+  // No clamp here. `paginate` has already guaranteed this text fits one
+  // page, so a limit at this level could only silently discard text —
+  // which is the bug being fixed.
   const lines: string[] = [];
-  for (
-    let at = 0;
-    at < text.length && lines.length < MAX_LINES;
-    at += LINE_CHARS
-  ) {
+  for (let at = 0; at < text.length; at += LINE_CHARS) {
     lines.push(text.slice(at, at + LINE_CHARS));
   }
 
@@ -107,14 +135,27 @@ function contentStream(text: string): string {
  * like it is testing.
  */
 export function buildPdfFixture({ pages }: PdfFixtureOptions): Uint8Array {
+  const laidOut = pages.flatMap(paginate);
   const objects: string[] = [];
-  const kids = pages.map((_, index) => `${4 + index * 2} 0 R`).join(" ");
+  const kids = laidOut.map((_, index) => `${4 + index * 2} 0 R`).join(" ");
 
   objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
-  objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${pages.length} >>`;
-  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  objects[2] = `<< /Type /Pages /Kids [${kids}] /Count ${laidOut.length} >>`;
+  /**
+   * `WinAnsiEncoding`, explicitly.
+   *
+   * Without it the font uses StandardEncoding, which maps 0x27 to
+   * `quoteright` and 0x60 to `quoteleft` — so an apostrophe goes in and a
+   * typographic quote comes out. Every printable ASCII character round
+   * trips except those two, which is exactly the kind of exception that
+   * turns a future marker string like "doesn't reconcile" into a failing
+   * assertion about something the test was not testing.
+   */
+  objects[3] =
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica " +
+    "/Encoding /WinAnsiEncoding >>";
 
-  pages.forEach((text, index) => {
+  laidOut.forEach((text, index) => {
     const pageNumber = 4 + index * 2;
     const contentNumber = pageNumber + 1;
     objects[pageNumber] =
