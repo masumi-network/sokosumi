@@ -37,3 +37,18 @@ capacity with those tasks, while prioritizing queued creates and edits. See
 The draft PR starts with this document because the PR-open workflow deploys both
 networks when application paths change. The UI commit follows PR creation and
 is deployed only through an explicit `/deploy preprod` comment.
+
+## Task detail Files
+
+Long file lists initially show three whole cards. The centered, localized
+Expand/Show less button matches the description control, exposes every supplied
+file when expanded, and uses native keyboard behavior with `aria-expanded` and
+`aria-controls`. Short and empty lists have no toggle. Hidden cards are unmounted
+so their links cannot receive focus. Expansion survives same-task data refresh
+and resets when task identity changes.
+
+Authenticated detail and shared detail both use this component. Their current
+Core includes return the complete files relation, newest first, without a cursor
+or page limit. Existing readiness, preview/download components and permissions
+remain unchanged. The application has a task edit modal over full detail, but
+no separate task detail modal; verify that overlay preserves underlying state.

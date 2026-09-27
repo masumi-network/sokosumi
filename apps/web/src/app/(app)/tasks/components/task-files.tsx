@@ -1,6 +1,10 @@
+"use client";
+
 import { FileIcon } from "lucide-react";
+import { useId, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
+import { Button } from "@/components/ui/button";
 import type {
   PublicSharedTaskFile,
   TaskFile,
@@ -12,7 +16,10 @@ export type TaskFileListItem =
   | PublicSharedTaskFile;
 
 interface TaskFilesProps {
+  taskId: string;
   title: string;
+  expandLabel: string;
+  collapseLabel: string;
   files: TaskFileListItem[];
   className?: string;
 }
@@ -32,7 +39,21 @@ function isFileReady(file: TaskFileListItem): boolean {
 /**
  * Read-only list of task files. Shows PENDING/FAILED with status badges, READY with clickable chips. Hidden when empty.
  */
-export function TaskFiles({ title, files, className }: TaskFilesProps) {
+export function TaskFiles(props: TaskFilesProps) {
+  return <TaskFilesContent key={props.taskId} {...props} />;
+}
+
+function TaskFilesContent({
+  title,
+  files,
+  expandLabel,
+  collapseLabel,
+  className,
+}: TaskFilesProps) {
+  const [expanded, setExpanded] = useState(false);
+  const contentId = useId();
+  const isExpandable = files.length > 3;
+  const visibleFiles = expanded ? files : files.slice(0, 3);
   if (files.length === 0) {
     return null;
   }
@@ -42,8 +63,11 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
       <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
         {title}
       </h2>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
-        {files.map((file) =>
+      <div
+        id={contentId}
+        className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2"
+      >
+        {visibleFiles.map((file) =>
           file.fileUrl && isFileReady(file) ? (
             <FileChipWithMetadata
               key={file.id}
@@ -74,6 +98,20 @@ export function TaskFiles({ title, files, className }: TaskFilesProps) {
           ),
         )}
       </div>
+      {isExpandable ? (
+        <div className="mt-2 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-7 rounded-full px-3 text-xs font-semibold"
+            aria-expanded={expanded}
+            aria-controls={contentId}
+            onClick={() => setExpanded((value) => !value)}
+          >
+            {expanded ? collapseLabel : expandLabel}
+          </Button>
+        </div>
+      ) : null}
     </section>
   );
 }
