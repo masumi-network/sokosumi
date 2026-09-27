@@ -161,7 +161,7 @@ export function ProjectForm({
         <div
           className={
             isModal
-              ? "flex min-h-0 flex-1 flex-col overflow-y-auto space-y-4 px-6 py-5"
+              ? "app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto space-y-4 px-6 py-5"
               : "space-y-4 border-t px-6 py-6"
           }
         >

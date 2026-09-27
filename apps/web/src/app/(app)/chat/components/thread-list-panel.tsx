@@ -293,7 +293,7 @@ export function ThreadListPanel({
           </Button>
         </div>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-1">
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-1">
         {isLoading && items.length === 0 ? (
           <div className="text-muted-foreground flex items-center justify-center gap-2 px-2 py-6 text-sm">
             <Loader2 className="size-4 animate-spin" />

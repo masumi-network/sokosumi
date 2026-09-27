@@ -1037,7 +1037,7 @@ export function TaskForm({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <section className="flex min-h-0 flex-1 flex-col">
-        <div className="[&::-webkit-scrollbar-thumb]:bg-tertiary flex min-h-0 flex-1 flex-col overflow-y-auto [scrollbar-width:thin] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+        <div className="app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto">
           {useWizard && step === 1 ? (
             <div className="flex min-h-0 flex-1 flex-col px-6 py-3 md:px-8 md:py-0">
               <AgentSpotlight
@@ -1364,7 +1364,7 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            <div className="flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+            <div className="app-scrollbar flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
               <AttachmentSubmenu
                 onUploadClick={() => attachmentTriggerRef.current?.click()}
                 onDriveClick={() =>
