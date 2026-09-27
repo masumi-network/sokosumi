@@ -20,6 +20,7 @@ const optInPostgresFiles = [
   "src/services/soko-bot-integrations.service.postgres.test.ts",
   "src/services/source-import-github.postgres.test.ts",
   "src/services/file-search.postgres.test.ts",
+  "src/services/file-suggestions.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

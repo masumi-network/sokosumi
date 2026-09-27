@@ -8,6 +8,7 @@ import {
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
+import type { FileActor } from "@/lib/files/actor";
 import {
   ensureEvidenceScope,
   resolveScopeEpoch,
@@ -170,6 +171,22 @@ export async function runSuggestionJob(
   const model = getEnv().FILES_RANKING_MODEL;
   let suggested = 0;
 
+  /**
+   * One actor, used for both the epoch and the admission.
+   *
+   * These used to differ: the prepared epoch was computed for an empty
+   * actor while `admitJevRequest` recomputed it for the resource owner.
+   * `resolveScopeEpoch` hashes `userId` and `organizationId`, so the two
+   * never matched and admission was denied for every owned resource — which
+   * is every resource. The pipeline could not suggest anything, and said so
+   * nowhere: the job completed as a success with zero suggestions.
+   */
+  const workerActor: FileActor = {
+    userId: resource.ownerUserId ?? "",
+    organizationId: resource.ownerOrganizationId,
+    kind: "worker",
+  };
+
   // One bounded request per candidate label. The rubric is a short ladder of
   // boolean questions, so a reply is a set of booleans we can validate and
   // place on the 0-3 scale, not prose to parse.
@@ -196,19 +213,20 @@ export async function runSuggestionJob(
 
     const admission = await admitJevRequest({
       workspaceId: resource.workspaceId,
-      actor: {
-        userId: resource.ownerUserId ?? "",
-        organizationId: resource.ownerOrganizationId,
-        kind: "worker",
-      },
+      actor: workerActor,
       purpose: "label-suggest",
       payloadDigest: request.digest,
       inputTokens: request.tokens,
       model,
-      preparedEpoch: await currentWorkerEpoch(resource.workspaceId),
+      preparedEpoch: await resolveScopeEpoch({
+        workspaceId: resource.workspaceId,
+        actor: workerActor,
+      }),
     });
     if (!admission) {
-      scheduler.settle("failed");
+      // Local refusal, not a provider failure: give the slot back without
+      // telling the breaker anything.
+      scheduler.release();
       break;
     }
 
@@ -256,18 +274,6 @@ export async function runSuggestionJob(
 
   await completeFileIndexJob({ jobId: job.id, leaseOwner });
   return { suggested, skipped: null };
-}
-
-/**
- * The epoch a worker's request is admitted against. Workers act for no
- * reader, so this is the workspace's own vocabulary and scope clock rather
- * than an actor's view.
- */
-async function currentWorkerEpoch(workspaceId: string): Promise<string> {
-  return resolveScopeEpoch({
-    workspaceId,
-    actor: { userId: "", organizationId: null, kind: "worker" },
-  });
 }
 
 export interface SuggestionSyncResult {

@@ -177,12 +177,16 @@ export async function rerankFileCandidates(
             preparedEpoch: input.epoch,
           });
 
+          // Both of these refuse before anything is dispatched, so the slot
+          // comes back but the breaker hears nothing: it watches the
+          // provider, and our own authorization decisions are not its
+          // business.
           if (!admission) {
-            scheduler.settle("failed");
+            scheduler.release();
             return { failed: "admission-denied" };
           }
           if (!isAdmissionDispatchable(admission)) {
-            scheduler.settle("failed");
+            scheduler.release();
             await recordDispatch({
               admissionId: admission.id,
               outcome: "expired-before-dispatch",

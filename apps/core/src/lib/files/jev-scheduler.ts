@@ -225,9 +225,22 @@ export class JevScheduler {
   }
 
   /**
-   * Settle a reservation. The token cost is deliberately not returned: a
-   * dispatched request is charged whether it succeeded, failed or the reader
-   * navigated away.
+   * Give back a reservation that never became a provider call.
+   *
+   * Admission was granted, then something local refused before dispatch — a
+   * denied authorization, an expired admission, a rejected request body. The
+   * slot must come back, but the breaker must not hear about it: it exists to
+   * notice *the provider* failing, and counting our own refusals against it
+   * opened it during a run that never reached the network once.
+   */
+  release(): void {
+    this.inFlight = Math.max(0, this.inFlight - 1);
+  }
+
+  /**
+   * Settle a reservation that was dispatched. The token cost is deliberately
+   * not returned: a dispatched request is charged whether it succeeded,
+   * failed or the reader navigated away.
    */
   settle(outcome: "ok" | "failed"): void {
     this.inFlight = Math.max(0, this.inFlight - 1);
