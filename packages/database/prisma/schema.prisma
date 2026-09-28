@@ -5488,6 +5488,17 @@ model FileResultWindow {
   /// can say "more may match" without claiming a corpus total.
   truncated Boolean @default(false)
 
+  /// How the stored order was produced: "model" or "deterministic".
+  ///
+  /// A cursor page serves positions out of this order and ranks nothing, so
+  /// it has no way to recompute the mode and used to report the initialiser
+  /// — page one said "model" and page two said "deterministic" for the same
+  /// window. Recorded once, with the order it describes.
+  ///
+  /// Only the mode. The fallback reason belongs to an attempt, and a cursor
+  /// page attempts no ranking, so null stays the honest answer there.
+  rankingMode String @default("deterministic")
+
   expiresAt DateTime
 
   @@index([workspaceId, actorFingerprint])

@@ -217,16 +217,39 @@ export async function indexDataTable(
     }),
   });
 
-  // Replace rather than append: a table's text is a snapshot of its rows.
-  await prisma.fileChunk.deleteMany({ where: { versionId: version.id } });
-  if (text.length > 0) {
+  /**
+   * Replace rather than append — a table's text is a snapshot of its rows
+   * — and replace in one transaction.
+   *
+   * The delete used to commit on its own, ahead of the writes. Between
+   * the two, every other connection saw a document with no text at all
+   * while its version row still said INDEXED with coverage 1: the table
+   * was listed in Drive, a search for a value in it returned nothing, and
+   * there was no error and no coverage shortfall to explain the absence.
+   * A re-index of a large table holds that state open for as long as the
+   * chunk writes take, and this runs on the sync cycle against tables
+   * people are using.
+   *
+   * One transaction closes it. An observer outside reads the previous
+   * chunks until this commits and the new ones after, and never the gap:
+   * the delete is not visible to any other snapshot until the writes are
+   * too. `writeVersionChunks` takes the transaction client for exactly
+   * this, and does its own delete inside it, so the empty-text case is
+   * the only one that needs the explicit one.
+   */
+  await prisma.$transaction(async (tx) => {
+    if (text.length === 0) {
+      await tx.fileChunk.deleteMany({ where: { versionId: version.id } });
+      return;
+    }
     await writeVersionChunks({
       versionId: version.id,
       evidenceScopeId: scope.id,
       scopeVersion: scope.scopeVersion,
       chunks: chunkExtractedText(text),
+      client: tx,
     });
-  }
+  });
 
   return { resourceId, rowsIndexed, rowsTotal, state, coverage };
 }

@@ -6374,7 +6374,6 @@
         "tagRemoved": "Etiqueta quitada. No se volverá a sugerir.",
         "saveConflict": "Se actualizó en otro sitio: revisa los cambios.",
         "suggestedLabel": "Sugerido",
-        "suggestionWhy": "Por qué",
         "suggestionStale": "Basado en una versión anterior",
         "suggestionAccept": "Aceptar",
         "suggestionDismiss": "Descartar",
@@ -6428,7 +6427,8 @@
         "addTagSearch": "Buscar etiquetas",
         "addTagEmpty": "No hay etiquetas para añadir",
         "addTagUnavailable": "No se pudieron cargar las etiquetas",
-        "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior."
+        "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior.",
+        "suggestionExcerpt": "De este documento"
       }
     },
     "SokoBot": {

@@ -130,6 +130,8 @@ export function decodeSearchCursor(
   return payload;
 }
 
+export type WindowRankingMode = "deterministic" | "model";
+
 export async function createResultWindow(input: {
   workspaceId: string;
   actor: FileActor;
@@ -138,6 +140,15 @@ export async function createResultWindow(input: {
   epochVector: string;
   entries: WindowEntry[];
   truncated: boolean;
+  /**
+   * How this order was produced. Stored with the order because a cursor
+   * page serves positions out of it and ranks nothing, so it cannot work
+   * the answer out for itself.
+   *
+   * Defaulted for callers that never rank — a selection window is a set of
+   * ids, not a ranked order.
+   */
+  rankingMode?: WindowRankingMode;
   now?: Date;
 }): Promise<{ id: string }> {
   const now = input.now ?? new Date();
@@ -158,6 +169,7 @@ export async function createResultWindow(input: {
         RESULT_WINDOW_LIMIT,
       ) as unknown as Prisma.InputJsonValue,
       truncated: input.truncated,
+      rankingMode: input.rankingMode ?? "deterministic",
       expiresAt: new Date(now.getTime() + ttl),
     },
     select: { id: true },
@@ -176,6 +188,8 @@ export interface LoadedWindow {
   entries: WindowEntry[];
   truncated: boolean;
   bindingDigest: string;
+  /** The mode the stored order was produced under, as recorded. */
+  rankingMode: WindowRankingMode;
 }
 
 /**
@@ -226,8 +240,37 @@ export async function loadResultWindow(input: {
       entries: record.entries as unknown as WindowEntry[],
       truncated: record.truncated,
       bindingDigest: record.bindingDigest,
+      // Read back rather than re-derived. "model" is the only other value
+      // ever written, and anything else is treated as the safe one.
+      rankingMode: record.rankingMode === "model" ? "model" : "deterministic",
     },
   };
+}
+
+/**
+ * Drop result windows nobody can read again.
+ *
+ * `loadResultWindow` refuses a record whose `expiresAt` has passed, so a
+ * row past that point is unreachable by every code path there is. Nothing
+ * deleted them: the model was used exactly twice, `create` on a new search
+ * and `findUnique` on a cursor, and the table grew one row per search per
+ * actor, each carrying a JSON array of up to `RESULT_WINDOW_LIMIT` result
+ * positions, forever.
+ *
+ * `@@index([expiresAt])` has been on the model from the start with no
+ * reader. This is the sweep it was for.
+ *
+ * Deleting on the same predicate the reader refuses on means this can
+ * never remove a window a cursor could still follow: a row it deletes is
+ * one `loadResultWindow` would already have answered "expired" for.
+ */
+export async function pruneExpiredResultWindows(input?: {
+  now?: Date;
+}): Promise<number> {
+  const { count } = await prisma.fileResultWindow.deleteMany({
+    where: { expiresAt: { lt: input?.now ?? new Date() } },
+  });
+  return count;
 }
 
 export interface WindowPageInput {

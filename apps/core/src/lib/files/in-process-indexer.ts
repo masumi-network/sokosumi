@@ -162,6 +162,7 @@ const NO_SUGGESTIONS: SuggestionSyncResult = {
   suggested: 0,
   failed: 0,
   deferred: 0,
+  noVocabulary: 0,
 };
 
 export async function runIndexingNudge(): Promise<IndexingNudgeResult> {

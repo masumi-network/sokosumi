@@ -428,7 +428,7 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
                   </div>
                   {suggestion.evidenceSnippet ? (
                     <p className="text-muted-foreground text-xs">
-                      {t("suggestionWhy")}: “{suggestion.evidenceSnippet}”
+                      {t("suggestionExcerpt")}: “{suggestion.evidenceSnippet}”
                     </p>
                   ) : null}
                   <div className="flex gap-2">

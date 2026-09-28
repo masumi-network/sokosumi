@@ -6374,7 +6374,6 @@
         "tagRemoved": "Tag entfernt. Es wird nicht erneut vorgeschlagen.",
         "saveConflict": "Zwischenzeitlich geändert – bitte die Änderungen prüfen.",
         "suggestedLabel": "Vorschlag",
-        "suggestionWhy": "Warum",
         "suggestionStale": "Beruht auf einer älteren Version",
         "suggestionAccept": "Übernehmen",
         "suggestionDismiss": "Verwerfen",
@@ -6428,7 +6427,8 @@
         "addTagSearch": "Tags durchsuchen",
         "addTagEmpty": "Keine Tags zum Hinzufügen",
         "addTagUnavailable": "Tags konnten nicht geladen werden",
-        "tagAdded": "Tag hinzugefügt. Eine frühere Entfernung gilt nicht mehr."
+        "tagAdded": "Tag hinzugefügt. Eine frühere Entfernung gilt nicht mehr.",
+        "suggestionExcerpt": "Aus diesem Dokument"
       }
     },
     "SokoBot": {

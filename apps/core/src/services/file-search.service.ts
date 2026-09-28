@@ -116,6 +116,19 @@ export async function searchFiles(
       entries = loaded.window.entries;
       truncated = loaded.window.truncated;
       position = payload.p;
+      /**
+       * As recorded with the order, not as re-derived.
+       *
+       * Both pages serve positions out of one stored order. This branch
+       * ranks nothing, so it used to leave the initialiser alone and page
+       * two reported "deterministic" for a window the model had ordered.
+       * The same twenty documents, the same order, and two different
+       * accounts of how they got there.
+       *
+       * `rankingFallback` stays null here on purpose: it describes an
+       * attempt, and this page attempts no ranking.
+       */
+      rankingMode = loaded.window.rankingMode;
     } else {
       restarted = true;
     }
@@ -163,6 +176,9 @@ export async function searchFiles(
       epochVector,
       entries,
       truncated,
+      // Stored with the order it describes, so every later page of this
+      // window reports the same thing this page does.
+      rankingMode,
     });
     windowId = created.id;
     position = 0;

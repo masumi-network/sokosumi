@@ -6374,7 +6374,6 @@
         "tagRemoved": "Tag removed. It will not be suggested again.",
         "saveConflict": "Updated elsewhere — review the changes.",
         "suggestedLabel": "Suggested",
-        "suggestionWhy": "Why",
         "suggestionStale": "Based on an older version",
         "suggestionAccept": "Accept",
         "suggestionDismiss": "Dismiss",
@@ -6428,7 +6427,8 @@
         "addTagSearch": "Search tags",
         "addTagEmpty": "No tags to add",
         "addTagUnavailable": "Tags could not be loaded",
-        "tagAdded": "Tag added. An earlier removal of it no longer applies."
+        "tagAdded": "Tag added. An earlier removal of it no longer applies.",
+        "suggestionExcerpt": "From this document"
       }
     },
     "SokoBot": {

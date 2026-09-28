@@ -202,6 +202,12 @@ export interface SuggestionRunOutcome {
    * about the document.
    */
   failed?: boolean;
+  /**
+   * True when the workspace has no label vocabulary at all, so there was
+   * nothing to ask about. Distinct from a vocabulary the model read and
+   * declined, and from one this document's reader has pinned.
+   */
+  noVocabulary?: boolean;
 }
 
 export async function runSuggestionJob(
@@ -347,8 +353,59 @@ export async function runSuggestionJob(
   );
 
   if (shortlist.length === 0) {
+    /**
+     * Why there was nothing to ask about, not just that there was
+     * nothing.
+     *
+     * These two cases produced the same record and they are not the same
+     * thing. A workspace that has never created a tag or a category is
+     * the *first* state every workspace is in: there is one
+     * `workspaceLabel.create` in the product and nothing seeds a default
+     * vocabulary, so until somebody invents a label by hand every
+     * document lands here. A document whose whole vocabulary the reader
+     * has pinned is a considered outcome and lands here too.
+     *
+     * Both used to close as SUCCEEDED with a null `lastError`, no label
+     * rows and a tick reading `{ processed: 1, suggested: 0 }` — byte for
+     * byte what a document the model read and declined produces. So the
+     * guaranteed first experience of the feature was recorded as "we
+     * looked and found nothing", and no caller, reader or operator could
+     * tell it from "we asked and were told no".
+     *
+     * One count query separates them. Nothing else changes: the job still
+     * completes, no model is called, and there is no new job state — a
+     * document with no vocabulary to compare it against is genuinely
+     * done, and re-suggesting once a first label exists is a separate
+     * question with a cost attached to it.
+     */
+    const vocabularySize = await prisma.workspaceLabel.count({
+      where: {
+        workspaceId: resource.workspaceId,
+        archivedAt: null,
+        mergedIntoId: null,
+      },
+    });
+
     await completeFileIndexJob({ jobId: job.id, leaseOwner });
-    return { suggested: 0, skipped: "no-vocabulary" };
+
+    if (vocabularySize === 0) {
+      // Said out loud, in the same place and the same shape as the
+      // truncation notice above: this is the one signal that a workspace
+      // has no vocabulary at all, and its owner is the only person who
+      // can do anything about it.
+      console.info("[files] workspace has no label vocabulary yet", {
+        resourceId: resource.id,
+        workspaceId: resource.workspaceId,
+        consequence:
+          "Nothing was asked and nothing was suggested. This document is " +
+          "not re-examined on its own when a first label is created.",
+      });
+      return { suggested: 0, skipped: "no-vocabulary", noVocabulary: true };
+    }
+
+    // A vocabulary exists and this document's reader has pinned all of
+    // it. That is a decision, not an empty workspace.
+    return { suggested: 0, skipped: "vocabulary-pinned" };
   }
 
   // Only as much of the document as the excerpt budget can carry. See
@@ -580,6 +637,16 @@ export interface SuggestionSyncResult {
    * from `processed` so a throttled minute cannot be read as a quiet one.
    */
   deferred: number;
+  /**
+   * Documents in a workspace that has no label vocabulary at all.
+   *
+   * Still processed and still complete — there was genuinely nothing to
+   * ask — but counted apart, because a tick of these is not a tick of
+   * documents the model considered and declined. Without it the two read
+   * identically at every surface outside the function, and this is the
+   * state every workspace starts in.
+   */
+  noVocabulary: number;
 }
 
 export async function processFileSuggestionJobs(input: {
@@ -597,6 +664,7 @@ export async function processFileSuggestionJobs(input: {
     suggested: 0,
     failed: 0,
     deferred: 0,
+    noVocabulary: 0,
   };
 
   // Bounded by jobs *looked at*, not jobs processed: a deferral does not
@@ -631,6 +699,12 @@ export async function processFileSuggestionJobs(input: {
         // clean straight through an outage.
         result.failed += 1;
         result.processed -= 1;
+      }
+      if (outcome.noVocabulary) {
+        // Counted, not subtracted: this document really was processed and
+        // really is done. What it was not is a document the model had an
+        // opinion about.
+        result.noVocabulary += 1;
       }
     } catch (error) {
       result.failed += 1;

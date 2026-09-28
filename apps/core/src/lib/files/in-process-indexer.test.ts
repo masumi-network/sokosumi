@@ -333,6 +333,10 @@ describe("neither half can take down the request that triggered it", () => {
       suggested: 0,
       failed: 0,
       deferred: 0,
+      // Zero, not absent: an outage is not a workspace with no
+      // vocabulary, and the zero-value has to carry every counter or the
+      // caller sees `undefined` where it expects a number.
+      noVocabulary: 0,
     });
   });
 
