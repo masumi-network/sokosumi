@@ -67,7 +67,7 @@ V11: OAuth credentials save before user-key mint. Mint failure preserves OAuth s
 V12: user-key mint/rotate/revoke → Core feature with trusted CLI OAuth guard. CLI never mints locally.
 V13: signed-in identity copy = auth method + target + signed-in state. ⊥ email/name on status screen.
 [CORRECTION, REPORTED: user clarification, 2026-09-24] Earlier V14 said Workspace connect later. User specified private Workspace-only access at registration. Current CLI does not yet attach Workspace access.
-V14: Register menu presets ∈ {pi-sokosumi, Eve, Hermes, OpenClaw}. Those are Coworker runtimes. ⊥ Hire Agent. Registration selects Workspace and grants access before success.
+V14: Signed-in TUI ∈ {Vendors, Workspaces, Sign out}. ⊥ Register preset menu {pi-sokosumi, Eve, Hermes, OpenClaw}. Coworker create remains headless `coworkers register` until T41. Headless registration selects Workspace and grants access before success. ⊥ Hire Agent.
 V15: vault writes use native secret setters or stdin; credential values ∉ child-process argv and error output.
 V16: hosted target OAuth launch/refresh → registered target client ID (`GxmewjdHVAaqUEglxWdyCqVFvnTASycj` mainnet, `lqhckIfBGmFhBMyCkbhvUkXHiatZVXwR` preprod) by default; explicit `--client-id`, target-specific, or generic `SOKOSUMI_OAUTH_CLIENT_ID` override; resolved ID stays consistent through refresh.
 V17: home config parser accepts only listed non-secret preference keys. ⊥ API key, access token, refresh token, client secret persistence.
@@ -167,7 +167,7 @@ T5|x|thin Ink login/status/sign-out|I,V1,V13
 T6|x|Core seed first-party native public OAuth clients|V3,V4
 T7|x|tests: protocol, manager, boot route, upsert|V1,V3
 T8|.|coworker connect loop; gated on T29 runtime contract; see implementation plan|V5,V6,V14,V66,V67,V68
-T9|x|signed-in Register a Coworker menu (preset pick only)|V13,V14
+T9|x|signed-in home: Vendors, Workspaces, Sign out; Coworker create remains headless `coworkers register` until T41|V13,V14
 T10|x|migrate CLI source/tests to TypeScript; add typecheck|V1,V7
 T11|x|add target-scoped auth resolution and cross-platform OS vault|V1,V3,V9,V10
 T12|x|add OAuth/API-key auth method flow and stable headless JSON|V1,V8,V10,V13
