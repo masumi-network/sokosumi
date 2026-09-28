@@ -38,6 +38,12 @@ export interface DriveFileRowProps {
   viewMode: FilesViewMode;
   selected: boolean;
   onToggle: (shiftKey: boolean) => void;
+  /**
+   * Open this file beside the list. Omitted, the name is an ordinary link to
+   * the detail route, which is what the related-files list and any other
+   * caller without a sheet want.
+   */
+  onOpen?: () => void;
 }
 
 export function DriveFileRow({
@@ -45,6 +51,7 @@ export function DriveFileRow({
   viewMode,
   selected,
   onToggle,
+  onOpen,
 }: DriveFileRowProps) {
   const t = useTranslations("App.Drive.Files");
 
@@ -78,9 +85,38 @@ export function DriveFileRow({
           className="flex flex-wrap items-center gap-x-2 gap-y-1"
           data-testid="drive-file-name-row"
         >
+          {/**
+           * A real link that usually opens a sheet.
+           *
+           * It stays an `<a href>` with the document's own URL, so copy-link,
+           * middle-click, cmd-click and "open in new tab" all do what they look
+           * like they do, and a screen reader announces a link to a document
+           * rather than an unlabelled button. A plain left-click is the only
+           * case the sheet takes over, because that is the one where staying on
+           * the list is better than navigating away from it.
+           *
+           * A button with a click handler would have been less code and would
+           * have quietly removed the ability to share a file.
+           */}
           <Link
             href={`/drive/files/${item.id}`}
             className="focus-visible:ring-ring min-w-0 truncate text-sm font-medium focus-visible:outline-none focus-visible:ring-2"
+            onClick={(event) => {
+              if (!onOpen) return;
+              // Anything the reader did to ask for a new tab or window is
+              // theirs to keep.
+              if (
+                event.metaKey ||
+                event.ctrlKey ||
+                event.shiftKey ||
+                event.altKey ||
+                event.button !== 0
+              ) {
+                return;
+              }
+              event.preventDefault();
+              onOpen();
+            }}
           >
             {item.displayName}
           </Link>

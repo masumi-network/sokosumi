@@ -6434,7 +6434,9 @@
         "bulkCategorySearch": "Buscar categorías",
         "bulkCategoryEmpty": "No hay categorías que coincidan",
         "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible.",
-        "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto."
+        "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
+        "sheetOpenAsPage": "Abrir como página",
+        "sheetDescription": "Detalles de este archivo"
       }
     },
     "SokoBot": {

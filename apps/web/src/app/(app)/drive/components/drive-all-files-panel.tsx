@@ -15,6 +15,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
+import { DriveFileSheet } from "@/app/drive/components/drive-file-sheet";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -126,6 +127,16 @@ export function DriveAllFilesPanel({
     null,
   );
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
+  /**
+   * The file the reader opened beside the list, if any.
+   *
+   * The name is carried alongside the id so the sheet's accessible name is
+   * right on the first frame, before the document has loaded.
+   */
+  const [openFile, setOpenFile] = useState<{
+    id: string;
+    displayName: string;
+  } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionToken, setSelectionToken] = useState<string | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
@@ -524,6 +535,12 @@ export function DriveAllFilesPanel({
 
   return (
     <div className="flex flex-col gap-4" data-testid="drive-all-files">
+      <DriveFileSheet
+        resourceId={openFile?.id ?? null}
+        displayName={openFile?.displayName}
+        onClose={() => setOpenFile(null)}
+      />
+
       <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
@@ -798,6 +815,9 @@ export function DriveAllFilesPanel({
                 viewMode={viewMode}
                 selected={selectedIds.includes(item.id)}
                 onToggle={(shiftKey) => toggleRow(index, item.id, shiftKey)}
+                onOpen={() =>
+                  setOpenFile({ id: item.id, displayName: item.displayName })
+                }
               />
             ))}
           </ul>

@@ -221,3 +221,116 @@ describe("where the document came from", () => {
     ).toBeVisible();
   });
 });
+
+describe("opening a file", () => {
+  it("opens the sheet on a plain click, without navigating", () => {
+    const onOpen = vi.fn();
+    render(
+      <ul>
+        <DriveFileRow
+          item={resource()}
+          viewMode="list"
+          selected={false}
+          onToggle={() => undefined}
+          onOpen={onOpen}
+        />
+      </ul>,
+    );
+
+    const link = screen.getByRole("link", { name: "quarterly-report.pdf" });
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    link.dispatchEvent(event);
+
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    // The default is prevented, so the reader stays on the list they are in.
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it("keeps the deep link as a real link, so a file can be shared", () => {
+    render(
+      <ul>
+        <DriveFileRow
+          item={resource()}
+          viewMode="list"
+          selected={false}
+          onToggle={() => undefined}
+          onOpen={() => undefined}
+        />
+      </ul>,
+    );
+
+    // An <a href> and not a button: copy-link has to work, and a screen reader
+    // should announce a link to a document.
+    expect(
+      screen.getByRole("link", { name: "quarterly-report.pdf" }),
+    ).toHaveAttribute("href", "/drive/files/res-1");
+  });
+
+  it.each([
+    ["metaKey", { metaKey: true }],
+    ["ctrlKey", { ctrlKey: true }],
+    ["shiftKey", { shiftKey: true }],
+    ["altKey", { altKey: true }],
+  ])(
+    "lets a %s click navigate instead of opening the sheet",
+    (_name, modifier) => {
+      const onOpen = vi.fn();
+      render(
+        <ul>
+          <DriveFileRow
+            item={resource()}
+            viewMode="list"
+            selected={false}
+            onToggle={() => undefined}
+            onOpen={onOpen}
+          />
+        </ul>,
+      );
+
+      const event = new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        button: 0,
+        ...modifier,
+      });
+      screen
+        .getByRole("link", { name: "quarterly-report.pdf" })
+        .dispatchEvent(event);
+
+      // Anything the reader did to ask for a new tab is theirs to keep.
+      expect(onOpen).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    },
+  );
+
+  it("stays an ordinary link where there is no sheet to open", () => {
+    // The related-files list and anything else without a sheet host.
+    const onOpenAbsent = undefined;
+    render(
+      <ul>
+        <DriveFileRow
+          item={resource()}
+          viewMode="list"
+          selected={false}
+          onToggle={() => undefined}
+          onOpen={onOpenAbsent}
+        />
+      </ul>,
+    );
+
+    const event = new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+    });
+    screen
+      .getByRole("link", { name: "quarterly-report.pdf" })
+      .dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(false);
+  });
+});
