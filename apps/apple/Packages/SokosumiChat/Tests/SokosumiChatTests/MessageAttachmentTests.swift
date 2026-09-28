@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 @Test func attachmentLinksPreserveTextAndOccurrenceOrder() {
