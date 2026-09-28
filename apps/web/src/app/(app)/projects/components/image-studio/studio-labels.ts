@@ -1,5 +1,5 @@
 import { STUDIO_TEMPLATE_IDS, type StudioTemplateId } from "./studio-templates";
-import type { StudioLabels } from "./types";
+import type { StudioFailureReason, StudioLabels } from "./types";
 
 /** Every string the studio needs, resolved once by whichever page mounts it. */
 type Translator = (key: string) => string;
@@ -95,7 +95,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     creditsUnderivable: t("creditsUnderivable"),
     creditsNoFigure: t("creditsNoFigure"),
     failedRefunded: t("failedRefunded"),
-    failedBody: t("failedBody"),
+    failedBody: failureBodies(t),
+    failedBodyUnreported: t("failedBodyUnreported"),
     failedDetails: t("failedDetails"),
   };
 }
@@ -112,4 +113,29 @@ function templateLabels(t: Translator): Record<StudioTemplateId, string> {
   return Object.fromEntries(
     STUDIO_TEMPLATE_IDS.map((id) => [id, t(`Templates.${id}`)]),
   ) as Record<StudioTemplateId, string>;
+}
+
+/**
+ * Every failure reason Core can report, in the reader's language.
+ *
+ * Spelled out rather than looped, and that is the point: the record is typed by
+ * Core's own union, so a code Core adds fails to compile here until somebody
+ * writes the sentence for it. A loop over a local list would compile happily and
+ * ship an English fallback instead.
+ */
+function failureBodies(t: Translator): Record<StudioFailureReason, string> {
+  return {
+    provider_rejected: t("FailureReasons.provider_rejected"),
+    provider_error: t("FailureReasons.provider_error"),
+    provider_lost_request: t("FailureReasons.provider_lost_request"),
+    provider_unreachable: t("FailureReasons.provider_unreachable"),
+    submission_uncertain: t("FailureReasons.submission_uncertain"),
+    reference_not_sendable: t("FailureReasons.reference_not_sendable"),
+    request_not_supported: t("FailureReasons.request_not_supported"),
+    cancelled: t("FailureReasons.cancelled"),
+    abandoned_before_send: t("FailureReasons.abandoned_before_send"),
+    access_revoked: t("FailureReasons.access_revoked"),
+    storage_unavailable: t("FailureReasons.storage_unavailable"),
+    unknown: t("FailureReasons.unknown"),
+  };
 }

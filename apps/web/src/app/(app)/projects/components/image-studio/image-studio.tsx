@@ -575,18 +575,20 @@ export function ImageStudio({
           role="alert"
         >
           <h3 className="text-sm font-medium">{labels.failed}</h3>
-          {/* A sentence, not the transport. This used to print `job.error`
-              verbatim, which on the preview read "Unexpected status code: 422"
-              — an HTTP detail shown to somebody who asked for a picture, in
-              English on a translated page.
+          {/* A sentence, not the transport. This printed `job.error` verbatim
+              once, which on the preview read "Unexpected status code: 422" — an
+              HTTP detail shown to somebody who asked for a picture, in English
+              on a translated page.
 
-              One sentence for every failure, because Core sends no reason code
-              yet and matching on free text would break the first time fal
-              reworded something. When a stable reason arrives this is where it
-              branches, and an unrecognised one keeps this line rather than
-              falling back to the raw string. */}
+              Core now reports a stable `failureReason`, so the sentence is
+              chosen by code and translated. A row from before Core recorded
+              reasons has none, and an unrecognised code Core has already
+              resolved to `unknown` — so neither path can fall back to the raw
+              string. */}
           <p className="text-muted-foreground mt-1 text-sm leading-relaxed text-pretty">
-            {labels.failedBody}
+            {settledProblemJob.failureReason === null
+              ? labels.failedBodyUnreported
+              : labels.failedBody[settledProblemJob.failureReason]}
           </p>
           {/* Said on the failure itself, because "did that cost me anything?"
               is the first thing a charged product makes a person ask. Core

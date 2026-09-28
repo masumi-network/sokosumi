@@ -14,6 +14,15 @@ export type StudioSettings = ProjectImageSettings;
 export type StudioCatalog = ProjectImageStudioCatalog;
 export type StudioModel = StudioCatalog["models"][number];
 
+/**
+ * Why a generation did not produce an image, as Core's stable code.
+ *
+ * Read off the generated type rather than restated, so a code Core adds is a
+ * compile error here instead of a missing translation on someone's screen.
+ * `null` is a row written before Core recorded reasons.
+ */
+export type StudioFailureReason = NonNullable<StudioJob["failureReason"]>;
+
 /** Job statuses that are still going somewhere. */
 export const ACTIVE_JOB_STATUSES: readonly StudioJob["status"][] = [
   "PENDING",
@@ -251,12 +260,15 @@ export interface StudioLabels {
   /** Said on a failed generation, because a failure is refunded in full. */
   failedRefunded: string;
   /**
-   * What a failed generation says instead of the provider's transport error.
+   * What a failed generation says, per reason Core reports.
    *
-   * One sentence for every reason: Core sends no stable reason code yet, and
-   * `job.error` is English free text from fal or the runner.
+   * Keyed by Core's own code, so the union and this record cannot drift: adding
+   * a code to Core makes this a type error rather than a silent English
+   * fallthrough. `unknown` is what an unrecognised stored code resolves to, and
+   * `failedBodyUnreported` covers a row from before Core recorded reasons.
    */
-  failedBody: string;
+  failedBody: Record<StudioFailureReason, string>;
+  failedBodyUnreported: string;
   /** Opens the provider's own words, for whoever has to chase them. */
   failedDetails: string;
 }
