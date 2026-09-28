@@ -42,7 +42,7 @@ Parity rows run one per fresh session: the user types `/apple-parity-next`, opti
 
 ### New in Sokosumi
 
-The user types `/create-new-in-sokosumi`, optionally with a PR (user-invoked, [`.agents/skills/create-new-in-sokosumi/`](../../.agents/skills/create-new-in-sokosumi/)). It renders a release announcement image for that PR from the design-system template and adds it to the PR description.
+The user types `/create-new-in-sokosumi` with a PR, a description or screenshots (user-invoked, [`.agents/skills/create-new-in-sokosumi/`](../../.agents/skills/create-new-in-sokosumi/)). It renders a release announcement image from the design-system template, and adds it to the PR description when the context is a PR.
 
 ### Ask Matt
 
