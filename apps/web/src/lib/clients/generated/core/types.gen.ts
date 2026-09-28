@@ -3827,7 +3827,9 @@ export type HistoryItem = ({
     kind: 'task';
 } & HistoryTaskItem) | ({
     kind: 'job';
-} & HistoryJobItem);
+} & HistoryJobItem) | ({
+    kind: 'image';
+} & HistoryImageItem);
 
 export type HistoryTaskItem = {
     /**
@@ -3936,6 +3938,89 @@ export type HistoryJobItem = {
      * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
      */
     agentIcon: string | null;
+};
+
+export type HistoryImageItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'image';
+    status: 'active';
+    /**
+     * Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.
+     */
+    assetId: string;
+    /**
+     * Project the image was generated in
+     */
+    projectId: string | null;
+    /**
+     * Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
+     */
+    modelLabel: string;
+};
+
+export type ProjectImageStudioCatalog = {
+    defaultModelId: string;
+    models: Array<ProjectImageStudioCatalogModel>;
+    snapshotDate: string;
+    refreshedAt: string | null;
+};
+
+export type ProjectImageStudioCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    generateEndpoint: string;
+    editEndpoint: string | null;
+    aspectRatios: Array<string>;
+    resolutions: Array<string>;
+    outputFormats: Array<string>;
+    supportsSeed: boolean;
+    maxReferences: number;
+    dimensionMode: 'aspect-ratio' | 'image-size';
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perImageUsd?: {
+            '0.5K'?: number;
+            '1K'?: number;
+            '2K'?: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+    sourceUrls: Array<string>;
+    verifiedAt: string;
 };
 
 /**
@@ -5054,7 +5139,6 @@ export type CancelSocialPostRequest = {
 };
 
 export type ProjectImageStudioState = {
-    catalog: ProjectImageStudioCatalog;
     assets: Array<ProjectImageAsset>;
     jobs: Array<ProjectImageJob>;
     sessions: Array<ProjectImageSession>;
@@ -5062,47 +5146,6 @@ export type ProjectImageStudioState = {
         createdAt: Date;
         id: string;
     } | null;
-};
-
-export type ProjectImageStudioCatalog = {
-    defaultModelId: string;
-    models: Array<{
-        id: string;
-        label: string;
-        description: string;
-        generateEndpoint: string;
-        editEndpoint: string;
-        aspectRatios: Array<string>;
-        resolutions: Array<string>;
-        outputFormats: Array<string>;
-        supportsSeed: boolean;
-        maxReferences: number;
-        dimensionMode: 'aspect-ratio' | 'image-size';
-        notes: string;
-        price: {
-            perImageUsd: {
-                '0.5K'?: number;
-                '1K'?: number;
-                '2K'?: number;
-            };
-            basis: string;
-            sourceUrl: string;
-            verifiedAt: string;
-        };
-        sourceUrls: Array<string>;
-        verifiedAt: string;
-    }>;
-    placements: Array<{
-        id: string;
-        platform: string;
-        label: string;
-        aspectRatio: string;
-        width: number;
-        height: number;
-        notes: string;
-        sourceUrl: string;
-        verifiedAt: string;
-    }>;
 };
 
 export type ProjectImageAsset = {
@@ -5124,7 +5167,6 @@ export type ProjectImageAsset = {
 };
 
 export type ProjectImageSettings = {
-    placementId?: string | null;
     aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
     resolution?: '0.5K' | '1K' | '2K';
     outputFormat?: 'png' | 'jpeg' | 'webp';
@@ -5154,6 +5196,8 @@ export type ProjectImageJob = {
     settledAt: Date | null;
     cancelRequestedAt: Date | null;
     retryMayDuplicateCharge: boolean;
+    credits: number | null;
+    refunded: boolean;
 };
 
 export type ProjectImageSession = {
@@ -5166,7 +5210,7 @@ export type ProjectImageSession = {
 };
 
 export type CreateProjectImageJobRequest = {
-    modelId?: 'gemini-flash' | 'gemini-pro' | 'flux-2-pro';
+    modelId?: string;
     prompt: string;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
@@ -25841,13 +25885,13 @@ export type GetHistoryData = {
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.
+         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
          */
         status?: Array<string>;
         /**
-         * Comma-separated history kinds to include: task, job
+         * Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.
          */
-        types?: Array<'task' | 'job'>;
+        types?: Array<'task' | 'job' | 'image'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -26185,6 +26229,64 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
 };
 
 export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
+
+export type GetImageStudioCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio/catalog';
+};
+
+export type GetImageStudioCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioCatalogError = GetImageStudioCatalogErrors[keyof GetImageStudioCatalogErrors];
+
+export type GetImageStudioCatalogResponses = {
+    /**
+     * The image studio model catalog
+     */
+    200: {
+        data: ProjectImageStudioCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioCatalogResponse = GetImageStudioCatalogResponses[keyof GetImageStudioCatalogResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
