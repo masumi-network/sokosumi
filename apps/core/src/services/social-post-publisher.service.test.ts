@@ -1,3 +1,4 @@
+import { SsrfError } from "@sokosumi/net";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -15,6 +16,7 @@ const {
   publishXPostMock,
   socialPostFindFirstMock,
   socialPostUpdateManyMock,
+  ssrfSafeFetchMock,
 } = vi.hoisted(() => ({
   attemptFindFirstMock: vi.fn(),
   attemptAggregateMock: vi.fn(),
@@ -24,6 +26,12 @@ const {
   publishXPostMock: vi.fn(),
   socialPostFindFirstMock: vi.fn(),
   socialPostUpdateManyMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
+}));
+
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -66,11 +74,42 @@ const activeConnection = {
   externalHandle: "sokosumi",
 };
 
+const IMAGE_REF = {
+  pathname: "drive/users/user_123/launch.png",
+  fileUrl:
+    "https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png",
+  name: "launch.png",
+  size: 3,
+  mimeType: "image/png",
+  kind: "image",
+};
+
+const CLIP_REF = {
+  pathname: "drive/users/user_123/clip.mp4",
+  fileUrl:
+    "https://store.public.blob.vercel-storage.com/drive/users/user_123/clip.mp4",
+  name: "clip.mp4",
+  size: 3,
+  mimeType: "video/mp4",
+  kind: "video",
+};
+
+function mediaResponse(
+  body: Uint8Array<ArrayBuffer>,
+  contentType: string | null,
+  status = 200,
+): Response {
+  const headers = new Headers();
+  if (contentType) headers.set("content-type", contentType);
+  return new Response(status === 204 ? null : body, { status, headers });
+}
+
 const duePost = {
   id: POST_ID,
   projectId: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
   text: "Hello world",
+  media: [],
   status: "SCHEDULED",
   scheduledAt: SCHEDULED_AT,
   attemptCount: 0,
@@ -116,6 +155,61 @@ describe("social post publisher service", () => {
     attemptUpdateMock.mockResolvedValue({ id: ATTEMPT_ID });
     publishXPostMock.mockResolvedValue({ externalId: "1907" });
     getSocialPostMock.mockResolvedValue({ id: POST_ID, status: "PUBLISHED" });
+    ssrfSafeFetchMock.mockImplementation(async () =>
+      mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
+    );
+  });
+
+  it("aborts provider work at the execution deadline and settles before the lease expires", async () => {
+    vi.useRealTimers();
+    const { publishDueSocialPosts } = await loadService();
+    const now = Date.now();
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, scheduledAt: new Date(now - 1_000) })
+      .mockResolvedValue(null);
+    publishXPostMock.mockImplementation(
+      ({ signal }: { signal: AbortSignal }) =>
+        new Promise((_resolve, reject) => {
+          signal.addEventListener("abort", () => reject(signal.reason), {
+            once: true,
+          });
+        }),
+    );
+    await publishDueSocialPosts({ ...syncContext, deadlineMs: now + 20_100 });
+    expect(publishXPostMock).toHaveBeenCalledOnce();
+    expect(settleCall().data.leaseToken).toBeNull();
+    expect(settleCall().data.status).not.toBe("PUBLISHING");
+  });
+
+  it("does not claim another post when only settlement time remains", async () => {
+    const { publishDueSocialPosts } = await loadService();
+    const result = await publishDueSocialPosts({
+      ...syncContext,
+      deadlineMs: Date.now() + 19_000,
+    });
+    expect(result.claimed).toBe(0);
+    expect(socialPostFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("cancels a media download without publishing and durably settles the attempt", async () => {
+    const controller = new AbortController();
+    socialPostFindFirstMock
+      .mockReset()
+      .mockResolvedValueOnce({ ...duePost, media: [IMAGE_REF] })
+      .mockResolvedValue(null);
+    ssrfSafeFetchMock.mockImplementation(async (_url, options) => {
+      controller.abort();
+      options.signal.throwIfAborted();
+    });
+    const { publishDueSocialPosts } = await loadService();
+    await publishDueSocialPosts({
+      ...syncContext,
+      abortSignal: controller.signal,
+    });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data.leaseToken).toBeNull();
+    expect(settleCall().data.status).not.toBe("PUBLISHING");
   });
 
   it("claims a due post, publishes it, and records the attempt", async () => {
@@ -175,7 +269,10 @@ describe("social post publisher service", () => {
       connectedAccountId: "ca_123",
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
       text: "Hello world",
+      media: [],
+      signal: expect.any(AbortSignal),
     });
+    expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
     expect(attemptUpdateMock).toHaveBeenCalledWith({
       where: { id: ATTEMPT_ID },
       data: {
@@ -686,6 +783,171 @@ describe("social post publisher service", () => {
       expect(persistedValue).not.toContain("dXNlcjpwYXNz");
       expect(persistedValue).not.toContain("my secret");
     }
+  });
+
+  describe("media", () => {
+    function claimWithMedia(media: unknown[]) {
+      socialPostFindFirstMock.mockReset();
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({ ...duePost, media })
+        .mockResolvedValue(null);
+    }
+
+    it("downloads each Drive file server-side and hands the bytes to X", async () => {
+      claimWithMedia([IMAGE_REF, { ...IMAGE_REF, name: "second.png" }]);
+      ssrfSafeFetchMock
+        .mockResolvedValueOnce(
+          mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
+        )
+        .mockResolvedValueOnce(
+          mediaResponse(new Uint8Array([4, 5, 6]), "image/png; charset=binary"),
+        );
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ published: 1 });
+      expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(2);
+      expect(ssrfSafeFetchMock).toHaveBeenNthCalledWith(
+        1,
+        IMAGE_REF.fileUrl,
+        expect.objectContaining({ maxResponseBytes: 5 * 1024 * 1024 }),
+      );
+      expect(publishXPostMock).toHaveBeenCalledWith({
+        connectedAccountId: "ca_123",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        text: "Hello world",
+        media: [
+          {
+            bytes: new Uint8Array([1, 2, 3]),
+            name: IMAGE_REF.name,
+            mimeType: "image/png",
+            kind: "image",
+          },
+          {
+            bytes: new Uint8Array([4, 5, 6]),
+            name: "second.png",
+            mimeType: "image/png",
+            kind: "image",
+          },
+        ],
+        signal: expect.any(AbortSignal),
+      });
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "succeeded",
+          providerOutcome: "201 created, 2 media",
+        }),
+      });
+    });
+
+    it("fails permanently when a Drive file is gone", async () => {
+      claimWithMedia([IMAGE_REF]);
+      ssrfSafeFetchMock.mockResolvedValue(
+        mediaResponse(new Uint8Array(), null, 404),
+      );
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1, retried: 0 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: {
+          finishedAt: NOW,
+          outcome: "failed_permanent",
+          errorKind: "media_missing",
+          providerOutcome: 'Media file "launch.png" is no longer available',
+          externalId: null,
+        },
+      });
+      expect(settleCall().data).toMatchObject({
+        status: "FAILED",
+        lastError: 'Media file "launch.png" is no longer available',
+        attemptCount: 1,
+      });
+    });
+
+    it("fails permanently when the served content type does not match the kind", async () => {
+      claimWithMedia([CLIP_REF]);
+      ssrfSafeFetchMock.mockResolvedValue(
+        mediaResponse(new Uint8Array([1]), "text/html"),
+      );
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_type_mismatch",
+          providerOutcome: 'Media file "clip.mp4" is not a video',
+        }),
+      });
+      expect(settleCall().data.status).toBe("FAILED");
+    });
+
+    it("fails permanently when a Drive file exceeds the X byte cap", async () => {
+      claimWithMedia([IMAGE_REF]);
+      ssrfSafeFetchMock.mockRejectedValue(
+        new SsrfError("Response body exceeds maxResponseBytes (5242880)"),
+      );
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_too_large",
+          providerOutcome: 'Media file "launch.png" is too large for X',
+        }),
+      });
+    });
+
+    it("fails permanently when the stored media cannot be read", async () => {
+      claimWithMedia([{ pathname: 1 }]);
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ failed: 1 });
+      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_permanent",
+          errorKind: "media_missing",
+        }),
+      });
+    });
+
+    it("retries when the Drive download fails transiently", async () => {
+      claimWithMedia([IMAGE_REF]);
+      ssrfSafeFetchMock.mockRejectedValue(new Error("socket hang up"));
+      const { publishDueSocialPosts } = await loadService();
+
+      const result = await publishDueSocialPosts(syncContext);
+
+      expect(result).toMatchObject({ retried: 1 });
+      expect(publishXPostMock).not.toHaveBeenCalled();
+      expect(attemptUpdateMock).toHaveBeenCalledWith({
+        where: { id: ATTEMPT_ID },
+        data: expect.objectContaining({
+          outcome: "failed_transient",
+          errorKind: "unknown",
+        }),
+      });
+    });
   });
 
   it("skips a post another worker claimed first", async () => {

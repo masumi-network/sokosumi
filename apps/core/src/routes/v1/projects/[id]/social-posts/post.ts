@@ -60,7 +60,9 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         projectId,
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
+        organizationId: workspaceContext.organizationId,
         text: input.text,
+        media: input.media,
         socialConnectionId: input.socialConnectionId,
         scheduledAt: input.scheduledAt
           ? new Date(input.scheduledAt)

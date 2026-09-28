@@ -25,7 +25,7 @@ export class SsrfError extends Error {
 export interface SsrfSafeFetchInit {
   method?: string;
   headers?: Record<string, string>;
-  body?: string;
+  body?: string | Uint8Array<ArrayBuffer>;
   signal?: AbortSignal;
   /** Called before buffering each response chunk, including redirect/error bodies.
    * Throw to abort the response, for example when a shared byte budget expires. */
