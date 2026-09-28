@@ -9,16 +9,26 @@ import {
   FileSourceKind,
   FileSourceScope,
 } from "@sokosumi/database";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
 
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { chunkExtractedText } from "@/lib/files/extraction";
-import { retrieveFileCandidates } from "@/lib/files/retrieval";
+import {
+  METADATA_WEIGHT_CONFIRMED,
+  METADATA_WEIGHT_SUGGESTED,
+  RRF_K,
+  retrieveFileCandidates,
+} from "@/lib/files/retrieval";
 import { writeVersionChunks } from "@/services/file-index.service";
 import { updateFileMetadata } from "@/services/file-metadata.service";
-import { coverageOf, searchFiles } from "@/services/file-search.service";
+import {
+  coverageOf,
+  hydrateResources,
+  loadLiveResources,
+  searchFiles,
+} from "@/services/file-search.service";
 
 /**
  * The retrieval layer against a real PostgreSQL.
@@ -689,5 +699,273 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
     });
 
     expect(second.search.rankingFallback).toBeNull();
+  });
+
+  /**
+   * A label the model applied and nobody has confirmed is findable.
+   *
+   * Every one of the four label clauses in `retrieval.ts` gated on
+   * `state = CONFIRMED`, and the only thing that ever promoted a label to
+   * CONFIRMED was the manual assign surface. With that surface removed the
+   * model's own labels were visible on the row and unreachable by both the
+   * filter beside them and the search box above them: a tag you could read
+   * and could not use. Decorative rather than absent, which is why no test
+   * and no reader caught it.
+   *
+   * SUGGESTED is now findable; REJECTED still is not, at every clause.
+   */
+  describe("finding a document by a label nobody has confirmed", () => {
+    let suggestedTagId = "";
+    let suggestedResourceId = "";
+
+    beforeAll(async () => {
+      const tag = await prisma.workspaceLabel.create({
+        data: {
+          workspaceId,
+          kind: FileLabelKind.TAG,
+          displayName: "Zeppelin",
+          normalizedName: "zeppelin",
+          description: "Documents about airships",
+        },
+        select: { id: true },
+      });
+      suggestedTagId = tag.id;
+
+      suggestedResourceId = await seedResource({
+        displayName: "airship-logbook.txt",
+        text: "Mooring procedures and ballast notes.",
+      });
+    });
+
+    /** Exactly what `runSuggestionJob` writes: SUGGESTED, provenance MODEL. */
+    async function suggestTheTag(): Promise<void> {
+      await prisma.fileLabel.create({
+        data: {
+          resourceId: suggestedResourceId,
+          labelId: suggestedTagId,
+          state: FileMetadataState.SUGGESTED,
+          provenance: FileMetadataProvenance.MODEL,
+          evidenceScopeId: scopeId,
+          contentRevision: 1,
+          vocabularyVersion: 1,
+          evidenceSnippet: "Mooring procedures",
+        },
+      });
+    }
+
+    /** Resources a single case seeded, torn down with that case. */
+    let extraResourceIds: string[] = [];
+
+    afterEach(async () => {
+      if (!enabled) return;
+      // By label, not by resource: a case that seeds a second document with
+      // the same tag would otherwise leave a row that the *next* case's filter
+      // legitimately matches — which reads as the filter being wrong when it
+      // is the fixture leaking.
+      await prisma.fileLabel.deleteMany({ where: { labelId: suggestedTagId } });
+      if (extraResourceIds.length > 0) {
+        await prisma.fileResource.deleteMany({
+          where: { id: { in: extraResourceIds } },
+        });
+        extraResourceIds = [];
+      }
+    });
+
+    afterAll(async () => {
+      if (!enabled) return;
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: [suggestedResourceId] } },
+      });
+    });
+
+    it("filters by a suggested tag", async () => {
+      await suggestTheTag();
+      const filtered = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: null,
+        filters: { tagLabelIds: [suggestedTagId], tagMatch: "any" },
+        sortBy: "modified",
+        sortOrder: "desc",
+      });
+      expect(filtered.candidates.map((entry) => entry.resourceId)).toEqual([
+        suggestedResourceId,
+      ]);
+    });
+
+    it("filters by a suggested tag under tagMatch all", async () => {
+      await suggestTheTag();
+      // A separate clause in the source, with its own copy of the defect.
+      const filtered = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: null,
+        filters: { tagLabelIds: [suggestedTagId], tagMatch: "all" },
+        sortBy: "modified",
+        sortOrder: "desc",
+      });
+      expect(filtered.candidates.map((entry) => entry.resourceId)).toEqual([
+        suggestedResourceId,
+      ]);
+    });
+
+    it("finds the document by typing the suggested label's name", async () => {
+      await suggestTheTag();
+      // The metadata retrieval strategy, which is a different clause again:
+      // the query matches no word in this document's text, so a hit can only
+      // have come through the label.
+      const found = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: "zeppelin",
+        filters: {},
+        sortBy: "relevance",
+        sortOrder: "desc",
+      });
+      expect(found.candidates.map((entry) => entry.resourceId)).toContain(
+        suggestedResourceId,
+      );
+      // Through the metadata leg specifically, and weighted as a suggestion
+      // rather than as something a person agreed to.
+      const candidate = found.candidates.find(
+        (entry) => entry.resourceId === suggestedResourceId,
+      );
+      expect(candidate?.metadataMatch).toBe(true);
+      expect(candidate?.fusedScore).toBeCloseTo(
+        METADATA_WEIGHT_SUGGESTED / (RRF_K + 1),
+        10,
+      );
+    });
+
+    it("ranks a confirmed label above an identical suggested one", async () => {
+      await suggestTheTag();
+      const confirmedResourceId = await seedResource({
+        displayName: "airship-manifest.txt",
+        text: "Cargo manifest.",
+      });
+      extraResourceIds.push(confirmedResourceId);
+      await prisma.fileLabel.create({
+        data: {
+          resourceId: confirmedResourceId,
+          labelId: suggestedTagId,
+          state: FileMetadataState.CONFIRMED,
+          provenance: FileMetadataProvenance.MANUAL,
+          evidenceScopeId: scopeId,
+          contentRevision: 1,
+          vocabularyVersion: 1,
+        },
+      });
+
+      const found = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: "zeppelin",
+        filters: {},
+        sortBy: "relevance",
+        sortOrder: "desc",
+      });
+      /**
+       * Exact scores, by each row's own rank in the leg.
+       *
+       * This asserted only `confirmed > suggested`, and that passes with a
+       * flat weight too: the metadata leg orders by `updatedAt DESC`, so the
+       * newer document sits at a lower index and outscores the other on
+       * reciprocal rank alone. The test could not fail for the thing it was
+       * named after — verified by reverting the weighting and watching it stay
+       * green. Pinning the weight each row was given is what makes it a test
+       * of the weighting rather than of the insertion order.
+       */
+      const scoreAndRank = (id: string) => {
+        const index = found.candidates.findIndex(
+          (entry) => entry.resourceId === id,
+        );
+        return { index, score: found.candidates[index]?.fusedScore ?? 0 };
+      };
+      const confirmed = scoreAndRank(confirmedResourceId);
+      const suggested = scoreAndRank(suggestedResourceId);
+
+      // Both are findable — that is the point of the change. What differs is
+      // what each match is worth, which is what keeps confirmation meaningful
+      // to ranking instead of decorative.
+      expect(confirmed.score).toBeCloseTo(
+        METADATA_WEIGHT_CONFIRMED / (RRF_K + confirmed.index + 1),
+        10,
+      );
+      expect(suggested.score).toBeCloseTo(
+        METADATA_WEIGHT_SUGGESTED / (RRF_K + suggested.index + 1),
+        10,
+      );
+    });
+
+    it("keeps a rejected label unfindable, and says it was rejected", async () => {
+      await suggestTheTag();
+      await prisma.fileLabel.updateMany({
+        where: { resourceId: suggestedResourceId, labelId: suggestedTagId },
+        data: { state: FileMetadataState.REJECTED },
+      });
+
+      const filtered = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: null,
+        filters: { tagLabelIds: [suggestedTagId], tagMatch: "any" },
+        sortBy: "modified",
+        sortOrder: "desc",
+      });
+      expect(filtered.candidates.map((entry) => entry.resourceId)).toEqual([]);
+
+      const byName = await retrieveFileCandidates({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: "zeppelin",
+        filters: {},
+        sortBy: "relevance",
+        sortOrder: "desc",
+      });
+      expect(byName.candidates.map((entry) => entry.resourceId)).not.toContain(
+        suggestedResourceId,
+      );
+
+      // Unfindable, but no longer invisible: the veto is reported so a client
+      // can offer to withdraw it. It was filtered out of every response
+      // before, which made a wrong removal uncorrectable from any UI.
+      const [dto] = await hydrateResources({
+        resources: await loadLiveResources({
+          workspaceId,
+          actor: actorFor(ownerId),
+          resourceIds: [suggestedResourceId],
+        }),
+        query: null,
+      });
+      expect(dto.rejected.map((label) => label.labelId)).toEqual([
+        suggestedTagId,
+      ]);
+      // And it is not smuggled into either of the other two arrays.
+      expect(dto.tags).toEqual([]);
+      expect(dto.suggestions).toEqual([]);
+    });
+
+    it("leaves tags and suggestions untouched when nothing is rejected", async () => {
+      // The partition added a third array. These two are the ones that were
+      // already right, and a partition is the easy place to change two arrays
+      // while meaning to add one.
+      await suggestTheTag();
+
+      const [dto] = await hydrateResources({
+        resources: await loadLiveResources({
+          workspaceId,
+          actor: actorFor(ownerId),
+          resourceIds: [suggestedResourceId],
+        }),
+        query: null,
+      });
+
+      expect(dto.rejected).toEqual([]);
+      expect(dto.tags).toEqual([]);
+      expect(dto.suggestions.map((label) => label.labelId)).toEqual([
+        suggestedTagId,
+      ]);
+      expect(dto.suggestions[0].state).toBe(FileMetadataState.SUGGESTED);
+    });
   });
 });
