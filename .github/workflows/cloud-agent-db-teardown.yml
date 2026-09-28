@@ -18,6 +18,10 @@ on:
         description: Cloud agent run id (bc-…)
         required: false
         type: string
+      head_ref:
+        description: Closed PR head branch whose preview branch and deployments to delete
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -31,7 +35,7 @@ jobs:
     # workflow_dispatch still uses the selected ref's YAML — only dispatch
     # from the default branch (see the step-level ref pin below).
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && inputs.agent_id != '') ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
@@ -66,11 +70,13 @@ jobs:
 
   preview-teardown:
     name: Delete the PR's preview branch and deployments
-    # workflow_run only: the script needs the closed PR's head ref.
+    # The closed PR's head ref comes from workflow_run, or from `head_ref` on
+    # a manual run. Dispatch from the default branch only.
     if: >
-      github.event_name == 'workflow_run' &&
+      (github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
-      github.event.workflow_run.event == 'pull_request'
+      github.event.workflow_run.event == 'pull_request') ||
+      (github.event_name == 'workflow_dispatch' && inputs.head_ref != '')
     runs-on: ubuntu-latest
     # The Neon preview project ids live in this environment.
     environment: preview-database
@@ -97,7 +103,7 @@ jobs:
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
           NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
           GH_TOKEN: ${{ github.token }}
-          HEAD_REF: ${{ github.event.workflow_run.head_branch }}
-          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          HEAD_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.head_ref || github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event_name == 'workflow_dispatch' && github.repository || github.event.workflow_run.head_repository.full_name }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: node scripts/ci/preview-branch-teardown.mjs
