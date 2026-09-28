@@ -4899,6 +4899,11 @@ export type ProjectDesignMdWrite = {
     extractionId?: string | null;
 };
 
+export type WorkspaceCalendarEntry = {
+    scheduledAt: Date;
+    originalScheduledAt?: Date | null;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem);
+
 export type WorkspaceCalendarItem = {
     /**
      * The Task Schedule Run this item shows, or the Task for a RUN_AT item
@@ -4963,6 +4968,24 @@ export type WorkspaceCalendarItem = {
      * Project captured as the Calendar source, when applicable
      */
     sourceProjectId: string | null;
+};
+
+export type SocialPostCalendarItem = {
+    kind: 'socialPost';
+    id: string;
+    postId: string;
+    text: string;
+    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    externalHandle: string | null;
+    projectName: string;
+    scheduledByName: string | null;
+    scheduledByImage: string | null;
+    attachmentCount: number;
+    scheduledAt: Date;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -34651,6 +34674,14 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -34763,7 +34794,7 @@ export type GetProjectsByIdCalendarResponses = {
      * Project Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -52342,6 +52373,14 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -52462,7 +52501,7 @@ export type GetWorkspacesCalendarResponses = {
      * Active workspace Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;

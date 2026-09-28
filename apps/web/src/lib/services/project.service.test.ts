@@ -558,6 +558,24 @@ describe("project.service", () => {
       ).toHaveBeenCalledWith("project-1", "post-1");
     });
 
+    it("returns null when a social post lookup returns 404", async () => {
+      const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+      coreClientMock.getProjectsByIdSocialPostsByPostId.mockRejectedValue(
+        new CoreApiRequestError("not found", { status: 404 }),
+      );
+
+      const { projectService } = await import("./project.service");
+      const result = await projectService.getSocialPost(
+        "project-1",
+        "post-missing",
+      );
+
+      expect(
+        coreClientMock.getProjectsByIdSocialPostsByPostId,
+      ).toHaveBeenCalledWith("project-1", "post-missing");
+      expect(result).toBeNull();
+    });
+
     it("creates, updates, schedules, and cancels with the generated request DTOs", async () => {
       const scheduledAt = new Date("2026-10-01T10:00:00.000Z");
       coreClientMock.postProjectsByIdSocialPosts.mockResolvedValue({
