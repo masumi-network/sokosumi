@@ -162,6 +162,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);
+    // Preview deletion belongs to the per-PR lifecycle queue. The former
+    // branch-name teardown bypasses ownership checks and deletes legacy data.
+    assert.doesNotMatch(workflow, /preview-teardown:|preview-branch-teardown/);
+    assert.doesNotMatch(workflow, /secrets\.VERCEL_TOKEN/);
   });
 
   it("path-gated jobs skip at job level and fail open", async () => {

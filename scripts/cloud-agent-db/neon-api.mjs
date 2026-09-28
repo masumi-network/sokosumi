@@ -263,6 +263,28 @@ const OPERATION_TIMEOUT_MS = 5 * 60 * 1000;
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Run `request`, retrying with doubling waits while `isRetryable(error)`.
+ * The last error is thrown after `attempts` tries.
+ * @template T
+ * @param {() => Promise<T>} request
+ * @param {{ isRetryable: (error: unknown) => boolean, attempts: number, firstDelayMs: number, sleep?: (ms: number) => Promise<void> }} options
+ * @returns {Promise<T>}
+ */
+export async function retryNeon(
+  request,
+  { isRetryable, attempts, firstDelayMs, sleep = defaultSleep },
+) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryable(error) || attempt >= attempts) throw error;
+      await sleep(firstDelayMs * 2 ** (attempt - 1));
+    }
+  }
+}
+
+/**
  * Throw unless `branch` is a Vercel preview branch that a reset may replace.
  * @param {{ name: string, parent_id?: string, default?: boolean, protected?: boolean }} branch
  */
@@ -295,23 +317,23 @@ export async function resetPreviewBranchToParent(
 ) {
   assertPreviewBranchResettable(branch);
 
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await neonFetch(
+  return retryNeon(
+    () =>
+      neonFetch(
         config,
         `/projects/${config.projectId}/branches/${branch.id}/restore`,
         {
           method: "POST",
           body: JSON.stringify({ source_branch_id: branch.parent_id }),
         },
-      );
-    } catch (error) {
-      if (error?.status !== LOCKED_STATUS || attempt >= LOCKED_ATTEMPTS) {
-        throw error;
-      }
-      await sleep(LOCKED_FIRST_DELAY_MS * 2 ** (attempt - 1));
-    }
-  }
+      ),
+    {
+      isRetryable: (error) => error?.status === LOCKED_STATUS,
+      attempts: LOCKED_ATTEMPTS,
+      firstDelayMs: LOCKED_FIRST_DELAY_MS,
+      sleep,
+    },
+  );
 }
 
 /**

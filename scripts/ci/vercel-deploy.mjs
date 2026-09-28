@@ -214,7 +214,7 @@ export async function createGitDeployment({
   const response = await fetchImpl(url, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...vercelAuthHeaders(token),
       "Content-Type": "application/json",
     },
     body: JSON.stringify(body),
@@ -257,7 +257,7 @@ export async function pollDeploymentUntilSettled({
     const url = new URL(`https://api.vercel.com/v13/deployments/${current.id}`);
     url.searchParams.set("teamId", teamId);
     const response = await fetchImpl(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: vercelAuthHeaders(token),
     });
     if (!response.ok) {
       continue;
@@ -276,7 +276,11 @@ export async function pollDeploymentUntilSettled({
   );
 }
 
-function githubHeaders(token) {
+export function vercelAuthHeaders(token) {
+  return { Authorization: `Bearer ${token}` };
+}
+
+export function githubHeaders(token) {
   return {
     Authorization: `Bearer ${token}`,
     Accept: "application/vnd.github+json",
