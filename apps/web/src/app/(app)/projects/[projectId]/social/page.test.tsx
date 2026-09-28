@@ -1,228 +1,61 @@
-import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const hasCurrentUserSocialBetaAccessMock = vi.fn();
-const getProjectByIdMock = vi.fn();
-const listSocialPostsMock = vi.fn();
-const getSocialPostMock = vi.fn();
-const listSocialConnectionsMock = vi.fn();
-const projectSocialPostsMock = vi.fn();
-const projectSocialAccountsMock = vi.fn();
-
-vi.mock("next/navigation", () => ({
-  notFound: () => {
-    throw new Error("NEXT_NOT_FOUND");
-  },
-  // The project tab bar reads the current route to mark its own tab.
-  usePathname: () => "/projects/project-1/social",
+const { redirectMock } = vi.hoisted(() => ({
+  redirectMock: vi.fn((href: string) => {
+    throw new Error(`REDIRECT:${href}`);
+  }),
 }));
 
-vi.mock("next/server", () => ({
-  connection: vi.fn(),
-}));
+vi.mock("next/navigation", () => ({ redirect: redirectMock }));
 
-vi.mock("next-intl/server", async () => {
-  const { createTestFormatter } = await import("@/test/intl-formatter");
-  return {
-    getFormatter: async () => createTestFormatter(),
-    getTranslations: async () => (key: string) => key,
-  };
-});
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
-}));
-
-vi.mock("@/lib/services/project.service", () => ({
-  projectService: {
-    getProjectById: (projectId: string) => getProjectByIdMock(projectId),
-    listSocialPosts: (...args: unknown[]) => listSocialPostsMock(...args),
-    getSocialPost: (projectId: string, postId: string) =>
-      getSocialPostMock(projectId, postId),
-    listSocialConnections: (projectId: string) =>
-      listSocialConnectionsMock(projectId),
-  },
-}));
-
-vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
-  ProjectSocialPosts: (props: unknown) => {
-    projectSocialPostsMock(props);
-    return <div data-testid="project-social-posts" />;
-  },
-}));
-
-vi.mock("@/app/projects/components/project-social-accounts", () => ({
-  ProjectSocialAccounts: (props: unknown) => {
-    projectSocialAccountsMock(props);
-    return <div data-testid="project-social-accounts" />;
-  },
-}));
-
-import ProjectSocialPage from "./page";
-
-const PROJECT = {
-  id: "project-1",
-  name: "Launch plan",
-  logo: null,
-  websiteUrl: null,
-  createdAt: new Date("2026-06-01T00:00:00.000Z"),
-  updatedAt: new Date("2026-06-02T00:00:00.000Z"),
-};
-
-function buildConnection(status: "active" | "disconnected", id: string) {
-  return {
-    id,
-    provider: "x" as const,
-    externalHandle: "sokosumi",
-    status,
-    connectedAt: new Date("2026-09-03T10:00:00.000Z"),
-    disconnectedAt: null,
-  };
+async function visit(
+  projectId: string,
+  searchParams: Record<string, string | string[] | undefined> = {},
+) {
+  const { default: LegacyProjectSocialPage } = await import("./page");
+  await expect(
+    LegacyProjectSocialPage({
+      params: Promise.resolve({ projectId }),
+      searchParams: Promise.resolve(searchParams),
+    }),
+  ).rejects.toThrow(/^REDIRECT:/);
+  return redirectMock.mock.calls.at(-1)?.[0] as string;
 }
 
-describe("ProjectSocialPage", () => {
+/**
+ * Social moved out of the project page. Anyone holding the old link — a
+ * bookmark, a message, a notification — has to land on the same posts, not on
+ * a 404.
+ */
+describe("the old /projects/:id/social link", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
-    getProjectByIdMock.mockResolvedValue(PROJECT);
-    listSocialPostsMock.mockResolvedValue({ posts: [], nextCursor: null });
-    listSocialConnectionsMock.mockResolvedValue([]);
   });
 
-  it("does not load Project data outside the Social beta", async () => {
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
-
-    await expect(
-      ProjectSocialPage({ params: Promise.resolve({ projectId: PROJECT.id }) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(getProjectByIdMock).not.toHaveBeenCalled();
-    expect(listSocialPostsMock).not.toHaveBeenCalled();
-    expect(listSocialConnectionsMock).not.toHaveBeenCalled();
+  it("sends the reader to Social scoped to that project", async () => {
+    expect(await visit("project-1")).toBe("/social?projectId=project-1");
   });
 
-  it("returns 404 for an unknown Project", async () => {
-    getProjectByIdMock.mockResolvedValue(null);
-
-    await expect(
-      ProjectSocialPage({ params: Promise.resolve({ projectId: "missing" }) }),
-    ).rejects.toThrow("NEXT_NOT_FOUND");
-
-    expect(listSocialPostsMock).not.toHaveBeenCalled();
-    expect(listSocialConnectionsMock).not.toHaveBeenCalled();
-  });
-
-  it("renders the header, posts with active connections only, and every connection for the accounts section", async () => {
-    const posts = [{ id: "post-1" }];
-    const active = buildConnection("active", "connection-1");
-    const disconnected = buildConnection("disconnected", "connection-2");
-    listSocialPostsMock.mockResolvedValueOnce({
-      posts,
-      nextCursor: "next-upcoming",
-    });
-    const instagram = { ...active, id: "instagram-1", provider: "instagram" };
-    listSocialConnectionsMock.mockResolvedValue([
-      active,
-      disconnected,
-      instagram,
-    ]);
-
-    render(
-      await ProjectSocialPage({
-        params: Promise.resolve({ projectId: PROJECT.id }),
-      }),
-    );
-
-    expect(getProjectByIdMock).toHaveBeenCalledWith(PROJECT.id);
-    expect(listSocialPostsMock).toHaveBeenCalledTimes(3);
-    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
-      statuses: ["DRAFT"],
-    });
-    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
-      statuses: ["SCHEDULED", "PUBLISHING"],
-    });
-    expect(listSocialPostsMock).toHaveBeenCalledWith(PROJECT.id, {
-      statuses: ["PUBLISHED", "FAILED", "MISSED", "CANCELED"],
-    });
-    expect(listSocialConnectionsMock).toHaveBeenCalledWith(PROJECT.id);
-    // Tabs replaced the per-page back link, and the sidebar's scope switcher
-    // replaced "back to projects", so this page draws neither.
-    expect(
-      screen.queryByRole("link", { name: "backToProjects" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "social" })).toHaveAttribute(
-      "href",
-      "/projects/project-1/social",
-    );
-    expect(screen.getByTestId("project-social-posts")).toBeInTheDocument();
-    expect(projectSocialPostsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: PROJECT.id,
-        posts,
-        connections: [expect.objectContaining({ id: "connection-1" })],
-      }),
-    );
-    expect(screen.getByTestId("project-social-accounts")).toBeInTheDocument();
-    expect(projectSocialAccountsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        projectId: PROJECT.id,
-        connections: [active, disconnected, instagram],
-      }),
+  it("keeps a link to one post pointing at that post", async () => {
+    expect(await visit("project-1", { postId: "post-7" })).toBe(
+      "/social?projectId=project-1&postId=post-7",
     );
   });
 
-  it("renders the posts list normally when the deep-linked post is missing", async () => {
-    const posts = [{ id: "post-1" }, { id: "post-2" }, { id: "post-3" }];
-    posts.forEach((post) =>
-      listSocialPostsMock.mockResolvedValueOnce({
-        posts: [post],
-        nextCursor: null,
-      }),
-    );
-    getSocialPostMock.mockResolvedValue(null);
-
-    render(
-      await ProjectSocialPage({
-        params: Promise.resolve({ projectId: PROJECT.id }),
-        searchParams: Promise.resolve({ postId: "missing-post" }),
-      }),
-    );
-
-    expect(getSocialPostMock).toHaveBeenCalledWith(PROJECT.id, "missing-post");
-    expect(screen.getByTestId("project-social-posts")).toBeInTheDocument();
-    expect(projectSocialPostsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ posts, projectId: PROJECT.id }),
+  it("never lets a stale projectId param outrank the path's project", async () => {
+    // The path is the authority here: the old route's project is in it.
+    expect(await visit("project-1", { projectId: "project-other" })).toBe(
+      "/social?projectId=project-1",
     );
   });
 
-  it("prepends the deep-linked post and drops its duplicate from the list", async () => {
-    const freshPost = { id: "post-1", text: "Fresh copy" };
-    listSocialPostsMock.mockResolvedValueOnce({
-      posts: [{ id: "post-1" }],
-      nextCursor: null,
-    });
-    listSocialPostsMock.mockResolvedValueOnce({
-      posts: [{ id: "post-2" }],
-      nextCursor: null,
-    });
-    listSocialPostsMock.mockResolvedValueOnce({
-      posts: [{ id: "post-3" }],
-      nextCursor: null,
-    });
-    getSocialPostMock.mockResolvedValue(freshPost);
+  it("escapes an id that needs it", async () => {
+    expect(await visit("a b&c")).toBe("/social?projectId=a+b%26c");
+  });
 
-    render(
-      await ProjectSocialPage({
-        params: Promise.resolve({ projectId: PROJECT.id }),
-        searchParams: Promise.resolve({ postId: "post-1" }),
-      }),
-    );
-
-    expect(projectSocialPostsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        posts: [freshPost, { id: "post-2" }, { id: "post-3" }],
-        projectId: PROJECT.id,
-      }),
+  it("carries a repeated param through as a repeated param", async () => {
+    expect(await visit("project-1", { tag: ["a", "b"] })).toBe(
+      "/social?projectId=project-1&tag=a&tag=b",
     );
   });
 });

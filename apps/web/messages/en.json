@@ -2565,7 +2565,6 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "social": "Social",
           "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
@@ -2708,6 +2707,17 @@
       },
       "creditsCheckedOn": "Price checked {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Pick a project",
+      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "calendar": {
+        "title": "Posting schedule",
+        "description": "Every scheduled post for this project, and nothing else."
+      }
+    },
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
@@ -2748,7 +2758,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
-          "schedules": "Schedules"
+          "schedules": "Schedules",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -6927,7 +6938,8 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -6952,6 +6964,9 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+      },
+      "socialOnly": {
+        "label": "Social posts only"
       }
     },
     "You": {

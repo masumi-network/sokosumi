@@ -5,6 +5,7 @@ const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
+const hasSocialBetaAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -37,6 +38,10 @@ vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
+}));
+
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
 }));
 
 vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
@@ -124,6 +129,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       },
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
+    hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
@@ -177,4 +183,32 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       "calendarMenuEnabled",
     );
   });
+
+  /**
+   * Social is still beta-gated, and the sidebar is a client component, so the
+   * frame is the only place that can answer for it. It resolves alongside the
+   * seat gate rather than after it: nav paints once both are in.
+   */
+  it.each([true, false])(
+    "hands the sidebar the Social beta answer: %s",
+    async (enabled) => {
+      hasSocialBetaAccessMock.mockResolvedValue(enabled);
+      getWorkspaceAccessMock.mockResolvedValue({
+        gate: "ready",
+        hasPersonalWorkspace: true,
+        hasOrganizationMembership: false,
+        hasPendingOrganizationInvites: false,
+      });
+
+      const { default: AuthenticatedAppFrame } = await import(
+        "../authenticated-app-frame"
+      );
+
+      render(await AuthenticatedAppFrame({ children: <div>app</div> }));
+
+      expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
+        socialMenuEnabled: enabled,
+      });
+    },
+  );
 });

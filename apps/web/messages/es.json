@@ -2565,7 +2565,6 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "social": "Social",
           "backToProjects": "Todos los proyectos",
           "ariaLabel": "Secciones del proyecto"
         },
@@ -2708,6 +2707,17 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Social funciona dentro de un proyecto: las cuentas desde las que publica le pertenecen. Elige un proyecto para planificar sus publicaciones.",
+      "pickAction": "Elegir un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "calendar": {
+        "title": "Calendario de publicación",
+        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
+      }
+    },
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
@@ -2748,7 +2758,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
-          "schedules": "Programaciones"
+          "schedules": "Programaciones",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -6927,7 +6938,8 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -6952,6 +6964,9 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
+      },
+      "socialOnly": {
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {

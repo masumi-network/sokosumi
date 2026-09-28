@@ -10,7 +10,8 @@ export const PROJECT_SCOPE_PARAM = "projectId";
  * is per-project but the surface is not part of a project's own page: it is a
  * destination in the sidebar like Tasks or Calendar, and it scopes itself the
  * same way they do. Unlike them it has nothing to show for the workspace
- * view, so `/studio` with no project asks for one.
+ * view, so `/studio` with no project asks for one. Social is the same shape:
+ * posts belong to one project's accounts, so `/social` asks for a project too.
  */
 const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
   {
@@ -18,6 +19,7 @@ const SCOPED_PAGES: Readonly<Record<string, Readonly<Record<string, string>>>> =
     [TASK_SCHEDULES_PATH]: {},
     "/calendar": {},
     "/studio": {},
+    "/social": {},
     "/drive": { view: "tasks" },
     "/history": {},
   };
