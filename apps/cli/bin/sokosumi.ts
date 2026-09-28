@@ -3,6 +3,7 @@
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
+import { classifyError } from "../src/cli/errors.js";
 import {
   type CliDependencies,
   type CliResult,
@@ -31,11 +32,13 @@ export function isDirectEntrypoint(
 
 if (isDirectEntrypoint()) {
   main().catch((error: unknown) => {
+    const { exitCode } = classifyError(error);
     if (process.argv.slice(2).includes("--json")) {
-      process.exitCode = 1;
+      // runCli already wrote the structured JSON error to stdout.
+      process.exitCode = exitCode;
       return;
     }
     process.stderr.write(`${redactErrorMessage(error)}\n`);
-    process.exitCode = 1;
+    process.exitCode = exitCode;
   });
 }

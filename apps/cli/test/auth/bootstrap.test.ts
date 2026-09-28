@@ -11,6 +11,7 @@ import {
   selectBootRoute,
 } from "../../src/auth/bootstrap.js";
 import { MAINNET_API_URL, PREPROD_API_URL } from "../../src/auth/config.js";
+import { CliError } from "../../src/cli/errors.js";
 
 function memoryAuthManager(): AuthManager {
   return new AuthManager({
@@ -349,7 +350,12 @@ test("requireAuthenticatedSession rejects before Core when unsigned-in", async (
       env: {},
       targetExplicit: true,
     }),
-    new Error(AUTHENTICATION_REQUIRED_MESSAGE),
+    (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.equal(error.message, AUTHENTICATION_REQUIRED_MESSAGE);
+      return true;
+    },
   );
 });
 
