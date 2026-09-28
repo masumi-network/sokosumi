@@ -1359,10 +1359,19 @@ export async function refundImageJobCharge(jobId: string): Promise<boolean> {
  * writing FAILED and refunding it. Without this, "a failed generation costs
  * nothing" would be true only when the happy path ran, which is not what a person
  * reading their balance is owed.
+ *
+ * Runs from two places on purpose. The cron sweep covers every project, and
+ * `reconcileProjectJobs` covers the one being looked at — because Vercel runs
+ * crons on production deployments only, so on a preview the cron half does not
+ * exist and a page load is the only thing that ever happens.
  */
-export async function refundFailedImageJobs(limit: number): Promise<number> {
+export async function refundFailedImageJobs(
+  limit: number,
+  options: { projectId?: string } = {},
+): Promise<number> {
   const owed = await prisma.projectImageJob.findMany({
     where: {
+      ...(options.projectId ? { projectId: options.projectId } : {}),
       status: { in: REFUNDABLE_STATUSES },
       refundTransactionId: null,
       chargedCents: { gt: 0 },
@@ -1404,6 +1413,18 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   // a reservation stranded by a crashed request gets picked back up.
   await recoverUnclaimedReservations({ projectId }).catch((error) => {
     console.warn("[image-studio] reservation recovery failed", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  });
+  // And where a charge whose inline refund never landed comes back. Scoped to this
+  // project and bounded by its own concurrency cap, so it is a small indexed read
+  // on a page load rather than a scan. This is the only refund backstop a preview
+  // deployment has: `/sync/image-jobs` is cron-driven and Vercel runs crons on
+  // production only.
+  await refundFailedImageJobs(LIMITS.IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT, {
+    projectId,
+  }).catch((error) => {
+    console.warn("[image-studio] project refund sweep failed", {
       error: error instanceof Error ? error.message : "unknown",
     });
   });

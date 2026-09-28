@@ -466,4 +466,17 @@ describe("refunding a failed generation", () => {
     expect(selection.refundTransactionId).toBeNull();
     expect(selection.status.in).toEqual(["FAILED", "CANCELED", "ORPHANED"]);
   });
+
+  it("can sweep one project, which is the only backstop a preview has", async () => {
+    // `/sync/image-jobs` is cron-driven and Vercel runs crons on production only,
+    // so on a preview deployment a page load is the only thing that ever sweeps.
+    jobFindManyMock.mockResolvedValue([{ id: "job-1" }]);
+    jobFindUniqueMock.mockImplementation(async (args) =>
+      isRefundLookup(args) ? refundableRow() : null,
+    );
+
+    expect(await refundFailedImageJobs(3, { projectId: "project-1" })).toBe(1);
+    expect(jobFindManyMock.mock.calls[0]![0].where.projectId).toBe("project-1");
+    expect(jobFindManyMock.mock.calls[0]![0].take).toBe(3);
+  });
 });
