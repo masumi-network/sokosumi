@@ -140,9 +140,11 @@ async function loadTranscript(turnId: string, userId?: string) {
       userMessage: true,
       finalAnswer: true,
       versionId: true,
+      sokoBot: { select: { name: true } },
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: {
+          toolCallId: true,
           capability: true,
           status: true,
           input: true,
@@ -155,8 +157,8 @@ async function loadTranscript(turnId: string, userId?: string) {
       // reported from context read as invented, because the judge could see
       // no tool that returned them.
       contextSnapshot: { select: { packet: true } },
-      // Sandbox tools (web, shell, workspace) run in the VM and never become
-      // tool calls; their requests and results are only in the event trail.
+      // Sandbox tools (web, shell, workspace) run in the VM. Newer turns also
+      // record them as tool calls; older ones have only the event trail.
       events: {
         where: {
           type: { in: ["actions.requested", "action.result"] },
@@ -168,7 +170,12 @@ async function loadTranscript(turnId: string, userId?: string) {
     },
   });
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
-  const sandboxCalls = sandboxToolCalls(turn.events);
+  const recorded = new Set(turn.toolCalls.map((call) => call.toolCallId));
+  const sandboxCalls = sandboxToolCalls(
+    turn.events.filter(
+      (event) => !event.toolCallId || !recorded.has(event.toolCallId),
+    ),
+  );
   const runtimeInput = clip(turn.userMessage);
   const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
   const calls = [...turn.toolCalls, ...sandboxCalls];
@@ -193,6 +200,9 @@ async function loadTranscript(turnId: string, userId?: string) {
   return {
     turn,
     transcript: {
+      // The assistant's own name, so signing a message with it does not read
+      // as impersonating somebody.
+      assistantName: turn.sokoBot.name,
       source: turn.source,
       status: turn.status,
       route: turn.route,

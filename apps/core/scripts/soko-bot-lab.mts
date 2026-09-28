@@ -52,6 +52,9 @@ const reset = args.includes("--reset");
 // A turn may run until its 15-minute deadline; giving up sooner scores a slow
 // but valid turn as an error and fails the next scenario on a busy bot.
 const TURN_TIMEOUT_MS = 16 * 60_000;
+/** A dropped or stalled database connection, retried once: not the bot's doing. */
+const DATABASE_BLIP =
+  /Can't reach database server|Connection terminated unexpectedly|expired transaction|P1001|P1017|P2028/;
 
 async function resolveOwner() {
   const bot = await prisma.sokoBot.findFirst({
@@ -328,78 +331,85 @@ for (const versionId of versionIds) {
     `Lab "${label}" for bot ${owner.bot.name} (${scenarios.length} scenarios)`,
   );
   for (const scenario of scenarios) {
-    const startedAt = Date.now();
-    try {
-      await waitForIdle(owner.bot.id);
-      if (scenario.setup) {
-        await resetLabState(owner);
-        for (const schedule of scenario.setup.schedules ?? [])
-          await createSokoBotSchedule({
-            userId: owner.bot.userId,
-            workspaceId: owner.workspaceId,
-            timezone: "Europe/Berlin",
-            ...schedule,
-          });
+    for (let attempt = 1; ; attempt++) {
+      const startedAt = Date.now();
+      try {
+        await waitForIdle(owner.bot.id);
+        if (scenario.setup) {
+          await resetLabState(owner);
+          for (const schedule of scenario.setup.schedules ?? [])
+            await createSokoBotSchedule({
+              userId: owner.bot.userId,
+              workspaceId: owner.workspaceId,
+              timezone: "Europe/Berlin",
+              ...schedule,
+            });
+        }
+        const turnId = await startScenario(scenario, owner);
+        await waitForTurn(turnId);
+        const turn = await loadTurn(turnId);
+        const result = evaluateScenario(scenario, turn);
+        const judged = noJudge
+          ? null
+          : await judgeSokoBotLabTurn({
+              userId: owner.bot.userId,
+              turnId,
+              scenarioId: scenario.id,
+              evaluation: {
+                passed: result.passed,
+                total: result.total,
+                checks: result.checks,
+              },
+            }).catch((error) => {
+              console.log(
+                `     judge failed: ${error instanceof Error ? error.message : error}`,
+              );
+              return null;
+            });
+        const tools = Array.from(
+          new Set(turn.toolCalls.map((c) => c.capability)),
+        );
+        rows.push({
+          versionId,
+          id: scenario.id,
+          turnId,
+          route: turn.route,
+          passed: result.passed,
+          total: result.total,
+          durationMs: turn.durationMs,
+          costUsd: turn.costUsd,
+          tools,
+          checks: result.checks,
+          judge: judged?.verdict ?? null,
+          answer: turn.finalAnswer,
+        });
+        const failed = result.checks
+          .filter((c) => !c.pass)
+          .map((c) => `${c.label} (${c.actual})`);
+        if (judged?.verdict.issues.length) {
+          failed.push(
+            ...judged.verdict.issues.map((issue) => `judge: ${issue}`),
+          );
+        }
+        const judgeLine = judged
+          ? ` judge=${judged.verdict.verdict} d${judged.verdict.scores.delegation} f${judged.verdict.scores.followThrough} j${judged.verdict.scores.judgment} h${judged.verdict.scores.honesty}`
+          : "";
+        console.log(
+          `${result.passed === result.total ? "PASS" : "FAIL"} ${scenario.id} ${result.passed}/${result.total} route=${turn.route} ${Math.round((turn.durationMs ?? 0) / 1000)}s $${(turn.costUsd ?? 0).toFixed(4)} tools=[${tools.join(",")}]${judgeLine}${failed.length ? `\n     ✗ ${failed.join("\n     ✗ ")}` : ""}`,
+        );
+        break;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (attempt === 1 && DATABASE_BLIP.test(message)) {
+          console.log(`RETRY ${scenario.id}: the database connection dropped`);
+          continue;
+        }
+        rows.push({ versionId, id: scenario.id, error: message });
+        console.log(
+          `ERR  ${scenario.id}: ${message} (${Math.round((Date.now() - startedAt) / 1000)}s)`,
+        );
+        break;
       }
-      const turnId = await startScenario(scenario, owner);
-      await waitForTurn(turnId);
-      const turn = await loadTurn(turnId);
-      const result = evaluateScenario(scenario, turn);
-      const judged = noJudge
-        ? null
-        : await judgeSokoBotLabTurn({
-            userId: owner.bot.userId,
-            turnId,
-            scenarioId: scenario.id,
-            evaluation: {
-              passed: result.passed,
-              total: result.total,
-              checks: result.checks,
-            },
-          }).catch((error) => {
-            console.log(
-              `     judge failed: ${error instanceof Error ? error.message : error}`,
-            );
-            return null;
-          });
-      const tools = Array.from(
-        new Set(turn.toolCalls.map((c) => c.capability)),
-      );
-      rows.push({
-        versionId,
-        id: scenario.id,
-        turnId,
-        route: turn.route,
-        passed: result.passed,
-        total: result.total,
-        durationMs: turn.durationMs,
-        costUsd: turn.costUsd,
-        tools,
-        checks: result.checks,
-        judge: judged?.verdict ?? null,
-        answer: turn.finalAnswer,
-      });
-      const failed = result.checks
-        .filter((c) => !c.pass)
-        .map((c) => `${c.label} (${c.actual})`);
-      if (judged?.verdict.issues.length) {
-        failed.push(...judged.verdict.issues.map((issue) => `judge: ${issue}`));
-      }
-      const judgeLine = judged
-        ? ` judge=${judged.verdict.verdict} d${judged.verdict.scores.delegation} f${judged.verdict.scores.followThrough} j${judged.verdict.scores.judgment} h${judged.verdict.scores.honesty}`
-        : "";
-      console.log(
-        `${result.passed === result.total ? "PASS" : "FAIL"} ${scenario.id} ${result.passed}/${result.total} route=${turn.route} ${Math.round((turn.durationMs ?? 0) / 1000)}s $${(turn.costUsd ?? 0).toFixed(4)} tools=[${tools.join(",")}]${judgeLine}${failed.length ? `\n     ✗ ${failed.join("\n     ✗ ")}` : ""}`,
-      );
-    } catch (error) {
-      rows.push({
-        versionId,
-        id: scenario.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      console.log(
-        `ERR  ${scenario.id}: ${error instanceof Error ? error.message : error} (${Math.round((Date.now() - startedAt) / 1000)}s)`,
-      );
     }
   }
 }

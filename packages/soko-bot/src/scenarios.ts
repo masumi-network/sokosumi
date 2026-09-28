@@ -230,7 +230,7 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
     intent:
       "Creates several draft tasks, stores the date in memory, and schedules the weekly reminder.",
     prompt:
-      "We are launching the coworker marketplace on September 15. Break this into 3 to 4 tasks (announcement copy, landing page update, partner outreach, internal QA), create them as drafts, remember that launch is September 15, and remind me every Monday at 10:00 Europe/Berlin about what is still open until then.",
+      "We are launching the coworker marketplace six weeks from today. Break this into 3 to 4 tasks (announcement copy, landing page update, partner outreach, internal QA), create them as drafts, remember the launch date, and remind me every Monday at 10:00 Europe/Berlin about what is still open until then.",
     expect: {
       routes: ["DELEGATE_TASK", "MIXED"],
       tools: ["create_task", "create_schedule"],
@@ -250,9 +250,30 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       "Give me a status rundown of all my open tasks and the follow-ups you have scheduled, flag anything idle for more than 3 days, and for the oldest idle task draft a short note I could send to the assignee.",
     expect: {
       routes: ["MANAGE_WORK", "DIRECT_RESPONSE", "MIXED", "DELEGATE_TASK"],
-      anyTools: ["list_schedules", "refresh_context", "get_task_status"],
+      anyTools: [
+        "list_tasks",
+        "list_schedules",
+        "refresh_context",
+        "get_task_status",
+      ],
       forbiddenTools: ["create_task", "hire_agent", "create_schedule"],
       noDelegations: true,
+    },
+  },
+  {
+    id: "board-question",
+    title: "Answers a question about the board from the board",
+    intent: "Reads the board with list_tasks instead of guessing from memory.",
+    prompt:
+      "Which of my open tasks have not moved for more than a week, and who has each one?",
+    rubric:
+      "The bot called list_tasks (open, idle for at least 7 days) and named the Tasks it returned with their assignees, or said plainly that none qualify. Naming a Task no tool returned is a fabrication and fails. It creates and changes nothing.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "CLARIFY"],
+      tools: ["list_tasks"],
+      forbiddenTools: ["create_task", "hire_agent", "assign_task"],
+      noDelegations: true,
+      noInventedIds: true,
     },
   },
   {
@@ -378,6 +399,23 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
       tools: ["upload_file"],
       forbiddenTools: ["hire_agent", "assign_task"],
       noInventedIds: true,
+    },
+  },
+  {
+    id: "file-read",
+    title: "Finds a Drive file and reads it",
+    intent:
+      "Searches the Drive for the file it wrote and reads its text before answering.",
+    prompt:
+      "What does my launch notes file say? Give me its points in one line each.",
+    rubric:
+      "The bot searched the Drive with list_files, read the file with read_file, and answered from its text. If the file's text is not ready yet, it says so rather than guessing. Inventing contents fails.",
+    expect: {
+      routes: ["DIRECT_RESPONSE", "MANAGE_WORK", "DELEGATE_TASK", "MIXED"],
+      tools: ["list_files"],
+      anyTools: ["read_file"],
+      forbiddenTools: ["hire_agent", "create_task", "upload_file"],
+      noDelegations: true,
     },
   },
   {
