@@ -49,6 +49,7 @@ import {
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   getJobsListFiltersForLazyAgentCatalog,
   getJobsListFiltersResetKey,
@@ -538,9 +539,10 @@ export function TasksView({
 
   useEffect(() => {
     const isListView = defaultViewMode === "list";
+    const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current,
-      serverTasks: tasks,
+      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
+      serverTasks,
       pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
@@ -550,7 +552,7 @@ export function TasksView({
     setItems(next);
 
     // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= tasks.length) {
+    if (isListView || next.length <= serverTasks.length) {
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
