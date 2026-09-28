@@ -1727,16 +1727,22 @@ export class SokoBotControlPlane {
       if (settled.count === 0) return false;
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
+      // Every UNVERIFIED_OUTCOME refinement describes a delegated result that
+      // cannot exist yet at settlement. Only an uncertain or invalidated
+      // outcome is worth prefixing onto a successful turn's answer.
+      const unverifiedAtSettlement = [
+        "UNVERIFIED_OUTCOME",
+        "OUTCOME_SCOPE_REQUIRES_REVIEW",
+        "ARTIFACT_READABILITY_UNVERIFIED",
+        "RESULT_EVIDENCE_UNAVAILABLE",
+      ].includes(outcome?.blockerKind ?? "");
       if (
         responseContract &&
         outcomeSummary &&
         outcome &&
         ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
         !isSokoBotSilentAnswer(responseContract.answerText) &&
-        (outcome.state !== "BLOCKED" ||
-          !["UNVERIFIED_OUTCOME", "OUTCOME_SCOPE_REQUIRES_REVIEW"].includes(
-            outcome.blockerKind ?? "",
-          ))
+        (outcome.state !== "BLOCKED" || !unverifiedAtSettlement)
       ) {
         const answerText = `${outcomeSummary}\n\n${responseContract.answerText}`;
         await tx.sokoBotTurn.update({

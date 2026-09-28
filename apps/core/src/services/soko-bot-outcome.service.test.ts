@@ -417,6 +417,110 @@ describe("evidence-backed intent fulfillment", () => {
     });
   });
 
+  it("fulfills a MANAGE_WORK request from the action it committed", async () => {
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      route: "MANAGE_WORK",
+      intentRevision: 2,
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        targetIds: ["project-one"],
+        acceptanceCriteria: [
+          {
+            kind: "OUTCOME",
+            id: "requested-outcome",
+            description: "Create a draft X post saying Hello world",
+          },
+        ],
+      },
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      {
+        id: "receipt-social",
+        capability: "create_social_post",
+        targetId: "post-one",
+        inputHash: "a".repeat(64),
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        verification: "LOCAL_TRANSACTION",
+        committedAt: new Date("2026-09-28T12:00:00Z"),
+        effectEventId: null,
+      },
+    ]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    // The committed action is the proof, so no task evidence is consulted.
+    expect(dbMock.task.findMany).not.toHaveBeenCalled();
+    expect(prisma.sokoBotTurn.updateMany).toHaveBeenCalledWith({
+      where: { intentId: "intent-one", intentRevision: 2 },
+      data: { fulfillmentState: "FULFILLED" },
+    });
+    expect(dbMock.sokoBotIntentOutcome.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          state: "FULFILLED",
+          criteriaResults: [
+            {
+              id: "requested-outcome",
+              satisfied: true,
+              evidenceId: "receipt-social",
+            },
+          ],
+        }),
+      }),
+    );
+  });
+
+  it("does not fulfill a MANAGE_WORK request with no committed action", async () => {
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      route: "MANAGE_WORK",
+      intentRevision: 2,
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        targetIds: ["project-one"],
+        acceptanceCriteria: [
+          {
+            kind: "OUTCOME",
+            id: "requested-outcome",
+            description: "Create a draft X post saying Hello world",
+          },
+        ],
+      },
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      {
+        id: "read-social",
+        capability: "list_project_social_accounts",
+        targetId: null,
+        status: "COMPLETED",
+        disposition: null,
+        verification: "NONE",
+        committedAt: null,
+        effectEventId: null,
+      },
+    ]);
+    dbMock.task.findMany.mockResolvedValueOnce([]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    expect(dbMock.sokoBotIntentOutcome.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          state: "BLOCKED",
+          blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
+        }),
+      }),
+    );
+  });
+
   it("pages matching intent IDs without loading historical intent payloads", async () => {
     dbMock.sokoBotIntent.findMany
       .mockResolvedValueOnce(

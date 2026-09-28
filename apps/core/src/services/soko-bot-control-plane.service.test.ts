@@ -464,6 +464,16 @@ describe("SokoBotControlPlane lifecycle", () => {
       state: "BLOCKED" as const,
     },
     {
+      finalAnswer: "Created social post (post-one).",
+      blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
+      state: "BLOCKED" as const,
+    },
+    {
+      finalAnswer: "Created social post (post-one).",
+      blockerKind: "ARTIFACT_READABILITY_UNVERIFIED",
+      state: "BLOCKED" as const,
+    },
+    {
       finalAnswer: "Nothing to add.",
       blockerKind: "UNCERTAIN_ACTION",
       state: "BLOCKED" as const,
