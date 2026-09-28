@@ -1,4 +1,20 @@
-/** Minimal Neon API client for Cloud agent branches and preview resets. */
+/** Minimal Neon API client for Cloud agent and PR preview branches. */
+
+/**
+ * @typedef {object} NeonBranch
+ * @property {string} id
+ * @property {string} name
+ * @property {string} [parent_id]
+ * @property {boolean} [default]
+ * @property {boolean} [protected]
+ * @property {string} [expires_at]
+ */
+
+/**
+ * @typedef {object} NeonBranchOperation
+ * @property {NeonBranch} [branch]
+ * @property {{ id: string, status?: string }[]} [operations]
+ */
 
 const NEON_API_BASE = "https://console.neon.tech/api/v2";
 // The branch list is paged and its docs give no default page size, so ask for
@@ -86,7 +102,7 @@ export async function neonFetch(config, path, init = {}) {
 /**
  * @param {NeonConfig} config
  * @param {string} [search] partial branch name or id; Neon filters server-side
- * @returns {Promise<object[]>}
+ * @returns {Promise<NeonBranch[]>}
  */
 export async function listBranches(config, search) {
   const query = new URLSearchParams({ limit: String(BRANCH_LIST_LIMIT) });
@@ -143,8 +159,9 @@ export async function resolveParentBranch(config, isAgentName) {
 /**
  * @param {NeonConfig} config
  * @param {{ name: string, parentId: string, expiresAt: string }} input
+ * @returns {Promise<NeonBranchOperation>}
  */
-export async function createAgentBranch(config, input) {
+export async function createBranch(config, input) {
   return neonFetch(config, `/projects/${config.projectId}/branches`, {
     method: "POST",
     body: JSON.stringify({
@@ -170,7 +187,7 @@ export async function refreshBranchExpiration(config, branchId, input) {
     {
       method: "PATCH",
       body: JSON.stringify({
-        expires_at: input.expiresAt,
+        branch: { expires_at: input.expiresAt },
       }),
     },
   );
@@ -179,6 +196,7 @@ export async function refreshBranchExpiration(config, branchId, input) {
 /**
  * @param {NeonConfig} config
  * @param {string} branchId
+ * @returns {Promise<NeonBranchOperation>}
  */
 export async function deleteBranch(config, branchId) {
   return neonFetch(

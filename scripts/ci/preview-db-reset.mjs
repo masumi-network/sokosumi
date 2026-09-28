@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * `/reset-db <mainnet|preprod>` or `/reset-db all` on a pull request resets
- * the PR's Neon preview branch (`preview/<head ref>`) to its parent, then
+ * the PR's Neon preview branch (`preview/gh-<repo-id>-pr-<number>`) to its parent, then
  * redeploys Core so its Vercel build runs `prisma migrate deploy` on the
  * clean branch. Use it after renaming a migration that the preview database
  * already applied. `/deploy <networks> --reset-db` does the same reset, then
@@ -16,12 +16,17 @@ import {
   isNeonBusy,
   isUnknownNeonOutcome,
   neonErrorReason,
-  PREVIEW_BRANCH_PREFIX,
   resetPreviewBranchToParent,
   waitForOperations,
 } from "../cloud-agent-db/neon-api.mjs";
 import {
+  preparePreviewResources,
+  previewBranchName,
+  readPreviewNeonConfigs,
+} from "./preview-resources.ts";
+import {
   commentCommandOptions,
+  deployTargets,
   isMainModule,
   parseNetworkCommand,
   previewGitSource,
@@ -65,13 +70,6 @@ export function stripResetDbFlag(body) {
   return kept.join(" ");
 }
 
-/** The org-wide Neon key. It reaches both preview projects. */
-export const NEON_API_KEY_VARIABLE = "NEON_API_KEY";
-
-export function projectIdVariable(network) {
-  return `NEON_PREVIEW_PROJECT_ID_${network.toUpperCase()}`;
-}
-
 export function resetUsageMessage() {
   return [
     "Usage: `/reset-db <mainnet|preprod> [mainnet|preprod]` or `/reset-db all`",
@@ -80,27 +78,8 @@ export function resetUsageMessage() {
     "`/reset-db preprod`",
     "`/reset-db all`",
     "",
-    `Resets this PR's Neon preview branch (\`${PREVIEW_BRANCH_PREFIX}<branch>\`) to a copy of its parent, then redeploys Core for the named network(s). The build applies every migration the parent lacks, this PR's included. Data written only to that preview database is lost.`,
+    `Resets this PR's Neon preview branch (\`preview/gh-<repo-id>-pr-<number>\`) to a copy of its parent, then redeploys Core for the named network(s). The build applies every migration the parent lacks, this PR's included. Data written only to that preview database is lost.`,
   ].join("\n");
-}
-
-function requiredEnv(env, variable) {
-  const value = env[variable]?.trim();
-  if (!value) {
-    throw new Error(`${variable} is not set`);
-  }
-  return value;
-}
-
-/** Neon config per network: its own project, with the one org key. */
-export function readPreviewNeonConfigs(env, networks) {
-  return networks.map((network) => ({
-    network,
-    config: {
-      apiKey: requiredEnv(env, NEON_API_KEY_VARIABLE),
-      projectId: requiredEnv(env, projectIdVariable(network)),
-    },
-  }));
 }
 
 /** The error's message as a sentence that ends with one period. */
@@ -197,7 +176,10 @@ async function runResetCommand(options, command, usage) {
     action: "reset preview databases",
     usage,
     run: async ({ networks, pullRequest, comment, react }) => {
-      const branchName = `${PREVIEW_BRANCH_PREFIX}${pullRequest.head.ref}`;
+      const branchName = previewBranchName({
+        repoId: repoId ?? pullRequest.base.repo.id,
+        pullNumber: pullRequest.number,
+      });
       const fetchWithTimeout = withRequestTimeout(
         neonFetchImpl ?? globalThis.fetch,
       );
@@ -218,12 +200,23 @@ async function runResetCommand(options, command, usage) {
           );
           if (!branch) {
             throw new Error(
-              `No Neon branch \`${branchName}\` in the preview project. A Core preview deployment of this branch creates it`,
+              `No Neon branch \`${branchName}\` in the preview project. Comment /deploy with the network to create it`,
             );
           }
           assertPreviewBranchResettable(branch);
           targets.push({ network, neon, branch });
         }
+        await (options.prepareResources ?? preparePreviewResources)(
+          {
+            ...options,
+            repoId: repoId ?? pullRequest.base.repo.id,
+            pullNumber: pullRequest.number,
+            ref: pullRequest.head.ref,
+            vercelToken,
+            teamId,
+          },
+          deployTargets(networks, ["core"]),
+        );
       } catch (error) {
         // A missing key or project id fails before any network is checked,
         // and its variable name already says which network.
