@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Loader2, Sparkles, X } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
@@ -761,11 +761,7 @@ export function StudioComposer({
           size="sm"
           variant="primary"
         >
-          {busy ? (
-            <Loader2 aria-hidden className="animate-spin" />
-          ) : (
-            <Sparkles aria-hidden />
-          )}
+          {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
           {totalJobs > 1
             ? t("generateMany", { count: totalJobs })
             : labels.generateOne}
