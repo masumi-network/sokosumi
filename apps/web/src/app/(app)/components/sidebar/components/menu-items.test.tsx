@@ -239,7 +239,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "drive",
       "history",
     ];
@@ -267,7 +267,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
@@ -354,7 +354,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "drive",
       "history",
     ]);
@@ -428,7 +428,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
       ["calendar", "/calendar"],
-      ["imageStudio", "/studio"],
+      ["contentStudio", "/studio"],
       ["drive", "/drive"],
       ["history", "/history"],
     ]) {
@@ -444,7 +444,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
       ["calendar", "/calendar?projectId=p-1"],
-      ["imageStudio", "/studio?projectId=p-1"],
+      ["contentStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
       ["history", "/history?projectId=p-1"],
     ]) {

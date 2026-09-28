@@ -1,4 +1,5 @@
-import type { StudioLabels } from "./types";
+import { STUDIO_TEMPLATE_IDS, type StudioTemplateId } from "./studio-templates";
+import type { StudioFailureReason, StudioLabels } from "./types";
 
 /** Every string the studio needs, resolved once by whichever page mounts it. */
 type Translator = (key: string) => string;
@@ -14,7 +15,6 @@ export function buildStudioLabels(t: Translator): StudioLabels {
   return {
     emptyTitle: t("emptyTitle"),
     emptyBody: t("emptyBody"),
-    examplePrompts: [t("example1"), t("example2"), t("example3")],
     promptPlaceholder: t("promptPlaceholder"),
     generate: t("generate"),
     refine: t("refine"),
@@ -48,25 +48,24 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     errorSessionExpired: t("errorSessionExpired"),
     errorRefreshFailed: t("errorRefreshFailed"),
     errorLoadOlderFailed: t("errorLoadOlderFailed"),
+    errorUnreachable: t("errorUnreachable"),
+    errorInsufficientCredits: t("errorInsufficientCredits"),
     composerTitle: t("composerTitle"),
     model: t("model"),
-    placement: t("placement"),
-    placementNone: t("placementNone"),
-    placementTarget: t("placementTarget"),
-    placementNotOutput: t("placementNotOutput"),
     aspectRatio: t("aspectRatio"),
     resolution: t("resolution"),
     outputFormat: t("outputFormat"),
     copies: t("copies"),
     selectAllModels: t("selectAllModels"),
-    frameSetByPlacement: t("frameSetByPlacement"),
+    noModelSelected: t("noModelSelected"),
     moreOptions: t("moreOptions"),
     generateOne: t("generateOne"),
-    modelUnsupportedForPlacement: t("modelUnsupportedForPlacement"),
     modelNotInCatalog: t("modelNotInCatalog"),
     waitingForSlot: t("waitingForSlot"),
     waitingForSlotBody: t("waitingForSlotBody"),
     queueNotDurable: t("queueNotDurable"),
+    templates: t("templates"),
+    templateLabels: templateLabels(t),
     gallery: t("gallery"),
     filterRejected: t("filterRejected"),
     filterUndecided: t("filterUndecided"),
@@ -85,13 +84,58 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     compareHint: t("compareHint"),
     compareNeedsTwo: t("compareNeedsTwo"),
     bytesUnavailable: t("bytesUnavailable"),
+    imageUnreadable: t("imageUnreadable"),
+    imageRetry: t("imageRetry"),
     previousVersion: t("previousVersion"),
     nextVersion: t("nextVersion"),
     generationTime: t("generationTime"),
-    estimatedCost: t("estimatedCost"),
-    estimateTitle: t("estimateTitle"),
-    estimateNotCharge: t("estimateNotCharge"),
-    estimateUnpriced: t("estimateUnpriced"),
-    estimateNoPrice: t("estimateNoPrice"),
+    credits: t("credits"),
+    creditsTitle: t("creditsTitle"),
+    creditsCharged: t("creditsCharged"),
+    creditsUnderivable: t("creditsUnderivable"),
+    creditsNoFigure: t("creditsNoFigure"),
+    failedNoCharge: t("failedNoCharge"),
+    failedBody: failureBodies(t),
+    failedBodyUnreported: t("failedBodyUnreported"),
+    failedDetails: t("failedDetails"),
+  };
+}
+
+/**
+ * The template labels, derived rather than spelled out.
+ *
+ * The exception the rule above allows: the source of truth is
+ * `STUDIO_TEMPLATE_IDS`, a typed local tuple, so the result is still a
+ * `Record<StudioTemplateId, string>` and the key paths are still discoverable
+ * from one list. Looping over the *catalogue* would lose both.
+ */
+function templateLabels(t: Translator): Record<StudioTemplateId, string> {
+  return Object.fromEntries(
+    STUDIO_TEMPLATE_IDS.map((id) => [id, t(`Templates.${id}`)]),
+  ) as Record<StudioTemplateId, string>;
+}
+
+/**
+ * Every failure reason Core can report, in the reader's language.
+ *
+ * Spelled out rather than looped, and that is the point: the record is typed by
+ * Core's own union, so a code Core adds fails to compile here until somebody
+ * writes the sentence for it. A loop over a local list would compile happily and
+ * ship an English fallback instead.
+ */
+function failureBodies(t: Translator): Record<StudioFailureReason, string> {
+  return {
+    provider_rejected: t("FailureReasons.provider_rejected"),
+    provider_error: t("FailureReasons.provider_error"),
+    provider_lost_request: t("FailureReasons.provider_lost_request"),
+    provider_unreachable: t("FailureReasons.provider_unreachable"),
+    submission_uncertain: t("FailureReasons.submission_uncertain"),
+    reference_not_sendable: t("FailureReasons.reference_not_sendable"),
+    request_not_supported: t("FailureReasons.request_not_supported"),
+    cancelled: t("FailureReasons.cancelled"),
+    abandoned_before_send: t("FailureReasons.abandoned_before_send"),
+    access_revoked: t("FailureReasons.access_revoked"),
+    storage_unavailable: t("FailureReasons.storage_unavailable"),
+    unknown: t("FailureReasons.unknown"),
   };
 }

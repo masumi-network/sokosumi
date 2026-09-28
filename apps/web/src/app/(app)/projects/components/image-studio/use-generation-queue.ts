@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { startImageGeneration } from "@/lib/actions/image-studio/action";
@@ -43,6 +44,17 @@ export interface QueuedGeneration {
   idempotencyKey: string;
 }
 
+/**
+ * A failure this hook has its own wording for.
+ *
+ * A code rather than a sentence, for the same reason `useStudioState` uses one:
+ * Core's message is English, and the page owns the wording so a German or
+ * Spanish reader does not get an English string on a translated page. Every
+ * other failure falls through to `lastError` and Core's own message, which is
+ * the best available description of an unsupported combination or a spend cap.
+ */
+export type QueueErrorCode = "unreachable" | "insufficient_credits";
+
 export interface GenerationQueue {
   /** Requests not yet accepted by Core, oldest first. */
   queued: QueuedGeneration[];
@@ -50,6 +62,8 @@ export interface GenerationQueue {
   waitingForSlot: boolean;
   /** The last request that failed for a reason retrying will not fix. */
   lastError: string | null;
+  /** Set instead of `lastError` when this hook has its own wording for it. */
+  lastErrorCode: QueueErrorCode | null;
   enqueue: (requests: QueuedGeneration[]) => void;
   /** Drops a request that has not been sent yet. */
   remove: (id: string) => void;
@@ -63,7 +77,7 @@ export interface GenerationQueue {
  * reports a busy Core as data, so an exception here is a transport or session
  * failure, and looping on it would send the same request at a wall.
  */
-const UNREACHABLE = "Could not reach the studio. Try again.";
+const UNREACHABLE: QueueErrorCode = "unreachable";
 
 export function useGenerationQueue({
   projectId,
@@ -76,6 +90,9 @@ export function useGenerationQueue({
   const [queued, setQueued] = useState<QueuedGeneration[]>([]);
   const [waitingForSlot, setWaitingForSlot] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
+  const [lastErrorCode, setLastErrorCode] = useState<QueueErrorCode | null>(
+    null,
+  );
   /**
    * Bumped to ask the dispatcher to look again after a busy wait.
    *
@@ -164,6 +181,17 @@ export function useGenerationQueue({
           return;
         }
 
+        if (result.kind === CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE) {
+          // The whole batch goes, not just the head. Core takes the debit in
+          // the same transaction that writes the job row, so this request left
+          // nothing behind — and the next eleven would hit the same wall and
+          // say so eleven times. One sentence, and the queue is empty.
+          setWaitingForSlot(false);
+          setLastErrorCode("insufficient_credits");
+          setQueued([]);
+          return;
+        }
+
         if (result.kind === BUSY_KIND) {
           // Core is full, not broken. Keep the request and come back to it;
           // dropping it here is how a batch of four silently becomes three.
@@ -184,7 +212,7 @@ export function useGenerationQueue({
       } catch {
         if (!mountedRef.current) return;
         setWaitingForSlot(false);
-        setLastError(UNREACHABLE);
+        setLastErrorCode(UNREACHABLE);
         setQueued((current) => current.filter((item) => item.id !== next.id));
       } finally {
         sendingRef.current = false;
@@ -195,6 +223,7 @@ export function useGenerationQueue({
   const enqueue = useCallback((requests: QueuedGeneration[]) => {
     if (requests.length === 0) return;
     setLastError(null);
+    setLastErrorCode(null);
     setQueued((current) => [...current, ...requests]);
   }, []);
 
@@ -202,7 +231,18 @@ export function useGenerationQueue({
     setQueued((current) => current.filter((item) => item.id !== id));
   }, []);
 
-  const clearError = useCallback(() => setLastError(null), []);
+  const clearError = useCallback(() => {
+    setLastError(null);
+    setLastErrorCode(null);
+  }, []);
 
-  return { queued, waitingForSlot, lastError, enqueue, remove, clearError };
+  return {
+    queued,
+    waitingForSlot,
+    lastError,
+    lastErrorCode,
+    enqueue,
+    remove,
+    clearError,
+  };
 }

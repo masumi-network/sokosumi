@@ -21,6 +21,15 @@ export interface ProjectAccess {
   projectId: string;
   workspaceId: string;
   userId: string;
+  /**
+   * The organization that owns the workspace, or null for a personal one.
+   *
+   * Returned here rather than looked up again by the caller because the
+   * membership check has already read it, and because it decides which credit
+   * pot a generation is charged to. A second lookup is a second chance to charge
+   * the wrong pot.
+   */
+  organizationId: string | null;
 }
 
 async function isCurrentMember(
@@ -67,6 +76,7 @@ export async function requireProjectAccess(
     projectId: project.id,
     workspaceId: project.workspaceId,
     userId: options.userId,
+    organizationId: project.workspace.organizationId,
   };
 }
 
@@ -99,5 +109,6 @@ export async function requireProjectAccessForUser(
     projectId: project.id,
     workspaceId: project.workspaceId,
     userId: options.userId,
+    organizationId: project.workspace.organizationId,
   };
 }

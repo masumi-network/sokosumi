@@ -141,7 +141,7 @@ function ScopedMenuItems() {
     {
       key: "studio",
       href: "/studio",
-      label: t("imageStudio"),
+      label: t("contentStudio"),
       Icon: ImagePlus,
     },
     // Desktop only: mobile keeps Files on the You page account surface.

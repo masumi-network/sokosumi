@@ -1,18 +1,12 @@
 "use client";
 
 import { Check, Loader2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import {
-  formatUsd,
-  modelById,
-  placementById,
-  placementName,
-  priceForImage,
-  resolveModel,
-} from "./catalog";
+import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   formatElapsed,
@@ -29,15 +23,16 @@ import type { QueuedGeneration } from "./use-generation-queue";
  * Bulk creation only means anything if the results arrive somewhere they can
  * be read together. The picture carries the judgement; the caption carries
  * only what you cannot see by looking — which version it is, whether it has
- * been decided on, which model made it and what it was made for. Its exact
- * pixel size, its prompt, its lineage and its note are one click away, which
- * is where things you compare rather than scan belong.
+ * been decided on, and which model made it. Its exact pixel size, its prompt,
+ * its lineage and its note are one click away, which is where things you
+ * compare rather than scan belong.
  */
 export function StudioGallery({
   activeJobs,
   assets,
   cancelRequestedJobIds,
   catalog,
+  creditsByAssetId,
   elapsedByAssetId,
   labels,
   onCancelJob,
@@ -52,6 +47,14 @@ export function StudioGallery({
   /** Jobs the provider has agreed to stop, which may still finish anyway. */
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
+  /**
+   * What each version was debited, per version, in credits.
+   *
+   * The charge off the job row, not a figure recomputed from the catalog: a
+   * price that moved since the image was made must not silently restate what
+   * the person paid.
+   */
+  creditsByAssetId: Record<string, number>;
   /**
    * How long the provider took, per version, in milliseconds.
    *
@@ -68,6 +71,10 @@ export function StudioGallery({
   queued: QueuedGeneration[];
   selectedIds: string[];
 }) {
+  // Only for the credits figure, which interpolates a count; every other string
+  // arrives resolved in `labels`. See `StudioLabels`.
+  const t = useTranslations("App.Studio");
+
   return (
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
@@ -107,7 +114,7 @@ export function StudioGallery({
                     of buttons above the gallery it was a second list of the
                     running jobs, in a different order, with no picture. */}
                 <Button
-                  className="mt-1"
+                  className="mt-2"
                   disabled={requested}
                   onClick={() => onCancelJob(job.id)}
                   size="sm"
@@ -123,10 +130,6 @@ export function StudioGallery({
         {assets.map((asset) => {
           const selected = selectedIds.includes(asset.id);
           const model = resolveModel(catalog, asset.model);
-          const placement = placementById(
-            catalog,
-            asset.settings?.placementId ?? null,
-          );
           const decision = asset.review?.decision ?? null;
           const decisionLabel =
             decision === "APPROVED"
@@ -135,13 +138,12 @@ export function StudioGallery({
                 ? labels.rejected
                 : labels.undecided;
           const elapsed = elapsedByAssetId[asset.id] ?? null;
-          // The provider's list price for this model at the resolution this
-          // version actually ran at. An estimate, never a charge: nothing in
-          // this studio records what fal billed for a job.
-          const catalogModel = modelById(catalog, model.id);
-          const estimateUsd = catalogModel
-            ? priceForImage(catalogModel, asset.settings?.resolution)
-            : null;
+          // What this version actually cost, off its job row. `?? null`, never
+          // `|| null`: a job whose row has fallen off the page is absent and
+          // unknown, while a delivered image Core could not charge for carries a
+          // real `0` and was free. Different claims, and a falsy check would
+          // collapse the second into the first.
+          const credits = creditsByAssetId[asset.id] ?? null;
           // Everything the caption cannot fit, kept reachable on hover and
           // for the accessible name. The catalog id is in here rather than on
           // the caption: the label is what a person compares models by, and
@@ -153,12 +155,9 @@ export function StudioGallery({
             elapsed === null
               ? null
               : `${labels.generationTime} ${formatElapsed(elapsed)}`,
-            estimateUsd === null
+            credits === null
               ? null
-              : `${labels.estimatedCost} ~${formatUsd(estimateUsd)}`,
-            placement
-              ? `${placementName(placement)} · ${placement.aspectRatio} · ${placement.width}×${placement.height}`
-              : null,
+              : `${labels.credits} ${t("creditsCount", { count: credits })}`,
             model.known ? null : labels.modelNotInCatalog,
           ]
             .filter(Boolean)
@@ -182,7 +181,7 @@ export function StudioGallery({
                   <span className="bg-muted flex aspect-square w-full items-center justify-center">
                     <StudioImage
                       asset={asset}
-                      label={labels.bytesUnavailable}
+                      labels={labels}
                       projectId={projectId}
                     />
                   </span>
@@ -224,7 +223,7 @@ export function StudioGallery({
                   {selected ? <Check aria-hidden className="size-3.5" /> : null}
                 </button>
 
-                <figcaption className="space-y-0.5 px-2 py-1.5">
+                <figcaption className="space-y-1 px-2 py-2">
                   <div className="flex min-w-0 items-center gap-1.5">
                     <span className="text-foreground shrink-0 text-xs font-medium tabular-nums">
                       v{asset.version}
@@ -244,11 +243,10 @@ export function StudioGallery({
                   </div>
 
                   {/* What it cost to make, which is what a batch across
-                      several models is read for. Time is measured; the money
-                      is the provider's published price for these settings and
-                      is marked as an approximation, because nothing here reads
-                      back what was actually billed. */}
-                  {elapsed !== null || estimateUsd !== null ? (
+                      several models is read for. Both figures are measured:
+                      the time is the provider's own submit-to-settle interval
+                      and the credits are what the ledger debited. */}
+                  {elapsed !== null || credits !== null ? (
                     <p
                       className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs tabular-nums"
                       title={provenance}
@@ -261,27 +259,12 @@ export function StudioGallery({
                           {formatElapsed(elapsed)}
                         </span>
                       ) : null}
-                      {estimateUsd !== null ? (
+                      {credits !== null ? (
                         <span className="shrink-0">
-                          <span className="sr-only">
-                            {labels.estimatedCost}{" "}
-                          </span>
-                          ~{formatUsd(estimateUsd)}
+                          <span className="sr-only">{labels.credits} </span>
+                          {t("creditsCount", { count: credits })}
                         </span>
                       ) : null}
-                    </p>
-                  ) : null}
-
-                  {placement ? (
-                    // Its own line: with the platform prefix these names do
-                    // not survive sharing a row with anything, and the
-                    // platform is the part that tells two Reels placements
-                    // apart.
-                    <p
-                      className="text-muted-foreground truncate text-xs"
-                      title={provenance}
-                    >
-                      {placementName(placement)}
                     </p>
                   ) : null}
                 </figcaption>
@@ -336,7 +319,7 @@ function PendingTile({
   return (
     <div
       className={cn(
-        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border border-dashed p-3 text-center",
+        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed p-3 text-center",
         variant === "queued" && "opacity-70",
       )}
     >
@@ -349,9 +332,10 @@ function PendingTile({
       />
       <p className="text-muted-foreground text-xs">{label}</p>
       <p className="text-muted-foreground w-full truncate text-xs">{model}</p>
-      <p className="text-muted-foreground line-clamp-2 text-xs opacity-70">
-        {prompt}
-      </p>
+      {/* No second dimming: `text-muted-foreground` is already the quiet
+          role, and stacking `opacity-70` on it took this line under the
+          contrast floor for the sake of looking quieter still. */}
+      <p className="text-muted-foreground line-clamp-2 text-xs">{prompt}</p>
       {children}
     </div>
   );

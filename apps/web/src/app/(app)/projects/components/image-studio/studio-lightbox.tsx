@@ -14,7 +14,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import { placementById, placementName, resolveModel } from "./catalog";
+import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
@@ -277,23 +277,17 @@ function ImagePane({
       <StudioImage
         asset={asset}
         fit="contain"
-        label={labels.bytesUnavailable}
+        labels={labels}
         projectId={projectId}
       />
-      <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded border px-2 py-0.5 text-xs">
+      <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">
         {labels.version} {asset.version}
       </figcaption>
     </figure>
   );
 }
 
-/**
- * Everything the studio kept about how this image was made.
- *
- * The dimensions shown are the asset's own, never the placement's target —
- * a placement is what was aimed at, and saying otherwise would turn a
- * recommendation into a claim about the bytes on screen.
- */
+/** Everything the studio kept about how this image was made. */
 function Metadata({
   asset,
   catalog,
@@ -308,7 +302,6 @@ function Metadata({
   labels: StudioLabels;
 }) {
   const model = resolveModel(catalog, asset.model);
-  const placement = placementById(catalog, asset.settings?.placementId ?? null);
 
   return (
     <dl className="space-y-1.5 text-xs">
@@ -328,14 +321,6 @@ function Metadata({
           {asset.settings?.resolution ?? "—"}
         </span>
       </Field>
-      {placement ? (
-        <Field label={labels.placement}>
-          <span>{placementName(placement)}</span>
-          <span className="text-muted-foreground block tabular-nums">
-            {labels.placementTarget}: {placement.width}×{placement.height}
-          </span>
-        </Field>
-      ) : null}
       <Field label={labels.seed}>
         <span className="tabular-nums">
           {asset.settings?.seed ?? labels.noSeed}
@@ -432,7 +417,9 @@ function Review({
       </div>
       <Textarea
         aria-label={labels.feedbackPlaceholder}
-        className="min-h-14 text-xs"
+        // `text-sm`, not `text-xs`: this is something a person writes in, and
+        // the app types every input at the body scale.
+        className="min-h-14 text-sm"
         onChange={(event) => onDraftChange(event.currentTarget.value)}
         placeholder={labels.feedbackPlaceholder}
         value={draft}

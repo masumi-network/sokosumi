@@ -1,18 +1,19 @@
+import { creditsPerImageCents } from "@sokosumi/utils";
+
 import type {
   StudioAsset,
   StudioCatalog,
   StudioJob,
   StudioModel,
-  StudioPlacement,
   StudioSettings,
 } from "./types";
 
 /**
  * Reading the catalog Core sends, and nothing else.
  *
- * Every model name, aspect ratio, resolution and placement the studio offers
- * comes from `state.catalog`. Nothing in this file contains a fal endpoint, a
- * platform dimension or a model id of its own: an endpoint the catalog does
+ * Every model name, aspect ratio and resolution the studio offers comes from
+ * `state.catalog`. Nothing in this file contains a fal endpoint or a model id
+ * of its own: an endpoint the catalog does
  * not list is reported as itself rather than guessed at, and a combination the
  * catalog does not list is not offered. That is the whole point of the shared
  * capability catalog — the UI must not be a second, unverified source of what
@@ -62,25 +63,6 @@ export function modelById(
   return catalog.models.find((model) => model.id === id) ?? null;
 }
 
-export function placementById(
-  catalog: StudioCatalog,
-  id: string | null | undefined,
-): StudioPlacement | null {
-  if (!id) return null;
-  return catalog.placements.find((placement) => placement.id === id) ?? null;
-}
-
-/**
- * A placement's name, including the platform it belongs to.
- *
- * The catalog labels Instagram's and Facebook's Reels placements identically
- * ("Reels image concept") and distinguishes them only by `platform`, so the
- * label alone renders two chips nobody can tell apart.
- */
-export function placementName(placement: StudioPlacement): string {
-  return `${placement.platform} · ${placement.label}`;
-}
-
 /**
  * The model to start from.
  *
@@ -92,6 +74,32 @@ export function defaultModel(catalog: StudioCatalog): StudioModel | null {
   return (
     modelById(catalog, catalog.defaultModelId) ?? catalog.models[0] ?? null
   );
+}
+
+/**
+ * The models the studio opens with.
+ *
+ * Core's `curatedRank` names a shortlist of five hand-picked for range rather
+ * than for price — a general image model, a stronger one, a photographic one,
+ * one that handles typography, and one for vector and brand work. One brief
+ * across all five is the thing this composer is for, so it is what a person
+ * lands on rather than something they have to assemble first.
+ *
+ * Read off the catalog and sorted by the rank Core gave, never held here: a
+ * shortlist copied into the browser is a second opinion about which models are
+ * good, and it would go stale the moment fal withdrew one of them. `models`
+ * already arrives curated-first, but this does not rely on that either.
+ *
+ * Falls back to the catalog's own default when no row is ranked, so a catalog
+ * without a shortlist still opens on something rather than on nothing.
+ */
+export function curatedModels(catalog: StudioCatalog): StudioModel[] {
+  const ranked = catalog.models
+    .filter((model) => model.curatedRank !== null)
+    .sort((a, b) => (a.curatedRank ?? 0) - (b.curatedRank ?? 0));
+  if (ranked.length > 0) return ranked;
+  const fallback = defaultModel(catalog);
+  return fallback ? [fallback] : [];
 }
 
 /**
@@ -114,10 +122,13 @@ export function clampToModel(
     settings.resolution && model.resolutions.includes(settings.resolution)
       ? settings.resolution
       : (model.resolutions[0] as StudioSettings["resolution"]);
+  // An empty `outputFormats` is Core saying the model chooses its own format,
+  // so this lands on `undefined` and the request carries no format at all.
+  // Picking one anyway is a 422 on a generation that would have worked.
   const outputFormat =
     settings.outputFormat && model.outputFormats.includes(settings.outputFormat)
       ? settings.outputFormat
-      : (model.outputFormats[0] as StudioSettings["outputFormat"]);
+      : (model.outputFormats[0] as StudioSettings["outputFormat"] | undefined);
 
   return {
     ...settings,
@@ -129,95 +140,82 @@ export function clampToModel(
 }
 
 /**
- * The provider's list price for one image from this model at this resolution.
+ * fal's pricing unit, as one thing rather than as a plural.
  *
- * `null` rather than a guess. There is deliberately no fallback to another
- * tier's figure: a plausible wrong number about money is worse than an absent
- * one, so a caller that gets `null` has to say the price is unknown.
+ * fal's pricing API answers in plurals — `images`, `megapixels` — because it is
+ * describing a rate, and Core passes that through verbatim in `price.basis`.
+ * Dropped into a sentence about *one* of them it reads "per images", which is
+ * the sentence the preview showed for every per-image model.
+ *
+ * Returns the label key for the units a catalog model can actually carry, and
+ * `null` for anything else so the caller falls back to fal's own word. Only
+ * per-image and per-megapixel units reach the catalog — Core excludes the rest,
+ * because they cannot be priced per image — so the other four are the fallback
+ * by design rather than by omission.
  */
-export function priceForImage(
-  model: StudioModel,
-  resolution: StudioSettings["resolution"] | null | undefined,
-): number | null {
-  if (!resolution) return null;
-  return model.price.perImageUsd[resolution] ?? null;
+export function priceUnitLabelKey(unit: string): string | null {
+  switch (unit) {
+    case "images":
+      return "images";
+    case "generations":
+      return "generations";
+    case "megapixels":
+      return "megapixels";
+    case "processed megapixels":
+      return "processedMegapixels";
+    default:
+      return null;
+  }
 }
 
 /**
- * What a batch would cost at list price, or `null` if any leg is unpriced.
+ * What one image from this model, at this frame, will be debited.
+ *
+ * `creditsPerImageCents` comes from `@sokosumi/utils` and is **the same
+ * function Core charges with**, over the same catalog row. That is the whole
+ * reason it is shared rather than reimplemented here: two implementations of
+ * this formula would be a number shown to the person that the ledger then
+ * quietly contradicts. 1 credit = 1 cent, and there is no markup on fal's
+ * published price.
+ *
+ * `null` rather than a guess. It should not happen for a catalog model — Core
+ * excludes the models it cannot price per image — but a caller that gets `null`
+ * has to say the figure is unknown rather than render `NaN`.
+ */
+export function creditsForImage(
+  model: StudioModel,
+  settings: StudioSettings,
+): number | null {
+  const { aspectRatio, resolution } = settings;
+  if (!aspectRatio || !resolution) return null;
+  return creditsPerImageCents(model.price, { aspectRatio, resolution });
+}
+
+/**
+ * What a batch will be debited, or `null` if any leg cannot be priced.
  *
  * All-or-nothing on purpose. A total that quietly left out the one model with
- * no published figure would still read as the price of the whole batch, which
+ * no derivable figure would still read as the price of the whole batch, which
  * is the one way an estimate can be worse than no estimate.
  */
-export function estimateBatchUsd(
+export function creditsForBatch(
   legs: readonly { model: StudioModel; settings: StudioSettings }[],
 ): number | null {
   let total = 0;
   for (const leg of legs) {
-    const price = priceForImage(leg.model, leg.settings.resolution);
-    if (price === null) return null;
-    total += price;
+    const credits = creditsForImage(leg.model, leg.settings);
+    if (credits === null) return null;
+    total += credits;
   }
   return total;
-}
-
-/**
- * Money, to the cent.
- *
- * Not `Intl.NumberFormat`: these are US dollars because fal bills in US
- * dollars, and localising the symbol would imply the amount had been
- * converted. Two places always, so $0.90 does not render as $0.9.
- */
-export function formatUsd(amount: number): string {
-  return `$${amount.toFixed(2)}`;
-}
-
-/**
- * Whether a model can honour a placement's aspect ratio.
- *
- * A placement is a recommendation about framing, so a model that cannot frame
- * that way cannot serve it. Offering the chip anyway and quietly generating
- * 1:1 for a 9:16 Reels concept is exactly the "unsupported combination"
- * the brief rules out.
- */
-export function modelSupportsPlacement(
-  model: StudioModel,
-  placement: StudioPlacement,
-): boolean {
-  return model.aspectRatios.includes(placement.aspectRatio);
-}
-
-/**
- * Apply a placement to settings, or clear it.
- *
- * The placement drives the aspect ratio and nothing else. Resolution stays a
- * model setting, because the studio generates up to 2K and a placement's
- * pixel target is the platform's advice about the finished asset, not a size
- * this studio promises to output.
- */
-export function applyPlacement(
-  settings: StudioSettings,
-  placement: StudioPlacement | null,
-): StudioSettings {
-  if (!placement) {
-    const { placementId: _dropped, ...rest } = settings;
-    return { ...rest, placementId: null };
-  }
-  return {
-    ...settings,
-    placementId: placement.id,
-    aspectRatio: placement.aspectRatio as StudioSettings["aspectRatio"],
-  };
 }
 
 /**
  * The settings a follow-up generation inherits.
  *
  * Read from the asset or job being acted on, never from a default and never
- * from whatever happens to be selected. A landscape 2K Reels original that
- * regenerates as a square 1K with no placement reads as the product ignoring
- * the request, and `placementId` is in here precisely so it survives.
+ * from whatever happens to be selected. A landscape 2K original that
+ * regenerates as a square 1K reads as the product ignoring the request.
  */
 export function settingsOf(
   source: StudioAsset | StudioJob | null,
@@ -227,7 +225,6 @@ export function settingsOf(
     resolution: source?.settings?.resolution ?? "1K",
     outputFormat: source?.settings?.outputFormat ?? "png",
     seed: source?.settings?.seed ?? null,
-    placementId: source?.settings?.placementId ?? null,
   };
 }
 

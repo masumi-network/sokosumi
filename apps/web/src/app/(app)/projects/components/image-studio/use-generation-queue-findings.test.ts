@@ -1,8 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { modelSupportsPlacement, placementById } from "./catalog";
-import { TEST_CATALOG } from "./studio-fixtures";
 import type { QueuedGeneration } from "./use-generation-queue";
 import { useGenerationQueue } from "./use-generation-queue";
 
@@ -29,20 +27,6 @@ function request(id: string): QueuedGeneration {
 beforeEach(() => {
   vi.clearAllMocks();
   startImageGeneration.mockResolvedValue({ ok: true, job: { id: "job" } });
-});
-
-describe("a placement only some models can frame", () => {
-  it("is the fixture case: one model can frame it, one cannot", () => {
-    const reels = placementById(TEST_CATALOG, "reels");
-    expect(reels).not.toBeNull();
-    if (!reels) return;
-    const [a, b] = TEST_CATALOG.models;
-    // The composer must not let B stay selected for a placement it cannot
-    // frame; `clampToModel` would otherwise quietly reframe it to 1:1 and
-    // still record the Reels placement.
-    expect(modelSupportsPlacement(a, reels)).toBe(true);
-    expect(modelSupportsPlacement(b, reels)).toBe(false);
-  });
 });
 
 describe("the queue dispatcher", () => {

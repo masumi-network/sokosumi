@@ -1,7 +1,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioState } from "./types";
 import { useStudioState } from "./use-studio-state";
 
@@ -53,7 +52,6 @@ function job(assetId: string | null, status: string) {
 }
 
 const INITIAL: StudioState = {
-  catalog: TEST_CATALOG,
   assets: [asset("a1", 1)],
   jobs: [job(null, "QUEUED")],
   sessions: [],
@@ -61,12 +59,33 @@ const INITIAL: StudioState = {
 };
 
 const WITH_RESULT: StudioState = {
-  catalog: TEST_CATALOG,
   assets: [asset("a2", 2), asset("a1", 1)],
   jobs: [job("a2", "SUCCEEDED")],
   sessions: [],
   nextCursor: null,
 };
+
+/** Another project's state, with no asset id in common with project-1's. */
+const OTHER_PROJECT: StudioState = {
+  assets: [asset("b1", 1)],
+  jobs: [],
+  sessions: [],
+  nextCursor: null,
+};
+
+interface ScopeProps {
+  projectId: string;
+  initialState: StudioState;
+}
+
+/** The hook as the studio uses it: scoped to whichever project is in the URL. */
+function renderScoped(initialProps: ScopeProps) {
+  return renderHook(
+    (props: ScopeProps) =>
+      useStudioState({ ...props, initialSelectedAssetId: null }),
+    { initialProps },
+  );
+}
 
 function mockFetch(state: StudioState) {
   return vi.fn(
@@ -263,5 +282,108 @@ describe("paging through older history", () => {
     // the reader had got.
     expect(result.current.state.assets.map((a) => a.id)).toContain("a0");
     expect(result.current.hasOlder).toBe(false);
+  });
+});
+
+/**
+ * The bug these cover: switching project left the previous project's gallery
+ * on screen until a hard reload, because the hook merged the new payload into
+ * the old state instead of treating a different project as different state.
+ */
+describe("switching project", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("drops the previous project's versions the moment the id changes", () => {
+    vi.stubGlobal("fetch", mockFetch(INITIAL));
+    const { rerender, result } = renderScoped({
+      projectId: "project-1",
+      initialState: INITIAL,
+    });
+    expect(result.current.state.assets.map((a) => a.id)).toEqual(["a1"]);
+
+    rerender({ projectId: "project-2", initialState: OTHER_PROJECT });
+
+    // Not merged, and not merged-then-corrected by the next poll: gone in the
+    // same pass that saw the new id.
+    expect(result.current.state.assets.map((a) => a.id)).toEqual(["b1"]);
+    expect(result.current.selectedAsset?.id).toBe("b1");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("ignores a refresh that was in flight for the project just left", async () => {
+    let release: ((state: StudioState) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Promise<Response>((resolve) => {
+            release = (state) =>
+              resolve(new Response(JSON.stringify(state), { status: 200 }));
+          }),
+      ),
+    );
+
+    const { rerender, result } = renderScoped({
+      projectId: "project-1",
+      initialState: INITIAL,
+    });
+
+    let pending: Promise<void> | undefined;
+    act(() => {
+      pending = result.current.refresh();
+    });
+
+    rerender({ projectId: "project-2", initialState: OTHER_PROJECT });
+
+    await act(async () => {
+      release?.(WITH_RESULT);
+      await pending;
+    });
+
+    // project-1's page arriving late must not put project-1's versions into
+    // project-2's gallery, and must not take the preview either.
+    expect(result.current.state.assets.map((a) => a.id)).toEqual(["b1"]);
+    expect(result.current.selectedAsset?.id).toBe("b1");
+  });
+
+  it("does not report the left project's failure against the new one", async () => {
+    let release: (() => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          new Promise<Response>((resolve) => {
+            release = () => resolve(new Response("{}", { status: 401 }));
+          }),
+      ),
+    );
+
+    const { rerender, result } = renderScoped({
+      projectId: "project-1",
+      initialState: INITIAL,
+    });
+
+    let pending: Promise<void> | undefined;
+    act(() => {
+      pending = result.current.refresh();
+    });
+
+    rerender({ projectId: "project-2", initialState: OTHER_PROJECT });
+
+    await act(async () => {
+      release?.();
+      await pending;
+    });
+
+    // "Your session expired" about a project nobody is looking at is a notice
+    // the reader cannot act on.
+    expect(result.current.error).toBeNull();
   });
 });

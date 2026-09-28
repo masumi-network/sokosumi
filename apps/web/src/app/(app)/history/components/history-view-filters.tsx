@@ -38,7 +38,7 @@ interface HistoryViewFiltersProps {
   };
 }
 
-const HISTORY_TYPE_OPTIONS: HistoryType[] = ["task", "job"];
+const HISTORY_TYPE_OPTIONS: HistoryType[] = ["task", "job", "image"];
 
 export function HistoryViewFilters({
   activeOrganizationId,

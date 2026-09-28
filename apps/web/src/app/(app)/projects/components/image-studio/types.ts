@@ -5,6 +5,7 @@ import type {
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
 } from "@/lib/clients/generated/core/types.gen";
+import type { StudioTemplateId } from "./studio-templates";
 
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
@@ -12,7 +13,15 @@ export type StudioState = ProjectImageStudioState;
 export type StudioSettings = ProjectImageSettings;
 export type StudioCatalog = ProjectImageStudioCatalog;
 export type StudioModel = StudioCatalog["models"][number];
-export type StudioPlacement = StudioCatalog["placements"][number];
+
+/**
+ * Why a generation did not produce an image, as Core's stable code.
+ *
+ * Read off the generated type rather than restated, so a code Core adds is a
+ * compile error here instead of a missing translation on someone's screen.
+ * `null` is a row written before Core recorded reasons.
+ */
+export type StudioFailureReason = NonNullable<StudioJob["failureReason"]>;
 
 /** Job statuses that are still going somewhere. */
 export const ACTIVE_JOB_STATUSES: readonly StudioJob["status"][] = [
@@ -83,6 +92,34 @@ export function elapsedByAssetId(jobs: StudioJob[]): Record<string, number> {
 }
 
 /**
+ * What each finished version was actually debited, keyed by the version.
+ *
+ * Read off the job rows rather than derived from the catalog. This is the charge
+ * the ledger took, not an estimate of one: a catalog refresh must not restate
+ * what somebody already paid. A version whose job has fallen off the most recent
+ * page has no entry and its tile simply says nothing about credits.
+ *
+ * **Absent and zero are different claims, and both are reachable.** A job that
+ * has fallen off the most recent page has no entry, and that means "we do not
+ * know what this cost". A delivered image can legitimately carry `0`: Core
+ * charges on success, and if the balance no longer covers the quote at delivery
+ * it stores the image anyway and logs the shortfall rather than losing it — so
+ * that image was free, which is a fact about it and not an absence of one.
+ *
+ * Hence `job.credits === null` to skip, never a falsy check, and `?? null` at
+ * the read in `studio-gallery.tsx`. `0 || null` would turn a free image into an
+ * unknown one, which is the one substitution this map exists to prevent.
+ */
+export function creditsByAssetId(jobs: StudioJob[]): Record<string, number> {
+  const byAsset: Record<string, number> = {};
+  for (const job of jobs) {
+    if (!job.assetId || job.credits === null) continue;
+    byAsset[job.assetId] = job.credits;
+  }
+  return byAsset;
+}
+
+/**
  * A generation time, in the unit a person compares models in.
  *
  * One decimal under a hundred seconds, because the difference between 4.2s and
@@ -108,7 +145,6 @@ export function assetContentUrl(projectId: string, assetId: string): string {
  */
 export interface StudioTarget {
   modelIds: string[];
-  placementId: string | null;
   settings: StudioSettings;
 }
 
@@ -118,9 +154,9 @@ export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
 /**
  * Every visible string, resolved on the server.
  *
- * Two kinds of string are deliberately absent. Model and placement names come
- * from Core's catalog and are rendered as they arrive, because they are
- * product names ("FLUX.2 Pro", "Instagram Reels") rather than prose. And any
+ * Two kinds of string are deliberately absent. Model names come from Core's
+ * catalog and are rendered as they arrive, because they are product names
+ * ("FLUX.2 Pro") rather than prose. And any
  * string that interpolates a number the server cannot know — "3 selected",
  * "Generate 4 images" — is resolved in the client with `useTranslations`,
  * because next-intl parses `{count}` as an ICU argument and returns the
@@ -130,7 +166,6 @@ export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
 export interface StudioLabels {
   emptyTitle: string;
   emptyBody: string;
-  examplePrompts: string[];
   promptPlaceholder: string;
   generate: string;
   refine: string;
@@ -164,29 +199,32 @@ export interface StudioLabels {
   errorSessionExpired: string;
   errorRefreshFailed: string;
   errorLoadOlderFailed: string;
+  errorUnreachable: string;
+  errorInsufficientCredits: string;
 
-  // Composer and the model/placement catalog.
+  // Composer and the model catalog.
   composerTitle: string;
   model: string;
-  placement: string;
-  placementNone: string;
-  placementTarget: string;
-  placementNotOutput: string;
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
   copies: string;
   selectAllModels: string;
-  frameSetByPlacement: string;
+  noModelSelected: string;
   generateOne: string;
   moreOptions: string;
-  modelUnsupportedForPlacement: string;
   modelNotInCatalog: string;
 
   // The in-page batch queue.
   waitingForSlot: string;
   waitingForSlotBody: string;
   queueNotDurable: string;
+
+  // The template presses above the gallery. Their prompt bodies are not in
+  // here: they are model input rather than copy, and they stay English in
+  // every locale — see `studio-templates.ts`.
+  templates: string;
+  templateLabels: Record<StudioTemplateId, string>;
 
   // Gallery, selection and comparison.
   gallery: string;
@@ -206,17 +244,47 @@ export interface StudioLabels {
   parentVersion: string;
   compareHint: string;
   compareNeedsTwo: string;
+  /** Only for a confirmed 404: this version's object really is gone. */
   bytesUnavailable: string;
+  /**
+   * For a load that failed without proving anything.
+   *
+   * An `img` error says nothing about why, and most of them are contention
+   * rather than deletion — so this is what a reader gets unless the route
+   * answers 404. See `StudioImage`.
+   */
+  imageUnreadable: string;
+  imageRetry: string;
   previousVersion: string;
   nextVersion: string;
 
-  // What a batch costs and how long it took. Every money figure here is the
-  // provider's published list price, never a charge; see `ImagePrice` in Core's
-  // catalog for why there is nothing better to show.
+  // What a batch costs and how long it took. Credits, not dollars, and not an
+  // approximation: `creditsPerImageCents` is the function Core charges with, so
+  // the figure shown before the press is the figure the ledger takes.
   generationTime: string;
-  estimatedCost: string;
-  estimateTitle: string;
-  estimateNotCharge: string;
-  estimateUnpriced: string;
-  estimateNoPrice: string;
+  credits: string;
+  creditsTitle: string;
+  creditsCharged: string;
+  creditsUnderivable: string;
+  creditsNoFigure: string;
+  /**
+   * Said on a failed generation: it cost nothing.
+   *
+   * Because nothing was taken, not because something was given back — images
+   * are charged on success, so a generation that produced none was never
+   * charged. Unconditional for that reason: there is no per-job flag to read.
+   */
+  failedNoCharge: string;
+  /**
+   * What a failed generation says, per reason Core reports.
+   *
+   * Keyed by Core's own code, so the union and this record cannot drift: adding
+   * a code to Core makes this a type error rather than a silent English
+   * fallthrough. `unknown` is what an unrecognised stored code resolves to, and
+   * `failedBodyUnreported` covers a row from before Core recorded reasons.
+   */
+  failedBody: Record<StudioFailureReason, string>;
+  failedBodyUnreported: string;
+  /** Opens the provider's own words, for whoever has to chase them. */
+  failedDetails: string;
 }

@@ -13050,13 +13050,17 @@ export const HistoryItemSchema = {
         },
         {
             $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryImageItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem'
+            job: '#/components/schemas/HistoryJobItem',
+            image: '#/components/schemas/HistoryImageItem'
         }
     }
 } as const;
@@ -13315,6 +13319,290 @@ export const HistoryJobItemSchema = {
         'agentId',
         'agentName',
         'agentIcon'
+    ]
+} as const;
+
+export const HistoryImageItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active'
+            ]
+        },
+        assetId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the image was generated in',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        modelLabel: {
+            type: 'string',
+            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            example: 'Gemini 3.1 Flash Image'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'assetId',
+        'projectId',
+        'modelLabel'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
+            }
+        },
+        snapshotDate: {
+            type: 'string'
+        },
+        refreshedAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'snapshotDate',
+        'refreshedAt'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        generateEndpoint: {
+            type: 'string'
+        },
+        editEndpoint: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        outputFormats: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        supportsSeed: {
+            type: 'boolean'
+        },
+        maxReferences: {
+            type: 'integer'
+        },
+        dimensionMode: {
+            type: 'string',
+            enum: [
+                'aspect-ratio',
+                'image-size'
+            ]
+        },
+        providerFields: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'aspect_ratio',
+                    'resolution',
+                    'image_size',
+                    'output_format',
+                    'num_images',
+                    'seed',
+                    'limit_generations',
+                    'image_urls'
+                ]
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perImageUsd: {
+                    type: 'object',
+                    properties: {
+                        '0.5K': {
+                            type: 'number'
+                        },
+                        '1K': {
+                            type: 'number'
+                        },
+                        '2K': {
+                            type: 'number'
+                        }
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        },
+        sourceUrls: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        verifiedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'generateEndpoint',
+        'editEndpoint',
+        'aspectRatios',
+        'resolutions',
+        'outputFormats',
+        'supportsSeed',
+        'maxReferences',
+        'dimensionMode',
+        'providerFields',
+        'curatedRank',
+        'notes',
+        'price',
+        'sourceUrls',
+        'verifiedAt'
     ]
 } as const;
 
@@ -16889,9 +17177,6 @@ export const CancelSocialPostRequestSchema = {
 export const ProjectImageStudioStateSchema = {
     type: 'object',
     properties: {
-        catalog: {
-            $ref: '#/components/schemas/ProjectImageStudioCatalog'
-        },
         assets: {
             type: 'array',
             items: {
@@ -16933,188 +17218,10 @@ export const ProjectImageStudioStateSchema = {
         }
     },
     required: [
-        'catalog',
         'assets',
         'jobs',
         'sessions',
         'nextCursor'
-    ]
-} as const;
-
-export const ProjectImageStudioCatalogSchema = {
-    type: 'object',
-    properties: {
-        defaultModelId: {
-            type: 'string'
-        },
-        models: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string'
-                    },
-                    label: {
-                        type: 'string'
-                    },
-                    description: {
-                        type: 'string'
-                    },
-                    generateEndpoint: {
-                        type: 'string'
-                    },
-                    editEndpoint: {
-                        type: 'string'
-                    },
-                    aspectRatios: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    resolutions: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    outputFormats: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    supportsSeed: {
-                        type: 'boolean'
-                    },
-                    maxReferences: {
-                        type: 'integer'
-                    },
-                    dimensionMode: {
-                        type: 'string',
-                        enum: [
-                            'aspect-ratio',
-                            'image-size'
-                        ]
-                    },
-                    notes: {
-                        type: 'string'
-                    },
-                    price: {
-                        type: 'object',
-                        properties: {
-                            perImageUsd: {
-                                type: 'object',
-                                properties: {
-                                    '0.5K': {
-                                        type: 'number'
-                                    },
-                                    '1K': {
-                                        type: 'number'
-                                    },
-                                    '2K': {
-                                        type: 'number'
-                                    }
-                                }
-                            },
-                            basis: {
-                                type: 'string'
-                            },
-                            sourceUrl: {
-                                type: 'string'
-                            },
-                            verifiedAt: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'perImageUsd',
-                            'basis',
-                            'sourceUrl',
-                            'verifiedAt'
-                        ]
-                    },
-                    sourceUrls: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    verifiedAt: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'id',
-                    'label',
-                    'description',
-                    'generateEndpoint',
-                    'editEndpoint',
-                    'aspectRatios',
-                    'resolutions',
-                    'outputFormats',
-                    'supportsSeed',
-                    'maxReferences',
-                    'dimensionMode',
-                    'notes',
-                    'price',
-                    'sourceUrls',
-                    'verifiedAt'
-                ]
-            }
-        },
-        placements: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string'
-                    },
-                    platform: {
-                        type: 'string'
-                    },
-                    label: {
-                        type: 'string'
-                    },
-                    aspectRatio: {
-                        type: 'string'
-                    },
-                    width: {
-                        type: 'integer'
-                    },
-                    height: {
-                        type: 'integer'
-                    },
-                    notes: {
-                        type: 'string'
-                    },
-                    sourceUrl: {
-                        type: 'string'
-                    },
-                    verifiedAt: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'id',
-                    'platform',
-                    'label',
-                    'aspectRatio',
-                    'width',
-                    'height',
-                    'notes',
-                    'sourceUrl',
-                    'verifiedAt'
-                ]
-            }
-        }
-    },
-    required: [
-        'defaultModelId',
-        'models',
-        'placements'
     ]
 } as const;
 
@@ -17201,13 +17308,6 @@ export const ProjectImageAssetSchema = {
 export const ProjectImageSettingsSchema = {
     type: 'object',
     properties: {
-        placementId: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 100
-        },
         aspectRatio: {
             type: 'string',
             enum: [
@@ -17336,6 +17436,27 @@ export const ProjectImageJobSchema = {
                 'null'
             ]
         },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
         parentAssetId: {
             type: [
                 'string',
@@ -17381,6 +17502,15 @@ export const ProjectImageJobSchema = {
         },
         retryMayDuplicateCharge: {
             type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
         }
     },
     required: [
@@ -17392,13 +17522,16 @@ export const ProjectImageJobSchema = {
         'settings',
         'referenceAssetIds',
         'error',
+        'failureReason',
         'parentAssetId',
         'assetId',
         'createdAt',
         'submittedAt',
         'settledAt',
         'cancelRequestedAt',
-        'retryMayDuplicateCharge'
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
     ]
 } as const;
 
@@ -17447,11 +17580,8 @@ export const CreateProjectImageJobRequestSchema = {
     properties: {
         modelId: {
             type: 'string',
-            enum: [
-                'gemini-flash',
-                'gemini-pro',
-                'flux-2-pro'
-            ],
+            minLength: 1,
+            maxLength: 200,
             default: 'gemini-flash'
         },
         prompt: {
