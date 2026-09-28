@@ -4899,6 +4899,11 @@ export type ProjectDesignMdWrite = {
     extractionId?: string | null;
 };
 
+export type WorkspaceCalendarEntry = {
+    scheduledAt: Date;
+    originalScheduledAt?: Date | null;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem);
+
 export type WorkspaceCalendarItem = {
     /**
      * The Task Schedule Run this item shows, or the Task for a RUN_AT item
@@ -4963,6 +4968,24 @@ export type WorkspaceCalendarItem = {
      * Project captured as the Calendar source, when applicable
      */
     sourceProjectId: string | null;
+};
+
+export type SocialPostCalendarItem = {
+    kind: 'socialPost';
+    id: string;
+    postId: string;
+    text: string;
+    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    externalHandle: string | null;
+    projectName: string;
+    scheduledByName: string | null;
+    scheduledByImage: string | null;
+    attachmentCount: number;
+    scheduledAt: Date;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
 };
 
 export type ProjectCloseStatus = {
@@ -5062,6 +5085,7 @@ export type SocialPost = {
     projectId: string;
     provider: 'x';
     text: string;
+    media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
@@ -5073,12 +5097,36 @@ export type SocialPost = {
     publishedExternalId: string | null;
     publishedUrl: string | null;
     lastError: string | null;
+    attemptCount: number;
+    nextAttemptAt: Date | null;
+    lastAttemptAt: Date | null;
+    lastAttempt: SocialPostLastAttempt | null;
     revision: number;
     createdAt: Date;
     updatedAt: Date;
     canEdit: boolean;
     canSchedule: boolean;
     canCancel: boolean;
+    canPublishNow: boolean;
+    /**
+     * The linked connection exists but is not active, so the post cannot go out until someone reconnects
+     */
+    connectionNeedsReconnect: boolean;
+};
+
+export type SocialPostMediaRef = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    size: number;
+    mimeType: string;
+    kind: 'image' | 'gif' | 'video';
 };
 
 export const SocialPostStatus = {
@@ -5105,8 +5153,28 @@ export type SocialPostCreator = {
     name: string | null;
 };
 
+export type SocialPostLastAttempt = {
+    attempt: number;
+    trigger: 'scheduler' | 'publish_now';
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | null;
+    errorKind: string | null;
+    providerOutcome: string | null;
+    finishedAt: Date | null;
+};
+
+export type PublishSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -5114,6 +5182,10 @@ export type CreateSocialPostRequest = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;
     /**
      * Revision the client last observed; mismatches return 409
@@ -34602,6 +34674,14 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -34714,7 +34794,7 @@ export type GetProjectsByIdCalendarResponses = {
      * Project Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -36285,6 +36365,148 @@ export type PostProjectsByIdSocialPostsResponses = {
 };
 
 export type PostProjectsByIdSocialPostsResponse = PostProjectsByIdSocialPostsResponses[keyof PostProjectsByIdSocialPostsResponses];
+
+export type PostProjectsByIdSocialPostsByPostIdPublishData = {
+    body: PublishSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/publish';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishError = PostProjectsByIdSocialPostsByPostIdPublishErrors[keyof PostProjectsByIdSocialPostsByPostIdPublishErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponses = {
+    /**
+     * Social post publish attempted
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponse = PostProjectsByIdSocialPostsByPostIdPublishResponses[keyof PostProjectsByIdSocialPostsByPostIdPublishResponses];
 
 export type GetProjectsByIdSocialPostsByPostIdData = {
     body?: never;
@@ -52151,6 +52373,14 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -52271,7 +52501,7 @@ export type GetWorkspacesCalendarResponses = {
      * Active workspace Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;

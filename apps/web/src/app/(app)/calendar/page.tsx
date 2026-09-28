@@ -33,6 +33,7 @@ export default async function CalendarPage({
           activeOrganizationId={page.activeOrganizationId}
           currentUserId={page.currentUserId}
           workspaceId={page.workspaceId}
+          includeSocialPosts={page.includeSocialPosts}
           key={page.calendarKey}
           initialDate={page.initialDate}
           items={page.items}

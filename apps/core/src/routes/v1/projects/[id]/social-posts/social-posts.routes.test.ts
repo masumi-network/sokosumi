@@ -10,6 +10,7 @@ import type { WorkspaceContext } from "@/middleware/workspace";
 import mountCancelSocialPost from "./[postId]/cancel/post.js";
 import mountGetSocialPost from "./[postId]/get.js";
 import mountPatchSocialPost from "./[postId]/patch.js";
+import mountPublishSocialPost from "./[postId]/publish/post.js";
 import mountScheduleSocialPost from "./[postId]/schedule/post.js";
 import mountListSocialPosts from "./get.js";
 import mountCreateSocialPost from "./post.js";
@@ -19,6 +20,7 @@ const {
   createSocialPostMock,
   getSocialPostMock,
   listSocialPostsMock,
+  publishSocialPostNowMock,
   requireSocialBetaAccessMock,
   scheduleSocialPostMock,
   updateSocialPostMock,
@@ -27,9 +29,14 @@ const {
   createSocialPostMock: vi.fn(),
   getSocialPostMock: vi.fn(),
   listSocialPostsMock: vi.fn(),
+  publishSocialPostNowMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
   scheduleSocialPostMock: vi.fn(),
   updateSocialPostMock: vi.fn(),
+}));
+
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishSocialPostNow: publishSocialPostNowMock,
 }));
 
 vi.mock("@/services/social-posts.service", () => ({
@@ -98,6 +105,7 @@ const draftPost = {
   projectId: PROJECT_ID,
   provider: "x",
   text: "Hello world",
+  media: [],
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,
@@ -109,12 +117,18 @@ const draftPost = {
   publishedExternalId: null,
   publishedUrl: null,
   lastError: null,
+  attemptCount: 0,
+  nextAttemptAt: null,
+  lastAttemptAt: null,
+  lastAttempt: null,
   revision: 0,
   createdAt: new Date("2026-09-15T10:00:00.000Z"),
   updatedAt: new Date("2026-09-15T10:00:00.000Z"),
   canEdit: true,
   canSchedule: true,
   canCancel: true,
+  canPublishNow: true,
+  connectionNeedsReconnect: false,
 };
 
 const scheduledPost = {
@@ -155,6 +169,7 @@ function createApp(
   mountPatchSocialPost(app);
   mountScheduleSocialPost(app);
   mountCancelSocialPost(app);
+  mountPublishSocialPost(app);
 
   return app;
 }
@@ -179,6 +194,7 @@ function allOperations(app: ReturnType<typeof createApp>) {
       json("POST", { scheduledAt: SCHEDULED_AT, revision: 0 }),
     ),
     app.request(`${base}/${POST_ID}/cancel`, json("POST", { revision: 0 })),
+    app.request(`${base}/${POST_ID}/publish`, json("POST", { revision: 0 })),
   ];
 }
 
@@ -189,6 +205,7 @@ function expectNoServiceCalls() {
   expect(updateSocialPostMock).not.toHaveBeenCalled();
   expect(scheduleSocialPostMock).not.toHaveBeenCalled();
   expect(cancelSocialPostMock).not.toHaveBeenCalled();
+  expect(publishSocialPostNowMock).not.toHaveBeenCalled();
 }
 
 describe("Project social post routes", () => {
@@ -212,13 +229,35 @@ describe("Project social post routes", () => {
       canSchedule: false,
       canCancel: false,
     });
+    publishSocialPostNowMock.mockResolvedValue({
+      ...scheduledPost,
+      status: "PUBLISHED",
+      publishedAt: new Date("2026-09-15T11:00:00.000Z"),
+      publishedExternalId: "1907",
+      publishedUrl: "https://x.com/sokosumi/status/1907",
+      attemptCount: 1,
+      lastAttemptAt: new Date("2026-09-15T11:00:00.000Z"),
+      lastAttempt: {
+        attempt: 1,
+        trigger: "publish_now",
+        outcome: "succeeded",
+        errorKind: null,
+        providerOutcome: "201 created",
+        finishedAt: new Date("2026-09-15T11:00:00.000Z"),
+      },
+      revision: 3,
+      canEdit: false,
+      canSchedule: false,
+      canCancel: false,
+      canPublishNow: false,
+    });
   });
 
   it("rejects every operation without authentication", async () => {
     const responses = await Promise.all(allOperations(createApp(null)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      401, 401, 401, 401, 401, 401,
+      401, 401, 401, 401, 401, 401, 401,
     ]);
     expectNoServiceCalls();
   });
@@ -232,7 +271,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp(auth)));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403,
     ]);
     expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
     expectNoServiceCalls();
@@ -246,7 +285,7 @@ describe("Project social post routes", () => {
     const responses = await Promise.all(allOperations(createApp()));
 
     expect(responses.map((response) => response.status)).toEqual([
-      403, 403, 403, 403, 403, 403,
+      403, 403, 403, 403, 403, 403, 403,
     ]);
     expectNoServiceCalls();
   });
@@ -331,11 +370,36 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       text: "Hello world",
       socialConnectionId: undefined,
       scheduledAt: undefined,
       timezone: undefined,
     });
+  });
+
+  it("forwards Drive media on create and returns it on the post", async () => {
+    const mediaRef = {
+      pathname: `drive/users/${USER_ID}/launch.png`,
+      fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/launch.png`,
+      name: "launch.png",
+      size: 2048,
+      mimeType: "image/png",
+      kind: "image" as const,
+    };
+    createSocialPostMock.mockResolvedValue({ ...draftPost, media: [mediaRef] });
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", { text: "Hello world", media: [mediaRef] }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: { media: [mediaRef] },
+    });
+    expect(createSocialPostMock).toHaveBeenCalledWith(
+      expect.objectContaining({ media: [mediaRef] }),
+    );
   });
 
   it("creates a scheduled post with a parsed date", async () => {
@@ -362,6 +426,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       text: "Hello world",
       socialConnectionId: SOCIAL_CONNECTION_ID,
       scheduledAt: new Date(SCHEDULED_AT),
@@ -391,10 +456,26 @@ describe("Project social post routes", () => {
       "http://localhost/not-a-uuid/social-posts",
       json("POST", { text: "Hello" }),
     );
+    const tooManyImages = await app.request(
+      `http://localhost/${PROJECT_ID}/social-posts`,
+      json("POST", {
+        text: "Hello",
+        media: Array.from({ length: 5 }, (_, index) => ({
+          pathname: `drive/users/${USER_ID}/photo-${index}.png`,
+          fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/photo-${index}.png`,
+          name: `photo-${index}.png`,
+          size: 2048,
+          mimeType: "image/png",
+          kind: "image",
+        })),
+      }),
+    );
 
     expect(
-      [empty, tooLong, badDate, badZone, badProject].map((r) => r.status),
-    ).toEqual([422, 422, 422, 422, 422]);
+      [empty, tooLong, badDate, badZone, badProject, tooManyImages].map(
+        (r) => r.status,
+      ),
+    ).toEqual([422, 422, 422, 422, 422, 422]);
     expect(createSocialPostMock).not.toHaveBeenCalled();
   });
 
@@ -427,6 +508,7 @@ describe("Project social post routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       postId: POST_ID,
       text: "Edited",
       socialConnectionId: null,
@@ -488,6 +570,61 @@ describe("Project social post routes", () => {
       postId: POST_ID,
       revision: 1,
     });
+  });
+
+  it("publishes a post now", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/publish`,
+      json("POST", { revision: 1 }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: {
+        status: "PUBLISHED",
+        publishedUrl: "https://x.com/sokosumi/status/1907",
+        lastAttempt: {
+          attempt: 1,
+          trigger: "publish_now",
+          outcome: "succeeded",
+          finishedAt: "2026-09-15T11:00:00.000Z",
+        },
+        canPublishNow: false,
+      },
+    });
+    expect(publishSocialPostNowMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      userId: USER_ID,
+      postId: POST_ID,
+      revision: 1,
+    });
+  });
+
+  it("requires a revision to publish now", async () => {
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/publish`,
+      json("POST", {}),
+    );
+
+    expect(response.status).toBe(422);
+    expect(publishSocialPostNowMock).not.toHaveBeenCalled();
+  });
+
+  it("maps a publish-now revision conflict", async () => {
+    publishSocialPostNowMock.mockRejectedValue(
+      conflict("Social post was modified, reload and retry"),
+    );
+
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-posts/${POST_ID}/publish`,
+      json("POST", { revision: 0 }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(await response.text()).toContain(
+      "Social post was modified, reload and retry",
+    );
   });
 
   it("rejects a malformed post id", async () => {

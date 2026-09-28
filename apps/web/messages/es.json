@@ -2352,6 +2352,25 @@
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Añadir desde Drive",
+            "upload": "Subir",
+            "uploading": "Subiendo…",
+            "remove": "Quitar {name}",
+            "hint": "Hasta 4 imágenes, o un GIF, o un vídeo.",
+            "unsupported": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
+            "alreadyAttached": "Ese archivo ya está adjunto.",
+            "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
+            "uploadFailed": "La subida falló. Inténtalo de nuevo.",
+            "errors": {
+              "too_many_images": "X permite como máximo 4 imágenes por publicación.",
+              "too_many_gifs": "X permite un GIF por publicación.",
+              "too_many_videos": "X permite un vídeo por publicación.",
+              "mixed_media": "Usa imágenes, un GIF o un vídeo, no una mezcla.",
+              "unsupported_type": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
+              "too_large": "Un archivo es demasiado grande para X."
+            }
+          },
           "account": "Cuenta",
           "noAccount": "Elige una cuenta",
           "unknownHandle": "Cuenta de X desconocida",
@@ -2378,7 +2397,24 @@
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "unauthenticated": "Inicia sesión para continuar.",
-          "unauthenticatedAction": "Iniciar sesión"
+          "unauthenticatedAction": "Iniciar sesión",
+          "published": "Publicación publicada.",
+          "publishFailed": "Error al publicar: {error}"
+        },
+        "needsReconnect": "Hay que volver a conectar la cuenta",
+        "needsReconnectLink": "Volver a conectar la cuenta",
+        "viewOnX": "Ver en X",
+        "publishedAt": "Publicada {date}",
+        "failedAt": "Falló {date}",
+        "attempts": "{count, plural, one {# intento} other {# intentos}}",
+        "actions": {
+          "publishNow": "Publicar ahora",
+          "retry": "Reintentar"
+        },
+        "publishDialog": {
+          "title": "¿Publicar esta publicación ahora?",
+          "description": "La publicación saldrá en X de inmediato en lugar de esperar a la hora programada.",
+          "confirm": "Publicar ahora"
         }
       },
       "Detail": {
@@ -6763,6 +6799,14 @@
         "upcoming": "A continuación",
         "loading": "Cargando…",
         "loadMore": "Cargar más"
+      },
+      "socialPost": {
+        "mediaOnly": "Publicación multimedia",
+        "project": "Proyecto: {name}",
+        "projectLabel": "Proyecto: ",
+        "scheduledBy": "Programado por {name}",
+        "unknownScheduler": "usuario desconocido",
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
       }
     },
     "You": {

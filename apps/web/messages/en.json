@@ -2352,6 +2352,25 @@
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Add from Drive",
+            "upload": "Upload",
+            "uploading": "Uploading…",
+            "remove": "Remove {name}",
+            "hint": "Up to 4 images, or one GIF, or one video.",
+            "unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+            "alreadyAttached": "That file is already attached.",
+            "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
+            "uploadFailed": "The upload failed. Try again.",
+            "errors": {
+              "too_many_images": "X allows at most 4 images per post.",
+              "too_many_gifs": "X allows one GIF per post.",
+              "too_many_videos": "X allows one video per post.",
+              "mixed_media": "Use images, one GIF, or one video — not a mix.",
+              "unsupported_type": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+              "too_large": "A file is too large for X."
+            }
+          },
           "account": "Account",
           "noAccount": "Choose an account",
           "unknownHandle": "Unknown X account",
@@ -2378,7 +2397,24 @@
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "unauthenticated": "Please sign in to continue.",
-          "unauthenticatedAction": "Sign in"
+          "unauthenticatedAction": "Sign in",
+          "published": "Post published.",
+          "publishFailed": "Publishing failed: {error}"
+        },
+        "needsReconnect": "Account needs reconnecting",
+        "needsReconnectLink": "Reconnect the account",
+        "viewOnX": "View on X",
+        "publishedAt": "Published {date}",
+        "failedAt": "Failed {date}",
+        "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+        "actions": {
+          "publishNow": "Publish now",
+          "retry": "Retry"
+        },
+        "publishDialog": {
+          "title": "Publish this post now?",
+          "description": "The post goes out to X right away instead of waiting for its scheduled time.",
+          "confirm": "Publish now"
         }
       },
       "Detail": {
@@ -6763,6 +6799,14 @@
         "upcoming": "Coming up next",
         "loading": "Loading…",
         "loadMore": "Load more"
+      },
+      "socialPost": {
+        "mediaOnly": "Media post",
+        "project": "Project: {name}",
+        "projectLabel": "Project: ",
+        "scheduledBy": "Scheduled by {name}",
+        "unknownScheduler": "unknown user",
+        "attachments": "{count, plural, one {# attachment} other {# attachments}}"
       }
     },
     "You": {
