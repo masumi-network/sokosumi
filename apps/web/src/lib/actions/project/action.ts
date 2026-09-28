@@ -76,6 +76,7 @@ interface InitiateProjectSocialConnectionParameters
   extends AuthenticatedRequest {
   projectId: string;
   action: InitiateProjectSocialConnectionRequest["action"];
+  provider?: ProjectSocialConnection["provider"];
   socialConnectionId?: string;
 }
 
@@ -426,7 +427,7 @@ export const cancelProjectCloseOwedWork = withSession<
 export const initiateProjectSocialConnection = withSession<
   InitiateProjectSocialConnectionParameters,
   ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
->(async ({ projectId, action, socialConnectionId }) => {
+>(async ({ projectId, action, socialConnectionId, provider }) => {
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
     return toActionResult(
@@ -436,7 +437,15 @@ export const initiateProjectSocialConnection = withSession<
 
   let input: InitiateProjectSocialConnectionRequest;
   if (action === "connect") {
-    input = { action, provider: "x" };
+    if (!provider) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Social provider required",
+        }),
+      );
+    }
+    input = { action, provider };
   } else {
     const normalizedSocialConnectionId = socialConnectionId?.trim();
     if (!normalizedSocialConnectionId) {

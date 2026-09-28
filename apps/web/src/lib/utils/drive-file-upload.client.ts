@@ -2,7 +2,10 @@
 
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import { postDriveFiles } from "@/lib/clients/generated/core";
+import {
+  postDriveFiles,
+  postDriveFilesFinalize,
+} from "@/lib/clients/generated/core";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";
@@ -194,6 +197,28 @@ export async function uploadDriveFile(
       stopFallbackProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
         onUploadProgress?.({ percentage: 100 });
+        // The bytes went client → Blob, so Core never saw them land. Tell it,
+        // so the file gets a catalog identity and starts being indexed. A
+        // failure here does not fail the upload: the file is on disk, and the
+        // next search adopts it.
+        try {
+          await postDriveFilesFinalize({
+            client: getBrowserCoreClient(),
+            body: {
+              scope,
+              ...(scope === "org"
+                ? { organizationId: options.organizationId }
+                : {}),
+              pathname: session.pathname,
+            },
+            throwOnError: true,
+          });
+        } catch {
+          // Intentionally quiet: indexing catches up on its own.
+        }
+        // Resolving with the blob's location is main's shape, kept: the
+        // finalize above is an extra step on the way out, not a change to
+        // what the caller is handed.
         resolve({
           pathname: session.pathname,
           fileUrl: parseUploadedBlobUrl(xhr.responseText),
