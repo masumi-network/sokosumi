@@ -47177,9 +47177,9 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * createdAt: newest created first. Omitted: most recently updated first.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable.
          */
-        sort?: 'createdAt';
+        sort?: 'createdAt' | 'updatedAt';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
