@@ -53,6 +53,31 @@ function fileExtension(name: string): string {
   return parts.length > 1 ? (parts.pop() ?? "").toLowerCase() : "";
 }
 
+/**
+ * Coverage as a whole percent a reader can act on, or null when there is
+ * none recorded.
+ *
+ * Clamped to 1..99 on purpose, and the reason is at both ends.
+ *
+ * PARTIAL is set when `truncated || chunkCapped || source.truncated ||
+ * wholeDocumentCoverage < 0.999`, so a document can be PARTIAL at 0.9995.
+ * Rounding that to "about 100%" underneath "only part of this file is
+ * indexed" is a sentence arguing with itself — the state and the number
+ * would be contradicting each other in the same line.
+ *
+ * At the other end, a document that is PARTIAL has had *something* read
+ * from it, so "about 0%" is false however small the fraction. A reader
+ * seeing 0% would reasonably conclude nothing is searchable, which is a
+ * different and worse claim than "a little is".
+ *
+ * Floored rather than rounded, so the number never promises more than was
+ * actually read before the clamp takes over.
+ */
+function coveragePercent(coverage: number | null | undefined): number | null {
+  if (typeof coverage !== "number" || !Number.isFinite(coverage)) return null;
+  return Math.min(99, Math.max(1, Math.floor(coverage * 100)));
+}
+
 export function FileDetailClient({ resourceId }: { resourceId: string }) {
   const t = useTranslations("App.Drive.Files");
   const { data: session, isPending: sessionPending } = useSession();
@@ -250,6 +275,10 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
     );
   }
 
+  // Computed here rather than inline, so the clamp it carries has one
+  // place to live and one place to be read.
+  const partialPercent = coveragePercent(resource.extractionCoverage);
+
   return (
     <div className="flex flex-col gap-6" data-testid="file-detail">
       <div className="flex items-start gap-3">
@@ -295,7 +324,27 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
             {resource.extractionState === "INDEXED"
               ? t("processingIndexed")
               : resource.extractionState === "PARTIAL"
-                ? t("processingPartial")
+                ? /*
+                   * How much, not just "some".
+                   *
+                   * This said only "Only part of this file is indexed",
+                   * which reads the same at 50% as at 99% — on a 400-slide
+                   * deck that is half the deck missing with nothing to say
+                   * so. Core records the coverage and the web layer was
+                   * throwing it away.
+                   *
+                   * Deliberately not `extractionReason`, which the
+                   * UNSUPPORTED arm below renders: that string is composed
+                   * in core in English, so showing it puts an English
+                   * sentence on a German page. That is a pre-existing flaw
+                   * in one arm and not something to spread to a second.
+                   * A number localises by itself.
+                   */
+                  partialPercent !== null
+                  ? t("processingPartialCoverage", {
+                      percent: partialPercent,
+                    })
+                  : t("processingPartial")
                 : resource.extractionState === "UNSUPPORTED"
                   ? (resource.extractionReason ?? t("processingUnsupported"))
                   : t("processingPending")}

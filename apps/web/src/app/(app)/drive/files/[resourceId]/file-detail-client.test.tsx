@@ -42,7 +42,11 @@ vi.mock("@/app/drive/components/drive-file-snippet", () => ({
   DriveFileSnippet: () => null,
 }));
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // Values are echoed, not dropped. A stub that returned the key alone
+  // made every interpolated string look identical, so a message whose
+  // whole purpose is the number it carries could not be asserted on.
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
@@ -58,6 +62,7 @@ const resource = {
   sourceKind: "UPLOAD",
   extractionState: "INDEXED",
   extractionReason: null,
+  extractionCoverage: null,
   category: null,
   tags: [],
   suggestions: [],
@@ -260,6 +265,116 @@ describe("FileDetailClient", () => {
       await waitFor(() =>
         expect(fetchFileResourceMock.mock.calls.length).toBeGreaterThan(1),
       );
+    });
+  });
+  /**
+   * How much of the file was read, not just that some of it was.
+   *
+   * The panel rendered "Only part of this file is indexed." and nothing
+   * else, which reads identically at 50% and at 99%. On a 400-slide deck
+   * extracted at coverage 0.5 that is half the deck missing, with nothing
+   * on the page to say so — and making the missing slides visible to the
+   * person who uploaded the file is the entire point of recording
+   * coverage in the first place. Core stores it; the web layer was
+   * dropping it.
+   *
+   * Deliberately not `extractionReason`, which the UNSUPPORTED arm
+   * renders. That string is composed in core in English, so it puts an
+   * English sentence on a German page. A percentage localises by itself.
+   */
+  describe("how much of a partial file was read", () => {
+    function partial(extractionCoverage: number | null) {
+      signedInWithOrg();
+      fetchFileResourceMock.mockResolvedValue({
+        ...resource,
+        extractionState: "PARTIAL",
+        extractionCoverage,
+      });
+      render(<FileDetailClient resourceId="resource-1" />);
+    }
+
+    it("says the share that was read", async () => {
+      partial(0.5);
+
+      expect(
+        await screen.findByText('processingPartialCoverage:{"percent":50}'),
+        "the reader cannot tell half a deck from nearly all of it",
+      ).toBeInTheDocument();
+    });
+
+    it("falls back to the plain sentence when nothing was recorded", async () => {
+      // Coverage is nullable, and a number invented for a null is worse
+      // than no number.
+      partial(null);
+
+      expect(await screen.findByText("processingPartial")).toBeInTheDocument();
+    });
+
+    it("never says about 100% under 'only part of this file'", async () => {
+      /**
+       * PARTIAL is set by `truncated || chunkCapped || source.truncated ||
+       * wholeDocumentCoverage < 0.999`, so a document really can be
+       * PARTIAL at 0.9995. Rounding that to 100 puts a sentence directly
+       * under "only part of this file is indexed" that contradicts it.
+       *
+       * This is the case that fails if the clamp is ever removed.
+       */
+      partial(0.9995);
+
+      expect(
+        await screen.findByText('processingPartialCoverage:{"percent":99}'),
+        "the state says part and the number says all",
+      ).toBeInTheDocument();
+    });
+
+    it("never says about 100% when coverage rounds up to the whole file", async () => {
+      /**
+       * The case that actually exercises the upper clamp, and it is not
+       * the one above.
+       *
+       * Flooring already takes 0.9995 to 99 on its own, so that case
+       * would stay green with `Math.min(99, …)` deleted. What needs the
+       * clamp is coverage of exactly 1 in the PARTIAL state, which is
+       * reachable: the state is set by `truncated || chunkCapped ||
+       * source.truncated || wholeDocumentCoverage < 0.999`, and the first
+       * three can be true while the coverage figure is a whole 1.
+       *
+       * Both cases are kept. The one above pins the floor, this one pins
+       * the ceiling, and neither stands in for the other.
+       */
+      partial(1);
+
+      expect(
+        await screen.findByText('processingPartialCoverage:{"percent":99}'),
+        "a truncated document reported its coverage as the whole file, so " +
+          "the panel said about 100% directly under 'only part of this " +
+          "file is indexed'",
+      ).toBeInTheDocument();
+    });
+
+    it("never says about 0% for a file something was read from", async () => {
+      // The other end of the clamp. PARTIAL means something was read, so
+      // 0 would be false — and a reader seeing 0% would reasonably
+      // conclude nothing is searchable, which is a worse claim than "a
+      // little is".
+      partial(0.0004);
+
+      expect(
+        await screen.findByText('processingPartialCoverage:{"percent":1}'),
+      ).toBeInTheDocument();
+    });
+
+    it("does not show coverage for a fully indexed file", async () => {
+      // The number belongs to the partial state and nowhere else.
+      signedInWithOrg();
+      fetchFileResourceMock.mockResolvedValue({
+        ...resource,
+        extractionState: "INDEXED",
+        extractionCoverage: 1,
+      });
+      render(<FileDetailClient resourceId="resource-1" />);
+
+      expect(await screen.findByText("processingIndexed")).toBeInTheDocument();
     });
   });
 });

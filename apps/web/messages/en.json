@@ -6432,7 +6432,8 @@
         "bulkMoreCategories": "{count} more…",
         "bulkCategorySearch": "Search categories",
         "bulkCategoryEmpty": "No categories match",
-        "relatedNoText": "No related files. This document has no readable text."
+        "relatedNoText": "No related files. This document has no readable text.",
+        "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read."
       }
     },
     "SokoBot": {

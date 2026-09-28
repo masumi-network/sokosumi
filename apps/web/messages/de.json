@@ -6432,7 +6432,8 @@
         "bulkMoreCategories": "{count} weitere…",
         "bulkCategorySearch": "Kategorien durchsuchen",
         "bulkCategoryEmpty": "Keine passenden Kategorien",
-        "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text."
+        "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text.",
+        "processingPartialCoverage": "Nur ein Teil dieser Datei ist indexiert. Etwa {percent}% des Textes wurden gelesen."
       }
     },
     "SokoBot": {
