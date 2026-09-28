@@ -3566,7 +3566,6 @@ export type FileResource = {
         evidenceSnippet: string | null;
     }>;
     folderPath: string | null;
-    summary: string | null;
     /**
      * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
      */
@@ -25278,6 +25277,7 @@ export type GetDriveSearchData = {
         tagMatch?: 'any' | 'all';
         projectIds?: string;
         folder?: string;
+        directOnly?: 'true' | 'false';
         sourceKinds?: string;
         typeFamilies?: string;
         extractionStates?: string;

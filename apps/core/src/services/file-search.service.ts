@@ -434,7 +434,6 @@ export interface LiveResource {
   extractionState: FileExtractionState | null;
   extractionCoverage: number | null;
   extractionReason: string | null;
-  summary: string | null;
   bestChunkText: string | null;
 }
 
@@ -485,7 +484,6 @@ export async function loadLiveResources(input: {
       fr."updatedAt",
       fr."contentRevision",
       fr."metadataRevision",
-      fr.summary,
       fv."extractionState",
       fv."extractionCoverage",
       fv."extractionReason",
@@ -681,7 +679,6 @@ export async function hydrateResources(input: {
         evidenceSnippet: link.evidenceSnippet,
       })),
       folderPath: driveFolderPathFromSourceId(resource.sourceId),
-      summary: resource.summary ?? null,
       snippet,
       relatedReason: null,
       filenameMatch:

@@ -131,12 +131,6 @@ export const fileResourceSchema = z
      * reader's filing that nobody made.
      */
     folderPath: z.string().nullable(),
-    /**
-     * One line saying what the file is, written from its extracted text.
-     * Null until generated and for files with no text; the client then falls
-     * back to a plain description of the type. Never the document's opening.
-     */
-    summary: z.string().nullable(),
     snippet: fileSnippetSchema.nullable(),
     /**
      * Why this appeared in a related list, in the reader's own terms — a

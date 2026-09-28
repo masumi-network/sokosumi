@@ -127,44 +127,6 @@ export const openrouterClient = (() => {
       });
     },
 
-    /**
-     * The one line shown under a file in the Files list, from its filename
-     * and extracted text. `null` is a failed call, `declined` a file the model
-     * could not describe, which the caller records so it is not asked again.
-     */
-    async generateFileSummary(
-      input: { fileName: string; excerpt: string },
-      options?: OpenRouterRequestOptions,
-    ): Promise<AgentSummaryResult | null> {
-      if (!defaultOpenrouter) {
-        return null;
-      }
-
-      const instructions = `Write the one-line description shown under a file in a file list, saying what the file is and what it is about.
-
-        - One sentence of 8 to 18 words, in your own words; never quote or copy the opening of the text
-        - Name the kind of document and its subject, for example "Launch brief for the CMO.xyz product, with goals, audience and timeline"
-        - Same language as the text; no markdown, no quotes, no trailing full stop
-        - Reply with the description alone
-        - If the text is empty or unreadable, reply with exactly NONE
-      `;
-
-      const summary = await generateOpenRouterText(defaultOpenrouter, {
-        abortSignal: options?.abortSignal,
-        instructions,
-        prompt: `File name: ${input.fileName}\n\nText:\n${input.excerpt}`,
-        temperature: 0.2,
-        maxOutputTokens: 80,
-        failureLogLabel: "file summary generation",
-      });
-      if (!summary) {
-        return null;
-      }
-      return summary.replace(/["'“”‘’.\s]/g, "").toUpperCase() === "NONE"
-        ? { kind: "declined" }
-        : { kind: "summary", text: summary.replace(/\s+/g, " ").trim() };
-    },
-
     async generateAgentSummary(
       description: string,
       options?: OpenRouterRequestOptions,

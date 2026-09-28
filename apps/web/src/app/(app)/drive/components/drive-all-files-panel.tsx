@@ -22,7 +22,10 @@ import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-categ
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
 import { DriveFileViewer } from "@/app/drive/components/drive-file-viewer";
-import { DriveFolderNav } from "@/app/drive/components/drive-folder-nav";
+import {
+  childFolders,
+  DriveFolderNav,
+} from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +79,37 @@ import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
  */
 
 const SEARCH_DEBOUNCE_MS = 250;
+
+/**
+ * One surface, two states: no query and no filter is browsing, anything else is
+ * searching.
+ *
+ * Browsing shows the current folder — its folders and the files filed directly
+ * in it. Searching shows results from the whole workspace and leaves the folder
+ * out, so a query typed inside a folder is not silently limited to it. Clearing
+ * the query returns to the folder the reader was in.
+ */
+function isBrowsing(query: string, filters: FileSearchFilterState): boolean {
+  return (
+    query.trim().length === 0 &&
+    countActiveFileFilters({ ...filters, folder: "" }) === 0
+  );
+}
+
+/** What the request should carry for the state the reader is in. */
+function requestFor(query: string, filters: FileSearchFilterState) {
+  const browsing = isBrowsing(query, filters);
+  return {
+    browsing,
+    filters: browsing ? filters : { ...filters, folder: "" },
+    sortBy: browsing
+      ? ("name" as const)
+      : query.trim()
+        ? ("relevance" as const)
+        : ("modified" as const),
+    sortOrder: browsing ? ("asc" as const) : ("desc" as const),
+  };
+}
 
 /** Types offered as one-tap chips; the popover still carries them all. */
 const TYPE_CHIPS = ["document", "image", "data", "video", "audio"] as const;
@@ -254,12 +288,14 @@ export function DriveAllFilesPanel({
       setState((current) => ({ ...current, loading: true, error: null }));
 
       try {
+        const request = requestFor(input.query, input.filters);
         const page = await fetchFileSearchPage({
           store,
           query: input.query,
-          filters: input.filters,
-          sortBy: input.query.trim().length > 0 ? "relevance" : "modified",
-          sortOrder: "desc",
+          filters: request.filters,
+          directOnly: request.browsing,
+          sortBy: request.sortBy,
+          sortOrder: request.sortOrder,
           signal: controller.signal,
         });
         // A response from a superseded request is dropped, not rendered.
@@ -396,12 +432,14 @@ export function DriveAllFilesPanel({
 
     setState((current) => ({ ...current, loadingMore: true }));
     try {
+      const request = requestFor(appliedQuery, filters);
       const page = await fetchFileSearchPage({
         store,
         query: appliedQuery,
-        filters,
-        sortBy: appliedQuery.trim().length > 0 ? "relevance" : "modified",
-        sortOrder: "desc",
+        filters: request.filters,
+        directOnly: request.browsing,
+        sortBy: request.sortBy,
+        sortOrder: request.sortOrder,
         cursor,
       });
       setState((current) => {
@@ -729,6 +767,7 @@ export function DriveAllFilesPanel({
     })),
   ];
 
+  const browsing = isBrowsing(appliedQuery, filters);
   const selectionCount = selectionToken
     ? (state.meta?.windowCount ?? selectedIds.length)
     : selectedIds.length;
@@ -878,12 +917,14 @@ export function DriveAllFilesPanel({
         })}
       </div>
 
-      <DriveFolderNav
-        folders={folders}
-        current={filters.folder}
-        onSelect={(folder) => applyFilters({ ...filters, folder })}
-        actions={filters.folder ? folderActions : null}
-      />
+      {browsing ? (
+        <DriveFolderNav
+          folders={folders}
+          current={filters.folder}
+          onSelect={(folder) => applyFilters({ ...filters, folder })}
+          actions={filters.folder ? folderActions : null}
+        />
+      ) : null}
 
       {appliedFacets.length > 0 ? (
         <div
@@ -1091,7 +1132,10 @@ export function DriveAllFilesPanel({
             {t("retry")}
           </Button>
         </div>
-      ) : state.items.length === 0 ? (
+      ) : state.items.length === 0 &&
+        browsing &&
+        childFolders(folders, filters.folder).length > 0 ? null : state.items
+          .length === 0 ? (
         <div className="bg-card-background rounded-lg border p-10 text-center">
           <p className="text-sm font-medium">
             {appliedQuery || activeFilterCount > 0

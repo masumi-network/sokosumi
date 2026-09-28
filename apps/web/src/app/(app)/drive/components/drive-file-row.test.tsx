@@ -60,7 +60,6 @@ function resource(overrides: Partial<FileResource> = {}): FileResource {
     suggestions: [],
     rejected: [],
     projects: [],
-    summary: null,
     snippet: null,
     relatedReason: null,
     filenameMatch: false,
@@ -205,20 +204,6 @@ describe("where the document came from", () => {
     // would be means a person uploaded it.
     renderRow(resource({ sourceKind: "DRIVE_UPLOAD" }));
     expect(screen.queryByTestId("drive-file-origin")).toBeNull();
-  });
-
-  it("shows the folder the file is filed in, last segment first", () => {
-    // The catalog showed no folder at all, for files that were nine-tenths in
-    // one. The whole path is on hover, because paths here run three deep.
-    renderRow(
-      resource({ folderPath: "Media/Sokosumi Social Media Assets/Youtube" }),
-    );
-    const folder = screen.getByTestId("drive-file-folder");
-    expect(folder).toHaveTextContent("Youtube");
-    expect(folder).toHaveAttribute(
-      "title",
-      "Media/Sokosumi Social Media Assets/Youtube",
-    );
   });
 
   it("states a confirmed project and marks a suggested one", () => {
@@ -411,34 +396,27 @@ describe("opening a file", () => {
   });
 });
 
-describe("the line under the name", () => {
-  const opening = {
-    text: "Copyright 2026 Acme. All rights reserved. Table of contents",
-    highlights: [],
-    truncatedStart: false,
-    truncatedEnd: true,
-  };
-
-  it("is the summary, not the document's opening", () => {
+describe("what a row says", () => {
+  it("has no description: no summary, no document opening, no date", () => {
     renderRow(
       resource({
-        summary: "Q3 revenue report for the sales team, with forecasts",
-        // What the API sends when nothing was searched: the first chunk, with
-        // nothing highlighted. It used to be the whole description of the file.
-        snippet: opening,
+        snippet: {
+          text: "Copyright 2026 Acme. All rights reserved.",
+          highlights: [],
+          truncatedStart: false,
+          truncatedEnd: true,
+        },
       }),
     );
 
-    expect(screen.getByTestId("drive-file-summary")).toHaveTextContent(
-      "Q3 revenue report for the sales team, with forecasts",
-    );
     expect(screen.queryByText(/Copyright 2026/)).toBeNull();
+    expect(screen.queryByText("2 weeks ago")).toBeNull();
+    expect(screen.queryByText(/PDF ·/)).toBeNull();
   });
 
-  it("is the matching passage when the reader searched", () => {
+  it("shows the matching passage only when a query matched", () => {
     renderRow(
       resource({
-        summary: "Q3 revenue report",
         snippet: {
           text: "revenue grew in the third quarter",
           highlights: [{ start: 0, end: 7 }],
@@ -449,14 +427,5 @@ describe("the line under the name", () => {
     );
 
     expect(screen.getByText("revenue")).toBeVisible();
-    expect(screen.queryByTestId("drive-file-summary")).toBeNull();
-  });
-
-  it("falls back to the type and size for a file with no summary", () => {
-    renderRow(resource({ summary: null, snippet: null, sizeBytes: 2048 }));
-
-    expect(screen.getByTestId("drive-file-summary")).toHaveTextContent(
-      "PDF · 2.0 KB",
-    );
   });
 });
