@@ -200,8 +200,20 @@ describe("only write paths may buy label evaluations", () => {
    */
   const ROUTES = fileURLToPath(new URL("../../routes", import.meta.url));
 
-  /** Routes that create or replace a document, where labelling is the point. */
-  const WRITE_PATHS = ["v1/drive/files/finalize.ts"];
+  /**
+   * Routes where a reader explicitly asked for this document to be
+   * processed, so spending their request on it is what they asked for.
+   *
+   * - finalize: they uploaded it, and a document with no category or tags
+   *   is half-created.
+   * - reindex: they pressed "process this again", usually because the
+   *   labels came out wrong, so labelling is the thing being retried.
+   *   Behind that route's own cooldown, which keeps it metered.
+   */
+  const WRITE_PATHS = [
+    "v1/drive/files/finalize.ts",
+    "v1/drive/resources/[id]/reindex/post.ts",
+  ].sort();
 
   it("is imported by exactly the write paths that declare it", () => {
     const callers = globSync("**/*.ts", { cwd: ROUTES })

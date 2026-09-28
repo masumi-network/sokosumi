@@ -79,8 +79,29 @@ export interface IndexingNudgeResult {
 }
 
 /**
- * Both halves. For the upload path, where the reader asked for this
- * document to exist and labelling it is the point.
+ * Both halves, for the paths where a reader asked for this document to be
+ * processed: an upload, and an explicit reindex.
+ *
+ * ## One rule, three paths
+ *
+ * Whose request pays, and did they ask for it?
+ *
+ * - **Upload** (`files/finalize.ts`) — they asked for this document to
+ *   exist, and a document without a category or tags is half-created.
+ *   Both halves.
+ * - **Reindex** (`resources/[id]/reindex`) — they pressed a button whose
+ *   entire purpose is "process this again", usually because the labels
+ *   came out wrong. Labelling is the thing being retried, so extraction
+ *   alone would be a recovery path that recovers nothing. Both halves,
+ *   behind that route's cooldown so it stays metered.
+ * - **Search** (`drive/search`) — they asked to read. The backfill branch
+ *   there adopts documents nobody mentioned, and charging a reader's
+ *   request for evaluations on a backlog they did not ask about is the
+ *   spend this module warns against two paragraphs down. Extraction only;
+ *   see `nudgeFileExtraction`.
+ *
+ * Stated together because read as three separate decisions they look
+ * arbitrary, and the next path added will be read against this list.
  */
 export function nudgeFileIndexing(): void {
   waitUntil(runIndexingNudge());

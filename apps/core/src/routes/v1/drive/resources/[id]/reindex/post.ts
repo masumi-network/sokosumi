@@ -6,6 +6,7 @@ import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
@@ -89,6 +90,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       pipeline: FileIndexJobPipeline.EXTRACT,
       contentRevision: resource.contentRevision,
     });
+
+    /**
+     * Enqueuing is not enough on its own.
+     *
+     * Nothing else leases these jobs except the cron, and Vercel runs
+     * crons on production deployments only — so on a preview this route
+     * queued work that was never drained and silently did nothing. The
+     * full nudge, not the extraction-only one: this is the path where a
+     * reader has explicitly asked for this document to be processed, and
+     * relabelling it is most of what they asked for.
+     *
+     * Deliberately after the cooldown above, so an explicit action stays
+     * metered. Moving it earlier would turn one button into an unmetered
+     * way to spend the provider budget.
+     */
+    nudgeFileIndexing();
 
     return ok(c, responseSchema.parse({ queued: true }));
   });
