@@ -19,6 +19,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     generate: t("generate"),
     refine: t("refine"),
     regenerate: t("regenerate"),
+    reroll: t("reroll"),
+    reusePrompt: t("reusePrompt"),
     download: t("download"),
     compare: t("compare"),
     approve: t("approve"),

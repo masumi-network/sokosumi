@@ -2583,6 +2583,8 @@
       "generate": "Erzeugen",
       "refine": "Verfeinern",
       "regenerate": "Neue Variante",
+      "reroll": "Neu würfeln",
+      "reusePrompt": "Prompt wiederverwenden",
       "download": "Herunterladen",
       "compare": "Vergleichen",
       "approve": "Freigeben",

@@ -2583,6 +2583,8 @@
       "generate": "Generate",
       "refine": "Refine",
       "regenerate": "New variation",
+      "reroll": "Re-roll",
+      "reusePrompt": "Reuse prompt",
       "download": "Download",
       "compare": "Compare",
       "approve": "Approve",

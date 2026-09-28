@@ -1,7 +1,15 @@
 "use client";
 
-import { Check, Loader2, X } from "lucide-react";
-import { useTranslations } from "next-intl";
+import {
+  Check,
+  Dices,
+  Download,
+  Loader2,
+  Quote,
+  Shuffle,
+  X,
+} from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -9,6 +17,8 @@ import { cn } from "@/lib/utils";
 import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
+  assetContentUrl,
+  epochMs,
   formatElapsed,
   type StudioAsset,
   type StudioCatalog,
@@ -37,7 +47,10 @@ export function StudioGallery({
   labels,
   onCancelJob,
   onOpen,
+  onReroll,
+  onReusePrompt,
   onToggleSelect,
+  onVariation,
   projectId,
   queued,
   selectedIds,
@@ -65,7 +78,13 @@ export function StudioGallery({
   labels: StudioLabels;
   onCancelJob: (jobId: string) => void;
   onOpen: (assetId: string) => void;
+  /** Same brief, same settings, no reference: another draw of the dice. */
+  onReroll: (asset: StudioAsset) => void;
+  /** Put this image's prompt back in the composer to edit. */
+  onReusePrompt: (asset: StudioAsset) => void;
   onToggleSelect: (assetId: string) => void;
+  /** Same brief with this image as the reference. */
+  onVariation: (asset: StudioAsset) => void;
   projectId: string;
   /** Requests still held in this page, not yet accepted by Core. */
   queued: QueuedGeneration[];
@@ -74,17 +93,25 @@ export function StudioGallery({
   // Only for the credits figure, which interpolates a count; every other string
   // arrives resolved in `labels`. See `StudioLabels`.
   const t = useTranslations("App.Studio");
+  const format = useFormatter();
+
+  // Newest first already, so grouping is one pass: a new group starts whenever
+  // the calendar day changes. Local day, because "yesterday" is the reader's.
+  const groups: { day: string; date: Date; assets: StudioAsset[] }[] = [];
+  for (const asset of assets) {
+    const ms = epochMs(asset.createdAt);
+    const date = new Date(ms ?? 0);
+    const day = ms === null ? "" : date.toDateString();
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) last.assets.push(asset);
+    else groups.push({ day, date, assets: [asset] });
+  }
 
   return (
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
     <section aria-labelledby="studio-gallery-heading" className="min-w-0">
-      <ul
-        className={cn(
-          "grid list-none grid-cols-2 gap-3 sm:grid-cols-3",
-          "lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
-        )}
-      >
+      <ul className={GRID_CLASS}>
         {queued.map((request) => (
           <li key={request.id}>
             <PendingTile
@@ -126,154 +153,252 @@ export function StudioGallery({
             </li>
           );
         })}
+      </ul>
 
-        {assets.map((asset) => {
-          const selected = selectedIds.includes(asset.id);
-          const model = resolveModel(catalog, asset.model);
-          const decision = asset.review?.decision ?? null;
-          const decisionLabel =
-            decision === "APPROVED"
-              ? labels.approved
-              : decision === "REJECTED"
-                ? labels.rejected
-                : labels.undecided;
-          const elapsed = elapsedByAssetId[asset.id] ?? null;
-          // What this version actually cost, off its job row. `?? null`, never
-          // `|| null`: a job whose row has fallen off the page is absent and
-          // unknown, while a delivered image Core could not charge for carries a
-          // real `0` and was free. Different claims, and a falsy check would
-          // collapse the second into the first.
-          const credits = creditsByAssetId[asset.id] ?? null;
-          // Everything the caption cannot fit, kept reachable on hover and
-          // for the accessible name. The catalog id is in here rather than on
-          // the caption: the label is what a person compares models by, and
-          // the id is what they would quote in a bug report.
-          const provenance = [
-            model.label,
-            model.id,
-            `${asset.width}×${asset.height}`,
-            elapsed === null
-              ? null
-              : `${labels.generationTime} ${formatElapsed(elapsed)}`,
-            credits === null
-              ? null
-              : `${labels.credits} ${t("creditsCount", { count: credits })}`,
-            model.known ? null : labels.modelNotInCatalog,
-          ]
-            .filter(Boolean)
-            .join(" · ");
+      {groups.map((group) => (
+        <div className="mt-6 first:mt-0" key={group.day || "undated"}>
+          {group.day ? (
+            <h3
+              className="text-muted-foreground mb-3 text-xs font-medium"
+              suppressHydrationWarning
+            >
+              {format.dateTime(group.date, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              })}
+            </h3>
+          ) : null}
+          <ul className={GRID_CLASS}>
+            {group.assets.map((asset) => {
+              const selected = selectedIds.includes(asset.id);
+              const model = resolveModel(catalog, asset.model);
+              const decision = asset.review?.decision ?? null;
+              const decisionLabel =
+                decision === "APPROVED"
+                  ? labels.approved
+                  : decision === "REJECTED"
+                    ? labels.rejected
+                    : labels.undecided;
+              const elapsed = elapsedByAssetId[asset.id] ?? null;
+              // What this version actually cost, off its job row. `?? null`, never
+              // `|| null`: a job whose row has fallen off the page is absent and
+              // unknown, while a delivered image Core could not charge for carries a
+              // real `0` and was free. Different claims, and a falsy check would
+              // collapse the second into the first.
+              const credits = creditsByAssetId[asset.id] ?? null;
+              // Everything the caption cannot fit, kept reachable on hover and
+              // for the accessible name. The catalog id is in here rather than on
+              // the caption: the label is what a person compares models by, and
+              // the id is what they would quote in a bug report.
+              const provenance = [
+                model.label,
+                model.id,
+                `${asset.width}×${asset.height}`,
+                elapsed === null
+                  ? null
+                  : `${labels.generationTime} ${formatElapsed(elapsed)}`,
+                credits === null
+                  ? null
+                  : `${labels.credits} ${t("creditsCount", { count: credits })}`,
+                model.known ? null : labels.modelNotInCatalog,
+              ]
+                .filter(Boolean)
+                .join(" · ");
 
-          return (
-            <li key={asset.id}>
-              <figure
-                className={cn(
-                  "group border-border bg-background relative overflow-hidden rounded-lg border transition-colors",
-                  selected && "border-primary ring-ring-halo ring-2",
-                )}
-                data-asset-id={asset.id}
-              >
-                <button
-                  aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}, ${decisionLabel}`}
-                  className="focus-visible:ring-ring-halo block w-full cursor-pointer outline-none focus-visible:ring-[3px]"
-                  onClick={() => onOpen(asset.id)}
-                  type="button"
-                >
-                  <span className="bg-muted flex aspect-square w-full items-center justify-center">
-                    <StudioImage
-                      asset={asset}
-                      labels={labels}
-                      projectId={projectId}
-                    />
-                  </span>
-                </button>
+              return (
+                <li key={asset.id}>
+                  <figure
+                    className={cn(
+                      "group border-border bg-background relative overflow-hidden rounded-lg border transition-colors",
+                      selected && "border-primary ring-ring-halo ring-2",
+                    )}
+                    data-asset-id={asset.id}
+                  >
+                    <button
+                      aria-label={`${labels.openDetails} — ${labels.version} ${asset.version}, ${model.label}, ${decisionLabel}`}
+                      className="focus-visible:ring-ring-halo block w-full cursor-pointer outline-none focus-visible:ring-[3px]"
+                      onClick={() => onOpen(asset.id)}
+                      type="button"
+                    >
+                      <span className="bg-muted flex aspect-square w-full items-center justify-center">
+                        <StudioImage
+                          asset={asset}
+                          labels={labels}
+                          projectId={projectId}
+                        />
+                      </span>
+                    </button>
 
-                {/* The decision belongs on the picture: it is a fact about
+                    {/* The decision belongs on the picture: it is a fact about
                     the image, and on the caption line it competed with the
                     model name for the one line both had to share. */}
-                {decision ? (
-                  <Badge
-                    tone={decision === "APPROVED" ? "approved" : "rejected"}
-                  >
-                    {decision === "APPROVED" ? (
-                      <Check aria-hidden className="size-3" />
-                    ) : (
-                      <X aria-hidden className="size-3" />
-                    )}
-                    {decision === "APPROVED"
-                      ? labels.approved
-                      : labels.rejected}
-                  </Badge>
-                ) : null}
+                    {decision ? (
+                      <Badge
+                        tone={decision === "APPROVED" ? "approved" : "rejected"}
+                      >
+                        {decision === "APPROVED" ? (
+                          <Check aria-hidden className="size-3" />
+                        ) : (
+                          <X aria-hidden className="size-3" />
+                        )}
+                        {decision === "APPROVED"
+                          ? labels.approved
+                          : labels.rejected}
+                      </Badge>
+                    ) : null}
 
-                {/* Selection is its own control: clicking the picture opens
+                    {/* Actions live on the picture, on hover or focus, so the grid
+                    stays a wall of images and the second draw is one click.
+                    Always shown where there is no hover to wait for. */}
+                    <div
+                      className={cn(
+                        "absolute inset-x-0 top-0 flex justify-end gap-1 p-2 pr-10",
+                        "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
+                      )}
+                    >
+                      <HoverAction
+                        label={labels.reroll}
+                        onClick={() => onReroll(asset)}
+                      >
+                        <Dices aria-hidden className="size-3.5" />
+                      </HoverAction>
+                      <HoverAction
+                        label={labels.regenerate}
+                        onClick={() => onVariation(asset)}
+                      >
+                        <Shuffle aria-hidden className="size-3.5" />
+                      </HoverAction>
+                      <HoverAction
+                        label={labels.reusePrompt}
+                        onClick={() => onReusePrompt(asset)}
+                      >
+                        <Quote aria-hidden className="size-3.5" />
+                      </HoverAction>
+                      <a
+                        aria-label={labels.download}
+                        className={HOVER_ACTION_CLASS}
+                        download={`v${asset.version}.${asset.settings?.outputFormat ?? "png"}`}
+                        href={assetContentUrl(projectId, asset.id)}
+                        title={labels.download}
+                      >
+                        <Download aria-hidden className="size-3.5" />
+                      </a>
+                    </div>
+
+                    {/* Selection is its own control: clicking the picture opens
                     it, which is what a picture in a gallery should do. */}
-                <button
-                  aria-label={selected ? labels.deselect : labels.select}
-                  aria-pressed={selected}
-                  className={cn(
-                    "absolute top-2 right-2 flex size-6 items-center justify-center rounded-md border transition-colors",
-                    "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-                    selected
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background text-muted-foreground hover:text-foreground",
-                  )}
-                  onClick={() => onToggleSelect(asset.id)}
-                  type="button"
-                >
-                  {selected ? <Check aria-hidden className="size-3.5" /> : null}
-                </button>
+                    <button
+                      aria-label={selected ? labels.deselect : labels.select}
+                      aria-pressed={selected}
+                      className={cn(
+                        "absolute top-2 right-2 flex size-6 items-center justify-center rounded-md border transition-colors",
+                        "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                        selected
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "border-border bg-background text-muted-foreground hover:text-foreground",
+                      )}
+                      onClick={() => onToggleSelect(asset.id)}
+                      type="button"
+                    >
+                      {selected ? (
+                        <Check aria-hidden className="size-3.5" />
+                      ) : null}
+                    </button>
 
-                <figcaption className="space-y-1 px-2 py-2">
-                  <div className="flex min-w-0 items-center gap-1.5">
-                    <span className="text-foreground shrink-0 text-xs font-medium tabular-nums">
-                      v{asset.version}
-                    </span>
-                    {/* Requirement: the model is readable on the image
+                    <figcaption className="space-y-1 px-2 py-2">
+                      {/* The prompt is the caption, as in any place people scroll
+                      through their own work; the rest is the provenance line. */}
+                      <p
+                        className="text-foreground line-clamp-1 text-xs"
+                        title={asset.prompt}
+                      >
+                        {asset.prompt}
+                      </p>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <span className="text-foreground shrink-0 text-xs font-medium tabular-nums">
+                          v{asset.version}
+                        </span>
+                        {/* Requirement: the model is readable on the image
                         itself, never only in a detail view someone has to
                         open. */}
-                    <span
-                      className={cn(
-                        "text-muted-foreground min-w-0 flex-1 truncate text-xs",
-                        model.known || "font-mono",
-                      )}
-                      title={provenance}
-                    >
-                      {model.label}
-                    </span>
-                  </div>
+                        <span
+                          className={cn(
+                            "text-muted-foreground min-w-0 flex-1 truncate text-xs",
+                            model.known || "font-mono",
+                          )}
+                          title={provenance}
+                        >
+                          {model.label}
+                        </span>
+                      </div>
 
-                  {/* What it cost to make, which is what a batch across
+                      {/* What it cost to make, which is what a batch across
                       several models is read for. Both figures are measured:
                       the time is the provider's own submit-to-settle interval
                       and the credits are what the ledger debited. */}
-                  {elapsed !== null || credits !== null ? (
-                    <p
-                      className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs tabular-nums"
-                      title={provenance}
-                    >
-                      {elapsed !== null ? (
-                        <span className="shrink-0">
-                          <span className="sr-only">
-                            {labels.generationTime}{" "}
-                          </span>
-                          {formatElapsed(elapsed)}
-                        </span>
+                      {elapsed !== null || credits !== null ? (
+                        <p
+                          className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs tabular-nums"
+                          title={provenance}
+                        >
+                          {elapsed !== null ? (
+                            <span className="shrink-0">
+                              <span className="sr-only">
+                                {labels.generationTime}{" "}
+                              </span>
+                              {formatElapsed(elapsed)}
+                            </span>
+                          ) : null}
+                          {credits !== null ? (
+                            <span className="shrink-0">
+                              <span className="sr-only">{labels.credits} </span>
+                              {t("creditsCount", { count: credits })}
+                            </span>
+                          ) : null}
+                        </p>
                       ) : null}
-                      {credits !== null ? (
-                        <span className="shrink-0">
-                          <span className="sr-only">{labels.credits} </span>
-                          {t("creditsCount", { count: credits })}
-                        </span>
-                      ) : null}
-                    </p>
-                  ) : null}
-                </figcaption>
-              </figure>
-            </li>
-          );
-        })}
-      </ul>
+                    </figcaption>
+                  </figure>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      ))}
     </section>
+  );
+}
+
+const GRID_CLASS = cn(
+  "grid list-none grid-cols-2 gap-3 sm:grid-cols-3",
+  "lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6",
+);
+
+const HOVER_ACTION_CLASS = cn(
+  "bg-background text-foreground border-border flex size-7 items-center justify-center rounded-md border",
+  "hover:bg-background focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+);
+
+function HoverAction({
+  children,
+  label,
+  onClick,
+}: {
+  children: React.ReactNode;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      aria-label={label}
+      className={HOVER_ACTION_CLASS}
+      onClick={onClick}
+      title={label}
+      type="button"
+    >
+      {children}
+    </button>
   );
 }
 

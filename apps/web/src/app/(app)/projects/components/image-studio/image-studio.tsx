@@ -1,6 +1,25 @@
 "use client";
 
-import { AlertTriangle, Columns2, X } from "lucide-react";
+import {
+  AlertTriangle,
+  AppWindow,
+  Columns2,
+  FileText,
+  Frame,
+  Image as ImageIcon,
+  LayoutTemplate,
+  type LucideIcon,
+  Megaphone,
+  MonitorSmartphone,
+  Newspaper,
+  Palette,
+  PieChart,
+  Play,
+  Shapes,
+  Share2,
+  UserRound,
+  X,
+} from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -26,7 +45,11 @@ import { STUDIO_PILL_CLASS } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
-import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
+import {
+  STUDIO_TEMPLATES,
+  type StudioTemplate,
+  type StudioTemplateId,
+} from "./studio-templates";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -364,20 +387,30 @@ export function ImageStudio({
    * landscape 2K original into a square thumbnail, which reads as the product
    * ignoring the request.
    */
-  function repeat(source: StudioAsset | StudioJob, from: "asset" | "job") {
+  function repeat(
+    source: StudioAsset | StudioJob,
+    from: "asset" | "job",
+    reroll = false,
+  ) {
     const id = crypto.randomUUID();
     const request: QueuedGeneration = {
       id,
       prompt: source.prompt,
       modelId: modelIdForRepeat(catalog, source.model) ?? "",
       modelLabel: source.model,
-      settings: settingsOf(source),
-      parentAssetId:
-        from === "asset"
+      // A re-roll is a fresh draw of the same brief: no seed, or the model
+      // would hand back the picture it already made.
+      settings: reroll
+        ? { ...settingsOf(source), seed: null }
+        : settingsOf(source),
+      parentAssetId: reroll
+        ? null
+        : from === "asset"
           ? (source as StudioAsset).id
           : (source as StudioJob).parentAssetId,
-      referenceAssetIds:
-        from === "asset"
+      referenceAssetIds: reroll
+        ? []
+        : from === "asset"
           ? [(source as StudioAsset).id]
           : (source as StudioJob).referenceAssetIds,
       idempotencyKey: `ui:${id}`,
@@ -402,6 +435,16 @@ export function ImageStudio({
     setTarget((current) => ({
       ...current,
       settings: { ...current.settings, aspectRatio: template.aspectRatio },
+    }));
+    promptRef.current?.focus();
+  }
+
+  /** Put an image's brief and frame back in the composer, ready to edit. */
+  function reusePrompt(asset: StudioAsset) {
+    setPrompt(asset.prompt);
+    setTarget((current) => ({
+      ...current,
+      settings: { ...current.settings, ...settingsOf(asset), seed: null },
     }));
     promptRef.current?.focus();
   }
@@ -495,6 +538,36 @@ export function ImageStudio({
     activeJobs.length === 0 &&
     queue.queued.length === 0;
 
+  const composer = (
+    <StudioComposer
+      busy={pending}
+      catalog={catalog}
+      labels={labels}
+      onClearReferences={() => setCheckedIds([])}
+      onGenerate={queue.enqueue}
+      onPromptChange={setPrompt}
+      onTargetChange={setTarget}
+      projectId={projectId}
+      prompt={prompt}
+      promptRef={promptRef}
+      referenceAssets={checkedAssets}
+      target={target}
+    />
+  );
+
+  const templateTiles = (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+      {STUDIO_TEMPLATES.map((template) => (
+        <TemplateTile
+          key={template.id}
+          label={labels.templateLabels[template.id]}
+          onClick={() => applyTemplate(template)}
+          template={template}
+        />
+      ))}
+    </div>
+  );
+
   return (
     // One vertical rhythm for the whole page: every block the studio stacks —
     // the notice, the composer, the templates, the gallery — is one `space-y-4`
@@ -514,20 +587,7 @@ export function ImageStudio({
         </Notice>
       ) : null}
 
-      <StudioComposer
-        busy={pending}
-        catalog={catalog}
-        labels={labels}
-        onClearReferences={() => setCheckedIds([])}
-        onGenerate={queue.enqueue}
-        onPromptChange={setPrompt}
-        onTargetChange={setTarget}
-        projectId={projectId}
-        prompt={prompt}
-        promptRef={promptRef}
-        referenceAssets={checkedAssets}
-        target={target}
-      />
+      {hasWork ? null : composer}
 
       {queue.waitingForSlot ? (
         <p className="text-muted-foreground text-xs leading-relaxed">
@@ -625,31 +685,27 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      {/* Somewhere to start, in the same rhythm as the sections on the project
-          overview: a small heading and then the presses. One wrapping row
-          rather than a gallery of cards, because these are fourteen words, not
-          fourteen things to look at. */}
-      <section aria-labelledby="studio-templates-heading" className="space-y-2">
-        <h2
-          className="text-muted-foreground text-xs font-medium"
-          id="studio-templates-heading"
+      {hasWork ? (
+        <details className="group/templates">
+          <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo w-fit cursor-pointer rounded text-xs font-medium outline-none select-none focus-visible:ring-[3px]">
+            {labels.templates}
+          </summary>
+          <div className="mt-3">{templateTiles}</div>
+        </details>
+      ) : (
+        <section
+          aria-labelledby="studio-templates-heading"
+          className="space-y-3"
         >
-          {labels.templates}
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          {STUDIO_TEMPLATES.map((template) => (
-            <Button
-              key={template.id}
-              onClick={() => applyTemplate(template)}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              {labels.templateLabels[template.id]}
-            </Button>
-          ))}
-        </div>
-      </section>
+          <h2
+            className="text-muted-foreground text-xs font-medium"
+            id="studio-templates-heading"
+          >
+            {labels.templates}
+          </h2>
+          {templateTiles}
+        </section>
+      )}
 
       {/* The gallery's own header row, in the same rhythm the overview uses
           for Briefing and Workspace. Its left-hand subject is the heading, so
@@ -756,6 +812,9 @@ export function ImageStudio({
               selectAsset(assetId);
               setViewing({ mode: "single" });
             }}
+            onReroll={(asset) => repeat(asset, "asset", true)}
+            onReusePrompt={reusePrompt}
+            onVariation={(asset) => repeat(asset, "asset")}
             onToggleSelect={(assetId) =>
               setCheckedIds((current) =>
                 current.includes(assetId)
@@ -774,6 +833,8 @@ export function ImageStudio({
           ) : null}
         </>
       )}
+
+      {hasWork ? composer : null}
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
@@ -844,5 +905,61 @@ function Notice({
         </Button>
       ) : null}
     </p>
+  );
+}
+
+const TEMPLATE_ICONS: Record<StudioTemplateId, LucideIcon> = {
+  poster: Newspaper,
+  headshot: UserRound,
+  "product-announcement": Megaphone,
+  flyer: FileText,
+  infographic: PieChart,
+  illustration: Palette,
+  icon: AppWindow,
+  ad: Share2,
+  "social-post": MonitorSmartphone,
+  banner: LayoutTemplate,
+  "logo-mark": Shapes,
+  background: ImageIcon,
+  thumbnail: Play,
+  mockup: Frame,
+};
+
+/**
+ * A template as a thing to look at: the frame it is composed for drawn to
+ * scale, with its subject inside. The tile carries no text but its name, so
+ * it reads as that name to assistive tech.
+ */
+function TemplateTile({
+  label,
+  onClick,
+  template,
+}: {
+  label: string;
+  onClick: () => void;
+  template: StudioTemplate;
+}) {
+  const Icon = TEMPLATE_ICONS[template.id];
+  const [w, h] = template.aspectRatio.split(":").map(Number);
+  return (
+    <button
+      className="border-border bg-background hover:border-primary-tertiary focus-visible:ring-ring-halo group flex cursor-pointer flex-col gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-[3px]"
+      onClick={onClick}
+      type="button"
+    >
+      <span className="bg-muted flex h-24 items-center justify-center rounded-lg">
+        <span
+          className="bg-card-background border-border text-muted-foreground group-hover:text-foreground flex max-h-16 max-w-full items-center justify-center rounded-md border shadow-sm transition-colors"
+          style={{
+            aspectRatio: `${w} / ${h}`,
+            height: h > w ? "4rem" : undefined,
+            width: h > w ? undefined : "5rem",
+          }}
+        >
+          <Icon aria-hidden className="size-5" />
+        </span>
+      </span>
+      <span className="text-sm font-medium">{label}</span>
+    </button>
   );
 }
