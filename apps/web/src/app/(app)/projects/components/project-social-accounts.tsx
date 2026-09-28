@@ -399,9 +399,8 @@ export function ProjectSocialAccounts({
                 </span>
                 <div className="min-w-40 flex-1">
                   <p className="truncate text-sm font-medium">{handle}</p>
-                  <p className="text-muted-foreground flex flex-wrap items-center gap-x-1.5 text-xs">
+                  <p className="text-muted-foreground flex flex-wrap items-center gap-x-2 text-xs">
                     <span>{t("account", { provider: providerName })}</span>
-                    <span aria-hidden>·</span>
                     <span
                       className={cn(
                         "inline-flex items-center gap-1",
