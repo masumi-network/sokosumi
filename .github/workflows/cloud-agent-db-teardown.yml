@@ -1,9 +1,14 @@
-name: Cloud agent database teardown
+name: PR closed teardown
+
+# Deletes what a closed pull request leaves behind: Cloud agent Neon branches
+# (`teardown`), and the PR's own Neon preview branches and Vercel preview
+# deployments (`preview-teardown`, scripts/ci/preview-branch-teardown.mjs).
 
 on:
   # workflow_run always loads THIS file from the default branch. Do not switch
   # back to a pull_request_target trigger: that event loads YAML from the PR
-  # base, so a same-repo branch that edits this file can run with NEON_API_KEY.
+  # base, so a same-repo branch that edits this file can run with NEON_API_KEY
+  # and VERCEL_TOKEN.
   workflow_run:
     workflows: ["PR closed"]
     types: [completed]
@@ -11,6 +16,10 @@ on:
     inputs:
       agent_id:
         description: Cloud agent run id (bc-…)
+        required: false
+        type: string
+      head_ref:
+        description: Closed PR head branch whose preview branch and deployments to delete
         required: false
         type: string
 
@@ -26,7 +35,7 @@ jobs:
     # workflow_dispatch still uses the selected ref's YAML — only dispatch
     # from the default branch (see the step-level ref pin below).
     if: >
-      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_dispatch' && inputs.agent_id != '') ||
       (github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
@@ -58,3 +67,43 @@ jobs:
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
           AGENT_ID: ${{ inputs.agent_id }}
         run: node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
+
+  preview-teardown:
+    name: Delete the PR's preview branch and deployments
+    # The closed PR's head ref comes from workflow_run, or from `head_ref` on
+    # a manual run. Dispatch from the default branch only.
+    if: >
+      (github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request') ||
+      (github.event_name == 'workflow_dispatch' && inputs.head_ref != '')
+    runs-on: ubuntu-latest
+    # The Neon preview project ids live in this environment.
+    environment: preview-database
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          # Privileged (NEON_API_KEY, VERCEL_TOKEN). Default branch only,
+          # never a PR tree.
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Delete preview branch and deployments
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ github.event_name == 'workflow_dispatch' && inputs.head_ref || github.event.workflow_run.head_branch }}
+          HEAD_REPO: ${{ github.event_name == 'workflow_dispatch' && github.repository || github.event.workflow_run.head_repository.full_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: node scripts/ci/preview-branch-teardown.mjs
