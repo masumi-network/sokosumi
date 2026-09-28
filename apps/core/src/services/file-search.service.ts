@@ -521,11 +521,21 @@ export async function hydrateResources(input: {
   const ids = input.resources.map((resource) => resource.id);
 
   const [labels, links] = await Promise.all([
+    /**
+     * Every state, partitioned in memory below.
+     *
+     * This asked for `state: { not: REJECTED }`, which made a vetoed label
+     * invisible in every response — search, the one-file read, the metadata
+     * PATCH reply and related files all hydrate through here. The veto was
+     * therefore uncorrectable from any client: nothing could show it, so
+     * nothing could offer to withdraw it.
+     *
+     * Widened rather than joined by a second query: this runs once per page
+     * and a second round trip per page to fetch the same table again would
+     * be a cost paid on every search to serve a rare row.
+     */
     prisma.fileLabel.findMany({
-      where: {
-        resourceId: { in: ids },
-        state: { not: FileMetadataState.REJECTED },
-      },
+      where: { resourceId: { in: ids } },
       select: {
         id: true,
         resourceId: true,
@@ -627,6 +637,11 @@ export async function hydrateResources(input: {
         .map(toDto),
       suggestions: resourceLabels
         .filter((label) => label.state === FileMetadataState.SUGGESTED)
+        .map(toDto),
+      // A third partition of the same rows, not a change to the other two:
+      // `tags` stays CONFIRMED-only and `suggestions` stays SUGGESTED-only.
+      rejected: resourceLabels
+        .filter((label) => label.state === FileMetadataState.REJECTED)
         .map(toDto),
       projects: (linksByResource.get(resource.id) ?? []).map((link) => ({
         id: link.id,

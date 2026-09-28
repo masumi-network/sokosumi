@@ -15,7 +15,7 @@ compatibility: "Portable repo skill. The required artifact is SKILL.md."
 [VERIFIED: `apps/cli/package.json`] The private package in `apps/cli` builds the `sokosumi` executable. Skill installation and CLI installation are separate. Build this checkout from the repository root with Node.js 24 and its dependencies:
 
 ```bash
-pnpm build --filter=@sokosumi/cli --cache=local:w
+pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 

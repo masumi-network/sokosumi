@@ -11,7 +11,20 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-export type DrivePrimaryView = "recents" | "all" | "browse" | "tables";
+/**
+ * Three tabs, and Workspace *is* the catalog.
+ *
+ * There were four: an "All files" tab holding the searchable catalog and a
+ * "Workspace" tab holding the folder tree. Both listed the same files, and two
+ * tabs listing the same files is the defect rather than the feature. Workspace
+ * now holds the catalog — searchable, filterable, every file — with folder
+ * navigation nested inside it as a scope, so folders and folder management
+ * survive the merge.
+ *
+ * `all` and `browse` are still accepted in the URL by `drive-page-client`,
+ * because links to both shipped. Neither is a tab any more.
+ */
+export type DrivePrimaryView = "recents" | "workspace" | "tables";
 
 interface DriveViewTabsProps {
   activeView: DrivePrimaryView;
@@ -39,11 +52,8 @@ export function DriveViewTabs({
         >
           {t("recentsTab")}
         </TabsTrigger>
-        <TabsTrigger value="all" className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}>
-          {t("allFilesTab")}
-        </TabsTrigger>
         <TabsTrigger
-          value="browse"
+          value="workspace"
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
         >
           {t("workspaceTab")}

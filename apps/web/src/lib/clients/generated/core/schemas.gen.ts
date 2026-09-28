@@ -12262,6 +12262,66 @@ export const FileResourceSchema = {
                 ]
             }
         },
+        rejected: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
         projects: {
             type: 'array',
             items: {
@@ -12378,6 +12438,7 @@ export const FileResourceSchema = {
         'category',
         'tags',
         'suggestions',
+        'rejected',
         'projects',
         'snippet',
         'relatedReason',
@@ -12462,6 +12523,13 @@ export const UpdateFileMetadataRequestSchema = {
                     'tags'
                 ]
             }
+        },
+        allowSuggestionsForLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
         }
     },
     required: [

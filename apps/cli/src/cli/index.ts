@@ -33,9 +33,11 @@ import {
   type RuntimeDependencies,
   runRuntimeCommand,
 } from "./commands/runtime.js";
+import { runSkillsCommand } from "./commands/skills.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
+import { buildJsonError, CliError } from "./errors.js";
 import { CLI_VERSION } from "./metadata.js";
 import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
@@ -160,6 +162,8 @@ export interface CliResult {
 
 const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   discover: "",
+  skills: "",
+  "skills path": "",
   "auth login": "",
   "auth status": "",
   "auth whoami": "",
@@ -268,6 +272,10 @@ Account checks:
   Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
   Sign in as the intended account in the browser, run auth login, then auth whoami.
   auth logout clears local credentials; it does not switch the browser account.
+
+Skills for agents:
+  sokosumi skills lists the SKILL.md guides bundled with this package. sokosumi skills path prints their directory.
+  Point your agent at the "sokosumi" skill first; it walks through login, Coworker setup, and running Tasks.
 
 Developer setup on Preprod:
   1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
@@ -406,17 +414,20 @@ export function parseArgv(argv: string[]): ParsedArgv {
       equalsIndex === -1 ? undefined : optionToken.slice(equalsIndex + 1);
     if (BOOLEAN_OPTIONS.has(name)) {
       if (inlineValue !== undefined) {
-        throw new Error(`Option --${name} does not accept a value`);
+        throw new CliError(
+          "VALIDATION",
+          `Option --${name} does not accept a value`,
+        );
       }
       options[name] = true;
       continue;
     }
     if (!VALUE_OPTIONS.has(name as ValueOptionName)) {
-      throw new Error(`Unknown option: --${name}`);
+      throw new CliError("VALIDATION", `Unknown option: --${name}`);
     }
     const value = inlineValue === undefined ? argv[index + 1] : inlineValue;
     if (value === undefined || value === "" || value.startsWith("--")) {
-      throw new Error(`Option --${name} requires a value`);
+      throw new CliError("VALIDATION", `Option --${name} requires a value`);
     }
     const optionName = name as ValueOptionName;
     const optionMap = options as Record<
@@ -469,7 +480,7 @@ function writeJsonError(
     environment?.SOKOSUMI_OAUTH_CLIENT_SECRET,
   ].filter((secret): secret is string => Boolean(secret));
   const message = redactErrorMessage(error, knownSecrets);
-  stdout.write(`${JSON.stringify({ error: message })}\n`);
+  stdout.write(`${JSON.stringify(buildJsonError(message, error))}\n`);
 }
 export async function runCli(
   argv: string[] = process.argv.slice(2),
@@ -496,6 +507,20 @@ export async function runCli(
   if (options.version) {
     stdout.write(`${CLI_VERSION}\n`);
     return { version: CLI_VERSION };
+  }
+
+  if (positionals[0] === "skills") {
+    try {
+      await runSkillsCommand({
+        subcommand: positionals[1],
+        stdout,
+        json: options.json,
+      });
+      return {};
+    } catch (error) {
+      if (options.json) writeJsonError(stdout, error);
+      throw error;
+    }
   }
 
   if (positionals[0] === "runtime") {

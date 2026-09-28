@@ -1,5 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { vendorGrantRepository } from "@sokosumi/database/repositories";
+import {
+  vendorGrantRepository,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
 
 import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -78,6 +81,12 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         resolvedByUserId: resolvedUserId,
         tx,
       });
+
+      // The same seed the repository's two creation paths use. A workspace
+      // with no Files vocabulary produces no tags at all, silently, and this
+      // is the one creation path that does not go through
+      // `workspaceRepository`.
+      await workspaceRepository.seedCuratedVocabulary(createdWorkspace.id, tx);
 
       await tx.user.update({
         where: { id: resolvedUserId },

@@ -6304,11 +6304,10 @@
       "sortAscending": "Ascendente",
       "sortDescending": "Descendente",
       "tablesTab": "Tablas",
-      "workspaceTab": "Tu espacio de trabajo",
+      "workspaceTab": "Espacio de trabajo",
       "filterStatusLabel": "Estado",
       "filterStatusActive": "Activas",
       "filterStatusArchived": "Archivadas",
-      "allFilesTab": "Todos los archivos",
       "Files": {
         "searchPlaceholder": "Buscar archivos",
         "searchLabel": "Buscar archivos en este espacio de trabajo",
@@ -6434,7 +6433,13 @@
         "bulkCategorySearch": "Buscar categorías",
         "bulkCategoryEmpty": "No hay categorías que coincidan",
         "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible.",
-        "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto."
+        "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
+        "sheetOpenAsPage": "Abrir como página",
+        "sheetDescription": "Detalles de este archivo",
+        "detailRejected": "Etiquetas eliminadas",
+        "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
+        "allowAgain": "Que el modelo reconsidere {name}",
+        "labelReopened": "Reabierto. El modelo puede volver a sugerirlo; no se ha aplicado."
       }
     },
     "SokoBot": {
