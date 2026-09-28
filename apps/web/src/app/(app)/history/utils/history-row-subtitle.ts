@@ -20,7 +20,12 @@ export function getHistoryRowSubtitle(
     (item.kind === "unattributed" || item.kind === "topUp") &&
     item.bucketSource
   ) {
-    return formatBucketSource(item.bucketSource);
+    const bucket = formatBucketSource(item.bucketSource);
+    // A REFUND bucket already named the row, and "Refund / Refund" reads like
+    // a rendering bug.
+    if (!isSameDisplayText(bucket, item.title)) {
+      return bucket;
+    }
   }
 
   return labels.noDescription;

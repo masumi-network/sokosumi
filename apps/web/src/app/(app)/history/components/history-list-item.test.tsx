@@ -218,4 +218,18 @@ describe("HistoryListItem", () => {
 
     expect(screen.getByText("6 credits")).toBeInTheDocument();
   });
+
+  it("does not repeat the title as the subtitle when the bucket names both", () => {
+    renderItem({
+      ...base,
+      kind: "topUp",
+      id: "tx-refund",
+      credits: 200,
+      title: "Refund",
+      bucketSource: "REFUND",
+    });
+
+    expect(screen.getByText("Refund")).toBeInTheDocument();
+    expect(screen.getByText("No description")).toBeInTheDocument();
+  });
 });
