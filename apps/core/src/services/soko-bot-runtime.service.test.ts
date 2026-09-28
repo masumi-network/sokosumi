@@ -5008,6 +5008,51 @@ describe("Content Studio image tools", () => {
     ).resolves.toBeNull();
   });
 
+  it("records a studio refusal after the reservation as rejected", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.create.mockRejectedValue(
+      new HTTPException(422, { message: "Not enough credits for this image." }),
+    );
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBotTurn: {
+          findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+        },
+        workspace: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: SCOPE.workspaceId, organizationId: null }),
+        },
+        sokoBotToolCall: {
+          findUnique: transactionToolCallFindUniqueMock,
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          updateMany: toolCallUpdateManyMock,
+        },
+      }),
+    );
+    const refusing = new SokoBotRuntimeService();
+    refusing.authorize = vi.fn().mockResolvedValue(ownerChat);
+    await expect(
+      refusing.executeTool({
+        ...SCOPE,
+        capability: "generate_image",
+        toolCallId: "call-image-2",
+        input: request,
+      }),
+    ).rejects.toThrow("Not enough credits for this image.");
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "FAILED",
+      disposition: "REJECTED",
+      operationKey: null,
+    });
+  });
+
   it("records a refused image as rejected, before anything is reserved", async () => {
     images.credits.mockReturnValue(25);
     toolCallFindUniqueMock.mockResolvedValue(null);

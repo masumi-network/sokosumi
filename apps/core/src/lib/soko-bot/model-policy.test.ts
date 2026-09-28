@@ -157,7 +157,10 @@ describe("local lab global models", () => {
       role: "agent",
       model: "openai/gpt-6-sol",
     });
-    expect(request.providerOptions.gateway).toEqual({});
+    expect(request.providerOptions.gateway).toEqual({
+      zeroDataRetention: true,
+      disallowPromptTraining: true,
+    });
     expect(() =>
       sokoBotModelRequest({ role: "judge", model: "openai/gpt-6-sol" }),
     ).toThrow();

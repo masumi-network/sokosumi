@@ -107,15 +107,33 @@ describe("Jev route selection", () => {
       expect(granted).not.toContain(wider);
   });
 
-  it("gives a pooled MANAGE_WORK lead reads only when its scope is unsure", async () => {
+  it("acts on a multi-part request whose change spans several kinds", async () => {
+    // "Break this into drafts, remember the date, remind me on Mondays":
+    // sure about work, no single write scope. Reads only stalled it.
     const result = await new JevTurnClassifier(
-      split({ MANAGE_WORK: 0.6, DELEGATE_TASK: 0.35 }, "MANAGE_WORK"),
-    ).classify("Handle the client follow-ups", EMPTY_CONTEXT);
-    expect(result.classification.route).toBe("MANAGE_WORK");
-    expect(result.classification.writeScope).toBeUndefined();
-    expect(capabilitiesForClassification(result.classification)).not.toContain(
-      "update_task",
+      split({ MANAGE_WORK: 0.6, DELEGATE_TASK: 0.36 }, "MANAGE_WORK"),
+    ).classify(
+      "Break the launch into draft tasks, remember the date and remind me on Mondays",
+      EMPTY_CONTEXT,
     );
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining([
+        "create_task",
+        "create_schedule",
+        "update_memory",
+      ]),
+    );
+  });
+
+  it("still gives an unsure single MANAGE_WORK lead reads only", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { MANAGE_WORK: 0.55, CLARIFY: 0.3, DIRECT_RESPONSE: 0.15 },
+        "MANAGE_WORK",
+      ),
+    ).classify("Handle it", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("CLARIFY");
   });
 
   it("does all of a confident MIXED request except hiring", async () => {

@@ -1,8 +1,9 @@
 import {
   collectMarkdownUrlExcludedRanges,
   findBareHttpUrlHits,
+  findHttpAutolinks,
   findMarkdownLinks,
-  MARKDOWN_FENCED_BLOCK_REGEX,
+  linkifyBareDomainsInMarkdown,
   replaceMarkdownLinks,
   unescapeMarkdownLinkUrl,
 } from "@sokosumi/utils";
@@ -17,8 +18,10 @@ const MAX_SOURCE_LENGTH = 2_000;
 
 /** Comparable form: no scheme, fragment, or trailing slash; host lowercased. */
 export function normalizeCitation(url: string): string | null {
+  const bare =
+    url.startsWith("<") && url.endsWith(">") ? url.slice(1, -1) : url;
   try {
-    const parsed = new URL(url.startsWith("//") ? `https:${url}` : url);
+    const parsed = new URL(bare.startsWith("//") ? `https:${bare}` : bare);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
       return null;
     return `${parsed.host.toLowerCase()}${parsed.pathname.replace(/\/+$/, "")}${parsed.search}`;
@@ -44,6 +47,7 @@ export function urlsIn(value: unknown): string[] {
     ...findMarkdownLinks(text).map((link) =>
       unescapeMarkdownLinkUrl(link.rawUrl),
     ),
+    ...findHttpAutolinks(text).map((hit) => hit.url),
     ...findBareHttpUrlHits(text, collectMarkdownUrlExcludedRanges(text)).map(
       (hit) => hit.url,
     ),
@@ -56,24 +60,43 @@ export function citationsIn(value: unknown): string[] {
   return urlsIn(value).flatMap((url) => normalizeCitation(url) ?? []);
 }
 
-/** Fenced blocks and inline code: addresses there are examples, not citations. */
+/**
+ * Code the renderer will show as code, where an address is an example rather
+ * than a citation: fenced blocks (``` or ~~~, running to the end when never
+ * closed) and inline spans between unescaped backticks.
+ */
 function codeRanges(text: string): Range[] {
   const ranges: Range[] = [];
-  for (const match of text.matchAll(MARKDOWN_FENCED_BLOCK_REGEX)) {
-    const start = match.index ?? 0;
-    ranges.push({ start, end: start + match[0].length });
-  }
-  let open = -1;
-  for (let index = 0; index < text.length; index += 1) {
-    if (text[index] === "\n") open = -1;
-    else if (text[index] === "`") {
-      if (open === -1) open = index;
-      else {
-        ranges.push({ start: open, end: index + 1 });
-        open = -1;
+  let fence: { marker: string; start: number } | null = null;
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    const marker = /^\s{0,3}(`{3,}|~{3,})/.exec(line)?.[1];
+    if (fence) {
+      if (
+        marker?.[0] === fence.marker[0] &&
+        marker.length >= fence.marker.length
+      ) {
+        ranges.push({ start: fence.start, end: offset + line.length });
+        fence = null;
+      }
+    } else if (marker) {
+      fence = { marker, start: offset };
+    } else {
+      let open = -1;
+      for (let index = 0; index < line.length; index += 1) {
+        if (line[index] === "\\") index += 1;
+        else if (line[index] === "`") {
+          if (open === -1) open = index;
+          else {
+            ranges.push({ start: offset + open, end: offset + index + 1 });
+            open = -1;
+          }
+        }
       }
     }
+    offset += line.length + 1;
   }
+  if (fence) ranges.push({ start: fence.start, end: text.length });
   return ranges;
 }
 
@@ -90,7 +113,8 @@ function isSokosumiHost(normalized: string): boolean {
  * Removes links the turn has no grounds for: a cited page must be one the bot
  * found or loaded this turn, or one it was given. A link keeps its text, the
  * address goes, and the owner is told. Relative links, Sokosumi links and
- * addresses inside code are left alone.
+ * addresses inside code are left alone. Bare domains are read the way the
+ * web renders them, as links.
  */
 export function dropUnverifiedLinks(
   text: string,
@@ -105,23 +129,46 @@ export function dropUnverifiedLinks(
       !evidence.has(normalized)
     );
   };
-  const linkCode = codeRanges(text);
-  const withoutLinks = replaceMarkdownLinks(text, (link) => {
+  // Remove from the end so earlier offsets stay valid.
+  const cut = (value: string, ranges: Range[]) =>
+    [...ranges]
+      .sort((a, b) => b.start - a.start)
+      .reduce(
+        (result, range) =>
+          result.slice(0, range.start) + result.slice(range.end),
+        value,
+      );
+
+  const linked = linkifyBareDomainsInMarkdown(text);
+  const linkCode = codeRanges(linked);
+  const withoutLinks = replaceMarkdownLinks(linked, (link) => {
     if (inside(link.index, linkCode)) return link.match;
     if (!unverified(unescapeMarkdownLinkUrl(link.rawUrl))) return link.match;
     dropped += 1;
-    return link.text;
+    // A label that is itself an address would be linked again on render.
+    return linkifyBareDomainsInMarkdown(link.text) === link.text &&
+      findBareHttpUrlHits(link.text).length === 0
+      ? link.text
+      : "";
   });
-  const bareCode = codeRanges(withoutLinks);
-  const hits = findBareHttpUrlHits(
-    withoutLinks,
-    collectMarkdownUrlExcludedRanges(withoutLinks),
-  ).filter((hit) => !inside(hit.start, bareCode) && unverified(hit.url));
-  let cleaned = withoutLinks;
-  for (const hit of [...hits].reverse())
-    cleaned =
-      cleaned.slice(0, hit.start) + cleaned.slice(hit.start + hit.url.length);
-  dropped += hits.length;
+
+  const autolinkCode = codeRanges(withoutLinks);
+  const autolinks = findHttpAutolinks(withoutLinks).filter(
+    (hit) => !inside(hit.start, autolinkCode) && unverified(hit.url),
+  );
+  dropped += autolinks.length;
+  const withoutAutolinks = cut(withoutLinks, autolinks);
+
+  const bareCode = codeRanges(withoutAutolinks);
+  const bare = findBareHttpUrlHits(
+    withoutAutolinks,
+    collectMarkdownUrlExcludedRanges(withoutAutolinks),
+  )
+    .filter((hit) => !inside(hit.start, bareCode) && unverified(hit.url))
+    .map((hit) => ({ start: hit.start, end: hit.start + hit.url.length }));
+  dropped += bare.length;
+  const cleaned = cut(withoutAutolinks, bare);
+
   if (dropped === 0) return { text, dropped };
   return {
     text: `${cleaned.trimEnd()}\n\nI left out ${dropped === 1 ? "a link" : `${dropped} links`} I could not confirm from a page I opened.`,

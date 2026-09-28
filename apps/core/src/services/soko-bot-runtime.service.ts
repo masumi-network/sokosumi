@@ -400,6 +400,8 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
+/** The studio refused an image before sending it: nothing happened. */
+export class SokoBotImageRefusedError extends SokoBotRuntimeValidationError {}
 
 /** Schedule tools never need approval; their domain errors become tool errors the model can read. */
 async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
@@ -1478,10 +1480,16 @@ export class SokoBotRuntimeService {
     raw: unknown,
     toolCallId: string,
   ) {
+    // Checked again here, after the reservation: a price or access change
+    // since the preflight still refuses before anything is sent.
     const { input, model, settings, credits } = await this.checkImageRequest(
       authorized,
       raw,
-    );
+    ).catch((error: unknown) => {
+      throw new SokoBotImageRefusedError(
+        error instanceof Error ? error.message : "Image refused",
+      );
+    });
     const studioUrl = studioLink(input.projectId);
     let job: Awaited<ReturnType<typeof createImageJob>>;
     try {
@@ -1498,10 +1506,10 @@ export class SokoBotRuntimeService {
         idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
       });
     } catch (error) {
-      // The studio's refusals (no balance, too many at once) are the model's
-      // to read, not a transport failure.
+      // The studio's refusals (no balance, too many at once) come before it
+      // sends anything, and are the model's to read.
       if (error instanceof HTTPException)
-        throw new SokoBotRuntimeValidationError(error.message);
+        throw new SokoBotImageRefusedError(error.message);
       throw error;
     }
     return {
@@ -3549,6 +3557,7 @@ export class SokoBotRuntimeService {
       });
       return result;
     } catch (error) {
+      const refusedUnsent = error instanceof SokoBotImageRefusedError;
       await prisma.sokoBotToolCall.updateMany({
         where: {
           turnId: input.turnId,
@@ -3563,10 +3572,12 @@ export class SokoBotRuntimeService {
         },
         data: {
           status: "FAILED",
-          // A rolled-back local attempt is not an enduring semantic reservation.
-          ...(!externalEffect ? { operationKey: null } : {}),
+          // A rolled-back local attempt is not an enduring semantic
+          // reservation, and neither is an image the studio refused unsent.
+          ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
           disposition: ACTION_CAPABILITIES.has(input.capability)
-            ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability)
+            ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&
+              !refusedUnsent
               ? "UNKNOWN"
               : "REJECTED"
             : undefined,

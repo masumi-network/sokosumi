@@ -11,6 +11,7 @@ import {
   forbidden,
   internalServerError,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -25,6 +26,7 @@ import {
 import {
   persistedToolResult,
   sanitizePersistedValue,
+  truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
@@ -202,6 +204,8 @@ export async function recordSandboxAction(
   );
 }
 
+const SANDBOX_OUTPUT_MAX_BYTES = 12_288;
+
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
   input: {
@@ -227,10 +231,17 @@ export async function recordSandboxActionResult(
     },
     data: {
       status: failed ? "FAILED" : "COMPLETED",
-      result: persistedToolResult({
-        output: input.output ?? null,
-        sources: input.sources ?? [],
-      }),
+      // The output is bounded on its own, so a long result can never crowd
+      // out the sources the answer's citations are checked against.
+      result: jsonInput(
+        sanitizePersistedValue({
+          output:
+            input.output === undefined
+              ? null
+              : truncateUtf8(input.output, SANDBOX_OUTPUT_MAX_BYTES),
+          sources: input.sources ?? [],
+        }),
+      ),
       ...(failed ? { errorDetail: input.output?.slice(0, 500) } : {}),
     },
   });

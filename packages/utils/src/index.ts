@@ -288,6 +288,7 @@ export {
 export {
   collectMarkdownUrlExcludedRanges,
   findBareHttpUrlHits,
+  findHttpAutolinks,
 } from "./markdown-url-scan.js";
 export {
   NextJobAction,

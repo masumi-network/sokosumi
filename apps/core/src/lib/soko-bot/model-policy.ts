@@ -133,11 +133,10 @@ export function sokoBotModelRequest(options: {
             inferenceRegion: { scope: "zone" as const, geoRegion: "eu" },
             only: [...policy.providers],
           }
-        : GLOBAL_AGENT_MODELS.has(options.model)
-          ? // Outside the EU, the provider must still keep nothing and train
-            // on nothing, as every Jev call already asks.
-            { zeroDataRetention: true, disallowPromptTraining: true }
-          : {},
+        : // Outside the EU the provider must still keep nothing and train on
+          // nothing, as every Jev call asks: the owner-approved models, and
+          // any the local lab runs against real workspace data.
+          { zeroDataRetention: true, disallowPromptTraining: true },
     },
   };
 }

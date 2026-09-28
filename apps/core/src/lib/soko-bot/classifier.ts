@@ -370,14 +370,20 @@ function routeFromAnswers(
     0,
   );
 
-  // A MANAGE_WORK lead stays MANAGE_WORK even when only the pooled work vote
-  // is sure: moving it to DELEGATE_TASK gave an unsure vote more writes than
-  // a sure one gets. A write scope Jev is unsure of stays unset, and unset
-  // grants reads only.
+  const scope = answers.writeScope.choice;
+  const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
+  const confidentScope =
+    isWriteScope(scope) && scopeConfidence >= MIN_WRITE_SCOPE_CONFIDENCE
+      ? scope
+      : undefined;
+  // A sure MANAGE_WORK vote, or a pooled one whose change Jev can name as one
+  // kind, gets that kind's writes only: "remember Anna prefers email" must not
+  // be lifted to DELEGATE_TASK and its chat, mail and upload tools. A write
+  // scope Jev is unsure of stays unset, and unset grants reads only.
   if (
     route === "MANAGE_WORK" &&
     (confidence >= MIN_ROUTE_CONFIDENCE ||
-      workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
+      (workConfidence >= MIN_POOLED_WORK_CONFIDENCE && confidentScope))
   ) {
     const classification = baseClassification(
       route,
@@ -387,15 +393,16 @@ function routeFromAnswers(
         : `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
       Math.max(confidence, workConfidence),
     );
-    const scope = answers.writeScope.choice;
-    const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
-    return isWriteScope(scope) && scopeConfidence >= MIN_WRITE_SCOPE_CONFIDENCE
-      ? { ...classification, writeScope: scope }
+    return confidentScope
+      ? { ...classification, writeScope: confidentScope }
       : classification;
   }
+  // A pooled vote that is sure the owner wants work done but whose change
+  // spans several kinds — Tasks, a schedule and memory in one request — is
+  // work across routes, which DELEGATE_TASK serves.
   if (
     (route === "DELEGATE_TASK" && confidence >= MIN_ROUTE_CONFIDENCE) ||
-    ((route === "DELEGATE_TASK" || route === "MIXED") &&
+    ((WORK_ROUTES as readonly string[]).includes(route) &&
       workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
   ) {
     return baseClassification(

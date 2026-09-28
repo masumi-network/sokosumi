@@ -99,4 +99,42 @@ describe("dropUnverifiedLinks", () => {
     expect(result.text).toContain("  - nested  item");
     expect(result.text).toContain("See docs.");
   });
+
+  it("checks autolinks and angle-bracket destinations too", () => {
+    const result = dropUnverifiedLinks(
+      "See <https://evil.example/a> and [b](<https://evil.example/b>).",
+      evidence,
+    );
+    expect(result.dropped).toBe(2);
+    expect(result.text).not.toContain("evil.example");
+  });
+
+  it("does not take escaped backticks for code", () => {
+    const result = dropUnverifiedLinks(
+      "\\`x [a](https://evil.example/c) \\`",
+      evidence,
+    );
+    expect(result.dropped).toBe(1);
+  });
+
+  it("reads bare domains the way the web renders them", () => {
+    const result = dropUnverifiedLinks(
+      "Log in at evil-login.com/account today.",
+      evidence,
+    );
+    expect(result.dropped).toBe(1);
+    expect(result.text).not.toContain("evil-login.com");
+    expect(result.text).toContain("Log in at  today.");
+  });
+
+  it("leaves tilde fences and an unclosed fence as code", () => {
+    const text = [
+      "~~~",
+      "curl https://api.example.com/v1",
+      "~~~",
+      "```",
+      "open https://still-code.example/x",
+    ].join("\n");
+    expect(dropUnverifiedLinks(text, evidence)).toEqual({ text, dropped: 0 });
+  });
 });
