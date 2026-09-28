@@ -432,6 +432,8 @@ export async function runCoworkersCommand({
       writeText(stdout, [
         `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
         `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+        `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,
+        "The operator supplies the Coworker key through secure stdin.",
       ]);
     return;
   }

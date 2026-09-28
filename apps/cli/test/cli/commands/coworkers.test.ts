@@ -438,6 +438,10 @@ test("coworkers connect grants access to an existing Coworker", async () => {
     output.join(""),
     /Next: sokosumi --preprod workspaces check org-1/,
   );
+  assert.match(
+    output.join(""),
+    /operator.*runtime key-import --coworker-id cw-1 --api-key-stdin/,
+  );
   assert.equal(calls.length, 1);
   assert.deepEqual(reads, [
     "/v1/users/me/organizations",

@@ -29,6 +29,10 @@ import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
+import {
+  type RuntimeDependencies,
+  runRuntimeCommand,
+} from "./commands/runtime.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
@@ -72,6 +76,7 @@ type ValueOptionName =
   | "workspace-id"
   | "organization-id"
   | "organization-slug"
+  | "result-file"
   | "email"
   | "slug";
 
@@ -131,6 +136,7 @@ export interface CliDependencies {
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
+  runtime?: RuntimeDependencies;
 }
 
 export interface CliResult {
@@ -168,6 +174,9 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
   "workspaces check": "ORGANIZATION_ID",
+  "runtime key-import": "[options]",
+  "runtime start": "TASK_ID [options]",
+  "runtime complete": "TASK_ID [options]",
   "tasks list": "[options]",
   "tasks create": "[--organization-slug WORKSPACE_SLUG]",
   "tasks get": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
@@ -282,6 +291,14 @@ Organization Tasks:
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
   Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+
+Agent runtime tools on Preprod:
+  runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
+  runtime start and complete require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  Runtime commands do not read developer credentials or target configuration.
+  runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
+  runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
+  Use --json for tools. Run one executor per Task; inspect state before any retry.
 `;
 }
 
@@ -318,6 +335,7 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "workspace-id",
   "organization-id",
   "organization-slug",
+  "result-file",
   "email",
   "slug",
 ]);
@@ -459,6 +477,22 @@ export async function runCli(
   if (options.version) {
     stdout.write(`${CLI_VERSION}\n`);
     return { version: CLI_VERSION };
+  }
+
+  if (positionals[0] === "runtime") {
+    try {
+      await runRuntimeCommand({
+        positionals,
+        options,
+        stdout,
+        readStdin: dependencies.readStdin,
+        dependencies: dependencies.runtime,
+      });
+      return {};
+    } catch (error) {
+      if (options.json) writeJsonError(stdout, error);
+      throw error;
+    }
   }
 
   let organizationSlug: string | undefined;
@@ -691,7 +725,7 @@ export async function runCli(
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | tasks | jobs | auth login|status|whoami|logout",
+        "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | runtime key-import|start|complete | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 
