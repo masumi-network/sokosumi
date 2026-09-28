@@ -43,7 +43,6 @@ typography:
     fontWeight: 400
     fontSize: 12px
     lineHeight: 16px
-    textColor: muted-foreground
 rounded:
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
@@ -100,7 +99,6 @@ components:
     padding: 2px 8px
     typography: "{typography.caption}"
   focusRing:
-    ring: ring-ring-halo
     width: 3px
 ---
 
