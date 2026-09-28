@@ -1,6 +1,6 @@
 import type { SokoBotCapability, SokoBotRoute } from "./policy.js";
 
-export interface SokoBotActorContext {
+interface SokoBotActorContext {
   userId: string;
   sokoBotId: string;
   workspaceId: string;
@@ -74,7 +74,7 @@ export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
   expiresAt: number;
 }
 
-export interface RuntimeSessionRef {
+interface RuntimeSessionRef {
   sessionId: string;
   runtimeVersion: string;
 }
@@ -146,28 +146,6 @@ export interface SokoBotRuntime {
   cancelTurn(input: RuntimeCancelInput): Promise<void>;
   resetSession(input: RuntimeResetInput): Promise<void>;
   inspectSession(input: RuntimeInspectInput): Promise<RuntimeHealth>;
-}
-
-export interface SokoBotActionReceipt {
-  id: string;
-  operationKey: string;
-  turnId: string;
-  toolCallId: string;
-  action: string;
-  targetId: string | null;
-  disposition: "APPLIED" | "ALREADY_SATISFIED" | "REJECTED" | "UNKNOWN";
-  actorBotId: string;
-  effectEventId: string | null;
-  observedVersion: string | null;
-  committedAt: string | null;
-  verification: "LOCAL_TRANSACTION" | "PROVIDER_ACK" | "READ_BACK" | "NONE";
-}
-
-export interface SokoBotActionResponse {
-  appliedReceiptIds: string[];
-  observations: string[];
-  unfulfilledActions: { action: string; receiptId: string; reason: string }[];
-  answerText: string;
 }
 
 /**
