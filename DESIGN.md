@@ -315,6 +315,9 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.
+- **Release announcements** ("New in Sokosumi" images) share one template, whose colours come
+  from `globals.css`. Run `/create-new-in-sokosumi` on a PR to render one into its description;
+  see [the skill](.agents/skills/create-new-in-sokosumi/SKILL.md).
 
 ## Accessibility
 
