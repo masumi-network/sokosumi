@@ -2,6 +2,39 @@
 
 Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declare any new capability shipped.
 
+## Current product direction
+
+[CORRECTION, REPORTED: user product direction, 2026-09-27] The earlier plan centered the hackathon developer flow. The CLI and Skill are a continuing, framework-neutral product. Private Workspace setup with an existing agent comes first. Developer onboarding and global listing follow that path. The hackathon is the first milestone. Discover and reuse existing Workspaces, Vendors, and Coworkers before proposing creation. Hermes is optional; the shared runtime commands remain the common interface. Hosts can use the operator's hardware or cloud environment.
+
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`] Current Core creation still requires platform admin. Current CLI connection requires Vendor-admin membership and membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. The CLI does not connect a personal Workspace through this path. These product instructions do not change Core permissions or billing.
+
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. [OPEN] Live execution and seller receipt remain unproven. Payment submission and global publication are separate work. The historical milestones below do not define the default user journey. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
+
+## Feature PR delivery, 2026-09-27
+
+[VERIFIED: GitHub PR readback] The work is split into draft PRs. Each PR uses the preceding feature branch as its base. None is merged by this workflow.
+
+| Order | Slice | Review |
+| --- | --- | --- |
+| 1 | Preprod registration and selected Workspace access | [#5241](https://github.com/masumi-network/sokosumi/pull/5241) |
+| 2 | Live account identity with `auth whoami` | [#5282](https://github.com/masumi-network/sokosumi/pull/5282) |
+| 3 | Platform-admin provisioning checks and handoff | [#5283](https://github.com/masumi-network/sokosumi/pull/5283) |
+| 4 | Existing member onboarding and available Seat assignment | [#5284](https://github.com/masumi-network/sokosumi/pull/5284) |
+| 5 | Organization selection for Task commands | [#5285](https://github.com/masumi-network/sokosumi/pull/5285) |
+| 6 | Generic Coworker runtime identity and Task operations | [#5286](https://github.com/masumi-network/sokosumi/pull/5286) |
+| 7 | Optional execution through an existing Hermes profile | [#5287](https://github.com/masumi-network/sokosumi/pull/5287) |
+| 8 | Framework-neutral plugin and private Workspace guidance | [#5288](https://github.com/masumi-network/sokosumi/pull/5288) |
+
+[CORRECTION, VERIFIED: local command output, 2026-09-27] The earlier stack reported 422 passing tests. After syncing with `main` at `e091b937b289df5074b9925c9b04f89e56dcc7f2` and adding 18 recovery tests, the Node `v24.19.0` suite reports `tests 440`, `pass 440`, `fail 0`, and `skipped 0`. The CLI build passed. Base recovery commit hooks report `17 successful, 17 total` typecheck tasks. Subprocess fixtures do not prove a live Hermes provider or a Preprod Task. Earlier shell checks used Node `v26.8.1`; these checks explicitly selected Node 24.
+
+[REPORTED: independent Fresh Eyes review, 2026-09-27] The reviewer found one recovery gap: a failed creation response could hide a successful Coworker creation. [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/test/cli/coworker-creation-recovery.test.ts`] Uncertain failures now direct inspection before retrying and retain Core error fields. Name validation runs before creation. [REPORTED: final review] Fresh Eyes found no remaining issue in the integrated fix. Live authentication, provider execution, and seller receipt remain outside this review.
+
+[VERIFIED: regression output] Before the runtime fixes, delayed stdin and malformed event tests reported `tests 3`, `pass 0`, `fail 3`. Focused checks after the fix reported `tests 9`, `pass 9`, `fail 0`. A source-only mutation that restored unrestricted Hermes environment inheritance failed the retained filtering test: `tests 1`, `pass 0`, `fail 1`.
+
+[VERIFIED: Skills CLI `1.7.0`, local checkout] Temporary project installs for Claude Code and Hermes Agent returned `status: installed`, `scope: project`, and `mode: copy`. Both installed files matched source bytes. Repository discovery needs `--full-depth`; without it, this installer missed all six CLI Skills. This check did not run a host model or fetch GitHub.
+
+[REPORTED: pilot scope, 2026-09-27] Live runtime execution, host installation, Seat readiness for the pilot user, and payment receipt remain open. User-managed subscriptions remain in Web. Payment implementation follows CLI and plugin delivery. Review and merge the stack in order; after a parent merges, rebase the next feature onto current `main` before retargeting and rerunning checks. This removes parent commits after a squash merge.
+
 ## Goal and scope
 
 [REPORTED: user decision, 2026-09-24] Use the CLI and its Skill to onboard an existing hosted agent as a private Coworker in one selected Sokosumi Workspace. Hermes is the first runtime. The MVP uses MPS through Sokosumi Tasks and must prove payment receipt in the Coworker's Cardano Preprod wallet.
@@ -24,7 +57,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [OPEN] The hosted-agent adapter, MPS seller identity and wallet setup, safe runtime-key delivery, CLI executable distribution, Preprod credits, and Seat capacity need an event test. The CLI has no `masumiPayment` command yet.
 
-[CORRECTION, VERIFIED: CLI fixtures] The earlier track left admin provisioning as a direct Core operation. `coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks` now calls that route from the CLI. It returns the Coworker ID for the developer to connect and create a key. Core still requires platform admin access. The organizer does not need membership in the developer's Vendor. Workspace creation and invitations use the existing Web flow. The current `coworkers register` command still requires Vendor admin and Workspace membership. [Provisioning tests](../test/cli/provision.test.ts) · [Organizer steps](../README.md#organizer-setup)
+[CORRECTION, VERIFIED: CLI fixtures] The earlier track left admin provisioning as a direct Core operation. `coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks` now calls that route from the CLI. It returns the Coworker ID for the developer to connect and create a key. Core still requires platform admin access. The organizer does not need membership in the developer's Vendor. Workspace creation and invitations use the existing Web flow. The current `coworkers register` command still requires Vendor admin and Workspace membership. [Provisioning tests](../test/cli/provision.test.ts) · [Setup steps](../README.md#private-workspace-setup-and-platform-admin-handoff)
 
 [OPEN] Choose Task visibility after a pilot. A Workspace grant lets members select the Coworker; it does not make every private Task visible to it. A Coworker can see public Tasks and private Tasks assigned to itself or a same-Vendor Coworker. [Task visibility](../../core/src/helpers/task-visibility.ts#L132-L170)
 
@@ -307,6 +340,6 @@ Future implementation checks use non-production fixtures first. Keep regression 
 ## Least confident decisions
 
 1. [OPEN] MPS seller identity, wallet ownership, and actual Preprod receipt need a live pilot for each intended payment path. Static API types do not prove payout.
-2. [OPEN] Runtime credential exchange and command invocation remain proposed. Existing developer authentication guards stay intact until an approved extension specifies the separate runtime boundary.
+2. [CORRECTION, VERIFIED: `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/runtime-credentials.ts`] Runtime key input and command invocation are implemented. Cross-host secret delivery and live host execution remain open. Developer authentication stays separate.
 3. [OPEN] Preprod Seat and credit capacity need a live check before participant onboarding. The documented Seat rule does not prove the event Workspace has enough capacity.
 4. [OPEN] Local chat transport and recovery require protocol design and framework-specific verification.
