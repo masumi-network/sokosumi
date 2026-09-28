@@ -62,6 +62,10 @@ describe("image studio project access", () => {
       projectId: "project-1",
       workspaceId: "workspace-1",
       userId: "user-1",
+      // Returned by the same read that proved the membership, because it decides
+      // which credit pot a generation is charged to and a second lookup is a
+      // second chance to charge the wrong one.
+      organizationId: "org-1",
     });
   });
 
@@ -134,6 +138,7 @@ describe("image studio project access", () => {
         projectId: "project-1",
         workspaceId: "workspace-1",
         userId: "user-1",
+        organizationId: "org-1",
       });
     });
 

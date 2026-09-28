@@ -115,6 +115,12 @@ export function rankNeedsAttentionItems(
 ): HistoryItem[] {
   const ranked = items
     .flatMap((item) => {
+      // Only the kinds that can be waiting on somebody. A generated image is
+      // already finished the moment it exists — approving it is a choice, not an
+      // obligation — so it never belongs on this list.
+      if (item.kind !== "task" && item.kind !== "job") {
+        return [];
+      }
       const tier =
         item.kind === "task"
           ? taskNeedsAttentionTier(item.status)

@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -91,6 +92,11 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         settledAt: job.settledAt,
         cancelRequestedAt: job.cancelRequestedAt,
         retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
+        credits:
+          job.chargedCents != null
+            ? convertCentsToCredits(job.chargedCents)
+            : null,
+        refunded: job.refundTransactionId != null,
       }),
     );
   });

@@ -5,17 +5,20 @@ import {
   ProjectImageJobKind,
   ProjectImageJobStatus,
 } from "@sokosumi/database";
+import { convertCreditsToCents } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
 import { HTTPException } from "hono/http-exception";
 
 import { LIMITS } from "@/config/constants";
 import { getBetterAuthPublicBaseUrl } from "@/config/env";
+import { buildCompensatingRefundTransactionCreate } from "@/helpers/compensating-refund";
 import {
   notFound,
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import { createTaskEventTransaction } from "@/helpers/task-credits";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -26,7 +29,7 @@ import {
   readStudioBlobToken,
   requireStudioBlobToken,
 } from "@/lib/image-studio/blob-store";
-import { resolveImageSettings } from "@/lib/image-studio/catalog";
+import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
 import {
   buildFalInput,
   cancelQueued,
@@ -37,6 +40,7 @@ import {
   submitToQueue,
   uploadReference,
 } from "@/lib/image-studio/fal-client";
+import { creditsPerImage } from "@/lib/image-studio/image-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
 
 /**
@@ -71,7 +75,6 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
 
 export interface ImageJobSettings {
-  placementId?: string | null;
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
@@ -123,15 +126,34 @@ function readSettings(value: Prisma.JsonValue): ImageJobSettings {
 }
 
 /**
+ * What reserving a job needs beyond what the caller asked for.
+ *
+ * `chargedCredits` is computed once, outside the transaction, from the resolved
+ * catalog — the same `creditsPerImage` figure the composer showed before anybody
+ * pressed generate. Recomputing it inside the reservation would let a catalog
+ * refresh land between the estimate and the debit, and the person would be
+ * charged a number they were never shown.
+ */
+interface ReserveImageJobInput extends CreateImageJobInput {
+  settings: ImageJobSettings;
+  /** Null for a personal workspace; otherwise the pot being charged. */
+  organizationId: string | null;
+  /** Credits (= cents) to debit for this one image. */
+  chargedCredits: number;
+}
+
+/**
  * Reserve a job row, or hand back the one this key already made.
  *
- * Counting the in-flight jobs and inserting the new one have to be the same
- * operation. As two statements, concurrent submissions all read the same count,
- * all pass the limit, and each then buys an image — the cap would bound a
- * serial loop and not a burst. This is the same reasoning, and the same helper,
- * that `soko-bot-avatar.service.ts` uses for its generation cap.
+ * Counting the in-flight jobs, taking the credits, and inserting the new row all
+ * have to be the same operation. As separate statements, concurrent submissions
+ * all read the same count, all pass the limit, and each then buys an image — the
+ * cap would bound a serial loop and not a burst. And a debit outside the insert
+ * is a charge with no job to point at, or a job nobody paid for, depending on
+ * which half failed. This is the same reasoning, and the same helper, that
+ * `soko-bot-avatar.service.ts` uses for its generation cap.
  */
-async function reserveJob(input: CreateImageJobInput) {
+async function reserveJob(input: ReserveImageJobInput) {
   try {
     return await reserveJobTransaction(input);
   } catch (error) {
@@ -154,7 +176,7 @@ async function reserveJob(input: CreateImageJobInput) {
   }
 }
 
-async function reserveJobTransaction(input: CreateImageJobInput) {
+async function reserveJobTransaction(input: ReserveImageJobInput) {
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageJob.findUnique({
       where: {
@@ -196,7 +218,20 @@ async function reserveJobTransaction(input: CreateImageJobInput) {
         ? ProjectImageJobKind.EDIT
         : ProjectImageJobKind.GENERATE;
 
-    // A unique violation here aborts this transaction. It is caught by the
+    // Taken before the insert and inside the same transaction. An insufficient
+    // balance throws the existing 422 INSUFFICIENT_BALANCE from here, so no row
+    // is written and fal is never called: "not enough credits" costs nothing and
+    // leaves nothing behind.
+    const chargedCents = convertCreditsToCents(input.chargedCredits);
+    const transactionId = await createTaskEventTransaction({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      cents: chargedCents,
+      tx,
+    });
+
+    // A unique violation here aborts this transaction — including the debit
+    // above, which is why the two are one transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
     const job = await tx.projectImageJob.create({
@@ -213,6 +248,8 @@ async function reserveJobTransaction(input: CreateImageJobInput) {
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
+        chargedCents,
+        transactionId,
       },
     });
     return { job, created: true };
@@ -391,7 +428,7 @@ function webhookUrl(): string | null {
  * Create (or replay) a job and, when this caller owns the lease, send it.
  */
 export async function createImageJob(input: CreateImageJobInput) {
-  await requireProjectAccess({
+  const access = await requireProjectAccess({
     projectId: input.projectId,
     workspaceId: input.workspaceId,
     userId: input.userId,
@@ -416,7 +453,24 @@ export async function createImageJob(input: CreateImageJobInput) {
       { kind: "invalid_image_settings" },
     );
   }
-  const { job, created } = await reserveJob({ ...input, settings });
+  // The charge, decided here and nowhere else. Same catalog row, same function
+  // and therefore the same number the composer's pre-flight estimate showed.
+  let chargedCredits: number;
+  try {
+    chargedCredits = creditsPerImage(imageModel(input.modelId), settings);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid image settings",
+      { kind: "invalid_image_settings" },
+    );
+  }
+
+  const { job, created } = await reserveJob({
+    ...input,
+    settings,
+    organizationId: access.organizationId,
+    chargedCredits,
+  });
   if (!created) return job;
 
   if (!(await claimForSubmission(job.id))) {
@@ -441,7 +495,7 @@ async function sendClaimedJob(jobId: string) {
   } catch (error) {
     // Nothing reached the generation queue, so this is a plain failure and the
     // user may retry without risk of a second charge.
-    return await prisma.projectImageJob.update({
+    const failed = await prisma.projectImageJob.update({
       where: { id: job.id },
       data: {
         status: ProjectImageJobStatus.FAILED,
@@ -451,6 +505,10 @@ async function sendClaimedJob(jobId: string) {
         submitLeaseAt: null,
       },
     });
+    // The submission never left this process, so nothing was bought and the
+    // reservation's debit has to come straight back.
+    await refundImageJobCharge(job.id);
+    return failed;
   }
 
   const settings = readSettings(job.settings);
@@ -481,8 +539,9 @@ async function sendClaimedJob(jobId: string) {
           submitLeaseAt: null,
         },
       });
-    case "rejected":
-      return await prisma.projectImageJob.update({
+    case "rejected": {
+      // fal answered and refused, so it enqueued nothing and charged nothing.
+      const rejected = await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
           status: ProjectImageJobStatus.FAILED,
@@ -491,6 +550,9 @@ async function sendClaimedJob(jobId: string) {
           submitLeaseAt: null,
         },
       });
+      await refundImageJobCharge(job.id);
+      return rejected;
+    }
     case "uncertain":
       return await prisma.projectImageJob.update({
         where: { id: job.id },
@@ -611,6 +673,9 @@ export async function reconcileJob(jobId: string): Promise<void> {
             error: "Cancelled before the provider produced an image.",
           },
         });
+        // fal says the request is gone and no image came of it, so the charge
+        // goes back.
+        await refundImageJobCharge(job.id);
         return;
       }
       await failJob(job.id, "fal no longer has this request");
@@ -805,6 +870,11 @@ async function failJob(jobId: string, message: string): Promise<void> {
       settledAt: new Date(),
     },
   });
+  // Unconditional, and safe to be: the refund re-reads the row and does nothing
+  // unless it is terminally failed and still holds a charge. Guarding on the
+  // `updateMany` count instead would skip the job whose status another writer had
+  // already set — the exact race the refund's own idempotency exists to handle.
+  await refundImageJobCharge(jobId);
 }
 
 /**
@@ -878,6 +948,10 @@ export async function settleWithImage(
         settledAt: new Date(),
       },
     });
+    // The person keeps nothing, so they pay nothing — even though fal did produce
+    // the image and did charge the platform for it. That cost belongs to whoever
+    // revoked the access mid-flight, not to the person who asked for the image.
+    await refundImageJobCharge(job.id);
     return;
   }
 
@@ -1101,6 +1175,131 @@ async function insertAsset(input: {
   }, "Another image finished in this lineage at the same moment. Try again.");
 }
 
+/**
+ * Statuses that mean the person got no image and must get their credits back.
+ *
+ * `SUBMISSION_UNCERTAIN` is deliberately absent, and that is the whole reason
+ * this is a list rather than "not SUCCEEDED". We do not know whether fal
+ * received that request, so we do not know whether it charged us — refunding it
+ * automatically would hand back credits for images the platform paid for, and
+ * every one of those rows stays recoverable and can still settle into a real
+ * image. The existing recovery path owns them.
+ */
+const REFUNDABLE_STATUSES: ProjectImageJobStatus[] = [
+  ProjectImageJobStatus.FAILED,
+  ProjectImageJobStatus.CANCELED,
+  ProjectImageJobStatus.ORPHANED,
+];
+
+/**
+ * Give back what a failed generation was charged. Exactly once.
+ *
+ * A failed generation must not cost the person anything, and every terminal
+ * failure path calls this. The hard part is "exactly once": a webhook, a page
+ * load's reconcile and the cron sweep can all decide the same job has failed
+ * within milliseconds of each other. The guard is `refundTransactionId`, read
+ * and written inside one serializable transaction — the losing writer is aborted
+ * by Postgres, retries, sees the refund and returns. The unique index on that
+ * column is the backstop if the isolation level is ever relaxed.
+ *
+ * Never throws. A refund that could not be written leaves the column null, which
+ * is precisely the state {@link refundFailedImageJobs} sweeps up, so the money
+ * still comes back — a few minutes later instead of immediately. Throwing here
+ * would abort a settlement that has already stored a paid-for image.
+ */
+export async function refundImageJobCharge(jobId: string): Promise<boolean> {
+  try {
+    return await serializableTransaction(async (tx) => {
+      const job = await tx.projectImageJob.findUnique({
+        where: { id: jobId },
+        select: {
+          id: true,
+          status: true,
+          chargedCents: true,
+          refundTransactionId: true,
+          transaction: {
+            select: {
+              id: true,
+              userId: true,
+              organizationId: true,
+              amount: true,
+            },
+          },
+        },
+      });
+      if (!job) return false;
+      // Already paid back. The common case under a race, and not an error.
+      if (job.refundTransactionId) return false;
+      if (!REFUNDABLE_STATUSES.includes(job.status)) return false;
+      // Nothing was taken: a job from before the studio charged, or a free one.
+      if (!job.transaction || !job.chargedCents || job.chargedCents <= 0n) {
+        return false;
+      }
+      const actorUserId = job.transaction.userId;
+      if (!actorUserId) {
+        // The debit records who spent; without it the refund has no pot to go to
+        // and guessing one would credit the wrong person.
+        console.error("[image-studio] refund skipped: spend has no userId", {
+          jobId,
+          transactionId: job.transaction.id,
+        });
+        return false;
+      }
+
+      await tx.projectImageJob.update({
+        where: { id: job.id },
+        data: {
+          refundTransaction: {
+            create: buildCompensatingRefundTransactionCreate({
+              // The debit's own amount, negated, rather than `chargedCents`:
+              // the ledger is the authority on what was actually taken.
+              amount: job.transaction.amount * BigInt(-1),
+              actorUserId,
+              organizationId: job.transaction.organizationId,
+              referenceId: job.id,
+            }),
+          },
+        },
+      });
+      return true;
+    }, "Another writer is refunding this image request. Try again.");
+  } catch (error) {
+    console.error("[image-studio] refund failed; the sweep will retry it", {
+      jobId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return false;
+  }
+}
+
+/**
+ * The backstop: terminally failed jobs still holding a charge.
+ *
+ * Covers the inline refund that could not be written — a pool timeout, a
+ * serialization failure that outlasted its retries, a process that died between
+ * writing FAILED and refunding it. Without this, "a failed generation costs
+ * nothing" would be true only when the happy path ran, which is not what a person
+ * reading their balance is owed.
+ */
+export async function refundFailedImageJobs(limit: number): Promise<number> {
+  const owed = await prisma.projectImageJob.findMany({
+    where: {
+      status: { in: REFUNDABLE_STATUSES },
+      refundTransactionId: null,
+      chargedCents: { gt: 0 },
+      transactionId: { not: null },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: limit,
+    select: { id: true },
+  });
+  let refunded = 0;
+  for (const job of owed) {
+    if (await refundImageJobCharge(job.id)) refunded += 1;
+  }
+  return refunded;
+}
+
 function isUniqueViolation(error: unknown): boolean {
   return (
     typeof error === "object" &&
@@ -1164,8 +1363,12 @@ export async function reconcileStaleJobs(options: {
   recovered: number;
   abandoned: number;
   cancelled: number;
+  refunded: number;
 }> {
   const swept = await sweepStalledSubmissions();
+  // The backstop for an inline refund that never got written. Runs before the
+  // provider reads so a slow or failing fal cannot starve it.
+  const refunded = await refundFailedImageJobs(options.limit);
   // Reservations whose process died before it reached fal. Provably unsent,
   // so finishing them costs nothing that was not already intended.
   const recovery = await recoverUnclaimedReservations();
@@ -1197,6 +1400,7 @@ export async function reconcileStaleJobs(options: {
     recovered: recovery.submitted,
     abandoned: recovery.abandoned,
     cancelled,
+    refunded,
   };
 }
 
@@ -1293,6 +1497,7 @@ async function finaliseCancellations(limit: number): Promise<number> {
           error: "Cancelled before the provider produced an image.",
         },
       });
+      await refundImageJobCharge(job.id);
       finalised += settled.count;
       continue;
     }
@@ -1356,6 +1561,9 @@ export async function recoverUnclaimedReservations(
           settledAt: new Date(),
         },
       });
+      // Provably unsent — `submitAttempts` is still zero — so the reservation's
+      // debit is the only money involved and it comes straight back.
+      await refundImageJobCharge(job.id);
       abandoned += released.count;
       continue;
     }
@@ -1399,6 +1607,7 @@ export async function recoverUnclaimedReservations(
           settledAt: new Date(),
         },
       });
+      await refundImageJobCharge(job.id);
       denied += released.count;
       continue;
     }
