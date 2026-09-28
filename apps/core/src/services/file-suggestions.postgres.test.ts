@@ -295,9 +295,26 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     // attempts, so five capacity refusals fail the document permanently.
     //
     // Both should leave it exactly as it was, and be visible as a deferral.
-    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE } = await import(
-      "@/lib/files/jev-scheduler"
-    );
+    const { PER_WORKSPACE_INPUT_TOKENS_PER_MINUTE, resetJevScheduler } =
+      await import("@/lib/files/jev-scheduler");
+
+    /**
+     * Start from a full bucket, because this case asserts *which* refusal
+     * happened and not merely that one did.
+     *
+     * The scheduler is a module-level singleton and background work gets a
+     * burst of three, so by the time this test runs the earlier ones in
+     * this file may have spent it. `tryAdmit` is checked before
+     * `admitJevRequest`, so an empty bucket makes the run stop at
+     * `quota:background-share` and never reach the ledger branch under
+     * test. Caught in CI, where it read as
+     * `expected 'quota:background-share' to be 'admission-denied'` — a
+     * latent order-and-timing dependency, not a defect in the code.
+     *
+     * The test below this one sleeps 300ms for the same hazard and says
+     * so. A reset is the same statement without the timing.
+     */
+    resetJevScheduler();
 
     await prisma.fileAuthorizationAdmission.create({
       data: {
