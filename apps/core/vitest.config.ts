@@ -25,6 +25,7 @@ const optInPostgresFiles = [
   "src/services/file-collections.postgres.test.ts",
   "src/services/file-related.postgres.test.ts",
   "src/services/file-backfill.postgres.test.ts",
+  "src/services/file-curated-vocabulary.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [

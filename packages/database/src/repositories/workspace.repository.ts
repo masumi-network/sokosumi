@@ -1,3 +1,8 @@
+import {
+  CURATED_VOCABULARY_VERSION,
+  curatedFileVocabularyRows,
+} from "@sokosumi/utils";
+
 import { Prisma, type Workspace } from "../generated/prisma/client.js";
 
 import { vendorGrantRepository } from "./vendor-grant.repository.js";
@@ -24,6 +29,50 @@ async function ensureServiceplanGrantForWorkspace(
   });
 }
 
+/**
+ * Give a new workspace the curated Files vocabulary.
+ *
+ * **Why this is a chokepoint and not three call sites.** A workspace with no
+ * vocabulary is not a workspace with a small feature: the suggestion job
+ * completes without calling the model at all, writes nothing, and reports
+ * success. So automatic tagging silently did nothing, forever, in a workspace
+ * whose creation path forgot to seed. There are three `workspace.create` sites
+ * today and a fourth would be added by someone who has never read this file,
+ * which is why `workspace-creation-chokepoint.test.ts` fails when one appears.
+ *
+ * **Idempotent by `skipDuplicates`, on `(workspaceId, kind, normalizedName)`.**
+ * A workspace that already holds a hand-made label with a curated name keeps
+ * its own row untouched: that row may already carry assignments and rejection
+ * tombstones keyed on its id, and `createdByUserId` is the only thing telling
+ * product data from human data — overwriting it would leave a row that is half
+ * each. Skipping is also what makes a second run a no-op.
+ *
+ * **`createdByUserId` is left null.** That null *is* the provenance marker.
+ * Nothing else distinguishes a label the product shipped from one a person
+ * made, and `POST /v1/drive/labels` always sets it from the request actor.
+ *
+ * Runs inside the caller's transaction, so a workspace and its vocabulary
+ * commit together or not at all.
+ */
+async function seedCuratedVocabulary(
+  workspaceId: string,
+  tx: Prisma.TransactionClient,
+): Promise<void> {
+  await tx.workspaceLabel.createMany({
+    data: curatedFileVocabularyRows().map((row) => ({
+      workspaceId,
+      kind: row.kind,
+      displayName: row.displayName,
+      normalizedName: row.normalizedName,
+      description: row.description,
+      vocabularyVersion: CURATED_VOCABULARY_VERSION,
+      // Deliberately absent: see the note above.
+      createdByUserId: null,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 async function findOrganizationWorkspace({
   organizationId,
   tx,
@@ -37,6 +86,14 @@ async function findOrganizationWorkspace({
 }
 
 export const workspaceRepository = {
+  /**
+   * The vocabulary seed, for the one creation path that does not go through
+   * this repository (`POST /v1/users/{id}/personal-workspace`). Exported
+   * rather than duplicated: the chokepoint is the function, and a second copy
+   * of the row list is how the two drift.
+   */
+  seedCuratedVocabulary,
+
   async findPersonalWorkspace({
     userId,
     tx,
@@ -71,6 +128,7 @@ export const workspaceRepository = {
       });
 
       await ensureServiceplanGrantForWorkspace(workspace, null, tx);
+      await seedCuratedVocabulary(workspace.id, tx);
 
       return workspace;
     } catch (error) {
@@ -112,6 +170,7 @@ export const workspaceRepository = {
         data: { userId },
       });
       await ensureServiceplanGrantForWorkspace(workspace, userId, tx);
+      await seedCuratedVocabulary(workspace.id, tx);
       return { workspace, created: true };
     } catch (error) {
       if (isPrismaUniqueConstraintError(error)) {
