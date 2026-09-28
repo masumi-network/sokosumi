@@ -321,6 +321,98 @@ export async function reviveFailedSuggestionJobs(input?: {
   return count;
 }
 
+/**
+ * How many generations of SUGGEST one document may be given by the sweep.
+ *
+ * The bound, and the reason the sweep terminates. A normal document's first
+ * SUGGEST is generation 1, so at 2 the sweep gives every already-existing
+ * document exactly one further evaluation and then never looks at it again —
+ * including a document the model correctly had nothing to say about, which is
+ * indistinguishable from an unevaluated one and would otherwise be re-paid for
+ * every minute forever.
+ *
+ * Raise this by one in the same deploy that raises
+ * `CURATED_VOCABULARY_VERSION`, and the whole corpus is re-evaluated against
+ * the new vocabulary exactly once. That is the upgrade path, in place of a
+ * per-job vocabulary column the product does not need yet: the version has
+ * never been bumped.
+ */
+export const FILE_SUGGEST_BACKFILL_MAX_GENERATION = 2;
+
+/** One sweep requeues at most this many documents, so a tick stays bounded. */
+const SUGGEST_BACKFILL_BATCH = 20;
+
+/**
+ * Give already-extracted documents a suggestion run against the vocabulary
+ * that exists now.
+ *
+ * Every workspace was seeded with the curated vocabulary by migration, and
+ * that migration reached no file that already existed. A SUGGEST job that ran
+ * before the seed took the `noVocabulary` branch: it counted the workspace's
+ * labels, found none, wrote nothing and SUCCEEDED. Nothing re-leases a
+ * SUCCEEDED job — `reviveFailedSuggestionJobs` only touches FAILED,
+ * `enqueueFileIndexJob`'s only automatic caller is the extraction chain, and
+ * `requeueFileIndexJob`'s only caller is the reindex route, which no UI calls.
+ * Measured against production: nine extracted documents, two SUGGEST jobs,
+ * both SUCCEEDED with zero labels four hours before the vocabulary landed, and
+ * zero `file_label` rows in the entire database.
+ *
+ * So the sweep, not a person one document at a time. It is deliberately
+ * narrow: a document with no labels at all, in a workspace that has a
+ * vocabulary, whose text has already been extracted, and which has not been
+ * swept before. Each condition is a way of not paying for an evaluation
+ * twice.
+ */
+export async function backfillMissingSuggestionJobs(input?: {
+  limit?: number;
+}): Promise<number> {
+  const due = await prisma.$queryRaw<
+    { resourceId: string; contentRevision: number }[]
+  >`
+    SELECT fr.id::text AS "resourceId", fr."contentRevision"
+    FROM file_resource fr
+    JOIN file_version fv
+      ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
+    WHERE fr."tombstonedAt" IS NULL
+      -- Text first. A document the parser could not read has nothing for the
+      -- model to have an opinion about, and UNSUPPORTED is the majority state
+      -- in production.
+      AND fv."extractionState" IN ('INDEXED', 'PARTIAL')
+      AND EXISTS (
+        SELECT 1 FROM workspace_label wl
+        WHERE wl."workspaceId" = fr."workspaceId"
+          AND wl."archivedAt" IS NULL
+          AND wl."mergedIntoId" IS NULL
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM file_label fl WHERE fl."resourceId" = fr.id
+      )
+      AND NOT EXISTS (
+        SELECT 1 FROM file_index_job j
+        WHERE j."resourceId" = fr.id
+          AND j.pipeline = 'SUGGEST'
+          AND (
+            -- Already going to happen, or already had its extra turn.
+            j.state IN ('QUEUED', 'LEASED')
+            OR j."desiredGeneration" >= ${FILE_SUGGEST_BACKFILL_MAX_GENERATION}
+          )
+      )
+    ORDER BY fr.id
+    LIMIT ${input?.limit ?? SUGGEST_BACKFILL_BATCH}
+  `;
+
+  let queued = 0;
+  for (const resource of due) {
+    const outcome = await requeueFileIndexJob({
+      resourceId: resource.resourceId,
+      pipeline: FileIndexJobPipeline.SUGGEST,
+      contentRevision: resource.contentRevision,
+    });
+    if (outcome.queued) queued += 1;
+  }
+  return queued;
+}
+
 export async function leaseNextFileIndexJob(input: {
   pipeline?: FileIndexJobPipeline;
   now?: Date;

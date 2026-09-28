@@ -39,11 +39,16 @@ const route = createRoute({
   method: "post",
   path: "/{id}/suggestions/{suggestionId}/decision",
   description: [
-    "Accept or dismiss one suggestion.",
+    "Accept, dismiss or restore one suggestion.",
     "",
     "A dismissal is durable for this source revision and vocabulary policy:",
     "retrying or reindexing cannot bring the same suggestion back. Dismissing",
     "a category suggestion never clears a category the reader already set.",
+    "",
+    "`restore` withdraws a dismissal: the label goes back to suggested and the",
+    "tombstone barring it is deleted. It is the only way back, and it exists",
+    "because manual metadata editing — the only other code that cleared a",
+    "tombstone — is gone.",
   ].join("\n"),
   tags: ["Drive"],
   request: {

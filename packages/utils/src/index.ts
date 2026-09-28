@@ -190,6 +190,8 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_OWNER_PREFIX_PATTERN,
+  driveFolderPathFromSourceId,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
   normalizeDriveFolderPath,

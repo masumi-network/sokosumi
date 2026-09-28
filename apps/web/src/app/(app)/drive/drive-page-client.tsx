@@ -3,20 +3,16 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Check,
   ChevronRight,
   Copy,
   Download,
-  Edit3,
   Folder,
   FolderPlus,
   Folders,
   ListFilter,
   MoreHorizontal,
   Search,
-  Trash2,
   Upload,
-  X,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -301,11 +297,23 @@ function DrivePageWorkspace({
   const [filesViewMode, setFilesViewMode] =
     useState<FilesViewMode>(defaultFilesViewMode);
   const isMobile = useIsMobile();
-  const [editingItemPath, setEditingItemPath] = useState<string | null>(null);
-  const [editingItemName, setEditingItemName] = useState("");
   const [organizationName, setOrganizationName] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState<DriveItem | null>(null);
+  /**
+   * Which folder is narrowing the catalog, if any.
+   *
+   * Folder rename, move and delete used to live on the folder cards in the grid
+   * the catalog replaced, and nowhere else in the product. They are in the page
+   * head's actions menu now and they act on this — so the catalog reports its
+   * facet up rather than the page reading the URL, which the reader changes from
+   * inside the filter sheet without the URL being involved.
+   *
+   * Seeded from `?folder=` so a deep link arrives with the facet applied.
+   */
+  const [facetFolder, setFacetFolder] = useState(
+    () => searchParams.get("folder") ?? "",
+  );
   const [createFolderDialogOpen, setCreateFolderDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [creatingFolder, setCreatingFolder] = useState(false);
@@ -327,6 +335,7 @@ function DrivePageWorkspace({
   const [tasksLoadingMore, setTasksLoadingMore] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [recentsReloadToken, setRecentsReloadToken] = useState(0);
+  const [catalogReloadToken, setCatalogReloadToken] = useState(0);
   const [tasksFilterSheetOpen, setTasksFilterSheetOpen] = useState(false);
   const [taskFileToCopy, setTaskFileToCopy] =
     useState<DriveTasksListItem | null>(null);
@@ -350,8 +359,8 @@ function DrivePageWorkspace({
 
   if (uiWorkspaceId !== activeOrganizationId) {
     setUiWorkspaceId(activeOrganizationId);
-    setEditingItemPath(null);
-    setEditingItemName("");
+    // Another workspace's folder cannot go on narrowing this one's catalog.
+    setFacetFolder("");
     setDeleteDialogOpen(false);
     setItemToDelete(null);
     setCreateFolderDialogOpen(false);
@@ -381,7 +390,33 @@ function DrivePageWorkspace({
   const driveStore = driveStoreForActiveWorkspace(activeOrganizationId);
   const scope = driveStore.scope;
   const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
-  const currentFolder = folderParam;
+  /**
+   * A `?folder=` the reader arrived at rather than applied: Back, Forward, or a
+   * link pasted into a tab that is already open.
+   *
+   * The catalog follows the URL on its own, and the page head did not, so Back
+   * out of a folder left the chip gone from the list and Delete folder still in
+   * the menu, pointed at the folder that was no longer narrowing anything.
+   * Found by driving a preview.
+   *
+   * After the workspace-switch reset above rather than before it: that reset
+   * clears the facet deliberately, and the ref will already hold this value, so
+   * the two cannot fight.
+   */
+  const previousFolderParamRef = useRef(folderParam);
+  if (previousFolderParamRef.current !== folderParam) {
+    previousFolderParamRef.current = folderParam;
+    setFacetFolder(folderParam);
+  }
+  /**
+   * The folder this page is scoped to: where an upload lands and where a new
+   * folder is created.
+   *
+   * It is the applied facet, not a place the reader has navigated into. There is
+   * no navigation left on this tab — `?folder=` seeds the facet and the filter
+   * sheet changes it — so this follows the catalog rather than the URL.
+   */
+  const currentFolder = facetFolder;
   const viewParam = driveNavQuery.view ?? searchParams.get("view");
   const isTablesView = viewParam === "tables";
   const tablesArchived = driveNavQuery.archived;
@@ -405,14 +440,14 @@ function DrivePageWorkspace({
       viewParam === "browse" ||
       folderParam.length > 0);
   /**
-   * The catalog is the Workspace tab at its root; a folder narrows it.
+   * The Workspace tab is the catalog, and nothing else.
    *
-   * Folder navigation survives the merge as a scope inside this tab rather
-   * than as a tab of its own. At the root the reader gets every file, searchable
-   * and filterable; inside a folder they get that folder's contents with the
-   * folder management — create, rename, move, delete — that lives nowhere else.
+   * It used to be the catalog *and* a folder grid, with the grid first and the
+   * catalog below it: two navigation models on one screen, the search box
+   * roughly mid-page, and the first file row below the fold on a list of ten
+   * files. A folder is a facet inside the catalog now — `?folder=` pre-applies
+   * it — so there is no root and no depth here, only one list.
    */
-  const isWorkspaceRoot = isWorkspaceView && currentFolder === "";
   const isRecentsView = !isTablesView && !isTasksView && !isWorkspaceView;
   const primaryView: DrivePrimaryView = isTablesView
     ? "tables"
@@ -474,6 +509,14 @@ function DrivePageWorkspace({
     debouncedSetSearchQuery(value);
   }
 
+  /**
+   * Still fetched, and no longer rendered as a list.
+   *
+   * The Workspace tab shows the catalog, which lists files from the index
+   * rather than from the blob store. This listing is what the move dialog's
+   * destinations and the folder actions read, and what an upload invalidates,
+   * so it stays — it just stopped being a second list on the page.
+   */
   const driveItemsQuery = useQuery({
     ...getDriveItemsQueryOptions({
       store: driveStore,
@@ -481,20 +524,10 @@ function DrivePageWorkspace({
       search: debouncedSearchQuery,
       ...filesSortQuery,
     }),
-    // Enabled at the root as well: the catalog lists files and not folders,
-    // so the folder rows a reader navigates by come from this listing.
     enabled: isWorkspaceView && !isTasksView,
   });
-  const items = driveItemsQuery.data ?? [];
-  const loading = isRecentsView
-    ? false
-    : isTasksView
-      ? tasksLoading
-      : isWorkspaceRoot
-        ? // The catalog renders its own skeleton directly below, so a second
-          // one for the folder rows reads as two lists loading separately.
-          false
-        : driveItemsQuery.isPending;
+  // The catalog renders its own skeleton, so the Workspace tab never uses this.
+  const loading = isTasksView ? tasksLoading : false;
 
   useEffect(() => {
     if (!driveItemsQuery.isError) {
@@ -506,6 +539,15 @@ function DrivePageWorkspace({
 
   async function refreshDriveItems() {
     await queryClient.invalidateQueries({ queryKey: DRIVE_ITEMS_QUERY_KEY });
+    /**
+     * And the catalog, which is the list a reader on this tab is looking at.
+     *
+     * It fetches from the search index rather than from the blob listing, so
+     * invalidating that query does not touch it. Before the merge an upload
+     * refreshed the grid the reader could see; without this it would land in
+     * the store and appear nowhere until they searched for something.
+     */
+    setCatalogReloadToken((token) => token + 1);
   }
 
   const loadTasksItems = useCallback(async () => {
@@ -865,20 +907,33 @@ function DrivePageWorkspace({
         await patchDriveFoldersRename({
           client: getBrowserCoreClient(),
           body: {
-            oldFolderPath: currentFolder
-              ? `${currentFolder}/${item.name}`
-              : item.name,
-            newFolderPath: currentFolder
-              ? `${currentFolder}/${newName.trim()}`
-              : newName.trim(),
+            /**
+             * `item.name` is the folder's whole path.
+             *
+             * It used to be a single segment relative to the folder being
+             * listed, and the listing is gone — the only folder these actions
+             * ever hold now is the applied facet. The new path keeps the old
+             * one's parent, so renaming `Media/Youtube` to `Shorts` produces
+             * `Media/Shorts` rather than moving it to the root.
+             */
+            oldFolderPath: item.name,
+            newFolderPath: `${item.name.slice(
+              0,
+              item.name.lastIndexOf("/") + 1,
+            )}${newName.trim()}`,
             ...driveStore,
           },
           throwOnError: true,
         });
       }
 
-      setEditingItemPath(null);
-      setEditingItemName("");
+      // The facet follows the folder it is narrowing to, or the catalog is
+      // filtered to a path that no longer exists and reads as empty.
+      if (item.type === "folder") {
+        applyFolderFacet(
+          `${item.name.slice(0, item.name.lastIndexOf("/") + 1)}${newName.trim()}`,
+        );
+      }
       await refreshDriveItems();
     } catch (err) {
       console.error(`Failed to rename ${item.type}`, err);
@@ -913,9 +968,8 @@ function DrivePageWorkspace({
         await deleteDriveFoldersDelete({
           client: getBrowserCoreClient(),
           body: {
-            folderPath: currentFolder
-              ? `${currentFolder}/${itemToDelete.name}`
-              : itemToDelete.name,
+            // The whole path, as above.
+            folderPath: itemToDelete.name,
             ...driveStore,
           },
           throwOnError: true,
@@ -923,6 +977,8 @@ function DrivePageWorkspace({
       }
 
       setDeleteDialogOpen(false);
+      // A deleted folder cannot go on narrowing the catalog.
+      if (itemToDelete.type === "folder") applyFolderFacet("");
       setItemToDelete(null);
       await refreshDriveItems();
       setRecentsReloadToken((token) => token + 1);
@@ -947,46 +1003,21 @@ function DrivePageWorkspace({
     document.body.removeChild(link);
   }
 
-  function startEdit(item: DriveItem) {
-    setEditingItemPath(item.type === "file" ? item.pathname : item.name);
-    setEditingItemName(item.name);
-  }
-
-  function cancelEdit() {
-    setEditingItemPath(null);
-    setEditingItemName("");
-  }
-
-  function navigateToFolder(folderName: string) {
+  /**
+   * Back to the whole catalog, from the tasks trail.
+   *
+   * This was `navigateToBreadcrumb(index)` over a folder path. Folders are a
+   * facet inside the catalog now and there is no trail to walk, so the only
+   * crumb left is the root one the tasks view keeps at every depth — its tab is
+   * the workspace tab, already selected, so nothing else leaves the tasks list.
+   */
+  function navigateToWorkspaceRoot() {
     const params = driveNavParams(searchParams);
-    const newPath = currentFolder
-      ? `${currentFolder}/${folderName}`
-      : folderName;
-    params.set("folder", newPath);
+    params.delete("folder");
     params.set("view", "workspace");
     params.delete("projectId");
     params.delete("taskId");
     params.delete("assigneeId");
-    router.push(`/drive?${params.toString()}`);
-  }
-
-  function navigateToBreadcrumb(index: number) {
-    const params = driveNavParams(searchParams);
-    if (index === -1) {
-      params.delete("folder");
-      params.set("view", "workspace");
-      params.delete("projectId");
-      params.delete("taskId");
-      params.delete("assigneeId");
-    } else {
-      const segments = currentFolder.split("/");
-      const newPath = segments.slice(0, index + 1).join("/");
-      params.set("folder", newPath);
-      params.set("view", "workspace");
-      params.delete("projectId");
-      params.delete("taskId");
-      params.delete("assigneeId");
-    }
     router.push(`/drive?${params.toString()}`);
   }
 
@@ -1045,6 +1076,22 @@ function DrivePageWorkspace({
     router.push(`/drive?${params.toString()}`);
   }
 
+  /**
+   * Point both the URL and the catalog at one folder.
+   *
+   * The URL because `?folder=` is a shareable deep link and the catalog reads it
+   * on arrival; the state because the folder actions in the page head read that.
+   * Setting one and not the other is how the menu comes to offer Delete on a
+   * folder the list is no longer showing.
+   */
+  function applyFolderFacet(folder: string) {
+    setFacetFolder(folder);
+    void setDriveNavQuery(
+      { folder: folder || null, view: "workspace" },
+      { history: "replace" },
+    );
+  }
+
   function openCreateFolderDialog() {
     setSnapshotFolder(currentFolder);
     setCreateFolderDialogOpen(true);
@@ -1093,6 +1140,24 @@ function DrivePageWorkspace({
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
       setSnapshotFolder(null);
+      /**
+       * And narrow the catalog to it, or the folder is unreachable.
+       *
+       * The facet list names folders that hold a file, because that is what the
+       * catalog knows about. A folder created a second ago holds nothing, so it
+       * could not be selected, could not be uploaded into, and could not be
+       * renamed or deleted either: created and then invisible forever. Found by
+       * driving a preview, not by a test.
+       *
+       * Applying it here closes the loop. The reader lands in the empty folder
+       * they just made, Upload puts a file in it, and from then on the facet
+       * list carries it like any other.
+       */
+      applyFolderFacet(
+        targetFolder
+          ? `${targetFolder}/${newFolderName.trim()}`
+          : newFolderName.trim(),
+      );
       await refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
@@ -1157,11 +1222,7 @@ function DrivePageWorkspace({
         client: getBrowserCoreClient(),
         body: {
           sourcePathname:
-            itemToMove.type === "file"
-              ? itemToMove.pathname
-              : currentFolder
-                ? `${currentFolder}/${itemToMove.name}`
-                : itemToMove.name,
+            itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name,
           targetFolderPath: selectedDestination,
           itemType: itemToMove.type,
           ...(itemToMove.type === "folder" ? driveStore : {}),
@@ -1229,7 +1290,14 @@ function DrivePageWorkspace({
     }
   }
 
-  const breadcrumbSegments = currentFolder ? currentFolder.split("/") : [];
+  /**
+   * The applied folder's ancestors, which are the places a move can go *up* to.
+   *
+   * Named for a breadcrumb it used to draw. The trail is gone; these are still
+   * the destinations above the current one, and the move dialog still needs
+   * them.
+   */
+  const facetAncestors = currentFolder ? currentFolder.split("/") : [];
 
   const availableDestinations = (() => {
     if (!itemToMove) return [];
@@ -1241,15 +1309,15 @@ function DrivePageWorkspace({
       destinations.push({ path: "", label: t("rootFolder") });
     }
 
-    breadcrumbSegments.forEach((_, index) => {
-      const ancestorPath = breadcrumbSegments.slice(0, index + 1).join("/");
+    facetAncestors.forEach((_, index) => {
+      const ancestorPath = facetAncestors.slice(0, index + 1).join("/");
       // Skip currentFolder itself—can't move to where it already is
       if (ancestorPath === currentFolder) {
         return;
       }
       destinations.push({
         path: ancestorPath,
-        label: breadcrumbSegments.slice(0, index + 1).join(" / "),
+        label: facetAncestors.slice(0, index + 1).join(" / "),
       });
     });
 
@@ -1259,11 +1327,7 @@ function DrivePageWorkspace({
       // Exclude the item being moved
       const folderPath = folder.name;
       const itemPath =
-        itemToMove.type === "file"
-          ? itemToMove.pathname
-          : currentFolder
-            ? `${currentFolder}/${itemToMove.name}`
-            : itemToMove.name;
+        itemToMove.type === "file" ? itemToMove.pathname : itemToMove.name;
 
       // Basic exclusion: don't show the item being moved
       if (folderPath === itemPath) {
@@ -1273,10 +1337,7 @@ function DrivePageWorkspace({
       // For folders, exclude descendants to prevent moving into own subtree
       if (itemToMove.type === "folder") {
         const folderPathNormalized = folder.name;
-        const itemFolderPath = currentFolder
-          ? `${currentFolder}/${itemToMove.name}`
-          : itemToMove.name;
-        if (folderPathNormalized.startsWith(`${itemFolderPath}/`)) {
+        if (folderPathNormalized.startsWith(`${itemToMove.name}/`)) {
           return false;
         }
       }
@@ -1313,45 +1374,14 @@ function DrivePageWorkspace({
       });
     }
 
-    const result: ExploreItem[] = [];
-    if (currentFolder === "") {
-      const trimmedSearch = debouncedSearchQuery.trim();
-      const tasksLabel = t("tasksFolder");
-      const showTasksRoot =
-        trimmedSearch.length === 0 ||
-        tasksLabel.toLowerCase().includes(trimmedSearch.toLowerCase());
-      if (showTasksRoot) {
-        result.push({ kind: "tasks-root" });
-      }
-    }
     /**
-     * Folders only at the Workspace root; the catalog below lists the files.
-     *
-     * Showing both would put every root file in two lists on one screen — the
-     * folder listing's copy and the catalog's — which is the duplication the
-     * tab merge removed, moved down a level. Inside a folder the listing is
-     * the whole answer and carries files as before.
+     * Nothing. The Workspace tab is the catalog, and the catalog has its own
+     * list — this one only ever serves the Tasks view above.
      */
-    const visible = isWorkspaceRoot
-      ? items.filter((item) => item.type === "folder")
-      : items;
-
-    return result.concat(
-      visible.map((item) => ({
-        kind: item.type === "file" ? "blob-file" : "blob-folder",
-        ...item,
-      })),
-    );
+    return [];
   })();
 
-  /**
-   * At the Workspace root the catalog owns both of these.
-   *
-   * A workspace with no folders is not an empty workspace, so the page's
-   * "No files yet" must not appear above a catalog that is about to list
-   * files — and its skeleton must not stack on top of the catalog's own.
-   */
-  const emptyState = !loading && !isWorkspaceRoot && exploreItems.length === 0;
+  const emptyState = !loading && isTasksView && exploreItems.length === 0;
   const hasItems = exploreItems.length > 0;
 
   const tasksBreadcrumbs = (() => {
@@ -1447,7 +1477,12 @@ function DrivePageWorkspace({
     />
   );
 
-  const filesSortSurface = isTasksView ? "tasks" : "browse";
+  /**
+   * Always tasks. The only list this control orders is the Tasks view's; the
+   * `"browse"` surface it used to switch to was the folder strip the catalog
+   * replaced.
+   */
+  const filesSortSurface = "tasks" as const;
   const filesSortLabels = {
     sort: t("sortLabel"),
     name: t("sortByName"),
@@ -1456,6 +1491,80 @@ function DrivePageWorkspace({
     ascending: t("sortAscending"),
     descending: t("sortDescending"),
   };
+  /**
+   * Everything the folder grid used to carry, in one menu.
+   *
+   * Rename, move and delete lived on the folder cards and nowhere else, so
+   * deleting the grid would have deleted folder management with it. They act on
+   * the folder currently narrowing the catalog, and are absent when none is —
+   * there is nothing to rename then.
+   *
+   * `Task outputs` is here for the same reason: the Tasks view was reachable
+   * only through a "Tasks" card in that grid, and removing the grid would have
+   * orphaned a whole view behind a URL.
+   */
+  const facetFolderItem: DriveItem | null = facetFolder
+    ? { type: "folder", name: facetFolder, path: facetFolder }
+    : null;
+  const workspaceActionsMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          aria-label={t("moreActions")}
+          data-testid="files-actions"
+        >
+          <MoreHorizontal className="size-4" aria-hidden />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem
+          onSelect={navigateToTasksRoot}
+          data-testid="files-tasks-outputs"
+        >
+          <Folders className="size-4" aria-hidden />
+          {t("tasksFolder")}
+        </DropdownMenuItem>
+        {facetFolderItem ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              data-testid="files-rename-folder"
+              onSelect={() => {
+                const next = window
+                  .prompt(
+                    t("folderName"),
+                    facetFolder.split("/").at(-1) ?? facetFolder,
+                  )
+                  ?.trim();
+                if (next) void handleRename(facetFolderItem, next);
+              }}
+            >
+              {t("renameFolderAction", {
+                name: facetFolder.split("/").at(-1) ?? facetFolder,
+              })}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="files-move-folder"
+              onSelect={() => openMoveDialog(facetFolderItem)}
+            >
+              {t("moveFolderAction")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              variant="destructive"
+              data-testid="files-delete-folder"
+              onSelect={() => openDeleteDialog(facetFolderItem)}
+            >
+              {t("deleteFolderAction")}
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
   const filesSortControl = (
     <DriveSortControl
       value={filesSortSelection}
@@ -1513,24 +1622,11 @@ function DrivePageWorkspace({
             )}
             {!isTasksView && isWorkspaceView && (
               <div className="hidden items-center gap-2 @2xl:flex">
-                {/* Inside a folder only. At the Workspace root the catalog
-                    below has its own search field, and two search boxes over
-                    one list is the duplication the tab merge removed. */}
-                {isWorkspaceRoot ? null : (
-                  <div className="relative">
-                    <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                    <Input
-                      type="text"
-                      placeholder={t("searchPlaceholder")}
-                      value={searchQuery}
-                      onChange={(e) => handleSearchChange(e.target.value)}
-                      className={cn(
-                        "w-64 max-w-full pl-8",
-                        DRIVE_HEADER_CONTROL_CLASS,
-                      )}
-                    />
-                  </div>
-                )}
+                {/* No search field here. The catalog's own is the first thing
+                    on the page, directly under the tabs, and two search boxes
+                    over one list is the duplication this tab was merged to
+                    remove. */}
+                {workspaceActionsMenu}
                 <Button
                   type="button"
                   size="sm"
@@ -1596,57 +1692,16 @@ function DrivePageWorkspace({
                 />
               </>
             )}
-            {/* Not at the Workspace root. The list a reader sees there is the
-                catalog, which orders by relevance or recency and is not what
-                this control drives — it sorts the folder strip above it. A sort
-                control that does not reorder the list under it is exactly the
-                kind of thing this tab was merged to remove. */}
-            {!isTablesView && !isRecentsView && !isWorkspaceRoot
-              ? filesSortControl
-              : null}
+            {/* Tasks only. The Workspace tab is the catalog, which orders by
+                relevance or recency and is not what this control drives — it
+                sorted the folder strip that used to sit above it. A sort control
+                that does not reorder the list under it is exactly the kind of
+                thing this tab was merged to remove. */}
+            {isTasksView ? filesSortControl : null}
             {!isTablesView && filesViewModeSwitch}
           </div>
         </div>
 
-        {!isTasksView && isWorkspaceView && breadcrumbSegments.length > 0 ? (
-          <nav
-            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
-            aria-label={t("breadcrumbNavLabel")}
-          >
-            {/* The root crumb. It used to be an icon-plus-organization-name
-            chip that restated the tab sitting directly above it, so it is a
-            plain crumb now, named after the tab, and the whole nav is dropped
-            at the root where it would have been the only thing in it. Inside a
-            folder it stays: the tab is already selected there, so clicking it
-            does not fire a change and this is the only route back to the
-            root. */}
-            <button
-              type="button"
-              onClick={() => navigateToBreadcrumb(-1)}
-              className="hover:text-foreground whitespace-nowrap transition-colors"
-              title={t("workspaceTab")}
-            >
-              {t("workspaceTab")}
-            </button>
-            {breadcrumbSegments.map((segment, index) => (
-              <span key={index} className="flex shrink-0 items-center gap-1">
-                <ChevronRight className="size-4" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => navigateToBreadcrumb(index)}
-                  className={cn(
-                    "hover:text-foreground whitespace-nowrap transition-colors",
-                    index === breadcrumbSegments.length - 1 &&
-                      "text-foreground font-medium",
-                  )}
-                  title={segment}
-                >
-                  {segment}
-                </button>
-              </span>
-            ))}
-          </nav>
-        ) : null}
         {isTasksView ? (
           <nav
             className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
@@ -1658,7 +1713,7 @@ function DrivePageWorkspace({
             list for the file root. */}
             <button
               type="button"
-              onClick={() => navigateToBreadcrumb(-1)}
+              onClick={navigateToWorkspaceRoot}
               className="hover:text-foreground whitespace-nowrap transition-colors"
               title={t("workspaceTab")}
             >
@@ -1743,24 +1798,10 @@ function DrivePageWorkspace({
       )}
 
       {!isTasksView && isWorkspaceView && (
-        <div className="mb-6 flex items-center gap-2 @2xl:hidden">
-          {/* Same rule as the desktop header: the root's search is the
-              catalog's own. The actions menu stays at every depth, because
-              New folder lives in it. */}
-          {isWorkspaceRoot ? (
-            <div className="flex-1" />
-          ) : (
-            <div className="relative flex-1">
-              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-              <Input
-                type="text"
-                placeholder={t("searchPlaceholder")}
-                value={searchQuery}
-                onChange={(e) => handleSearchChange(e.target.value)}
-                className="w-full pl-8"
-              />
-            </div>
-          )}
+        <div className="mb-6 flex items-center justify-end gap-2 @2xl:hidden">
+          {/* Same rule as the desktop header: the search on this tab is the
+              catalog's own, at the top of its own panel. New folder and the
+              folder actions live in the menu. */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1774,14 +1815,6 @@ function DrivePageWorkspace({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DriveSortMenuItems
-                value={filesSortSelection}
-                onChange={handleFilesSortChange}
-                surface={filesSortSurface}
-                labels={filesSortLabels}
-                testIdPrefix="files-mobile-sort"
-              />
-              <DropdownMenuSeparator />
               <DropdownMenuItem
                 onSelect={openCreateFolderDialog}
                 data-testid="files-mobile-create-folder"
@@ -1789,6 +1822,31 @@ function DrivePageWorkspace({
                 <FolderPlus className="size-4" aria-hidden />
                 {t("createFolder")}
               </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={navigateToTasksRoot}
+                data-testid="files-mobile-tasks-outputs"
+              >
+                <Folders className="size-4" aria-hidden />
+                {t("tasksFolder")}
+              </DropdownMenuItem>
+              {facetFolderItem ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    data-testid="files-mobile-move-folder"
+                    onSelect={() => openMoveDialog(facetFolderItem)}
+                  >
+                    {t("moveFolderAction")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    variant="destructive"
+                    data-testid="files-mobile-delete-folder"
+                    onSelect={() => openDeleteDialog(facetFolderItem)}
+                  >
+                    {t("deleteFolderAction")}
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1873,12 +1931,7 @@ function DrivePageWorkspace({
         </div>
       ) : hasItems ? (
         <div
-          className={driveItemsPanelClass(layoutMode, {
-            // At the Workspace root this panel holds only the folders, with the
-            // catalog directly below it. Reserving a full list's height there
-            // puts a screen of blank space between the two.
-            fillsThePage: !isWorkspaceRoot,
-          })}
+          className={driveItemsPanelClass(layoutMode, { fillsThePage: true })}
           data-testid={
             layoutMode === "grid" ? "files-layout-grid" : "files-layout-list"
           }
@@ -2119,218 +2172,14 @@ function DrivePageWorkspace({
                 );
               }
 
-              if (item.kind !== "blob-file" && item.kind !== "blob-folder") {
-                return null;
-              }
-
-              const itemKey =
-                item.type === "file" ? item.pathname : `folder:${item.name}`;
-              const isEditing =
-                (item.type === "file" && editingItemPath === item.pathname) ||
-                (item.type === "folder" && editingItemPath === item.name);
-
-              const extension =
-                item.type === "file" ? getExtensionFromUrl(item.name) : null;
-              const { isImage, documentKind } =
-                item.type === "file"
-                  ? classifyFilePreview(item.fileUrl, item.name)
-                  : { isImage: false, documentKind: null };
-
-              const blobActions = isEditing ? (
-                <div className="flex items-center gap-1">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => void handleRename(item, editingItemName)}
-                    title={t("saveAction")}
-                  >
-                    <Check className="size-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={cancelEdit}
-                    title={t("cancelAction")}
-                  >
-                    <X className="size-4" />
-                  </Button>
-                </div>
-              ) : (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="size-8"
-                      aria-label={t("moreActions")}
-                      data-testid="drive-item-more-actions"
-                    >
-                      <MoreHorizontal className="size-4" aria-hidden />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {item.type === "file" && (
-                      <DropdownMenuItem
-                        onSelect={() => {
-                          handleDownload(item.fileUrl, item.name);
-                        }}
-                      >
-                        <Download className="size-4" aria-hidden />
-                        {t("downloadAction")}
-                      </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        startEdit(item);
-                      }}
-                      disabled={editingItemPath !== null}
-                    >
-                      <Edit3 className="size-4" aria-hidden />
-                      {t("renameAction")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        openMoveDialog(item);
-                      }}
-                      disabled={editingItemPath !== null}
-                    >
-                      <Folder className="size-4" aria-hidden />
-                      {t("moveAction")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        openDeleteDialog(item);
-                      }}
-                      disabled={editingItemPath !== null}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                      {t("deleteAction")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              );
-
-              if (item.type === "folder") {
-                return (
-                  <DriveItemCard
-                    key={itemKey}
-                    viewMode={layoutMode}
-                    {...driveItemActivation(
-                      isEditing ? undefined : () => navigateToFolder(item.name),
-                      item.name,
-                    )}
-                    actions={blobActions}
-                  >
-                    <div className={driveItemIconWellClass(layoutMode)}>
-                      <Folder className="text-muted-foreground size-5" />
-                    </div>
-                    {isEditing ? (
-                      <Input
-                        value={editingItemName}
-                        onChange={(e) => setEditingItemName(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            void handleRename(item, editingItemName);
-                          } else if (e.key === "Escape") {
-                            cancelEdit();
-                          }
-                        }}
-                        className="h-8 flex-1"
-                        autoFocus
-                      />
-                    ) : (
-                      <DriveItemName
-                        name={item.name}
-                        className="min-w-0 flex-1"
-                      />
-                    )}
-                  </DriveItemCard>
-                );
-              }
-
-              return (
-                <DriveFilePreview
-                  key={itemKey}
-                  name={item.name}
-                  fileUrl={item.fileUrl}
-                  isImage={isImage}
-                  documentKind={documentKind}
-                >
-                  {({ activate, nameEl, viewers }) => (
-                    <DriveItemCard
-                      viewMode={layoutMode}
-                      {...driveItemActivation(
-                        isEditing ? undefined : activate,
-                        item.name,
-                      )}
-                      actions={blobActions}
-                    >
-                      <div className={driveItemIconWellClass(layoutMode)}>
-                        <div className={DRIVE_FILE_TYPE_ICON_CLASS}>
-                          <FileTypeIcon extension={extension || "file"} />
-                        </div>
-                      </div>
-                      {isEditing ? (
-                        <Input
-                          value={editingItemName}
-                          onChange={(e) => setEditingItemName(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") {
-                              e.preventDefault();
-                              void handleRename(item, editingItemName);
-                            } else if (e.key === "Escape") {
-                              cancelEdit();
-                            }
-                          }}
-                          className="h-8 flex-1"
-                          autoFocus
-                        />
-                      ) : (
-                        <>
-                          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                            {nameEl}
-                            <div
-                              className={driveItemMetaMobileClass(layoutMode)}
-                            >
-                              <span>
-                                {item.size ? formatBytes(item.size) : "—"}
-                              </span>
-                              <span>
-                                {formatter.dateTime(
-                                  new Date(item.uploadedAt),
-                                  "dateTimeWithYear",
-                                )}
-                              </span>
-                            </div>
-                          </div>
-                          <div
-                            className={driveItemMetaDesktopClass(layoutMode)}
-                          >
-                            <span>
-                              {item.size ? formatBytes(item.size) : "—"}
-                            </span>
-                            <span>
-                              {formatter.dateTime(
-                                new Date(item.uploadedAt),
-                                "dateTimeWithYear",
-                              )}
-                            </span>
-                          </div>
-                          {viewers}
-                        </>
-                      )}
-                    </DriveItemCard>
-                  )}
-                </DriveFilePreview>
-              );
+              /**
+               * Nothing else reaches here.
+               *
+               * `blob-file` and `blob-folder` were the folder grid that owned
+               * the top of the Workspace tab. The catalog replaced it, and this
+               * list now serves the Tasks view only.
+               */
+              return null;
             })}
             {isTasksView && tasksNextCursor ? (
               <div className="flex justify-center py-4">
@@ -2350,20 +2199,19 @@ function DrivePageWorkspace({
       ) : null}
 
       {/**
-       * The catalog, at the root of the Workspace tab.
+       * The catalog. It is the Workspace tab, not a section of it.
        *
-       * Every file in the workspace, searchable and filterable, with the
-       * folders above it as navigation. This used to be a tab of its own
-       * beside a folder tree listing the same files.
+       * Every file in the workspace, searchable and filterable, with the search
+       * box directly under the tabs and the first file row immediately below
+       * it. It used to render *beneath* a folder grid that owned the top of the
+       * page, so the reader met two navigation models stacked on one screen and
+       * picked neither.
        *
-       * Below the folders rather than instead of them: the catalog lists
-       * files and has no folder rows, so it cannot be navigated by, and
-       * folder create, rename, move and delete live only in the listing
-       * above. Inside a folder this panel is not rendered — the listing there
-       * is the same files narrowed to that folder, which is the scope the
-       * reader asked for.
+       * Folders did not go: `?folder=` pre-applies one as a facet, and folder
+       * create, rename, move and delete moved into the page head's actions
+       * menu, which is the only place they ever lived outside the grid.
        */}
-      {isWorkspaceRoot ? (
+      {isWorkspaceView && !isTasksView ? (
         <DriveAllFilesPanel
           store={allFilesStore}
           viewMode={layoutMode}
@@ -2371,6 +2219,9 @@ function DrivePageWorkspace({
           // Global search's "See all files" arrives with the query already
           // typed; dropping it made the reader type it a second time.
           initialQuery={searchParams.get("q") ?? ""}
+          initialFolder={folderParam}
+          onFolderChange={applyFolderFacet}
+          reloadToken={catalogReloadToken}
         />
       ) : null}
 

@@ -30,6 +30,7 @@ function candidate(
     mimeType: "text/plain",
     sizeBytes: 10,
     sourceKind: FileSourceKind.DRIVE_UPLOAD,
+    sourceId: `drive/users/u1/${id}.txt`,
     sourceTaskId: null,
     sourceProjectId: null,
     updatedAt: new Date("2026-09-01T00:00:00.000Z"),

@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { normalizeDriveFolderPath } from "@sokosumi/utils";
 
 import { resolveFileRequestContext } from "@/helpers/file-workspace";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -35,6 +36,8 @@ const querySchema = z.object({
   tagLabelIds: z.string().optional(),
   tagMatch: z.enum(["any", "all"]).optional(),
   projectIds: z.string().optional(),
+  /** One folder path, relative to the store root. Includes everything under it. */
+  folder: z.string().max(1000).optional(),
   sourceKinds: z.string().optional(),
   typeFamilies: z.string().optional(),
   extractionStates: z.string().optional(),
@@ -121,6 +124,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tagLabelIds: csv(query.tagLabelIds),
         tagMatch: query.tagMatch ?? "any",
         projectIds: csv(query.projectIds),
+        folderPath: normalizeDriveFolderPath(query.folder ?? "") || undefined,
         sourceKinds: csv(query.sourceKinds)?.filter(
           (kind): kind is z.infer<typeof fileSourceKindSchema> =>
             fileSourceKindSchema.safeParse(kind).success,

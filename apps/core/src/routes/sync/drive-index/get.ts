@@ -1,6 +1,9 @@
 import type { Hono } from "hono";
 
-import { reviveFailedSuggestionJobs } from "@/lib/files/index-jobs";
+import {
+  backfillMissingSuggestionJobs,
+  reviveFailedSuggestionJobs,
+} from "@/lib/files/index-jobs";
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
 import { processFileIndexJobs } from "@/services/file-index.service";
@@ -48,6 +51,18 @@ export default function mount(app: Hono) {
           // starve for the whole tick.
           msRemaining: context.msRemaining,
         });
+        /**
+         * And: give documents that were extracted before their workspace had
+         * a vocabulary one run against the one it has now.
+         *
+         * Enqueued after extraction so a document that just gained text is
+         * eligible in this same tick, and before the suggestion drain so the
+         * work it queues runs immediately rather than a minute later.
+         *
+         * Bounded by `FILE_SUGGEST_BACKFILL_MAX_GENERATION`, so this is one
+         * extra evaluation per document in total and not a per-minute retry.
+         */
+        const backfilled = await backfillMissingSuggestionJobs();
         const suggestions = await processFileSuggestionJobs({
           shouldContinue: context.shouldContinue,
         });
@@ -69,6 +84,7 @@ export default function mount(app: Hono) {
         const prunedResultWindows = await pruneExpiredResultWindows();
         console.info("[sync/drive-index] Completed sync", {
           revived,
+          backfilled,
           extraction,
           suggestions,
           tables,

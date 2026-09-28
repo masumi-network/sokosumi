@@ -10,6 +10,7 @@ import type {
 import {
   deleteDriveCollectionsById,
   getDriveCollections,
+  getDriveFolders,
   getDriveLabels,
   getDriveResourcesById,
   getDriveResourcesByIdRelated,
@@ -46,6 +47,14 @@ export interface FileSearchFilterState {
   sourceKinds: string[];
   typeFamilies: string[];
   extractionStates: string[];
+  /**
+   * One folder, and everything filed below it. Empty means the whole catalog.
+   *
+   * A facet rather than a place the reader navigates to: it narrows the same
+   * list the search box searches, and composes with the query and with every
+   * other filter here, which the folder browser it replaces could not.
+   */
+  folder: string;
 }
 
 export const EMPTY_FILE_FILTERS: FileSearchFilterState = {
@@ -56,6 +65,7 @@ export const EMPTY_FILE_FILTERS: FileSearchFilterState = {
   sourceKinds: [],
   typeFamilies: [],
   extractionStates: [],
+  folder: "",
 };
 
 export function countActiveFileFilters(filters: FileSearchFilterState): number {
@@ -65,7 +75,8 @@ export function countActiveFileFilters(filters: FileSearchFilterState): number {
     filters.projectIds.length +
     filters.sourceKinds.length +
     filters.typeFamilies.length +
-    filters.extractionStates.length
+    filters.extractionStates.length +
+    (filters.folder ? 1 : 0)
   );
 }
 
@@ -105,6 +116,7 @@ export async function fetchFileSearchPage(input: {
       sourceKinds: csv(input.filters.sourceKinds),
       typeFamilies: csv(input.filters.typeFamilies),
       extractionStates: csv(input.filters.extractionStates),
+      folder: input.filters.folder || undefined,
       sortBy: input.sortBy,
       sortOrder: input.sortOrder,
       cursor: input.cursor ?? undefined,
@@ -135,6 +147,27 @@ export async function fetchWorkspaceLabels(input: {
   const response = await getDriveLabels({
     client: getBrowserCoreClient(),
     query: { ...storeQuery(input.store), kind: input.kind },
+    signal: input.signal,
+    throwOnError: true,
+  });
+  return response.data.data;
+}
+
+/**
+ * The folders the catalog can be narrowed to.
+ *
+ * Its own request, like the vocabulary above it, because the facet list is a
+ * fact about the workspace rather than about one page of results — deriving it
+ * from the loaded rows would have offered only the folders the reader could
+ * already see, and would have changed every time they typed.
+ */
+export async function fetchWorkspaceFolders(input: {
+  store: FileStore;
+  signal?: AbortSignal;
+}): Promise<string[]> {
+  const response = await getDriveFolders({
+    client: getBrowserCoreClient(),
+    query: storeQuery(input.store),
     signal: input.signal,
     throwOnError: true,
   });
@@ -299,7 +332,7 @@ export async function decideSuggestion(input: {
   store: FileStore;
   resourceId: string;
   suggestionId: string;
-  decision: "accept" | "reject";
+  decision: "accept" | "reject" | "restore";
   expectedMetadataRevision: number;
 }): Promise<FileResource> {
   const response =
