@@ -10,7 +10,7 @@ import {
 } from "../cloud-agent-db/neon-api.mjs";
 
 export const NEON_API_KEY_VARIABLE = "NEON_API_KEY";
-const PREVIEW_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const PREVIEW_TTL_MS = 24 * 60 * 60 * 1000;
 
 export interface PreviewIdentity {
   repoId: number;

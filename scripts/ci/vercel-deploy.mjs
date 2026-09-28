@@ -61,9 +61,7 @@ export function parseNetworkCommand(body, command) {
 
   const rest = tokens.slice(1).map((token) => token.toLowerCase());
   if (rest.length === 0) {
-    return command === "/deploy"
-      ? { kind: "run", networks: ["preprod"] }
-      : { kind: "usage" };
+    return { kind: "usage" };
   }
 
   const unique = [...new Set(rest)];
@@ -94,7 +92,7 @@ export function isWritePermission(permission) {
 
 export function usageMessage() {
   return [
-    "Usage: `/deploy` (preprod), `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
+    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
     "",
     "`/deploy mainnet`",
     "`/deploy preprod`",

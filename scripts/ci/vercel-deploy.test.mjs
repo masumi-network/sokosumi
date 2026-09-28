@@ -60,14 +60,10 @@ describe("parseDeployComment", () => {
     assert.deepEqual(parseDeployComment(""), { kind: "ignore" });
   });
 
-  it("defaults /deploy to preprod", () => {
-    assert.deepEqual(parseDeployComment("/deploy"), {
-      kind: "deploy",
-      networks: ["preprod"],
-    });
+  it("returns help when no network is specified", () => {
+    assert.deepEqual(parseDeployComment("/deploy"), { kind: "usage" });
     assert.deepEqual(parseDeployComment("  /deploy  \nthanks"), {
-      kind: "deploy",
-      networks: ["preprod"],
+      kind: "usage",
     });
   });
 
@@ -865,7 +861,7 @@ describe("preview change gating", () => {
       "utf8",
     );
     const triggers = workflow.split(/^jobs:/m)[0];
-    assert.match(triggers, /types: \[closed\]/);
+    assert.match(triggers, /types: \[closed, synchronize\]/);
     assert.doesNotMatch(triggers, /paths:/);
   });
 });
@@ -1123,10 +1119,16 @@ describe("git preview policy", () => {
       "utf8",
     );
     assert.match(workflow, /types: \[created\]/);
-    assert.match(workflow, /types: \[closed\]/);
-    assert.doesNotMatch(workflow, /types:.*(?:opened|synchronize)/);
+    assert.match(workflow, /types: \[closed, synchronize\]/);
+    assert.doesNotMatch(workflow, /types:.*opened/);
     assert.match(workflow, /schedule:/);
-    for (const jobId of ["comment", "reset-db", "closed", "reconcile"]) {
+    for (const jobId of [
+      "comment",
+      "reset-db",
+      "closed",
+      "renew",
+      "reconcile",
+    ]) {
       const job = jobBlock(workflow, jobId);
       assert.match(
         checkoutStep(job, jobId),
@@ -1140,7 +1142,12 @@ describe("git preview policy", () => {
       assert.match(job, /secrets\.NEON_API_KEY/);
       assert.doesNotMatch(job, /ref:.*pull_request\.head/);
     }
+    const renew = jobBlock(workflow, "renew");
+    assert.match(renew, /github\.event\.action == 'synchronize'/);
+    assert.match(renew, /preview-lifecycle\.ts renew/);
+    assert.doesNotMatch(renew, /vercel-deploy\.mjs/);
     const closed = jobBlock(workflow, "closed");
+    assert.match(closed, /github\.event\.action == 'closed'/);
     assert.doesNotMatch(closed, /issues: write/);
     const reconcile = jobBlock(workflow, "reconcile");
     assert.match(reconcile, /group:.*matrix\.pr/);

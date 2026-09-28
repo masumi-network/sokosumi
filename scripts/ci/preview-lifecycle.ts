@@ -1,9 +1,16 @@
 import { appendFile } from "node:fs/promises";
 
-import { listBranches } from "../cloud-agent-db/neon-api.mjs";
+import {
+  assertPreviewBranchResettable,
+  findBranchByName,
+  listBranches,
+  refreshBranchExpiration,
+} from "../cloud-agent-db/neon-api.mjs";
 import {
   cleanupPreviewResources,
+  PREVIEW_TTL_MS,
   type PreviewOptions,
+  previewBranchName,
   previewNeonConfigs,
   vercelRequest,
 } from "./preview-resources.ts";
@@ -14,13 +21,13 @@ import {
   readActionsContext,
 } from "./vercel-deploy.mjs";
 
-interface CleanupOptions extends Omit<PreviewOptions, "ref"> {
+interface LifecycleOptions extends Omit<PreviewOptions, "ref"> {
   githubToken: string;
   repoOwner: string;
   repoName: string;
 }
 
-export async function cleanupClosedPreview(options: CleanupOptions) {
+export async function cleanupClosedPreview(options: LifecycleOptions) {
   // Read current state inside the same per-PR queue as deploy/reset. An old
   // close event must not delete a preview after the PR has been reopened.
   const pull = await githubJson(
@@ -42,8 +49,49 @@ export async function cleanupClosedPreview(options: CleanupOptions) {
   );
 }
 
+export async function renewOpenPreview(options: LifecycleOptions) {
+  const pull = await githubJson(
+    options.fetchImpl ?? fetch,
+    options.githubToken,
+    `https://api.github.com/repos/${options.repoOwner}/${options.repoName}/pulls/${options.pullNumber}`,
+  );
+  if (!pull) throw new Error("Cannot verify PR ownership for preview renewal");
+  if (
+    pull.state !== "open" ||
+    pull.base.repo.id !== options.repoId ||
+    pull.head.repo?.id !== options.repoId
+  ) {
+    return { kind: "skip" };
+  }
+  const name = previewBranchName(options);
+  const expiresAt = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
+  let renewed = 0;
+  for (const { config } of previewNeonConfigs(options, [
+    "mainnet",
+    "preprod",
+  ])) {
+    const branch = await findBranchByName(config, name);
+    // Commit activity extends an existing preview; it never creates one or deploys.
+    if (!branch) continue;
+    assertPreviewBranchResettable(branch);
+    try {
+      await refreshBranchExpiration(config, branch.id, { expiresAt });
+      renewed++;
+    } catch (error) {
+      // Neon expiry may win between lookup and renewal. A later /deploy recreates it.
+      if (
+        !(error instanceof Error) ||
+        !("status" in error) ||
+        error.status !== 404
+      )
+        throw error;
+    }
+  }
+  return { kind: "renew", branches: renewed };
+}
+
 export async function previewCleanupInventory(
-  options: Omit<CleanupOptions, "pullNumber">,
+  options: Omit<LifecycleOptions, "pullNumber">,
 ) {
   const numbers = new Set<number>();
   const pattern = new RegExp(`^preview/gh-${options.repoId}-pr-([1-9][0-9]*)$`);
@@ -122,7 +170,11 @@ async function main() {
   if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0)
     throw new Error("A valid PR number is required");
   console.log(
-    JSON.stringify(await cleanupClosedPreview({ ...options, pullNumber })),
+    JSON.stringify(
+      await (process.argv[2] === "renew"
+        ? renewOpenPreview
+        : cleanupClosedPreview)({ ...options, pullNumber }),
+    ),
   );
 }
 

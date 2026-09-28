@@ -4,7 +4,8 @@ import { test } from "node:test";
 import {
   cleanupClosedPreview,
   previewCleanupInventory,
-} from "./preview-cleanup.ts";
+  renewOpenPreview,
+} from "./preview-lifecycle.ts";
 import { preparePreviewResources } from "./preview-resources.ts";
 import { deployTargets, runPreviewDeployComment } from "./vercel-deploy.mjs";
 
@@ -125,11 +126,91 @@ function setup() {
   return { options, calls, branches, envs, deployments, pull };
 }
 
-test("/deploy provisions preprod before deployment and reuses its DB on the next request", async () => {
+test("bare /deploy replies with help without touching Neon or Vercel", async () => {
+  const { options, calls } = setup();
+  const comments: string[] = [];
+  const result = await runPreviewDeployComment({
+    ...options,
+    commentBody: "/deploy",
+    isPullRequest: true,
+    readPermission: async () => "write",
+    postComment: async (body: string) => {
+      comments.push(body);
+    },
+  });
+  assert.equal(result.kind, "usage");
+  assert.match(comments[0], /Usage:.*mainnet/);
+  assert.deepEqual(calls, []);
+});
+
+test("new commits renew an existing preview for 24 hours without deploying", async () => {
+  const { options, branches, calls } = setup();
+  branches.push({
+    id: "br-preview",
+    name: "preview/gh-99-pr-7",
+    parent_id: "br-production",
+    default: false,
+    protected: false,
+    expires_at: new Date(Date.now() + 1000).toISOString(),
+  });
+  assert.deepEqual(await renewOpenPreview(options), {
+    kind: "renew",
+    branches: 1,
+  });
+  const remaining = Date.parse(branches[1].expires_at ?? "") - Date.now();
+  assert.ok(
+    remaining > 23.99 * 60 * 60 * 1000 && remaining <= 24 * 60 * 60 * 1000,
+  );
+  assert.equal(calls.filter((call) => call.method === "PATCH").length, 1);
+  assert.ok(calls.every((call) => ["GET", "PATCH"].includes(call.method)));
+  assert.ok(!calls.some((call) => call.url.host === "api.vercel.com"));
+});
+
+test("commits do not create previews when none exist or the database expired", async () => {
+  const { options, calls } = setup();
+  assert.deepEqual(await renewOpenPreview(options), {
+    kind: "renew",
+    branches: 0,
+  });
+  assert.ok(calls.every((call) => call.method === "GET"));
+});
+
+test("queued commit renewals skip closed and fork PRs", async () => {
+  for (const state of ["closed", "fork"]) {
+    const { options, calls, pull } = setup();
+    if (state === "closed") pull.state = "closed";
+    else pull.head.repo.id = 100;
+    assert.deepEqual(await renewOpenPreview(options), { kind: "skip" });
+    assert.ok(calls.every((call) => call.url.host === "api.github.com"));
+  }
+});
+
+test("renewal tolerates native expiry deleting a branch after lookup", async () => {
+  const { options, branches } = setup();
+  branches.push({
+    id: "br-preview",
+    name: "preview/gh-99-pr-7",
+    parent_id: "br-production",
+    default: false,
+    protected: false,
+  });
+  const neonFetchImpl: typeof fetch = (input, init) =>
+    init?.method === "PATCH"
+      ? Promise.resolve(
+          Response.json({ message: "Branch not found" }, { status: 404 }),
+        )
+      : options.neonFetchImpl(input, init);
+  assert.deepEqual(await renewOpenPreview({ ...options, neonFetchImpl }), {
+    kind: "renew",
+    branches: 0,
+  });
+});
+
+test("/deploy preprod provisions preprod before deployment and reuses its DB on the next request", async () => {
   const { options, calls, branches, envs, deployments, pull } = setup();
   const command = {
     ...options,
-    commentBody: "/deploy",
+    commentBody: "/deploy preprod",
     isPullRequest: true,
     commentAuthor: "alice",
     readPermission: async () => "write",
@@ -144,8 +225,7 @@ test("/deploy provisions preprod before deployment and reuses its DB on the next
   assert.equal(branches[1].name, "preview/gh-99-pr-7");
   const remaining = Date.parse(branches[1].expires_at ?? "") - Date.now();
   assert.ok(
-    remaining > 6.99 * 24 * 60 * 60 * 1000 &&
-      remaining <= 7 * 24 * 60 * 60 * 1000,
+    remaining > 23.99 * 60 * 60 * 1000 && remaining <= 24 * 60 * 60 * 1000,
   );
   assert.equal(deployments.length, 4);
   assert.equal(envs.length, 2);
@@ -193,7 +273,7 @@ test("closed PRs cannot recreate previews, and unprivileged commenters cannot pr
     pull.state = "closed";
     const result = await runPreviewDeployComment({
       ...options,
-      commentBody: "/deploy",
+      commentBody: "/deploy preprod",
       isPullRequest: true,
       readPermission: async () => permission,
       readPullRequest: async () => pull,
@@ -238,7 +318,7 @@ test("a failed credential write never starts a Vercel deployment and does not di
     runPreviewDeployComment({
       ...options,
       fetchImpl,
-      commentBody: "/deploy",
+      commentBody: "/deploy preprod",
       isPullRequest: true,
       readPermission: async () => "write",
       readPullRequest: async () => pull,

@@ -14,7 +14,7 @@ import {
   stripResetDbFlag,
 } from "./preview-db-reset.mjs";
 import { readPreviewNeonConfigs } from "./preview-resources.ts";
-import { parseNetworkCommand } from "./vercel-deploy.mjs";
+import { parseNetworkCommand, usageMessage } from "./vercel-deploy.mjs";
 
 const PULL_REQUEST = {
   state: "open",
@@ -737,16 +737,15 @@ describe("runDeployWithResetComment", () => {
     );
   });
 
-  it("defaults /deploy --reset-db to preprod", async () => {
-    const { options, created } = deployReset({
+  it("shows help without resetting or deploying when the network is missing", async () => {
+    const { options, posted, created, neonCalls } = deployReset({
       commentBody: "/deploy --reset-db",
     });
     const result = await runDeployWithResetComment(options);
-    assert.equal(result.kind, "reset");
-    assert.deepEqual(
-      created.map((input) => input.target.network),
-      ["preprod", "preprod"],
-    );
+    assert.equal(result.kind, "usage");
+    assert.deepEqual(posted, [usageMessage()]);
+    assert.deepEqual(created, []);
+    assert.deepEqual(neonCalls, []);
   });
 
   it("gives the /deploy form in the retry advice", async () => {
