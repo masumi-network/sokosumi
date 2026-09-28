@@ -545,31 +545,6 @@ describe("ComposerWysiwygEditor", () => {
       expect(onSubmitShortcut).not.toHaveBeenCalled();
       expect(editor.querySelector("br")).not.toBeNull();
     });
-
-    it("still commits inline edits on plain Enter", () => {
-      const onSubmitShortcut = vi.fn();
-
-      function Harness() {
-        const [value, setValue] = useState("");
-        return (
-          <ComposerWysiwygEditor
-            value={value}
-            onChange={setValue}
-            mentions={{}}
-            modifierEnterSubmits
-            onSubmitShortcut={onSubmitShortcut}
-          />
-        );
-      }
-
-      render(<Harness />);
-
-      const editor = screen.getByRole("textbox");
-      expect(editor).toHaveAttribute("enterkeyhint", "send");
-      fireEvent.keyDown(editor, { key: "Enter" });
-
-      expect(onSubmitShortcut).toHaveBeenCalledTimes(1);
-    });
   });
 
   it("exits a quote on Shift+Enter from an empty last line", () => {

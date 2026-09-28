@@ -5962,9 +5962,11 @@
       },
       "Edit": {
         "action": "Editar",
-        "composerAria": "Editar mensaje. Intro para guardar, Escape para cancelar, Mayús+Intro para nueva línea.",
+        "cancel": "Cancelar",
+        "composerAria": "Editar mensaje. Usa Guardar o Cancelar para terminar. Con teclado: Intro guarda, Escape cancela y Mayús+Intro añade una nueva línea.",
         "edited": "Editado",
-        "editedAt": "Editado {when}"
+        "editedAt": "Editado {when}",
+        "save": "Guardar"
       },
       "Browse": {
         "trigger": "Explorar canales",
