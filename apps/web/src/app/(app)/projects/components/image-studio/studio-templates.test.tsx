@@ -93,7 +93,7 @@ describe("starting from a template", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "poster" }));
 
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(POSTER.prompt);
     expect(screen.getByText("2:3 · 1K · png")).toBeInTheDocument();
   });
@@ -103,7 +103,7 @@ describe("starting from a template", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "headshot" }));
 
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     // Editable text in a focused box, not a request: the whole point of a
     // template is what gets typed over it.
     expect(prompt).toHaveFocus();

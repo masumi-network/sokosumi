@@ -48,6 +48,8 @@ interface ImageViewerProps {
   activeSrc: string | null;
   onActiveSrcChange: (src: string | null) => void;
   className?: string;
+  /** Optional detail panel beside (below, on narrow screens) the open image. */
+  aside?: React.ReactNode;
 }
 
 interface ViewerUiState {
@@ -146,7 +148,9 @@ function ImageViewerChrome({
   onClose,
   onPrevious,
   onNext,
+  aside,
 }: ImageViewerImage & {
+  aside?: React.ReactNode;
   position: number;
   total: number;
   onClose: () => void;
@@ -295,6 +299,7 @@ function ImageViewerChrome({
           </DropdownMenu>
         </div>
       </div>
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
       <div
         className="relative flex min-h-0 flex-1 touch-pinch-zoom items-center justify-center bg-media-ground"
         data-testid="image-viewer-stage"
@@ -357,6 +362,12 @@ function ImageViewerChrome({
           </Button>
         </div>
       </div>
+      {aside ? (
+        <aside className="app-scrollbar bg-background text-foreground max-h-[45dvh] shrink-0 overflow-y-auto p-4 lg:max-h-none lg:w-88">
+          {aside}
+        </aside>
+      ) : null}
+      </div>
     </>
   );
 }
@@ -366,6 +377,7 @@ export function ImageViewer({
   activeSrc,
   onActiveSrcChange,
   className,
+  aside,
 }: ImageViewerProps) {
   const t = useTranslations("Components.ImageViewer");
   const activeIndex = images.findIndex((image) => image.src === activeSrc);
@@ -442,6 +454,7 @@ export function ImageViewer({
             onClose={handleClose}
             onPrevious={handlePrevious}
             onNext={handleNext}
+            aside={aside}
           />
         ) : null}
         {[previousImage, nextImage].map((image) =>
@@ -485,7 +498,7 @@ export function ImageViewer({
               type="button"
               aria-label={t("next")}
               aria-disabled={nextImage === undefined || undefined}
-              className={cn(stepButtonClassName, "right-4")}
+              className={cn(stepButtonClassName, aside ? "right-4 lg:right-96" : "right-4")}
               size="icon"
               variant="ghost"
               onClick={handleNext}

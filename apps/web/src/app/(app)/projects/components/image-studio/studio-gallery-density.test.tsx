@@ -268,7 +268,7 @@ describe("a gallery with work in it", () => {
       ).toBeInTheDocument();
     }
     // A settled failure is stated above the gallery.
-    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
+    expect(screen.getByRole("status")).toHaveTextContent("provider_error");
   });
 
   /**
@@ -284,7 +284,7 @@ describe("a gallery with work in it", () => {
       job("failed", "FAILED", "Unexpected status code: 422"),
     ]);
 
-    const alert = screen.getByRole("alert");
+    const alert = screen.getByRole("status");
     expect(alert).toHaveTextContent("provider_error");
     // Present in the DOM — a `details` only hides its own body visually — but
     // never in the sentence a reader gets handed.
@@ -298,7 +298,7 @@ describe("a gallery with work in it", () => {
   it("offers no disclosure when the provider said nothing", () => {
     mount(manyAssets(2), [job("failed", "FAILED")]);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
+    expect(screen.getByRole("status")).toHaveTextContent("provider_error");
     expect(screen.queryByText("failedDetails")).toBeNull();
   });
 
@@ -314,7 +314,7 @@ describe("a gallery with work in it", () => {
       job("failed", "FAILED", "HTTP 409 from upstream", "cancelled"),
     ]);
 
-    const alert = screen.getByRole("alert");
+    const alert = screen.getByRole("status");
     expect(alert).toHaveTextContent("cancelled");
     expect(alert).not.toHaveTextContent("provider_error");
   });
@@ -331,7 +331,7 @@ describe("a gallery with work in it", () => {
       job("failed", "FAILED", "HTTP 500 from upstream", "provider_error"),
     ]);
 
-    const alert = screen.getByRole("alert");
+    const alert = screen.getByRole("status");
     expect(alert).toHaveTextContent("failedNoCharge");
     // No wording about money coming back, in any of the three languages this
     // ships in. The strings are keys here, so this guards the shape rather than
@@ -348,7 +348,7 @@ describe("a gallery with work in it", () => {
 
     // Not a blank line and not the raw string: `failureReason` is null on every
     // job that settled before the column existed.
-    const alert = screen.getByRole("alert");
+    const alert = screen.getByRole("status");
     expect(alert).toHaveTextContent("failedBodyUnreported");
     expect(alert.querySelector("p")?.textContent).not.toContain(
       "Something went wrong",

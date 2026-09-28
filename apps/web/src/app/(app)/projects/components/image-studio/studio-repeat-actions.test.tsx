@@ -129,7 +129,7 @@ describe("actions on a result", () => {
     mount();
     fireEvent.click(screen.getByRole("button", { name: "reusePrompt" }));
 
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue("a red fox");
     expect(prompt).toHaveFocus();
     expect(screen.getByText("2:3 · 2K · png")).toBeInTheDocument();
@@ -138,7 +138,7 @@ describe("actions on a result", () => {
 });
 
 describe("the page around the results", () => {
-  it("groups results by day, newest first, under a date heading", () => {
+  it("groups results by day, oldest first (newest at the bottom), under a date heading", () => {
     mount([
       { ...ASSET, id: "b", createdAt: "2026-09-28T12:00:00Z" as never },
       { ...ASSET, id: "c", createdAt: "2026-09-28T09:00:00Z" as never },
@@ -147,7 +147,7 @@ describe("the page around the results", () => {
     const days = screen
       .getAllByRole("heading", { level: 3 })
       .map((heading) => heading.textContent);
-    expect(days).toEqual(["day:2026-09-28", "day:2026-09-26"]);
+    expect(days).toEqual(["day:2026-09-26", "day:2026-09-28"]);
   });
 
   it("docks the composer below the results once there are some", () => {
@@ -171,7 +171,7 @@ describe("the page around the results", () => {
 
   it("generates on Cmd+Enter from the prompt", () => {
     mount([]);
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     fireEvent.change(prompt, { target: { value: "a fox" } });
     fireEvent.keyDown(prompt, { key: "Enter", metaKey: true });
     expect(mocks.enqueue).toHaveBeenCalledTimes(1);

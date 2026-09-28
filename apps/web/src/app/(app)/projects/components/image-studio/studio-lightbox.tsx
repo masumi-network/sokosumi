@@ -1,8 +1,7 @@
 "use client";
 
-import { Check, ChevronLeft, ChevronRight, Download, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useFormatter } from "next-intl";
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +10,7 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ImageViewer } from "@/components/ui/image-viewer";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -44,11 +44,11 @@ export function StudioLightbox({
   onClose,
   onDraftChange,
   onRegenerate,
-  onStep,
+  onSelect,
   onUseAsReference,
   onReject,
   projectId,
-  stepping,
+  siblings,
 }: {
   assets: StudioAsset[];
   busy: boolean;
@@ -67,12 +67,13 @@ export function StudioLightbox({
   onClose: () => void;
   onDraftChange: (assetId: string, value: string) => void;
   onRegenerate: (asset: StudioAsset) => void;
-  /** Move to the previous/next image; only offered while showing one. */
-  onStep: (delta: number) => void;
+  /** Step to another image while showing one; arrows and swipes live in the viewer. */
+  onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
   onReject: (assetId: string, feedback: string) => void;
   projectId: string;
-  stepping: { hasPrevious: boolean; hasNext: boolean };
+  /** Every image the viewer can step through, in gallery order. */
+  siblings: StudioAsset[];
 }) {
   // Formatted on the client: these rows arrive from a poll, so there is no
   // server render to format them in, and a raw ISO string is not a date
@@ -82,36 +83,65 @@ export function StudioLightbox({
     format.dateTime(new Date(value), "dateTime");
   const single = assets.length === 1 ? assets[0] : null;
 
-  // Arrow keys step through the gallery, as they would in any image viewer.
-  useEffect(() => {
-    if (!single) return;
-    function onKeyDown(event: KeyboardEvent) {
-      const target = event.target as HTMLElement | null;
-      if (
-        target?.tagName === "TEXTAREA" ||
-        target?.tagName === "INPUT" ||
-        target?.isContentEditable
-      ) {
-        return;
-      }
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        onStep(-1);
-      }
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        onStep(1);
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [onStep, single]);
-
   if (assets.length === 0) return null;
 
-  const title = single
-    ? `${labels.version} ${single.version}`
-    : labels.compareSelected;
+  if (single) {
+    const url = assetContentUrl(projectId, single.id);
+    const ext = single.settings?.outputFormat ?? "png";
+    return (
+      <ImageViewer
+        activeSrc={url}
+        aside={
+          <>
+            <Metadata
+              asset={single}
+              catalog={catalog}
+              formatDate={formatDate}
+              labels={labels}
+            />
+            <Review
+              asset={single}
+              busy={busy}
+              draft={drafts[single.id] ?? single.review?.feedback ?? ""}
+              labels={labels}
+              onApprove={onApprove}
+              onClearReview={onClearReview}
+              onDraftChange={(value) => onDraftChange(single.id, value)}
+              onReject={onReject}
+            />
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button
+                onClick={() => onRegenerate(single)}
+                size="sm"
+                variant="secondary"
+              >
+                {labels.regenerate}
+              </Button>
+              <Button
+                onClick={() => onUseAsReference(single)}
+                size="sm"
+                variant="secondary"
+              >
+                {labels.refine}
+              </Button>
+            </div>
+          </>
+        }
+        images={siblings.map((asset) => ({
+          src: assetContentUrl(projectId, asset.id),
+          alt: asset.prompt,
+          downloadFilename: `v${asset.version}.${asset.settings?.outputFormat ?? ext}`,
+        }))}
+        onActiveSrcChange={(src) => {
+          const next = siblings.find(
+            (asset) => assetContentUrl(projectId, asset.id) === src,
+          );
+          if (next) onSelect(next.id);
+          else if (src === null) onClose();
+        }}
+      />
+    );
+  }
 
   return (
     <Dialog onOpenChange={(open) => !open && onClose()} open>
@@ -121,142 +151,63 @@ export function StudioLightbox({
       >
         <div className="border-border flex items-center justify-between gap-3 border-b px-4 py-3">
           <div className="min-w-0">
-            <DialogTitle className="text-sm font-medium">{title}</DialogTitle>
+            <DialogTitle className="text-sm font-medium">
+              {labels.compareSelected}
+            </DialogTitle>
             <DialogDescription className="text-muted-foreground truncate text-xs">
-              {single ? single.prompt : labels.compareHint}
+              {labels.compareHint}
             </DialogDescription>
           </div>
-          <div className="flex shrink-0 items-center gap-1">
-            {single ? (
-              <>
-                <Button
-                  aria-label={labels.previousVersion}
-                  disabled={!stepping.hasPrevious}
-                  onClick={() => onStep(-1)}
-                  size="icon"
-                  variant="ghost"
-                >
-                  <ChevronLeft aria-hidden />
-                </Button>
-                <Button
-                  aria-label={labels.nextVersion}
-                  disabled={!stepping.hasNext}
-                  onClick={() => onStep(1)}
-                  size="icon"
-                  variant="ghost"
-                >
-                  <ChevronRight aria-hidden />
-                </Button>
-              </>
-            ) : null}
-            <Button
-              aria-label={labels.close}
-              onClick={onClose}
-              size="icon"
-              variant="ghost"
-            >
-              <X aria-hidden />
-            </Button>
-          </div>
+          <Button
+            aria-label={labels.close}
+            onClick={onClose}
+            size="icon"
+            variant="ghost"
+          >
+            <X aria-hidden />
+          </Button>
         </div>
 
         <div
           className={cn(
             "app-scrollbar grid min-h-0 flex-1 gap-px overflow-y-auto",
-            // One column per image, never a reserved empty one: comparing
-            // three should use the whole width, not three quarters of it.
-            // Written as whole class strings so the Tailwind scanner sees
-            // them.
-            assets.length === 1
-              ? "grid-cols-1 lg:grid-cols-[minmax(0,1fr)_22rem]"
-              : assets.length === 2
-                ? "grid-cols-1 sm:grid-cols-2"
-                : assets.length === 3
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
-                  : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
+            // One column per image, never a reserved empty one. Written as
+            // whole class strings so the Tailwind scanner sees them.
+            assets.length === 2
+              ? "grid-cols-1 sm:grid-cols-2"
+              : assets.length === 3
+                ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3"
+                : "grid-cols-1 sm:grid-cols-2 xl:grid-cols-4",
           )}
         >
-          {assets.length === 1 && single ? (
-            <>
-              <ImagePane asset={single} labels={labels} projectId={projectId} />
-              <aside className="app-scrollbar border-border min-w-0 overflow-y-auto border-t p-4 lg:border-t-0 lg:border-l">
+          {assets.map((asset) => (
+            <div
+              className="border-border flex min-w-0 flex-col border-r last:border-r-0"
+              key={asset.id}
+            >
+              <ImagePane asset={asset} labels={labels} projectId={projectId} />
+              <div className="border-border min-w-0 border-t p-3">
                 <Metadata
-                  asset={single}
+                  asset={asset}
                   catalog={catalog}
+                  compact
                   formatDate={formatDate}
                   labels={labels}
                 />
                 <Review
-                  asset={single}
+                  asset={asset}
                   busy={busy}
-                  draft={drafts[single.id] ?? single.review?.feedback ?? ""}
+                  compact
+                  draft={drafts[asset.id] ?? asset.review?.feedback ?? ""}
                   labels={labels}
                   onApprove={onApprove}
                   onClearReview={onClearReview}
-                  onDraftChange={(value) => onDraftChange(single.id, value)}
+                  onDraftChange={(value) => onDraftChange(asset.id, value)}
                   onReject={onReject}
                 />
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    onClick={() => onRegenerate(single)}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    {labels.regenerate}
-                  </Button>
-                  <Button
-                    onClick={() => onUseAsReference(single)}
-                    size="sm"
-                    variant="secondary"
-                  >
-                    {labels.refine}
-                  </Button>
-                  <Button asChild size="sm" variant="ghost">
-                    <a
-                      download={`v${single.version}.${single.settings?.outputFormat ?? "png"}`}
-                      href={assetContentUrl(projectId, single.id)}
-                    >
-                      <Download aria-hidden />
-                      {labels.download}
-                    </a>
-                  </Button>
-                </div>
-              </aside>
-            </>
-          ) : (
-            assets.map((asset) => (
-              <div
-                className="border-border flex min-w-0 flex-col border-r last:border-r-0"
-                key={asset.id}
-              >
-                <ImagePane
-                  asset={asset}
-                  labels={labels}
-                  projectId={projectId}
-                />
-                <div className="border-border min-w-0 border-t p-3">
-                  <Metadata
-                    asset={asset}
-                    catalog={catalog}
-                    compact
-                    formatDate={formatDate}
-                    labels={labels}
-                  />
-                  <Review
-                    asset={asset}
-                    busy={busy}
-                    compact
-                    draft={drafts[asset.id] ?? asset.review?.feedback ?? ""}
-                    labels={labels}
-                    onApprove={onApprove}
-                    onClearReview={onClearReview}
-                    onDraftChange={(value) => onDraftChange(asset.id, value)}
-                    onReject={onReject}
-                  />
-                </div>
               </div>
-            ))
-          )}
+            </div>
+          ))}
         </div>
       </DialogContent>
     </Dialog>
