@@ -59,8 +59,6 @@ vi.mock("next-intl", () => ({
       "billingCta.statusUnavailable": "This task is out of credits.",
       actionChargedCredits: "charged {credits} credits",
       actionTriedChargedCredits: "tried to charge {credits} credits",
-      sendWith: "Send with",
-      ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
       fileLabel: "File",
       "channelApp.sokosumi": "Sokosumi",
@@ -122,40 +120,36 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-os-detection", () => ({
-  useOSDetection: () => ({
-    os: "MacOS",
-    isMobile: false,
-  }),
-}));
-
-const {
-  createTaskCommentMock,
-  loadOlderTaskActivityEventsMock,
-  markdownEditorProps,
-} = vi.hoisted(() => ({
-  createTaskCommentMock: vi.fn(),
-  loadOlderTaskActivityEventsMock: vi.fn(),
-  markdownEditorProps: {
-    current: null as null | {
-      onChange: (value: string) => void;
-      mentions?: Record<string, { value: string }>;
+const { createTaskCommentMock, loadOlderTaskActivityEventsMock, editorProps } =
+  vi.hoisted(() => ({
+    createTaskCommentMock: vi.fn(),
+    loadOlderTaskActivityEventsMock: vi.fn(),
+    editorProps: {
+      current: null as null | {
+        value: string;
+        onChange: (value: string) => void;
+        mentions?: Record<string, { value: string }>;
+      },
     },
-  },
-}));
+  }));
 
 vi.mock("@/lib/actions/task/action", () => ({
   createTaskComment: createTaskCommentMock,
   loadOlderTaskActivityEvents: loadOlderTaskActivityEventsMock,
 }));
 
-vi.mock("./markdown-editor", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./markdown-editor")>();
+vi.mock("@/components/chat/composer-wysiwyg-editor", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/components/chat/composer-wysiwyg-editor")
+    >();
   return {
     ...actual,
-    MarkdownEditor: (props: Parameters<typeof actual.MarkdownEditor>[0]) => {
-      markdownEditorProps.current = props;
-      return <actual.MarkdownEditor {...props} />;
+    ComposerWysiwygEditor: (
+      props: Parameters<typeof actual.ComposerWysiwygEditor>[0],
+    ) => {
+      editorProps.current = props;
+      return <actual.ComposerWysiwygEditor {...props} />;
     },
   };
 });
@@ -303,7 +297,6 @@ const baseProps = {
   taskId: "task-1",
   title: "Activity",
   placeholder: "Write a comment...",
-  attachLabel: "Attach",
   submitLabel: "Submit",
   actorCoworkerLabel: "Coworker",
   actorUserLabel: "User",
@@ -1160,13 +1153,11 @@ describe("TaskActivitySection", () => {
         />,
       );
 
-      expect(markdownEditorProps.current?.mentions).toMatchObject({
+      expect(editorProps.current?.mentions).toMatchObject({
         "agent-1": { value: "Writer" },
         "user-2": { value: "Ada" },
       });
-      expect(markdownEditorProps.current?.mentions).not.toHaveProperty(
-        "user-1",
-      );
+      expect(editorProps.current?.mentions).not.toHaveProperty("user-1");
     });
 
     it("does not send the viewer when they @ themselves", async () => {
@@ -1174,7 +1165,7 @@ describe("TaskActivitySection", () => {
       render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
 
       act(() => {
-        markdownEditorProps.current?.onChange("joining @user-1:user");
+        editorProps.current?.onChange("joining @user-1:user");
       });
       await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -1198,7 +1189,7 @@ describe("TaskActivitySection", () => {
       );
 
       act(() => {
-        markdownEditorProps.current?.onChange(
+        editorProps.current?.onChange(
           "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
         );
       });
@@ -1224,7 +1215,7 @@ describe("TaskActivitySection", () => {
       );
 
       act(() => {
-        markdownEditorProps.current?.onChange("Thanks @user-2:ada");
+        editorProps.current?.onChange("Thanks @user-2:ada");
       });
       await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -1567,7 +1558,7 @@ describe("TaskActivitySection", () => {
     render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
 
     act(() => {
-      markdownEditorProps.current?.onChange("Brand new");
+      editorProps.current?.onChange("Brand new");
     });
     await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -1582,5 +1573,23 @@ describe("TaskActivitySection", () => {
     expect(highlightListMessageMock).toHaveBeenCalled();
     const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
     expect(String(targetId)).toMatch(/^optimistic:/);
+  });
+
+  it("restores the draft when the comment fails to send", async () => {
+    createTaskCommentMock.mockRejectedValue(new Error("offline"));
+    const { container } = render(<TaskActivitySection {...baseProps} />);
+
+    act(() => {
+      editorProps.current?.onChange("Keep me");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(createTaskCommentMock).toHaveBeenCalled();
+      expect(editorProps.current?.value).toBe("Keep me");
+    });
+    expect(
+      container.querySelector('[data-message-id^="optimistic:"]'),
+    ).toBeNull();
   });
 });

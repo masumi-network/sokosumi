@@ -3,23 +3,18 @@
 import {
   extractFileLikeLinks,
   extractHttpLinks,
-  formatTaskAttachmentMarkdown,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
-import { ArrowUp, Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   useTransition,
 } from "react";
-import { toast } from "sonner";
 import { CHAT_MESSAGE_LIST_ATTRIBUTE } from "@/app/chat/chat-message-list";
 import { highlightListMessage } from "@/app/chat/utils/room-message-highlight";
 import { convertAgentNamesToMentionOptions } from "@/app/tasks/utils/agent-names";
@@ -38,18 +33,11 @@ import {
 import { getTaskEventChargePresentation } from "@/app/tasks/utils/task-event-charge-presentation";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
-import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { TimeAgo } from "@/components/time-ago";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  FileUpload,
-  FileUploadDropzone,
-  FileUploadTrigger,
-} from "@/components/ui/file-upload";
 import { Separator } from "@/components/ui/separator";
-import { useOSDetection } from "@/hooks/use-os-detection";
 import {
   createTaskComment,
   loadOlderTaskActivityEvents,
@@ -66,23 +54,14 @@ import {
 } from "@/lib/constants/channel-icons";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
-import { createFileUploadProgressToast } from "@/lib/utils/file-upload-progress-toast";
 import {
   formatMentionsAsMarkdownLinks,
   parseMentions,
 } from "@/lib/utils/mention-parser";
-import {
-  extractTaskAttachmentUrls,
-  removeTaskAttachmentLinks,
-  sanitizeTaskAttachmentLabel,
-} from "@/lib/utils/task-attachments";
-import { uploadTaskAttachment } from "@/lib/utils/task-attachments.client";
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
-import { getUserFileUploadErrorMessage } from "@/lib/utils/user-file-upload.client";
-import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
+import { TaskActivityComposer } from "./task-activity-composer";
 import { TaskActivitySubscribeControl } from "./task-activity-subscribe";
-import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
@@ -93,7 +72,6 @@ interface TaskActivityProps {
   taskId: string;
   title: string;
   placeholder: string;
-  attachLabel: string;
   submitLabel: string;
   actorCoworkerLabel: string;
   actorUserLabel: string;
@@ -209,7 +187,6 @@ export function TaskActivitySection({
   taskId,
   title,
   placeholder,
-  attachLabel: _attachLabel,
   submitLabel,
   actorCoworkerLabel,
   actorUserLabel,
@@ -240,19 +217,11 @@ export function TaskActivitySection({
     [agentNameById],
   );
   const router = useRouter();
-  const formRef = useRef<HTMLFormElement | null>(null);
-  const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
-  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
-  const activeUploadControllersRef = useRef(new Set<AbortController>());
-  const [comment, setComment] = useState("");
-  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
-  const [uploadingAttachmentsCount, setUploadingAttachmentsCount] = useState(0);
-  const [isPending, startTransition] = useTransition();
+  const [isSending, startSending] = useTransition();
   const [, startExpandTransition] = useTransition();
   const [localEvents, setLocalEvents] = useState<TaskEvent[]>(events);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [pendingJumpId, setPendingJumpId] = useState<string | null>(null);
-  const { os, isMobile } = useOSDetection();
   // Match chat and Core `excludeUserId`: @ of yourself does not enroll the writer.
   const viewerId = currentUser?.id;
   const mentionOptions = useMemo(() => {
@@ -278,10 +247,6 @@ export function TaskActivitySection({
     }
     return names;
   }, [userById, mentionableUsers, viewerId]);
-  const attachmentUrls = useMemo(
-    () => extractTaskAttachmentUrls(comment),
-    [comment],
-  );
 
   useEffect(() => {
     setCommentsExpanded(false);
@@ -304,15 +269,6 @@ export function TaskActivitySection({
       );
     });
   }, [events, taskId]);
-
-  const abortActiveUploads = useCallback(() => {
-    for (const controller of activeUploadControllersRef.current) {
-      controller.abort();
-    }
-    activeUploadControllersRef.current.clear();
-  }, []);
-
-  useEffect(() => abortActiveUploads, [abortActiveUploads]);
 
   const localCommentCount = localEvents.filter(
     (event) => event.comment != null,
@@ -351,15 +307,6 @@ export function TaskActivitySection({
       setPendingJumpId(null);
     }
   }, [pendingJumpId, localEvents, commentsExpanded, feedItems]);
-
-  const trimmedComment = comment.trim();
-  const isUploadingAttachments = uploadingAttachmentsCount > 0;
-  const isSubmitDisabled =
-    !canComment ||
-    isPending ||
-    trimmedComment.length === 0 ||
-    !currentUser?.id ||
-    isUploadingAttachments;
 
   function handleJumpToRecent() {
     if (!latestCommentId) {
@@ -416,19 +363,14 @@ export function TaskActivitySection({
     });
   }
 
-  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (isSubmitDisabled) {
-      return;
-    }
-
+  function handleSend(comment: string): Promise<boolean> {
     const optimisticEvent: TaskEvent = {
       id: `optimistic:${Date.now()}`,
       createdAt: new Date(),
       updatedAt: new Date(),
       taskId,
       status: null,
-      comment: trimmedComment,
+      comment,
       authenticationUrl: null,
       channel: Channel.SOKOSUMI,
       origin: Channel.SOKOSUMI,
@@ -463,87 +405,29 @@ export function TaskActivitySection({
     );
     const mentionedUserIds = [
       ...new Set(
-        parseMentions(trimmedComment)
+        parseMentions(comment)
           .map((mention) => mention.id)
           .filter((id) => memberIds.has(id)),
       ),
     ];
 
     setLocalEvents((prev) => [...prev, optimisticEvent]);
-    setComment("");
 
-    startTransition(() => {
-      void (async () => {
+    return new Promise((resolve) => {
+      startSending(async () => {
         try {
-          await createTaskComment({
-            taskId,
-            comment: trimmedComment,
-            mentionedUserIds,
-          });
+          await createTaskComment({ taskId, comment, mentionedUserIds });
           router.refresh();
+          resolve(true);
         } catch {
           setLocalEvents((prev) =>
             prev.filter((entry) => entry.id !== optimisticEvent.id),
           );
-          setComment(trimmedComment);
+          resolve(false);
         }
-      })();
+      });
     });
   }
-
-  const handleAttachFiles = async (files: File[]) => {
-    if (files.length === 0) return;
-
-    const uploadToast = createFileUploadProgressToast({
-      files,
-      labels: {
-        uploadingFile: getTaskAttachmentUploadLabelTemplate(t, "uploadingFile"),
-        uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-          t,
-          "uploadingFiles",
-        ),
-      },
-    });
-
-    const controller = new AbortController();
-    activeUploadControllersRef.current.add(controller);
-    setUploadingAttachmentsCount((count) => count + 1);
-    try {
-      for (const [index, file] of files.entries()) {
-        const uploadedUrl = await uploadTaskAttachment(taskId, file, {
-          abortSignal: controller.signal,
-          onUploadProgress: (progress) => {
-            uploadToast.updateFileProgress(index, progress);
-          },
-        });
-        uploadToast.markFileComplete(index);
-        const safeName = sanitizeTaskAttachmentLabel(file.name, t("fileLabel"));
-        if (markdownEditorRef.current) {
-          markdownEditorRef.current.insertLink(safeName, uploadedUrl);
-          markdownEditorRef.current.insertText("\n");
-          continue;
-        }
-        const markdownLink = formatTaskAttachmentMarkdown(
-          safeName,
-          uploadedUrl,
-        );
-        setComment(
-          (prev) => `${prev}${prev.endsWith("\n") ? "" : "\n"}${markdownLink}`,
-        );
-      }
-      uploadToast.dismiss();
-      router.refresh();
-    } catch (error) {
-      uploadToast.dismiss();
-      toast.error(
-        getUserFileUploadErrorMessage(error, t("uploadFileErrorRetry")),
-      );
-    } finally {
-      activeUploadControllersRef.current.delete(controller);
-      setPendingUploadFiles([]);
-      setUploadingAttachmentsCount((count) => count - 1);
-    }
-  };
 
   return (
     <section className="space-y-4">
@@ -890,90 +774,15 @@ export function TaskActivitySection({
       ) : null}
 
       {canComment ? (
-        <form
-          ref={formRef}
-          onSubmit={handleSubmit}
-          className="border-border rounded-lg border p-3"
-        >
-          <FileUpload
-            value={pendingUploadFiles}
-            onValueChange={setPendingUploadFiles}
-            onAccept={(files) => {
-              void handleAttachFiles(files);
-            }}
-            multiple
-          >
-            <FileUploadDropzone
-              className="data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent"
-              onClick={(event) => event.preventDefault()}
-            >
-              <MarkdownEditor
-                ref={markdownEditorRef}
-                placeholder={placeholder}
-                className="border-border bg-senary w-full rounded-lg border"
-                value={comment}
-                onChange={setComment}
-                onSubmitShortcut={() => formRef.current?.requestSubmit()}
-                onAttachClick={() => attachmentTriggerRef.current?.click()}
-                attachLabel={_attachLabel}
-                isAttachmentUploading={isUploadingAttachments}
-                mentions={mentionOptions}
-              />
-              <FileUploadTrigger asChild>
-                <button
-                  ref={attachmentTriggerRef}
-                  type="button"
-                  className="sr-only"
-                  aria-label={_attachLabel}
-                >
-                  {_attachLabel}
-                </button>
-              </FileUploadTrigger>
-            </FileUploadDropzone>
-          </FileUpload>
-          {attachmentUrls.length > 0 ? (
-            <div className="mt-2 flex flex-wrap gap-3">
-              {attachmentUrls.map((url) => (
-                <FileChipMiniPreviewWithMetadata
-                  key={url}
-                  url={url}
-                  onRemove={() =>
-                    setComment((prev) => removeTaskAttachmentLinks(prev, [url]))
-                  }
-                  removeLabel={t("removeAttachment")}
-                />
-              ))}
-            </div>
-          ) : null}
-          <div className="mt-2 flex items-center gap-3">
-            {!isMobile ? (
-              <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                <span>{t("sendWith")}</span>
-                <div className="flex items-center gap-0.5 opacity-60">
-                  {os === "MacOS" ? (
-                    <Command className="size-3" aria-hidden />
-                  ) : (
-                    <span className="text-xs">{t("ctrl")}</span>
-                  )}
-                  <CornerDownLeft className="size-3" aria-hidden />
-                </div>
-              </div>
-            ) : null}
-            <Button
-              size="icon"
-              className="ml-auto size-7 rounded-full"
-              aria-label={submitLabel}
-              type="submit"
-              disabled={isSubmitDisabled}
-            >
-              {isPending ? (
-                <Loader2 className="size-3.5 animate-spin" aria-hidden />
-              ) : (
-                <ArrowUp className="size-3.5" aria-hidden />
-              )}
-            </Button>
-          </div>
-        </form>
+        <TaskActivityComposer
+          taskId={taskId}
+          placeholder={placeholder}
+          submitLabel={submitLabel}
+          mentions={mentionOptions}
+          sendDisabled={!currentUser?.id}
+          isSending={isSending}
+          onSend={handleSend}
+        />
       ) : null}
     </section>
   );

@@ -789,7 +789,6 @@ async function TaskActivitySectionContent({
       taskId={taskId}
       title={t("activity")}
       placeholder={t("commentPlaceholder")}
-      attachLabel={t("attach")}
       submitLabel={t("submit")}
       actorCoworkerLabel={t("actorCoworker")}
       actorUserLabel={t("actorUser")}
