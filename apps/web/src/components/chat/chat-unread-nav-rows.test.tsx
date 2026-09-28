@@ -440,6 +440,9 @@ describe("ChatUnreadNavRows", () => {
     });
 
     it("stays unbound below the mobile breakpoint", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
       sidebarMock.isMobile = true;
       const onUnreadOnlyChange = vi.fn();
       renderRows([], { onUnreadOnlyChange });
