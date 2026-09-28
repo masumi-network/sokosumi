@@ -6431,7 +6431,8 @@
         "suggestionExcerpt": "De este documento",
         "bulkMoreCategories": "{count} más…",
         "bulkCategorySearch": "Buscar categorías",
-        "bulkCategoryEmpty": "No hay categorías que coincidan"
+        "bulkCategoryEmpty": "No hay categorías que coincidan",
+        "relatedNoText": "No hay archivos relacionados. Este documento no tiene texto legible."
       }
     },
     "SokoBot": {

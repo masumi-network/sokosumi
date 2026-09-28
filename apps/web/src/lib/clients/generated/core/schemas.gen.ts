@@ -12400,9 +12400,10 @@ export const FileRelatedResponseSchema = {
                 'ok',
                 'empty',
                 'not-indexed',
+                'no-text',
                 'unavailable'
             ],
-            description: '\'not-indexed\' means processing has not finished; \'unavailable\' means ranking failed and the reader may retry.'
+            description: '\'not-indexed\' means processing has not finished and neighbours may still appear; \'no-text\' means processing finished and the document has no readable text, so none are coming; \'unavailable\' means ranking failed and the reader may retry.'
         }
     },
     required: [
@@ -12561,6 +12562,10 @@ export const FileSearchMetaSchema = {
             type: 'boolean',
             description: 'The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.'
         },
+        catalogIncomplete: {
+            type: 'boolean',
+            description: 'Adoption of pre-existing files did not finish, so this workspace\'s catalog is known to be missing files. Results are correct for what is catalogued.'
+        },
         indexCoverage: {
             type: 'object',
             properties: {
@@ -12592,6 +12597,7 @@ export const FileSearchMetaSchema = {
         'hasMore',
         'nextCursor',
         'restarted',
+        'catalogIncomplete',
         'indexCoverage'
     ]
 } as const;

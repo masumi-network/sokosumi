@@ -6431,7 +6431,8 @@
         "suggestionExcerpt": "From this document",
         "bulkMoreCategories": "{count} more…",
         "bulkCategorySearch": "Search categories",
-        "bulkCategoryEmpty": "No categories match"
+        "bulkCategoryEmpty": "No categories match",
+        "relatedNoText": "No related files. This document has no readable text."
       }
     },
     "SokoBot": {

@@ -1,4 +1,4 @@
-import { FileMetadataState } from "@sokosumi/database";
+import { FileExtractionState, FileMetadataState } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
 
 import prisma from "@/lib/db/prisma";
@@ -176,7 +176,26 @@ export function seedCandidateTerms(text: string): string[] {
 export const RELATED_RANK_LIMIT = 12;
 export const RELATED_RESULT_LIMIT = 6;
 
-export type RelatedState = "ok" | "empty" | "not-indexed" | "unavailable";
+export type RelatedState =
+  | "ok"
+  | "empty"
+  | "not-indexed"
+  | "no-text"
+  | "unavailable";
+
+/**
+ * The only extraction states in which "processing has not finished" is a
+ * true sentence.
+ *
+ * Everything else is terminal, and a seed with no chunks in a terminal
+ * state has no neighbours coming — not now and not later. A null state is
+ * a resource with no version row for its current revision yet, which is
+ * genuinely "not started".
+ */
+const EXTRACTION_STILL_RUNNING: FileExtractionState[] = [
+  FileExtractionState.PENDING,
+  FileExtractionState.RUNNING,
+];
 
 export interface RelatedResult {
   items: FileResourceDto[];
@@ -204,6 +223,46 @@ export async function findRelatedFiles(input: {
   });
 
   if (passages.length === 0) {
+    /**
+     * No passages, and why that is, rather than only that it is.
+     *
+     * This answered "not-indexed" for every seed with no chunks, and the
+     * API's own description of that value is "processing has not
+     * finished". On a scanned PDF that sentence is false: extraction ran,
+     * finished, and reported UNSUPPORTED because there is no text layer.
+     * The page then said two things at once — the Processing panel
+     * explaining that text is not read from images, and Related directly
+     * below it promising results when processing finishes. Nothing was
+     * coming. The same page shape appears for an image, for an encrypted
+     * document, and for a failed extraction.
+     *
+     * A terminal outcome reported as a pending one is the defect class
+     * this feature keeps producing, and a panel that says "wait" forever
+     * is the ungraceful way to fail.
+     *
+     * INDEXED with zero chunks is folded in here deliberately, and it is
+     * worth being explicit about: extraction believes it finished and
+     * produced nothing. The reader is not the person who can act on that,
+     * and telling them to wait is false whatever the cause, so the panel
+     * reports terminal — but it is also the one combination here that
+     * suggests something upstream went wrong rather than the document
+     * simply having no text, so it says so once in the log rather than
+     * being silently absorbed.
+     */
+    const state = seed.extractionState;
+    if (state !== null && !EXTRACTION_STILL_RUNNING.includes(state)) {
+      if (state === FileExtractionState.INDEXED) {
+        console.info("[files] indexed document has no chunks", {
+          resourceId: seed.id,
+          contentRevision: seed.contentRevision,
+          consequence:
+            "Reported as having no readable text. Extraction reported " +
+            "success, so this is more likely an extraction fault than a " +
+            "document without text.",
+        });
+      }
+      return { items: [], state: "no-text" };
+    }
     return { items: [], state: "not-indexed" };
   }
 

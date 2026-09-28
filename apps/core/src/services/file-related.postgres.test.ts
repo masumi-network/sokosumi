@@ -294,6 +294,113 @@ describe.skipIf(!enabled)("related documents against PostgreSQL", () => {
     expect(result.items).toHaveLength(0);
   });
 
+  /**
+   * A scan is not a document that is still being read.
+   *
+   * On a PDF with no text layer the page said two things at once. The
+   * Processing panel: "This PDF has no text layer, so it is probably a
+   * scan. Text is not read from images." Related files, directly below
+   * it: "Related files will appear when processing finishes." Processing
+   * had finished. Nothing was coming, and nothing ever would — the state
+   * is UNSUPPORTED and it is terminal.
+   *
+   * Every seed with no chunks answered `not-indexed`, whose own OpenAPI
+   * description is "processing has not finished". For everything except
+   * PENDING and RUNNING that sentence is false, so the state is now
+   * chosen by what extraction actually reported.
+   *
+   * The case above keeps its exact meaning: it creates its version with
+   * no `extractionState`, and the column defaults to PENDING, so "not
+   * finished" is still true for it.
+   */
+  it.each([
+    ["UNSUPPORTED", "a scan with no text layer"],
+    ["ENCRYPTED", "a document nothing can open"],
+    ["FAILED", "an extraction that gave up"],
+    ["QUARANTINED", "a document held back"],
+    ["INDEXED", "extraction reporting success and writing nothing"],
+  ] as const)(
+    "does not promise neighbours for %s — %s",
+    async (extractionState, _why) => {
+      const terminal = await prisma.fileResource.create({
+        data: {
+          workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope: FileSourceScope.USER,
+          sourceId: `drive/users/${ownerId}/${extractionState}.pdf`,
+          ownerUserId: ownerId,
+          displayName: `${extractionState}.pdf`,
+          normalizedName: `${extractionState.toLowerCase()}.pdf`,
+          mimeType: "application/pdf",
+          sizeBytes: 4,
+          lifecycle: FileResourceLifecycle.ACTIVE,
+          versions: {
+            create: {
+              revision: 1,
+              objectKey: `drive/users/${ownerId}/${extractionState}.pdf`,
+              mimeType: "application/pdf",
+              sizeBytes: 4,
+              extractionState,
+            },
+          },
+        },
+        select: { id: true },
+      });
+
+      const result = await findRelatedFiles({
+        workspaceId,
+        actor: actor(),
+        resourceId: terminal.id,
+      });
+
+      expect(
+        result.state,
+        `extraction finished as ${extractionState} and the panel still ` +
+          "asks the reader to wait for results that are never coming",
+      ).not.toBe("not-indexed");
+      expect(result.state).toBe("no-text");
+      expect(result.items).toHaveLength(0);
+    },
+  );
+
+  it("still says processing when processing really is running", async () => {
+    // The other direction, so the fix is not achieved by never saying
+    // "not-indexed" at all. RUNNING is one of the two states in which the
+    // promise is true.
+    const running = await prisma.fileResource.create({
+      data: {
+        workspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope: FileSourceScope.USER,
+        sourceId: `drive/users/${ownerId}/running.pdf`,
+        ownerUserId: ownerId,
+        displayName: "running.pdf",
+        normalizedName: "running.pdf",
+        mimeType: "application/pdf",
+        sizeBytes: 4,
+        lifecycle: FileResourceLifecycle.ACTIVE,
+        versions: {
+          create: {
+            revision: 1,
+            objectKey: `drive/users/${ownerId}/running.pdf`,
+            mimeType: "application/pdf",
+            sizeBytes: 4,
+            extractionState: "RUNNING",
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    const result = await findRelatedFiles({
+      workspaceId,
+      actor: actor(),
+      resourceId: running.id,
+    });
+
+    expect(result.state).toBe("not-indexed");
+  });
+
   it("relates on a single rare shared term at the full seed-term limit", async () => {
     /**
      * The band the rank floor was silently eating.

@@ -151,6 +151,16 @@ export function DriveAllFilesPanel({
   const abortRef = useRef<AbortController | null>(null);
   const lastSelectedIndexRef = useRef<number | null>(null);
 
+  /**
+   * A stable identity for the active store, used as an effect dependency
+   * so a workspace switch re-runs the load.
+   *
+   * Not rendered. It used to also be written into an `sr-only` span with
+   * a `data-testid`, which hides it from sight and not from assistive
+   * technology — so a screen reader read the organisation id aloud as
+   * part of the All files panel. Nothing in the repository ever
+   * referenced that test id: it was a hook that shipped without its test.
+   */
   const storeKey = `${store.scope}:${store.organizationId ?? ""}`;
 
   const runSearch = useCallback(
@@ -897,10 +907,6 @@ export function DriveAllFilesPanel({
           ) : null}
         </>
       )}
-
-      <span className="sr-only" data-testid="drive-all-files-store">
-        {storeKey}
-      </span>
     </div>
   );
 }

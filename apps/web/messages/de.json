@@ -6431,7 +6431,8 @@
         "suggestionExcerpt": "Aus diesem Dokument",
         "bulkMoreCategories": "{count} weitere…",
         "bulkCategorySearch": "Kategorien durchsuchen",
-        "bulkCategoryEmpty": "Keine passenden Kategorien"
+        "bulkCategoryEmpty": "Keine passenden Kategorien",
+        "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text."
       }
     },
     "SokoBot": {

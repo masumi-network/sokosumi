@@ -210,10 +210,12 @@ export const fileSearchResponseSchema = z
 export const fileRelatedResponseSchema = z
   .object({
     items: z.array(fileResourceSchema),
-    state: z.enum(["ok", "empty", "not-indexed", "unavailable"]).openapi({
-      description:
-        "'not-indexed' means processing has not finished; 'unavailable' means ranking failed and the reader may retry.",
-    }),
+    state: z
+      .enum(["ok", "empty", "not-indexed", "no-text", "unavailable"])
+      .openapi({
+        description:
+          "'not-indexed' means processing has not finished and neighbours may still appear; 'no-text' means processing finished and the document has no readable text, so none are coming; 'unavailable' means ranking failed and the reader may retry.",
+      }),
   })
   .openapi("FileRelatedResponse");
 

@@ -485,6 +485,23 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
           <p className="text-muted-foreground mt-1 text-sm">
             {t("relatedNotIndexed")}
           </p>
+        ) : relatedState === "no-text" ? (
+          /*
+           * Terminal, and said as terminal.
+           *
+           * This case used to arrive as "not-indexed" and render "Related
+           * files will appear when processing finishes" — directly below
+           * a Processing panel explaining that this PDF is a scan and
+           * text is not read from images. Two panels on one page
+           * contradicting each other, with the one that was wrong being
+           * the one that asked the reader to wait for something that was
+           * never coming.
+           *
+           * Not `relatedEmpty`: "No related files yet" keeps the "yet".
+           */
+          <p className="text-muted-foreground mt-1 text-sm">
+            {t("relatedNoText")}
+          </p>
         ) : relatedState === "unavailable" ? (
           <div className="mt-1 flex items-center gap-2">
             <p className="text-muted-foreground text-sm">

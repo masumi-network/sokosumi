@@ -3571,9 +3571,9 @@ export type FileResource = {
 export type FileRelatedResponse = {
     items: Array<FileResource>;
     /**
-     * 'not-indexed' means processing has not finished; 'unavailable' means ranking failed and the reader may retry.
+     * 'not-indexed' means processing has not finished and neighbours may still appear; 'no-text' means processing finished and the document has no readable text, so none are coming; 'unavailable' means ranking failed and the reader may retry.
      */
-    state: 'ok' | 'empty' | 'not-indexed' | 'unavailable';
+    state: 'ok' | 'empty' | 'not-indexed' | 'no-text' | 'unavailable';
 };
 
 export type UpdateFileMetadataRequest = {
@@ -3627,6 +3627,10 @@ export type FileSearchMeta = {
      * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
      */
     restarted: boolean;
+    /**
+     * Adoption of pre-existing files did not finish, so this workspace's catalog is known to be missing files. Results are correct for what is catalogued.
+     */
+    catalogIncomplete: boolean;
     /**
      * Coverage over this window only, so the UI can be honest about what is searchable.
      */
