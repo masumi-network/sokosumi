@@ -2578,7 +2578,7 @@
       "back": "Volver al proyecto",
       "updated": "Actualizado",
       "emptyTitle": "Aún no hay imágenes",
-      "emptyBody": "Escribe un prompt arriba y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
+      "emptyBody": "Escribe un prompt abajo y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",

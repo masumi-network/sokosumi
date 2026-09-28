@@ -2578,7 +2578,7 @@
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
       "emptyTitle": "Noch keine Bilder",
-      "emptyBody": "Schreibe oben einen Prompt und wähle die Modelle, auf denen er laufen soll. Du bekommst Versionen zurück, die du vergleichen und verfeinern kannst.",
+      "emptyBody": "Schreibe unten einen Prompt und wähle die Modelle, auf denen er laufen soll. Du bekommst Versionen zurück, die du vergleichen und verfeinern kannst.",
       "promptPlaceholder": "Beschreibe das Bild…",
       "generate": "Erzeugen",
       "refine": "Verfeinern",
