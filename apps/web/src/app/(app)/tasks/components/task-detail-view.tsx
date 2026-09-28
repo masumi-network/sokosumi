@@ -7,10 +7,8 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import {
-  type MentionableUser,
-  TaskActivitySection,
-} from "@/app/tasks/components/task-activity";
+import { TaskActivityVariantHost } from "@/app/tasks/components/activity-variants/activity-variant-host";
+import { type MentionableUser } from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -784,7 +782,7 @@ async function TaskActivitySectionContent({
   const agentNameById = buildAgentNameById(agents);
 
   return (
-    <TaskActivitySection
+    <TaskActivityVariantHost
       key={taskId}
       taskId={taskId}
       title={t("activity")}
