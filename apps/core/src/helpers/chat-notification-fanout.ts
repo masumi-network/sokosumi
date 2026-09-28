@@ -21,6 +21,7 @@ import { isPrismaTransactionConflict } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 
 export interface FanOutChatNotificationsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   organizationId: string | null;
@@ -450,6 +451,7 @@ export async function fanOutChatNotifications(
         readerUserIds: notifyUserIds,
       });
     } catch (error) {
+      if (params.throwOnError) throw error;
       Sentry.captureException(error, {
         extra: {
           roomId: params.roomId,
@@ -505,6 +507,7 @@ export async function fanOutChatNotifications(
         );
       }
     } catch (error) {
+      if (params.throwOnError) throw error;
       Sentry.captureException(error, {
         extra: {
           roomId: params.roomId,

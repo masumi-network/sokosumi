@@ -1,8 +1,12 @@
 name: Cloud agent database teardown
 
 on:
-  pull_request_target:
-    types: [closed]
+  # workflow_run always loads THIS file from the default branch. Do not switch
+  # back to a pull_request_target trigger: that event loads YAML from the PR
+  # base, so a same-repo branch that edits this file can run with NEON_API_KEY.
+  workflow_run:
+    workflows: ["PR closed"]
+    types: [completed]
   workflow_dispatch:
     inputs:
       agent_id:
@@ -12,19 +16,19 @@ on:
 
 permissions:
   contents: read
+  actions: read
   pull-requests: read
 
 jobs:
   teardown:
     name: Tear down agent Neon branch
-    # Same-repo only: pull_request_target would otherwise pass NEON secrets to
-    # fork close events. Cloud agent PRs are always same-repo.
-    # `--from-text` only tears down `bc-…` ids found in the body, so a PR
-    # without one skips here instead of paying a runner to find nothing.
+    # workflow_run is default-branch YAML. Skip failed/cancelled signals.
+    # workflow_dispatch still uses the selected ref's YAML — only dispatch
+    # from the default branch (see the step-level ref pin below).
     if: >
       github.event_name == 'workflow_dispatch' ||
-      (github.event.pull_request.head.repo.full_name == github.repository &&
-      contains(github.event.pull_request.body, 'bc-'))
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -35,13 +39,16 @@ jobs:
           persist-credentials: false
 
       - name: Teardown from closed pull request
-        if: ${{ github.event_name == 'pull_request_target' }}
+        if: ${{ github.event_name == 'workflow_run' }}
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
-          PR_BODY: ${{ github.event.pull_request.body }}
-        run: node scripts/cloud-agent-db/teardown.mjs --from-text "$PR_BODY"
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
 
       - name: Teardown explicit agent id
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.agent_id != '' }}
@@ -50,4 +57,4 @@ jobs:
           NEON_PROJECT_ID: ${{ secrets.NEON_PROJECT_ID }}
           NEON_PARENT_BRANCH: ${{ vars.NEON_PARENT_BRANCH }}
           AGENT_ID: ${{ inputs.agent_id }}
-        run: node scripts/cloud-agent-db/teardown.mjs --agent-id "$AGENT_ID"
+        run: node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env

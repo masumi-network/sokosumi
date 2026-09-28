@@ -25,12 +25,14 @@ interface MockResponseSpec {
   status: number;
   headers?: Record<string, string>;
   body?: string;
+  chunks?: string[];
+  destroy?: () => void;
 }
 
 interface CapturedRequest {
   url: URL;
   options: { method?: string; headers?: Record<string, string> };
-  body: string | undefined;
+  body: string | Uint8Array | undefined;
 }
 
 /** Builds an http(s).request stub that emits a single response and records the request. */
@@ -43,22 +45,22 @@ function mockRequestImplementation(
     options: { method?: string; headers?: Record<string, string> },
     callback: (message: EventEmitter) => void,
   ) => {
-    let body: string | undefined;
+    let body: string | Uint8Array | undefined;
     const message = Object.assign(new EventEmitter(), {
       statusCode: spec.status,
       statusMessage: "",
       headers: spec.headers ?? {},
-      destroy: vi.fn(),
+      destroy: spec.destroy ?? vi.fn(),
     });
     const request = Object.assign(new EventEmitter(), {
-      write: (chunk: string) => {
+      write: (chunk: string | Uint8Array) => {
         body = chunk;
       },
       end: () => {
         captured?.push({ url, options, body });
         queueMicrotask(() => {
-          if (spec.body) {
-            message.emit("data", Buffer.from(spec.body));
+          for (const chunk of spec.chunks ?? (spec.body ? [spec.body] : [])) {
+            message.emit("data", Buffer.from(chunk));
           }
           message.emit("end");
         });
@@ -95,6 +97,24 @@ describe("ssrfSafeFetch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useAgentMock.mockReturnValue(SENTINEL_AGENT);
+  });
+
+  it("uploads binary bytes unchanged with their byte length through the filtering agent", async () => {
+    const captured: CapturedRequest[] = [];
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({ status: 200 }, captured),
+    );
+    const bytes = new Uint8Array([0, 128, 255]);
+    await ssrfSafeFetch("https://uploads.example.com/file", {
+      method: "PUT",
+      body: bytes,
+      maxResponseBytes: 1024,
+    });
+    expect(captured[0].body).toEqual(bytes);
+    expect(captured[0].options.headers).toEqual({ "Content-Length": "3" });
+    expect(useAgentMock).toHaveBeenCalledWith(
+      "https://uploads.example.com/file",
+    );
   });
 
   it("performs a GET through the filtering agent and returns the response", async () => {
@@ -246,5 +266,62 @@ describe("ssrfSafeFetch", () => {
     await expect(
       ssrfSafeFetch("https://example.com/big.bin", { maxResponseBytes: 50 }),
     ).rejects.toThrow(/body exceeds maxResponseBytes/);
+  });
+  it("observes bytes from redirect and error bodies", async () => {
+    httpsRequestMock
+      .mockImplementationOnce(
+        mockRequestImplementation({
+          status: 302,
+          headers: { location: "https://cdn.example.com/file" },
+          chunks: ["ab", "c"],
+        }),
+      )
+      .mockImplementationOnce(
+        mockRequestImplementation({ status: 503, body: "fail" }),
+      );
+    const observed = vi.fn();
+    const response = await ssrfSafeFetch("https://example.com/file", {
+      maxResponseBytes: 1024,
+      onResponseBytes: observed,
+    });
+    expect(response.status).toBe(503);
+    expect(observed.mock.calls).toEqual([[2], [1], [4]]);
+  });
+
+  it("destroys a response when its shared byte observer rejects", async () => {
+    const destroy = vi.fn();
+    const error = new Error("shared budget expired");
+    const observed = vi.fn(() => {
+      throw error;
+    });
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({
+        status: 200,
+        chunks: ["ab", "cd"],
+        destroy,
+      }),
+    );
+    await expect(
+      ssrfSafeFetch("https://example.com/file", {
+        maxResponseBytes: 1024,
+        onResponseBytes: observed,
+      }),
+    ).rejects.toBe(error);
+    expect(destroy).toHaveBeenCalledOnce();
+    expect(observed).toHaveBeenCalledExactlyOnceWith(2);
+  });
+
+  it("accounts for the chunk that crosses the per-response limit", async () => {
+    const observed = vi.fn();
+    httpsRequestMock.mockImplementation(
+      mockRequestImplementation({ status: 200, body: "abcd" }),
+    );
+    await expect(
+      ssrfSafeFetch("https://example.com/file", {
+        maxResponseBytes: 3,
+        onResponseBytes: observed,
+      }),
+    ).rejects.toThrow(/body exceeds/);
+    expect(observed).toHaveBeenCalledExactlyOnceWith(4);
   });
 });

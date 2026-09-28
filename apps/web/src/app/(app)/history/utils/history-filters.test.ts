@@ -177,8 +177,11 @@ describe("history-filters", () => {
   });
 
   describe("resolveHistoryApiTypes", () => {
-    it("returns task and job when no type filter is selected", () => {
-      expect(resolveHistoryApiTypes(null)).toEqual(["task", "job"]);
+    it("returns every kind when no type filter is selected", () => {
+      // Matches Core's unfiltered feed, which is TASK, JOB and IMAGE. Asking
+      // for a subset here would hide generated images from a reader who has
+      // not filtered anything.
+      expect(resolveHistoryApiTypes(null)).toEqual(["task", "job", "image"]);
     });
 
     it("returns a single type when filtered", () => {

@@ -7,6 +7,9 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => response as T,
   };
 }
@@ -41,6 +44,9 @@ test("tasks list sends search as server q and keeps server matches", async () =>
       } as T;
     },
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   await runTasksCommand({
@@ -96,6 +102,9 @@ test("tasks create posts the payload and returns the task with details", async (
     post: async <T>(path: string, body: unknown) => {
       calls.push({ method: "POST", path, body });
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -159,6 +168,9 @@ test("tasks get returns the task with its events and jobs", async () => {
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -210,6 +222,9 @@ test("tasks comment posts the comment and status and returns the event", async (
     post: async <T>(_path: string, requestBody: unknown) => {
       body = requestBody;
       return { data: { id: "ev-9" } } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -265,6 +280,9 @@ test("tasks get still emits the task when a details fetch fails", async () => {
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];

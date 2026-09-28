@@ -17,12 +17,12 @@ public struct RoomUnreadReads: Equatable, Sendable {
   }
 
   /// A read would still change the room.
-  public var isNeeded: Bool {
+  var isNeeded: Bool {
     readRoom || lookThreads
   }
 }
 
-public func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadReads {
+func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadReads {
   let isMuted = room.mutedAt != nil
   return .init(
     roomId: room.id,
@@ -32,7 +32,7 @@ public func roomUnreadReads(_ room: Components.Schemas.ChatRoom) -> RoomUnreadRe
 }
 
 /// Mark all as read's plan: every room a read would still change, with the reads it needs.
-public func unreadsMarkAllTargets(_ rooms: [Components.Schemas.ChatRoom]) -> [RoomUnreadReads] {
+func unreadsMarkAllTargets(_ rooms: [Components.Schemas.ChatRoom]) -> [RoomUnreadReads] {
   rooms.map(roomUnreadReads).filter(\.isNeeded)
 }
 
@@ -85,6 +85,12 @@ public struct UnreadsFilterList: Equatable, Sendable {
     self.dimmedRoomIds = dimmedRoomIds
   }
 
+  /// Mark all as read is offered, to the sidebar row's button and its View-menu command (SOK-1201) alike,
+  /// while any room a read would still change stands (web's `showMarkAll`).
+  public var showsMarkAll: Bool {
+    !markAllTargets.isEmpty
+  }
+
   /// A listed room with nothing unread, read in this pass or pinned, draws dimmed; the open room never does.
   public func isDimmed(_ roomId: String) -> Bool {
     dimmedRoomIds.contains(roomId)
@@ -92,7 +98,7 @@ public struct UnreadsFilterList: Equatable, Sendable {
 }
 
 /// The filter's list from the rooms (attention applied), the pass so far and the open room.
-public func unreadsFilterList(
+func unreadsFilterList(
   rooms: [Components.Schemas.ChatRoom], pass: UnreadsFilterPass, activeRoomId: String?, hasPendingInvitation: Bool
 ) -> UnreadsFilterList {
   // One answer for what the filter lists and whether the reader is caught up, so the two cannot disagree.

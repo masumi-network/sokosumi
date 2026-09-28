@@ -55,6 +55,9 @@ const labels = {
   loading: "Loading history...",
   error: "Failed to load history",
   updated: "Updated",
+  filesGroup: "Files",
+  filesSeeAll: "See all files",
+  filesFilenameMatch: "Filename match",
 };
 
 function createTaskItem(id: string, title: string): HistoryItem {
@@ -70,6 +73,25 @@ function createTaskItem(id: string, title: string): HistoryItem {
     projectId: null,
     coworkerId: null,
     sokoBotId: null,
+    owner: null,
+  };
+}
+
+function createImageItem(id: string, title: string): HistoryItem {
+  return {
+    id,
+    assetId: id,
+    kind: "image",
+    title,
+    // The literal Core sends. An image has no lifecycle of its own, and
+    // `JobStatusBadge` has no case for this value.
+    status: "active",
+    updatedAt: new Date("2026-09-27T00:00:00.000Z"),
+    archivedAt: null,
+    description: "fal-ai/flux-2-pro \u00b7 3 credits",
+    credits: 3,
+    projectId: "project-7",
+    modelLabel: "FLUX.2 Pro",
     owner: null,
   };
 }
@@ -119,7 +141,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
   });
@@ -139,7 +161,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
   });
@@ -196,7 +218,7 @@ describe("HistorySearchDialog", () => {
     });
   });
 
-  it("passes task and job types when searching", async () => {
+  it("passes every history kind when searching", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
@@ -221,8 +243,63 @@ describe("HistorySearchDialog", () => {
         q: "new",
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
+  });
+
+  /**
+   * The palette had its own copy of the status decision.
+   *
+   * `history-list-item.tsx` got the image branch and this one did not, so every
+   * generated image in the palette rendered a badge reading "Unknown" — the
+   * label `JobStatusBadge` falls back to for a status it has no case for.
+   */
+  it("shows no status badge on an image result", async () => {
+    getHistoryMock.mockImplementation(async () => ({
+      data: [createImageItem("asset-9", "A calm product shot")],
+    }));
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    expect(await screen.findByText("A calm product shot")).toBeInTheDocument();
+    expect(screen.queryByTestId("job-status-badge")).toBeNull();
+    expect(screen.queryByTestId("task-status-badge")).toBeNull();
+  });
+
+  it("still badges a job result", async () => {
+    // The guard for the guard: returning null for everything would also make
+    // the assertion above pass.
+    getHistoryMock.mockImplementation(async () => ({
+      data: [
+        {
+          ...createTaskItem("job-1", "Analyze data"),
+          kind: "job" as const,
+          status: "completed",
+          agentId: "agent-1",
+          agentName: null,
+          agentIcon: null,
+        } as unknown as HistoryItem,
+      ],
+    }));
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={vi.fn()}
+        activeOrganizationId={null}
+        labels={labels}
+      />,
+    );
+
+    expect(await screen.findByText("Analyze data")).toBeInTheDocument();
+    expect(screen.getByTestId("job-status-badge")).toBeInTheDocument();
   });
 });

@@ -14,7 +14,7 @@ import type {
   TaskParticipant,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
-  WorkspaceCalendarItem,
+  WorkspaceCalendarEntry,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -46,6 +46,7 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
+  tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -127,7 +128,7 @@ function assigneeWriteFields(
 }
 
 export interface WorkspaceCalendarPage {
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   pagination: {
     cursor: string | null;
     limit: number;
@@ -329,6 +330,14 @@ export const taskService = (() => {
     }
   }
 
+  async function suggestTaskTags(input: {
+    name?: string;
+    description?: string | null;
+  }) {
+    const result = await coreClient.suggestTaskTags(input);
+    return result.data;
+  }
+
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
@@ -495,6 +504,7 @@ export const taskService = (() => {
     listTaskActivityFeed,
     listTaskEventsBefore,
     createTask,
+    suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,

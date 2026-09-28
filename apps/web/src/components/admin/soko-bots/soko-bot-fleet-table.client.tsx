@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState, useTransition } from "react";
+import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -18,17 +20,31 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listAdminSokoBotsAction } from "@/lib/actions/admin-soko-bots/action";
-import type { AdminSokoBotList } from "@/lib/clients/generated/core";
+import type {
+  AdminSokoBotList,
+  AdminSokoBotListItem,
+} from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
+
+import { attentionReasons } from "./fleet-health-summary";
 
 interface SokoBotFleetTableProps {
   initialList: AdminSokoBotList;
   limit: number;
 }
 
+/** Never used, or switched off by its owner: rarely what an operator is after. */
+function isDormant(item: AdminSokoBotListItem): boolean {
+  return item.archivedAt !== null || item.turnCount === 0;
+}
+
+function lastActivityTime(item: AdminSokoBotListItem): number {
+  return item.lastActivityAt ? new Date(item.lastActivityAt).getTime() : 0;
+}
+
 /**
- * Fleet table. Server-renders the first page; typing re-queries Core through
+ * Fleet table, most recently active first. Server-renders the first page; typing re-queries Core through
  * a server action (owner name/email/bot name) so the filter runs over the
  * whole fleet, not the loaded page.
  */
@@ -40,6 +56,8 @@ export function SokoBotFleetTable({
   const format = useFormatter();
   const [list, setList] = useState(initialList);
   const [search, setSearch] = useState("");
+  const [showDormant, setShowDormant] = useState(false);
+  const dormantSwitchId = useId();
   const [isPending, startTransition] = useTransition();
   const latestRequestId = useRef(0);
 
@@ -59,6 +77,17 @@ export function SokoBotFleetTable({
     });
   }, 300);
 
+  const dormantCount = list.items.filter(isDormant).length;
+  // A search is a question about specific bots; answer it in full.
+  const includeDormant = showDormant || search.trim().length > 0;
+  const rows = useMemo(
+    () =>
+      list.items
+        .filter((item) => includeDormant || !isDormant(item))
+        .sort((a, b) => lastActivityTime(b) - lastActivityTime(a)),
+    [list.items, includeDormant],
+  );
+
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -73,9 +102,20 @@ export function SokoBotFleetTable({
           aria-label={t("searchPlaceholder")}
           className="max-w-sm"
         />
-        <p className="text-muted-foreground text-xs tabular-nums">
-          {t("totalCount", { count: list.total })}
-        </p>
+        <div className="flex items-center gap-2">
+          <Switch
+            id={dormantSwitchId}
+            checked={showDormant}
+            onCheckedChange={setShowDormant}
+            disabled={dormantCount === 0}
+          />
+          <Label
+            htmlFor={dormantSwitchId}
+            className="text-muted-foreground text-xs font-normal tabular-nums"
+          >
+            {t("showDormant", { count: dormantCount })}
+          </Label>
+        </div>
       </div>
 
       <div
@@ -90,25 +130,21 @@ export function SokoBotFleetTable({
               <TableHead>{t("status")}</TableHead>
               <TableHead>{t("version")}</TableHead>
               <TableHead className="text-right">{t("turns")}</TableHead>
-              <TableHead className="text-right">{t("pending")}</TableHead>
-              <TableHead className="text-right">{t("schedules")}</TableHead>
-              <TableHead className="text-right">{t("failures")}</TableHead>
-              <TableHead>{t("runtime")}</TableHead>
-              <TableHead>{t("lastActivity")}</TableHead>
+              <TableHead className="text-right">{t("lastActivity")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {list.items.length === 0 ? (
+            {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={10}
+                  colSpan={6}
                   className="text-muted-foreground py-8 text-center text-sm"
                 >
                   {t("empty")}
                 </TableCell>
               </TableRow>
             ) : (
-              list.items.map((item) => (
+              rows.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell>
                     <Link
@@ -117,9 +153,6 @@ export function SokoBotFleetTable({
                     >
                       {item.name ?? t("unnamed")}
                     </Link>
-                    <span className="text-muted-foreground block font-mono text-xs">
-                      {item.id.slice(0, 8)}
-                    </span>
                   </TableCell>
                   <TableCell>
                     <span className="block truncate">
@@ -137,6 +170,19 @@ export function SokoBotFleetTable({
                           {t("archived")}
                         </StatusBadge>
                       ) : null}
+                      {attentionReasons(item).map((reason) =>
+                        reason.kind === "failures" ||
+                        reason.kind === "pending" ? (
+                          <StatusBadge
+                            key={reason.kind}
+                            tone={
+                              reason.kind === "failures" ? "danger" : "warning"
+                            }
+                          >
+                            {t(reason.kind, { count: reason.count })}
+                          </StatusBadge>
+                        ) : null,
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -149,30 +195,7 @@ export function SokoBotFleetTable({
                   <TableCell className="text-right tabular-nums">
                     {item.turnCount}
                   </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right tabular-nums",
-                      item.pendingDecisionCount > 0 && "text-semantic-warning",
-                    )}
-                  >
-                    {item.pendingDecisionCount}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {item.scheduleCount}
-                  </TableCell>
-                  <TableCell
-                    className={cn(
-                      "text-right tabular-nums",
-                      item.consecutiveTurnFailures > 0 &&
-                        "text-semantic-destructive",
-                    )}
-                  >
-                    {item.consecutiveTurnFailures}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground font-mono text-xs">
-                    {item.runtimeVersion ?? "—"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground text-xs tabular-nums">
+                  <TableCell className="text-muted-foreground text-right text-xs tabular-nums">
                     {item.lastActivityAt
                       ? format.dateTime(item.lastActivityAt, "dateTimeShort")
                       : "—"}

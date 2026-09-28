@@ -9,6 +9,9 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => ({}) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 }
@@ -69,6 +72,9 @@ test("vendors create posts name and slug then prints admin membership", async ()
         },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -109,6 +115,9 @@ test("vendors create uses the last repeated option value", async () => {
           role: "admin",
         },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -193,6 +202,91 @@ test("workspaces list describes an empty organization workspace candidate result
   });
 
   assert.deepEqual(output, ["No organization workspaces found.\n"]);
+});
+
+test("workspaces check emits one JSON result without claiming runtime or credit readiness", async () => {
+  for (const taskSeatEligible of [true, false]) {
+    const output: string[] = [];
+    const paths: string[] = [];
+    const api = clientWith({});
+    api.get = async <T>(path: string) => {
+      paths.push(path);
+      return {
+        data: { assigned: taskSeatEligible, credits: 999, apiKey: "secret" },
+      } as T;
+    };
+    api.post = api.patch = async () => {
+      throw new Error("Unexpected write");
+    };
+    await runWorkspacesCommand({
+      client: api,
+      stdout: { write: (value) => output.push(value) },
+      json: true,
+      subcommand: "check",
+      positionalId: "org-1",
+    });
+    assert.deepEqual(paths, ["/v1/organizations/org-1/members/me/seat"]);
+    assert.equal(output.length, 1);
+    assert.deepEqual(JSON.parse(output[0]!), {
+      organizationId: "org-1",
+      taskSeatEligible,
+    });
+  }
+});
+
+test("workspaces check explains missing Seat access and the owner action", async () => {
+  const output: string[] = [];
+  await runWorkspacesCommand({
+    client: clientWith({ data: { assigned: false } }),
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "check",
+    positionalId: "org-1",
+  });
+  assert.match(output.join(""), /needs an assigned Seat/);
+  assert.match(output.join(""), /owner or admin to assign you a Seat/);
+  assert.doesNotMatch(output.join(""), /Purchase|buy|ready to execute/);
+});
+
+test("workspaces check describes Seat policy eligibility without claiming a purchased Seat", async () => {
+  const output: string[] = [];
+  await runWorkspacesCommand({
+    client: clientWith({ data: { assigned: true } }),
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "check",
+    positionalId: "org-1",
+  });
+  assert.match(output.join(""), /Seat policy allows your account/);
+  assert.doesNotMatch(
+    output.join(""),
+    /assigned Seat|purchased Seat|ready to execute/,
+  );
+});
+
+test("workspaces check validates its ID before any request", async () => {
+  const api = clientWith({});
+  api.get = async () => {
+    throw new Error("Unexpected GET");
+  };
+  for (const positionalId of [undefined, "", "  "]) {
+    await assert.rejects(
+      runWorkspacesCommand({
+        client: api,
+        stdout: { write() {} },
+        subcommand: "check",
+        positionalId,
+      }),
+      /workspaces check ORGANIZATION_ID/,
+    );
+  }
+  await assert.rejects(
+    runWorkspacesCommand({
+      client: api,
+      stdout: { write() {} },
+      subcommand: "list",
+      positionalId: "org-1",
+    }),
+    /Usage:/,
+  );
 });
 
 test("direct discovery handlers require explicit subcommands", async () => {

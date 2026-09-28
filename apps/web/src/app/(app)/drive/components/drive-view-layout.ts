@@ -8,35 +8,62 @@ import { cn } from "@/lib/utils";
 const DRIVE_ITEMS_GRID_CLASS =
   "grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
-export function driveItemsPanelClass(viewMode: FilesViewMode): string {
-  return cn(
-    "bg-card-background border-border -mx-6 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
-    PROJECTS_LIST_CARD_MIN_H_CLASS,
-    viewMode === "grid" ? "p-3" : undefined,
-  );
+/**
+ * Height of a control in the Files **header row** — the row that holds the view
+ * tabs. 40px while that row is stacked, 32px once it is a single centred row.
+ *
+ * The breakpoint is the row's own container query, `@xl`, and it has to be:
+ * that is the exact width at which the row becomes `@xl:flex-row
+ * @xl:items-center` (`drive-page-client.tsx`). From there the row's height is
+ * whatever its tallest child is and the 36px tab strip is centred inside it, so
+ * any control taller than the strip lifts the row and moves the strip — and the
+ * whole page under it — by half the difference. Below `@xl` the row is
+ * `flex-col`, nothing competes, and the controls keep the 40px a finger needs.
+ *
+ * Two things this must NOT be:
+ * - a **viewport** query (`md:`). The row's layout is driven by container
+ *   queries, and the two disagree: between them the row is already centred
+ *   while the controls are still 40px, which is the 2px tab-switch jump this
+ *   constant exists to remove. It shipped as `md:h-8` and was measurably still
+ *   broken at 624px, 700px and 760px.
+ * - `@2xl`. The other tabs' controls are all `hidden @2xl:*`, but the Tables
+ *   tab's `Filter` and `New table` render at every width, so between `@xl` and
+ *   `@2xl` the Tables row would still be 40px while every other tab's is 36px.
+ *
+ * Not to be confused with the table editor's own toolbar constant: that route
+ * has no `@container` ancestor, so it steps on a viewport query instead.
+ */
+export const DRIVE_HEADER_CONTROL_CLASS = "h-10 @xl:h-8";
+
+/**
+ * The app's large-surface panel: the background and corner every big component
+ * on a page sits on, without the item list's own inner padding. The members
+ * data table (`rounded-xl bg-card-background p-2`) is the same treatment.
+ *
+ * `bg-card-background` and not `bg-card`: `--card` equals `--background` in
+ * dark mode and white-on-white in light, so a `bg-card` panel is invisible
+ * against the page in both themes and reads as bare page with a border.
+ */
+export const DRIVE_SURFACE_PANEL_CLASS =
+  "bg-card-background overflow-hidden rounded-xl";
+
+export function driveItemsPanelClass(_viewMode: FilesViewMode): string {
+  return cn(DRIVE_SURFACE_PANEL_CLASS, "p-2", PROJECTS_LIST_CARD_MIN_H_CLASS);
 }
 
 export function driveItemsListClass(viewMode: FilesViewMode): string {
-  return viewMode === "grid"
-    ? DRIVE_ITEMS_GRID_CLASS
-    : "divide-border divide-y";
+  return viewMode === "grid" ? DRIVE_ITEMS_GRID_CLASS : "flex flex-col gap-2";
 }
 
 export function driveRecentsDayItemsClass(viewMode: FilesViewMode): string {
-  return viewMode === "grid"
-    ? DRIVE_ITEMS_GRID_CLASS
-    : "space-y-0 divide-y divide-border";
+  return viewMode === "grid" ? DRIVE_ITEMS_GRID_CLASS : "flex flex-col gap-2";
 }
 
 export function driveItemArticleClass(viewMode: FilesViewMode): string {
   return viewMode === "grid"
     ? "group bg-background relative flex items-center gap-2 rounded-lg border border-border p-3 hover:bg-card-background"
     : cn(
-        // Square and full-bleed: the row spans the card, so a radius of its
-        // own would round the hover fill between straight dividers. Its px-2
-        // plus the body's px-2 keep content at the same 16px inset the
-        // container's padding used to provide.
-        "relative flex items-center gap-1 rounded-none px-2 hover:bg-card-background-hover",
+        "bg-background relative flex items-center gap-1 rounded-lg border border-border px-2 hover:bg-card-background-hover",
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
       );
 }

@@ -13,6 +13,7 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
+import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -28,14 +29,18 @@ import {
 } from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import {
+  type SchedulesViewMode,
+  serializeSchedulesViewModeCookie,
+} from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
-import { TaskScheduleCard } from "./task-schedule-card";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
-import { TasksProjectSwitcher } from "./tasks-project-switcher";
+import { TaskScheduleRow } from "./task-schedule-row";
 
 const ALL_STATES = "all";
 
 interface TaskSchedulesViewProps {
+  defaultViewMode?: SchedulesViewMode;
   schedules: TaskSchedule[];
   nextCursor: string | null;
   coworkerOptions: CoworkerOption[];
@@ -45,7 +50,7 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
-  /** Only the owner of a schedule edits it from its card. */
+  /** Only the owner of a schedule can change it from its row. */
   currentUserId: string | null;
 }
 
@@ -55,6 +60,7 @@ interface TaskSchedulesViewProps {
  */
 export function TaskSchedulesView({
   schedules,
+  defaultViewMode = "list",
   nextCursor,
   coworkerOptions,
   assigneeDisplayOptions,
@@ -66,14 +72,15 @@ export function TaskSchedulesView({
   currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
+  const [viewMode, setViewMode] = useState(defaultViewMode);
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [more, setMore] = useState<TaskSchedulesPage>({
-    schedules: [],
-    nextCursor,
-  });
+  const [more, setMore] = useState<TaskSchedulesPage | null>(null);
+  const additionalPage = more ?? { schedules: [], nextCursor };
+  const pageGeneration = useRef(0);
+  const [isRefreshing, startRefreshing] = useTransition();
   const [isLoadingMore, startLoadingMore] = useTransition();
   const [hasFailed, setHasFailed] = useState(false);
   const boundaryRef = useRef<HTMLDivElement | null>(null);
@@ -96,9 +103,19 @@ export function TaskSchedulesView({
     });
   }
 
+  function handleScheduleChanged() {
+    pageGeneration.current += 1;
+    setHasFailed(false);
+    startRefreshing(() => {
+      setMore(null);
+      router.refresh();
+    });
+  }
+
   function handleLoadMore() {
-    const cursor = more.nextCursor;
-    if (!cursor) return;
+    const cursor = additionalPage.nextCursor;
+    if (!cursor || isRefreshing || isLoadingMore) return;
+    const generation = pageGeneration.current;
     setHasFailed(false);
     startLoadingMore(async () => {
       try {
@@ -107,14 +124,15 @@ export function TaskSchedulesView({
           projectId: selectedProjectId,
           state: selectedState,
         });
+        if (generation !== pageGeneration.current) return;
         setMore((current) => ({
-          schedules: [...current.schedules, ...page.schedules],
+          schedules: [...(current?.schedules ?? []), ...page.schedules],
           nextCursor: page.nextCursor,
         }));
       } catch {
         // Stop loading on its own until the reader asks again, rather than
         // hammering a server that just said no.
-        setHasFailed(true);
+        if (generation === pageGeneration.current) setHasFailed(true);
       }
     });
   }
@@ -122,7 +140,7 @@ export function TaskSchedulesView({
   // A refresh can bring back rows a "Load more" already appended.
   const rows = [
     ...schedules,
-    ...more.schedules.filter(
+    ...additionalPage.schedules.filter(
       (extra) => !schedules.some((row) => row.id === extra.id),
     ),
   ];
@@ -130,7 +148,11 @@ export function TaskSchedulesView({
   const shownValue = shownState ?? ALL_STATES;
 
   useLoadWhenVisible(boundaryRef, {
-    armed: Boolean(more.nextCursor) && !isLoadingMore && !hasFailed,
+    armed:
+      Boolean(additionalPage.nextCursor) &&
+      !isLoadingMore &&
+      !isRefreshing &&
+      !hasFailed,
     // A new last row means a moved boundary, which asks for the next page.
     boundaryKey: rows.at(-1)?.id ?? "",
     onVisible: handleLoadMore,
@@ -145,7 +167,10 @@ export function TaskSchedulesView({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <TabsList
           aria-label={t("stateFilter")}
-          className={cn(SEGMENTED_TABS_LIST_CLASS_NAME, "w-fit")}
+          className={cn(
+            SEGMENTED_TABS_LIST_CLASS_NAME,
+            "h-auto max-w-full w-fit flex-wrap",
+          )}
         >
           <TabsTrigger
             className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
@@ -163,10 +188,15 @@ export function TaskSchedulesView({
             </TabsTrigger>
           ))}
         </TabsList>
-        <div className="flex items-center gap-2 sm:gap-3">
-          <TasksProjectSwitcher
-            projectOptions={projectOptions}
-            selectedProjectId={selectedProjectId}
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          <ListGridViewSwitch
+            value={viewMode}
+            data-testid="schedules-view-mode-switch"
+            onChange={(next) => {
+              setViewMode(next);
+              document.cookie = serializeSchedulesViewModeCookie(next);
+            }}
+            labels={{ list: t("viewList"), grid: t("viewGrid") }}
           />
           {canCreate ? (
             <Button size="sm" onClick={() => setIsCreateOpen(true)}>
@@ -178,9 +208,12 @@ export function TaskSchedulesView({
       </div>
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
-      <TabsContent className="flex flex-col gap-4" value={shownValue}>
+      <TabsContent
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-2"
+        value={shownValue}
+      >
         {rows.length === 0 ? (
-          <div className="border-border flex flex-col items-center gap-2 rounded-xl border px-4 py-16 text-center">
+          <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
             <CalendarSync
               className="text-muted-foreground size-6"
               aria-hidden
@@ -190,22 +223,31 @@ export function TaskSchedulesView({
             </p>
           </div>
         ) : (
-          <ul className="grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <ul
+            data-view={viewMode}
+            className={
+              viewMode === "grid"
+                ? "grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3"
+                : "flex flex-col gap-2"
+            }
+          >
             {rows.map((schedule) => (
-              <TaskScheduleCard
+              <TaskScheduleRow
                 assigneeDisplayOptions={assigneeDisplayOptions}
                 canCreatePrivate={canCreatePrivate}
                 coworkerOptions={coworkerOptions}
                 currentUserId={currentUserId}
+                onChanged={handleScheduleChanged}
                 key={schedule.id}
                 projectOptions={projectOptions}
                 schedule={schedule}
+                viewMode={viewMode}
               />
             ))}
           </ul>
         )}
 
-        {more.nextCursor ? (
+        {additionalPage.nextCursor ? (
           // Loads on its own as it scrolls into view, and stays a button so a
           // click works where no observer runs.
           <div
@@ -220,7 +262,7 @@ export function TaskSchedulesView({
             ) : null}
             <Button
               aria-busy={isLoadingMore}
-              disabled={isLoadingMore}
+              disabled={isLoadingMore || isRefreshing}
               onClick={handleLoadMore}
               size="sm"
               variant="outline"

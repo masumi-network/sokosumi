@@ -2,7 +2,7 @@
 
 import { Search, X } from "lucide-react";
 import { useQueryState } from "nuqs";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
@@ -29,6 +29,7 @@ interface ProjectsFilterProps {
  * of swapping the page Suspense fallback in while Core runs.
  */
 export function ProjectsFilter({ labels }: ProjectsFilterProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const [, startTransition] = useTransition();
   const [queryParam, setQueryParam] = useQueryState("q", {
     defaultValue: "",
@@ -57,16 +58,18 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
     setValue("");
     debouncedSetQuery.cancel();
     setQueryParam("");
+    inputRef.current?.focus();
   }
 
   return (
-    <div className="relative w-full">
+    <div className="relative w-full md:w-64 md:shrink-0">
       <Search
-        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2"
+        className="text-muted-foreground pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2"
         aria-hidden
       />
       <Input
-        className="h-8 pr-8 pl-8"
+        ref={inputRef}
+        className="pr-8 pl-8"
         aria-label={labels.placeholder}
         placeholder={labels.placeholder}
         value={value}
@@ -80,7 +83,7 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
           type="button"
           aria-label={labels.clear}
           onClick={handleClear}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
         >
           <X className="size-4" />
         </button>

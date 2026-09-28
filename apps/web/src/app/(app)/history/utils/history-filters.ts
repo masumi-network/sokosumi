@@ -2,7 +2,7 @@ import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
-export const HISTORY_TYPE_VALUES = ["task", "job"] as const;
+export const HISTORY_TYPE_VALUES = ["task", "job", "image"] as const;
 export const HISTORY_DEFAULT_API_TYPES = HISTORY_TYPE_VALUES;
 /** Non-task statuses shared across history kinds. `active` was conversation-only and was removed with SOK-671. */
 export const HISTORY_NON_TASK_STATUS_VALUES = ["archived"] as const;
@@ -44,6 +44,19 @@ const HISTORY_JOB_STATUS_VALUES = [
   ...HISTORY_TASK_STATUS_VALUES_FOR_JOB_FILTER,
   ...HISTORY_JOB_ONLY_STATUS_VALUES,
 ] as const satisfies readonly HistoryStatus[];
+
+/**
+ * No status narrows an image.
+ *
+ * Core types an image row's status as the literal `"active"`: an image has no
+ * lifecycle, so every status in this list belongs to a task or a job and naming
+ * one would return an empty feed. Empty here also means
+ * `sanitizeHistoryStatusForType` clears whatever status was set when somebody
+ * switches the type to Image, rather than leaving a filter on that can only
+ * match nothing.
+ */
+const HISTORY_IMAGE_STATUS_VALUES =
+  [] as const satisfies readonly HistoryStatus[];
 
 export type HistoryScope = (typeof HISTORY_SCOPE_VALUES)[number];
 export type HistoryType = (typeof HISTORY_TYPE_VALUES)[number];
@@ -123,6 +136,8 @@ export function getHistoryStatusOptionsForType(
       return HISTORY_TASK_STATUS_VALUES;
     case "job":
       return HISTORY_JOB_STATUS_VALUES;
+    case "image":
+      return HISTORY_IMAGE_STATUS_VALUES;
     default:
       return HISTORY_STATUS_OPTIONS;
   }

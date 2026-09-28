@@ -550,7 +550,7 @@ export function ScenarioLab({
                 {Math.round(current.systemPrompt.length / 1024)} KB
               </button>
               {promptOpen ? (
-                <pre className="bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
                   {current.systemPrompt}
                 </pre>
               ) : null}

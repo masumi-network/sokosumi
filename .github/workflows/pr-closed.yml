@@ -1,0 +1,19 @@
+name: PR closed
+
+# Unprivileged signal. `cloud-agent-db-teardown.yml` listens via workflow_run
+# so the privileged YAML always comes from the default branch. pull_request_target
+# would load YAML from the PR base, which a same-repo branch can replace.
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  closed:
+    name: Signal PR closed
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record close
+        run: echo "PR ${{ github.event.pull_request.number }} closed"

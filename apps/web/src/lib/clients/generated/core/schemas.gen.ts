@@ -929,6 +929,34 @@ export const AdminSokoBotOwnerSchema = {
 export const AdminSokoBotQualitySchema = {
     type: 'object',
     properties: {
+        reliability: {
+            type: 'object',
+            properties: {
+                fulfillment: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                delivery: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                invalidActionClaims: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'fulfillment',
+                'delivery',
+                'invalidActionClaims'
+            ]
+        },
         overall: {
             type: 'object',
             properties: {
@@ -1041,6 +1069,7 @@ export const AdminSokoBotQualitySchema = {
         }
     },
     required: [
+        'reliability',
         'overall',
         'proactive',
         'daily',
@@ -2558,6 +2587,13 @@ export const SokoBotTurnSchema = {
             items: {
                 $ref: '#/components/schemas/SokoBotToolCall'
             }
+        },
+        evaluation: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
         },
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
@@ -4585,6 +4621,9 @@ export const TaskSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -5087,6 +5126,51 @@ export const TaskCreatorSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskTagsSchema = {
+    type: 'object',
+    properties: {
+        automatic: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        manual: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        rejected: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        }
+    },
+    required: [
+        'automatic',
+        'manual',
+        'rejected'
+    ]
+} as const;
+
+export const TaskTagIdSchema = {
+    type: 'string',
+    enum: [
+        'research',
+        'strategy',
+        'writing',
+        'design',
+        'analysis',
+        'development',
+        'marketing',
+        'social',
+        'seo',
+        'operations'
     ]
 } as const;
 
@@ -10693,7 +10777,8 @@ export const CheckoutSessionAnalyticsSchema = {
                 'number',
                 'null'
             ],
-            example: 12000
+            description: 'Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.',
+            example: 120
         },
         items: {
             type: 'array',
@@ -11079,6 +11164,53 @@ export const DeveloperTaskDetailSchema = {
     ]
 } as const;
 
+export const FileCollectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        definition: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        sortBy: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sortOrder: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        isShared: {
+            type: 'boolean'
+        },
+        definitionVersion: {
+            type: 'integer'
+        },
+        isOwner: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'definition',
+        'sortBy',
+        'sortOrder',
+        'isShared',
+        'definitionVersion',
+        'isOwner'
+    ]
+} as const;
+
 export const DriveFileUploadSessionSchema = {
     type: 'object',
     properties: {
@@ -11438,6 +11570,45 @@ export const DeleteDriveFileRequestSchema = {
     ]
 } as const;
 
+export const WorkspaceLabelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'TAG',
+                'CATEGORY'
+            ]
+        },
+        displayName: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        archived: {
+            type: 'boolean'
+        },
+        vocabularyVersion: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'displayName',
+        'description',
+        'archived',
+        'vocabularyVersion'
+    ]
+} as const;
+
 export const CreateDriveFolderRequestSchema = {
     type: 'object',
     properties: {
@@ -11690,6 +11861,1185 @@ export const DriveRecentsTaskOutputItemSchema = {
         'taskName',
         'projectId',
         'projectName'
+    ]
+} as const;
+
+export const FileSelectionTokenResponseSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string'
+        },
+        count: {
+            type: 'integer',
+            description: 'Entries in this bounded window that are still eligible, never a corpus total.'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'token',
+        'count',
+        'expiresAt'
+    ]
+} as const;
+
+export const FileMetadataBatchResponseSchema = {
+    type: 'object',
+    properties: {
+        outcomes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    resourceId: {
+                        type: 'string'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'applied',
+                            'conflict',
+                            'forbidden',
+                            'not-found'
+                        ]
+                    },
+                    metadataRevision: {
+                        type: [
+                            'integer',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'resourceId',
+                    'status',
+                    'metadataRevision'
+                ]
+            }
+        },
+        revisedCount: {
+            type: [
+                'integer',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'outcomes',
+        'revisedCount'
+    ]
+} as const;
+
+export const FileMetadataBatchRequestSchema = {
+    type: 'object',
+    properties: {
+        resourceIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 100
+        },
+        selectionToken: {
+            type: 'string'
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        },
+        addTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        categoryLabelId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        expectedRevisions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    resourceId: {
+                        type: 'string'
+                    },
+                    metadataRevision: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'resourceId',
+                    'metadataRevision'
+                ]
+            },
+            maxItems: 120
+        }
+    },
+    required: [
+        'idempotencyKey'
+    ]
+} as const;
+
+export const FileResourceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        displayName: {
+            type: 'string'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sizeBytes: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        sourceKind: {
+            type: 'string',
+            enum: [
+                'DRIVE_UPLOAD',
+                'TASK_OUTPUT',
+                'PROJECT_DOCUMENT',
+                'NATIVE_TABLE',
+                'STUDIO_ASSET'
+            ],
+            description: 'Canonical source this document comes from'
+        },
+        sourceTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        contentRevision: {
+            type: 'integer'
+        },
+        metadataRevision: {
+            type: 'integer'
+        },
+        extractionState: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'PENDING',
+                'RUNNING',
+                'INDEXED',
+                'PARTIAL',
+                'UNSUPPORTED',
+                'ENCRYPTED',
+                'QUARANTINED',
+                'FAILED',
+                null
+            ],
+            description: 'Processing state of the current version. PARTIAL means some text is searchable, never all of it.'
+        },
+        extractionCoverage: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        extractionReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        category: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                labelId: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'TAG',
+                        'CATEGORY'
+                    ]
+                },
+                displayName: {
+                    type: 'string'
+                },
+                state: {
+                    type: 'string',
+                    enum: [
+                        'SUGGESTED',
+                        'CONFIRMED',
+                        'REJECTED'
+                    ]
+                },
+                provenance: {
+                    type: 'string',
+                    enum: [
+                        'MANUAL',
+                        'MODEL',
+                        'RULE'
+                    ]
+                },
+                evidenceSnippet: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                stale: {
+                    type: 'boolean',
+                    description: 'The suggestion was computed against an older content or vocabulary version.'
+                }
+            },
+            required: [
+                'id',
+                'labelId',
+                'kind',
+                'displayName',
+                'state',
+                'provenance',
+                'evidenceSnippet',
+                'stale'
+            ]
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    projectId: {
+                        type: 'string'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'projectId',
+                    'projectName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet'
+                ]
+            }
+        },
+        snippet: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                text: {
+                    type: 'string'
+                },
+                highlights: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            start: {
+                                type: 'integer'
+                            },
+                            end: {
+                                type: 'integer'
+                            }
+                        },
+                        required: [
+                            'start',
+                            'end'
+                        ]
+                    }
+                },
+                truncatedStart: {
+                    type: 'boolean'
+                },
+                truncatedEnd: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'text',
+                'highlights',
+                'truncatedStart',
+                'truncatedEnd'
+            ],
+            description: 'Extracted passage plus highlight offsets. Plain text: the client escapes at render.'
+        },
+        relatedReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        filenameMatch: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'displayName',
+        'mimeType',
+        'sizeBytes',
+        'sourceKind',
+        'sourceTaskId',
+        'sourceProjectId',
+        'updatedAt',
+        'contentRevision',
+        'metadataRevision',
+        'extractionState',
+        'extractionCoverage',
+        'extractionReason',
+        'category',
+        'tags',
+        'suggestions',
+        'projects',
+        'snippet',
+        'relatedReason',
+        'filenameMatch'
+    ]
+} as const;
+
+export const FileRelatedResponseSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FileResource'
+            }
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'ok',
+                'empty',
+                'not-indexed',
+                'no-text',
+                'unavailable'
+            ],
+            description: '\'not-indexed\' means processing has not finished and neighbours may still appear; \'no-text\' means processing finished and the document has no readable text, so none are coming; \'unavailable\' means ranking failed and the reader may retry.'
+        }
+    },
+    required: [
+        'items',
+        'state'
+    ]
+} as const;
+
+export const UpdateFileMetadataRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedMetadataRevision: {
+            type: 'integer',
+            description: 'Reject the edit if someone else changed this document\'s metadata first.'
+        },
+        addTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        categoryLabelId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        confirmProjectIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeProjectIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        allowSuggestionsFor: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'category',
+                    'tags'
+                ]
+            }
+        }
+    },
+    required: [
+        'expectedMetadataRevision'
+    ]
+} as const;
+
+export const FileSuggestionDecisionRequestSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'accept',
+                'reject'
+            ]
+        },
+        expectedMetadataRevision: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'decision',
+        'expectedMetadataRevision'
+    ]
+} as const;
+
+export const FileSearchResponseSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FileResource'
+            }
+        },
+        search: {
+            $ref: '#/components/schemas/FileSearchMeta'
+        }
+    },
+    required: [
+        'items',
+        'search'
+    ]
+} as const;
+
+export const FileSearchMetaSchema = {
+    type: 'object',
+    properties: {
+        rankingMode: {
+            type: 'string',
+            enum: [
+                'deterministic',
+                'model'
+            ],
+            description: 'Which ordering produced this page. \'deterministic\' means the model stage did not apply.'
+        },
+        rankingFallback: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'disabled',
+                'not-applicable',
+                'capacity',
+                'timeout',
+                'provider-error',
+                null
+            ],
+            description: 'Why \'deterministic\' was returned. Null when the model stage applied, or when no ranking was attempted for this page.'
+        },
+        resultWindowLimit: {
+            type: 'integer'
+        },
+        windowCount: {
+            type: 'integer',
+            description: 'Authorized entries in this bounded window, not a corpus total.'
+        },
+        remainingWindowCount: {
+            type: 'integer'
+        },
+        truncated: {
+            type: 'boolean',
+            description: 'A retrieval budget or the window cap was reached, so more may match. Independent of hasMore.'
+        },
+        hasMore: {
+            type: 'boolean',
+            description: 'Unconsumed positions remain in this snapshot. Not a claim about the corpus.'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        restarted: {
+            type: 'boolean',
+            description: 'The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.'
+        },
+        catalogIncomplete: {
+            type: 'boolean',
+            description: 'Adoption of pre-existing files did not finish, so this workspace\'s catalog is known to be missing files. Results are correct for what is catalogued.'
+        },
+        indexCoverage: {
+            type: 'object',
+            properties: {
+                indexed: {
+                    type: 'integer'
+                },
+                processing: {
+                    type: 'integer'
+                },
+                filenameOnly: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'indexed',
+                'processing',
+                'filenameOnly'
+            ],
+            description: 'Coverage over this window only, so the UI can be honest about what is searchable.'
+        }
+    },
+    required: [
+        'rankingMode',
+        'rankingFallback',
+        'resultWindowLimit',
+        'windowCount',
+        'remainingWindowCount',
+        'truncated',
+        'hasMore',
+        'nextCursor',
+        'restarted',
+        'catalogIncomplete',
+        'indexCoverage'
+    ]
+} as const;
+
+export const DataTableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableColumn'
+            }
+        },
+        views: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableView'
+            }
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columns',
+        'views'
+    ]
+} as const;
+
+export const TableColumnSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        description: {
+            type: 'string',
+            maxLength: 2000,
+            default: ''
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'text',
+                'long_text',
+                'number',
+                'date',
+                'checkbox',
+                'url',
+                'email',
+                'single_select',
+                'multiple_select'
+            ]
+        },
+        options: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 200
+            },
+            maxItems: 100,
+            default: []
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer'
+        },
+        version: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'type',
+        'tableId',
+        'position',
+        'version'
+    ]
+} as const;
+
+export const TableViewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        definition: {
+            type: 'object',
+            properties: {
+                filters: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            columnId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            operator: {
+                                type: 'string',
+                                enum: [
+                                    'equals',
+                                    'contains',
+                                    'empty'
+                                ]
+                            },
+                            value: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        maxLength: 20000
+                                    },
+                                    {
+                                        type: 'number'
+                                    },
+                                    {
+                                        type: 'boolean'
+                                    },
+                                    {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 200
+                                        },
+                                        maxItems: 100
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'columnId',
+                            'operator'
+                        ]
+                    },
+                    maxItems: 10,
+                    default: []
+                },
+                sort: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    properties: {
+                        columnId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        direction: {
+                            type: 'string',
+                            enum: [
+                                'asc',
+                                'desc'
+                            ]
+                        }
+                    },
+                    default: null,
+                    required: [
+                        'columnId',
+                        'direction'
+                    ]
+                },
+                visibleColumnIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 100,
+                    default: []
+                }
+            }
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'name',
+        'version',
+        'definition'
+    ]
+} as const;
+
+export const TableRowSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        values: {
+            type: 'object',
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    {
+                        type: 'number'
+                    },
+                    {
+                        type: 'boolean'
+                    },
+                    {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        maxItems: 100
+                    },
+                    {
+                        type: 'null'
+                    }
+                ]
+            }
+        },
+        evidence: {
+            type: 'object',
+            additionalProperties: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            maxLength: 2000,
+                            format: 'uri'
+                        },
+                        note: {
+                            type: 'string',
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                },
+                maxItems: 20
+            }
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'values',
+        'evidence',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const TableBatchResultSchema = {
+    type: 'object',
+    properties: {
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableRow'
+            }
+        }
+    },
+    required: [
+        'batchId',
+        'rows'
+    ]
+} as const;
+
+export const TableChangeSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        actorId: {
+            type: 'string'
+        },
+        actorKind: {
+            type: 'string'
+        },
+        actorName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        rowId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        columnId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        before: {},
+        after: {},
+        evidence: {},
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'batchId',
+        'actorId',
+        'actorKind',
+        'taskId',
+        'rowId',
+        'columnId',
+        'createdAt'
     ]
 } as const;
 
@@ -12466,6 +13816,50 @@ export const ActivateEnterpriseContractRequestSchema = {
     }
 } as const;
 
+export const ExportLeaseSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        },
+        durationMs: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'token',
+        'durationMs'
+    ]
+} as const;
+
+export const ReleaseExportLeaseResponseSchema = {
+    type: 'object',
+    properties: {
+        released: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'released'
+    ]
+} as const;
+
+export const ReleaseExportLeaseBodySchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'token'
+    ],
+    additionalProperties: false
+} as const;
+
 export const HistoryListSchema = {
     type: 'array',
     items: {
@@ -12480,13 +13874,17 @@ export const HistoryItemSchema = {
         },
         {
             $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryImageItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem'
+            job: '#/components/schemas/HistoryJobItem',
+            image: '#/components/schemas/HistoryImageItem'
         }
     }
 } as const;
@@ -12745,6 +14143,290 @@ export const HistoryJobItemSchema = {
         'agentId',
         'agentName',
         'agentIcon'
+    ]
+} as const;
+
+export const HistoryImageItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active'
+            ]
+        },
+        assetId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the image was generated in',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        modelLabel: {
+            type: 'string',
+            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            example: 'Gemini 3.1 Flash Image'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'assetId',
+        'projectId',
+        'modelLabel'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
+            }
+        },
+        snapshotDate: {
+            type: 'string'
+        },
+        refreshedAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'snapshotDate',
+        'refreshedAt'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        generateEndpoint: {
+            type: 'string'
+        },
+        editEndpoint: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        outputFormats: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        supportsSeed: {
+            type: 'boolean'
+        },
+        maxReferences: {
+            type: 'integer'
+        },
+        dimensionMode: {
+            type: 'string',
+            enum: [
+                'aspect-ratio',
+                'image-size'
+            ]
+        },
+        providerFields: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'aspect_ratio',
+                    'resolution',
+                    'image_size',
+                    'output_format',
+                    'num_images',
+                    'seed',
+                    'limit_generations',
+                    'image_urls'
+                ]
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perImageUsd: {
+                    type: 'object',
+                    properties: {
+                        '0.5K': {
+                            type: 'number'
+                        },
+                        '1K': {
+                            type: 'number'
+                        },
+                        '2K': {
+                            type: 'number'
+                        }
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        },
+        sourceUrls: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        verifiedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'generateEndpoint',
+        'editEndpoint',
+        'aspectRatios',
+        'resolutions',
+        'outputFormats',
+        'supportsSeed',
+        'maxReferences',
+        'dimensionMode',
+        'providerFields',
+        'curatedRank',
+        'notes',
+        'price',
+        'sourceUrls',
+        'verifiedAt'
     ]
 } as const;
 
@@ -15453,6 +17135,42 @@ export const ProjectDesignMdWriteSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarEntrySchema = {
+    allOf: [
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                originalScheduledAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'scheduledAt'
+            ]
+        },
+        {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkspaceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SocialPostCalendarItem'
+                }
+            ]
+        }
+    ]
+} as const;
+
 export const WorkspaceCalendarItemSchema = {
     type: 'object',
     properties: {
@@ -15619,6 +17337,104 @@ export const WorkspaceCalendarItemSchema = {
         'sourceWorkspaceId',
         'sourceType',
         'sourceProjectId'
+    ]
+} as const;
+
+export const SocialPostCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'socialPost'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        postId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'SCHEDULED',
+                'PUBLISHING',
+                'PUBLISHED',
+                'FAILED',
+                'MISSED',
+                'CANCELED'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        scheduledByName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scheduledByImage: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attachmentCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'postId',
+        'text',
+        'status',
+        'externalHandle',
+        'projectName',
+        'scheduledByName',
+        'scheduledByImage',
+        'attachmentCount',
+        'scheduledAt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
     ]
 } as const;
 
@@ -15829,10 +17645,7 @@ export const ProjectSocialConnectionSchema = {
             example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
         },
         provider: {
-            type: 'string',
-            enum: [
-                'x'
-            ]
+            $ref: '#/components/schemas/ProjectSocialProvider'
         },
         externalHandle: {
             type: [
@@ -15878,6 +17691,19 @@ export const ProjectSocialConnectionSchema = {
     ]
 } as const;
 
+export const ProjectSocialProviderSchema = {
+    type: 'string',
+    enum: [
+        'x',
+        'tiktok',
+        'instagram',
+        'linkedin',
+        'facebook',
+        'youtube'
+    ],
+    example: 'x'
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {
@@ -15910,10 +17736,7 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     ]
                 },
                 provider: {
-                    type: 'string',
-                    enum: [
-                        'x'
-                    ]
+                    $ref: '#/components/schemas/ProjectSocialProvider'
                 }
             },
             required: [
@@ -16022,6 +17845,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -16051,6 +17880,13 @@ export const SocialPostSchema = {
                 'string',
                 'null'
             ]
+        },
+        scheduledByCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.'
         },
         canceledAt: {
             type: [
@@ -16086,6 +17922,37 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 0
+        },
+        nextAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttempt: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostLastAttempt'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         revision: {
             type: 'integer',
             minimum: 0,
@@ -16109,6 +17976,13 @@ export const SocialPostSchema = {
         },
         canCancel: {
             type: 'boolean'
+        },
+        canPublishNow: {
+            type: 'boolean'
+        },
+        connectionNeedsReconnect: {
+            type: 'boolean',
+            description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
         }
     },
     required: [
@@ -16116,6 +17990,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'media',
         'status',
         'scheduledAt',
         'timezone',
@@ -16127,12 +18002,68 @@ export const SocialPostSchema = {
         'publishedExternalId',
         'publishedUrl',
         'lastError',
+        'attemptCount',
+        'nextAttemptAt',
+        'lastAttemptAt',
+        'lastAttempt',
         'revision',
         'createdAt',
         'updatedAt',
         'canEdit',
         'canSchedule',
-        'canCancel'
+        'canCancel',
+        'canPublishNow',
+        'connectionNeedsReconnect'
+    ]
+} as const;
+
+export const SocialPostMediaRefSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 0,
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            minLength: 1,
+            example: 'image/png'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'kind'
     ]
 } as const;
 
@@ -16216,14 +18147,98 @@ export const SocialPostCreatorSchema = {
     ]
 } as const;
 
+export const SocialPostLastAttemptSchema = {
+    type: 'object',
+    properties: {
+        attempt: {
+            type: 'integer',
+            minimum: 1,
+            example: 1
+        },
+        trigger: {
+            type: 'string',
+            enum: [
+                'scheduler',
+                'publish_now'
+            ]
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'succeeded',
+                'failed_transient',
+                'failed_permanent',
+                'missed',
+                'connection_inactive',
+                'authorization_revoked',
+                null
+            ]
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'rate_limited'
+        },
+        providerOutcome: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'attempt',
+        'trigger',
+        'outcome',
+        'errorKind',
+        'providerOutcome',
+        'finishedAt'
+    ]
+} as const;
+
+export const PublishSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const CreateSocialPostRequestSchema = {
     type: 'object',
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -16249,9 +18264,16 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: [
@@ -16313,6 +18335,497 @@ export const CancelSocialPostRequestSchema = {
     },
     required: [
         'revision'
+    ]
+} as const;
+
+export const ProjectImageStudioStateSchema = {
+    type: 'object',
+    properties: {
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        sessions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageSession'
+            }
+        },
+        nextCursor: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'createdAt',
+                'id'
+            ]
+        }
+    },
+    required: [
+        'assets',
+        'jobs',
+        'sessions',
+        'nextCursor'
+    ]
+} as const;
+
+export const ProjectImageAssetSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        rootId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer',
+            minimum: 1
+        },
+        prompt: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        width: {
+            type: 'integer',
+            minimum: 0
+        },
+        height: {
+            type: 'integer',
+            minimum: 0
+        },
+        bytes: {
+            type: 'integer',
+            minimum: 0
+        },
+        contentType: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        contentPath: {
+            type: 'string'
+        },
+        review: {
+            $ref: '#/components/schemas/ProjectImageReview'
+        }
+    },
+    required: [
+        'id',
+        'rootId',
+        'parentId',
+        'version',
+        'prompt',
+        'model',
+        'width',
+        'height',
+        'bytes',
+        'contentType',
+        'createdAt',
+        'jobId',
+        'settings',
+        'contentPath'
+    ]
+} as const;
+
+export const ProjectImageSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3',
+                '4:5',
+                '5:4'
+            ],
+            default: '1:1'
+        },
+        resolution: {
+            type: 'string',
+            enum: [
+                '0.5K',
+                '1K',
+                '2K'
+            ],
+            default: '1K'
+        },
+        outputFormat: {
+            type: 'string',
+            enum: [
+                'png',
+                'jpeg',
+                'webp'
+            ],
+            default: 'png'
+        },
+        seed: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 2147483647,
+            default: null
+        }
+    }
+} as const;
+
+export const ProjectImageReviewSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'APPROVED',
+                'REJECTED'
+            ]
+        },
+        feedback: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        decidedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        decidedByUserId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'decision',
+        'feedback',
+        'decidedAt',
+        'decidedByUserId'
+    ]
+} as const;
+
+export const ProjectImageJobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'SUBMITTING',
+                'QUEUED',
+                'RUNNING',
+                'SUCCEEDED',
+                'FAILED',
+                'CANCELED',
+                'SUBMISSION_UNCERTAIN',
+                'ORPHANED'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'GENERATE',
+                'EDIT'
+            ]
+        },
+        model: {
+            type: 'string'
+        },
+        prompt: {
+            type: 'string'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submittedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        settledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancelRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        retryMayDuplicateCharge: {
+            type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'status',
+        'kind',
+        'model',
+        'prompt',
+        'settings',
+        'referenceAssetIds',
+        'error',
+        'failureReason',
+        'parentAssetId',
+        'assetId',
+        'createdAt',
+        'submittedAt',
+        'settledAt',
+        'cancelRequestedAt',
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
+    ]
+} as const;
+
+export const ProjectImageSessionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        eveSessionId: {
+            type: 'string'
+        },
+        title: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdByUserId: {
+            type: 'string'
+        },
+        lastActivityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'eveSessionId',
+        'title',
+        'createdByUserId',
+        'lastActivityAt',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateProjectImageJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            default: 'gemini-flash'
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4,
+            default: []
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CancelProjectImageJobResponseSchema = {
+    type: 'object',
+    properties: {
+        accepted: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'accepted'
+    ]
+} as const;
+
+export const ReviewProjectImageAssetRequestSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'APPROVED',
+                'REJECTED'
+            ]
+        },
+        feedback: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            default: null
+        }
+    },
+    required: [
+        'decision'
     ]
 } as const;
 
@@ -17237,6 +19750,195 @@ export const NotificationCountsSchema = {
     ]
 } as const;
 
+export const PushDeviceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        browserDetails: {
+            $ref: '#/components/schemas/PushDeviceBrowserDetails'
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        platform: {
+            type: 'string',
+            enum: [
+                'browser',
+                'ios',
+                'android',
+                'unknown'
+            ]
+        },
+        formFactor: {
+            type: 'string',
+            enum: [
+                'phone',
+                'tablet',
+                'desktop',
+                'tv',
+                'watch',
+                'car',
+                'embedded',
+                'other'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'active',
+                'failing',
+                'failed',
+                'unknown'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'platform',
+        'formFactor',
+        'state'
+    ]
+} as const;
+
+export const PushDeviceBrowserDetailsSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        }
+    },
+    required: [
+        'browser',
+        'operatingSystem'
+    ]
+} as const;
+
+export const PushDeviceActivationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        revoked: {
+            type: 'boolean'
+        },
+        replaceDevice: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'revision',
+        'revoked',
+        'replaceDevice'
+    ]
+} as const;
+
+export const PushDeviceActivationRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        deviceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256
+        },
+        readerInitiated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'deviceId',
+        'readerInitiated'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceSubscriptionRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        }
+    },
+    required: [
+        'consentId',
+        'revision'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceBrowserUpdateSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    additionalProperties: false
+} as const;
+
 export const MarkAllReadResponseSchema = {
     type: 'object',
     properties: {
@@ -17939,6 +20641,43 @@ export const CreateSokoBotApiKeyResponseSchema = {
         'token',
         'name',
         'expiresAt'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthRequestSchema = {
+    type: 'object',
+    properties: {
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            description: 'The single-use session URI Composio hands to the verifier'
+        }
+    },
+    required: [
+        'sessionUri'
     ]
 } as const;
 
@@ -20141,6 +22880,9 @@ export const TaskListItemSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -20316,6 +23058,26 @@ export const TaskActivitySummarySchema = {
         'lastVisitAt',
         'basis',
         'workedMinutes'
+    ]
+} as const;
+
+export const TaskTagSuggestionSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        receipt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tags',
+        'receipt'
     ]
 } as const;
 

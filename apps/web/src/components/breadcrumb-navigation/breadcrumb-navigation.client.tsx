@@ -125,8 +125,11 @@ function generateSegments(
 
       if (segment === "conversation") return;
 
-      // design-md is a route segment only — hide it from breadcrumbs (Account > Editor).
-      if (segment === "design-md") return;
+      // On the way to the editor, design-md is a route segment only, so
+      // Account > design-md > Edit reads Account > Editor. As the last
+      // segment it is a page of its own — a project's Design tab — and gets
+      // its own label.
+      if (segment === "design-md" && !isCurrent) return;
 
       // No org overview page — /organizations/* hides the parent segment (SOK-546).
       // Admin org routes keep it for Admin > Organizations > {name}.

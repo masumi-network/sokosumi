@@ -9,9 +9,9 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 import mountAddAdminOrganizationMember from "./post";
 
 const {
-  getAdminOrganizationBySlugMock,
-  getUserByIdMock,
-  getMemberByUserIdAndOrganizationIdMock,
+  organizationFindUniqueMock,
+  userFindUniqueMock,
+  memberFindUniqueMock,
   createMemberMock,
   getMembersWithUserAndLastSeenMock,
   ensurePersonalWorkspaceForOrganizationMembershipMock,
@@ -29,9 +29,9 @@ const {
       role: "admin",
     } as AuthenticationContext,
   },
-  getAdminOrganizationBySlugMock: vi.fn(),
-  getUserByIdMock: vi.fn(),
-  getMemberByUserIdAndOrganizationIdMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
+  userFindUniqueMock: vi.fn(),
+  memberFindUniqueMock: vi.fn(),
   createMemberMock: vi.fn(),
   getMembersWithUserAndLastSeenMock: vi.fn(),
   ensurePersonalWorkspaceForOrganizationMembershipMock: vi.fn(),
@@ -45,31 +45,22 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    user: {
+      findUnique: (...args: unknown[]) => userFindUniqueMock(...args),
+    },
+    member: {
+      findUnique: (...args: unknown[]) => memberFindUniqueMock(...args),
+    },
   },
 }));
-
-vi.mock("@/helpers/admin-organization-overview.js", async (importOriginal) => {
-  const actual =
-    await importOriginal<
-      typeof import("@/helpers/admin-organization-overview.js")
-    >();
-  return {
-    ...actual,
-    getAdminOrganizationBySlug: (...args: unknown[]) =>
-      getAdminOrganizationBySlugMock(...args),
-  };
-});
 
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {},
   organizationRepository: {},
-  userRepository: {
-    getUserById: (...args: unknown[]) => getUserByIdMock(...args),
-  },
   memberRepository: {
-    getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByUserIdAndOrganizationIdMock(...args),
-    createMember: (...args: unknown[]) => createMemberMock(...args),
     getMembersWithUserAndLastSeen: (...args: unknown[]) =>
       getMembersWithUserAndLastSeenMock(...args),
   },
@@ -154,10 +145,14 @@ async function post() {
 describe("POST /admin/organizations/{slug}/members", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    transactionMock.mockImplementation(async (callback) => callback({}));
-    getAdminOrganizationBySlugMock.mockResolvedValue(ORG);
-    getUserByIdMock.mockResolvedValue({ id: "user_target" });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        member: { create: createMemberMock },
+      }),
+    );
+    organizationFindUniqueMock.mockResolvedValue(ORG);
+    userFindUniqueMock.mockResolvedValue({ id: "user_target" });
+    memberFindUniqueMock.mockResolvedValue(null);
     createMemberMock.mockResolvedValue({ id: "mem_1" });
     ensurePersonalWorkspaceForOrganizationMembershipMock.mockResolvedValue(
       undefined,
@@ -181,7 +176,13 @@ describe("POST /admin/organizations/{slug}/members", () => {
       tx: expect.anything(),
       organizationId: "org_1",
     });
-    expect(createMemberMock).toHaveBeenCalled();
+    expect(createMemberMock).toHaveBeenCalledWith({
+      data: {
+        user: { connect: { id: "user_target" } },
+        organization: { connect: { id: "org_1" } },
+        role: "member",
+      },
+    });
   });
 
   it("fails the add when personal workspace ensure fails", async () => {

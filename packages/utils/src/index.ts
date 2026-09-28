@@ -132,10 +132,7 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -154,6 +151,20 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  createDataTableSchema,
+  tableBatchSchema,
+  tableColumnInputSchema,
+  tableColumnTypeSchema,
+  tableEvidenceSchema,
+  tableFilterSchema,
+  tableInsertRowSchema,
+  tableMutationSchema,
+  tableQuerySchema,
+  tableValueSchema,
+  tableValuesSchema,
+  tableViewDefinitionSchema,
+} from "./data-table.js";
 export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
@@ -164,7 +175,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -186,6 +196,7 @@ export {
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
+export { isVercelBlobPublicHost } from "./entity-image-upload.js";
 export {
   getExtensionFromUrl,
   getUrlBasename,
@@ -196,6 +207,40 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  checkFileLabelName,
+  countGraphemes,
+  displayFileLabelName,
+  FILE_LABEL_DESCRIPTION_MAX_LENGTH,
+  FILE_LABEL_NAME_MAX_GRAPHEMES,
+  FILE_SUGGESTIONS_VISIBLE_MAX,
+  FILE_TAGS_PER_RESOURCE_MAX,
+  type FileLabelNameCheck,
+  type FileLabelNameProblem,
+  normalizeFileLabelName,
+  normalizeFileResourceName,
+} from "./file-vocabulary.js";
+export {
+  githubBlobDownloadUrl,
+  isHtmlContentType,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
+export {
+  creditsPerImageCents,
+  IMAGE_PRICE_UNITS,
+  type ImageFrame,
+  type ImagePriceFigures,
+  type ImagePriceUnit,
+  imageOutputDimensions,
+  imageOutputMegapixels,
+  isAreaPricedUnit,
+  isPerImageDerivableUnit,
+} from "./image-credits.js";
+export {
+  type ImagePixelSize,
+  readImageDimensionsFromBytes,
+} from "./image-dimensions.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -319,7 +364,6 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
@@ -328,12 +372,22 @@ export {
 } from "./project-logo-path.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaKind,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidation,
+  type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostMediaKindForMime,
+  socialPostMimeForFileName,
+  validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,

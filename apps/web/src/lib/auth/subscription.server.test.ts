@@ -62,7 +62,7 @@ describe("subscription.server", () => {
       plan: "starter",
       returnUrl: "https://preprod.sokosumi.com/billing?tab=subscription",
       successUrl:
-        "https://preprod.sokosumi.com/billing?tab=subscription&status=success",
+        "https://preprod.sokosumi.com/billing?tab=subscription&status=success&checkout_session_id={CHECKOUT_SESSION_ID}",
     });
   });
 
@@ -206,7 +206,7 @@ describe("subscription.server", () => {
       returnUrl: "https://preprod.sokosumi.com/organizations/acme",
       seats: 7,
       successUrl:
-        "https://preprod.sokosumi.com/organizations/acme?status=success",
+        "https://preprod.sokosumi.com/organizations/acme?status=success&checkout_session_id={CHECKOUT_SESSION_ID}",
     });
   });
 

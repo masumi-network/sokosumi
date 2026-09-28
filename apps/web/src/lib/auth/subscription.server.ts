@@ -15,7 +15,10 @@ import {
   resolveWebRequestOrigin,
 } from "@/lib/auth/auth.server.client";
 import { getAbsoluteRedirectUrlForOrigin } from "@/lib/auth/auth.utils";
-import { buildSubscriptionStatusPath } from "@/lib/stripe/subscription-redirect-urls";
+import {
+  buildSubscriptionStatusPath,
+  withCheckoutSessionIdPlaceholder,
+} from "@/lib/stripe/subscription-redirect-urls";
 
 export type SubscriptionChangeResult =
   | { mode: "complete" }
@@ -97,10 +100,12 @@ async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
         returnPath,
         SAFE_REDIRECT_FALLBACK,
       ),
-      successUrl: getAbsoluteRedirectUrlForOrigin(
-        origin,
-        buildSubscriptionStatusPath(returnPath, "success"),
-        SAFE_REDIRECT_FALLBACK,
+      successUrl: withCheckoutSessionIdPlaceholder(
+        getAbsoluteRedirectUrlForOrigin(
+          origin,
+          buildSubscriptionStatusPath(returnPath, "success"),
+          SAFE_REDIRECT_FALLBACK,
+        ),
       ),
     }),
   );

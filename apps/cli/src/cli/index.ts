@@ -1,6 +1,7 @@
 import {
   type CoreHttpClient,
   createCoreHttpClient,
+  validateOrganizationSlug,
 } from "../api/http-client.js";
 import {
   type AuthEnvironment,
@@ -21,15 +22,22 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
+import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
+import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
+import {
+  type RuntimeDependencies,
+  runRuntimeCommand,
+} from "./commands/runtime.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { CLI_VERSION } from "./metadata.js";
+import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
 type ValueOptionName =
   | "auth-url"
@@ -65,6 +73,17 @@ type ValueOptionName =
   | "input-file"
   | "max-credits"
   | "vendor-id"
+  | "workspace-id"
+  | "organization-id"
+  | "organization-slug"
+  | "provider"
+  | "model"
+  | "hermes-path"
+  | "hermes-home"
+  | "runtime-directory"
+  | "timeout-ms"
+  | "result-file"
+  | "email"
   | "slug";
 
 type CliOptionValue = string | string[];
@@ -108,6 +127,7 @@ interface CliOptions {
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  "organization-slug"?: string;
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
@@ -122,6 +142,7 @@ export interface CliDependencies {
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
+  runtime?: RuntimeDependencies;
 }
 
 export interface CliResult {
@@ -133,6 +154,7 @@ export interface CliResult {
   target?: CliTargetConfig["target"];
   apiUrl?: string;
   expiresAt?: string | null;
+  user?: AuthWhoamiResult["user"];
   tui?: boolean;
 }
 
@@ -140,23 +162,34 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   discover: "",
   "auth login": "",
   "auth status": "",
+  "auth whoami": "",
   "auth logout": "",
+  "admin members": "WORKSPACE_SLUG",
+  "admin add-member": "WORKSPACE_SLUG --email EMAIL",
+  "admin assign-seat": "WORKSPACE_SLUG --email EMAIL",
   "agents list": "",
   "agents hire": "AGENT_ID",
   "coworkers list": "",
   "coworkers register": "[options]",
+  "coworkers provision": "[options]",
+  "coworkers connect": "COWORKER_ID [options]",
   "coworkers update": "COWORKER_ID [options]",
   "coworkers api-key": "COWORKER_ID [options]",
   "coworkers me": "",
   "vendors me": "",
   "vendors create": "--name NAME --slug SLUG",
   "workspaces list": "",
+  "workspaces check": "ORGANIZATION_ID",
+  "runtime key-import": "[options]",
+  "runtime start": "TASK_ID [options]",
+  "runtime complete": "TASK_ID [options]",
+  "runtime run": "TASK_ID [options]",
   "tasks list": "[options]",
-  "tasks create": "",
-  "tasks get": "TASK_ID",
-  "tasks events": "TASK_ID",
-  "tasks jobs": "TASK_ID",
-  "tasks comment": "TASK_ID",
+  "tasks create": "[--organization-slug WORKSPACE_SLUG]",
+  "tasks get": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks events": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks jobs": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  "tasks comment": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
   "jobs list": "",
   "jobs get": "JOB_ID",
   "jobs input": "JOB_ID",
@@ -229,6 +262,56 @@ Global options:
 ${formatGlobalOptionHelp()
   .map((line) => `  ${line}`)
   .join("\n")}
+
+Account checks:
+  auth whoami asks Core for the signed-in email and platform role. auth status shows authentication state.
+  Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
+  Sign in as the intended account in the browser, run auth login, then auth whoami.
+  auth logout clears local credentials; it does not switch the browser account.
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+  5. Before organization Tasks, check Seat eligibility: sokosumi --preprod workspaces check ORGANIZATION_ID
+  Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
+
+Organizer setup on Preprod (platform admin):
+  Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
+  For an existing Preprod account, use the selected Workspace slug:
+  sokosumi --preprod admin members WORKSPACE_SLUG
+  sokosumi --preprod admin add-member WORKSPACE_SLUG --email EMAIL
+  sokosumi --preprod admin assign-seat WORKSPACE_SLUG --email EMAIL
+  Admin commands require a live platform-admin identity. Core authorizes each request.
+  Free Workspace members need no Seat assignment. Paid Seat capacity is managed separately in Web billing.
+  Member lookup uses the account's exact email. It does not select the developer's Vendor.
+  Ask each developer for their Vendor ID and final Coworker name.
+  Verify your account: sokosumi --preprod auth whoami
+  Provision checks the live platform role. Core still authorizes creation.
+  sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
+  Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
+  Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
+
+Organization Tasks:
+  Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
+  Core checks Workspace membership and Task permissions. The selected network stays unchanged.
+  Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
+  Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+
+Agent runtime tools on Preprod:
+  runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
+  runtime start, complete, and run require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  Runtime commands do not read developer credentials or target configuration.
+  runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
+  runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
+  Use --json for tools. Run one executor per Task; inspect state before any retry.
+
+Optional Hermes runner:
+  runtime run requires --hermes-home EXISTING_PROFILE_DIR --runtime-directory ABSOLUTE_DIR.
+  Optional overrides: --provider NAME --model NAME --hermes-path EXECUTABLE --timeout-ms MS (default: 300000).
+  Run one READY Task using the developer's configured Hermes profile.
+  The adapter preserves the profile's tools and model. It does not poll for more work.
 `;
 }
 
@@ -262,6 +345,17 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
+  "organization-id",
+  "organization-slug",
+  "provider",
+  "model",
+  "hermes-path",
+  "hermes-home",
+  "runtime-directory",
+  "timeout-ms",
+  "result-file",
+  "email",
   "slug",
 ]);
 
@@ -272,6 +366,7 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
 const CORE_COMMAND_SECTIONS = new Set([
+  "admin",
   "discover",
   "agents",
   "coworkers",
@@ -347,6 +442,7 @@ export function parseArgv(argv: string[]): ParsedArgv {
 function getCoreClient(
   session: CliSession,
   dependencies: CliDependencies,
+  organizationSlug?: string,
 ): CoreHttpClient {
   return (
     dependencies.coreClient ||
@@ -357,6 +453,7 @@ function getCoreClient(
       clientId: session.config.clientId,
       clientSecret: session.config.clientSecret,
       environment: session.env,
+      organizationSlug,
     })
   );
 }
@@ -387,6 +484,10 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    ["register", "provision", "connect"].includes(positionals[1]);
+  const adminOnboarding = positionals[0] === "admin";
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -397,12 +498,54 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
+  if (positionals[0] === "runtime") {
+    try {
+      await runRuntimeCommand({
+        positionals,
+        options,
+        stdout,
+        readStdin: dependencies.readStdin,
+        dependencies: dependencies.runtime,
+      });
+      return {};
+    } catch (error) {
+      if (options.json) writeJsonError(stdout, error);
+      throw error;
+    }
+  }
+
+  let organizationSlug: string | undefined;
+  try {
+    if (
+      positionals[0] === "tasks" &&
+      (options["organization-id"] !== undefined ||
+        options["workspace-id"] !== undefined)
+    ) {
+      throw new Error(
+        "Task commands do not accept --organization-id or --workspace-id. Use --organization-slug WORKSPACE_SLUG.",
+      );
+    }
+    if (options["organization-slug"] !== undefined) {
+      if (positionals[0] !== "tasks") {
+        throw new Error(
+          "--organization-slug is only supported by tasks commands",
+        );
+      }
+      organizationSlug = validateOrganizationSlug(options["organization-slug"]);
+    }
+  } catch (error) {
+    if (options.json)
+      writeJsonError(stdout, error, dependencies.env || process.env);
+    throw error;
+  }
+
   let session: CliSession;
   try {
     session = bootstrapCliSession({
       environment: dependencies.env || process.env,
       loadFiles: dependencies.env === undefined,
       preprod: options.preprod,
+      preprodDefault: coworkerRegistration || adminOnboarding,
       apiUrl: options["api-url"],
       authUrl: options["auth-url"],
       clientId: options["client-id"],
@@ -448,7 +591,21 @@ export async function runCli(
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
-    if (CORE_COMMAND_SECTIONS.has(section)) {
+    if (coworkerRegistration) {
+      requirePreprodCoworkerRegistration(config.target);
+    }
+    if (adminOnboarding) {
+      validateAdminCommand({
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+    }
+    if (
+      CORE_COMMAND_SECTIONS.has(section) ||
+      (section === "auth" && command === "whoami" && positionalId === undefined)
+    ) {
       await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
@@ -457,6 +614,18 @@ export async function runCli(
         config,
         stdout,
         json: options.json,
+      });
+      return {};
+    }
+    if (section === "admin") {
+      await runAdminCommand({
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
       });
       return {};
     }
@@ -477,12 +646,21 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        [
+          "list",
+          "register",
+          "provision",
+          "connect",
+          "update",
+          "api-key",
+          "me",
+        ].includes(command))
     ) {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
+        target: config.target,
         subcommand: command,
         positionalId,
         options,
@@ -505,14 +683,15 @@ export async function runCli(
     }
     if (
       section === "workspaces" &&
-      command === "list" &&
-      positionalId === undefined
+      ((command === "list" && positionalId === undefined) ||
+        (command === "check" && positionalId !== undefined))
     ) {
       await runWorkspacesCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
+        positionalId,
       });
       return {};
     }
@@ -524,7 +703,7 @@ export async function runCli(
         ))
     ) {
       await runTasksCommand({
-        client: getCoreClient(session, dependencies),
+        client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
         json: options.json,
         subcommand: command,
@@ -548,12 +727,24 @@ export async function runCli(
       return {};
     }
     if (
+      section === "auth" &&
+      command === "whoami" &&
+      positionalId === undefined
+    ) {
+      return await runAuthWhoami({
+        client: getCoreClient(session, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (
       section !== "auth" ||
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
       throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|logout",
+        "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | runtime key-import|start|complete | tasks | jobs | auth login|status|whoami|logout",
       );
     }
 

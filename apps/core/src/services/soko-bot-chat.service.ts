@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   composeSokoBotIntroduction,
   isSokoBotSilentAnswer,
@@ -30,6 +31,15 @@ const CAPABILITY_LABELS: Record<string, string> = {
   request_user_decision: "Asking for your approval",
   read_memory: "Reading memory",
   update_memory: "Updating memory",
+  web_search: "Searching the web",
+  web_fetch: "Reading a web page",
+  bash: "Running a command",
+  workspace_read: "Reading a file",
+  workspace_write: "Writing a file",
+  workspace_list: "Looking through files",
+  workspace_search: "Searching files",
+  update_plan: "Planning",
+  run_subagent: "Asking a helper",
 };
 
 export function sokoBotCapabilityLabel(toolName: string | null): string {
@@ -60,7 +70,10 @@ async function publishRealtime(
   await publishChatRoomMessageRealtimeById(messageId, eventType);
 }
 
-async function loadChatLinkedTurn(turnId: string): Promise<
+async function loadChatLinkedTurn(
+  turnId: string,
+  client: Prisma.TransactionClient = prisma,
+): Promise<
   | (ChatLinkedTurn & {
       mention: { id: string; messageId: string; roomId: string } | null;
       steps: string[];
@@ -69,7 +82,7 @@ async function loadChatLinkedTurn(turnId: string): Promise<
     })
   | null
 > {
-  const turn = await prisma.sokoBotTurn.findUnique({
+  const turn = await client.sokoBotTurn.findUnique({
     where: { id: turnId },
     select: {
       id: true,
@@ -237,84 +250,11 @@ export async function introduceSokoBot(input: {
   return { messageId: message.id };
 }
 
-/**
- * Turns the bot started itself (schedules, coworker events, inbox ingests)
- * have no chat message to write back to; post the answer into the owner's
- * direct room with the bot so they see it where they talk to it.
- */
-export async function deliverSokoBotTurnToDirectRoom(
+export async function persistSokoBotChatTurn(
   turnId: string,
+  tx: Prisma.TransactionClient,
 ): Promise<void> {
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: {
-      source: true,
-      status: true,
-      finalAnswer: true,
-      userId: true,
-      chatMention: { select: { id: true } },
-      sokoBotId: true,
-    },
-  });
-  if (!turn || turn.source === "CHAT" || turn.chatMention) return;
-  if (turn.status !== "COMPLETED") return;
-  const answer = turn.finalAnswer?.trim() ?? "";
-  if (isSokoBotSilentAnswer(answer)) return;
-  const room = await prisma.chatRoom.findFirst({
-    where: {
-      kind: "direct",
-      archivedAt: null,
-      sokoBotMembers: { some: { sokoBotId: turn.sokoBotId } },
-      userMembers: { some: { userId: turn.userId } },
-    },
-    select: { id: true },
-  });
-  if (!room) return;
-  // Dynamic, like the realtime helper below, so this module does not pull
-  // the route helper chain in at load time. Loaded before the transaction so
-  // a first load never holds it open.
-  const { persistChatHumanMentions, emitChatHumanMentionNotifications } =
-    await import("@/helpers/chat-human-mentions");
-  const message = await prisma.$transaction(async (tx) => {
-    const created = await tx.chatRoomMessage.create({
-      data: {
-        roomId: room.id,
-        senderSokoBotId: turn.sokoBotId,
-        content: answer,
-        metadata: { soko_bot: { turn_id: turnId, source: turn.source } },
-      },
-      select: { id: true },
-    });
-    const mentionedUserIds = await persistChatHumanMentions(tx, {
-      messageId: created.id,
-      roomId: room.id,
-      content: answer,
-    });
-    await tx.chatRoom.update({
-      where: { id: room.id },
-      data: { updatedAt: new Date() },
-    });
-    return { id: created.id, mentionedUserIds };
-  });
-  const { publishChatRoomMessageRealtimeById } = await import(
-    "@/helpers/chat-room-message-realtime"
-  );
-  await Promise.all([
-    invalidateChatRoomMessageReaders({
-      roomId: room.id,
-    }),
-    publishChatRoomMessageRealtimeById(message.id, "create"),
-  ]);
-  if (message.mentionedUserIds.length > 0) {
-    await emitChatHumanMentionNotifications({
-      messageId: message.id,
-      mentionedUserIds: message.mentionedUserIds,
-    });
-  }
-}
-
-export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
-  const turn = await loadChatLinkedTurn(turnId);
+  const turn = await loadChatLinkedTurn(turnId, tx);
   if (!turn?.mention || !turn.chatResponseMessageId) return;
   lastProgressPublishAt.delete(turn.chatResponseMessageId);
   const mention = turn.mention;
@@ -331,113 +271,80 @@ export async function finalizeSokoBotChatTurn(turnId: string): Promise<void> {
     turn.status === "COMPLETED" &&
     isSokoBotSilentAnswer(answer);
   if (stayedSilent) {
-    const finalized = await prisma.$transaction(async (tx) => {
-      const claimed = await tx.chatRoomMention.updateMany({
-        where: { id: mention.id, status: { in: ["pending", "sent"] } },
-        data: { status: "responded", error: null },
-      });
-      if (claimed.count !== 1) return false;
-      await tx.chatRoomMessage.delete({ where: { id: responseMessageId } });
-      return true;
+    const claimed = await tx.chatRoomMention.updateMany({
+      where: { id: mention.id, status: { in: ["pending", "sent"] } },
+      data: { status: "responded", error: null },
     });
-    if (!finalized) return;
-    await publishRealtime(responseMessageId, "delete");
-    await publishRealtime(mention.messageId, "mention_status");
+    if (claimed.count !== 1) return;
+    // Retain a tombstone so the durable delivery can retry its delete event.
+    await tx.chatRoomMessage.update({
+      where: { id: responseMessageId },
+      data: { deletedAt: new Date() },
+    });
     return;
   }
   const startedAtMs = (turn.startedAt ?? turn.createdAt).getTime();
   const endedAtMs = (turn.completedAt ?? new Date()).getTime();
 
-  // Dynamic, like the realtime helper above, so this module does not pull
-  // the route helper chain in at load time. Loaded before the transaction so
-  // a first load never holds it open.
-  const { persistChatHumanMentions, emitChatHumanMentionNotifications } =
-    await import("@/helpers/chat-human-mentions");
-  let mentionedUserIds: string[] = [];
-  const finalized = await prisma.$transaction(async (tx) => {
-    if (succeeded) {
-      const claimed = await tx.chatRoomMention.updateMany({
-        where: { id: mention.id, status: { in: ["pending", "sent"] } },
-        data: { status: "responded", error: null },
-      });
-      // The transition timestamp is the response's unread clock. Losing or
-      // repeated finalizers must preserve both that clock and the response.
-      if (claimed.count !== 1) return false;
-      await tx.chatRoomMessage.update({
-        where: { id: responseMessageId },
-        data: {
-          content: answer,
-          metadata: {
-            in_reply_to_message_id: mention.messageId,
-            mention_id: mention.id,
-            // Same shape `thoughtMetadataFields` writes for coworkers, inlined
-            // so this module never drags the realtime/auth import chain in.
-            ...(turn.steps.length > 0
-              ? {
-                  reasoning: turn.steps.map((text) => ({
-                    type: "reasoning",
-                    text,
-                  })),
-                  thought_timing_ms: { start: startedAtMs, end: endedAtMs },
-                }
-              : {}),
-            soko_bot: {
-              turn_id: turn.id,
-              pending_decision_ids: turn.pendingDecisionIds,
-              task_ids: turn.taskIds,
-            },
-          },
-        },
-      });
-      mentionedUserIds = await persistChatHumanMentions(tx, {
-        messageId: responseMessageId,
-        roomId: mention.roomId,
-        content: answer,
-      });
-      await tx.chatRoom.update({
-        where: { id: mention.roomId },
-        data: { updatedAt: new Date() },
-      });
-      return true;
-    }
-    const error =
-      turn.status === "CANCELLED"
-        ? "Soko Bot turn was cancelled"
-        : (turn.errorDetail ?? "Soko Bot could not answer");
+  if (succeeded) {
     const claimed = await tx.chatRoomMention.updateMany({
       where: { id: mention.id, status: { in: ["pending", "sent"] } },
-      data: { status: "failed", error: error.slice(0, 500) },
+      data: { status: "responded", error: null },
     });
-    if (claimed.count !== 1) return false;
+    // The transition timestamp is the response's unread clock. Losing or
+    // repeated finalizers must preserve both that clock and the response.
+    if (claimed.count !== 1) return;
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },
       data: {
-        content: "",
+        content: answer,
         metadata: {
           in_reply_to_message_id: mention.messageId,
           mention_id: mention.id,
-          mention_failed: true,
-          soko_bot: { turn_id: turn.id },
+          // Same shape `thoughtMetadataFields` writes for coworkers, inlined
+          // so this module never drags the realtime/auth import chain in.
+          ...(turn.steps.length > 0
+            ? {
+                reasoning: turn.steps.map((text) => ({
+                  type: "reasoning",
+                  text,
+                })),
+                thought_timing_ms: { start: startedAtMs, end: endedAtMs },
+              }
+            : {}),
+          soko_bot: {
+            turn_id: turn.id,
+            pending_decision_ids: turn.pendingDecisionIds,
+            task_ids: turn.taskIds,
+          },
         },
       },
     });
-    return true;
-  });
-
-  if (!finalized) return;
-  await Promise.all([
-    succeeded
-      ? invalidateChatRoomMessageReaders({
-          roomId: mention.roomId,
-        })
-      : undefined,
-    publishRealtime(responseMessageId, "update"),
-  ]);
-  await publishRealtime(mention.messageId, "mention_status");
-  if (mentionedUserIds.length > 0) {
-    await emitChatHumanMentionNotifications({
-      messageId: responseMessageId,
-      mentionedUserIds,
+    await tx.chatRoom.update({
+      where: { id: mention.roomId },
+      data: { updatedAt: new Date() },
     });
+    return;
   }
+  const error =
+    turn.status === "CANCELLED"
+      ? "Soko Bot turn was cancelled"
+      : (turn.errorDetail ?? "Soko Bot could not answer");
+  const claimed = await tx.chatRoomMention.updateMany({
+    where: { id: mention.id, status: { in: ["pending", "sent"] } },
+    data: { status: "failed", error: error.slice(0, 500) },
+  });
+  if (claimed.count !== 1) return;
+  await tx.chatRoomMessage.update({
+    where: { id: responseMessageId },
+    data: {
+      content: "",
+      metadata: {
+        in_reply_to_message_id: mention.messageId,
+        mention_id: mention.id,
+        mention_failed: true,
+        soko_bot: { turn_id: turn.id },
+      },
+    },
+  });
 }

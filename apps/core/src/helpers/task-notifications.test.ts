@@ -443,6 +443,26 @@ describe("notifyTaskStatusEvent", () => {
     expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
+  it("propagates queue persistence failure for durable bot retry", async () => {
+    const failure = new Error("notification write failed");
+    createNotificationMock.mockRejectedValueOnce(failure);
+    await expect(
+      notifyTaskStatusEvent("task_1", "event_1", "CANCELED", null, {
+        throwOnError: true,
+      }),
+    ).rejects.toBe(failure);
+  });
+
+  it("propagates lookup failure for durable bot retry", async () => {
+    const failure = new Error("task lookup failed");
+    prismaTaskFindUniqueMock.mockRejectedValueOnce(failure);
+    await expect(
+      notifyTaskStatusEvent("task_1", "event_1", "CANCELED", null, {
+        throwOnError: true,
+      }),
+    ).rejects.toBe(failure);
+  });
+
   /** Agents write events with no `userId`, so the owner still hears. */
   it("tells the owner when an agent cancels the task", async () => {
     await notifyTaskStatusEvent("task_1", "event_1", "CANCELED", null);

@@ -179,7 +179,9 @@ export default function DataTable<TData extends RowData>({
 
   const tableElements = (
     <div className={cn("flex min-w-0 flex-col space-y-4", containerClassName)}>
-      <div className={cn("min-w-0 overflow-x-auto", tableClassName)}>
+      <div
+        className={cn("app-scrollbar min-w-0 overflow-x-auto", tableClassName)}
+      >
         <table
           className="w-full caption-bottom text-sm"
           style={{ minWidth: minTableWidth }}

@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 /// Row 24g1: the sidebar row follows ADR 0037 as web's `resolveRoomAttention` does

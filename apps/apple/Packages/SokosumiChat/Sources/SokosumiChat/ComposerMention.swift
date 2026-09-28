@@ -15,7 +15,7 @@ public struct ComposerMention: Equatable, Sendable, Identifiable {
   public let email: String?
 
   /// Display name for the room-wide mention; the wire token stays `@all:all`.
-  public static let allDisplayName = "Everyone"
+  static let allDisplayName = "Everyone"
 
   public init(id: String, name: String, slug: String, kind: Kind, image: String? = nil, email: String? = nil) {
     self.id = id

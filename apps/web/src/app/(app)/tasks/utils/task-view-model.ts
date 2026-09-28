@@ -200,6 +200,7 @@ export function mapTaskToTaskWithCoworker(
         ? task.commentsCount
         : getCommentsCount(task.events),
     columnId: getColumnId(task.status),
+    tags: task.tags,
     description: task.description ?? null,
     descriptionPlain,
     events: "events" in task ? task.events : [],

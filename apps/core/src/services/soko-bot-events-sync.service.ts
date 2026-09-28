@@ -1,6 +1,9 @@
+import { createHash } from "node:crypto";
 import { getEnv } from "@/config/env";
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
+import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -8,7 +11,6 @@ import {
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const BATCH_SIZE = 500;
-const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
 const MAX_CHANGES_PER_TURN = 8;
 
 /** Task statuses worth waking the bot for; intermediate churn stays silent. */
@@ -38,6 +40,9 @@ export interface SokoBotEventsSyncResult {
 
 interface Change {
   delegationId: string;
+  eventId?: string | null;
+  eventAt?: Date;
+  designatedHandlerBotId?: string | null;
   kind: "TASK" | "JOB";
   entityId: string;
   name: string;
@@ -53,14 +58,19 @@ interface BotWork {
   workspaceId: string;
   changes: Change[];
   /** Delegations whose baseline is set silently (first observation). */
-  baselines: { delegationId: string; status: string }[];
+  baselines: {
+    delegationId: string;
+    status: string;
+    eventId?: string | null;
+    eventAt?: Date;
+  }[];
 }
 
 export function sokoBotEventClientTurnId(changes: Change[]): string {
-  return `event:${changes.map((c) => `${c.delegationId}:${c.to}`).join(",")}`.slice(
-    0,
-    120,
-  );
+  const occurrences = changes
+    .map((c) => [c.kind, c.entityId, c.eventId ?? c.to])
+    .sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+  return `event:${createHash("sha256").update(JSON.stringify(occurrences)).digest("hex")}`;
 }
 
 export function buildEventMessage(changes: Change[]): string {
@@ -101,65 +111,104 @@ export class SokoBotEventsSyncService {
     // taskboard event turn is exactly that.
     if (getEnv().SOKO_BOT_PROACTIVE_PAUSED) return result;
 
-    const delegations = await prisma.sokoBotDelegation.findMany({
-      where: {
-        createdAt: { gte: new Date(Date.now() - WATCH_WINDOW_MS) },
-        OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
-        // Unattended work the bot starts itself honours the owner's pause,
-        // not just the administrator's.
-        turn: {
-          sokoBot: withBetaBotOwner({
-            archivedAt: null,
-            adminPausedAt: null,
-            proactivePaused: false,
-          }),
-        },
-      },
-      // Newest first: the delegations most likely to change are recent ones,
-      // and a large backlog must not starve them.
-      orderBy: { createdAt: "desc" },
-      take: BATCH_SIZE,
-      select: {
-        id: true,
-        kind: true,
-        lastSeenStatus: true,
-        task: {
-          select: {
-            id: true,
-            name: true,
-            status: true,
-            events: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { comment: true },
-            },
-          },
-        },
-        job: {
-          select: {
-            id: true,
-            name: true,
-            events: {
-              orderBy: { createdAt: "desc" },
-              take: 1,
-              select: { status: true },
-            },
-          },
-        },
-        turn: {
-          select: { sokoBotId: true, userId: true, workspaceId: true },
-        },
-      },
+    const scan = await prisma.syncMetadata.upsert({
+      where: { key: "soko-events-v2" },
+      create: { key: "soko-events-v2", lastSyncedAt: new Date() },
+      update: {},
     });
+    const readPage = (cursor?: string | null) =>
+      prisma.sokoBotDelegation.findMany({
+        where: {
+          ...(cursor ? { id: { gt: cursor } } : {}),
+          OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
+          // Unattended work the bot starts itself honours the owner's pause,
+          // not just the administrator's.
+          turn: {
+            sokoBot: withBetaBotOwner({
+              archivedAt: null,
+              adminPausedAt: null,
+              proactivePaused: false,
+            }),
+          },
+        },
+        // Stable keyset rotation visits old unresolved work without rescanning
+        // the whole table or starving it behind newer delegations.
+        orderBy: { id: "asc" },
+        take: BATCH_SIZE,
+        select: {
+          id: true,
+          kind: true,
+          lastSeenStatus: true,
+          lastSeenEventId: true,
+          lastSeenEventAt: true,
+          task: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              visibility: true,
+              ownerId: true,
+              workspaceId: true,
+              archivedAt: true,
+              assigneeSokoBotId: true,
+              events: {
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                take: 1,
+                select: { id: true, comment: true, createdAt: true },
+              },
+            },
+          },
+          job: {
+            select: {
+              id: true,
+              name: true,
+              ownerId: true,
+              workspaceId: true,
+              task: { select: { visibility: true, ownerId: true } },
+              events: {
+                orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+                take: 1,
+                select: { id: true, status: true, createdAt: true },
+              },
+            },
+          },
+          turn: {
+            select: { sokoBotId: true, userId: true, workspaceId: true },
+          },
+        },
+      });
+    const delegations = await readPage(scan.cursorId);
     result.scanned = delegations.length;
 
     const byBot = new Map<string, BotWork>();
     for (const delegation of delegations) {
+      if (!input.shouldContinue() || input.abortSignal.aborted) break;
+      if (
+        delegation.task &&
+        (delegation.task.archivedAt ||
+          delegation.task.workspaceId !== delegation.turn.workspaceId ||
+          !isPrivateTaskVisibleToHuman(delegation.task, delegation.turn.userId))
+      )
+        continue;
+      if (
+        delegation.job &&
+        (delegation.job.workspaceId !== delegation.turn.workspaceId ||
+          delegation.job.ownerId !== delegation.turn.userId ||
+          (delegation.job.task &&
+            !isPrivateTaskVisibleToHuman(
+              delegation.job.task,
+              delegation.turn.userId,
+            )))
+      )
+        continue;
       const current = delegation.task
         ? {
             id: delegation.task.id,
             name: delegation.task.name,
             status: delegation.task.status,
+            note: delegation.task.events[0]?.comment ?? null,
+            eventId: delegation.task.events[0]?.id ?? null,
+            eventAt: delegation.task.events[0]?.createdAt,
           }
         : delegation.job
           ? {
@@ -167,9 +216,15 @@ export class SokoBotEventsSyncService {
               name: delegation.job.name ?? "Agent job",
               status: delegation.job.events[0]?.status ?? null,
               note: null,
+              eventId: delegation.job.events[0]?.id ?? null,
+              eventAt: delegation.job.events[0]?.createdAt,
             }
           : null;
-      if (!current?.status || current.status === delegation.lastSeenStatus) {
+      if (
+        !current?.status ||
+        (current.status === delegation.lastSeenStatus &&
+          (!current.eventId || current.eventId === delegation.lastSeenEventId))
+      ) {
         continue;
       }
       const work = byBot.get(delegation.turn.sokoBotId) ?? {
@@ -180,18 +235,124 @@ export class SokoBotEventsSyncService {
         baselines: [],
       };
       byBot.set(delegation.turn.sokoBotId, work);
-      const wake = delegation.task
-        ? TASK_WAKE_STATUSES.has(current.status)
-        : JOB_WAKE_STATUSES.has(current.status);
-      if (delegation.lastSeenStatus === null || !wake) {
+      if (
+        (!delegation.lastSeenEventAt &&
+          delegation.lastSeenStatus === null &&
+          !current.eventAt) ||
+        (current.eventAt && current.eventAt < scan.createdAt)
+      ) {
         work.baselines.push({
           delegationId: delegation.id,
           status: current.status,
+          eventId: current.eventId,
+          eventAt: current.eventAt ?? scan.createdAt,
+        });
+        continue;
+      }
+      if (delegation.lastSeenEventAt) {
+        const cursorAt = new Date(
+          Math.max(
+            delegation.lastSeenEventAt.getTime(),
+            scan.createdAt.getTime(),
+          ),
+        );
+        const cursor = {
+          OR: [
+            { createdAt: { gt: cursorAt } },
+            {
+              createdAt: cursorAt,
+              id: {
+                gt:
+                  cursorAt.getTime() === delegation.lastSeenEventAt.getTime()
+                    ? (delegation.lastSeenEventId ?? "")
+                    : "",
+              },
+            },
+          ],
+        };
+        const events = delegation.task
+          ? await prisma.taskEvent.findMany({
+              where: { taskId: current.id, ...cursor },
+              orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+              take: MAX_CHANGES_PER_TURN,
+              select: {
+                id: true,
+                createdAt: true,
+                status: true,
+                comment: true,
+              },
+            })
+          : (
+              await prisma.jobEvent.findMany({
+                where: { jobId: current.id, ...cursor },
+                orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+                take: MAX_CHANGES_PER_TURN,
+                select: { id: true, createdAt: true, status: true },
+              })
+            ).map((event) => ({ ...event, comment: null }));
+        const actionable = events.filter(
+          (event) =>
+            event.status &&
+            (delegation.task ? TASK_WAKE_STATUSES : JOB_WAKE_STATUSES).has(
+              event.status,
+            ),
+        );
+        for (const event of actionable) {
+          work.changes.push({
+            delegationId: delegation.id,
+            eventId: event.id,
+            eventAt: event.createdAt,
+            designatedHandlerBotId: delegation.task
+              ? (delegation.task.assigneeSokoBotId ??
+                (delegation.task.ownerId === delegation.turn.userId
+                  ? delegation.turn.sokoBotId
+                  : null))
+              : delegation.turn.sokoBotId,
+            kind: delegation.task ? "TASK" : "JOB",
+            entityId: current.id,
+            name: current.name,
+            from: delegation.lastSeenStatus,
+            to: event.status ?? current.status,
+            note: event.comment,
+          });
+        }
+        if (!actionable.length && events.length) {
+          const last = events[events.length - 1];
+          work.baselines.push({
+            delegationId: delegation.id,
+            status: last.status ?? current.status,
+            eventId: last.id,
+            eventAt: last.createdAt,
+          });
+        }
+        continue;
+      }
+      const wake = delegation.task
+        ? TASK_WAKE_STATUSES.has(current.status)
+        : JOB_WAKE_STATUSES.has(current.status);
+      if (
+        (delegation.lastSeenStatus === null &&
+          (current.status === "COMPLETED" || current.status === "CANCELED")) ||
+        !wake
+      ) {
+        work.baselines.push({
+          delegationId: delegation.id,
+          status: current.status,
+          eventId: current.eventId,
+          eventAt: current.eventAt,
         });
         continue;
       }
       work.changes.push({
         delegationId: delegation.id,
+        eventId: current.eventId,
+        eventAt: current.eventAt,
+        designatedHandlerBotId: delegation.task
+          ? (delegation.task.assigneeSokoBotId ??
+            (delegation.task.ownerId === delegation.turn.userId
+              ? delegation.turn.sokoBotId
+              : null))
+          : delegation.turn.sokoBotId,
         kind: delegation.task ? "TASK" : "JOB",
         entityId: current.id,
         name: current.name,
@@ -228,13 +389,50 @@ export class SokoBotEventsSyncService {
         result.deferred += 1;
         continue;
       }
-      // Collapse one entity's multiple delegations into one change line.
-      const unique = new Map<string, Change>();
-      for (const change of work.changes) unique.set(change.entityId, change);
-      const changes = Array.from(unique.values()).slice(
-        0,
-        MAX_CHANGES_PER_TURN,
+      const consumed = await prisma.sokoBotEventInbox.findMany({
+        where: {
+          botId: work.sokoBotId,
+          eventId: {
+            in: work.changes.flatMap((change) =>
+              change.eventId ? [change.eventId] : [],
+            ),
+          },
+        },
+        select: { eventId: true },
+      });
+      const consumedIds = new Set(consumed.map((item) => item.eventId));
+      // Advance only a consumed prefix for each delegation. A later event
+      // consumed by taskboard must not skip an earlier pending occurrence.
+      const blockedDelegations = new Set<string>();
+      const consumedPrefix: BotWork["baselines"] = [];
+      for (const change of work.changes) {
+        if (!change.eventId || !consumedIds.has(change.eventId)) {
+          blockedDelegations.add(change.delegationId);
+        } else if (!blockedDelegations.has(change.delegationId)) {
+          consumedPrefix.push({
+            delegationId: change.delegationId,
+            status: change.to,
+            eventId: change.eventId,
+            eventAt: change.eventAt,
+          });
+        }
+      }
+      await this.markSeen(consumedPrefix);
+      work.changes = work.changes.filter(
+        (change) => !change.eventId || !consumedIds.has(change.eventId),
       );
+      if (!work.changes.length) continue;
+      // Collapse duplicate delegations, preserving distinct event occurrences.
+      const unique = new Map<string, Change>();
+      for (const change of work.changes)
+        unique.set(`${change.entityId}:${change.eventId ?? change.to}`, change);
+      const changes = Array.from(unique.values())
+        .sort(
+          (a, b) =>
+            (a.eventAt?.getTime() ?? 0) - (b.eventAt?.getTime() ?? 0) ||
+            (a.eventId ?? "").localeCompare(b.eventId ?? ""),
+        )
+        .slice(0, MAX_CHANGES_PER_TURN);
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,
@@ -242,13 +440,22 @@ export class SokoBotEventsSyncService {
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),
           source: "EVENT",
-        });
-        await this.markSeen(
-          work.changes.map((change) => ({
-            delegationId: change.delegationId,
+          presetRoute: SYSTEM_TURN_ROUTES.events,
+          eventBatch: changes.map((change) => ({
+            eventId: change.eventId ?? `${change.entityId}:${change.to}`,
+            entityId: change.entityId,
+            purpose: `${change.kind}_EVENT`,
             status: change.to,
+            designatedHandlerBotId:
+              change.designatedHandlerBotId === undefined
+                ? work.sokoBotId
+                : change.designatedHandlerBotId,
+            delegationEventAt: change.eventAt,
+            delegationIds: work.changes
+              .filter((item) => item.entityId === change.entityId)
+              .map((item) => item.delegationId),
           })),
-        );
+        });
         result.woken += 1;
         if (
           started.reconciliationLeaseToken &&
@@ -280,18 +487,39 @@ export class SokoBotEventsSyncService {
         });
       }
     }
+    if (input.shouldContinue() && !input.abortSignal.aborted) {
+      await prisma.syncMetadata.update({
+        where: { key: scan.key },
+        data: {
+          cursorId:
+            delegations.length === BATCH_SIZE ? delegations.at(-1)?.id : null,
+          lastSyncedAt: new Date(),
+        },
+      });
+    }
     return result;
   }
 
-  private async markSeen(items: { delegationId: string; status: string }[]) {
-    await Promise.all(
-      items.map((item) =>
-        prisma.sokoBotDelegation.update({
-          where: { id: item.delegationId },
-          data: { lastSeenStatus: item.status },
-        }),
-      ),
-    );
+  private async markSeen(
+    items: {
+      delegationId: string;
+      status: string;
+      eventId?: string | null;
+      eventAt?: Date;
+    }[],
+  ) {
+    // Sequential writes preserve cursor order when a page contains several
+    // occurrences for the same delegation.
+    for (const item of items) {
+      await prisma.sokoBotDelegation.update({
+        where: { id: item.delegationId },
+        data: {
+          lastSeenStatus: item.status,
+          lastSeenEventId: item.eventId ?? null,
+          lastSeenEventAt: item.eventAt,
+        },
+      });
+    }
   }
 }
 

@@ -1,6 +1,7 @@
 import { Rest } from "ably";
 
 import { getEnv } from "@/config/env";
+import { serviceUnavailable } from "@/helpers/error";
 
 function createRest(key: string) {
   return new Rest({
@@ -35,4 +36,16 @@ export function getSubscribeRestClient(): Rest {
     subscribeRestClient = createRest(getEnv().ABLY_SUBSCRIBE_ONLY_KEY);
   }
   return subscribeRestClient;
+}
+
+let pushAdminRestClient: Rest | null = null;
+
+/** Separate from the key that signs browser tokens; never granted to browsers. */
+export function getPushAdminRestClient(): Rest {
+  const key = getEnv().ABLY_PUSH_ADMIN_KEY;
+  if (!key) {
+    throw serviceUnavailable("Push device listing is not configured");
+  }
+  pushAdminRestClient ??= createRest(key);
+  return pushAdminRestClient;
 }

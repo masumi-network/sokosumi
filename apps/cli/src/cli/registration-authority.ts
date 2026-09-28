@@ -3,10 +3,6 @@ import type { Vendor } from "../api/models/vendor.js";
 
 export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
-export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
-  return vendors.filter((vendor) => vendor.role === "admin");
-}
-
 function trimWebBase(webUrl: string | undefined): string {
   return String(webUrl ?? "")
     .trim()
@@ -47,6 +43,43 @@ export function requireOrganizationWorkspacesForRegistration(
 ): void {
   if (workspaces.length === 0) {
     throw new Error(describeRegistrationWorkspaceRequirement(webUrl));
+  }
+}
+
+export function requireSelectedOrganizationWorkspace(
+  workspaces: readonly OrganizationWorkspace[],
+  workspaceId: string | undefined,
+): OrganizationWorkspace {
+  const selectedId = workspaceId?.trim();
+  if (!selectedId) {
+    throw new Error(
+      "workspace id is required. Run `sokosumi --preprod workspaces list` and pass its organization ID as --workspace-id.",
+    );
+  }
+  const workspace = workspaces.find(
+    (candidate) => candidate.organizationId === selectedId,
+  );
+  if (!workspace) {
+    throw new Error(
+      `Workspace ${selectedId} is not in your organization memberships. Run \`sokosumi workspaces list\` and choose one you belong to.`,
+    );
+  }
+  return workspace;
+}
+
+export function isPreprodCoworkerRegistrationTarget(
+  target: string | undefined,
+): boolean {
+  return target === "preprod";
+}
+
+export function requirePreprodCoworkerRegistration(
+  target: string | undefined,
+): void {
+  if (!isPreprodCoworkerRegistrationTarget(target)) {
+    throw new Error(
+      "Coworker registration is Preprod only. Select Preprod with --preprod.",
+    );
   }
 }
 

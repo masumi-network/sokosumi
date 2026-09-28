@@ -904,7 +904,7 @@ export const MarkdownEditor = forwardRef<
         <div
           role="toolbar"
           aria-label="Format"
-          className="bg-card-background flex flex-wrap items-center gap-0.5 border-b px-2 py-1.5"
+          className="bg-card-background flex flex-wrap items-center gap-0.5 rounded-t-[inherit] border-b px-2 py-1.5"
         >
           <MarkdownFormatTools
             onBold={handleBold}
@@ -967,13 +967,13 @@ export const MarkdownEditor = forwardRef<
           aria-multiline="true"
           className={withEditableTextSize(
             "markdown-compose-surface peer",
-            "max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
+            "app-scrollbar max-h-48 min-h-32 overflow-x-hidden overflow-y-auto py-2",
             variant === "document" ? "px-0" : "px-3",
             "outline-none focus:outline-none",
             "wrap-anywhere [word-break:break-word] whitespace-pre-wrap",
             "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold [&_u]:underline [&_s]:line-through",
             "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-            "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+            "[&_pre]:app-scrollbar [&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
             "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
             "[&_a]:text-primary [&_a]:underline",
             "[&_blockquote]:border-input [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
@@ -1009,7 +1009,7 @@ export const MarkdownEditor = forwardRef<
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground pointer-events-auto fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
+              "app-scrollbar bg-popover text-popover-foreground pointer-events-auto fixed z-50 max-h-60 w-72 overflow-y-auto rounded-md border p-1 shadow-md",
               !triggerPosition && "mt-1",
             )}
           >

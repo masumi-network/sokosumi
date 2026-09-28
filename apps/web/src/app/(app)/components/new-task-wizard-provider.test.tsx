@@ -17,16 +17,22 @@ vi.mock("next/dynamic", async () => {
     default: () =>
       function NewTaskWizardMock({
         instance,
+        defaultProjectId,
         onClose,
       }: {
         instance: number;
+        defaultProjectId?: string | null;
         onClose?: () => void;
       }) {
         useEffect(() => {
           wizardMountSpy(instance);
         }, [instance]);
         return (
-          <div data-testid="new-task-wizard" data-instance={instance}>
+          <div
+            data-testid="new-task-wizard"
+            data-instance={instance}
+            data-project={defaultProjectId ?? "workspace"}
+          >
             <button type="button" onClick={onClose}>
               Close
             </button>
@@ -41,12 +47,19 @@ import {
   useOptionalNewTaskWizard,
 } from "./new-task-wizard-provider";
 
-function NewTaskTrigger() {
+function NewTaskTrigger({ projectId }: { projectId?: string | null }) {
   const wizard = useOptionalNewTaskWizard();
   if (!wizard) return <span>unavailable</span>;
 
   return (
-    <button type="button" onClick={wizard.openNewTaskWizard}>
+    <button
+      type="button"
+      onClick={() =>
+        wizard.openNewTaskWizard(
+          projectId === undefined ? undefined : { projectId },
+        )
+      }
+    >
       New Task
     </button>
   );
@@ -111,6 +124,30 @@ describe("NewTaskWizardProvider", () => {
     expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
       "data-instance",
       "2",
+    );
+  });
+
+  it("uses the selected project and clears it when reopened without a project", () => {
+    const view = render(
+      <NewTaskWizardProvider>
+        <NewTaskTrigger projectId="project-1" />
+      </NewTaskWizardProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "New Task" }));
+    expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
+      "data-project",
+      "project-1",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    view.rerender(
+      <NewTaskWizardProvider>
+        <NewTaskTrigger />
+      </NewTaskWizardProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "New Task" }));
+    expect(screen.getByTestId("new-task-wizard")).toHaveAttribute(
+      "data-project",
+      "workspace",
     );
   });
 

@@ -1,6 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { ensureMatchedChannelParticipant } from "@/helpers/chat-room-matched-membership.js";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime.js";
 import { badRequest, notFound } from "@/helpers/error";
@@ -48,12 +47,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { roomId } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const organization = body.organizationId
-      ? await prisma.organization.findUnique({
-          where: { id: body.organizationId },
-          select: { id: true },
-        })
-      : await getAdminOrganizationBySlug(body.organizationSlug!, prisma);
+    const organization = await prisma.organization.findUnique({
+      where: body.organizationId
+        ? { id: body.organizationId }
+        : { slug: body.organizationSlug! },
+      select: { id: true },
+    });
 
     if (!organization) {
       throw notFound("Organization not found");

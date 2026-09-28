@@ -16,7 +16,6 @@ import {
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
-import { CircleHelp } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -29,7 +28,6 @@ import {
   useSyncExternalStore,
   useTransition,
 } from "react";
-import { flushSync } from "react-dom";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
@@ -51,6 +49,7 @@ import {
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   getJobsListFiltersForLazyAgentCatalog,
   getJobsListFiltersResetKey,
@@ -62,7 +61,6 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   isTaskDraggableForViewFilters,
-  mergeProjectFilterOptions,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -128,9 +126,6 @@ import {
   TaskReopenToReadyDialog,
   type TaskReopenToReadyDialogLabels,
 } from "./task-reopen-to-ready-dialog";
-import { shouldShowTasksEmptyStateOverlay } from "./tasks-empty-state";
-import { TasksEmptyStateOverlay } from "./tasks-empty-state-overlay";
-import { TasksProjectSwitcher } from "./tasks-project-switcher";
 import { TasksViewFilters } from "./tasks-view-filters";
 import { ViewModeSwitch } from "./view-mode-switch";
 
@@ -185,7 +180,6 @@ const hydrationStore = (() => {
   return { subscribe, getSnapshot, getServerSnapshot };
 })();
 
-const TASKS_GUIDE_COMPLETED_STORAGE_KEY = "sokosumi.tasks.guideCompleted";
 interface TasksRealtimeListenerProps {
   userId: string;
   onEvent: (data: TaskEventData) => void;
@@ -312,18 +306,6 @@ interface TasksViewProps {
     reopenToReady: TaskReopenToReadyDialogLabels & {
       commentRequired: string;
     };
-    emptyState: {
-      title: string;
-      description: string;
-      getStartedTitle: string;
-      getStartedDescription: string;
-      getStartedButton: string;
-      next: string;
-      back: string;
-      addTaskHint: string;
-      elenaAvatarAlt: string;
-    };
-    showGuideAriaLabel: string;
   };
 }
 
@@ -364,27 +346,15 @@ export function TasksView({
     }
     showCalendarClientUpgradeModal();
   };
-  const [createdProjects, setCreatedProjects] = useState<ProjectFilterOption[]>(
-    [],
-  );
-  const resolvedProjectOptions = useMemo(
-    () => mergeProjectFilterOptions(projectOptions, createdProjects),
-    [createdProjects, projectOptions],
-  );
   const routeFilters = useMemo(
     () =>
       getTasksFiltersFromSearchParams(
         searchParams,
         activeOrganizationId,
         coworkerOptions,
-        resolvedProjectOptions,
+        projectOptions,
       ),
-    [
-      activeOrganizationId,
-      coworkerOptions,
-      resolvedProjectOptions,
-      searchParams,
-    ],
+    [activeOrganizationId, coworkerOptions, projectOptions, searchParams],
   );
   const [viewMode, setViewMode] = useState<TasksViewMode>(
     defaultViewMode ?? "board",
@@ -401,8 +371,6 @@ export function TasksView({
     setPrevTabFromUrl(tabFromUrl);
     setActiveTab(tabFromUrl);
   }
-  const [guideCompleted, setGuideCompleted] = useState<boolean | null>(null);
-  const [forceShowGuide, setForceShowGuide] = useState(false);
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
   const [jobsItems, setJobsItems] = useState<TasksViewJob[]>([]);
   const [jobsCursor, setJobsCursor] = useState<string | null>(null);
@@ -418,14 +386,9 @@ export function TasksView({
         searchParams,
         activeOrganizationId,
         jobAgentOptions,
-        resolvedProjectOptions,
+        projectOptions,
       ),
-    [
-      activeOrganizationId,
-      jobAgentOptions,
-      resolvedProjectOptions,
-      searchParams,
-    ],
+    [activeOrganizationId, jobAgentOptions, projectOptions, searchParams],
   );
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
@@ -477,17 +440,6 @@ export function TasksView({
     TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
   );
 
-  useEffect(() => {
-    try {
-      setGuideCompleted(
-        window.localStorage.getItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY) ===
-          "true",
-      );
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
-
   const serverTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
     [activeOrganizationId, initialFilters],
@@ -509,13 +461,6 @@ export function TasksView({
     routeFilters.projectId ?? jobsRouteFilters.projectId;
   const defaultProjectId = selectedProjectId;
 
-  const handleProjectCreated = useCallback((project: ProjectFilterOption) => {
-    flushSync(() => {
-      setCreatedProjects((current) =>
-        mergeProjectFilterOptions(current, [project]),
-      );
-    });
-  }, []);
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
   const isJobsPaginationInSync =
@@ -594,9 +539,10 @@ export function TasksView({
 
   useEffect(() => {
     const isListView = defaultViewMode === "list";
+    const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current,
-      serverTasks: tasks,
+      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
+      serverTasks,
       pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
@@ -606,7 +552,7 @@ export function TasksView({
     setItems(next);
 
     // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= tasks.length) {
+    if (isListView || next.length <= serverTasks.length) {
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
@@ -1164,13 +1110,6 @@ export function TasksView({
     () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
     [jobsItems],
   );
-  const shouldShowEmptyStateOverlay =
-    shouldShowTasksEmptyStateOverlay({
-      activeTab,
-      taskCount: items.length,
-      viewMode,
-      guideCompleted: guideCompleted === true,
-    }) || forceShowGuide;
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -1236,20 +1175,6 @@ export function TasksView({
     listCursor,
   ]);
 
-  const handleGuideComplete = useCallback(() => {
-    setGuideCompleted(true);
-    setForceShowGuide(false);
-    try {
-      window.localStorage.setItem(TASKS_GUIDE_COMPLETED_STORAGE_KEY, "true");
-    } catch {
-      // Ignore storage errors.
-    }
-  }, []);
-
-  const handleGuideDismiss = useCallback(() => {
-    setForceShowGuide(false);
-  }, []);
-
   const tabsContent = (
     <Tabs
       value={activeTab}
@@ -1288,27 +1213,10 @@ export function TasksView({
 
         <div className="flex items-center gap-2 sm:gap-3">
           {activeTab === "tasks" ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              aria-label={labels.showGuideAriaLabel}
-              onClick={() => setForceShowGuide(true)}
-            >
-              <CircleHelp className="size-4" aria-hidden />
-            </Button>
-          ) : null}
-          <TasksProjectSwitcher
-            projectOptions={resolvedProjectOptions}
-            selectedProjectId={selectedProjectId}
-            onProjectCreated={handleProjectCreated}
-          />
-          {activeTab === "tasks" ? (
             <TasksViewFilters
               activeOrganizationId={activeOrganizationId}
               coworkerOptions={coworkerOptions}
-              projectOptions={resolvedProjectOptions}
+              projectOptions={projectOptions}
               labels={labels.filters}
             />
           ) : null}
@@ -1325,7 +1233,7 @@ export function TasksView({
             <JobsViewFilters
               activeOrganizationId={activeOrganizationId}
               agentOptions={jobAgentOptions}
-              projectOptions={resolvedProjectOptions}
+              projectOptions={projectOptions}
               filtersLabels={{
                 title: labels.filters.title,
                 searchPlaceholder: labels.filters.searchPlaceholder,
@@ -1510,16 +1418,9 @@ export function TasksView({
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
       ) : null}
-      {shouldShowEmptyStateOverlay ? (
-        <TasksEmptyStateOverlay
-          labels={labels.emptyState}
-          onComplete={handleGuideComplete}
-          onDismiss={handleGuideDismiss}
-        />
-      ) : null}
       <CreateTaskModal
         coworkerOptions={coworkerOptions}
-        projectOptions={resolvedProjectOptions}
+        projectOptions={projectOptions}
         defaultProjectId={defaultProjectId}
         initialCreateTaskOpen={initialCreateTaskOpen}
       />

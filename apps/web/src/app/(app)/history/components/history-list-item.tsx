@@ -27,6 +27,7 @@ export interface HistoryListItemLabels {
   kind: {
     task: string;
     job: string;
+    image: string;
   };
   taskStatus: Record<TaskStatus, string>;
 }
@@ -48,7 +49,7 @@ export function HistoryListItem({
   const credits = formatHistoryCredits(item.credits, labels, formatter.number);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
-    "group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-none px-4 py-3 transition-colors",
+    "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
       ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
@@ -186,6 +187,13 @@ function HistoryStatus({
     return (
       <TaskStatusBadge status={status} label={labels.taskStatus[status]} />
     );
+  }
+
+  // An image has no lifecycle of its own — Core types its status as the literal
+  // `"active"` for that reason. A badge here would be a job status word
+  // ("Started", "Payment failed") applied to a finished picture.
+  if (item.kind === "image") {
+    return null;
   }
 
   return <JobStatusBadge status={item.status as SokosumiJobStatus} />;

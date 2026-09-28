@@ -22,6 +22,7 @@ import { TaskJobs } from "@/app/tasks/components/task-jobs";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 import { TaskStatusRealtimeListener } from "@/app/tasks/components/task-status-realtime-listener";
+import { TaskTagSection } from "@/app/tasks/components/task-tags";
 import { TaskVendorGrantApprovalBanner } from "@/app/tasks/components/task-vendor-grant-approval-banner";
 import { TaskVendorGrantPendingInfoBanner } from "@/app/tasks/components/task-vendor-grant-pending-info-banner";
 import {
@@ -234,7 +235,13 @@ export async function TaskDetailView({
               }}
             />
 
-            <TaskFiles title={t("files")} files={task.files ?? []} />
+            <TaskFiles
+              taskId={task.id}
+              title={t("files")}
+              files={task.files ?? []}
+              expandLabel={t("expand")}
+              collapseLabel={t("collapse")}
+            />
 
             {task.jobs.length > 0 && (
               <Suspense
@@ -467,66 +474,71 @@ async function TaskMetadataSection({
   });
 
   return (
-    <TaskMetadata
-      title={t("properties")}
-      taskId={task.id}
-      editable={!isReadOnly}
-      task={{
-        status: task.status,
-        visibility: task.visibility,
-        selectableStatuses: task.selectableStatuses,
-        owner: task.owner,
-        organization: task.organization,
-        assignee: task.assignee,
-        creator: task.creator,
-        credits: task.credits,
-      }}
-      project={project ? { id: project.id, name: project.name } : null}
-      schedule={
-        task.scheduleId ? (
-          <Suspense fallback={null}>
-            <TaskFromSchedule scheduleId={task.scheduleId} />
-          </Suspense>
-        ) : null
-      }
-      createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
-      updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
-      creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
-      labels={{
-        visibility: t("visibility"),
-        privateBadge: t("privateBadge"),
-        status: t("status"),
-        statusLabels,
-        owner: t("owner"),
-        creator: t("creator"),
-        organization: t("organization"),
-        personalWorkspace: t("personalWorkspace"),
-        project: t("project"),
-        schedule: t("schedule"),
-        coworker: t("assignee"),
-        credits: t("credits"),
-        created: t("created"),
-        updated: t("updated"),
-        personalAssistantFallback: tTasks("personalAssistant"),
-        formatSokoBotRole: (values) => t("actorSokoBotRole", values),
-      }}
-      statusFieldLabels={{
-        statusLabels,
-        changeStatus: t("actions.changeStatus"),
-        noStatusMatches: t("actions.noStatusMatches"),
-        reopenToReadyTitle: t("actions.reopenToReadyTitle"),
-        reopenToReadyDescription: t("actions.reopenToReadyDescription"),
-        reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
-        reopenToReadyCommentPlaceholder: t(
-          "actions.reopenToReadyCommentPlaceholder",
-        ),
-        reopenToReadyCommentRequired: t("actions.reopenToReadyCommentRequired"),
-        reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
-        cancel: t("actions.cancel"),
-        updateStatusSuccess: t("actions.updateStatusSuccess"),
-        updateStatusError: tTasks("Errors.updateStatus"),
-      }}
-    />
+    <div className="space-y-6">
+      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
+      <TaskMetadata
+        title={t("properties")}
+        taskId={task.id}
+        editable={!isReadOnly}
+        task={{
+          status: task.status,
+          visibility: task.visibility,
+          selectableStatuses: task.selectableStatuses,
+          owner: task.owner,
+          organization: task.organization,
+          assignee: task.assignee,
+          creator: task.creator,
+          credits: task.credits,
+        }}
+        project={project ? { id: project.id, name: project.name } : null}
+        schedule={
+          task.scheduleId ? (
+            <Suspense fallback={null}>
+              <TaskFromSchedule scheduleId={task.scheduleId} />
+            </Suspense>
+          ) : null
+        }
+        createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
+        updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
+        creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
+        labels={{
+          visibility: t("visibility"),
+          privateBadge: t("privateBadge"),
+          status: t("status"),
+          statusLabels,
+          owner: t("owner"),
+          creator: t("creator"),
+          organization: t("organization"),
+          personalWorkspace: t("personalWorkspace"),
+          project: t("project"),
+          schedule: t("schedule"),
+          coworker: t("assignee"),
+          credits: t("credits"),
+          created: t("created"),
+          updated: t("updated"),
+          personalAssistantFallback: tTasks("personalAssistant"),
+          formatSokoBotRole: (values) => t("actorSokoBotRole", values),
+        }}
+        statusFieldLabels={{
+          statusLabels,
+          changeStatus: t("actions.changeStatus"),
+          noStatusMatches: t("actions.noStatusMatches"),
+          reopenToReadyTitle: t("actions.reopenToReadyTitle"),
+          reopenToReadyDescription: t("actions.reopenToReadyDescription"),
+          reopenToReadyCommentLabel: t("actions.reopenToReadyCommentLabel"),
+          reopenToReadyCommentPlaceholder: t(
+            "actions.reopenToReadyCommentPlaceholder",
+          ),
+          reopenToReadyCommentRequired: t(
+            "actions.reopenToReadyCommentRequired",
+          ),
+          reopenToReadyConfirm: t("actions.reopenToReadyConfirm"),
+          cancel: t("actions.cancel"),
+          updateStatusSuccess: t("actions.updateStatusSuccess"),
+          updateStatusError: tTasks("Errors.updateStatus"),
+        }}
+      />
+    </div>
   );
 }
 

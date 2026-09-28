@@ -108,6 +108,9 @@ test("resource commands reject mismatched target API keys before Core requests",
           return {} as T;
         },
         post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
@@ -115,6 +118,91 @@ test("resource commands reject mismatched target API keys before Core requests",
     /API key belongs to mainnet, but the selected target is preprod/,
   );
   assert.equal(requested, false);
+});
+
+test("Coworker registration defaults to Preprod", async () => {
+  let requests = 0;
+  await assert.rejects(
+    runCli(["coworkers", "register", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>() => {
+          requests += 1;
+          return { data: [] } as T;
+        },
+        post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
+        patch: async <T>() => ({}) as T,
+      },
+      stdout: { write: () => undefined },
+    }),
+    /organization workspace/,
+  );
+  assert.equal(requests, 1);
+});
+
+test("developer connects a provisioned Coworker through CLI arguments", async () => {
+  const calls: { method: string; path: string; body?: unknown }[] = [];
+  const output: string[] = [];
+  await runCli(
+    [
+      "coworkers",
+      "connect",
+      "cw-1",
+      "--vendor-id",
+      "vendor-1",
+      "--workspace-id",
+      "org-1",
+      "--json",
+    ],
+    {
+      env: { SOKOSUMI_AUTH_TOKEN: "auth-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          calls.push({ method: "GET", path });
+          if (path === "/v1/coworkers/cw-1")
+            return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
+          if (path.endsWith("/organizations"))
+            return { data: [{ id: "org-1", role: "member" }] } as T;
+          if (path.endsWith("/vendors/me"))
+            return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+          throw new Error(`Unexpected GET ${path}`);
+        },
+        post: async <T>(path: string, body: unknown) => {
+          calls.push({ method: "POST", path, body });
+          return {
+            data: {
+              id: "access-1",
+              coworkerId: "cw-1",
+              workspaceId: "workspace-1",
+              status: "GRANTED",
+            },
+          } as T;
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
+        patch: async <T>() => ({}) as T,
+      },
+      stdout: { write: (value) => output.push(value) },
+    },
+  );
+
+  assert.deepEqual(calls, [
+    { method: "GET", path: "/v1/users/me/organizations" },
+    { method: "GET", path: "/v1/vendors/me" },
+    { method: "GET", path: "/v1/coworkers/cw-1" },
+    {
+      method: "POST",
+      path: "/v1/coworkers/cw-1/workspace-access",
+      body: { organizationId: "org-1" },
+    },
+  ]);
+  assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
 });
 
 test("preflight rejects unauthenticated resource commands before Core", async () => {
@@ -134,6 +222,9 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
         post: async <T>() => {
           coreCalls += 1;
           return {} as T;
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
         },
         patch: async <T>() => {
           coreCalls += 1;
@@ -214,6 +305,14 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   for (const name of GLOBAL_VALUE_OPTIONS) {
     assert.match(help, new RegExp(`--${escape(name)}\\b`));
   }
+  assert.match(
+    help,
+    /Give its ID and your final Coworker name to the organizer/,
+  );
+  assert.match(
+    help,
+    /coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID/,
+  );
 
   const globalIndex = help.indexOf("Global options:");
   assert.notEqual(globalIndex, -1);
@@ -223,12 +322,11 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
     /^  sokosumi vendors create --name NAME --slug SLUG$/m,
   );
   assert.doesNotMatch(
-    commandUsage.replace(
-      "  sokosumi vendors create --name NAME --slug SLUG\n",
-      "",
-    ),
-    / --/,
+    commandUsage,
+    / --(?:api-url|auth-url|client-id|oauth-port|oauth-timeout-ms|preprod|json|api-key-stdin)\b/,
   );
+  assert.match(commandUsage, /admin add-member WORKSPACE_SLUG --email EMAIL/);
+  assert.match(commandUsage, /workspaces check ORGANIZATION_ID/);
 
   const parsed = parseArgv([
     "--preprod",
@@ -365,6 +463,9 @@ test("index JSON errors redact credential assignments", async () => {
           throw new Error(message);
         },
         post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -436,6 +537,260 @@ test("auth status returns stable non-secret JSON", async () => {
     expiresAt: null,
   });
   assert.deepEqual(JSON.parse(output.join("")), result);
+});
+
+test("auth whoami verifies the live identity on the selected target", async () => {
+  for (const target of [
+    {
+      argv: ["--preprod"],
+      name: "preprod",
+      url: "https://api.preprod.sokosumi.com",
+    },
+    { argv: [], name: "mainnet", url: "https://api.sokosumi.com" },
+    {
+      argv: ["--api-url", "https://core.example.test"],
+      name: "custom",
+      url: "https://core.example.test",
+    },
+  ]) {
+    const output: string[] = [];
+    const calls: string[] = [];
+    const result = await runCli([...target.argv, "auth", "whoami", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async <T>(path: string) => {
+          calls.push(path);
+          return {
+            data: {
+              id: "developer-1",
+              email: "developer@example.test",
+              role: "user",
+              token: "must-not-appear",
+            },
+          } as T;
+        },
+        post: async () => {
+          throw new Error("whoami must not write");
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
+        patch: async () => {
+          throw new Error("whoami must not write");
+        },
+      },
+      stdout: { write: (value) => output.push(value) },
+    });
+    assert.deepEqual(calls, ["/v1/users/me"]);
+    assert.equal(output.length, 1);
+    assert.deepEqual(JSON.parse(output[0]), {
+      user: {
+        id: "developer-1",
+        email: "developer@example.test",
+        platformRole: "user",
+      },
+      target: target.name,
+      apiUrl: target.url,
+    });
+    assert.deepEqual(result, JSON.parse(output[0]));
+    assert.doesNotMatch(output[0], /must-not-appear|test-token/);
+  }
+});
+
+test("auth whoami rejects missing authentication before Core", async () => {
+  for (const args of [["auth", "whoami"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli(["--preprod", ...args, "--json"], {
+        env: {},
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+    assert.match(JSON.parse(output[0]).error, /Authentication required/);
+  }
+});
+
+test("auth whoami reports rejected credentials as one JSON error", async () => {
+  const output: string[] = [];
+  await assert.rejects(
+    runCli(["--preprod", "auth", "whoami", "--json"], {
+      env: { SOKOSUMI_AUTH_TOKEN: "present-but-revoked" },
+      authManager: createTestAuthManager(),
+      coreClient: {
+        get: async () => {
+          throw Object.assign(new Error("Bearer present-but-revoked"), {
+            status: 401,
+          });
+        },
+        post: async () => {
+          throw new Error("Unexpected write");
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
+        patch: async () => {
+          throw new Error("Unexpected write");
+        },
+      },
+      stdout: { write: (value) => output.push(value) },
+    }),
+    /401/,
+  );
+  assert.equal(output.length, 1);
+  assert.match(JSON.parse(output[0]).error, /Sign in again/);
+  assert.doesNotMatch(output[0], /present-but-revoked|authenticated/);
+});
+
+test("auth whoami rejects trailing arguments", async () => {
+  for (const args of [["auth", "whoami", "extra"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+  }
+});
+
+test("workspaces check reports a missing Seat without changing access", async () => {
+  const output: string[] = [];
+  const paths: string[] = [];
+  await runCli(["--preprod", "workspaces", "check", "org-1", "--json"], {
+    env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+    authManager: createTestAuthManager(),
+    coreClient: {
+      get: async <T>(path: string) => {
+        paths.push(path);
+        return { data: { assigned: false } } as T;
+      },
+      post: async () => {
+        throw new Error("Seat check must not write");
+      },
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
+      patch: async () => {
+        throw new Error("Seat check must not write");
+      },
+    },
+    stdout: { write: (value) => output.push(value) },
+  });
+  assert.deepEqual(paths, ["/v1/organizations/org-1/members/me/seat"]);
+  assert.equal(output.length, 1);
+  assert.deepEqual(JSON.parse(output[0]), {
+    organizationId: "org-1",
+    taskSeatEligible: false,
+  });
+});
+
+test("workspaces check rejects missing authentication before Core", async () => {
+  for (const args of [["workspaces", "check", "org-1"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli(["--preprod", ...args, "--json"], {
+        env: {},
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+    assert.match(JSON.parse(output[0]).error, /Authentication required/);
+  }
+});
+
+test("workspaces check rejects missing identities and trailing arguments", async () => {
+  for (const args of [
+    ["workspaces", "check"],
+    ["workspaces", "check", "org-1", "extra"],
+  ]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+  }
 });
 
 test("auth status rejected promises emit one redacted JSON error", async () => {
@@ -539,6 +894,9 @@ test("dispatches discover JSON without opening a TUI", async () => {
     coreClient: {
       get: async <T>() => ({ data: [] }) as T,
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
@@ -579,6 +937,9 @@ test("dispatches new read commands through their exact Core routes", async () =>
           } as T;
         },
         post: async <T>() => ({ data: null }) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({ data: null }) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -616,6 +977,9 @@ test("new read commands reject unauthenticated calls before Core", async () => {
             coreCalls += 1;
             return {} as T;
           },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
           patch: async <T>() => {
             coreCalls += 1;
             return {} as T;
@@ -649,6 +1013,9 @@ test("new commands require their exact subcommand and no trailing args", async (
         coreClient: {
           get: async <T>() => ({}) as T,
           post: async <T>() => ({}) as T,
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
           patch: async <T>() => ({}) as T,
         },
         stdout: { write: (value) => output.push(value) },
@@ -681,6 +1048,9 @@ test("dispatches agents list through the injected Core client", async () => {
           ],
         }) as T,
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },

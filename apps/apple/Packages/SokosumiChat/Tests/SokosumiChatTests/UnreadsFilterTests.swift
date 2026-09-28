@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 /// Row 24f2: the sidebar's Unreads filter, as web's `organization-chat-list.client.tsx` lists it
@@ -110,6 +110,7 @@ struct UnreadsFilterTests {
     #expect(!list.isDimmed("room-support") && list.isDimmed("room-wiki"), "An unread pin stands at full; a read one dims.")
     #expect(!list.caughtUp && !list.showsReadLabel)
     #expect(list.markAllTargets.map(\.roomId) == ["room-design", "room-launch", "room-support"], "In the rooms' own order.")
+    #expect(list.showsMarkAll, "SOK-1201: Mark all is offered, to the sidebar row's button and its menu command alike.")
   }
 
   @Test func equalActivityOrdersById() {
@@ -147,6 +148,7 @@ struct UnreadsFilterTests {
     #expect(list.rooms.map(\.name) == ["launch"] && list.isDimmed("room-launch"))
     #expect(list.pinned.map(\.name) == ["support"] && list.isDimmed("room-support"))
     #expect(list.markAllTargets.isEmpty, "Nothing is left for Mark all.")
+    #expect(!list.showsMarkAll, "SOK-1201: the row's button and the menu command both stand down.")
   }
 
   @Test func caughtUpWithOnlyPinnedRoomsSaysNoReadJustNow() {

@@ -1,3 +1,5 @@
+import { asRecord, nullableString } from "./parse-helpers.js";
+
 export type VendorRole = "admin" | "developer";
 
 export interface Vendor {
@@ -14,16 +16,6 @@ export interface Vendor {
 }
 
 const VENDOR_ROLES: readonly VendorRole[] = ["admin", "developer"];
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
-}
-
-function nullableString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 function requiredIdentity(value: unknown, field: string): string {
   if (typeof value !== "string" || value.trim().length === 0) {

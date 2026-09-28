@@ -1,12 +1,11 @@
+import type { ClientOptions } from "ably";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 interface PushClientOptions {
+  clientId?: string;
   plugins: { Push: unknown };
   pushServiceWorkerUrl: string;
-  authCallback: (
-    params: unknown,
-    callback: (error: string | null, token: unknown) => void,
-  ) => void;
+  authCallback: NonNullable<ClientOptions["authCallback"]>;
 }
 
 const { RestMock, PushMock, fetchToken } = vi.hoisted(() => ({
@@ -17,7 +16,8 @@ const { RestMock, PushMock, fetchToken } = vi.hoisted(() => ({
           () =>
             new Promise((resolve, reject) => {
               options.authCallback({}, (error, token) => {
-                if (error) reject(new Error(error));
+                if (error)
+                  reject(typeof error === "string" ? new Error(error) : error);
                 else resolve(token);
               });
             }),
@@ -55,10 +55,29 @@ describe("createAblyPushClient", () => {
     expect(client.auth.authorize).toHaveBeenCalledOnce();
     expect(fetchToken).toHaveBeenCalledExactlyOnceWith("instance");
     expect(RestMock).toHaveBeenCalledWith({
+      clientId: "reader:instance",
       plugins: { Push: PushMock },
       pushServiceWorkerUrl: "/notification-worker.js",
       authCallback: expect.any(Function),
     });
+  });
+
+  it("gives the real REST SDK the identity used by push registration", async () => {
+    const { Rest } = await vi.importActual<typeof import("ably")>("ably");
+    fetchToken.mockResolvedValue({
+      token: "local-test-token",
+      clientId: "reader:instance",
+      issued: Date.now(),
+      expires: Date.now() + 60_000,
+    });
+    await createAblyPushClient("reader");
+    const options = RestMock.mock.calls.at(-1)?.[0];
+    if (!options) throw new Error("Push client options missing");
+    // Use the actual constructor and authorize path, without network requests.
+    // Ably copies auth.clientId into the local push device during registration.
+    const client = new Rest({ ...options, plugins: {} });
+    await client.auth.authorize();
+    expect(client.auth.clientId).toBe("reader:instance");
   });
 
   it("creates fresh SDK clients to read shared device state between operations", async () => {

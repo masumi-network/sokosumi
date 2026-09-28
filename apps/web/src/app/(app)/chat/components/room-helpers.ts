@@ -760,6 +760,8 @@ export type MentionHoverUserLookup = Pick<
 > &
   Partial<Pick<ChatRoomUserParticipant, "email" | "image" | "presence">>;
 
+export type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
+
 export function mentionDirectTargetFromAttributes(
   attributes: Record<string, unknown>,
 ): MentionDirectTarget | null {

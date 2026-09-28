@@ -117,6 +117,7 @@ const AUTHORED_VERSION: VersionDetail = {
 };
 
 const QUALITY: AdminSokoBotQuality = {
+  reliability: { fulfillment: {}, delivery: {}, invalidActionClaims: 0 },
   overall: { turns: 12, judged: 10, avgScore: 4.2 },
   proactive: { sent: 3, actedOn: 2, thumbsUp: 2, thumbsDown: 1 },
   daily: [],

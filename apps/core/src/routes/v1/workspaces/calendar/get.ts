@@ -6,14 +6,16 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
-  workspaceCalendarItemSchema,
+  workspaceCalendarEntrySchema,
   workspaceCalendarQuerySchema,
 } from "@/schemas/workspace-calendar.schema";
 
@@ -35,7 +37,7 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(workspaceCalendarItemSchema),
+        z.array(workspaceCalendarEntrySchema),
         "Active workspace Calendar items",
       ),
       400: jsonErrorResponse("Bad Request"),
@@ -50,6 +52,10 @@ const route = withCoworkerContextHeaderParameters(
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userContext = await requireAuthorizedUserContext(c.var.authContext);
+    if (c.req.valid("query").includeSocialPosts === "true") {
+      requireInteractiveUserAuthContext(c.var.authContext);
+      await requireSocialBetaAccess(userContext.userId, prisma);
+    }
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const query = c.req.valid("query");
     const calendarQuery = parseWorkspaceCalendarQuery(query);

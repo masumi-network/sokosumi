@@ -147,7 +147,7 @@ export default async function AuthenticatedAppFrame({
                                 // or not it is showing. Without it this scroll container takes that
                                 // width out of the content box on the right only, and every
                                 // full-bleed rule stops further from the right edge than the left.
-                                "relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
+                                "app-scrollbar relative flex max-h-dvh min-h-dvh flex-1 flex-col overflow-x-hidden overflow-y-auto p-4 [scrollbar-gutter:stable] md:pt-4",
                                 APP_MAIN_MOBILE_PT_CLASS,
                                 APP_SHELL_BELOW_HEADER_MD_MIN_HEIGHT_CLASS,
                                 APP_SHELL_BELOW_HEADER_MD_MAX_HEIGHT_CLASS,
