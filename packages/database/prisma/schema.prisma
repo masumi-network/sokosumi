@@ -613,8 +613,10 @@ model SocialPost {
   creatorSokoBotId String?  @db.Uuid
   creatorSokoBot   SokoBot? @relation("SocialPostCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
 
-  scheduledByUserId String?
-  scheduledByUser   User?   @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+  scheduledByUserId     String?
+  scheduledByUser       User?     @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+  scheduledByCoworkerId String?
+  scheduledByCoworker   Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
 
   canceledAt          DateTime?
   publishedAt         DateTime?
@@ -645,6 +647,7 @@ model SocialPost {
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([scheduledByUserId])
+  @@index([scheduledByCoworkerId])
   @@map("social_post")
 }
 
@@ -660,7 +663,7 @@ model SocialPostPublishAttempt {
   actorUserId String?
   startedAt   DateTime  @default(now())
   finishedAt  DateTime?
-  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive"
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
   outcome     String?
   /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
   errorKind   String?
@@ -1789,6 +1792,7 @@ model Coworker {
   chatRoomMemberships     ChatRoomCoworkerMember[]
   chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
   chatRoomMentions        ChatRoomMention[]
+  scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByCoworker")
 
   @@index([archivedAt])
   @@index([vendorId])
