@@ -2623,6 +2623,8 @@
       "compareHint": "Derselbe Auftrag, nebeneinander. Jedes Feld nennt das Modell, das es erzeugt hat.",
       "compareNeedsTwo": "Wähle mindestens zwei Bilder zum Vergleichen aus.",
       "bytesUnavailable": "Die Datei dieser Version liegt nicht mehr im Speicher. Prompt und Einstellungen sind weiterhin vorhanden.",
+      "imageUnreadable": "Dieses Bild konnte nicht geladen werden.",
+      "imageRetry": "Erneut versuchen",
       "previousVersion": "Vorherige Version",
       "nextVersion": "Nächste Version",
       "moreOptions": "Optionen",
@@ -2647,9 +2649,18 @@
       "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
       "creditsNoFigure": "Kein Betrag",
       "failedRefunded": "Sie wurde vollständig zurückerstattet und hat damit nichts gekostet.",
+      "failedBody": "Das Modell hat kein Bild zurückgegeben. Ein zweiter Versuch klappt meistens; wenn es weiter fehlschlägt, hilft in der Regel ein anderes Modell.",
+      "failedDetails": "Meldung des Anbieters",
       "runPlanCredits": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, {credits, plural, one {# Credit} other {# Credits}}",
       "creditsEach": "{credits, plural, one {# Credit} other {# Credits}} x {count}",
       "creditsCount": "{count, plural, one {# Credit} other {# Credits}}",
+      "priceBasis": "fal listet {price} pro {unit} für diesen Endpunkt.",
+      "PriceUnits": {
+        "images": "Bild",
+        "generations": "Generierung",
+        "megapixels": "Megapixel",
+        "processedMegapixels": "verarbeitetes Megapixel"
+      },
       "creditsCheckedOn": "Preis geprüft am {date}"
     },
     "Error": {

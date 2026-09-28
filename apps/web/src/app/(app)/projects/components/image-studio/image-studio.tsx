@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearImageVersionReview,
   requestImageJobCancel,
@@ -123,7 +124,23 @@ export function ImageStudio({
   const searchParams = useSearchParams();
   const [filter, setFilter] = useState<StudioFilter>("all");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
-  const [viewing, setViewing] = useState<Viewing>(null);
+  /**
+   * Open on the version the URL names.
+   *
+   * `?v=` arrives from a History row or a pasted link, and it is a promise that
+   * the page shows *that* image. Selecting it was not enough: the tile carrying
+   * it looks exactly like its neighbours, so in a project with a hundred
+   * versions the link landed the reader in a grid with no indication of which
+   * one they had asked for.
+   *
+   * The lightbox is what "look at this one" means in this studio, and it is
+   * dismissible — closing it leaves the gallery with that version still
+   * selected and scrolled to, so the deep link costs nothing when it was not
+   * what somebody wanted.
+   */
+  const [viewing, setViewing] = useState<Viewing>(
+    initialSelectedAssetId ? { mode: "single" } : null,
+  );
   const [prompt, setPrompt] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
@@ -188,6 +205,21 @@ export function ImageStudio({
     loadOlder,
     hasOlder,
   } = studio;
+
+  /**
+   * Bring the deep-linked tile onto the screen, once.
+   *
+   * So that dismissing the lightbox leaves the reader looking at the version
+   * they followed a link to rather than at the top of the grid. Mount-only and
+   * DOM-only: there is no React state for "where the gallery is scrolled to",
+   * which is exactly the kind of external system an Effect is for.
+   */
+  useMountEffect(() => {
+    if (!initialSelectedAssetId) return;
+    document
+      .querySelector(`[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`)
+      ?.scrollIntoView({ block: "center" });
+  });
 
   const setReviewDraft = useCallback((assetId: string, value: string) => {
     setReviewDrafts((current) => ({ ...current, [assetId]: value }));
@@ -543,8 +575,18 @@ export function ImageStudio({
           role="alert"
         >
           <h3 className="text-sm font-medium">{labels.failed}</h3>
-          <p className="text-muted-foreground mt-1 text-sm break-words">
-            {settledProblemJob.error ?? ""}
+          {/* A sentence, not the transport. This used to print `job.error`
+              verbatim, which on the preview read "Unexpected status code: 422"
+              — an HTTP detail shown to somebody who asked for a picture, in
+              English on a translated page.
+
+              One sentence for every failure, because Core sends no reason code
+              yet and matching on free text would break the first time fal
+              reworded something. When a stable reason arrives this is where it
+              branches, and an unrecognised one keeps this line rather than
+              falling back to the raw string. */}
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed text-pretty">
+            {labels.failedBody}
           </p>
           {/* Said on the failure itself, because "did that cost me anything?"
               is the first thing a charged product makes a person ask. Core
@@ -554,6 +596,20 @@ export function ImageStudio({
             <p className="text-muted-foreground mt-1 text-sm">
               {labels.failedRefunded}
             </p>
+          ) : null}
+          {/* Kept, not hidden. Whoever has to explain this to fal needs the
+              provider's own words, and a reader who does not care never opens
+              it. Native `details` so it is keyboard-operable without any of
+              this being our problem. */}
+          {settledProblemJob.error ? (
+            <details className="mt-2">
+              <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo cursor-pointer rounded text-xs font-medium outline-none select-none focus-visible:ring-[3px]">
+                {labels.failedDetails}
+              </summary>
+              <p className="text-muted-foreground mt-1 font-mono text-xs break-words">
+                {settledProblemJob.error}
+              </p>
+            </details>
           ) : null}
           <Button
             className="mt-3"

@@ -2623,6 +2623,8 @@
       "compareHint": "El mismo encargo, en paralelo. Cada panel indica el modelo que lo creó.",
       "compareNeedsTwo": "Selecciona al menos dos imágenes para comparar.",
       "bytesUnavailable": "El archivo de esta versión ya no está en el almacenamiento. Su prompt y ajustes siguen aquí.",
+      "imageUnreadable": "No se pudo cargar esta imagen.",
+      "imageRetry": "Volver a intentarlo",
       "previousVersion": "Versión anterior",
       "nextVersion": "Versión siguiente",
       "moreOptions": "Opciones",
@@ -2647,9 +2649,18 @@
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
       "failedRefunded": "Se reembolsó por completo, así que no costó nada.",
+      "failedBody": "El modelo no devolvió ninguna imagen. Volver a intentarlo suele funcionar; si sigue fallando, es probable que otro modelo sí lo haga.",
+      "failedDetails": "Lo que dijo el proveedor",
       "runPlanCredits": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}, {credits, plural, one {# crédito} other {# créditos}}",
       "creditsEach": "{credits, plural, one {# crédito} other {# créditos}} x {count}",
       "creditsCount": "{count, plural, one {# crédito} other {# créditos}}",
+      "priceBasis": "fal indica {price} por {unit} para este endpoint.",
+      "PriceUnits": {
+        "images": "imagen",
+        "generations": "generación",
+        "megapixels": "megapíxel",
+        "processedMegapixels": "megapíxel procesado"
+      },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
     "Error": {

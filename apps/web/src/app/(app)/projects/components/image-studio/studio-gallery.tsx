@@ -179,7 +179,7 @@ export function StudioGallery({
                   <span className="bg-muted flex aspect-square w-full items-center justify-center">
                     <StudioImage
                       asset={asset}
-                      label={labels.bytesUnavailable}
+                      labels={labels}
                       projectId={projectId}
                     />
                   </span>

@@ -318,6 +318,66 @@ describe("the line above Generate", () => {
   });
 });
 
+describe("how a price is explained", () => {
+  it("says the unit once, in the singular", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    // fal's pricing API answers in plurals because it is describing a rate, and
+    // Core passes that through in `price.basis` — so the sentence used to read
+    // "fal lists $0.04 per images for this endpoint". Model A is priced per
+    // image and Model B per megapixel, so both branches show up here.
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.04","unit":"PriceUnits.images"}',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.05","unit":"PriceUnits.megapixels"}',
+      ),
+    ).toBeInTheDocument();
+    // And never Core's own English sentence.
+    expect(screen.queryByText(/per images/)).toBeNull();
+  });
+
+  it("falls back to fal's own word for a unit we have no name for", () => {
+    const perSecond: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        catalog={perSecond}
+        initial={targetFor(["by-the-second"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    // A real unit that sounds slightly off beats a confidently invented
+    // singular. These never reach the catalog anyway — Core excludes them.
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.002","unit":"compute seconds"}',
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("unselecting a model", () => {
   it("leaves the frame where it was", () => {
     // A property rather than a regression: unselecting narrows nothing, so it
