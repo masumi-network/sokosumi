@@ -17,6 +17,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "archive_task",
   "assign_task",
   "get_task_status",
+  "list_tasks",
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
@@ -125,6 +126,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "list_tasks",
   "get_job_status",
   "read_memory",
   "list_schedules",
@@ -190,6 +192,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
 export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "list_tasks",
   "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
 

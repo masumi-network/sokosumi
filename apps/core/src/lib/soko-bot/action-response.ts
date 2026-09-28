@@ -429,11 +429,11 @@ export async function buildActionResponse(
     !message && narrative?.kind === "CLARIFY" && narrative.question
       ? QUESTIONS[narrative.question]
       : null;
-  const narrativeText = [
-    ...observations,
-    ...(message ? [message] : []),
-    ...(question ? [question] : []),
-  ];
+  // Observations restate reads in fixed wording; the bot's own message says
+  // the same in plain words, so they are shown only when it wrote none.
+  const narrativeText = message
+    ? [message]
+    : [...observations, ...(question ? [question] : [])];
   const silent =
     !calls.length &&
     (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));

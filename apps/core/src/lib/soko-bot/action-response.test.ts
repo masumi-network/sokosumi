@@ -456,6 +456,41 @@ describe("authoritative action responses", () => {
     expect(response.answerText).not.toContain("job");
   });
 
+  it("shows the bot's own words instead of restating what it read", async () => {
+    const read = receipt({
+      capability: "list_project_social_accounts",
+      result: [
+        {
+          id: "account-one",
+          provider: "linkedin",
+          externalHandle: "acme",
+          status: "active",
+          connectedAt: "2026-09-28T10:00:00Z",
+          disconnectedAt: null,
+        },
+      ],
+    });
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([read]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Your LinkedIn account acme is connected.",
+      true,
+      {
+        kind: "REPORT",
+        message: "Your LinkedIn account acme is connected.",
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    expect(response.answerText).toBe(
+      "Your LinkedIn account acme is connected.",
+    );
+    expect(response.observations.length).toBeGreaterThan(0);
+  });
+
   it("includes every connected account when providers have multiple accounts", async () => {
     const providers = [
       "x",

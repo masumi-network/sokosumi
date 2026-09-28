@@ -295,7 +295,7 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.tasks.some((task) => task.id === "recent-0")).toBe(
       true,
     );
-    expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+    expect(taskFindManyMock).toHaveBeenCalledTimes(3);
     for (const [query] of taskFindManyMock.mock.calls)
       expect(query.where).toEqual(
         expect.objectContaining({
@@ -305,6 +305,74 @@ describe("ContextPacketBuilder", () => {
         }),
       );
     expect(taskFindManyMock.mock.calls[1][0].where.id).toBeUndefined();
+  });
+
+  it("puts open work before this week's finished Tasks", async () => {
+    taskFindManyMock
+      .mockResolvedValueOnce([task("open")])
+      .mockResolvedValueOnce([{ ...task("done"), status: "COMPLETED" }]);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.packet.tasks.map((item) => item.id)).toEqual([
+      "open",
+      "done",
+    ]);
+    const [openQuery, finishedQuery] = taskFindManyMock.mock.calls.map(
+      ([query]) => query,
+    );
+    expect(openQuery.where.status).toEqual({
+      notIn: ["COMPLETED", "FAILED", "CANCELED"],
+    });
+    expect(finishedQuery.where.status).toEqual({
+      in: ["COMPLETED", "FAILED", "CANCELED"],
+    });
+    expect(finishedQuery.where.updatedAt.gte).toEqual(
+      new Date(NOW.getTime() - 7 * 24 * 60 * 60 * 1_000),
+    );
+    expect(openQuery.take + finishedQuery.take).toBe(24);
+  });
+
+  it("leaves the marketplace out of turns that cannot hire", async () => {
+    agentFindManyMock.mockResolvedValue([agent("agent-1")]);
+    agentCountMock.mockResolvedValue(1);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.packet.agents).toEqual([]);
+    expect(result.packet.counts.agents).toBe(1);
+    expect(result.omissions.agents).toBe(1);
+  });
+
+  it("gives up the marketplace and old turns before the owner's Tasks", async () => {
+    const longText = "x".repeat(1_900);
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, longText),
+        events: [{ status: "RUNNING", comment: longText, createdAt: NOW }],
+      })),
+    );
+    agentFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) =>
+        agent(`agent-${index}`, longText),
+      ),
+    );
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${index}`, longText, longText),
+      ),
+    );
+    jobFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => job(`job-${index}`, longText)),
+    );
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: { ...CLASSIFICATION, route: "HIRE_AGENT" },
+    });
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    expect(result.packet.tasks).toHaveLength(24);
+    expect(result.packet.agents.length).toBeLessThan(24);
+    // Turns arrive newest first and are shown oldest first; the newest stays.
+    const turns = result.packet.recentTurns;
+    if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
   });
 
   it("adds bounded operational, availability, pricing, input, and billing context", async () => {
@@ -364,7 +432,10 @@ describe("ContextPacketBuilder", () => {
     pendingDecisionCountMock.mockResolvedValue(1);
     recentTurnCountMock.mockResolvedValue(2);
 
-    const result = await new ContextPacketBuilder().build(buildInput());
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: { ...CLASSIFICATION, route: "HIRE_AGENT" },
+    });
 
     expect(result.packet.actor).toMatchObject({
       locale: "de-CH",

@@ -18,6 +18,7 @@ import {
   isSokoBotDecisionTarget,
   sokoBotJobIdInputSchema as jobIdInputSchema,
   sokoBotLinkTasksInputSchema as linkTasksInputSchema,
+  sokoBotListTasksInputSchema as listTasksInputSchema,
   sokoBotMemoryUpdateInputSchema as memoryUpdateInputSchema,
   parseSokoBotMemory,
   sokoBotProvideJobInputSchema as provideJobInputSchema,
@@ -62,7 +63,11 @@ import { list, put } from "@vercel/blob";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
-import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import {
+  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  getAgentApiBaseUrl,
+  toMasumiAgent,
+} from "@/helpers/agent";
 import {
   batchTableRows,
   createDataTable,
@@ -101,12 +106,20 @@ import {
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
 import {
+  agentWordScore,
+  MAX_RATED_AGENTS,
+  MIN_AGENT_FIT,
+  queryWords,
+  rateAgentFit,
+} from "@/lib/soko-bot/agent-search";
+import {
   chatChainMayWake,
   MAX_CHAT_CHAIN_DEPTH,
   nextChatChainDepth,
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
+import { agentPriceHint } from "@/lib/soko-bot/context-packet";
 import {
   assertEvaluationActor,
   assertEvaluationTool,
@@ -539,6 +552,88 @@ export function isSokoBotDecisionTargetAllowed(
 /** `%` and `_` are wildcards in Prisma's contains/startsWith filters. */
 function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
+}
+
+/** Hireable Agents best suited to `query`, with prices and a fit rating. */
+async function findHireableAgents(query: string | undefined) {
+  const [rows, creditCosts] = await prisma.$transaction(
+    [
+      prisma.agent.findMany({
+        where: {
+          isShown: true,
+          status: "ONLINE",
+          // The endpoint `toMasumiAgent` resolves, not the raw column: an
+          // Agent reachable only through its override is hireable, and
+          // `get_agent_input_schema` accepts it, so hiding it here would
+          // leave it hireable but undiscoverable.
+          OR: [
+            { apiBaseUrl: { not: null } },
+            { metadataOverride: { apiBaseUrl: { not: null } } },
+          ],
+        },
+        orderBy: [{ jobCount: "desc" }, { id: "desc" }],
+        take: 100,
+        select: {
+          id: true,
+          name: true,
+          summary: true,
+          description: true,
+          capabilityName: true,
+          paymentType: true,
+          riskClassification: true,
+          pricing: {
+            select: {
+              pricingType: true,
+              fixedPricing: {
+                select: { amounts: { select: { amount: true, unit: true } } },
+              },
+            },
+          },
+        },
+      }),
+      prisma.creditCost.findMany(),
+    ],
+    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  );
+  const words = query ? queryWords(query) : [];
+  const matched = rows
+    .map((row) => ({ row, score: agentWordScore(words, row) }))
+    .filter((entry) => entry.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .map((entry) => entry.row);
+  // Word hits first, then the most used Agents, so a request phrased in
+  // other words than a listing still gets rated.
+  const candidates = query
+    ? [...new Set([...matched, ...rows])].slice(0, MAX_RATED_AGENTS)
+    : rows.slice(0, 20);
+  const ratings = query ? await rateAgentFit(query, candidates) : null;
+  const results = ratings
+    ? candidates
+        .filter((row) => (ratings.get(row.id) ?? 0) >= MIN_AGENT_FIT)
+        .sort((a, b) => (ratings.get(b.id) ?? 0) - (ratings.get(a.id) ?? 0))
+    : query
+      ? matched.slice(0, 10)
+      : candidates;
+  return {
+    agents: results.map((row) => ({
+      id: row.id,
+      name: row.name,
+      summary: (row.summary ?? row.description)?.slice(0, 300) ?? null,
+      capability: row.capabilityName,
+      paymentType: row.paymentType,
+      riskClassification: row.riskClassification,
+      price: agentPriceHint(row.pricing, creditCosts),
+      fit: ratings?.has(row.id)
+        ? Math.round((ratings.get(row.id) ?? 0) * 100) / 100
+        : null,
+    })),
+    availableAgents: rows.length,
+    ...(query && results.length === 0
+      ? {
+          note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else.`,
+        }
+      : {}),
+  };
 }
 
 export class SokoBotRuntimeService {
@@ -1462,6 +1557,113 @@ export class SokoBotRuntimeService {
         // never to follow instructions found in content it reads.
         content: message.content.slice(0, 4_000),
       })),
+    };
+  }
+
+  /** The owner's board, filtered; `readTask` gives one Task in full. */
+  private async listTasks(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
+    const input = listTasksInputSchema.parse(raw);
+    const now = Date.now();
+    const finished = [
+      TaskStatus.COMPLETED,
+      TaskStatus.FAILED,
+      TaskStatus.CANCELED,
+    ];
+    const contains = (value: string) => ({
+      contains: value,
+      mode: "insensitive" as const,
+    });
+    const assignee = input.assignee?.trim();
+    const where: Prisma.TaskWhereInput = {
+      AND: [
+        { workspaceId: authorized.turn.workspaceId, archivedAt: null },
+        buildSokoBotAudienceTaskVisibilityWhere(
+          authorized.turn.userId,
+          authorized.askedByKind,
+        ),
+        input.state === "open"
+          ? { status: { notIn: finished } }
+          : input.state === "finished"
+            ? { status: { in: finished } }
+            : {},
+        input.projectId ? { projectId: input.projectId } : {},
+        input.idleDays
+          ? {
+              updatedAt: {
+                lte: new Date(now - input.idleDays * 86_400_000),
+              },
+            }
+          : {},
+        // Every word, in the name or description: one phrase rarely matches.
+        ...(input.query ?? "")
+          .split(/\s+/)
+          .filter((word) => word.length >= 2)
+          .map((word) => ({
+            OR: [{ name: contains(word) }, { description: contains(word) }],
+          })),
+        assignee?.toLowerCase() === "unassigned"
+          ? { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null }
+          : assignee
+            ? {
+                OR: [
+                  { assignee: { name: contains(assignee) } },
+                  { assigneeUser: { name: contains(assignee) } },
+                  { assigneeSokoBot: { name: contains(assignee) } },
+                ],
+              }
+            : {},
+      ],
+    };
+    const [tasks, total] = await Promise.all([
+      prisma.task.findMany({
+        where,
+        orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+        take: input.limit,
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          updatedAt: true,
+          assignee: { select: { name: true } },
+          assigneeUser: { select: { name: true } },
+          assigneeSokoBot: { select: { name: true } },
+          project: { select: { id: true, name: true } },
+          events: {
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            take: 1,
+            select: { status: true, comment: true, createdAt: true },
+          },
+        },
+      }),
+      prisma.task.count({ where }),
+    ]);
+    return {
+      tasks: tasks.map((task) => {
+        const latest = task.events[0];
+        return {
+          id: task.id,
+          name: task.name,
+          status: task.status,
+          assignee: task.assignee
+            ? { kind: "coworker", name: task.assignee.name }
+            : task.assigneeUser
+              ? { kind: "member", name: task.assigneeUser.name }
+              : task.assigneeSokoBot
+                ? { kind: "assistant", name: task.assigneeSokoBot.name }
+                : null,
+          project: task.project,
+          idleDays: Math.floor((now - task.updatedAt.getTime()) / 86_400_000),
+          updatedAt: task.updatedAt.toISOString(),
+          latest: latest
+            ? {
+                status: latest.status,
+                comment: latest.comment?.slice(0, 200) ?? null,
+                at: latest.createdAt.toISOString(),
+              }
+            : null,
+        };
+      }),
+      total,
     };
   }
 
@@ -3652,6 +3854,8 @@ export class SokoBotRuntimeService {
         const { taskId } = taskIdInputSchema.parse(input.input);
         return this.readTask(authorized, taskId);
       }
+      case "list_tasks":
+        return this.listTasks(authorized, input.input);
       case "update_assigned_task":
         return this.updateAssignedTask(
           authorized,
@@ -3664,56 +3868,7 @@ export class SokoBotRuntimeService {
         return this.linkTasks(authorized, input.input, input.toolCallId);
       case "find_agents": {
         const { query } = searchInputSchema.parse(input.input);
-        return prisma.agent.findMany({
-          where: {
-            isShown: true,
-            status: "ONLINE",
-            // The endpoint `toMasumiAgent` resolves, not the raw column: an
-            // Agent reachable only through its override is hireable, and
-            // `get_agent_input_schema` accepts it, so hiding it here would
-            // leave it hireable but undiscoverable.
-            OR: [
-              { apiBaseUrl: { not: null } },
-              { metadataOverride: { apiBaseUrl: { not: null } } },
-            ],
-            // AND, because the reachability filter above already holds the
-            // one `OR` key this object can have.
-            ...(query
-              ? {
-                  AND: [
-                    {
-                      OR: [
-                        { name: { contains: query, mode: "insensitive" } },
-                        {
-                          description: {
-                            contains: query,
-                            mode: "insensitive",
-                          },
-                        },
-                        {
-                          capabilityName: {
-                            contains: query,
-                            mode: "insensitive",
-                          },
-                        },
-                      ],
-                    },
-                  ],
-                }
-              : {}),
-          },
-          orderBy: [{ jobCount: "desc" }, { id: "desc" }],
-          take: 20,
-          select: {
-            id: true,
-            name: true,
-            summary: true,
-            description: true,
-            capabilityName: true,
-            paymentType: true,
-            riskClassification: true,
-          },
-        });
+        return findHireableAgents(query);
       }
       case "get_agent_input_schema": {
         const { agentId } = agentIdInputSchema.parse(input.input);

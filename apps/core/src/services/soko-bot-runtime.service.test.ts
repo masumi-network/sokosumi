@@ -35,6 +35,8 @@ const {
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  taskCountMock,
   jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -117,6 +119,8 @@ const {
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  taskCountMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
@@ -269,7 +273,11 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: toolCallUpdateManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
-    task: { findFirst: taskFindFirstMock },
+    task: {
+      findFirst: taskFindFirstMock,
+      findMany: taskFindManyMock,
+      count: taskCountMock,
+    },
     job: { findFirst: jobFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
@@ -1308,6 +1316,146 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(JSON.stringify(result)).not.toContain("secret-1");
     },
   );
+
+  it("lists the owner's open, idle, unassigned Tasks by the words asked for", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Which launch tasks are stuck?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    // Keys in canonical order: the reuse check hashes the sorted input.
+    const input = {
+      assignee: "unassigned",
+      idleDays: 3,
+      query: "launch copy",
+    };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    const updatedAt = new Date(Date.now() - 5 * 86_400_000);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "task-1",
+        name: "Launch announcement copy",
+        status: "DRAFT",
+        updatedAt,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+        project: null,
+        events: [],
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_tasks",
+      input,
+    });
+
+    expect(result).toEqual({
+      tasks: [
+        {
+          id: "task-1",
+          name: "Launch announcement copy",
+          status: "DRAFT",
+          assignee: null,
+          project: null,
+          idleDays: 5,
+          updatedAt: updatedAt.toISOString(),
+          latest: null,
+        },
+      ],
+      total: 1,
+    });
+    const { where } = taskFindManyMock.mock.calls[0][0];
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        { workspaceId: SCOPE.workspaceId, archivedAt: null },
+        { status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] } },
+        { updatedAt: { lte: expect.any(Date) } },
+        {
+          OR: [
+            { name: { contains: "launch", mode: "insensitive" } },
+            { description: { contains: "launch", mode: "insensitive" } },
+          ],
+        },
+        {
+          OR: [
+            { name: { contains: "copy", mode: "insensitive" } },
+            { description: { contains: "copy", mode: "insensitive" } },
+          ],
+        },
+        { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null },
+      ]),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it("lists only public Tasks for a teammate", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What is open?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256").update(JSON.stringify({})).digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(0);
+
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_teammate_tasks",
+      input: {},
+    });
+
+    expect(taskFindManyMock.mock.calls[0][0].where.AND).toContainEqual({
+      visibility: "PUBLIC",
+    });
+  });
 
   it("hides jobs on private parent Tasks from teammate Soko Bot reads", async () => {
     turnFindUniqueMock.mockResolvedValue({

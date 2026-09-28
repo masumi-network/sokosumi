@@ -28,6 +28,17 @@ export const sokoBotTaskIdInputSchema = z
   .object({ taskId: z.string().min(1) })
   .strict();
 
+export const sokoBotListTasksInputSchema = z
+  .object({
+    state: z.enum(["open", "finished", "all"]).default("open"),
+    query: z.string().trim().min(1).max(200).optional(),
+    assignee: z.string().trim().min(1).max(160).optional(),
+    idleDays: z.number().int().min(1).max(365).optional(),
+    projectId: z.string().min(1).optional(),
+    limit: z.number().int().min(1).max(25).default(15),
+  })
+  .strict();
+
 export const sokoBotJobIdInputSchema = z
   .object({ jobId: z.string().min(1) })
   .strict();
@@ -468,6 +479,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   archive_task: sokoBotArchiveTaskInputSchema,
   assign_task: sokoBotAssignTaskInputSchema,
   get_task_status: sokoBotTaskIdInputSchema,
+  list_tasks: sokoBotListTasksInputSchema,
   reply_to_task: sokoBotReplyToTaskInputSchema,
   update_assigned_task: sokoBotUpdateAssignedTaskInputSchema,
   link_tasks: sokoBotLinkTasksInputSchema,
@@ -567,6 +579,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   assign_task: "Assign Task to available Coworker and optionally make READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
+  list_tasks:
+    "List the owner's Tasks on the board. Filter by state (open, finished, all), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first. Use get_task_status for one Task in full.",
   reply_to_task:
     "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
   update_assigned_task:
@@ -574,7 +588,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   link_tasks:
     "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
   find_agents:
-    "Find marketplace Agents when Coworker delegation is unsuitable.",
+    "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
     "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",
