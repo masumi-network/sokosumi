@@ -25,6 +25,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
@@ -200,6 +201,10 @@ const DECISION_PENDING_MESSAGE =
   "Owner approval requested. Do not call this tool again with the same input; tell the owner what is pending and finish the turn.";
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
+/** The limit is on Core's tools; sandbox reads are recorded but not counted. */
+const CORE_TOOL_CALLS = {
+  capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
+} satisfies Prisma.SokoBotToolCallWhereInput;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
 const TOOL_RESULT_MAX_BYTES = 16_384;
@@ -3055,7 +3060,7 @@ export class SokoBotRuntimeService {
           if (operation) return operation;
         }
         const callCount = await tx.sokoBotToolCall.count({
-          where: { turnId: input.turnId },
+          where: { turnId: input.turnId, ...CORE_TOOL_CALLS },
         });
         if (callCount >= TOOL_CALL_LIMIT_PER_TURN) {
           throw new SokoBotRuntimeConflictError(
@@ -3709,7 +3714,7 @@ export class SokoBotRuntimeService {
               if (child.status === "COMPLETED") continue;
               if (
                 (await tx.sokoBotToolCall.count({
-                  where: { turnId: authorized.turn.id },
+                  where: { turnId: authorized.turn.id, ...CORE_TOOL_CALLS },
                 })) > TOOL_CALL_LIMIT_PER_TURN
               ) {
                 throw new SokoBotRuntimeConflictError(

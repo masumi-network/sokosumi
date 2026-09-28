@@ -11,8 +11,12 @@ import {
   forbidden,
   internalServerError,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  actionInputHash,
+} from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
@@ -165,6 +169,24 @@ export async function recordSandboxAction(
     throw forbidden("Tool is not granted");
   const log = logFor(claims);
   if (input.name !== "update_plan") await markUntrusted(log, input.name);
+  // A tool-call row like Core's own tools, so what the bot read shows in the
+  // turn's record. No actor bot: a read in the sandbox is never a receipt.
+  await prisma.sokoBotToolCall.upsert({
+    where: {
+      turnId_toolCallId: {
+        turnId: claims.turnId,
+        toolCallId: input.toolCallId,
+      },
+    },
+    create: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      capability: input.name,
+      inputHash: actionInputHash(input.toolInput ?? null),
+      input: jsonInput(sanitizePersistedValue(input.toolInput ?? null)),
+    },
+    update: {},
+  });
   await log.append(
     runtimeEvent("actions.requested", {
       actions: [
@@ -180,9 +202,33 @@ export async function recordSandboxAction(
 
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
-  input: { name: string; toolCallId: string; output?: string },
+  input: {
+    name: string;
+    toolCallId: string;
+    output?: string;
+    sources?: string[];
+  },
 ): Promise<void> {
   await authorizeTurn(claims);
+  // The runner reports a thrown tool as `{"error": …}`.
+  const failed = input.output?.startsWith('{"error":') ?? false;
+  await prisma.sokoBotToolCall.updateMany({
+    where: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      status: "PENDING",
+    },
+    data: {
+      status: failed ? "FAILED" : "COMPLETED",
+      result: jsonInput(
+        sanitizePersistedValue({
+          output: input.output ?? null,
+          sources: input.sources ?? [],
+        }),
+      ),
+      ...(failed ? { errorDetail: input.output?.slice(0, 500) } : {}),
+    },
+  });
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,

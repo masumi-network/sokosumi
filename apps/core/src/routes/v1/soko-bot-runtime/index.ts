@@ -34,6 +34,7 @@ const actionSchema = z.object({
   toolCallId: z.string().min(1).max(200),
   input: z.unknown().optional(),
   output: z.string().max(10_000).optional(),
+  sources: z.array(z.string().max(2_000)).max(50).optional(),
 });
 const completeSchema = z.object({
   text: z.string().max(200_000),

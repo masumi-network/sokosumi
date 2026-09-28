@@ -22,6 +22,7 @@ import {
 } from "ai";
 
 import {
+  citableSources,
   fetchWebPage,
   listWorkspace,
   readWorkspaceFile,
@@ -118,6 +119,7 @@ async function sandboxTool<T>(
       name,
       toolCallId,
       output: JSON.stringify(output ?? null).slice(0, ACTION_OUTPUT_LIMIT),
+      sources: citableSources(name, output),
     }).catch(() => undefined);
   }
 }

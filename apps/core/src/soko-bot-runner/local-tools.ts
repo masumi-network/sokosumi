@@ -221,3 +221,27 @@ export async function fetchWebPage(input: {
     text: clip(text, input.maxChars ?? DEFAULT_FETCH_CHARS),
   };
 }
+
+const URL_PATTERN = /https?:\/\/[^\s"'<>()\\]+/g;
+const MAX_SOURCES = 50;
+
+/**
+ * The pages a tool call gives the bot grounds to cite: every result a search
+ * returned, and a fetched page only when it loaded with content. Read from the
+ * full output, since the audit copy is clipped.
+ */
+export function citableSources(name: string, output: unknown): string[] {
+  if (name === "web_fetch") {
+    const page = output as { url?: unknown; status?: unknown; text?: unknown };
+    return typeof page?.url === "string" &&
+      typeof page.status === "number" &&
+      page.status < 400 &&
+      typeof page.text === "string" &&
+      page.text.trim().length > 0
+      ? [page.url]
+      : [];
+  }
+  if (name !== "web_search") return [];
+  const urls = JSON.stringify(output ?? null).match(URL_PATTERN) ?? [];
+  return [...new Set(urls)].slice(0, MAX_SOURCES);
+}

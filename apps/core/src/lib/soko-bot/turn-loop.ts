@@ -18,6 +18,7 @@ import {
   parseActionNarrativeText,
 } from "./action-response";
 import { claimsAction } from "./answer-claims";
+import { citationsIn, dropUnverifiedLinks } from "./citations";
 import { evaluationBinding, evaluationContext } from "./evaluation-dispatch";
 import {
   SOKO_BOT_ARCHIVE_APPROVAL_GUIDANCE,
@@ -346,6 +347,38 @@ async function ownerNarrative(
   return narrative;
 }
 
+/**
+ * Pages this turn has grounds to cite: search results and pages that loaded
+ * in the sandbox, URLs Core's own tools returned, and what the owner and the
+ * context packet supplied. A fetch that failed is not grounds, even though its
+ * own address is in its output.
+ */
+async function citationEvidence(turnId: string): Promise<Set<string>> {
+  const turn = await prisma.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: {
+      userMessage: true,
+      contextSnapshot: { select: { packet: true } },
+      toolCalls: {
+        where: { status: "COMPLETED" },
+        select: { capability: true, result: true },
+      },
+    },
+  });
+  const urls = [
+    ...citationsIn(turn?.userMessage ?? ""),
+    ...citationsIn(turn?.contextSnapshot?.packet ?? null),
+    ...(turn?.toolCalls ?? []).flatMap((call) =>
+      isSokoBotSandboxCapability(call.capability)
+        ? citationsIn(
+            (call.result as { sources?: unknown } | null)?.sources ?? [],
+          )
+        : citationsIn(call.result),
+    ),
+  ];
+  return new Set(urls);
+}
+
 /** Turns the model's final text into the owner's answer and records it. */
 export async function finishTurn(input: {
   log: RuntimeEventLog;
@@ -361,6 +394,11 @@ export async function finishTurn(input: {
     input.requiresActionProof,
     input.requiresActionProof ? await ownerNarrative(input.text) : undefined,
   );
+  if (/https?:\/\//.test(response.answerText))
+    response.answerText = dropUnverifiedLinks(
+      response.answerText,
+      await citationEvidence(input.turnId),
+    ).text;
   await prisma.sokoBotTurn.update({
     where: { id: input.turnId },
     data: { responseContract: response },

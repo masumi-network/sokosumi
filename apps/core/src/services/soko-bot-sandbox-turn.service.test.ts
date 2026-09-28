@@ -6,7 +6,11 @@ const {
   executeToolMock,
   findFirstEventMock,
   fetchMock,
+  toolCallUpsertMock,
+  toolCallUpdateManyMock,
 } = vi.hoisted(() => ({
+  toolCallUpsertMock: vi.fn(),
+  toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
@@ -24,6 +28,10 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: findFirstEventMock,
     },
     sokoBotTurn: { findUnique: vi.fn().mockResolvedValue(null) },
+    sokoBotToolCall: {
+      upsert: toolCallUpsertMock,
+      updateMany: toolCallUpdateManyMock,
+    },
   },
 }));
 vi.mock("@/services/soko-bot-runtime.service", () => ({
@@ -45,6 +53,7 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
 import {
   proxySandboxModelCall,
   recordSandboxAction,
+  recordSandboxActionResult,
   runSandboxTool,
 } from "./soko-bot-sandbox-turn.service";
 
@@ -211,6 +220,54 @@ describe("sandbox turn service", () => {
       "sandbox.untrusted_input",
       "actions.requested",
     ]);
+  });
+
+  it("records a sandbox tool as a tool call with what it could cite", async () => {
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c9",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(toolCallUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          toolCallId: "c9",
+          capability: "web_fetch",
+          input: { url: "https://example.com" },
+        }),
+        update: {},
+      }),
+    );
+    expect(toolCallUpsertMock.mock.calls[0][0].create).not.toHaveProperty(
+      "actorBotId",
+    );
+
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c9",
+      output: '{"url":"https://example.com","status":200,"text":"Hi"}',
+      sources: ["https://example.com"],
+    });
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({ toolCallId: "c9", status: "PENDING" }),
+      data: {
+        status: "COMPLETED",
+        result: {
+          output: '{"url":"https://example.com","status":200,"text":"Hi"}',
+          sources: ["https://example.com"],
+        },
+      },
+    });
+
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c10",
+      output: '{"error":"fetch failed"}',
+    });
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "FAILED",
+      errorDetail: '{"error":"fetch failed"}',
+    });
   });
 
   it("refuses a sandbox tool the turn was not granted", async () => {
