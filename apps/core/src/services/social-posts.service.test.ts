@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   projectFindFirstMock,
@@ -128,6 +128,10 @@ async function loadService() {
 }
 
 describe("social posts service", () => {
+  beforeAll(async () => {
+    await loadService();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
