@@ -1226,6 +1226,10 @@ describe("DrivePage files sort", () => {
 
   it("Browse omit default shows Name; Date stays explicit in URL and fetch", async () => {
     const user = userEvent.setup();
+    // Inside a folder: that is where this control sorts the list the reader is
+    // looking at. At the Workspace root the list below is the catalog, which
+    // this does not order, so the control is not offered there.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     renderDriveWithUrlSpy();
 
     await waitFor(() => {
@@ -1253,7 +1257,7 @@ describe("DrivePage files sort", () => {
     };
     expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
     expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
-    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+    expect(lastUpdate.searchParams.get("view")).toBe("workspace");
 
     await waitFor(() => {
       const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
@@ -1342,7 +1346,10 @@ describe("DrivePage files sort", () => {
     >;
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
-    expect(screen.getByTestId("files-sort-trigger")).toBeVisible();
+    // The tab lands at the Workspace root, where the list is the catalog and
+    // this control would not order it. Its presence inside a folder is covered
+    // by "keeps the sort control inside a folder".
+    expect(screen.queryByTestId("files-sort-trigger")).toBeNull();
   });
 });
 
@@ -1737,6 +1744,45 @@ describe("one catalog, not two", () => {
       "aria-selected",
       "true",
     );
+  });
+
+  it("offers no sort control at the root, because it would not sort what is shown", async () => {
+    // Found in a browser, not by a test. The control drives the folder strip;
+    // the list a reader looks at is the catalog below it, ordered by relevance
+    // or recency. A sort control that does not reorder the list under it is the
+    // same kind of quiet lie the tab merge removed, one level down.
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    const header = screen.getByTestId("files-desktop-header");
+    expect(within(header).queryByTestId("files-sort-control")).toBeNull();
+  });
+
+  it("keeps the sort control inside a folder, where it does sort the list", async () => {
+    // The other direction: hiding it everywhere would also pass the case above.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const header = screen.getByTestId("files-desktop-header");
+    expect(within(header).getByTestId("files-sort-control")).toBeVisible();
+  });
+
+  it("does not reserve a page of blank space above the catalog", async () => {
+    // The folder strip carried the min-height meant for a list that is the whole
+    // page. With the catalog directly beneath it, that put a screen of nothing
+    // between two folders and the search field, which reads as a failed load.
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    const panel = await waitFor(() => screen.getByTestId("files-layout-list"));
+    expect(panel.className).not.toContain("min-h-");
   });
 
   it("shows one search field at the root, and it belongs to the catalog", async () => {

@@ -1596,7 +1596,14 @@ function DrivePageWorkspace({
                 />
               </>
             )}
-            {!isTablesView && !isRecentsView && filesSortControl}
+            {/* Not at the Workspace root. The list a reader sees there is the
+                catalog, which orders by relevance or recency and is not what
+                this control drives — it sorts the folder strip above it. A sort
+                control that does not reorder the list under it is exactly the
+                kind of thing this tab was merged to remove. */}
+            {!isTablesView && !isRecentsView && !isWorkspaceRoot
+              ? filesSortControl
+              : null}
             {!isTablesView && filesViewModeSwitch}
           </div>
         </div>
@@ -1866,7 +1873,12 @@ function DrivePageWorkspace({
         </div>
       ) : hasItems ? (
         <div
-          className={driveItemsPanelClass(layoutMode)}
+          className={driveItemsPanelClass(layoutMode, {
+            // At the Workspace root this panel holds only the folders, with the
+            // catalog directly below it. Reserving a full list's height there
+            // puts a screen of blank space between the two.
+            fillsThePage: !isWorkspaceRoot,
+          })}
           data-testid={
             layoutMode === "grid" ? "files-layout-grid" : "files-layout-list"
           }
