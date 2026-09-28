@@ -8,6 +8,10 @@ import {
   processFileSuggestionJobs,
   type SuggestionSyncResult,
 } from "@/services/file-suggestions.service";
+import {
+  processStaleTableIndexes,
+  type TableSyncResult,
+} from "@/services/file-table-index.service";
 
 /**
  * Run pending index work inside the request that created it.
@@ -73,8 +77,26 @@ const IN_PROCESS_BUDGET_MS = 20_000;
 const IN_PROCESS_SUGGESTION_JOB_LIMIT = 3;
 const IN_PROCESS_SUGGESTION_BUDGET_MS = 15_000;
 
+/**
+ * Native tables, which nothing but the cron indexed.
+ *
+ * `processStaleTableIndexes` had exactly one caller — `/sync/drive-index`
+ * — so on a preview, where Vercel runs no crons, a workspace's tables
+ * were never indexed at all. The same argument this module already makes
+ * for extraction applies unchanged.
+ *
+ * Its own budget, like the other two. Indexing a table is local work —
+ * read rows, chunk, write — with no provider call in it, so the clock is
+ * closer to extraction's than to suggestion's. Ten rather than the
+ * cron's twenty because this shares a function's lifetime with a
+ * request.
+ */
+const IN_PROCESS_TABLE_LIMIT = 10;
+const IN_PROCESS_TABLE_BUDGET_MS = 15_000;
+
 export interface IndexingNudgeResult {
   extraction: FileIndexSyncResult;
+  tables: TableSyncResult;
   suggestion: SuggestionSyncResult;
 }
 
@@ -133,6 +155,8 @@ export function nudgeFileExtraction(): void {
   waitUntil(runExtractionNudge());
 }
 
+const NO_TABLES: TableSyncResult = { scanned: 0, indexed: 0, failed: 0 };
+
 const NO_SUGGESTIONS: SuggestionSyncResult = {
   processed: 0,
   suggested: 0,
@@ -142,11 +166,27 @@ const NO_SUGGESTIONS: SuggestionSyncResult = {
 
 export async function runIndexingNudge(): Promise<IndexingNudgeResult> {
   const extraction = await runExtractionNudge();
+  /**
+   * Tables between the two, which is the cron's order and the useful one.
+   *
+   * A table has to be indexed before anything could have an opinion
+   * about it, so this sits ahead of suggestion rather than after it.
+   *
+   * Worth saying plainly: today that ordering buys nothing, because
+   * nothing enqueues a SUGGEST job for a native table. The only
+   * enqueue is in the extraction chain, which tables do not go through —
+   * `indexDataTable` writes chunks and stops. So this makes a
+   * workspace's tables *searchable* on a preview, where previously they
+   * were not indexed at all, and it does not make them labelled. That
+   * second half is a gap on the table path, not something this nudge can
+   * close.
+   */
+  const tables = await runTableNudge();
   // Extraction first, and awaited: a document has to have text before
   // anything can have an opinion about its category. The same ordering the
   // cron uses.
   const suggestion = await runSuggestionNudge();
-  return { extraction, suggestion };
+  return { extraction, tables, suggestion };
 }
 
 export async function runExtractionNudge(): Promise<FileIndexSyncResult> {
@@ -163,6 +203,24 @@ export async function runExtractionNudge(): Promise<FileIndexSyncResult> {
       error: error instanceof Error ? error.message : "unknown",
     });
     return { processed: 0, indexed: 0, failed: 0 };
+  }
+}
+
+async function runTableNudge(): Promise<TableSyncResult> {
+  const deadline = Date.now() + IN_PROCESS_TABLE_BUDGET_MS;
+  try {
+    return await processStaleTableIndexes({
+      shouldContinue: () => Date.now() < deadline,
+      maxTables: IN_PROCESS_TABLE_LIMIT,
+    });
+  } catch (error) {
+    // Caught on its own, for the reason the other two are: a table that
+    // will not index must not be read as extraction or labelling having
+    // done nothing.
+    console.warn("[files] in-process table nudge failed", {
+      error: error instanceof Error ? error.message : "unknown",
+    });
+    return { ...NO_TABLES };
   }
 }
 

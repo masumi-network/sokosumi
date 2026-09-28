@@ -37,14 +37,25 @@ import {
  */
 
 /**
- * Only the sources the catalog actually holds.
+ * Only the sources this filter offers, which is now fewer than the
+ * catalog holds.
  *
- * All five kinds were offered, and four of them could never match: nothing
- * on this branch creates a `FileResource` with a `sourceKind` other than
- * `DRIVE_UPLOAD`. A filter that always returns nothing is worse than an
- * absent one — the reader concludes they have no task outputs rather than
- * that the feature does not index them yet. They come back as each source
- * is indexed.
+ * All five kinds were offered and four could never match, so the list was
+ * cut to one: a filter that always returns nothing is worse than an
+ * absent one, because the reader concludes they have no task outputs
+ * rather than that the feature does not index them yet.
+ *
+ * The reason given for cutting it was that "nothing on this branch
+ * creates a `FileResource` with a `sourceKind` other than
+ * `DRIVE_UPLOAD`", and that stopped being true:
+ * `file-table-index.service.ts` creates `NATIVE_TABLE` resources, and
+ * they are indexed and searchable like any other file.
+ *
+ * So `NATIVE_TABLE` is a source a reader has and cannot filter by. That
+ * is a smaller fault than the one this list was cut to fix — an absent
+ * filter, not a lying one — and adding it back is a product call rather
+ * than a correction, so it is recorded here rather than made here. The
+ * remaining three are still unindexed and still correctly absent.
  */
 const SOURCE_KINDS = ["DRIVE_UPLOAD"] as const;
 

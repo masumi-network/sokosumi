@@ -5,10 +5,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const processFileIndexJobs = vi.fn();
 const processFileSuggestionJobs = vi.fn();
+const processStaleTableIndexes = vi.fn();
 const waitUntil = vi.fn();
 
 vi.mock("@vercel/functions", () => ({
   waitUntil: (promise: Promise<unknown>) => waitUntil(promise),
+  // Pulled in transitively by the table service's prisma import.
+  attachDatabasePool: vi.fn(),
 }));
 
 vi.mock("@/services/file-index.service", () => ({
@@ -17,6 +20,9 @@ vi.mock("@/services/file-index.service", () => ({
 vi.mock("@/services/file-suggestions.service", () => ({
   processFileSuggestionJobs: (input: unknown) =>
     processFileSuggestionJobs(input),
+}));
+vi.mock("@/services/file-table-index.service", () => ({
+  processStaleTableIndexes: (input: unknown) => processStaleTableIndexes(input),
 }));
 
 import {
@@ -43,10 +49,12 @@ import {
 
 const EXTRACTION = { processed: 2, indexed: 2, failed: 0 };
 const SUGGESTION = { processed: 1, suggested: 3, failed: 0, deferred: 0 };
+const TABLES = { scanned: 2, indexed: 2, failed: 0 };
 
 beforeEach(() => {
   processFileIndexJobs.mockReset().mockResolvedValue(EXTRACTION);
   processFileSuggestionJobs.mockReset().mockResolvedValue(SUGGESTION);
+  processStaleTableIndexes.mockReset().mockResolvedValue(TABLES);
   waitUntil.mockReset();
 });
 
@@ -56,6 +64,58 @@ describe("the in-process nudge", () => {
 
     expect(processFileIndexJobs).toHaveBeenCalledTimes(1);
     expect(processFileSuggestionJobs).toHaveBeenCalledTimes(1);
+    expect(result.extraction).toEqual(EXTRACTION);
+    expect(result.suggestion).toEqual(SUGGESTION);
+  });
+
+  it("indexes native tables too", async () => {
+    /**
+     * `processStaleTableIndexes` had one caller, the cron, so on a
+     * preview — where Vercel runs no crons — a workspace's tables were
+     * never indexed at all.
+     *
+     * What this does not do, stated because the ordering invites the
+     * assumption: it does not get a table labelled. Nothing enqueues a
+     * SUGGEST job for a native table; the only enqueue is in the
+     * extraction chain and `indexDataTable` does not go through it. This
+     * makes tables searchable, not categorised.
+     */
+    const result = await runIndexingNudge();
+
+    expect(processStaleTableIndexes).toHaveBeenCalledTimes(1);
+    expect(result.tables).toEqual(TABLES);
+  });
+
+  it("indexes tables before it labels anything", async () => {
+    // A table has to be indexed before anything could have an opinion
+    // about it, which is also the order the cron uses.
+    const order: string[] = [];
+    processFileIndexJobs.mockImplementation(async () => {
+      order.push("extraction");
+      return EXTRACTION;
+    });
+    processStaleTableIndexes.mockImplementation(async () => {
+      order.push("tables");
+      return TABLES;
+    });
+    processFileSuggestionJobs.mockImplementation(async () => {
+      order.push("suggestion");
+      return SUGGESTION;
+    });
+
+    await runIndexingNudge();
+
+    expect(order).toEqual(["extraction", "tables", "suggestion"]);
+  });
+
+  it("keeps the table failure separate from the other two", async () => {
+    // A table that will not index must not read as extraction or
+    // labelling having done nothing.
+    processStaleTableIndexes.mockRejectedValue(new Error("table gone"));
+
+    const result = await runIndexingNudge();
+
+    expect(result.tables).toEqual({ scanned: 0, indexed: 0, failed: 0 });
     expect(result.extraction).toEqual(EXTRACTION);
     expect(result.suggestion).toEqual(SUGGESTION);
   });

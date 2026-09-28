@@ -16,7 +16,10 @@ import {
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import { chunkExtractedText } from "@/lib/files/extraction";
-import { writeVersionChunks } from "@/services/file-index.service";
+import {
+  evidenceSourceIdFor,
+  writeVersionChunks,
+} from "@/services/file-index.service";
 
 /**
  * Making a native table searchable by what is in it.
@@ -192,7 +195,26 @@ export async function indexDataTable(
     workspaceId: actor.workspaceId,
     sourceKind: FileSourceKind.NATIVE_TABLE,
     sourceScope: owner.sourceScope,
-    sourceId: tableId,
+    /**
+     * The owner, not the table.
+     *
+     * This was `tableId`, and it is the only one of six writers that
+     * keyed a scope by anything but the owner. `loadEditableResource`
+     * looks the scope up by
+     * `COALESCE(fr."ownerUserId", fr."ownerOrganizationId")`, so the
+     * lookup found nothing for every native table and the metadata route
+     * reported the file as missing rather than reporting what was
+     * actually wrong.
+     *
+     * `fileResource."sourceId"` stays the table id — a different column,
+     * and the one `findStaleTables` dedupes on.
+     */
+    sourceId: evidenceSourceIdFor({
+      sourceKind: FileSourceKind.NATIVE_TABLE,
+      sourceScope: owner.sourceScope,
+      ownerUserId: owner.ownerUserId,
+      ownerOrganizationId: owner.ownerOrganizationId,
+    }),
   });
 
   // Replace rather than append: a table's text is a snapshot of its rows.

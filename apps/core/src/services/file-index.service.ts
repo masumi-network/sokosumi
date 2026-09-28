@@ -337,7 +337,25 @@ export async function runExtractionJob(
   };
 }
 
-function evidenceSourceIdFor(resource: {
+/**
+ * The evidence scope's `sourceId`, which must be the owner.
+ *
+ * Exported because five writers agreed on this and a sixth did not:
+ * `file-table-index.service.ts` keyed a native table's scope by the
+ * *table* id, so `loadEditableResource` — which looks the scope up by
+ * `COALESCE(fr."ownerUserId", fr."ownerOrganizationId")` — found nothing
+ * and the route answered "not found" for a table that was plainly listed
+ * in Drive. One expression in one place is what stops a seventh writer
+ * disagreeing again.
+ *
+ * This has to keep matching `file-metadata.service.ts`'s COALESCE. For a
+ * DRIVE_UPLOAD the two branches are the same value in practice: both
+ * catalog writers set `ownerUserId` and `ownerOrganizationId` mutually
+ * exclusively from `key.scope`, and `sourceScope` is derived from that
+ * same `key.scope`, so an ORGANIZATION-scoped upload always has a null
+ * `ownerUserId` and the COALESCE falls through to the organization.
+ */
+export function evidenceSourceIdFor(resource: {
   sourceKind: FileSourceKind;
   sourceScope: FileSourceScope;
   ownerUserId: string | null;
