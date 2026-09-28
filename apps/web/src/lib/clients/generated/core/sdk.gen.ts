@@ -2923,7 +2923,7 @@ export const getProjectsByIdSocialConnections = <ThrowOnError extends boolean = 
 });
 
 /**
- * Begin an X social connection for a Project. Requires an interactive user session in the Project's Workspace.
+ * Begin a social connection for a Project. Requires an interactive user session in the Project's Workspace.
  */
 export const postProjectsByIdSocialConnectionsInitiate = <ThrowOnError extends boolean = false>(options: Options<PostProjectsByIdSocialConnectionsInitiateData, ThrowOnError>): RequestResult<PostProjectsByIdSocialConnectionsInitiateResponses, PostProjectsByIdSocialConnectionsInitiateErrors, ThrowOnError> => (options.client ?? client).post<PostProjectsByIdSocialConnectionsInitiateResponses, PostProjectsByIdSocialConnectionsInitiateErrors, ThrowOnError>({
     responseTransformer: postProjectsByIdSocialConnectionsInitiateResponseTransformer,

@@ -2264,15 +2264,14 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Connect X accounts that this project can use for future publishing.",
-        "account": "X account",
-        "connect": "Connect X account",
+        "description": "Connect social accounts to this project. Publishing is currently available for X.",
+        "account": "{provider} account",
+        "connect": "Connect {provider} account",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
-        "connecting": "Connecting…",
         "disconnecting": "Disconnecting…",
-        "unknownHandle": "Unknown X account",
+        "unknownHandle": "Unknown account",
         "status": {
           "active": "Connected",
           "pending": "Connection pending",
@@ -2280,35 +2279,36 @@
           "disconnected": "Disconnected"
         },
         "replaceDialog": {
-          "title": "Replace this X account?",
+          "title": "Replace this account?",
           "description": "The current account will be disconnected before you connect a replacement.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
-          "title": "Disconnect this X account?",
+          "title": "Disconnect this account?",
           "description": "This project will no longer be authorized to use this account.",
           "confirm": "Disconnect account"
         },
         "cancel": "Cancel",
         "success": {
-          "connected": "X account connected.",
-          "disconnected": "X account disconnected."
+          "connected": "Account connected.",
+          "disconnected": "Account disconnected."
         },
         "warning": {
-          "providerRevocationFailed": "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings."
+          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
         },
         "errors": {
-          "inFlight": "Another X account action is already in progress.",
-          "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
-          "timeout": "X authorization took too long. Try again.",
-          "providerCallback": "X authorization did not complete. Return to the Project's Social page and try again.",
-          "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
-          "verifier": "We could not verify your X account. Start the connection again.",
+          "inFlight": "Another account action is already in progress.",
+          "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
+          "timeout": "Authorization took too long. Try again.",
+          "providerCallback": "Authorization did not complete. Return to the Project’s Social page and try again.",
+          "legacyCallback": "This callback cannot verify your account. Contact support and try again.",
+          "verifier": "We could not verify your account. Start the connection again.",
           "intent": "This connection request expired or is no longer valid. Start again.",
-          "duplicate": "That X account is already connected to this project. Choose a different account.",
-          "reconnectMismatch": "Reconnect the same X account that is already linked to this project.",
-          "finalize": "We could not finish connecting this X account. Try again.",
-          "disconnect": "We could not disconnect this X account. Try again."
+          "duplicate": "That account is already connected to this project. Choose a different account.",
+          "reconnectMismatch": "Reconnect the same account that is already linked to this project.",
+          "finalize": "We could not finish connecting this account. Try again.",
+          "disconnect": "We could not disconnect this account. Try again.",
+          "notConfigured": "This integration is not configured yet. Contact support to enable it."
         }
       },
       "SocialPosts": {

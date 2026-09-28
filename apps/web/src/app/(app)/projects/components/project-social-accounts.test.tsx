@@ -39,9 +39,9 @@ const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
   description:
-    "Connect X accounts that this project can use for future publishing.",
-  account: "X account",
-  connect: "Connect X account",
+    "Connect social accounts to this project. Publishing is currently available for X.",
+  account: "{provider} account",
+  connect: "Connect {provider} account",
   reconnect: "Reconnect",
   replace: "Replace",
   disconnect: "Disconnect",
@@ -51,43 +51,48 @@ const MESSAGES: Record<string, string> = {
   "status.disconnected": "Disconnected",
   "status.pending": "Connection pending",
   "status.reauthorization_required": "Reconnection required",
-  unknownHandle: "Unknown X account",
-  "replaceDialog.title": "Replace this X account?",
+  unknownHandle: "Unknown account",
+  "replaceDialog.title": "Replace this account?",
   "replaceDialog.description":
     "The current account will be disconnected before you connect a replacement.",
   "replaceDialog.confirm": "Replace account",
-  "disconnectDialog.title": "Disconnect this X account?",
+  "disconnectDialog.title": "Disconnect this account?",
   "disconnectDialog.description":
     "This project will no longer be authorized to use this account.",
   "disconnectDialog.confirm": "Disconnect account",
   cancel: "Cancel",
-  "success.connected": "X account connected.",
-  "success.disconnected": "X account disconnected.",
+  "success.connected": "Account connected.",
+  "success.disconnected": "Account disconnected.",
   "warning.providerRevocationFailed":
-    "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
-  "errors.inFlight": "Another X account action is already in progress.",
+    "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
+  "errors.notConfigured":
+    "This integration is not configured yet. Contact support to enable it.",
+  "errors.inFlight": "Another account action is already in progress.",
   "errors.popupBlocked":
-    "Your browser blocked the X authorization window. Allow popups and try again.",
-  "errors.timeout": "X authorization took too long. Try again.",
+    "Your browser blocked the authorization window. Allow popups and try again.",
+  "errors.timeout": "Authorization took too long. Try again.",
   "errors.providerCallback":
-    "X authorization did not complete. Return to Project settings and try again.",
+    "Authorization did not complete. Return to the Project’s Social page and try again.",
   "errors.legacyCallback":
-    "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+    "This callback cannot verify your account. Contact support and try again.",
   "errors.verifier":
-    "We could not verify your X account. Start the connection again.",
+    "We could not verify your account. Start the connection again.",
   "errors.intent":
     "This connection request expired or is no longer valid. Start again.",
   "errors.duplicate":
-    "That X account is already connected to this project. Choose a different account.",
+    "That account is already connected to this project. Choose a different account.",
   "errors.reconnectMismatch":
-    "Reconnect the same X account that is already linked to this project.",
-  "errors.finalize":
-    "We could not finish connecting this X account. Try again.",
-  "errors.disconnect": "We could not disconnect this X account. Try again.",
+    "Reconnect the same account that is already linked to this project.",
+  "errors.finalize": "We could not finish connecting this account. Try again.",
+  "errors.disconnect": "We could not disconnect this account. Try again.",
 };
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => MESSAGES[key] ?? key,
+  useTranslations: () => (key: string, values?: Record<string, string>) =>
+    (MESSAGES[key] ?? key).replace(
+      /\{(\w+)\}/g,
+      (_, name: string) => values?.[name] ?? name,
+    ),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -189,6 +194,72 @@ describe("ProjectSocialAccounts", () => {
         disconnectedAt: new Date("2026-09-03T10:05:00.000Z"),
       }),
     });
+  });
+
+  it("explains missing provider configuration instead of reporting an expired request", async () => {
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+      ok: false,
+      error: {
+        code: "SERVICE_UNAVAILABLE",
+        message: "COMPOSIO_TIKTOK_AUTH_CONFIG_ID is not configured",
+      },
+    });
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Connect TikTok account" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "This integration is not configured yet",
+    );
+    expect(screen.queryByText(/COMPOSIO_TIKTOK/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["tiktok", "TikTok"],
+    ["instagram", "Instagram"],
+    ["linkedin", "LinkedIn"],
+    ["facebook", "Facebook"],
+    ["youtube", "YouTube"],
+  ])("starts a connection for %s", async (provider, name) => {
+    vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
+      ok: false,
+      error: { code: "BAD_INPUT", message: "Unavailable" },
+    });
+    const user = userEvent.setup();
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+    await user.click(
+      screen.getByRole("button", { name: `Connect ${name} account` }),
+    );
+    await waitFor(() =>
+      expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        action: "connect",
+        provider,
+      }),
+    );
+  });
+
+  it("labels Facebook and YouTube display names without inventing handles", () => {
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[
+          buildConnection({
+            provider: "facebook",
+            externalHandle: "Ada Lovelace",
+          }),
+          buildConnection({
+            id: "youtube-1",
+            provider: "youtube",
+            externalHandle: "Our channel",
+          }),
+        ]}
+      />,
+    );
+    expect(screen.getByText("Ada Lovelace")).toBeVisible();
+    expect(screen.getByText("Facebook account")).toBeVisible();
+    expect(screen.getByText("Our channel")).toBeVisible();
+    expect(screen.getByText("YouTube account")).toBeVisible();
   });
 
   it("shows connected and reauthorization-required X account lifecycle controls", () => {
@@ -311,7 +382,7 @@ describe("ProjectSocialAccounts", () => {
         });
       });
       expect(calls).toEqual(["complete", "finalize"]);
-      expect(toastSuccessMock).toHaveBeenCalledWith("X account connected.");
+      expect(toastSuccessMock).toHaveBeenCalledWith("Account connected.");
       expect(refreshMock).toHaveBeenCalledOnce();
       expect(MockBroadcastChannel.instances[0]?.close).toHaveBeenCalledOnce();
     },
@@ -338,7 +409,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+        "This callback cannot verify your account. Contact support and try again.",
       );
     });
     expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
@@ -403,7 +474,7 @@ describe("ProjectSocialAccounts", () => {
 
     await user.click(screen.getByRole("button", { name: "Connect X account" }));
     expect(toastErrorMock).toHaveBeenCalledWith(
-      "Your browser blocked the X authorization window. Allow popups and try again.",
+      "Your browser blocked the authorization window. Allow popups and try again.",
     );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
 
@@ -425,7 +496,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
+        "This callback cannot verify your account. Contact support and try again.",
       );
     });
     expect(completeComposioAuthCallbackAction).not.toHaveBeenCalled();
@@ -525,7 +596,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "X authorization did not complete. Return to Project settings and try again.",
+        "Authorization did not complete. Return to the Project’s Social page and try again.",
       );
     });
     expect(toastErrorMock).not.toHaveBeenCalledWith("provider-secret-detail");
@@ -567,7 +638,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "We could not verify your X account. Start the connection again.",
+        "We could not verify your account. Start the connection again.",
       );
     });
     expect(finalizeProjectSocialConnection).not.toHaveBeenCalled();
@@ -601,7 +672,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "That X account is already connected to this project. Choose a different account.",
+        "That account is already connected to this project. Choose a different account.",
       );
     });
   });
@@ -639,7 +710,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Reconnect the same X account that is already linked to this project.",
+        "Reconnect the same account that is already linked to this project.",
       );
     });
   });
@@ -666,7 +737,7 @@ describe("ProjectSocialAccounts", () => {
 
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "We could not disconnect this X account. Try again.",
+        "We could not disconnect this account. Try again.",
       );
     });
   });
@@ -695,14 +766,14 @@ describe("ProjectSocialAccounts", () => {
 
     expect(
       await screen.findByText(
-        "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+        "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
       ),
     ).toBeVisible();
     expect(toastWarningMock).toHaveBeenCalledWith(
-      "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
     );
     expect(toastSuccessMock).not.toHaveBeenCalledWith(
-      "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings.",
+      "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings.",
     );
   });
 
@@ -747,7 +818,7 @@ describe("ProjectSocialAccounts", () => {
         socialConnectionId: "connection-1",
       });
     });
-    expect(toastSuccessMock).toHaveBeenCalledWith("X account disconnected.");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Account disconnected.");
   });
 
   it("refreshes after a replacement initiation failure retires the active connection", async () => {

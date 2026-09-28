@@ -120,7 +120,12 @@ describe("ProjectSocialPage", () => {
       posts,
       nextCursor: "next-upcoming",
     });
-    listSocialConnectionsMock.mockResolvedValue([active, disconnected]);
+    const instagram = { ...active, id: "instagram-1", provider: "instagram" };
+    listSocialConnectionsMock.mockResolvedValue([
+      active,
+      disconnected,
+      instagram,
+    ]);
 
     render(
       await ProjectSocialPage({
@@ -161,7 +166,7 @@ describe("ProjectSocialPage", () => {
     expect(projectSocialAccountsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: PROJECT.id,
-        connections: [active, disconnected],
+        connections: [active, disconnected, instagram],
       }),
     );
   });

@@ -2,6 +2,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -147,6 +151,51 @@ describe("Project social connection routes", () => {
     });
   });
 
+  it.each(Object.keys(PROJECT_SOCIAL_PROVIDERS) as ProjectSocialProvider[])(
+    "accepts and returns %s connections",
+    async (provider) => {
+      const app = createApp();
+      const initiation = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "connect", provider }),
+        },
+      );
+      expect(initiation.status).toBe(201);
+      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        action: "connect",
+        provider,
+      });
+      listProjectSocialConnectionsMock.mockResolvedValue([
+        { ...connection, provider },
+      ]);
+      const listing = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections`,
+      );
+      expect(listing.status).toBe(200);
+      expect(await listing.json()).toMatchObject({ data: [{ provider }] });
+      finalizeProjectSocialConnectionMock.mockResolvedValue({
+        ...connection,
+        provider,
+      });
+      const finalization = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ connectionId: CONNECTION_ID }),
+        },
+      );
+      expect(finalization.status).toBe(201);
+      expect(await finalization.json()).toMatchObject({ data: { provider } });
+    },
+  );
+
   it("lists credential-free active connections for the current workspace", async () => {
     listProjectSocialConnectionsMock.mockResolvedValue([
       {
@@ -242,7 +291,6 @@ describe("Project social connection routes", () => {
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
         action,
-        provider: "x",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       });
     },
@@ -473,7 +521,7 @@ describe("Project social connection routes", () => {
     finalizeProjectSocialConnectionMock
       .mockRejectedValueOnce(notFound("Unknown or expired connection"))
       .mockRejectedValueOnce(
-        conflict("This X account is already connected to the Project"),
+        conflict("This social account is already connected to the Project"),
       )
       .mockRejectedValueOnce(
         new ComposioApiError(

@@ -2264,15 +2264,14 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
-        "description": "Verbinde X-Konten, die dieses Projekt künftig zum Veröffentlichen verwenden kann.",
-        "account": "X-Konto",
-        "connect": "X-Konto verbinden",
+        "description": "Verbinde Social-Media-Konten mit diesem Projekt. Beiträge können derzeit auf X veröffentlicht werden.",
+        "account": "{provider}-Konto",
+        "connect": "{provider}-Konto verbinden",
         "reconnect": "Erneut verbinden",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
-        "connecting": "Wird verbunden…",
         "disconnecting": "Wird getrennt…",
-        "unknownHandle": "Unbekanntes X-Konto",
+        "unknownHandle": "Unbekanntes Konto",
         "status": {
           "active": "Verbunden",
           "pending": "Verbindung ausstehend",
@@ -2280,35 +2279,36 @@
           "disconnected": "Getrennt"
         },
         "replaceDialog": {
-          "title": "Dieses X-Konto ersetzen?",
+          "title": "Dieses Konto ersetzen?",
           "description": "Das aktuelle Konto wird getrennt, bevor du ein Ersatzkonto verbindest.",
           "confirm": "Konto ersetzen"
         },
         "disconnectDialog": {
-          "title": "Dieses X-Konto trennen?",
+          "title": "Dieses Konto trennen?",
           "description": "Dieses Projekt ist dann nicht mehr berechtigt, dieses Konto zu verwenden.",
           "confirm": "Konto trennen"
         },
         "cancel": "Abbrechen",
         "success": {
-          "connected": "X-Konto verbunden.",
-          "disconnected": "X-Konto getrennt."
+          "connected": "Konto verbunden.",
+          "disconnected": "Konto getrennt."
         },
         "warning": {
-          "providerRevocationFailed": "Dieses Konto ist von diesem Projekt getrennt, aber X könnte diese App weiterhin autorisieren. Widerrufe die App in deinen X-Einstellungen."
+          "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
         },
         "errors": {
-          "inFlight": "Eine andere X-Konto-Aktion wird bereits ausgeführt.",
-          "popupBlocked": "Dein Browser hat das X-Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
-          "timeout": "Die X-Autorisierung hat zu lange gedauert. Versuche es erneut.",
-          "providerCallback": "Die X-Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
-          "legacyCallback": "Dieser OAuth-Rückruf kann dein X-Konto nicht verifizieren. Aktualisiere die Composio-Rückrufkonfiguration und versuche es erneut.",
-          "verifier": "Dein X-Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
+          "inFlight": "Eine andere Kontoaktion läuft bereits.",
+          "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "providerCallback": "Die Autorisierung wurde nicht abgeschlossen. Kehre zur Social-Seite des Projekts zurück und versuche es erneut.",
+          "legacyCallback": "Mit dieser Rückmeldung kann dein Konto nicht verifiziert werden. Wende dich an den Support und versuche es erneut.",
+          "verifier": "Dein Konto konnte nicht verifiziert werden. Starte die Verbindung erneut.",
           "intent": "Diese Verbindungsanfrage ist abgelaufen oder nicht mehr gültig. Starte erneut.",
-          "duplicate": "Dieses X-Konto ist bereits mit diesem Projekt verbunden. Wähle ein anderes Konto.",
-          "reconnectMismatch": "Verbinde erneut dasselbe X-Konto, das bereits mit diesem Projekt verknüpft ist.",
-          "finalize": "Das Verbinden dieses X-Kontos konnte nicht abgeschlossen werden. Versuche es erneut.",
-          "disconnect": "Dieses X-Konto konnte nicht getrennt werden. Versuche es erneut."
+          "duplicate": "Dieses Konto ist bereits mit dem Projekt verbunden. Wähle ein anderes Konto.",
+          "reconnectMismatch": "Verbinde dasselbe Konto erneut, das bereits mit diesem Projekt verknüpft ist.",
+          "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
+          "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
+          "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
         }
       },
       "SocialPosts": {

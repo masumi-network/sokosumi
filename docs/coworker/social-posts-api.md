@@ -13,7 +13,15 @@ Core records the Coworker as creator independently of the contextual human. `sch
 
 Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting X. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
 
-Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, and Publish now/Retry remain interactive-human actions. Coworker post responses set `canPublishNow` to false. Calendar's Social feed remains interactive-human-only in this layer.
+Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, and Publish now/Retry remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow` to false. Calendar's Social feed remains interactive-human-only in this layer.
+
+## Soko Bot runtime tools
+
+Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Publishing and scheduling support X only; account listing covers all connected providers.
+
+Core derives the user and workspace from the active turn and rechecks owner activity, workspace membership, organization seat, and Social beta eligibility. Teammate and bot-to-bot turns do not receive these tools. Mutations use revisions and action receipts; uncertain publication requires reconciliation rather than automatic retry. Social mutations after web or shell use require a fresh owner message. Account OAuth remains in Project → Social.
+
+Bot-created posts identify the bot as creator. Scheduling runs under the owner's user identity and existing delayed-publish eligibility checks. The owner authorizes publication by requesting scheduling or immediate publishing; drafting alone does not authorize either.
 
 ## Deployment
 

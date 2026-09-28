@@ -5258,12 +5258,23 @@ export type ProjectStar = {
 
 export type ProjectSocialConnection = {
     id: string;
-    provider: 'x';
+    provider: ProjectSocialProvider;
     externalHandle: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
 };
+
+export const ProjectSocialProvider = {
+    X: 'x',
+    TIKTOK: 'tiktok',
+    INSTAGRAM: 'instagram',
+    LINKEDIN: 'linkedin',
+    FACEBOOK: 'facebook',
+    YOUTUBE: 'youtube'
+} as const;
+
+export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
@@ -5272,7 +5283,7 @@ export type InitiateProjectSocialConnectionResponse = {
 
 export type InitiateProjectSocialConnectionRequest = {
     action: 'connect';
-    provider: 'x';
+    provider: ProjectSocialProvider;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
