@@ -18,7 +18,7 @@ sokosumi/
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
 │   ├── email/       # @sokosumi/email — renderers and locales
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
-│   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (runtime is in Core)
+│   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (loop runs in per-bot Vercel Sandboxes; Core is the control plane)
 ├── docs/            # Agent, domain, coworker, and design docs
 ├── scripts/         # local-env, cloud-agent-db, CI helpers
 ├── skills/          # First-party agent skill sources

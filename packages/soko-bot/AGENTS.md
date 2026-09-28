@@ -61,7 +61,7 @@ Cross-module contract tests live in `src/__tests__/`.
 ### Do
 
 - Treat this package as the shared contract Core and Web both import
-- Implement turns, tools, and persistence under `apps/core/src/lib/soko-bot/` and Core services
+- Implement control-plane turns, tools, and persistence under `apps/core/src/lib/soko-bot/`; the sandbox loop host is `apps/core/src/soko-bot-runner`
 
 ### Don't
 
@@ -71,7 +71,7 @@ Cross-module contract tests live in `src/__tests__/`.
 ## References
 
 - [Root AGENTS.md](../../AGENTS.md)
-- [Core AGENTS.md](../../apps/core/AGENTS.md) (`lib/soko-bot/`)
+- [Core AGENTS.md](../../apps/core/AGENTS.md) (`lib/soko-bot/`, `soko-bot-runner/`)
 - [ADR 0007](../../docs/adr/0007-soko-bot-eve-runtime.md) — Core is the control plane
 - [ADR 0043](../../docs/adr/0043-soko-bot-runs-in-per-bot-sandboxes.md) — the loop runs in per-bot sandboxes
 - [Skill routing](../../docs/agents/skill-routing.md) (Soko Bot)

@@ -44,7 +44,8 @@ The live tree is `apps/core/src/`.
 | `schemas/` | Zod / OpenAPI |
 | `helpers/` | Domain logic used by routes |
 | `lib/` | Auth, Prisma (`lib/db/prisma.ts`), Hono, blob, Sentry, evlog |
-| `lib/soko-bot/` | In-process Soko Bot runtime (contracts from `@sokosumi/soko-bot`) |
+| `lib/soko-bot/` | Soko Bot control plane (sandbox + in-process adapters; contracts from `@sokosumi/soko-bot`) |
+| `soko-bot-runner/` | Agent loop bundled into each bot's Vercel Sandbox (`/v1/soko-bot-runtime`) |
 | `clients/` | External HTTP clients |
 | `services/` | Longer-lived / legacy service modules |
 | `middleware/` | Auth, org, workspace, coworker context |
@@ -599,7 +600,7 @@ const flattenedLinks = links.map(flattenLinkJobId);
 
 - `@sokosumi/database` - Database layer with Prisma client, helpers, and (legacy) repositories. Consumed as TypeScript source and inlined by Core's `tsup` ([ADR 0035](../../docs/adr/0035-database-consumed-from-source.md)); it has no build, so Prisma's real types reach Core and JSON-column writes are checked. Writing `null` into a `Json?` column needs `Prisma.DbNull`.
 - `@sokosumi/masumi` - Masumi protocol utilities (hash, agent client, schemas)
-- `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). The loop is in-process in Core (`src/lib/soko-bot/`); there is no `apps/soko-bot` deployable.
+- `@sokosumi/soko-bot` - Soko Bot contracts (capabilities, persona, memory, tools). Core owns the control plane (`src/lib/soko-bot/`); the loop runs in a per-bot Vercel Sandbox (`src/soko-bot-runner`). In-process is the evaluation adapter. There is no `apps/soko-bot` deployable.
 
 **Path Aliases**: The codebase uses `@/` path aliases configured in `tsconfig.json`:
 

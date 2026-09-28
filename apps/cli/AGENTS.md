@@ -29,3 +29,7 @@ Actions that require this gate include:
 - Commands that use production credentials, production endpoints, or production data.
 
 Use local fixtures or a non-production environment for CLI verification. Never substitute a production target when local verification is unavailable.
+
+## Portable skill
+
+The consumer skill for headless CLI work lives at [`skills/sokosumi/`](./skills/sokosumi/) (`npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi`). It is not in this app's skills lockfile. Do not install it at the repo-root `.agents/skills/`.
