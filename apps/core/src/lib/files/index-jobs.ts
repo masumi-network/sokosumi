@@ -47,6 +47,12 @@ export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
  * The cost of being wrong in this direction is a document labelled half a
  * day late. The cost of being wrong in the other is a document never
  * labelled at all, which is the defect being fixed.
+ *
+ * Changing this number changes a test. Case 1 of
+ * `suggestion-outage-is-terminal.postgres.test.ts` pins the retry budget
+ * to an exact dispatch count, and that count holds only while this delay
+ * exceeds that fixture's eight-hour outage. A red there is the sweep
+ * firing mid-incident, not a stale assertion.
  */
 export const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
 

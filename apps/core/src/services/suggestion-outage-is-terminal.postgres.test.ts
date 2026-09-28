@@ -313,6 +313,20 @@ describe.skipIf(!enabled)(
      * The premise. Not the defect — spending a bounded number of attempts
      * against a dead provider is the intended behaviour of `093bde2d2`, and
      * the FAILED state with a reason is the improvement it bought.
+     *
+     * **This case measures `FILE_INDEX_JOB_REVIVE_AFTER_MS`, not only the
+     * sweep.** Added by the implementer, because the coupling is real and
+     * was invisible. The exact dispatch count below holds only while the
+     * revival delay exceeds this fixture's outage: `OUTAGE_STEPS * STEP_MS`
+     * is eight simulated hours, the delay is twelve, so no revival fires
+     * during the outage and the budget is spent exactly once per document.
+     *
+     * Lower the delay past eight hours and this goes red — correctly. It
+     * is telling you the sweep now fires mid-incident and spends revivals
+     * on an outage that is still going, which is the thing the delay is
+     * tuned against. Fix the constant or the fixture's outage length; do
+     * not relax this assertion, which is the only thing holding the
+     * retry budget to a number at all.
      */
     it("1. the outage spends the retry budget and leaves a visible state", () => {
       expect(
