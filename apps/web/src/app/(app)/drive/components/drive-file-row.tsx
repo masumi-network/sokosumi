@@ -1,7 +1,8 @@
 "use client";
 
+import { X } from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
@@ -12,8 +13,8 @@ import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 
 /**
- * One file in the catalog: what it is called, what it is about, where it came
- * from, and how much of it is searchable.
+ * One file in the catalog: what it is called, what it is about, where it is
+ * filed, and which project it belongs to.
  *
  * Its own file so it can be mounted on its own. The panel around it pulls in
  * the filter sheet, the collections shelf and the search client, and a worker
@@ -22,6 +23,16 @@ import { cn } from "@/lib/utils";
  * instead of a render. The claims about a row are claims about markup, and a
  * regex over JSX cannot tell "beside the name" from "below it", so the row had
  * to become something a test can render.
+ *
+ * ## What this row deliberately does not say
+ *
+ * Extraction state and `Upload` are gone. `Filename only` and `Partly indexed`
+ * are facts about what the parser managed, not about the document — in
+ * production they were on seven of ten rows, including with no query, where no
+ * retrieval had run for them to describe. They survive on the file detail page,
+ * where a reader is asking why search cannot see inside a file. `Upload` was
+ * the default for nine of ten rows: an origin badge now appears only when the
+ * file did *not* come from a person, and empty space means it did.
  */
 
 /** Last dotted segment, lowercased. Empty for a name with no extension. */
@@ -31,7 +42,9 @@ function fileExtension(name: string): string {
 }
 
 /** Labels shown inline before the rest are counted. */
-const VISIBLE_TAGS = 2;
+const VISIBLE_TAGS = 3;
+
+type FileLabel = FileResource["tags"][number];
 
 export interface DriveFileRowProps {
   item: FileResource;
@@ -44,6 +57,16 @@ export interface DriveFileRowProps {
    * caller without a sheet want.
    */
   onOpen?: () => void;
+  /**
+   * Veto one label from the row it is wrong on.
+   *
+   * Offered only for a label nobody has confirmed, and only where the caller
+   * can undo it. Tags are automatic now, so this is the whole of the reader's
+   * control over them, and the panel pairs it with an Undo — a dismissal also
+   * bars the model from proposing that label again, and a misclick without a
+   * way back would be permanent.
+   */
+  onDismissLabel?: (label: FileLabel) => void;
 }
 
 export function DriveFileRow({
@@ -52,8 +75,53 @@ export function DriveFileRow({
   selected,
   onToggle,
   onOpen,
+  onDismissLabel,
 }: DriveFileRowProps) {
   const t = useTranslations("App.Drive.Files");
+  const format = useFormatter();
+
+  const tags = item.tags.slice(0, VISIBLE_TAGS);
+  const hiddenTagCount = item.tags.length - tags.length;
+  const confirmedProjects = item.projects.filter(
+    (link) => link.state === "CONFIRMED",
+  );
+  const suggestedProjects = item.projects.filter(
+    (link) => link.state !== "CONFIRMED",
+  );
+
+  /**
+   * A chip for one label, dismissable where the caller can undo it.
+   *
+   * `CONFIRMED` and `SUGGESTED` look identical on purpose. Nothing in the
+   * product promotes a label any more, so a dashed "Suggested:" treatment
+   * would have been the permanent rendering of every tag the product makes —
+   * which is not a distinction, it is a decoration on all of them. The state
+   * still buys ranking weight and the staleness marker; it just stopped
+   * deciding how a tag looks.
+   */
+  function labelChip(label: FileLabel, variant: "secondary" | "outline") {
+    const dismissable = onDismissLabel && label.state !== "CONFIRMED";
+    return (
+      <Badge
+        key={label.id}
+        variant={variant}
+        title={label.evidenceSnippet ?? undefined}
+        className={cn(dismissable && "gap-1 pr-1")}
+      >
+        {label.displayName}
+        {dismissable ? (
+          <button
+            type="button"
+            aria-label={t("removeTag", { name: label.displayName })}
+            className="hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
+            onClick={() => onDismissLabel(label)}
+          >
+            <X className="size-3" aria-hidden />
+          </button>
+        ) : null}
+      </Badge>
+    );
+  }
 
   return (
     <li
@@ -120,29 +188,12 @@ export function DriveFileRow({
           >
             {item.displayName}
           </Link>
-          {item.category ? (
-            <Badge variant="secondary">{item.category.displayName}</Badge>
-          ) : null}
-          {item.tags.slice(0, VISIBLE_TAGS).map((tag) => (
-            <Badge key={tag.id} variant="outline">
-              {tag.displayName}
-            </Badge>
-          ))}
-          {item.tags.length > VISIBLE_TAGS ? (
+          {item.category ? labelChip(item.category, "secondary") : null}
+          {tags.map((tag) => labelChip(tag, "outline"))}
+          {hiddenTagCount > 0 ? (
             <span className="text-muted-foreground text-xs">
-              +{item.tags.length - VISIBLE_TAGS}
+              +{hiddenTagCount}
             </span>
-          ) : null}
-          {item.suggestions.length > 0 ? (
-            <Badge
-              variant="outline"
-              className="border-dashed"
-              title={item.suggestions[0].evidenceSnippet ?? undefined}
-            >
-              {t("suggestedChip", {
-                name: item.suggestions[0].displayName,
-              })}
-            </Badge>
           ) : null}
         </div>
 
@@ -155,53 +206,62 @@ export function DriveFileRow({
         ) : null}
 
         {/**
-         * Where the document came from, which project it belongs to, and how
-         * much of it is searchable.
+         * Where the file is filed, which project it belongs to, and when it
+         * last changed.
          *
          * Kept apart from the labels above: a label is what the document is
          * about, and these are facts about the file itself.
          */}
         <div
-          className="mt-1 flex flex-wrap items-center gap-1"
+          className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
           data-testid="drive-file-provenance"
         >
           {/**
-           * Five source kinds, each named. Upload and task output are the two
-           * that matter most, and the other three are real kinds — reporting a
-           * table, a studio asset or a project document as an "upload" would be
-           * a quiet lie about where the reader's file came from.
+           * The folder, which the catalog showed nowhere at all.
+           *
+           * Nine of ten files in production are filed in a nested folder and
+           * the list said nothing about any of them. The last segment, because
+           * paths here run three deep and a full path would crowd out
+           * everything beside it; the whole path is on hover.
            */}
-          <Badge variant="outline" data-testid="drive-file-origin">
-            {t(`source.${item.sourceKind}`)}
-          </Badge>
-          {item.projects.map((link) => (
-            /**
-             * A confirmed project is stated plainly; one the model proposed and
-             * nobody has agreed to is marked as a suggestion, the same way a
-             * suggested label is. A project association is the metadata whose
-             * promotion needs a person, so showing an unconfirmed one as a fact
-             * is the one thing this row must not do.
-             */
-            <Badge
-              key={link.id}
-              variant={link.state === "CONFIRMED" ? "secondary" : "outline"}
-              className={
-                link.state === "CONFIRMED" ? undefined : "border-dashed"
-              }
+          {item.folderPath ? (
+            <span
+              title={item.folderPath}
+              data-testid="drive-file-folder"
+              className="truncate"
             >
-              {link.state === "CONFIRMED"
-                ? link.projectName
-                : t("suggestedChip", { name: link.projectName })}
+              {item.folderPath.split("/").at(-1)}
+            </span>
+          ) : null}
+          {confirmedProjects.map((link) => (
+            <span key={link.id}>{link.projectName}</span>
+          ))}
+          <span>{format.relativeTime(new Date(item.updatedAt))}</span>
+          {/**
+           * Only when a person did not put it here.
+           *
+           * `Upload` was on nine of ten rows and told the reader nothing they
+           * had not just done themselves. A table, a task output, a studio
+           * asset and a project document are each worth saying, because
+           * reporting one of those as an upload would be a quiet lie about
+           * where the file came from.
+           */}
+          {item.sourceKind === "DRIVE_UPLOAD" ? null : (
+            <Badge variant="outline" data-testid="drive-file-origin">
+              {t(`source.${item.sourceKind}`)}
+            </Badge>
+          )}
+          {suggestedProjects.map((link) => (
+            /**
+             * A project association is the one piece of metadata whose
+             * promotion still needs a person, so an unconfirmed one keeps the
+             * dashed "Suggested:" treatment the labels gave up: showing it as a
+             * fact is the one thing this row must not do.
+             */
+            <Badge key={link.id} variant="outline" className="border-dashed">
+              {t("suggestedChip", { name: link.projectName })}
             </Badge>
           ))}
-          {item.extractionState === "PENDING" ||
-          item.extractionState === "RUNNING" ? (
-            <Badge variant="outline">{t("badgeProcessing")}</Badge>
-          ) : item.extractionState === "UNSUPPORTED" ? (
-            <Badge variant="outline">{t("badgeFilenameOnly")}</Badge>
-          ) : item.extractionState === "PARTIAL" ? (
-            <Badge variant="outline">{t("badgePartial")}</Badge>
-          ) : null}
         </div>
       </div>
     </li>

@@ -945,10 +945,21 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
       expect(dto.suggestions).toEqual([]);
     });
 
-    it("leaves tags and suggestions untouched when nothing is rejected", async () => {
-      // The partition added a third array. These two are the ones that were
-      // already right, and a partition is the easy place to change two arrays
-      // while meaning to add one.
+    it("reports a model's tag as a tag, and still as a suggestion", async () => {
+      /**
+       * `tags` used to be CONFIRMED-only, and this case asserted it.
+       *
+       * `retrieval.ts` had already made a SUGGESTED label findable — by the
+       * search box, by a tag filter and by a category filter — and this
+       * partition then kept it out of the array the row renders. Nothing
+       * promotes a label to CONFIRMED any more, so the dashed "Suggested: X"
+       * chip was the permanent rendering of every tag the product produces,
+       * first one only and the rest invisible.
+       *
+       * `suggestions` keeps the SUGGESTED subset, because the file detail
+       * page's accept and dismiss controls read it, and the state stays on
+       * every entry for ranking weight and the staleness marker.
+       */
       await suggestTheTag();
 
       const [dto] = await hydrateResources({
@@ -961,7 +972,8 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
       });
 
       expect(dto.rejected).toEqual([]);
-      expect(dto.tags).toEqual([]);
+      expect(dto.tags.map((label) => label.labelId)).toEqual([suggestedTagId]);
+      expect(dto.tags[0].state).toBe(FileMetadataState.SUGGESTED);
       expect(dto.suggestions.map((label) => label.labelId)).toEqual([
         suggestedTagId,
       ]);

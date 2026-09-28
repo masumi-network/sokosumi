@@ -241,11 +241,30 @@ vi.mock("@/app/drive/components/drive-tables-filters", () => ({
  * marker is what the shell needs to assert against.
  */
 vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
-  DriveAllFilesPanel: ({ initialQuery }: { initialQuery?: string }) => (
+  DriveAllFilesPanel: ({
+    initialQuery,
+    initialFolder,
+    onFolderChange,
+  }: {
+    initialQuery?: string;
+    initialFolder?: string;
+    onFolderChange?: (folder: string) => void;
+  }) => (
     <div
       data-testid="drive-all-files"
       data-initial-query={initialQuery ?? ""}
-    />
+      data-initial-folder={initialFolder ?? ""}
+    >
+      {/* The seam the real panel uses to tell the page head which folder is
+          narrowing the list, so the folder actions there act on it. */}
+      <button
+        type="button"
+        data-testid="drive-all-files-apply-folder"
+        onClick={() => onFolderChange?.("Reports")}
+      >
+        facet
+      </button>
+    </div>
   ),
 }));
 
@@ -366,30 +385,28 @@ describe("DrivePage workspace remount", () => {
     });
   });
 
-  it("cancels a pending folder rename when the active organization changes", async () => {
-    const user = userEvent.setup();
+  it("stops offering folder actions on another workspace's folder", async () => {
+    /**
+     * The folder actions in the page head act on whichever folder is narrowing
+     * the catalog. A workspace switch is a different corpus, so that folder is
+     * not one of its folders — offering Delete on it would delete nothing, or
+     * something else.
+     */
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     useSessionMock.mockReturnValue(sessionFor("org_a"));
 
     const { rerender } = renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
     });
-
-    await user.click(screen.getByRole("button", { name: /renameAction/i }));
-
-    expect(screen.getByDisplayValue("Reports")).toBeVisible();
-    expect(screen.getByTitle("saveAction")).toBeVisible();
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.queryByTestId("files-delete-folder")).toBeNull();
     });
-
-    expect(screen.queryByTitle("saveAction")).not.toBeInTheDocument();
-    expect(screen.queryByDisplayValue("Reports")).not.toBeInTheDocument();
     expect(patchDriveFoldersRenameMock).not.toHaveBeenCalled();
   });
 
@@ -483,7 +500,7 @@ describe("DrivePage workspace remount", () => {
     renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(listDriveItemsMock).toHaveBeenCalledTimes(2);
@@ -526,24 +543,42 @@ describe("DrivePage workspace remount", () => {
       return Promise.resolve([orgBOnly]);
     });
 
+    // With a folder applied, so the page head offers the folder actions the
+    // folder cards used to carry.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     useSessionMock.mockReturnValue(sessionFor("org_a"));
     const { rerender } = renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
     });
+    // The head acts on the folder the deep link applied.
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-initial-folder",
+      "Reports",
+    );
 
-    await user.click(screen.getByRole("button", { name: /moveAction/i }));
+    await user.click(screen.getByTestId("files-move-folder"));
     expect(screen.getByText("loadingFolders")).toBeVisible();
 
     useSessionMock.mockReturnValue(sessionFor("org_b"));
     rerender(driveTree());
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    await user.click(screen.getByRole("button", { name: /moveAction/i }));
+    /**
+     * The facet was cleared by the workspace switch, so the page head has no
+     * folder to act on. Applying one again through the catalog's own seam is
+     * how the reader gets back there, and the dialog it opens is the one the
+     * staleness is measured against.
+     */
+    await user.click(screen.getByTestId("drive-all-files-apply-folder"));
+    await waitFor(() => {
+      expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    });
+    await user.click(screen.getByTestId("files-move-folder"));
 
     await waitFor(() => {
       expect(screen.getByText("OrgBOnly")).toBeVisible();
@@ -793,7 +828,7 @@ describe("DrivePage files view mode", () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
   });
 
-  it("defaults to list layout on Recents and Browse", async () => {
+  it("defaults to list layout on Recents, and hands the catalog the same mode", async () => {
     renderDrive();
 
     await waitFor(() => {
@@ -805,17 +840,19 @@ describe("DrivePage files view mode", () => {
     );
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
 
+    // The Workspace tab has no list of its own to lay out: it is the catalog,
+    // which lays out its own rows from the mode this switch sets.
     const user = userEvent.setup();
     await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-    expect(screen.getByTestId("files-layout-list")).toBeVisible();
+    expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
   });
 
-  it("switches Recents and Browse to grid without refetching", async () => {
+  it("switches Recents to grid without refetching", async () => {
     const user = userEvent.setup();
     renderDrive();
 
@@ -829,22 +866,6 @@ describe("DrivePage files view mode", () => {
     expect(screen.getByTestId("files-layout-grid")).toBeVisible();
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(fetchDriveRecentsPageMock.mock.calls.length).toBe(recentsCalls);
-
-    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
-
-    await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
-    });
-    const browseCallsBeforeToggle = listDriveItemsMock.mock.calls.length;
-    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
-
-    await user.click(screen.getByRole("radio", { name: "viewList" }));
-    expect(screen.getByTestId("files-layout-list")).toBeVisible();
-    expect(listDriveItemsMock.mock.calls.length).toBe(browseCallsBeforeToggle);
-
-    await user.click(screen.getByRole("radio", { name: "viewGrid" }));
-    expect(screen.getByTestId("files-layout-grid")).toBeVisible();
-    expect(listDriveItemsMock.mock.calls.length).toBe(browseCallsBeforeToggle);
   });
 
   it("restores the grid preference after remount", async () => {
@@ -996,95 +1017,55 @@ describe("DrivePage files view mode", () => {
     expect(screen.queryByText("Launch prep · Alpha")).not.toBeInTheDocument();
   });
 
-  it("navigates into a folder when the card is clicked", async () => {
-    const user = userEvent.setup();
-    searchParams = new URLSearchParams("view=browse");
+  it("renders no folder cards on the Workspace tab", async () => {
+    /**
+     * The grid is what the catalog replaced. It listed folders above the
+     * catalog's own list, so a reader met browse-by-folder and
+     * search-the-catalog stacked on one screen and picked neither.
+     *
+     * A folder is a facet inside the catalog now: `?folder=` pre-applies one,
+     * and the filter sheet changes it.
+     */
+    searchParams = new URLSearchParams("view=workspace");
     listDriveItemsMock.mockResolvedValue([
-      {
-        type: "folder" as const,
-        name: "Reports",
-        path: "Reports",
-      },
+      { type: "folder" as const, name: "Reports", path: "Reports" },
     ]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-
-    expect(screen.queryByText("folder")).not.toBeInTheDocument();
-
-    pushMock.mockClear();
-    await user.click(screen.getByRole("button", { name: "Reports" }));
-
-    expect(pushMock).toHaveBeenCalled();
-    expect(String(pushMock.mock.calls[0]?.[0])).toContain("folder=");
+    expect(screen.queryByRole("button", { name: "Reports" })).toBeNull();
+    expect(screen.queryByTestId("drive-item-more-actions")).toBeNull();
   });
 
-  it("opens a file preview when the card is clicked", async () => {
-    const user = userEvent.setup();
-    // Inside a folder: that is where the listing carries files. At the
-    // Workspace root the listing carries folders and the catalog carries the
-    // files, so a root file row no longer exists to click.
+  it("carries a folder deep link into the catalog as a facet", async () => {
     searchParams = new URLSearchParams("view=workspace&folder=Reports");
-    listDriveItemsMock.mockResolvedValue([
-      {
-        type: "file" as const,
-        name: "photo.png",
-        pathname: "photo.png",
-        fileUrl: "https://example.com/photo.png",
-        size: 100,
-        uploadedAt: "2026-08-28T09:00:00.000Z",
-      },
-    ]);
-
-    renderDrive();
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "photo.png" })).toBeVisible();
-    });
-
-    await user.click(screen.getByRole("button", { name: "photo.png" }));
-
-    await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: "photo.png" })).toBeVisible();
-    });
-  });
-
-  it("does not activate the card when the overflow menu is clicked", async () => {
-    const user = userEvent.setup();
-    searchParams = new URLSearchParams("view=browse");
-    listDriveItemsMock.mockResolvedValue([
-      {
-        type: "folder" as const,
-        name: "Reports",
-        path: "Reports",
-      },
-    ]);
-
-    renderDrive();
-
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
-    });
-
-    pushMock.mockClear();
-    await user.click(screen.getByTestId("drive-item-more-actions"));
-
-    expect(pushMock).not.toHaveBeenCalled();
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-  });
-
-  it("browse mobile actions menu exposes sort and create folder", async () => {
-    const user = userEvent.setup();
-    searchParams = new URLSearchParams("view=browse");
     listDriveItemsMock.mockResolvedValue([]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    // Links to `?folder=` shipped, and they still land on the same files —
+    // narrowed inside one list rather than switching into another.
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-initial-folder",
+      "Reports",
+    );
+  });
+
+  it("workspace mobile actions menu exposes create folder and task outputs", async () => {
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
@@ -1094,10 +1075,12 @@ describe("DrivePage files view mode", () => {
     ).toBeGreaterThan(0);
 
     await user.click(screen.getByTestId("files-mobile-actions"));
-    expect(screen.getByTestId("files-mobile-sort-name")).toBeVisible();
     expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
       "createFolder",
     );
+    // The Tasks view was reachable only through a card in the grid, so without
+    // this the grid's removal would have orphaned a whole view.
+    expect(screen.getByTestId("files-mobile-tasks-outputs")).toBeVisible();
 
     await user.click(screen.getByTestId("files-mobile-create-folder"));
     expect(
@@ -1106,15 +1089,13 @@ describe("DrivePage files view mode", () => {
   });
 
   it("puts desktop tabs and folder actions on one header row", async () => {
-    // Inside a folder, because the page's search field is the folder
-    // listing's. At the root the catalog owns search and this header has none.
-    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    searchParams = new URLSearchParams("view=workspace");
     listDriveItemsMock.mockResolvedValue([]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
     const header = screen.getByTestId("files-desktop-header");
@@ -1126,9 +1107,10 @@ describe("DrivePage files view mode", () => {
     expect(
       within(header).getByRole("button", { name: "createFolder" }),
     ).toBeVisible();
+    // And no search field: the catalog's own is the first thing on the page.
     expect(
-      within(header).getByPlaceholderText("searchPlaceholder"),
-    ).toBeVisible();
+      within(header).queryByPlaceholderText("searchPlaceholder"),
+    ).toBeNull();
   });
 
   it("keeps mobile create-folder path outside the desktop header row", async () => {
@@ -1224,30 +1206,34 @@ describe("DrivePage files sort", () => {
     expect(lastUpdate.options.history).toBe("replace");
   });
 
-  it("Browse omit default shows Name; Date stays explicit in URL and fetch", async () => {
+  it("Tasks omit default shows Date; an explicit choice stays in URL and fetch", async () => {
     const user = userEvent.setup();
-    // Inside a folder: that is where this control sorts the list the reader is
-    // looking at. At the Workspace root the list below is the catalog, which
-    // this does not order, so the control is not offered there.
-    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    /**
+     * The Tasks view, because that is the only list left that this control
+     * orders. The Workspace tab is the catalog, ordered by relevance or
+     * recency, and a sort control that does not reorder the list under it is
+     * the kind of thing this tab was merged to remove.
+     */
+    searchParams = new URLSearchParams("view=tasks");
     renderDriveWithUrlSpy();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
     });
 
-    const browseCall = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+    const tasksCall = fetchDriveTasksPageMock.mock.calls.at(-1)?.[0] as Record<
       string,
       unknown
     >;
-    expect(browseCall).not.toHaveProperty("sortBy");
-    expect(browseCall).not.toHaveProperty("sortOrder");
+    expect(tasksCall.sortBy).toBeUndefined();
+    expect(tasksCall.sortOrder).toBeUndefined();
+    // The tasks surface's own default, which is recency.
     expect(screen.getByTestId("files-sort-trigger")).toHaveTextContent(
-      /sortByName|Name/i,
+      /sortByDate|Date/i,
     );
 
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-date"));
+    await user.click(screen.getByTestId("files-sort-name"));
 
     await waitFor(() => {
       expect(onUrlUpdate).toHaveBeenCalled();
@@ -1255,21 +1241,22 @@ describe("DrivePage files sort", () => {
     const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
       searchParams: URLSearchParams;
     };
-    expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
-    expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
-    expect(lastUpdate.searchParams.get("view")).toBe("workspace");
+    expect(lastUpdate.searchParams.get("sortBy")).toBe("name");
+    expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
+    expect(lastUpdate.searchParams.get("view")).toBe("tasks");
 
     await waitFor(() => {
-      const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
+      const options = fetchDriveTasksPageMock.mock.calls.at(-1)?.[0] as Record<
         string,
         unknown
       >;
-      expect(options.sortBy).toBe("date");
-      expect(options.sortOrder).toBe("desc");
+      expect(options.sortBy).toBe("name");
+      expect(options.sortOrder).toBe("asc");
     });
 
+    // And back to the surface's default, which is carried by absence.
     await user.click(screen.getByTestId("files-sort-trigger"));
-    await user.click(screen.getByTestId("files-sort-name"));
+    await user.click(screen.getByTestId("files-sort-date"));
 
     await waitFor(() => {
       const update = onUrlUpdate.mock.calls.at(-1)?.[0] as {
@@ -1280,13 +1267,13 @@ describe("DrivePage files sort", () => {
     });
   });
 
-  it("keeps view and folder params when sort is applied", async () => {
-    searchParams = new URLSearchParams("view=browse&folder=Reports");
+  it("keeps the view and project params when sort is applied", async () => {
+    searchParams = new URLSearchParams("view=tasks&projectId=p-1");
     const user = userEvent.setup();
     renderDriveWithUrlSpy();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
     });
 
     await user.click(screen.getByTestId("files-sort-trigger"));
@@ -1298,8 +1285,8 @@ describe("DrivePage files sort", () => {
     const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
       searchParams: URLSearchParams;
     };
-    expect(lastUpdate.searchParams.get("view")).toBe("browse");
-    expect(lastUpdate.searchParams.get("folder")).toBe("Reports");
+    expect(lastUpdate.searchParams.get("view")).toBe("tasks");
+    expect(lastUpdate.searchParams.get("projectId")).toBe("p-1");
     expect(lastUpdate.searchParams.get("sortBy")).toBe("type");
     expect(lastUpdate.searchParams.get("sortOrder")).toBe("asc");
   });
@@ -1321,7 +1308,7 @@ describe("DrivePage files sort", () => {
     expect(screen.queryByTestId("files-sort-trigger")).not.toBeInTheDocument();
   });
 
-  it("omitted default does not send a sort override on browse", async () => {
+  it("omitted default does not send a sort override on the catalog", async () => {
     searchParams = new URLSearchParams();
     renderDrive();
 
@@ -1346,9 +1333,8 @@ describe("DrivePage files sort", () => {
     >;
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
-    // The tab lands at the Workspace root, where the list is the catalog and
-    // this control would not order it. Its presence inside a folder is covered
-    // by "keeps the sort control inside a folder".
+    // The tab is the catalog, which this control would not order. Its presence
+    // on the Tasks view is covered by the two cases above.
     expect(screen.queryByTestId("files-sort-trigger")).toBeNull();
   });
 });
@@ -1408,28 +1394,22 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     expect(screen.queryByRole("button", { name: "Org A" })).toBeNull();
   });
 
-  it("keeps a keyboard-reachable root control inside a folder", async () => {
-    searchParams = new URLSearchParams("view=browse&folder=Reports");
+  it("draws no folder trail, because there is nowhere to walk to", async () => {
+    /**
+     * A folder is a facet inside the catalog, not a place the reader navigates
+     * into, so there is no path to walk back up. The applied folder shows as a
+     * removable chip inside the catalog instead — one representation of one
+     * thing, rather than a trail in the head and a chip in the list.
+     */
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-
-    const nav = screen.getByRole("navigation", {
-      name: "breadcrumbNavLabel",
-    });
-    const root = within(nav).getByRole("button", { name: "workspaceTab" });
-    expect(root).toBeVisible();
-
-    // It is a real button, so it is a tab stop and Enter/Space activate it.
-    expect(root.tagName).toBe("BUTTON");
-
-    await userEvent.setup().click(root);
-    expect(pushMock).toHaveBeenCalledWith(
-      expect.stringContaining("view=workspace"),
-    );
-    expect(pushMock.mock.calls.at(-1)?.[0]).not.toContain("folder=");
+    expect(
+      screen.queryByRole("navigation", { name: "breadcrumbNavLabel" }),
+    ).toBeNull();
   });
 
   /**
@@ -1544,18 +1524,16 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
   });
 
   it("drops the tables-only archived param when navigating away", async () => {
-    searchParams = new URLSearchParams(
-      "view=browse&folder=Reports&archived=true",
-    );
+    // The tasks trail's root crumb, which is the one control left that rebuilds
+    // the query from the current URL. Only the tables list reads `archived`, so
+    // left in it rides into the catalog and into shared links.
+    searchParams = new URLSearchParams("view=tasks&archived=true");
     renderDrive();
 
     await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
     });
 
-    // These paths rebuild the query from the current URL. Only the tables list
-    // reads `archived`, so left in it rides into browse and tasks and ends up
-    // in shared links.
     const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
     await userEvent
       .setup()
@@ -1655,59 +1633,59 @@ describe("one catalog, not two", () => {
     );
   });
 
-  it("keeps folders on the Workspace root so they can still be navigated", async () => {
-    // The catalog lists files and has no folder rows, so without these the
-    // merge would have removed the only way into a folder — and with it
-    // folder create, rename, move and delete, which live in this listing.
-    listDriveItemsMock.mockResolvedValue([
-      reportsFolder(),
-      {
-        type: "file" as const,
-        name: "root-file.png",
-        pathname: "root-file.png",
-        fileUrl: "https://example.com/root-file.png",
-        size: 10,
-        uploadedAt: "2026-08-28T09:00:00.000Z",
-      },
-    ]);
+  it("keeps folder management, in the one place left that can hold it", async () => {
+    /**
+     * Rename, move and delete lived on the folder cards and nowhere else in the
+     * product, so deleting the grid would have deleted folder management with
+     * it. They are in the page head's actions menu now, acting on the folder
+     * that is narrowing the catalog.
+     */
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-    expect(
-      screen.getByRole("button", { name: /renameAction/i }),
-    ).toBeInTheDocument();
-
-    // And the root file is NOT duplicated into the folder listing: the
-    // catalog below is the one place every file is listed.
-    expect(screen.queryByRole("button", { name: "root-file.png" })).toBeNull();
+    expect(screen.getByTestId("files-rename-folder")).toBeInTheDocument();
+    expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
+    expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
+    // And the Tasks view, which was reachable only through a card in the grid.
+    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
   });
 
-  it("narrows to the folder listing inside a folder, and drops the catalog", async () => {
-    searchParams = new URLSearchParams("view=workspace&folder=Reports");
-    listDriveItemsMock.mockResolvedValue([
-      {
-        type: "file" as const,
-        name: "inside.png",
-        pathname: "Reports/inside.png",
-        fileUrl: "https://example.com/inside.png",
-        size: 10,
-        uploadedAt: "2026-08-28T09:00:00.000Z",
-      },
-    ]);
+  it("offers no folder actions when no folder is applied", async () => {
+    // There is nothing to rename then, and offering it would have to guess.
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
 
     renderDrive();
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "inside.png" })).toBeVisible();
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
-    // A folder is a scope on the same tab, not a second list beside it.
-    expect(screen.queryByTestId("drive-all-files")).toBeNull();
-    expect(
-      screen.getByRole("navigation", { name: "breadcrumbNavLabel" }),
-    ).toBeVisible();
+    expect(screen.queryByTestId("files-rename-folder")).toBeNull();
+    expect(screen.queryByTestId("files-delete-folder")).toBeNull();
+    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+  });
+
+  it("keeps the catalog inside a folder, narrowed rather than replaced", async () => {
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    // A folder used to swap the catalog out for a folder listing, which is the
+    // second navigation model this tab was merged to remove.
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-initial-folder",
+      "Reports",
+    );
+    expect(screen.queryByTestId("files-layout-list")).toBeNull();
   });
 
   it("opens the Workspace tab for a legacy view=all link, carrying its query", async () => {
@@ -1746,11 +1724,12 @@ describe("one catalog, not two", () => {
     );
   });
 
-  it("offers no sort control at the root, because it would not sort what is shown", async () => {
-    // Found in a browser, not by a test. The control drives the folder strip;
-    // the list a reader looks at is the catalog below it, ordered by relevance
-    // or recency. A sort control that does not reorder the list under it is the
-    // same kind of quiet lie the tab merge removed, one level down.
+  it("offers no sort control, because it would not sort what is shown", async () => {
+    // Found in a browser, not by a test. The control drove the folder strip;
+    // the list a reader looks at is the catalog, ordered by relevance or
+    // recency. A sort control that does not reorder the list under it is the
+    // same kind of quiet lie the tab merge removed. Its remaining home is the
+    // Tasks view, covered in "DrivePage files sort".
     listDriveItemsMock.mockResolvedValue([reportsFolder()]);
     renderDrive();
 
@@ -1761,31 +1740,7 @@ describe("one catalog, not two", () => {
     expect(within(header).queryByTestId("files-sort-control")).toBeNull();
   });
 
-  it("keeps the sort control inside a folder, where it does sort the list", async () => {
-    // The other direction: hiding it everywhere would also pass the case above.
-    searchParams = new URLSearchParams("view=workspace&folder=Reports");
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
-    renderDrive();
-
-    await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
-    });
-    const header = screen.getByTestId("files-desktop-header");
-    expect(within(header).getByTestId("files-sort-control")).toBeVisible();
-  });
-
-  it("does not reserve a page of blank space above the catalog", async () => {
-    // The folder strip carried the min-height meant for a list that is the whole
-    // page. With the catalog directly beneath it, that put a screen of nothing
-    // between two folders and the search field, which reads as a failed load.
-    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
-    renderDrive();
-
-    const panel = await waitFor(() => screen.getByTestId("files-layout-list"));
-    expect(panel.className).not.toContain("min-h-");
-  });
-
-  it("shows one search field at the root, and it belongs to the catalog", async () => {
+  it("shows one search field, and it belongs to the catalog", async () => {
     listDriveItemsMock.mockResolvedValue([]);
     renderDrive();
 
@@ -1795,9 +1750,9 @@ describe("one catalog, not two", () => {
     // The page's own field would be a second search box over one list, which
     // is the duplication the tab merge removed one level down.
     expect(screen.queryByPlaceholderText("searchPlaceholder")).toBeNull();
-    // Folder management stays reachable at the root. Scoped to the header,
-    // because the mobile actions menu carries its own copy and the stubbed
-    // dropdown renders its content at every width.
+    // New folder stays in the header. Scoped to it, because the mobile actions
+    // menu carries its own copy and the stubbed dropdown renders its content at
+    // every width.
     const header = screen.getByTestId("files-desktop-header");
     expect(
       within(header).getByRole("button", { name: "createFolder" }),

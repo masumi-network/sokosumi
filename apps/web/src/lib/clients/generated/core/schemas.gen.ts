@@ -12369,6 +12369,12 @@ export const FileResourceSchema = {
                 ]
             }
         },
+        folderPath: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         snippet: {
             type: [
                 'object',
@@ -12440,6 +12446,7 @@ export const FileResourceSchema = {
         'suggestions',
         'rejected',
         'projects',
+        'folderPath',
         'snippet',
         'relatedReason',
         'filenameMatch'
@@ -12544,7 +12551,8 @@ export const FileSuggestionDecisionRequestSchema = {
             type: 'string',
             enum: [
                 'accept',
-                'reject'
+                'reject',
+                'restore'
             ]
         },
         expectedMetadataRevision: {
