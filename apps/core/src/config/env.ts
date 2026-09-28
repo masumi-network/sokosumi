@@ -173,6 +173,11 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_FACEBOOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_YOUTUBE_AUTH_CONFIG_ID: z.string().min(1).optional(),
   /**
    * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
    * the web, a shell and a persistent workspace. `in-process`: inside Core,

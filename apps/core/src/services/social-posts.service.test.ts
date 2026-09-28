@@ -338,6 +338,45 @@ describe("social posts service", () => {
     ).rejects.toMatchObject({ status: 404, message: "Social post not found" });
   });
 
+  it.each(["tiktok", "instagram", "linkedin", "facebook", "youtube"])(
+    "rejects %s connections in the X publisher before writing a post",
+    async (provider) => {
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...activeConnection,
+        provider,
+      });
+      const { createSocialPost, updateSocialPost, scheduleSocialPost } =
+        await loadService();
+      const scope = {
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      };
+      const error = {
+        status: 400,
+        message: `Unsupported social provider: ${provider}`,
+      };
+      await expect(
+        createSocialPost({ ...scope, text: "Hello" }),
+      ).rejects.toMatchObject(error);
+      await expect(
+        updateSocialPost({ ...scope, postId: POST_ID, revision: 0 }),
+      ).rejects.toMatchObject(error);
+      await expect(
+        scheduleSocialPost({
+          ...scope,
+          postId: POST_ID,
+          revision: 0,
+          scheduledAt: FUTURE,
+        }),
+      ).rejects.toMatchObject(error);
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("creates a draft attributed to the interactive user", async () => {
     const { createSocialPost } = await loadService();
 

@@ -23,7 +23,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/social-connections/initiate",
     description:
-      "Begin an X social connection for a Project. Requires an interactive user session in the Project's Workspace.",
+      "Begin a social connection for a Project. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
       params: projectSocialConnectionProjectParamsSchema,
@@ -66,11 +66,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         projectId,
         workspaceId: workspaceContext.workspaceId,
         userId: userContext.userId,
-        provider: "x",
-        action: input.action,
-        ...(input.action === "connect"
-          ? {}
-          : { socialConnectionId: input.socialConnectionId }),
+        ...input,
       });
       return created(
         c,

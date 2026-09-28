@@ -415,6 +415,7 @@ async function requireProjectConnection(
   if (!connection) {
     throw notFound("Project social connection not found");
   }
+  requireProvider(connection.provider);
   if (connection.status === "disconnected") {
     throw conflict("Social connection is disconnected");
   }

@@ -16821,10 +16821,7 @@ export const ProjectSocialConnectionSchema = {
             example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
         },
         provider: {
-            type: 'string',
-            enum: [
-                'x'
-            ]
+            $ref: '#/components/schemas/ProjectSocialProvider'
         },
         externalHandle: {
             type: [
@@ -16870,6 +16867,19 @@ export const ProjectSocialConnectionSchema = {
     ]
 } as const;
 
+export const ProjectSocialProviderSchema = {
+    type: 'string',
+    enum: [
+        'x',
+        'tiktok',
+        'instagram',
+        'linkedin',
+        'facebook',
+        'youtube'
+    ],
+    example: 'x'
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {
@@ -16902,10 +16912,7 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     ]
                 },
                 provider: {
-                    type: 'string',
-                    enum: [
-                        'x'
-                    ]
+                    $ref: '#/components/schemas/ProjectSocialProvider'
                 }
             },
             required: [

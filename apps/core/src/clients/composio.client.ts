@@ -5,6 +5,10 @@ import { ssrfSafeFetch } from "@sokosumi/net";
 import type { SocialPostMediaKind } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { tryUseLogger } from "@/lib/evlog";
 
 let instance: Composio | null | undefined;
@@ -32,7 +36,12 @@ export class ComposioConfigError extends Error {
       composio: {
         failure: "missing_configuration",
         apiKeyConfigured: Boolean(env.COMPOSIO_API_KEY),
-        xAuthConfigConfigured: Boolean(env.COMPOSIO_X_AUTH_CONFIG_ID),
+        authConfigsConfigured: Object.fromEntries(
+          Object.entries(PROJECT_SOCIAL_PROVIDERS).map(([provider, config]) => [
+            provider,
+            Boolean(env[config.authConfigEnv]),
+          ]),
+        ),
       },
     });
   }
@@ -118,7 +127,7 @@ export type ComposioConnectionStatus =
   | "INACTIVE"
   | "REVOKED";
 
-export interface ConnectedXIdentity {
+export interface ConnectedSocialIdentity {
   id: string;
   handle: string | null;
 }
@@ -127,7 +136,7 @@ export interface PublishedXPost {
   externalId: string;
 }
 
-export interface ProjectXConnectedAccount {
+export interface ProjectSocialConnectedAccount {
   id: string;
   status: ComposioConnectionStatus;
   toolkitSlug: string;
@@ -195,7 +204,7 @@ async function projectComposioFetch(
     ) {
       throw new ComposioApiError(503, undefined, "Composio API timed out");
     }
-    throw error;
+    throw new ComposioApiError(503, undefined, "Composio API request failed");
   }
 }
 
@@ -338,7 +347,7 @@ function validateConnectLinkRedirectUrl(redirectUrl: string): string {
     throw new ComposioApiError(
       503,
       undefined,
-      "initiate Project X connection returned an unsafe redirect URL",
+      "initiate Project social connection returned an unsafe redirect URL",
     );
   }
 
@@ -347,13 +356,13 @@ function validateConnectLinkRedirectUrl(redirectUrl: string): string {
     throw new ComposioApiError(
       503,
       undefined,
-      "initiate Project X connection returned an unsafe redirect URL",
+      "initiate Project social connection returned an unsafe redirect URL",
     );
   }
   return url.toString();
 }
 
-export async function initiateProjectXConnection(input: {
+export async function initiateProjectSocialConnection(input: {
   authConfigId: string;
   callbackUrl: string;
   connectorUserId: string;
@@ -380,12 +389,12 @@ export async function initiateProjectXConnection(input: {
     id?: string;
     redirect_url?: string;
     redirectUrl?: string;
-  }>(response, "initiate Project X connection");
+  }>(response, "initiate Project social connection");
   const connectionId =
     body.connected_account_id ?? body.connectedAccountId ?? body.id;
   const redirectUrl = body.redirect_url ?? body.redirectUrl;
   if (!connectionId || !redirectUrl)
-    projectResponseError(response, "initiate Project X connection");
+    projectResponseError(response, "initiate Project social connection");
   return {
     connectionId,
     redirectUrl: validateConnectLinkRedirectUrl(redirectUrl),
@@ -425,19 +434,19 @@ export async function completeComposioAuth(input: {
   return { connectedAccountId, toolkitSlug };
 }
 
-export async function getProjectXConnectedAccount(
+export async function getProjectSocialConnectedAccount(
   connectedAccountId: string,
-): Promise<ProjectXConnectedAccount> {
+): Promise<ProjectSocialConnectedAccount> {
   const response = await projectComposioFetch(
     `/api/v3.1/connected_accounts/${encodeURIComponent(connectedAccountId)}`,
   );
   const body = await projectComposioResponse<ComposioConnectedAccountResponse>(
     response,
-    "get Project X connection",
+    "get Project social connection",
   );
   const toolkitSlug = body.toolkit?.slug?.toLowerCase();
   if (!body.id || !toolkitSlug || !body.auth_config?.id)
-    projectResponseError(response, "get Project X connection");
+    projectResponseError(response, "get Project social connection");
   return {
     id: body.id,
     status: projectConnectionStatus(body.status ?? body.state?.status),
@@ -451,7 +460,7 @@ export async function getProjectXConnectedAccount(
  * Deletes a Composio tool-router session. Cleanup must never change the outcome
  * of the work the session did, so a failed delete is logged, not raised.
  */
-async function deleteProjectXSession(
+async function deleteProjectSocialSession(
   sessionId: string,
   context: string,
 ): Promise<void> {
@@ -461,77 +470,181 @@ async function deleteProjectXSession(
       { method: "DELETE" },
     );
     await projectComposioResponse(response, context);
-  } catch (error) {
-    console.warn(`[composio] ${context} failed`, error);
+  } catch {
+    console.warn(`[composio] ${context} failed`);
   }
 }
 
-export async function getConnectedXIdentity(input: {
+/** Identity-only tools from https://docs.composio.dev/toolkits/{toolkit}. */
+const SOCIAL_IDENTITY_TOOLS: Record<
+  ProjectSocialProvider,
+  { slug: string; arguments: Record<string, unknown> }
+> = {
+  x: { slug: "TWITTER_USER_LOOKUP_ME", arguments: {} },
+  tiktok: {
+    slug: "TIKTOK_GET_USER_STATS",
+    arguments: { fields: ["open_id", "display_name"] },
+  },
+  instagram: {
+    slug: "INSTAGRAM_GET_USER_INFO",
+    arguments: { ig_user_id: "me", fields: "id,username" },
+  },
+  linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
+  facebook: {
+    slug: "FACEBOOK_GET_CURRENT_USER",
+    arguments: { fields: "id,name" },
+  },
+  youtube: {
+    slug: "YOUTUBE_LIST_CHANNELS",
+    arguments: { mine: true, part: "id,snippet", maxResults: 2 },
+  },
+};
+
+function identityString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+/** Check every Composio/provider envelope before unwrapping its data. */
+function socialIdentityPayload(
+  value: unknown,
+  provider: ProjectSocialProvider,
+): Record<string, unknown> | null {
+  let payload = record(value);
+  for (let depth = 0; payload && depth < 5; depth++) {
+    const error = payload.error;
+    const isTikTokSuccess =
+      provider === "tiktok" && record(error)?.code === "ok";
+    if (
+      payload.successful === false ||
+      payload.success === false ||
+      (error && !isTikTokSuccess)
+    ) {
+      return null;
+    }
+    const data = record(payload.data);
+    if (!data) return payload;
+    payload = data;
+  }
+  return null;
+}
+
+function socialIdentity(
+  provider: ProjectSocialProvider,
+  payload: Record<string, unknown>,
+): ConnectedSocialIdentity | null {
+  let identity = payload;
+  let id: string | null;
+  let handle: string | null;
+  switch (provider) {
+    case "tiktok":
+      // TikTok v2 user/info returns data.user and error.code = "ok".
+      identity = record(payload.user) ?? {};
+      id = identityString(identity.open_id);
+      handle = identityString(identity.display_name);
+      break;
+    case "linkedin": {
+      // Composio also documents response_dict.author_id as the person URN.
+      const profile = record(payload.response_dict) ?? payload;
+      id =
+        identityString(profile.author_id) ??
+        identityString(profile.sub) ??
+        identityString(profile.id);
+      handle =
+        identityString(profile.vanityName) ?? identityString(profile.name);
+      break;
+    }
+    case "youtube": {
+      // Never select an arbitrary channel when OAuth exposes several channels.
+      if (
+        !Array.isArray(payload.items) ||
+        payload.items.length !== 1 ||
+        payload.nextPageToken
+      ) {
+        return null;
+      }
+      identity = record(payload.items[0]) ?? {};
+      id = identityString(identity.id);
+      const snippet = record(identity.snippet);
+      handle =
+        identityString(snippet?.customUrl) ?? identityString(snippet?.title);
+      break;
+    }
+    case "facebook":
+      id = identityString(identity.id);
+      handle = identityString(identity.name);
+      break;
+    case "instagram":
+      id = identityString(identity.id);
+      handle = identityString(identity.username);
+      break;
+    case "x":
+      id = identityString(identity.id);
+      handle =
+        identityString(identity.username) ?? identityString(identity.handle);
+      break;
+  }
+  return id ? { id, handle } : null;
+}
+
+export async function getConnectedSocialIdentity(input: {
+  provider: ProjectSocialProvider;
   connectedAccountId: string;
   executorUserId: string;
-}): Promise<ConnectedXIdentity> {
+}): Promise<ConnectedSocialIdentity> {
+  const { toolkitSlug, name } = PROJECT_SOCIAL_PROVIDERS[input.provider];
+  const tool = SOCIAL_IDENTITY_TOOLS[input.provider];
+  const context = `look up Project ${name} identity`;
   const createResponse = await projectComposioFetch(
     "/api/v3.1/tool_router/session",
     {
       method: "POST",
       jsonBody: {
         user_id: input.executorUserId,
-        toolkits: { enable: ["twitter"] },
-        connected_accounts: { twitter: [input.connectedAccountId] },
+        toolkits: { enable: [toolkitSlug] },
+        connected_accounts: { [toolkitSlug]: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { twitter: { enable: ["TWITTER_USER_LOOKUP_ME"] } },
+        tools: { [toolkitSlug]: { enable: [tool.slug] } },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
       },
     },
   );
-  const session = await projectComposioResponse<{ session_id?: string }>(
-    createResponse,
-    "create Project X identity session",
+  const session = record(
+    await projectComposioResponse<unknown>(
+      createResponse,
+      `create Project ${name} identity session`,
+    ),
   );
-  if (!session.session_id)
-    projectResponseError(createResponse, "create Project X identity session");
+  const sessionId = identityString(session?.session_id);
+  if (!sessionId)
+    projectResponseError(
+      createResponse,
+      `create Project ${name} identity session`,
+    );
   try {
     const response = await projectComposioFetch(
-      `/api/v3.1/tool_router/session/${encodeURIComponent(session.session_id)}/execute`,
+      `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
       {
         method: "POST",
-        jsonBody: { tool_slug: "TWITTER_USER_LOOKUP_ME", arguments: {} },
+        jsonBody: { tool_slug: tool.slug, arguments: tool.arguments },
       },
     );
-    const result = await projectComposioResponse<{
-      data?: unknown;
-      error?: string | null;
-    }>(response, "look up Project X identity");
-    const toolResult = record(result.data);
-    const providerResult = record(toolResult?.data) ?? toolResult;
-    const identity = record(providerResult?.data) ?? providerResult;
-    if (
-      result.error ||
-      !identity ||
-      typeof identity.id !== "string" ||
-      !identity.id
-    ) {
+    const result = await projectComposioResponse<unknown>(response, context);
+    const payload = socialIdentityPayload(result, input.provider);
+    const identity = payload ? socialIdentity(input.provider, payload) : null;
+    if (!identity) {
       throw new ComposioApiError(
         response.status,
         undefined,
-        "X identity lookup failed",
+        `${name} identity lookup failed`,
       );
     }
-    return {
-      id: identity.id,
-      handle:
-        typeof identity.username === "string"
-          ? identity.username
-          : typeof identity.handle === "string"
-            ? identity.handle
-            : null,
-    };
+    return identity;
   } finally {
-    await deleteProjectXSession(
-      session.session_id,
-      "delete Project X identity session",
+    await deleteProjectSocialSession(
+      sessionId,
+      `delete Project ${name} identity session`,
     );
   }
 }
@@ -892,14 +1005,14 @@ export async function publishXPost(input: {
       throw new ComposioPublishOutcomeUnknownError();
     }
   } finally {
-    await deleteProjectXSession(
+    await deleteProjectSocialSession(
       session.session_id,
       "delete Project X publish session",
     );
   }
 }
 
-export async function revokeProjectXConnection(input: {
+export async function revokeProjectSocialConnection(input: {
   connectedAccountId: string;
 }): Promise<void> {
   const response = await projectComposioFetch(
@@ -908,14 +1021,16 @@ export async function revokeProjectXConnection(input: {
   );
   if (response.status === 404) return;
   if (response.status === 409) {
-    const account = await getProjectXConnectedAccount(input.connectedAccountId);
+    const account = await getProjectSocialConnectedAccount(
+      input.connectedAccountId,
+    );
     if (account.status === "REVOKED") return;
   }
-  await projectComposioResponse(response, "revoke Project X connection");
+  await projectComposioResponse(response, "revoke Project social connection");
 }
 
 /** Permanently invalidates an unfinished OAuth link, including future redemption. */
-export async function deleteProjectXConnectionIntent(input: {
+export async function deleteProjectSocialConnectionIntent(input: {
   connectedAccountId: string;
 }): Promise<void> {
   const response = await projectComposioFetch(
@@ -925,6 +1040,6 @@ export async function deleteProjectXConnectionIntent(input: {
   if (response.status === 404) return;
   await projectComposioResponse(
     response,
-    "delete unfinished Project X connection",
+    "delete unfinished Project social connection",
   );
 }

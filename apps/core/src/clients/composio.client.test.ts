@@ -1,6 +1,11 @@
 import { SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
+
 const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   logSetMock: vi.fn(),
@@ -19,13 +24,43 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_123",
 };
 
-describe("initiateProjectXConnection", () => {
+describe("initiateProjectSocialConnection", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({
       COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
       COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("creates a connector-owned shared link with only the project executor in its ACL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        connected_account_id: "ca_shared",
+        redirect_url: "https://connect.composio.dev/shared-link",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await initiateProjectSocialConnection({
+      ...input,
+      authConfigId: "ac_instagram",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("https://backend.composio.dev/api/v3.1/connected_accounts/link"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      auth_config_id: "ac_instagram",
+      user_id: input.connectorUserId,
+      callback_url: input.callbackUrl,
+      experimental: {
+        account_type: "SHARED",
+        acl_config_for_shared: { allowed_user_ids: [input.executorUserId] },
+      },
     });
   });
 
@@ -75,9 +110,10 @@ describe("initiateProjectXConnection", () => {
         return Response.json({});
       });
     vi.stubGlobal("fetch", fetchMock);
-    const { getConnectedXIdentity } = await import("./composio.client");
+    const { getConnectedSocialIdentity } = await import("./composio.client");
     await expect(
-      getConnectedXIdentity({
+      getConnectedSocialIdentity({
+        provider: "x",
         connectedAccountId: "ca_123",
         executorUserId: input.executorUserId,
       }),
@@ -108,14 +144,16 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
       body: undefined,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 400,
         fields: ["auth_config_id"],
@@ -144,13 +182,15 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 422,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 422,
         fields: ["callback_url"],
@@ -171,13 +211,15 @@ describe("initiateProjectXConnection", () => {
           new Response("secret-provider-response", { status: 400 }),
         ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 400,
         fields: [],
@@ -190,15 +232,24 @@ describe("initiateProjectXConnection", () => {
     getEnvMock.mockReturnValue({
       COMPOSIO_X_AUTH_CONFIG_ID: "private-config-id",
     });
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toThrow(
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toThrow(
       "COMPOSIO_API_KEY is not configured",
     );
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
         failure: "missing_configuration",
         apiKeyConfigured: false,
-        xAuthConfigConfigured: true,
+        authConfigsConfigured: {
+          x: true,
+          tiktok: false,
+          instagram: false,
+          linkedin: false,
+          facebook: false,
+          youtube: false,
+        },
       },
     });
   });
@@ -218,9 +269,11 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
 
-    await expect(initiateProjectXConnection(input)).resolves.toEqual({
+    await expect(initiateProjectSocialConnection(input)).resolves.toEqual({
       connectionId: "ca_123",
       redirectUrl,
     });
@@ -242,11 +295,11 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { ComposioApiError, initiateProjectXConnection } = await import(
+    const { ComposioApiError, initiateProjectSocialConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -257,11 +310,11 @@ describe("initiateProjectXConnection", () => {
       "fetch",
       vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
     );
-    const { ComposioApiError, initiateProjectXConnection } = await import(
+    const { ComposioApiError, initiateProjectSocialConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -273,10 +326,12 @@ describe("initiateProjectXConnection", () => {
         .fn()
         .mockResolvedValue(new Response("{}", { status }));
       vi.stubGlobal("fetch", fetchMock);
-      const { deleteProjectXConnectionIntent } = await import(
+      const { deleteProjectSocialConnectionIntent } = await import(
         "./composio.client"
       );
-      await deleteProjectXConnectionIntent({ connectedAccountId: "ca_123" });
+      await deleteProjectSocialConnectionIntent({
+        connectedAccountId: "ca_123",
+      });
       expect(fetchMock).toHaveBeenCalledWith(
         new URL(
           "https://backend.composio.dev/api/v3.1/connected_accounts/ca_123?revoke_on_delete=true",
@@ -305,12 +360,334 @@ describe("initiateProjectXConnection", () => {
             ),
           ),
       );
-      const { revokeProjectXConnection } = await import("./composio.client");
-      const result = revokeProjectXConnection({ connectedAccountId: "ca_123" });
+      const { revokeProjectSocialConnection } = await import(
+        "./composio.client"
+      );
+      const result = revokeProjectSocialConnection({
+        connectedAccountId: "ca_123",
+      });
       if (status === "REVOKED") await expect(result).resolves.toBeUndefined();
       else await expect(result).rejects.toMatchObject({ httpStatus: 409 });
     },
   );
+});
+
+describe("getConnectedSocialIdentity", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ COMPOSIO_API_KEY: "test-composio-key" });
+  });
+
+  const identities: {
+    provider: ProjectSocialProvider;
+    slug: string;
+    args: Record<string, unknown>;
+    payload: Record<string, unknown>;
+    identity: { id: string; handle: string | null };
+  }[] = [
+    {
+      provider: "x",
+      slug: "TWITTER_USER_LOOKUP_ME",
+      args: {},
+      payload: { data: { id: "x_123", username: "alice" } },
+      identity: { id: "x_123", handle: "alice" },
+    },
+    {
+      provider: "tiktok",
+      slug: "TIKTOK_GET_USER_STATS",
+      args: { fields: ["open_id", "display_name"] },
+      payload: {
+        data: { user: { open_id: "tt_123", display_name: "Alice" } },
+        error: { code: "ok", message: "", log_id: "private-log-id" },
+      },
+      identity: { id: "tt_123", handle: "Alice" },
+    },
+    {
+      provider: "instagram",
+      slug: "INSTAGRAM_GET_USER_INFO",
+      args: { ig_user_id: "me", fields: "id,username" },
+      payload: { id: "17841400000000000", username: "alice" },
+      identity: { id: "17841400000000000", handle: "alice" },
+    },
+    {
+      provider: "linkedin",
+      slug: "LINKEDIN_GET_MY_INFO",
+      args: {},
+      payload: { response_dict: { author_id: "urn:li:person:alice" } },
+      identity: { id: "urn:li:person:alice", handle: null },
+    },
+    {
+      provider: "facebook",
+      slug: "FACEBOOK_GET_CURRENT_USER",
+      args: { fields: "id,name" },
+      payload: { id: "fb_123", name: "Alice", email: "alice@example.com" },
+      identity: { id: "fb_123", handle: "Alice" },
+    },
+    {
+      provider: "youtube",
+      slug: "YOUTUBE_LIST_CHANNELS",
+      args: { mine: true, part: "id,snippet", maxResults: 2 },
+      payload: {
+        items: [{ id: "UC_123", snippet: { customUrl: "@alice" } }],
+      },
+      identity: { id: "UC_123", handle: "@alice" },
+    },
+  ];
+
+  function stubIdentity(payload: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it.each(identities)(
+    "looks up $provider through only its authenticated account and identity tool",
+    async ({ provider, slug, args, payload, identity }) => {
+      const fetchMock = stubIdentity({
+        data: { data: payload, successful: true },
+        error: null,
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual(identity);
+
+      const toolkit = PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug;
+      expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+        user_id: input.executorUserId,
+        toolkits: { enable: [toolkit] },
+        connected_accounts: { [toolkit]: ["ca_selected"] },
+        manage_connections: { enable: false, enable_connection_removal: false },
+        tools: { [toolkit]: { enable: [slug] } },
+        workbench: { enable: false, enable_proxy_execution: false },
+        search: { enable: false },
+        execute: { enable_multi_execute: false },
+      });
+      expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
+        tool_slug: slug,
+        arguments: args,
+      });
+      expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it.each(identities)(
+    "rejects a refused $provider lookup even if an identity is present",
+    async ({ provider, payload }) => {
+      const fetchMock = stubIdentity({
+        data: { data: payload, successful: false },
+        error: null,
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+      expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+    },
+  );
+
+  it.each([
+    { provider: "x", payload: { id: 123, username: "alice" } },
+    { provider: "tiktok", payload: { user: { open_id: " " } } },
+    { provider: "instagram", payload: { user_id: "17841400000000000" } },
+    {
+      provider: "linkedin",
+      payload: { name: "Alice", email: "alice@example.com" },
+    },
+    { provider: "facebook", payload: { name: "Alice", id: "" } },
+    { provider: "youtube", payload: { items: [] } },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_one" }, { id: "UC_two" }] },
+    },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_one" }], nextPageToken: "more" },
+    },
+    { provider: "youtube", payload: { items: [{ id: 123 }] } },
+  ] satisfies { provider: ProjectSocialProvider; payload: unknown }[])(
+    "rejects malformed or ambiguous $provider identities: $payload",
+    async ({ provider, payload }) => {
+      const fetchMock = stubIdentity({ data: { data: payload } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    "invalid-json",
+    { data: { id: "x_123" }, error: "access_token=private-token" },
+    { data: { error: { message: "private-token" }, data: { id: "x_123" } } },
+  ])(
+    "rejects invalid or failed envelopes without retaining payload: %j",
+    async (payload) => {
+      stubIdentity(payload);
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "x",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({
+        name: "ComposioApiError",
+        message: "X identity lookup failed",
+        body: undefined,
+      });
+      expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
+        "private-token",
+      );
+    },
+  );
+
+  it("rejects TikTok provider errors despite a returned user", async () => {
+    stubIdentity({
+      data: {
+        data: { user: { open_id: "tt_123" } },
+        error: {
+          code: "scope_not_authorized",
+          message: "private-provider-message",
+        },
+      },
+    });
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "tiktok",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+  });
+
+  it.each([
+    {
+      provider: "tiktok",
+      payload: { user: { open_id: "tt_123" } },
+      id: "tt_123",
+    },
+    {
+      provider: "linkedin",
+      payload: { sub: "li_123", name: "Alice" },
+      id: "li_123",
+      handle: "Alice",
+    },
+    {
+      provider: "linkedin",
+      payload: { id: "li_123", vanityName: "alice" },
+      id: "li_123",
+      handle: "alice",
+    },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_123", snippet: { title: "Alice" } }] },
+      id: "UC_123",
+      handle: "Alice",
+    },
+  ] satisfies {
+    provider: ProjectSocialProvider;
+    payload: unknown;
+    id: string;
+    handle?: string;
+  }[])(
+    "accepts $provider identity with an optional public handle or display name",
+    async ({ provider, payload, id, handle }) => {
+      stubIdentity({ data: { data: JSON.stringify(payload) } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual({ id, handle: handle ?? null });
+    },
+  );
+
+  it.each([null, { session_id: "" }, { session_id: 123 }])(
+    "rejects invalid session metadata before tool execution: %j",
+    async (metadata) => {
+      const fetchMock = vi.fn().mockResolvedValue(Response.json(metadata));
+      vi.stubGlobal("fetch", fetchMock);
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "x",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves identity when cleanup fails without logging transport secrets", async () => {
+    const fetchMock = stubIdentity({ data: { id: "fb_123" } });
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockResolvedValueOnce(Response.json({ data: { id: "fb_123" } }))
+      .mockRejectedValueOnce(new Error("private-token private-session-url"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "facebook",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).resolves.toEqual({ id: "fb_123", handle: null });
+    expect(warn).toHaveBeenCalledWith(
+      "[composio] delete Project Facebook identity session failed",
+    );
+    warn.mockRestore();
+  });
+
+  it("sanitizes execute transport failures and deletes the identity session", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockRejectedValueOnce(new Error("Bearer private-token private-url"))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "x",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).rejects.toMatchObject({
+      name: "ComposioApiError",
+      message: "Composio API request failed",
+      httpStatus: 503,
+      body: undefined,
+    });
+    expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+  });
 });
 
 describe("publishXPost", () => {
