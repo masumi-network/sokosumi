@@ -204,21 +204,21 @@ describe("what the composer says without being opened", () => {
 });
 
 /**
- * What the composer promises before the money is spent.
+ * What the composer promises before the credits are spent.
  *
- * Modelled on fal's Sandbox, which puts the run's estimated cost in the footer
- * of the prompt bar — so the line has to be a true statement about the batch
- * the button will actually buy, including when the ceiling has cut it down.
+ * Not an estimate any more: `creditsPerImageCents` is the function Core charges
+ * with, over the same catalog row, so this line is the debit. Which makes it
+ * worth pinning to the arithmetic rather than to a shape — a number that
+ * disagrees with the ledger is the one bug this whole seam exists to prevent.
  */
 describe("the line above Generate", () => {
-  it("says how many runs, across how many models, and what that is worth", () => {
+  it("says how many runs, across how many models, and how many credits", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    // Model A is $0.04 at 1K and Model B is $0.10. See TEST_CATALOG.
+    // Model A publishes $0.04 an image at 1K and Model B $0.10, so 4 + 10
+    // credits at 1 credit to the cent. See TEST_CATALOG.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":1,"models":2,"cost":"$0.14"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":14}'),
     ).toBeInTheDocument();
   });
 
@@ -227,24 +227,62 @@ describe("the line above Generate", () => {
 
     clickChip("3");
 
+    // Three runs each of a 4-credit and a 10-credit model.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":3,"models":2,"cost":"$0.42"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":3,"models":2,"credits":42}'),
     ).toBeInTheDocument();
   });
 
-  it("stays silent about money when one model has no published price", () => {
+  it("prices a per-megapixel model off the frame it would run at", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    // Model B publishes nothing at 2K, so the total would be the price of half
-    // the batch wearing the whole batch's label.
     clickChip("2K");
 
+    // Model A has a hand-verified $0.08 at 2K → 8 credits. Model B has no 2K
+    // figure, so its megapixel unit price decides: $0.05 x 4.19MP at 2048x2048
+    // → 21 credits. Taking the wrong branch for either one is how the composer
+    // and the ledger start disagreeing.
     expect(
-      screen.getByText('runPlan:{"copies":1,"models":2}'),
+      screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":29}'),
     ).toBeInTheDocument();
-    expect(screen.getByText("estimateUnpriced")).toBeInTheDocument();
+  });
+
+  it("stays silent about credits rather than printing NaN", () => {
+    // Core excludes models it cannot price per image, so this should never
+    // reach the composer — but "should never" is not "cannot", and a batch
+    // total of `NaN` credits is the worst possible thing to show about money.
+    const unpriceable: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs, which nobody knows yet.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        catalog={unpriceable}
+        initial={targetFor(["by-the-second"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('runPlan:{"copies":1,"models":1}'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("creditsUnderivable")).toBeInTheDocument();
+    expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
   it("buys exactly the batch it described", () => {
@@ -292,10 +330,9 @@ describe("the batch ceiling", () => {
     clickChip("4");
     clickOption("selectAllModels");
 
+    // Five clones of Model A at 4 credits each, two runs apiece.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":2,"models":5,"cost":"$0.40"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":2,"models":5,"credits":40}'),
     ).toBeInTheDocument();
 
     generate();

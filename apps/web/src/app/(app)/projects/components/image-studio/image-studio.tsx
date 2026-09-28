@@ -27,9 +27,11 @@ import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
 import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import {
+  creditsByAssetId,
   elapsedByAssetId,
   isActive,
   type StudioAsset,
+  type StudioCatalog,
   type StudioFilter,
   type StudioJob,
   type StudioLabels,
@@ -38,6 +40,7 @@ import {
 } from "./types";
 import {
   type QueuedGeneration,
+  type QueueErrorCode,
   useGenerationQueue,
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
@@ -93,11 +96,21 @@ function inTextOrMenu(node: HTMLElement | null): boolean {
  * gallery's reference selection both read from it.
  */
 export function ImageStudio({
+  catalog,
   initialSelectedAssetId,
   initialState,
   labels,
   projectId,
 }: {
+  /**
+   * The model catalog, read once by the page.
+   *
+   * A prop rather than part of `initialState`, because Core took it off the
+   * state payload: the studio refetches that every three seconds while
+   * something is running, and the catalog is ~158KB of capabilities and prices
+   * that change when fal changes, not when a job does.
+   */
+  catalog: StudioCatalog;
   initialSelectedAssetId: string | null;
   initialState: StudioState;
   labels: StudioLabels;
@@ -130,7 +143,6 @@ export function ImageStudio({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
 
-  const catalog = initialState.catalog;
   const [target, setTarget] = useState<StudioTarget>(() => {
     const model = defaultModel(catalog);
     return {
@@ -398,8 +410,25 @@ export function ImageStudio({
     }
   }
 
+  function queueMessage(code: QueueErrorCode | null) {
+    switch (code) {
+      case "insufficient_credits":
+        return labels.errorInsufficientCredits;
+      case "unreachable":
+        return labels.errorUnreachable;
+      default:
+        return null;
+    }
+  }
+
+  // The queue's own code first: where this page has wording of its own, it is
+  // translated, and Core's `message` is English.
   const problem =
-    actionError ?? queue.lastError ?? errorMessage(studio.error) ?? null;
+    actionError ??
+    queueMessage(queue.lastErrorCode) ??
+    queue.lastError ??
+    errorMessage(studio.error) ??
+    null;
 
   const filterLabel: Record<StudioFilter, string> = {
     all: labels.filterAll,
@@ -414,6 +443,15 @@ export function ImageStudio({
    * are on the rows it gets back.
    */
   const elapsed = useMemo(() => elapsedByAssetId(state.jobs), [state.jobs]);
+
+  /**
+   * What each finished version was debited, from the same job rows.
+   *
+   * The charge, not a re-derivation of it: `creditsPerImageCents` would give the
+   * price *today*, and a catalog refresh between the generation and this render
+   * would quietly restate what somebody paid.
+   */
+  const credits = useMemo(() => creditsByAssetId(state.jobs), [state.jobs]);
 
   const hasWork =
     state.assets.length > 0 || activeJobs.length > 0 || queue.queued.length > 0;
@@ -431,7 +469,11 @@ export function ImageStudio({
       {problem ? (
         <Notice
           closeLabel={labels.close}
-          onDismiss={queue.lastError ? queue.clearError : undefined}
+          onDismiss={
+            queue.lastError || queue.lastErrorCode
+              ? queue.clearError
+              : undefined
+          }
         >
           {problem}
         </Notice>
@@ -501,6 +543,15 @@ export function ImageStudio({
           <p className="text-muted-foreground mt-1 text-sm break-words">
             {settledProblemJob.error ?? ""}
           </p>
+          {/* Said on the failure itself, because "did that cost me anything?"
+              is the first thing a charged product makes a person ask. Core
+              refunds every terminal failure and stamps the job, so this is a
+              fact read off the row rather than a reassurance. */}
+          {settledProblemJob.refunded ? (
+            <p className="text-muted-foreground mt-1 text-sm">
+              {labels.failedRefunded}
+            </p>
+          ) : null}
           <Button
             className="mt-3"
             onClick={() => repeat(settledProblemJob, "job")}
@@ -635,6 +686,7 @@ export function ImageStudio({
             assets={visibleAssets}
             cancelRequestedJobIds={cancelRequestedJobIds}
             catalog={catalog}
+            creditsByAssetId={credits}
             elapsedByAssetId={elapsed}
             labels={labels}
             onCancelJob={handleCancelJob}

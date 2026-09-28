@@ -35,6 +35,15 @@ const busy = {
   kind: "image_studio_project_busy",
   message: "This project already has 3 images being generated.",
 };
+/**
+ * Core's existing 422. It comes out of the same transaction that would have
+ * written the job row, so nothing was generated and nothing was charged.
+ */
+const brokeK = {
+  ok: false,
+  kind: "insufficient_balance",
+  message: "Insufficient balance.",
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -141,7 +150,12 @@ describe("useGenerationQueue", () => {
       result.current.enqueue([request("1")]);
     });
 
-    await waitFor(() => expect(result.current.lastError).not.toBeNull());
+    // A code rather than a sentence, so the page can say it in the reader's
+    // language; Core never answered, so there is no message of its own to show.
+    await waitFor(() =>
+      expect(result.current.lastErrorCode).toBe("unreachable"),
+    );
+    expect(result.current.lastError).toBeNull();
     expect(result.current.queued).toHaveLength(0);
     expect(startImageGeneration).toHaveBeenCalledTimes(1);
   });
@@ -163,5 +177,54 @@ describe("useGenerationQueue", () => {
       result.current.remove("2");
     });
     expect(result.current.queued.map((item) => item.id)).toEqual(["1"]);
+  });
+});
+
+describe("not enough credits", () => {
+  it("drops the whole batch, not just the request that hit the wall", async () => {
+    startImageGeneration.mockResolvedValue(brokeK);
+
+    const { result } = renderHook(() =>
+      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+    );
+
+    act(() => {
+      result.current.enqueue([request("1"), request("2"), request("3")]);
+    });
+
+    await waitFor(() =>
+      expect(result.current.lastErrorCode).toBe("insufficient_credits"),
+    );
+    // One attempt, and the other two are gone. Sending them would hit the same
+    // wall and say so three times over.
+    expect(startImageGeneration).toHaveBeenCalledTimes(1);
+    expect(result.current.queued).toHaveLength(0);
+    expect(result.current.waitingForSlot).toBe(false);
+    // A code, so the page can say "not enough credits" in the reader's
+    // language rather than forwarding Core's English sentence.
+    expect(result.current.lastError).toBeNull();
+  });
+
+  it("clears on the next attempt, so a top-up can be tried straight away", async () => {
+    startImageGeneration.mockResolvedValue(brokeK);
+
+    const { result } = renderHook(() =>
+      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+    );
+
+    act(() => {
+      result.current.enqueue([request("1")]);
+    });
+    await waitFor(() =>
+      expect(result.current.lastErrorCode).toBe("insufficient_credits"),
+    );
+
+    startImageGeneration.mockResolvedValue(accepted);
+    act(() => {
+      result.current.enqueue([request("2")]);
+    });
+
+    await waitFor(() => expect(result.current.queued).toHaveLength(0));
+    expect(result.current.lastErrorCode).toBeNull();
   });
 });

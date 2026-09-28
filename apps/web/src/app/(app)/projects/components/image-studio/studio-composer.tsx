@@ -19,12 +19,7 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import {
-  clampToModel,
-  estimateBatchUsd,
-  formatUsd,
-  priceForImage,
-} from "./catalog";
+import { clampToModel, creditsForBatch, creditsForImage } from "./catalog";
 import { STUDIO_PILL_CLASS } from "./studio-classes";
 import {
   assetContentUrl,
@@ -267,13 +262,14 @@ export function StudioComposer({
   }, [copies, selectedModels, settings]);
 
   /**
-   * What the batch costs at the providers' published list prices.
+   * What this batch will be debited, in credits.
    *
-   * `null` when any model in it has no published figure for the resolution it
-   * would run at, in which case the line says how much work is being bought
-   * and stays silent about money.
+   * The same function Core charges with, over the same catalog row — see
+   * `creditsForImage`. `null` when any leg cannot be priced, in which case the
+   * line says how much work is being bought and stays silent about credits
+   * rather than printing a total that is missing a leg.
    */
-  const estimateUsd = useMemo(() => estimateBatchUsd(plan.legs), [plan.legs]);
+  const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
   const canGenerate =
@@ -326,10 +322,16 @@ export function StudioComposer({
       ? selectedModels[0].label
       : t("modelCount", { count: selectedModels.length });
 
+  /** True when every chosen model picks its own output format. */
+  const modelChoosesFormat = shared.outputFormats.length === 0;
+
   const optionSummary = [
     settings.aspectRatio,
     settings.resolution,
-    settings.outputFormat,
+    // Omitted when the models choose: naming a format the request will not
+    // carry is the summary describing a different generation from the one the
+    // button buys.
+    modelChoosesFormat ? null : settings.outputFormat,
     plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
   ]
     .filter(Boolean)
@@ -500,24 +502,30 @@ export function StudioComposer({
               ))}
             </Row>
 
-            <Row label={labels.outputFormat}>
-              {shared.outputFormats.map((format) => (
-                <button
-                  aria-pressed={settings.outputFormat === format}
-                  className={chipClass(settings.outputFormat === format)}
-                  key={format}
-                  onClick={() =>
-                    setSettings((current) => ({
-                      ...current,
-                      outputFormat: format as StudioSettings["outputFormat"],
-                    }))
-                  }
-                  type="button"
-                >
-                  {format}
-                </button>
-              ))}
-            </Row>
+            {/* Hidden rather than empty when every chosen model picks its own
+                format — an `outputFormats: []` row in Core's catalog means the
+                model decides, and a labelled row with no chips in it reads as
+                a control that is broken. */}
+            {modelChoosesFormat ? null : (
+              <Row label={labels.outputFormat}>
+                {shared.outputFormats.map((format) => (
+                  <button
+                    aria-pressed={settings.outputFormat === format}
+                    className={chipClass(settings.outputFormat === format)}
+                    key={format}
+                    onClick={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        outputFormat: format as StudioSettings["outputFormat"],
+                      }))
+                    }
+                    type="button"
+                  >
+                    {format}
+                  </button>
+                ))}
+              </Row>
+            )}
 
             <Row label={labels.copies}>
               {COPY_CHOICES.map((count) => {
@@ -548,11 +556,11 @@ export function StudioComposer({
 
         <span className="grow" />
 
-        {/* What the press will buy, said before the press, in fal Sandbox's
-            shape: how many runs, across how many models, and what that is
-            worth. A button rather than a caption because the money in it is an
-            estimate, and an estimate nobody can interrogate is the wrong way
-            to talk about a charge — so it opens and shows its working. */}
+        {/* What the press will spend, said before the press: how many runs,
+            across how many models, and how many credits that is. A button
+            rather than a caption because this is a charge, and a charge nobody
+            can interrogate is the wrong way to talk about money — so it opens
+            and shows its working, model by model. */}
         {totalJobs > 0 ? (
           <Popover>
             <PopoverTrigger asChild>
@@ -562,15 +570,15 @@ export function StudioComposer({
                 variant="ghost"
               >
                 <span className="min-w-0 truncate tabular-nums">
-                  {estimateUsd === null
+                  {batchCredits === null
                     ? t("runPlan", {
                         copies: plan.copies,
                         models: plan.models.length,
                       })
-                    : t("runPlanEstimated", {
+                    : t("runPlanCredits", {
                         copies: plan.copies,
                         models: plan.models.length,
-                        cost: formatUsd(estimateUsd),
+                        credits: batchCredits,
                       })}
                 </span>
               </Button>
@@ -580,22 +588,24 @@ export function StudioComposer({
               className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
             >
               <div>
-                <p className="text-sm font-medium">{labels.estimateTitle}</p>
+                <p className="text-sm font-medium">{labels.creditsTitle}</p>
                 <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
-                  {labels.estimateNotCharge}
+                  {labels.creditsCharged}
                 </p>
               </div>
 
-              {estimateUsd === null ? (
+              {batchCredits === null ? (
                 <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                  {labels.estimateUnpriced}
+                  {labels.creditsUnderivable}
                 </p>
               ) : null}
 
               <ul className="space-y-2">
                 {plan.models.map((model) => {
-                  const resolution = clampToModel(model, settings).resolution;
-                  const price = priceForImage(model, resolution);
+                  const credits = creditsForImage(
+                    model,
+                    clampToModel(model, settings),
+                  );
                   return (
                     <li key={model.id}>
                       <div className="flex min-w-0 items-baseline gap-2">
@@ -603,10 +613,10 @@ export function StudioComposer({
                           {model.label}
                         </span>
                         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                          {price === null
-                            ? labels.estimateNoPrice
-                            : t("estimateEach", {
-                                cost: formatUsd(price),
+                          {credits === null
+                            ? labels.creditsNoFigure
+                            : t("creditsEach", {
+                                credits,
                                 count: plan.copies,
                               })}
                         </span>
@@ -622,7 +632,7 @@ export function StudioComposer({
                         rel="noreferrer"
                         target="_blank"
                       >
-                        {t("estimateCheckedOn", {
+                        {t("creditsCheckedOn", {
                           date: model.price.verifiedAt,
                         })}
                       </a>

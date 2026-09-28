@@ -132,6 +132,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               typeOptions: {
                 task: t("Filters.typeOptions.task"),
                 job: t("Filters.typeOptions.job"),
+                image: t("Filters.typeOptions.image"),
               },
               statusOptions: {
                 archived: t("Filters.statusOptions.archived"),
@@ -166,6 +167,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               kind: {
                 task: t("Row.kind.task"),
                 job: t("Row.kind.job"),
+                image: t("Row.kind.image"),
               },
               taskStatus: taskStatusOptions,
             },

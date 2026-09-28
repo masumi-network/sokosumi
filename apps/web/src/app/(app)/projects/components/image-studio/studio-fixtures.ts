@@ -10,10 +10,11 @@ import type { StudioCatalog } from "./types";
  * options when several are selected. A fixture where every model supports
  * everything would pass while the product was broken.
  *
- * The prices differ the same way and on purpose: Model B has no published
- * figure at 2K, so a batch that lands there cannot be totalled. That is a real
- * state the real catalog can reach, and the composer has to say so rather than
- * quietly total the legs it does have prices for.
+ * The prices differ the same way and on purpose. Model A is priced per image;
+ * Model B is priced per megapixel with a hand-verified 1K figure and none above
+ * it, so 1K reads a fixed price and 2K is derived from the output area. Both are
+ * real shapes the real catalog holds, and both are how `creditsPerImageCents`
+ * can disagree with itself if the wrong branch is taken.
  */
 export const TEST_CATALOG: StudioCatalog = {
   defaultModelId: "model-a",
@@ -30,8 +31,12 @@ export const TEST_CATALOG: StudioCatalog = {
       supportsSeed: true,
       maxReferences: 4,
       dimensionMode: "aspect-ratio",
+      providerFields: ["aspect_ratio", "output_format", "seed", "num_images"],
+      curatedRank: 1,
       notes: "",
       price: {
+        unit: "images",
+        unitPriceUsd: 0.04,
         perImageUsd: { "0.5K": 0.02, "1K": 0.04, "2K": 0.08 },
         basis: "Four cents an image at 1K, for the sake of the arithmetic.",
         sourceUrl: "https://example.test/model-a/pricing",
@@ -52,11 +57,17 @@ export const TEST_CATALOG: StudioCatalog = {
       supportsSeed: false,
       maxReferences: 2,
       dimensionMode: "image-size",
+      providerFields: ["image_size", "output_format"],
+      curatedRank: 2,
       notes: "",
       price: {
-        // No 2K figure, deliberately. See the note above.
+        // Priced by area, and with a hand-verified 1K figure but none at 2K, so
+        // 2K falls through to the unit price and 1K does not. Both branches of
+        // `creditsPerImageCents` are exercised by one fixture.
+        unit: "megapixels",
+        unitPriceUsd: 0.05,
         perImageUsd: { "1K": 0.1 },
-        basis: "Ten cents an image at 1K, and nothing published for 2K.",
+        basis: "Ten cents an image at 1K, five cents a megapixel above it.",
         sourceUrl: "https://example.test/model-b/pricing",
         verifiedAt: "2026-09-27",
       },
@@ -64,8 +75,6 @@ export const TEST_CATALOG: StudioCatalog = {
       verifiedAt: "2026-09-26",
     },
   ],
-  // Placement is gone from the product. The field is still required by the
-  // generated Core type until Core's own branch drops it from the payload, so
-  // it stays here as an empty list rather than as two rows nothing reads.
-  placements: [],
+  snapshotDate: "2026-09-27",
+  refreshedAt: null,
 };

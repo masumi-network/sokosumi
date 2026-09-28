@@ -2,7 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { imageStudioServiceMock, projectServiceMock } = vi.hoisted(() => ({
-  imageStudioServiceMock: { getState: vi.fn() },
+  imageStudioServiceMock: { getCatalog: vi.fn(), getState: vi.fn() },
   projectServiceMock: { getProjectById: vi.fn() },
 }));
 
@@ -23,11 +23,13 @@ vi.mock("@/lib/services/image-studio.service", () => ({
 
 vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
   ImageStudio: (props: {
+    catalog: { models: unknown[] };
     initialSelectedAssetId: string | null;
     projectId: string;
   }) => (
     <div
       data-testid="image-studio"
+      data-catalog-models={props.catalog.models.length}
       data-project={props.projectId}
       data-selected={props.initialSelectedAssetId ?? ""}
     />
@@ -55,9 +57,17 @@ function studioState(overrides: Partial<{ assets: { id: string }[] }> = {}) {
   return { assets: [], sessions: [], ...overrides };
 }
 
+const CATALOG = {
+  defaultModelId: "model-a",
+  models: [{ id: "model-a" }],
+  snapshotDate: "2026-09-27",
+  refreshedAt: null,
+};
+
 describe("StudioPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
   });
 
   it("asks which project to work in when no scope is set", async () => {
@@ -160,6 +170,40 @@ describe("StudioPage", () => {
     // studio's own `Templates`/`Images` headings are inside the mocked child,
     // so this file cannot and does not speak for them.)
     expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
+  });
+
+  /**
+   * The catalog is ~158KB for 152 models, and Core took it off the state
+   * payload for that reason: an open studio refetches state every three seconds
+   * while something is running. It is read here, once per render, and handed
+   * down — so the poll carries assets and jobs and nothing else.
+   */
+  it("reads the catalog once, and hands it to the studio", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    imageStudioServiceMock.getState.mockResolvedValue(studioState());
+
+    const { default: StudioPage } = await import("./page");
+
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(imageStudioServiceMock.getCatalog).toHaveBeenCalledTimes(1);
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-catalog-models",
+      "1",
+    );
+  });
+
+  it("does not read the catalog before a project is chosen", async () => {
+    const { default: StudioPage } = await import("./page");
+
+    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+
+    // Nothing to show it against, so nothing is downloaded for it.
+    expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
   });
 
   it("names the page in the document title", async () => {

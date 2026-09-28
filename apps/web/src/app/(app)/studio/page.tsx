@@ -63,7 +63,13 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
     );
   }
 
-  const state = await loadStudioState(project.id, query.v);
+  // In parallel, and the catalog only once per render: it is ~158KB and it is
+  // deliberately no longer part of the state payload the open studio refetches
+  // every three seconds.
+  const [state, catalog] = await Promise.all([
+    loadStudioState(project.id, query.v),
+    imageStudioService.getCatalog(),
+  ]);
 
   const initialSelectedAssetId =
     query.v && state.assets.some((asset) => asset.id === query.v)
@@ -73,6 +79,7 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   return (
     <StudioPageShell title={t("title")}>
       <ImageStudio
+        catalog={catalog}
         initialSelectedAssetId={initialSelectedAssetId}
         initialState={state}
         // Remounted per project, so no filter, selection, draft prompt or

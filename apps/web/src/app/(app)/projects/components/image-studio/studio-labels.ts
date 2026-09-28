@@ -48,6 +48,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     errorSessionExpired: t("errorSessionExpired"),
     errorRefreshFailed: t("errorRefreshFailed"),
     errorLoadOlderFailed: t("errorLoadOlderFailed"),
+    errorUnreachable: t("errorUnreachable"),
+    errorInsufficientCredits: t("errorInsufficientCredits"),
     composerTitle: t("composerTitle"),
     model: t("model"),
     aspectRatio: t("aspectRatio"),
@@ -84,11 +86,12 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     previousVersion: t("previousVersion"),
     nextVersion: t("nextVersion"),
     generationTime: t("generationTime"),
-    estimatedCost: t("estimatedCost"),
-    estimateTitle: t("estimateTitle"),
-    estimateNotCharge: t("estimateNotCharge"),
-    estimateUnpriced: t("estimateUnpriced"),
-    estimateNoPrice: t("estimateNoPrice"),
+    credits: t("credits"),
+    creditsTitle: t("creditsTitle"),
+    creditsCharged: t("creditsCharged"),
+    creditsUnderivable: t("creditsUnderivable"),
+    creditsNoFigure: t("creditsNoFigure"),
+    failedRefunded: t("failedRefunded"),
   };
 }
 

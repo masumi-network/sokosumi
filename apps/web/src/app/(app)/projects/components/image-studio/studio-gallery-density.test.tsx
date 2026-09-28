@@ -35,7 +35,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // Values included, because the credits figure interpolates a count and a
+  // bare key would hide whether the right number reached the tile.
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
 
@@ -105,10 +108,9 @@ const ASSET = {
 function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
   return render(
     <ImageStudio
+      catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
-      initialState={
-        { catalog: TEST_CATALOG, assets, jobs, sessions: [] } as never
-      }
+      initialState={{ assets, jobs, sessions: [] } as never}
       labels={LABELS}
       projectId="p"
     />,
@@ -200,6 +202,7 @@ function settledJob(
   assetId: string,
   elapsedMs: number,
   shape: "date" | "iso" = "iso",
+  credits: number | null = 4,
 ) {
   const submittedAt = new Date("2026-09-26T00:00:00Z");
   const settledAt = new Date(submittedAt.getTime() + elapsedMs);
@@ -210,6 +213,8 @@ function settledJob(
     createdAt: as(submittedAt),
     submittedAt: as(submittedAt),
     settledAt: as(settledAt),
+    credits,
+    refunded: false,
   } as unknown as StudioJob;
 }
 
@@ -308,12 +313,12 @@ describe("a gallery with work in it", () => {
   /**
    * What a batch across several models is actually read for.
    *
-   * The time is measured — the provider's own submit-to-settle interval, off
-   * the job row. The money is not: nothing in this studio records what fal
-   * billed, so the tile shows the published list price for these settings and
-   * marks it as an approximation.
+   * Both figures are measured off the job row: the provider's own
+   * submit-to-settle interval, and the credits the ledger debited. Neither is
+   * recomputed from the catalog, because a price that moved since the image was
+   * made must not restate what somebody paid.
    */
-  it("shows each version's generation time and estimated cost", () => {
+  it("shows each version's generation time and the credits it cost", () => {
     mount(
       [
         {
@@ -333,9 +338,22 @@ describe("a gallery with work in it", () => {
     const tile = document.querySelector("figure[data-asset-id]");
     expect(tile).not.toBeNull();
     expect(tile?.textContent).toContain("3.2s");
-    // Model A is $0.04 an image at 1K in TEST_CATALOG, and the tilde is what
-    // says this is a list price rather than a charge.
-    expect(tile?.textContent).toContain("~$0.04");
+    // The job's own `credits`, not the catalog's price for these settings.
+    expect(tile?.textContent).toContain('creditsCount:{"count":4}');
+  });
+
+  it("says nothing about credits for a version whose job carries none", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      // Every asset that predates charging looks like this. Absent is not zero:
+      // "we do not know what this cost" and "this was free" are different
+      // claims, and only one of them is true here.
+      [settledJob("j1", "v1", 3_200, "iso", null)],
+    );
+
+    const text = document.querySelector("figure[data-asset-id]")?.textContent;
+    expect(text).toContain("3.2s");
+    expect(text).not.toContain("creditsCount");
   });
 
   it("reads the same timing when the dates arrive as Date objects", () => {

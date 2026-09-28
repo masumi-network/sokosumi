@@ -1,3 +1,5 @@
+import { creditsPerImageCents } from "@sokosumi/utils";
+
 import type {
   StudioAsset,
   StudioCatalog,
@@ -94,10 +96,13 @@ export function clampToModel(
     settings.resolution && model.resolutions.includes(settings.resolution)
       ? settings.resolution
       : (model.resolutions[0] as StudioSettings["resolution"]);
+  // An empty `outputFormats` is Core saying the model chooses its own format,
+  // so this lands on `undefined` and the request carries no format at all.
+  // Picking one anyway is a 422 on a generation that would have worked.
   const outputFormat =
     settings.outputFormat && model.outputFormats.includes(settings.outputFormat)
       ? settings.outputFormat
-      : (model.outputFormats[0] as StudioSettings["outputFormat"]);
+      : (model.outputFormats[0] as StudioSettings["outputFormat"] | undefined);
 
   return {
     ...settings,
@@ -109,48 +114,45 @@ export function clampToModel(
 }
 
 /**
- * The provider's list price for one image from this model at this resolution.
+ * What one image from this model, at this frame, will be debited.
  *
- * `null` rather than a guess. There is deliberately no fallback to another
- * tier's figure: a plausible wrong number about money is worse than an absent
- * one, so a caller that gets `null` has to say the price is unknown.
+ * `creditsPerImageCents` comes from `@sokosumi/utils` and is **the same
+ * function Core charges with**, over the same catalog row. That is the whole
+ * reason it is shared rather than reimplemented here: two implementations of
+ * this formula would be a number shown to the person that the ledger then
+ * quietly contradicts. 1 credit = 1 cent, and there is no markup on fal's
+ * published price.
+ *
+ * `null` rather than a guess. It should not happen for a catalog model — Core
+ * excludes the models it cannot price per image — but a caller that gets `null`
+ * has to say the figure is unknown rather than render `NaN`.
  */
-export function priceForImage(
+export function creditsForImage(
   model: StudioModel,
-  resolution: StudioSettings["resolution"] | null | undefined,
+  settings: StudioSettings,
 ): number | null {
-  if (!resolution) return null;
-  return model.price.perImageUsd[resolution] ?? null;
+  const { aspectRatio, resolution } = settings;
+  if (!aspectRatio || !resolution) return null;
+  return creditsPerImageCents(model.price, { aspectRatio, resolution });
 }
 
 /**
- * What a batch would cost at list price, or `null` if any leg is unpriced.
+ * What a batch will be debited, or `null` if any leg cannot be priced.
  *
  * All-or-nothing on purpose. A total that quietly left out the one model with
- * no published figure would still read as the price of the whole batch, which
+ * no derivable figure would still read as the price of the whole batch, which
  * is the one way an estimate can be worse than no estimate.
  */
-export function estimateBatchUsd(
+export function creditsForBatch(
   legs: readonly { model: StudioModel; settings: StudioSettings }[],
 ): number | null {
   let total = 0;
   for (const leg of legs) {
-    const price = priceForImage(leg.model, leg.settings.resolution);
-    if (price === null) return null;
-    total += price;
+    const credits = creditsForImage(leg.model, leg.settings);
+    if (credits === null) return null;
+    total += credits;
   }
   return total;
-}
-
-/**
- * Money, to the cent.
- *
- * Not `Intl.NumberFormat`: these are US dollars because fal bills in US
- * dollars, and localising the symbol would imply the amount had been
- * converted. Two places always, so $0.90 does not render as $0.9.
- */
-export function formatUsd(amount: number): string {
-  return `$${amount.toFixed(2)}`;
 }
 
 /**

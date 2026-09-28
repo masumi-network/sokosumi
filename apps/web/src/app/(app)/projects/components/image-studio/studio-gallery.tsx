@@ -1,11 +1,12 @@
 "use client";
 
 import { Check, Loader2, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import { formatUsd, modelById, priceForImage, resolveModel } from "./catalog";
+import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   formatElapsed,
@@ -31,6 +32,7 @@ export function StudioGallery({
   assets,
   cancelRequestedJobIds,
   catalog,
+  creditsByAssetId,
   elapsedByAssetId,
   labels,
   onCancelJob,
@@ -45,6 +47,14 @@ export function StudioGallery({
   /** Jobs the provider has agreed to stop, which may still finish anyway. */
   cancelRequestedJobIds: string[];
   catalog: StudioCatalog;
+  /**
+   * What each version was debited, per version, in credits.
+   *
+   * The charge off the job row, not a figure recomputed from the catalog: a
+   * price that moved since the image was made must not silently restate what
+   * the person paid. A refunded job reads as zero.
+   */
+  creditsByAssetId: Record<string, number>;
   /**
    * How long the provider took, per version, in milliseconds.
    *
@@ -61,6 +71,10 @@ export function StudioGallery({
   queued: QueuedGeneration[];
   selectedIds: string[];
 }) {
+  // Only for the credits figure, which interpolates a count; every other string
+  // arrives resolved in `labels`. See `StudioLabels`.
+  const t = useTranslations("App.Studio");
+
   return (
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
@@ -124,13 +138,10 @@ export function StudioGallery({
                 ? labels.rejected
                 : labels.undecided;
           const elapsed = elapsedByAssetId[asset.id] ?? null;
-          // The provider's list price for this model at the resolution this
-          // version actually ran at. An estimate, never a charge: nothing in
-          // this studio records what fal billed for a job.
-          const catalogModel = modelById(catalog, model.id);
-          const estimateUsd = catalogModel
-            ? priceForImage(catalogModel, asset.settings?.resolution)
-            : null;
+          // What this version actually cost, off its job row. Absent rather
+          // than zero when the job has fallen off the page: "we do not know"
+          // and "it was free" are different claims about money.
+          const credits = creditsByAssetId[asset.id] ?? null;
           // Everything the caption cannot fit, kept reachable on hover and
           // for the accessible name. The catalog id is in here rather than on
           // the caption: the label is what a person compares models by, and
@@ -142,9 +153,9 @@ export function StudioGallery({
             elapsed === null
               ? null
               : `${labels.generationTime} ${formatElapsed(elapsed)}`,
-            estimateUsd === null
+            credits === null
               ? null
-              : `${labels.estimatedCost} ~${formatUsd(estimateUsd)}`,
+              : `${labels.credits} ${t("creditsCount", { count: credits })}`,
             model.known ? null : labels.modelNotInCatalog,
           ]
             .filter(Boolean)
@@ -230,11 +241,10 @@ export function StudioGallery({
                   </div>
 
                   {/* What it cost to make, which is what a batch across
-                      several models is read for. Time is measured; the money
-                      is the provider's published price for these settings and
-                      is marked as an approximation, because nothing here reads
-                      back what was actually billed. */}
-                  {elapsed !== null || estimateUsd !== null ? (
+                      several models is read for. Both figures are measured:
+                      the time is the provider's own submit-to-settle interval
+                      and the credits are what the ledger debited. */}
+                  {elapsed !== null || credits !== null ? (
                     <p
                       className="text-muted-foreground flex min-w-0 items-center gap-1.5 text-xs tabular-nums"
                       title={provenance}
@@ -247,12 +257,10 @@ export function StudioGallery({
                           {formatElapsed(elapsed)}
                         </span>
                       ) : null}
-                      {estimateUsd !== null ? (
+                      {credits !== null ? (
                         <span className="shrink-0">
-                          <span className="sr-only">
-                            {labels.estimatedCost}{" "}
-                          </span>
-                          ~{formatUsd(estimateUsd)}
+                          <span className="sr-only">{labels.credits} </span>
+                          {t("creditsCount", { count: credits })}
                         </span>
                       ) : null}
                     </p>

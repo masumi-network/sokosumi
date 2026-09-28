@@ -1352,7 +1352,8 @@
         "projectLabel": "Projekt",
         "typeOptions": {
           "task": "Aufgabe",
-          "job": "Job"
+          "job": "Job",
+          "image": "Bild"
         },
         "statusOptions": {
           "archived": "Archiviert",
@@ -1389,7 +1390,8 @@
         "updated": "Aktualisiert",
         "kind": {
           "task": "Aufgabe",
-          "job": "Job"
+          "job": "Job",
+          "image": "Bild"
         }
       }
     },
@@ -2634,16 +2636,20 @@
       "title": "Content Studio",
       "selectAllModels": "Alle auswählen",
       "generationTime": "Generierungsdauer",
-      "estimatedCost": "Geschätzte Kosten",
-      "estimateTitle": "Geschätzte Kosten",
-      "estimateNotCharge": "Summiert aus dem jeweils veröffentlichten Preis der Anbieter für die Einstellungen oben. Es ist keine Abrechnung: hier wird nicht zurückgelesen, was fal tatsächlich berechnet hat. Sieh es als Wert eines Klicks auf Generieren, nicht als entstandene Kosten.",
-      "estimateUnpriced": "Für mindestens eines dieser Modelle gibt es keinen veröffentlichten Preis für die Auflösung, mit der es laufen würde, deshalb lässt sich dieser Stapel nicht summieren.",
-      "estimateNoPrice": "Kein veröffentlichter Preis",
       "runPlan": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}",
-      "runPlanEstimated": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, ca. {cost}",
-      "estimateEach": "{cost} x {count}",
-      "estimateCheckedOn": "Preis geprüft am {date}",
-      "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat."
+      "batchCeiling": "Höchstens {count} Bilder pro Klick. Sokosumi schickt sie in kleinen Gruppen los, sobald der Anbieter Kapazität hat.",
+      "errorUnreachable": "Das Studio war nicht erreichbar. Es wurde nichts generiert. Versuche es erneut.",
+      "errorInsufficientCredits": "Nicht genügend Credits. Es wurde nichts generiert und nichts berechnet. Lade Credits auf und versuche es erneut.",
+      "credits": "Credits",
+      "creditsTitle": "Credits für diesen Stapel",
+      "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Reservierung der Anfrage genommen. Eine fehlgeschlagene Generierung wird vollständig zurückerstattet.",
+      "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
+      "creditsNoFigure": "Kein Betrag",
+      "failedRefunded": "Sie wurde vollständig zurückerstattet und hat damit nichts gekostet.",
+      "runPlanCredits": "Läuft {copies}x auf {models, plural, one {# Modell} other {# Modellen}}, {credits, plural, one {# Credit} other {# Credits}}",
+      "creditsEach": "{credits, plural, one {# Credit} other {# Credits}} x {count}",
+      "creditsCount": "{count, plural, one {# Credit} other {# Credits}}",
+      "creditsCheckedOn": "Preis geprüft am {date}"
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",

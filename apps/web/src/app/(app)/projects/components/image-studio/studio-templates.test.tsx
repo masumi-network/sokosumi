@@ -70,10 +70,9 @@ const LABELS = new Proxy(
 function mount() {
   return render(
     <ImageStudio
+      catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
-      initialState={
-        { catalog: TEST_CATALOG, assets: [], jobs: [], sessions: [] } as never
-      }
+      initialState={{ assets: [], jobs: [], sessions: [] } as never}
       labels={LABELS}
       projectId="p"
     />,

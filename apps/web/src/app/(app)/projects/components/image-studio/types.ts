@@ -83,6 +83,24 @@ export function elapsedByAssetId(jobs: StudioJob[]): Record<string, number> {
 }
 
 /**
+ * What each finished version was actually debited, keyed by the version.
+ *
+ * Read off the job rows rather than derived from the catalog. This is the charge
+ * the ledger took, not an estimate of one — and a refunded job reads as zero,
+ * because a generation that failed cost the person nothing and the tile must not
+ * claim otherwise. A version whose job has fallen off the most recent page has
+ * no entry and its tile simply says nothing about credits.
+ */
+export function creditsByAssetId(jobs: StudioJob[]): Record<string, number> {
+  const byAsset: Record<string, number> = {};
+  for (const job of jobs) {
+    if (!job.assetId || job.credits === null) continue;
+    byAsset[job.assetId] = job.refunded ? 0 : job.credits;
+  }
+  return byAsset;
+}
+
+/**
  * A generation time, in the unit a person compares models in.
  *
  * One decimal under a hundred seconds, because the difference between 4.2s and
@@ -162,6 +180,8 @@ export interface StudioLabels {
   errorSessionExpired: string;
   errorRefreshFailed: string;
   errorLoadOlderFailed: string;
+  errorUnreachable: string;
+  errorInsufficientCredits: string;
 
   // Composer and the model catalog.
   composerTitle: string;
@@ -208,13 +228,15 @@ export interface StudioLabels {
   previousVersion: string;
   nextVersion: string;
 
-  // What a batch costs and how long it took. Every money figure here is the
-  // provider's published list price, never a charge; see `ImagePrice` in Core's
-  // catalog for why there is nothing better to show.
+  // What a batch costs and how long it took. Credits, not dollars, and not an
+  // approximation: `creditsPerImageCents` is the function Core charges with, so
+  // the figure shown before the press is the figure the ledger takes.
   generationTime: string;
-  estimatedCost: string;
-  estimateTitle: string;
-  estimateNotCharge: string;
-  estimateUnpriced: string;
-  estimateNoPrice: string;
+  credits: string;
+  creditsTitle: string;
+  creditsCharged: string;
+  creditsUnderivable: string;
+  creditsNoFigure: string;
+  /** Said on a failed generation, because a failure is refunded in full. */
+  failedRefunded: string;
 }

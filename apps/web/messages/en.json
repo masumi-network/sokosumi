@@ -1352,7 +1352,8 @@
         "projectLabel": "Project",
         "typeOptions": {
           "task": "Task",
-          "job": "Job"
+          "job": "Job",
+          "image": "Image"
         },
         "statusOptions": {
           "archived": "Archived",
@@ -1389,7 +1390,8 @@
         "updated": "Updated",
         "kind": {
           "task": "Task",
-          "job": "Job"
+          "job": "Job",
+          "image": "Image"
         }
       }
     },
@@ -2634,16 +2636,20 @@
       "title": "Content Studio",
       "selectAllModels": "Select all",
       "generationTime": "Generation time",
-      "estimatedCost": "Estimated cost",
-      "estimateTitle": "Estimated cost",
-      "estimateNotCharge": "Added up from each provider's own published price for the settings above. It is not a charge: nothing here reads back what fal actually billed, so treat it as what a press of Generate is worth rather than what it cost.",
-      "estimateUnpriced": "At least one of these models has no published price for the resolution it would run at, so this batch cannot be totalled.",
-      "estimateNoPrice": "No published price",
       "runPlan": "Will run {copies}x on {models, plural, one {# model} other {# models}}",
-      "runPlanEstimated": "Will run {copies}x on {models, plural, one {# model} other {# models}}, Est. {cost}",
-      "estimateEach": "{cost} x {count}",
-      "estimateCheckedOn": "Price checked {date}",
-      "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up."
+      "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up.",
+      "errorUnreachable": "Could not reach the studio. Nothing was generated. Try again.",
+      "errorInsufficientCredits": "Not enough credits. Nothing was generated and nothing was charged. Top up your credits and try again.",
+      "credits": "Credits",
+      "creditsTitle": "Credits for this batch",
+      "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the request is reserved. A generation that fails is refunded in full.",
+      "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
+      "creditsNoFigure": "No figure",
+      "failedRefunded": "It was refunded in full, so it cost nothing.",
+      "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
+      "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
+      "creditsCount": "{count, plural, one {# credit} other {# credits}}",
+      "creditsCheckedOn": "Price checked {date}"
     },
     "Error": {
       "title": "Something went wrong",
