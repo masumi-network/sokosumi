@@ -87,7 +87,14 @@ export function mountFalImageJobsWebhook(app: Hono): void {
 
     // Idempotent: the asset row is unique per job, so a webhook racing a poll
     // produces one version and one of them loses the insert.
-    await settleWithImage(job.id, images[0]!.url);
+    //
+    // The provider's dimensions go with the URL. They used to be dropped here,
+    // which is half of why stored assets read 0x0.
+    const produced = images[0]!;
+    await settleWithImage(job.id, produced.url, {
+      width: produced.width,
+      height: produced.height,
+    });
     return c.json({ ok: true }, 200);
   });
 }

@@ -9,6 +9,7 @@ import {
   IMAGE_PROVIDER_FIELDS,
   IMAGE_RESOLUTIONS,
 } from "@/lib/image-studio/image-model";
+import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -153,16 +154,19 @@ export const imageStudioJobSchema = z
      */
     retryMayDuplicateCharge: z.boolean(),
     /**
-     * Credits debited when this job was reserved, in the same user-facing decimal
-     * the rest of the API uses. Null for a job created before the studio charged
-     * for generation.
+     * What this generation cost, in the same user-facing decimal the rest of the
+     * API uses.
+     *
+     * The studio charges on delivery, so this is **null until there is an image**
+     * — including for a job that failed, which costs nothing. A client that wants
+     * to show a price before then computes it from the catalog with
+     * `creditsPerImageCents`, the same way the composer's estimate does.
      */
     credits: z.number().nullable(),
     /**
-     * True once the charge has been paid back. Every terminal failure refunds, so
-     * a failed generation reads as having cost nothing — which is what it cost.
-     * Never true for `SUBMISSION_UNCERTAIN`: the provider may have charged us and
-     * nothing is refunded automatically there.
+     * @deprecated Always false. The studio charges on delivery, so a failed
+     * generation moves no money and there is nothing to refund. Kept for one
+     * release so clients can drop their refunded branch; read `credits` instead.
      */
     refunded: z.boolean(),
   })
@@ -202,7 +206,7 @@ export const createImageJobRequestSchema = z
         (id) => getImageCatalog().models.some((model) => model.id === id),
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
-    prompt: z.string().trim().min(1).max(4_000),
+    prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     parentAssetId: z.string().uuid().nullable().default(null),

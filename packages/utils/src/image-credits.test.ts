@@ -97,6 +97,33 @@ describe("creditsPerImageCents", () => {
     ).toBe(4);
   });
 
+  it("refuses to price an area the studio did not choose", () => {
+    // fal-ai/nucleus-image, 16:9 1K, $0.01/MP. The studio's own frame would be
+    // 1024x576 and price 1 credit; the provider returned 1344x768 and fal billed
+    // 2 cents. Charging the guess is a real undercharge, not a rounding edge.
+    const price = { unit: "megapixels", unitPriceUsd: 0.01 };
+    const frame = { aspectRatio: "16:9", resolution: "1K" };
+    expect(creditsPerImageCents(price, frame)).toBe(1);
+    expect(
+      creditsPerImageCents(price, { ...frame, providerChoosesSize: true }),
+    ).toBe(null);
+    // A per-image unit does not care who chose the size.
+    expect(
+      creditsPerImageCents(
+        { unit: "images", unitPriceUsd: 0.04 },
+        { ...frame, providerChoosesSize: true },
+      ),
+    ).toBe(4);
+    // Neither does a hand-verified per-tier figure, which is what rescues such a
+    // model if somebody measures it.
+    expect(
+      creditsPerImageCents(
+        { ...price, perImageUsd: { "1K": 0.02 } },
+        { ...frame, providerChoosesSize: true },
+      ),
+    ).toBe(2);
+  });
+
   it("refuses to guess a per-image cost for a unit that has none", () => {
     for (const unit of ["compute seconds", "units", "credits"]) {
       expect(

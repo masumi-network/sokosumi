@@ -7,15 +7,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * A generation failed on the preprod preview (project
  * `01a0e53c-34c5-76f8-8546-f007175b92de`, job
  * `01a0e585-473f-7381-9cc3-fcef2989e9a4`) and read back as `status: FAILED`,
- * `credits: 8`, `refunded: false`, `error: "Unexpected status code: 422"`. The
- * account was eight credits down and stayed down.
+ * `credits: 8`, `error: "Unexpected status code: 422"`, with the account eight
+ * credits down.
  *
  * The cause was here, not in the jobs service. fal's completion callback is the
  * path a runner error takes, and this handler wrote `FAILED` with an `updateMany`
- * of its own — so it was the one terminal-failure path that never refunded, and
- * the one that stored fal's raw transport text verbatim. Both halves are pinned
- * below: the delivery must settle through `failImageJob`, and the raw string must
- * not reach the row.
+ * of its own — so it was the one terminal-failure path that skipped everything the
+ * service does about a failure, and the one that stored fal's raw transport text
+ * verbatim. The studio has since moved to charging on delivery, so a failure moves
+ * no money at all and there is nothing to give back; what still matters is that
+ * this route settles through `failImageJob` rather than writing a status itself,
+ * and that the provider's string does not reach the row. Both are pinned below.
  */
 
 const { failImageJobMock, settleWithImageMock, jobFindUniqueMock, verifyMock } =
@@ -67,7 +69,7 @@ beforeEach(() => {
 });
 
 describe("fal completion callback", () => {
-  it("settles a provider error through the service, so the charge is refunded", async () => {
+  it("settles a provider error through the service, not with a write of its own", async () => {
     const response = await deliver({
       request_id: REQUEST_ID,
       status: "ERROR",
@@ -76,7 +78,7 @@ describe("fal completion callback", () => {
 
     expect(response.status).toBe(200);
     // Through `failImageJob` and nowhere else. This handler writing FAILED itself
-    // is exactly what left a failed generation paid for.
+    // is exactly what let a failed generation keep a charge.
     expect(failImageJobMock).toHaveBeenCalledExactlyOnceWith(
       JOB_ID,
       "provider_error",
@@ -113,12 +115,23 @@ describe("fal completion callback", () => {
     await deliver({
       request_id: REQUEST_ID,
       status: "OK",
-      payload: { images: [{ url: "https://v3b.fal.media/files/a.png" }] },
+      payload: {
+        images: [
+          {
+            url: "https://v3b.fal.media/files/a.png",
+            width: 1344,
+            height: 768,
+          },
+        ],
+      },
     });
 
+    // The provider's dimensions go with the URL. Dropping them here is half of why
+    // stored assets read 0x0 in the lightbox.
     expect(settleWithImageMock).toHaveBeenCalledExactlyOnceWith(
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
+      { width: 1344, height: 768 },
     );
     expect(failImageJobMock).not.toHaveBeenCalled();
   });

@@ -1,5 +1,5 @@
+import { isAreaPricedUnit } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
 import {
   imageStudioCatalogSchema,
   imageStudioListSchema,
@@ -12,11 +12,13 @@ import {
   imageModelForEndpoint,
   resolveImageSettings,
 } from "./catalog";
+
 import { CURATED_MODEL_IDS } from "./catalog-overrides";
 import {
   creditsPerImage,
   DEFAULT_IMAGE_MODEL_ID,
   imageDimensions,
+  providerChoosesOutputSize,
 } from "./image-model";
 
 const settings = {
@@ -135,6 +137,35 @@ describe("resolved image catalog", () => {
         resolution: "1K",
       }),
     ).toBe(2);
+  });
+
+  it("never bills for an area the provider chose", () => {
+    // The blocking defect from the second preview pass. `fal-ai/nucleus-image` is
+    // priced per megapixel but takes an aspect ratio, so the studio guessed
+    // 1024x576 at 16:9 1K and charged 1 credit while the provider returned
+    // 1344x768 and fal billed 2 cents — double, not a rounding edge, and invisible
+    // at 1:1 where the guess happens to be right.
+    //
+    // Three models were in that position: luma-photon, luma-photon-flash,
+    // nucleus-image. They are held out of the catalog the same way the
+    // compute-second models are, and this fails if another ever arrives.
+    const mispriced = getImageCatalog()
+      .models.filter(
+        (model) =>
+          isAreaPricedUnit(model.price.unit) &&
+          providerChoosesOutputSize(model) &&
+          // An override with hand-verified per-tier figures is the way back in.
+          model.price.perImageUsd === undefined,
+      )
+      .map((model) => `${model.id} (${model.price.unit})`);
+    expect(mispriced).toEqual([]);
+  });
+
+  it("holds back the three models whose billed area it cannot know", () => {
+    const ids = getImageCatalog().models.map((model) => model.id);
+    for (const held of ["luma-photon", "luma-photon-flash", "nucleus-image"]) {
+      expect(ids).not.toContain(held);
+    }
   });
 
   it("prices no resolution a model cannot run", () => {

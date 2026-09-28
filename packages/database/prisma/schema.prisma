@@ -4548,26 +4548,32 @@ model ProjectImageJob {
 
   status ProjectImageJobStatus @default(PENDING)
 
-  /// What this job was charged when it was reserved, in `Transaction.amount`
-  /// units (10^10 = 1 credit), always positive.
+  /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
+  /// always positive.
   ///
-  /// Written in the same transaction that creates the row and takes the debit,
-  /// because a row that exists without its charge — or a charge without its row
-  /// — is an image somebody got for free or paid for twice. Null only for jobs
-  /// created before the studio charged for generation at all.
+  /// Two meanings, in order. Written at submit it is the **quote**: the price the
+  /// person was shown, kept on the row so the figure taken later is the one they
+  /// agreed to even if the catalog refreshes in between. Rewritten when the image
+  /// is delivered, it is what was **actually taken** — which is the quote, unless
+  /// the balance had fallen by then, in which case it becomes 0 and the image is
+  /// given away. The History trigger reads this column, so it has to be the second
+  /// thing, not the first.
+  ///
+  /// Null for jobs created before the studio charged for generation at all.
   chargedCents BigInt?
 
-  /// The debit taken at reservation. One per job.
+  /// The spend, taken when the image was delivered. One per job, null until then.
   transactionId String?      @unique
   transaction   Transaction? @relation("TransactionProjectImageJob", fields: [transactionId], references: [id])
 
-  /// The compensating refund, once a terminal failure minted one.
+  /// Dead. Never written any more.
   ///
-  /// Its presence *is* the idempotency guard: refunds are written conditionally
-  /// on this still being null, so a webhook and the cron sweep racing the same
-  /// failed job produce one refund between them. Deliberately not written for
-  /// SUBMISSION_UNCERTAIN — fal may well have charged us — which is why that
-  /// status keeps its own recovery path.
+  /// The studio briefly reserved credits at submit and refunded a failure; it now
+  /// charges on delivery, so a generation that fails moves no money and there is
+  /// nothing to give back. The column is kept rather than dropped because dropping
+  /// one is destructive and these rows exist on preprod: it stays nullable and
+  /// unused, `history_image_amount()` subtracts NULL and is unaffected, and nothing
+  /// reads the relation.
   refundTransactionId String?      @unique
   refundTransaction   Transaction? @relation("RefundedTransactionProjectImageJob", fields: [refundTransactionId], references: [id])
 

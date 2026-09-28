@@ -2,6 +2,7 @@ import {
   creditsPerImageCents,
   type ImagePriceFigures,
   imageOutputDimensions,
+  isAreaPricedUnit,
 } from "@sokosumi/utils";
 
 /**
@@ -185,6 +186,7 @@ export function creditsPerImage(
   const cents = creditsPerImageCents(model.price, {
     aspectRatio: settings.aspectRatio,
     resolution: settings.resolution,
+    providerChoosesSize: providerChoosesOutputSize(model),
   });
   if (cents === null) {
     throw new Error(
@@ -192,6 +194,46 @@ export function creditsPerImage(
     );
   }
   return cents;
+}
+
+/**
+ * True when the provider, not the studio, decides the output pixel count.
+ *
+ * The studio only sends exact dimensions in `image-size` mode. In `aspect-ratio`
+ * mode it asks for a shape and the provider returns whatever size it likes, so an
+ * area the studio computes for such a model is a guess — fine for laying out a
+ * preview, not fine for billing. See `providerChoosesSize` in `@sokosumi/utils`.
+ */
+export function providerChoosesOutputSize(model: ImageModel): boolean {
+  return model.dimensionMode !== "image-size";
+}
+
+/**
+ * True when this model's price cannot be turned into a per-image charge.
+ *
+ * Two ways that happens: a unit that does not describe one image (compute seconds
+ * and friends), and an area-priced unit on a model whose output size the provider
+ * picks. Either way the model is held out of the catalog unless an override
+ * supplies a hand-verified `perImageUsd`.
+ */
+export function isUnchargeableModel(model: ImageModel): boolean {
+  if (model.resolutions.length === 0) return true;
+  return model.resolutions.some(
+    (resolution) =>
+      creditsPerImageCents(model.price, {
+        aspectRatio: model.aspectRatios[0] ?? "1:1",
+        resolution,
+        providerChoosesSize: providerChoosesOutputSize(model),
+      }) === null,
+  );
+}
+
+/** Why {@link isUnchargeableModel} said so, for the exclusion record. */
+export function unchargeableReason(model: ImageModel): string {
+  if (isAreaPricedUnit(model.price.unit) && providerChoosesOutputSize(model)) {
+    return `Priced by ${model.price.unit} while the provider picks the output size, so the area fal bills is not the area the studio asked for, and no override supplies a per-image figure.`;
+  }
+  return `Priced by ${model.price.unit}, which does not describe one image, and no override supplies a per-image figure.`;
 }
 
 /**

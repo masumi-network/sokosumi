@@ -1,8 +1,4 @@
-import {
-  creditsPerImageCents,
-  IMAGE_PRICE_UNITS,
-  type ImagePriceUnit,
-} from "@sokosumi/utils";
+import { IMAGE_PRICE_UNITS, type ImagePriceUnit } from "@sokosumi/utils";
 
 import {
   IMAGE_ASPECT_RATIOS,
@@ -11,6 +7,8 @@ import {
   IMAGE_RESOLUTIONS,
   type ImageModel,
   type ImageProviderField,
+  isUnchargeableModel,
+  unchargeableReason,
 } from "./image-model";
 
 /**
@@ -658,6 +656,12 @@ export function normaliseFalCatalog(
  * override supplying `perImageUsd` is exactly how a human rescues a model fal
  * prices by compute second. Excluding it before the override is applied would
  * throw away the one thing that made it chargeable.
+ *
+ * Two distinct grounds, both measured rather than assumed. A unit that does not
+ * describe one image — 34 models at the 2026-09-27 snapshot. And an area-priced
+ * unit on a model whose output *size the provider picks*, which the studio can
+ * only guess at: three models, found on preview when `fal-ai/nucleus-image` at
+ * 16:9 1K was charged 1 credit for an image fal billed 2 cents for.
  */
 export function excludeUnpriceableModels(models: ImageModel[]): {
   models: ImageModel[];
@@ -666,20 +670,13 @@ export function excludeUnpriceableModels(models: ImageModel[]): {
   const kept: ImageModel[] = [];
   const exclusions: CatalogExclusion[] = [];
   for (const model of models) {
-    const chargeable = model.resolutions.every(
-      (resolution) =>
-        creditsPerImageCents(model.price, {
-          aspectRatio: model.aspectRatios[0] ?? "1:1",
-          resolution,
-        }) !== null,
-    );
-    if (chargeable && model.resolutions.length > 0) {
+    if (!isUnchargeableModel(model)) {
       kept.push(model);
       continue;
     }
     exclusions.push({
       endpointId: model.generateEndpoint,
-      reason: `Priced by ${model.price.unit}, which does not describe one image, and no override supplies a per-image figure.`,
+      reason: unchargeableReason(model),
     });
   }
   return { models: kept, exclusions };

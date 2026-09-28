@@ -16,6 +16,8 @@ const {
   readAssetBytesMock,
   requireProjectAccessMock,
   createTaskEventTransactionMock,
+  jobAggregateMock,
+  getBalanceMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -32,6 +34,14 @@ const {
   readAssetBytesMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
+  jobAggregateMock: vi.fn(),
+  getBalanceMock: vi.fn(),
+}));
+
+// The submit-time balance check: read-only, and not what this suite is about.
+// Money is covered end to end in `image-studio-credits.test.ts`.
+vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: { getBalance: getBalanceMock },
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -46,6 +56,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     projectImageJob: {
+      aggregate: jobAggregateMock,
       count: jobCountMock,
       create: jobCreateMock,
       findUnique: jobFindUniqueMock,
@@ -99,7 +110,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   createImageJob,
-  readPngDimensions,
+  readProviderSize,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
 
@@ -168,6 +179,9 @@ describe("image studio job submission", () => {
       organizationId: null,
     });
     createTaskEventTransactionMock.mockResolvedValue("txn-debit-1");
+    jobAggregateMock.mockResolvedValue({ _sum: { chargedCents: null } });
+    // Plenty, so nothing here is refused for money.
+    getBalanceMock.mockResolvedValue(10_000_000_000_000n);
     jobCountMock.mockResolvedValue(0);
     jobFindUniqueMock.mockResolvedValue(null);
     jobCreateMock.mockImplementation(async () => jobRow());
@@ -491,16 +505,22 @@ describe("stalled submission sweep", () => {
   });
 });
 
-describe("readPngDimensions", () => {
-  it("reads width and height from a PNG header", () => {
-    const bytes = new Uint8Array(24);
-    bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-    new DataView(bytes.buffer).setUint32(16, 1024);
-    new DataView(bytes.buffer).setUint32(20, 768);
-    expect(readPngDimensions(bytes)).toEqual({ width: 1024, height: 768 });
+describe("readProviderSize", () => {
+  it("takes the provider's figures when it reports them", () => {
+    expect(readProviderSize({ width: 1344, height: 768 })).toEqual({
+      width: 1344,
+      height: 768,
+    });
   });
 
-  it("returns null for anything that is not a PNG", () => {
-    expect(readPngDimensions(new Uint8Array([1, 2, 3]))).toBeNull();
+  it("refuses a size the provider did not really give", () => {
+    // fal sends nulls for endpoints that report nothing, and the shape allows
+    // anything. A half-reported size must not be stored as `1024x0`.
+    expect(readProviderSize(undefined)).toBeNull();
+    expect(readProviderSize({ width: null, height: null })).toBeNull();
+    expect(readProviderSize({ width: 1024, height: null })).toBeNull();
+    expect(readProviderSize({ width: 0, height: 0 })).toBeNull();
+    expect(readProviderSize({ width: -1, height: 10 })).toBeNull();
+    expect(readProviderSize({ width: 10.5, height: 10 })).toBeNull();
   });
 });
