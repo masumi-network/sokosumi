@@ -2,7 +2,7 @@
 /**
  * Create Vercel git deployments from GitHub Actions.
  *
- *   node scripts/ci/vercel-deploy.mjs preview     # PR opened (pull_request_target, human, same-repo) or `/deploy` comment
+ *   node scripts/ci/vercel-deploy.mjs preview     # `/deploy` comment on an open PR
  *
  * Production deploys from Vercel Git on `main` (see apps/web and apps/core vercel.json).
  */
@@ -10,6 +10,11 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+
+import {
+  preparePreviewResources,
+  previewMetadata,
+} from "./preview-resources.ts";
 
 const NETWORKS = ["mainnet", "preprod"];
 const APPS = ["web", "core"];
@@ -56,7 +61,9 @@ export function parseNetworkCommand(body, command) {
 
   const rest = tokens.slice(1).map((token) => token.toLowerCase());
   if (rest.length === 0) {
-    return { kind: "usage" };
+    return command === "/deploy"
+      ? { kind: "run", networks: ["preprod"] }
+      : { kind: "usage" };
   }
 
   const unique = [...new Set(rest)];
@@ -87,7 +94,7 @@ export function isWritePermission(permission) {
 
 export function usageMessage() {
   return [
-    "Usage: `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
+    "Usage: `/deploy` (preprod), `/deploy <mainnet|preprod> [mainnet|preprod]` or `/deploy all`",
     "",
     "`/deploy mainnet`",
     "`/deploy preprod`",
@@ -122,9 +129,8 @@ export function deployTargets(networks, apps = APPS) {
 /**
  * Repo paths that can change a web/core preview build: the two Vercel apps
  * plus every workspace package (the transitive dependency closure of web and
- * core — currently all of `packages/`). Mirrored as the `paths:` filter on
- * the `pull_request_target` trigger in `.github/workflows/preview-deploy.yml`;
- * the `/deploy` comment flow checks the same prefixes via the PR files API.
+ * core — currently all of `packages/`). The `/deploy` comment flow checks
+ * these prefixes via the PR files API. PR-close cleanup has no path filter.
  */
 export const PREVIEW_RELEVANT_PREFIXES = [
   "apps/web/",
@@ -187,6 +193,7 @@ export async function createGitDeployment({
   repoId,
   ref,
   sha,
+  meta,
   fetchImpl = globalThis.fetch,
 }) {
   const url = new URL("https://api.vercel.com/v13/deployments");
@@ -197,6 +204,7 @@ export async function createGitDeployment({
   const body = {
     name: target.name,
     project: target.projectId,
+    ...(meta ? { meta } : {}),
     gitSource: {
       type: "github",
       repoId,
@@ -216,9 +224,7 @@ export async function createGitDeployment({
 
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(
-      `Vercel deploy failed (${response.status}): ${JSON.stringify(payload)}`,
-    );
+    throw new Error(`Vercel deploy failed (${response.status})`);
   }
   return payload;
 }
@@ -281,7 +287,7 @@ function githubHeaders(token) {
   };
 }
 
-async function githubJson(fetchImpl, token, url, init = {}) {
+export async function githubJson(fetchImpl, token, url, init = {}) {
   const response = await fetchImpl(url, {
     ...init,
     headers: {
@@ -354,6 +360,10 @@ export function previewGitSource(pullRequest, repoId) {
     repoId: repoId ?? pullRequest.base.repo.id,
     ref: pullRequest.head.ref,
     sha: pullRequest.head.sha,
+    meta: previewMetadata({
+      repoId: repoId ?? pullRequest.base.repo.id,
+      pullNumber: pullRequest.number,
+    }),
   };
 }
 
@@ -529,6 +539,11 @@ export async function runPullRequestCommand(options, command) {
     return { kind: "fork" };
   }
 
+  if (pullRequest.state !== "open") {
+    await comment("Preview commands require an open pull request.");
+    return { kind: "closed" };
+  }
+
   try {
     await react("eyes");
     return await command.run({
@@ -581,6 +596,17 @@ export async function runPreviewDeployComment(options) {
         await comment(noPreviewChangesMessage());
         return { kind: "skip" };
       }
+      await (options.prepareResources ?? preparePreviewResources)(
+        {
+          ...options,
+          repoId: repoId ?? pullRequest.base.repo.id,
+          pullNumber: pullRequest.number,
+          ref: pullRequest.head.ref,
+          vercelToken,
+          teamId,
+        },
+        deployTargets(networks),
+      );
       const result = await settlePreviewDeployments({
         networks,
         git: previewGitSource(pullRequest, repoId),
@@ -596,53 +622,11 @@ export async function runPreviewDeployComment(options) {
   });
 }
 
-export async function runPreviewDeployOpened(options) {
-  const {
-    pullRequest,
-    repoId,
-    vercelToken,
-    teamId = VERCEL_TEAM_ID,
-    fetchImpl = globalThis.fetch,
-    createDeployment,
-    pollDeployment,
-  } = options;
-
-  if (pullRequest.user?.type === "Bot") {
-    return { kind: "ignore" };
-  }
-
-  if (!isSameRepoPullRequest(pullRequest)) {
-    return { kind: "fork" };
-  }
-
-  return settlePreviewDeployments({
-    networks: [...NETWORKS],
-    git: previewGitSource(pullRequest, repoId),
-    vercelToken,
-    teamId,
-    fetchImpl,
-    createDeployment,
-    pollDeployment,
-  });
-}
-
-export function isOpenedPreviewEventName(eventName) {
-  return eventName === "pull_request" || eventName === "pull_request_target";
-}
-
 export async function runPreviewFromGithubEvent(options) {
   const { eventName, event, ...rest } = options;
-  if (isOpenedPreviewEventName(eventName)) {
-    if (event.action !== "opened") {
-      return { kind: "ignore" };
-    }
-    return runPreviewDeployOpened({
-      ...rest,
-      pullRequest: event.pull_request,
-      repoId: rest.repoId ?? event.repository?.id,
-    });
+  if (eventName !== "issue_comment" || event.action !== "created") {
+    return { kind: "ignore" };
   }
-
   return runPreviewDeployComment(commentCommandOptions(event, rest));
 }
 
