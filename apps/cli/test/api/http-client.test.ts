@@ -190,6 +190,92 @@ test("PUT preserves Core errors and request IDs while redacting credentials", as
   );
 });
 
+test("Core client sends an explicit organization slug on every HTTP method", async () => {
+  const requests: RequestInit[] = [];
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    organizationSlug: "  developer-team_ab-12  ",
+    fetchImpl: async (_input, init) => {
+      requests.push(init ?? {});
+      return new Response("{}");
+    },
+  });
+
+  await client.get("/v1/tasks");
+  await client.post("/v1/tasks", { description: "Hello" });
+  await client.patch("/v1/tasks/task-1", { name: "Updated" });
+  await client.put("/v1/tasks/task-1/workspace", { organizationId: "org-1" });
+
+  assert.deepEqual(
+    requests.map((request) => request.method),
+    ["GET", "POST", "PATCH", "PUT"],
+  );
+  for (const request of requests) {
+    const headers = new Headers(request.headers);
+    assert.equal(headers.get("x-organization-slug"), "developer-team_ab-12");
+    assert.equal(headers.get("authorization"), "Bearer stored-token");
+  }
+});
+
+test("Core client omits organization selection by default", async () => {
+  let headers: Headers | undefined;
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    fetchImpl: async (_input, init) => {
+      headers = new Headers(init?.headers);
+      return new Response("{}");
+    },
+  });
+  await client.post("/v1/tasks", { description: "Personal Task" });
+  assert.equal(headers?.has("x-organization-slug"), false);
+});
+
+test("Core client rejects unsafe organization slugs before authentication or HTTP", (context) => {
+  const authManager = createManager();
+  const tokenLookup = context.mock.method(
+    authManager,
+    "getAuthTokenAsync",
+    async () => {
+      throw new Error("Unexpected authentication");
+    },
+  );
+  let requests = 0;
+  for (const organizationSlug of [
+    "",
+    "   ",
+    ".",
+    "..",
+    "team/name",
+    "team\\name",
+    "team%20name",
+    "team name",
+    "team\tname",
+    "team\n",
+    "\u200bteam",
+    "team?x=1",
+    "team#other",
+    "équipe",
+  ]) {
+    assert.throws(
+      () =>
+        createCoreHttpClient({
+          apiUrl: "https://api.preprod.sokosumi.com",
+          authManager,
+          organizationSlug,
+          fetchImpl: async () => {
+            requests++;
+            return new Response("{}");
+          },
+        }),
+      /Organization slug must contain only/,
+    );
+  }
+  assert.equal(tokenLookup.mock.callCount(), 0);
+  assert.equal(requests, 0);
+});
+
 test("recursively redacts credential-shaped error fields", async () => {
   const credential = "very-secret-token";
   const nestedAccessToken = "nested-access-token";

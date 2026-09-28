@@ -11,6 +11,7 @@ export interface CoreHttpClientOptions {
   clientId?: string;
   authBaseUrl?: string;
   clientSecret?: string;
+  organizationSlug?: string;
   fetchImpl?: typeof fetch;
 }
 
@@ -19,6 +20,21 @@ export interface CoreHttpClient {
   post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   put<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
+}
+
+export function validateOrganizationSlug(value: string): string {
+  if (typeof value !== "string" || /[\p{Cc}\p{Cf}]/u.test(value)) {
+    throw new Error(
+      "Organization slug must contain only letters, numbers, underscores, or hyphens",
+    );
+  }
+  const slug = value.trim();
+  if (!/^[a-zA-Z0-9_-]+$/u.test(slug)) {
+    throw new Error(
+      "Organization slug must contain only letters, numbers, underscores, or hyphens",
+    );
+  }
+  return slug;
 }
 
 function formatBody(body: unknown): string {
@@ -73,8 +89,14 @@ export function createCoreHttpClient({
   clientId,
   authBaseUrl,
   clientSecret,
+  organizationSlug,
   fetchImpl = fetch,
 }: CoreHttpClientOptions): CoreHttpClient {
+  const selectedOrganizationSlug =
+    organizationSlug === undefined
+      ? undefined
+      : validateOrganizationSlug(organizationSlug);
+
   async function request<T>(
     method: string,
     pathname: string,
@@ -88,6 +110,8 @@ export function createCoreHttpClient({
       environment,
     });
     const headers = new Headers({ Accept: "application/json" });
+    if (selectedOrganizationSlug)
+      headers.set("X-Organization-Slug", selectedOrganizationSlug);
     if (token) headers.set("Authorization", `Bearer ${token}`);
     if (body !== undefined) headers.set("Content-Type", "application/json");
 

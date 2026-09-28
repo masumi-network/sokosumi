@@ -140,6 +140,22 @@ pnpm --filter @sokosumi/cli sokosumi -- --preprod workspaces check ORGANIZATION_
 When false, a platform admin can assign available capacity with `admin assign-seat`.
 An organization owner or admin handles additional capacity in Web billing.
 
+[VERIFIED: `src/cli/index.ts`, `src/api/http-client.ts`; Core `../core/src/middleware/auth.ts`, `../core/src/middleware/organization.ts`]
+Use `--organization-slug WORKSPACE_SLUG` on each organization `tasks` command.
+The CLI sends `X-Organization-Slug`; Core checks membership and Task permissions.
+The flag preserves the selected API target. Without it, Core uses the credential's default context.
+OAuth defaults to the personal Workspace. Selecting a Workspace in the browser does not change the CLI OAuth context.
+
+```bash
+pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id COWORKER_ID --name "Pilot Task" --description "Approved Task brief" --status READY --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
+pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
+```
+
+[VERIFIED: `src/cli/index.ts`]
+Task commands reject `--organization-id` and `--workspace-id` before authentication. Use the Workspace slug instead.
+Other command families reject `--organization-slug`. Connection and Seat checks still take the organization ID.
+
 Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
 `provision`, `register`, and `connect` use Preprod by default when no target is configured.
 These commands work on Preprod only. `coworkers register` requires platform admin
