@@ -190,7 +190,7 @@ function FallbackViewer({
               src={url}
               controls
               preload="metadata"
-              className="max-h-[70dvh] w-full rounded-lg bg-black"
+              className="max-h-[70dvh] w-full rounded-lg bg-scrim-soft"
             />
           ) : isAudio ? (
             <audio
