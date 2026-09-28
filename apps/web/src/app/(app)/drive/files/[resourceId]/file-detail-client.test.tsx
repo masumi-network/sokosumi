@@ -1,5 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
@@ -66,6 +65,7 @@ const resource = {
   category: null,
   tags: [],
   suggestions: [],
+  rejected: [],
   projects: [],
   metadataRevision: 1,
 };
@@ -170,101 +170,111 @@ describe("FileDetailClient", () => {
    * These assert the wiring, not the persistence: the backend half is
    * `tag-removal-one-way-door.postgres.test.ts`.
    */
-  describe("putting a removed tag back", () => {
-    const tagged = {
-      ...resource,
-      metadataRevision: 4,
-      tags: [
-        { id: "fl-1", labelId: "label-commuting", displayName: "Commuting" },
-      ],
-    };
-
-    beforeEach(() => {
+  describe("withdrawing a veto on a label", () => {
+    /**
+     * The manual tag picker used to live here, and removing it closed the only
+     * path in the product that could clear a rejection — so a wrong Remove would
+     * have become permanent. These replace those cases: the veto is still
+     * possible, and it is still undoable, without anyone asserting a label.
+     */
+    it("shows a removed label, so the veto can be seen at all", async () => {
       signedInWithOrg();
-      fetchFileResourceMock.mockResolvedValue(tagged);
-      fetchWorkspaceLabelsMock.mockResolvedValue([
-        {
-          id: "label-commuting",
-          kind: "TAG",
-          displayName: "Commuting",
-          description: null,
-          archived: false,
-          vocabularyVersion: 1,
-        },
-        {
-          id: "label-cycling",
-          kind: "TAG",
-          displayName: "Cycling",
-          description: null,
-          archived: false,
-          vocabularyVersion: 1,
-        },
-      ]);
-    });
-
-    it("offers an add control on a file that has tags", async () => {
-      render(<FileDetailClient resourceId="resource-1" />);
-
-      expect(await screen.findByTestId("add-tag")).toBeInTheDocument();
-    });
-
-    it("asks only for tags, in the file's own scope", async () => {
-      render(<FileDetailClient resourceId="resource-1" />);
-      await userEvent.click(await screen.findByTestId("add-tag"));
-
-      await waitFor(() => expect(fetchWorkspaceLabelsMock).toHaveBeenCalled());
-      // A category offered in a tag picker would be refused by the edit as
-      // the wrong kind, and an organization file must not be asked about
-      // against the personal drive.
-      expect(fetchWorkspaceLabelsMock.mock.calls[0][0]).toEqual({
-        store: { scope: "org", organizationId: "org-7" },
-        kind: "TAG",
-      });
-    });
-
-    it("adds the picked tag against the revision it is holding", async () => {
-      updateFileMetadataMock.mockResolvedValue({
-        ...tagged,
-        metadataRevision: 5,
+      fetchFileResourceMock.mockResolvedValue({
+        ...resource,
+        rejected: [
+          {
+            id: "fl-1",
+            labelId: "wl-1",
+            kind: "TAG",
+            displayName: "Finance",
+            state: "REJECTED",
+            provenance: "MANUAL",
+            evidenceSnippet: null,
+            stale: false,
+          },
+        ],
       });
 
       render(<FileDetailClient resourceId="resource-1" />);
-      await userEvent.click(await screen.findByTestId("add-tag"));
-      await userEvent.click(await screen.findByText("Cycling"));
 
-      await waitFor(() => expect(updateFileMetadataMock).toHaveBeenCalled());
-      expect(updateFileMetadataMock.mock.calls[0][0]).toEqual({
-        store: { scope: "org", organizationId: "org-7" },
-        resourceId: "resource-1",
-        expectedMetadataRevision: 4,
-        addTagLabelIds: ["label-cycling"],
-      });
-    });
-
-    it("does not offer a tag the file already carries", async () => {
-      render(<FileDetailClient resourceId="resource-1" />);
-      await userEvent.click(await screen.findByTestId("add-tag"));
-
-      await waitFor(() => expect(fetchWorkspaceLabelsMock).toHaveBeenCalled());
-      // "Commuting" is on the file, so it appears as a badge and must not
-      // also appear as something to add: picking it would be a no-op the
-      // person cannot tell apart from a failure.
-      expect(await screen.findByText("Cycling")).toBeInTheDocument();
-      expect(screen.getAllByText("Commuting")).toHaveLength(1);
-    });
-
-    it("reloads rather than lying when the revision is stale", async () => {
-      updateFileMetadataMock.mockRejectedValue(new Error("409"));
-
-      render(<FileDetailClient resourceId="resource-1" />);
-      await userEvent.click(await screen.findByTestId("add-tag"));
-      await userEvent.click(await screen.findByText("Cycling"));
-
-      // Same branch as removeTag: the page's revision is from whenever it
-      // last loaded, so a conflict means showing the current state.
-      await waitFor(() =>
-        expect(fetchFileResourceMock.mock.calls.length).toBeGreaterThan(1),
+      // Rejected labels were filtered out of every response, so a removed label
+      // simply vanished and the tombstone barring it was unreachable.
+      const rejected = await waitFor(() =>
+        screen.getByTestId("file-detail-rejected"),
       );
+      expect(within(rejected).getByText("Finance")).toBeVisible();
+    });
+
+    it("withdraws the veto without re-applying the label", async () => {
+      signedInWithOrg();
+      fetchFileResourceMock.mockResolvedValue({
+        ...resource,
+        rejected: [
+          {
+            id: "fl-1",
+            labelId: "wl-1",
+            kind: "TAG",
+            displayName: "Finance",
+            state: "REJECTED",
+            provenance: "MANUAL",
+            evidenceSnippet: null,
+            stale: false,
+          },
+        ],
+      });
+      updateFileMetadataMock.mockResolvedValue({ ...resource, rejected: [] });
+
+      render(<FileDetailClient resourceId="resource-1" />);
+
+      const button = await waitFor(() =>
+        screen.getByTestId("file-detail-allow-again"),
+      );
+      button.click();
+
+      await waitFor(() => {
+        expect(updateFileMetadataMock).toHaveBeenCalled();
+      });
+      const call = updateFileMetadataMock.mock.calls.at(-1)?.[0];
+      // Re-opens the question and answers nothing: no label is added, no state
+      // is set. A person vetoes or withdraws a veto; the model decides.
+      expect(call).toMatchObject({
+        resourceId: "resource-1",
+        expectedMetadataRevision: 1,
+        allowSuggestionsForLabelIds: ["wl-1"],
+      });
+      expect(call).not.toHaveProperty("addTagLabelIds");
+    });
+
+    it("offers no way to add a label by hand", async () => {
+      signedInWithOrg();
+      fetchFileResourceMock.mockResolvedValue({
+        ...resource,
+        rejected: [],
+        tags: [
+          {
+            id: "fl-2",
+            labelId: "wl-2",
+            kind: "TAG",
+            displayName: "Legal",
+            state: "CONFIRMED",
+            provenance: "MODEL",
+            evidenceSnippet: null,
+            stale: false,
+          },
+        ],
+      });
+
+      render(<FileDetailClient resourceId="resource-1" />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("file-detail")).toBeVisible();
+      });
+      // Tagging is the system's job. The vocabulary is curated product data and
+      // the model picks from it; a person's only inputs are a veto and its
+      // withdrawal.
+      expect(screen.queryByTestId("add-tag")).toBeNull();
+      // The veto itself stays.
+      expect(screen.getByRole("button", { name: /Legal/ })).toBeInTheDocument();
     });
   });
   /**
