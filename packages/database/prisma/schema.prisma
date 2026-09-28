@@ -4820,7 +4820,7 @@ model SokoBotEvaluationAllowance {
 // The catalog is derived and holds no source of truth. Every row can be
 // rebuilt by re-indexing from the canonical sources, so dropping it loses
 // derived state (extracted chunks, labels, job history, spend records) and no
-// user data. No pre-existing table is altered by any of the six Files
+// user data. No pre-existing table is altered by any of the eight Files
 // migrations: every column they add belongs to a table they created in the
 // same series, and the only references outward are foreign keys into
 // `workspace` and `project`. So the removal is a drop, not a down-migration.
@@ -4841,17 +4841,32 @@ model SokoBotEvaluationAllowance {
 //     "FileResourceLifecycle", "FileSourceScope", "FileSourceKind",
 //     "FileResultWindowKind";
 //
-//   DELETE FROM "_prisma_migrations" WHERE "migration_name" LIKE '202609271800%';
+//   DELETE FROM "_prisma_migrations" WHERE "migration_name" LIKE '20260928091%';
 //
-// Leave the `pg_trgm` extension in place. `20260927180001_file_catalog`
+// The prefix is deliberate and it is narrow. These folders were restamped to
+// `20260928091001`..`20260928091008` when main landed migrations stamped
+// above the branch's originals, and the pattern moved with them. It read
+// `'202609271800%'`, which after the restamp matches none of these eight and
+// does match main's `20260927180000_image_studio_credits` — so the old line
+// would have deleted somebody else's row and left every one of ours behind.
+// `'20260928091%'` matches these eight and stops short of main's
+// `20260928090000`..`20260928090003`.
+//
+// Leave the `pg_trgm` extension in place. `20260928091001_file_catalog`
 // creates it with IF NOT EXISTS and other work may since have come to depend
 // on it; dropping it is the one step here that can break something outside
 // Files.
 //
 // Checked, not asserted: run against a database carrying the full migration
 // history, the block above drops 14 tables and 12 types, deletes exactly the
-// six `_prisma_migrations` rows, and leaves the other 144 tables and the
+// Files `_prisma_migrations` rows, and leaves the other 144 tables and the
 // `pg_trgm` extension in place.
+//
+// That check was run when this series was six migrations. It is eight now;
+// the table and type counts are unchanged because both later migrations add
+// a column to a table this series already created and create no table and no
+// type — `grep -c "CREATE TABLE\|CREATE TYPE"` returns 0 for each. The row
+// count the DELETE removes is therefore eight rather than six.
 //
 // Uploaded blobs are not touched by any of this. They live in object storage
 // under their own lifecycle, and rows here only point at them.
