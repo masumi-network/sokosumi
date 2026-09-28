@@ -30,6 +30,7 @@ import {
   type ReactElement,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -37,6 +38,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -136,6 +138,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import type { FileStore } from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
   FILES_SORT_ORDER_VALUES,
@@ -383,16 +386,40 @@ function DrivePageWorkspace({
   const isTablesView = viewParam === "tables";
   const tablesArchived = driveNavQuery.archived;
   const isTasksView = viewParam === "tasks";
+  const isAllFilesView = !isTasksView && viewParam === "all";
   const isBrowseView =
     !isTablesView &&
     !isTasksView &&
+    !isAllFilesView &&
     (viewParam === "browse" || folderParam.length > 0);
-  const isRecentsView = !isTablesView && !isTasksView && !isBrowseView;
+  const isRecentsView =
+    !isTablesView && !isTasksView && !isAllFilesView && !isBrowseView;
   const primaryView: DrivePrimaryView = isTablesView
     ? "tables"
-    : isBrowseView || isTasksView
-      ? "browse"
-      : "recents";
+    : isAllFilesView
+      ? "all"
+      : isBrowseView || isTasksView
+        ? "browse"
+        : "recents";
+  /**
+   * One stable object for the All files panel.
+   *
+   * It used to be an inline literal, so its identity changed on every
+   * render of this page — upload progress, the tasks-view search box, a
+   * dialog opening. The panel memoises its search on the store, so each of
+   * those re-ran the search and cleared the reader's bulk selection
+   * mid-edit.
+   */
+  const allFilesOrganizationId =
+    driveStore.scope === "org" ? driveStore.organizationId : null;
+  const allFilesStore = useMemo<FileStore>(
+    () =>
+      allFilesOrganizationId
+        ? { scope: "org", organizationId: allFilesOrganizationId }
+        : { scope: "me" },
+    [allFilesOrganizationId],
+  );
+
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -1725,6 +1752,15 @@ function DrivePageWorkspace({
           archived={tablesArchived}
           key={activeOrganizationId ?? "personal"}
           workspaceId={activeOrganizationId}
+        />
+      ) : isAllFilesView ? (
+        <DriveAllFilesPanel
+          store={allFilesStore}
+          viewMode={layoutMode}
+          isMobile={isMobile}
+          // Global search's "See all files" arrives with the query already
+          // typed; dropping it made the reader type it a second time.
+          initialQuery={searchParams.get("q") ?? ""}
         />
       ) : isRecentsView ? (
         <DriveRecentsPanel

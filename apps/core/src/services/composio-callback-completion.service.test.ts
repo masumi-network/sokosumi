@@ -1,17 +1,25 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
+
 const {
   completeComposioAuthMock,
+  getProjectSocialConnectedAccountMock,
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentUpdateManyMock,
 } = vi.hoisted(() => ({
   completeComposioAuthMock: vi.fn(),
+  getProjectSocialConnectedAccountMock: vi.fn(),
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/clients/composio.client", () => ({
   completeComposioAuth: completeComposioAuthMock,
+  getProjectSocialConnectedAccount: getProjectSocialConnectedAccountMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -32,14 +40,155 @@ describe("completeComposioCallback", () => {
       connectedAccountId: "ca_123",
       toolkitSlug: "twitter",
     });
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
+      id: "ca_123",
+      toolkitSlug: "twitter",
+      authConfigId: "ac_x",
+      connectorUserId: "sokosumi:user:user_123",
+    });
     socialConnectionIntentUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it.each(Object.keys(PROJECT_SOCIAL_PROVIDERS) as ProjectSocialProvider[])(
+    "redeems the pinned %s callback",
+    async (provider) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider,
+        authConfigId: `ac_${provider}`,
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+      });
+      completeComposioAuthMock.mockResolvedValue({
+        connectedAccountId: "ca_123",
+        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+      });
+      getProjectSocialConnectedAccountMock.mockResolvedValue({
+        id: "ca_123",
+        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+        authConfigId: `ac_${provider}`,
+        connectorUserId: "sokosumi:user:user_123",
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).resolves.toBeUndefined();
+      expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
+        where: expect.objectContaining({
+          provider,
+          authConfigId: `ac_${provider}`,
+          initiatingUserId: "user_123",
+          callbackRedeemedAt: null,
+        }),
+        data: { callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z") },
+      });
+    },
+  );
+
+  it.each([
+    { toolkitSlug: "instagram" },
+    { authConfigId: "ac_other" },
+    { connectorUserId: "sokosumi:user:user_other" },
+    { id: "ca_other" },
+  ])(
+    "rejects account metadata differing from the pinned callback: %j",
+    async (changed) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider: "x",
+        authConfigId: "ac_x",
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+      });
+      getProjectSocialConnectedAccountMock.mockResolvedValue({
+        id: "ca_123",
+        toolkitSlug: "twitter",
+        authConfigId: "ac_x",
+        connectorUserId: "sokosumi:user:user_123",
+        ...changed,
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).rejects.toThrow("Unknown or expired connection");
+      expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a callback toolkit from another provider", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue({
+      initiatingUserId: "user_123",
+      provider: "instagram",
+      authConfigId: "ac_instagram",
+      callbackRedeemedAt: null,
+      expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+      project: { closingAt: null, closedAt: null },
+    });
+    const { completeComposioCallback } = await import(
+      "./composio-callback-completion.service"
+    );
+    await expect(
+      completeComposioCallback({
+        connectionId: "ca_123",
+        sessionUri: "single-use",
+        userId: "user_123",
+      }),
+    ).rejects.toThrow("Unknown or expired connection");
+    expect(getProjectSocialConnectedAccountMock).not.toHaveBeenCalled();
+    expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { provider: "unsupported" },
+    { callbackRedeemedAt: new Date("2026-09-03T10:00:00.000Z") },
+    { expiresAt: new Date("2026-09-03T09:59:59.000Z") },
+  ])(
+    "rejects invalid local callback state before spending its session: %j",
+    async (changed) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider: "x",
+        authConfigId: "ac_x",
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+        ...changed,
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).rejects.toThrow("Unknown or expired connection");
+      expect(completeComposioAuthMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("redeems a live Project social callback for its initiating human", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue({
       connectionId: "ca_123",
       initiatingUserId: "user_123",
       provider: "x",
+      authConfigId: "ac_x",
+      callbackRedeemedAt: null,
       project: { closingAt: null, closedAt: null },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
@@ -64,6 +213,8 @@ describe("completeComposioCallback", () => {
         connectionId: "ca_123",
         initiatingUserId: "user_123",
         provider: "x",
+        authConfigId: "ac_x",
+        callbackRedeemedAt: null,
         expiresAt: { gt: new Date("2026-09-03T10:00:00.000Z") },
         project: { closingAt: null, closedAt: null },
       },
@@ -78,6 +229,8 @@ describe("completeComposioCallback", () => {
       connectionId: "ca_123",
       initiatingUserId: "user_123",
       provider: "x",
+      authConfigId: "ac_x",
+      callbackRedeemedAt: null,
       project: { closingAt: null, closedAt: null },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
@@ -100,6 +253,8 @@ describe("completeComposioCallback", () => {
       connectionId: "ca_123",
       initiatingUserId: "user_123",
       provider: "x",
+      authConfigId: "ac_x",
+      callbackRedeemedAt: null,
       project: { closingAt: null, closedAt: null },
       expiresAt: new Date("2026-09-03T10:15:00.000Z"),
     });
@@ -142,6 +297,8 @@ describe("completeComposioCallback", () => {
       socialConnectionIntentFindUniqueMock.mockResolvedValue({
         initiatingUserId: "user_123",
         provider: "x",
+        authConfigId: "ac_x",
+        callbackRedeemedAt: null,
         expiresAt: new Date("2026-09-03T10:15:00Z"),
         project: { closingAt: null, closedAt: null, [field]: new Date() },
       });
@@ -163,6 +320,8 @@ describe("completeComposioCallback", () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue({
       initiatingUserId: "user_123",
       provider: "x",
+      authConfigId: "ac_x",
+      callbackRedeemedAt: null,
       expiresAt: new Date("2026-09-03T10:15:00Z"),
       project: { closingAt: null, closedAt: null },
     });

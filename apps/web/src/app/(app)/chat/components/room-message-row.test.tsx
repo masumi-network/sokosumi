@@ -1939,7 +1939,7 @@ describe("ChatMessageRow", () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("renders inline editor when isEditing without Save/Cancel buttons", () => {
+  it("shows enabled Save and Cancel controls while editing a changed draft", () => {
     renderRow({
       message: userMessage({ content: "Original" }),
       currentUserId: "user-1",
@@ -1954,12 +1954,119 @@ describe("ChatMessageRow", () => {
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveTextContent("Original fixed");
     expect(screen.queryByText("Original")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit.save" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit.cancel" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeEnabled();
+  });
+
+  it("saves through the Save control and cancels through the Cancel control", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit.save" }));
+    expect(onSaveEdit).toHaveBeenCalledTimes(1);
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+    expect(onCancelEdit).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit.cancel" }));
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the Save control disabled while the draft is unchanged", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeEnabled();
+  });
+
+  it("keeps the Save control disabled over the length limit", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "x".repeat(10_001),
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+  });
+
+  it("disables both controls while the edit is saving", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+      isSavingEdit: true,
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeDisabled();
+  });
+
+  it("inserts a newline on Enter instead of saving on touch devices", () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    const onSaveEdit = vi.fn();
+
+    try {
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original fixed",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit: vi.fn(),
+        onSaveEdit,
+      });
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      fireEvent.keyDown(editor, { key: "Enter" });
+
+      expect(onSaveEdit).not.toHaveBeenCalled();
+      expect(editor.querySelector("br")).not.toBeNull();
+    } finally {
+      matchMediaSpy.mockRestore();
+    }
   });
 
   it("places the caret at the end of the draft when edit mode opens", () => {
@@ -2182,7 +2289,7 @@ describe("ChatMessageRow", () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("saves on Ctrl+Enter as an alias while editing", async () => {
+  it("inserts a newline on Ctrl+Enter instead of saving while editing", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
 
@@ -2197,9 +2304,11 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByRole("textbox").focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
     await user.keyboard("{Control>}{Enter}{/Control}");
-    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(editor.querySelector("br")).not.toBeNull();
   });
 
   it("chips a roster User mention in the edit composer", () => {

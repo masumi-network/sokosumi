@@ -1,15 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
+
 const {
-  deleteProjectXConnectionIntentMock,
-  getConnectedXIdentityMock,
+  deleteProjectSocialConnectionIntentMock,
+  getConnectedSocialIdentityMock,
   lockCalendarScopeMock,
   getEnvMock,
-  getProjectXConnectedAccountMock,
+  getProjectSocialConnectedAccountMock,
   getWebAppBaseUrlMock,
-  initiateProjectXConnectionMock,
+  initiateProjectSocialConnectionMock,
   projectFindFirstMock,
-  revokeProjectXConnectionMock,
+  revokeProjectSocialConnectionMock,
   socialConnectionAuditCreateMock,
   socialConnectionAuditFindFirstMock,
   socialConnectionAuditUpdateMock,
@@ -24,15 +29,15 @@ const {
   socialConnectionUpdateMock,
   transactionMock,
 } = vi.hoisted(() => ({
-  deleteProjectXConnectionIntentMock: vi.fn(),
-  getConnectedXIdentityMock: vi.fn(),
+  deleteProjectSocialConnectionIntentMock: vi.fn(),
+  getConnectedSocialIdentityMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   getEnvMock: vi.fn(),
-  getProjectXConnectedAccountMock: vi.fn(),
+  getProjectSocialConnectedAccountMock: vi.fn(),
   getWebAppBaseUrlMock: vi.fn(),
-  initiateProjectXConnectionMock: vi.fn(),
+  initiateProjectSocialConnectionMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
-  revokeProjectXConnectionMock: vi.fn(),
+  revokeProjectSocialConnectionMock: vi.fn(),
   socialConnectionAuditCreateMock: vi.fn(),
   socialConnectionAuditFindFirstMock: vi.fn(),
   socialConnectionAuditUpdateMock: vi.fn(),
@@ -48,12 +53,13 @@ const {
   transactionMock: vi.fn(),
 }));
 
-vi.mock("@/clients/composio.client", () => ({
-  deleteProjectXConnectionIntent: deleteProjectXConnectionIntentMock,
-  getConnectedXIdentity: getConnectedXIdentityMock,
-  getProjectXConnectedAccount: getProjectXConnectedAccountMock,
-  initiateProjectXConnection: initiateProjectXConnectionMock,
-  revokeProjectXConnection: revokeProjectXConnectionMock,
+vi.mock("@/clients/composio.client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/composio.client")>()),
+  deleteProjectSocialConnectionIntent: deleteProjectSocialConnectionIntentMock,
+  getConnectedSocialIdentity: getConnectedSocialIdentityMock,
+  getProjectSocialConnectedAccount: getProjectSocialConnectedAccountMock,
+  initiateProjectSocialConnection: initiateProjectSocialConnectionMock,
+  revokeProjectSocialConnection: revokeProjectSocialConnectionMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -153,18 +159,18 @@ describe("project social connections service", () => {
     getEnvMock.mockReturnValue({ COMPOSIO_X_AUTH_CONFIG_ID: "ac_x" });
     getWebAppBaseUrlMock.mockReturnValue("https://app.sokosumi.com");
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
-    initiateProjectXConnectionMock.mockResolvedValue({
+    initiateProjectSocialConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
     });
-    getProjectXConnectedAccountMock.mockResolvedValue({
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
       id: CONNECTION_ID,
       status: "ACTIVE",
       toolkitSlug: "twitter",
       authConfigId: "ac_x",
       connectorUserId: `sokosumi:user:${USER_ID}`,
     });
-    getConnectedXIdentityMock.mockResolvedValue({
+    getConnectedSocialIdentityMock.mockResolvedValue({
       id: "123",
       handle: "sokosumi",
     });
@@ -185,6 +191,348 @@ describe("project social connections service", () => {
       async (callback: (tx: typeof transactionClient) => Promise<unknown>) =>
         callback(transactionClient),
     );
+  });
+
+  const providers = Object.keys(
+    PROJECT_SOCIAL_PROVIDERS,
+  ) as ProjectSocialProvider[];
+
+  it.each(providers)(
+    "initiates %s with its configured OAuth credentials",
+    async (provider) => {
+      const { authConfigEnv } = PROJECT_SOCIAL_PROVIDERS[provider];
+      getEnvMock.mockReturnValue({ [authConfigEnv]: `ac_${provider}` });
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+
+      await initiateProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        action: "connect",
+        provider,
+      });
+
+      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authConfigId: `ac_${provider}`,
+          connectorUserId: `sokosumi:user:${USER_ID}`,
+          executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        }),
+      );
+      expect(socialConnectionIntentCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          provider,
+          authConfigId: `ac_${provider}`,
+        }),
+      });
+    },
+  );
+
+  it.each(providers)(
+    "does not provision OAuth credentials for unconfigured %s",
+    async (provider) => {
+      getEnvMock.mockReturnValue({});
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        initiateProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          action: "connect",
+          provider,
+        }),
+      ).rejects.toThrow(PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv);
+      expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(providers)(
+    "finalizes %s using its pinned intent and provider identity",
+    async (provider) => {
+      const intent = {
+        ...createIntent("connect"),
+        provider,
+        authConfigId: `ac_${provider}`,
+      };
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+        intent,
+      );
+      getProjectSocialConnectedAccountMock.mockResolvedValue({
+        id: CONNECTION_ID,
+        status: "ACTIVE",
+        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+        authConfigId: `ac_${provider}`,
+        connectorUserId: `sokosumi:user:${USER_ID}`,
+      });
+      socialConnectionCreateMock.mockResolvedValue({
+        ...socialConnection,
+        provider,
+        status: "active",
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+
+      await expect(
+        finalizeProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          connectionId: CONNECTION_ID,
+        }),
+      ).resolves.toMatchObject({ provider, status: "active" });
+      expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
+        provider,
+        connectedAccountId: CONNECTION_ID,
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+      });
+      expect(socialConnectionCreateMock).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          provider,
+          activeExternalAccountKey: `${provider}:123`,
+        }),
+      });
+    },
+  );
+
+  it.each(providers)(
+    "derives reconnect and replacement OAuth for stored %s",
+    async (provider) => {
+      const { initiateProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      getEnvMock.mockReturnValue({
+        [PROJECT_SOCIAL_PROVIDERS[provider].authConfigEnv]: `ac_${provider}`,
+      });
+      for (const action of ["reconnect", "replace"] as const) {
+        socialConnectionFindFirstMock.mockResolvedValue({
+          ...socialConnection,
+          provider,
+        });
+        await initiateProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          action,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        });
+        expect(initiateProjectSocialConnectionMock).toHaveBeenLastCalledWith(
+          expect.objectContaining({ authConfigId: `ac_${provider}` }),
+        );
+        expect(socialConnectionIntentCreateMock).toHaveBeenLastCalledWith({
+          data: expect.objectContaining({
+            provider,
+            action,
+            authConfigId: `ac_${provider}`,
+          }),
+        });
+      }
+    },
+  );
+
+  it.each(providers)(
+    "finalizes reconnect and replacement for %s",
+    async (provider) => {
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      for (const action of ["reconnect", "replace"] as const) {
+        const intent = {
+          ...createIntent(action),
+          provider,
+          authConfigId: `ac_${provider}`,
+        };
+        const target = {
+          ...socialConnection,
+          provider,
+          status:
+            action === "replace" ? "disconnected" : "reauthorization_required",
+        };
+        socialConnectionIntentFindUniqueMock.mockResolvedValue(intent);
+        socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+          intent,
+        );
+        socialConnectionFindFirstMock
+          .mockResolvedValueOnce(target)
+          .mockResolvedValueOnce(null);
+        getProjectSocialConnectedAccountMock.mockResolvedValue({
+          id: CONNECTION_ID,
+          status: "ACTIVE",
+          toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+          authConfigId: `ac_${provider}`,
+          connectorUserId: `sokosumi:user:${USER_ID}`,
+        });
+        socialConnectionCreateMock.mockResolvedValue({
+          ...target,
+          status: "active",
+        });
+        socialConnectionUpdateMock.mockResolvedValue({
+          ...target,
+          status: "active",
+        });
+        await expect(
+          finalizeProjectSocialConnection({
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            userId: USER_ID,
+            connectionId: CONNECTION_ID,
+          }),
+        ).resolves.toMatchObject({ provider, status: "active" });
+        expect(getConnectedSocialIdentityMock).toHaveBeenLastCalledWith({
+          provider,
+          connectedAccountId: CONNECTION_ID,
+          executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        });
+      }
+    },
+  );
+
+  it("does not retire a replacement target whose provider changes during locking", async () => {
+    socialConnectionFindFirstMock
+      .mockResolvedValueOnce(socialConnection)
+      .mockResolvedValueOnce({ ...socialConnection, provider: "instagram" });
+    const { initiateProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    await expect(
+      initiateProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        action: "replace",
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+      }),
+    ).rejects.toThrow("provider changed");
+    expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+  });
+
+  it.each(providers)(
+    "lists and disconnects stored %s accounts",
+    async (provider) => {
+      const record = { ...socialConnection, provider, status: "active" };
+      socialConnectionFindManyMock.mockResolvedValue([record]);
+      socialConnectionFindFirstMock.mockResolvedValue(record);
+      socialConnectionFindUniqueMock.mockResolvedValue(record);
+      getProjectSocialConnectedAccountMock.mockResolvedValue({
+        id: "ca_old",
+        status: "ACTIVE",
+        toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
+      });
+      const {
+        listProjectSocialConnections,
+        disconnectProjectSocialConnection,
+      } = await import("./project-social-connections.service");
+      await expect(
+        listProjectSocialConnections({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+        }),
+      ).resolves.toMatchObject([{ provider, status: "active" }]);
+      socialConnectionFindFirstMock
+        .mockResolvedValueOnce(record)
+        .mockResolvedValueOnce(null);
+      await expect(
+        disconnectProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+        }),
+      ).resolves.toMatchObject({
+        connection: { provider, status: "disconnected" },
+        providerRevocation: "succeeded",
+      });
+      expect(revokeProjectSocialConnectionMock).toHaveBeenCalledWith({
+        connectedAccountId: "ca_old",
+      });
+    },
+  );
+
+  it.each(["reconnect", "replace"] as const)(
+    "rejects a %s target from another provider even with the same identity id",
+    async (action) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(
+        createIntent(action),
+      );
+      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+        createIntent(action),
+      );
+      socialConnectionFindFirstMock.mockResolvedValue({
+        ...socialConnection,
+        provider: "instagram",
+        status:
+          action === "replace" ? "disconnected" : "reauthorization_required",
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        finalizeProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          connectionId: CONNECTION_ID,
+        }),
+      ).rejects.toThrow("provider must match");
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+      expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(["provider", "authConfigId"] as const)(
+    "rejects an intent whose %s changes during identity lookup",
+    async (field) => {
+      socialConnectionIntentFindUniqueMock.mockResolvedValue(
+        createIntent("connect"),
+      );
+      socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue({
+        ...createIntent("connect"),
+        [field]: field === "provider" ? "instagram" : "ac_other",
+      });
+      const { finalizeProjectSocialConnection } = await import(
+        "./project-social-connections.service"
+      );
+      await expect(
+        finalizeProjectSocialConnection({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          connectionId: CONNECTION_ID,
+        }),
+      ).rejects.toThrow("Unknown or expired connection");
+      expect(socialConnectionCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a connected account toolkit that differs from the intent provider", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("connect"),
+    );
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
+      id: CONNECTION_ID,
+      status: "ACTIVE",
+      toolkitSlug: "instagram",
+      authConfigId: "ac_x",
+      connectorUserId: `sokosumi:user:${USER_ID}`,
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).rejects.toThrow("Unknown or expired connection");
+    expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
   });
 
   it.each(["closingAt", "closedAt"])(
@@ -215,13 +563,13 @@ describe("project social connections service", () => {
           connectionId: CONNECTION_ID,
         }),
       ).rejects.toThrow("closing or closed");
-      expect(initiateProjectXConnectionMock).not.toHaveBeenCalled();
+      expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(socialConnectionCreateMock).not.toHaveBeenCalled();
     },
   );
 
   it("revokes an unreturned link when close wins during provider initiation", async () => {
-    initiateProjectXConnectionMock.mockImplementation(async () => {
+    initiateProjectSocialConnectionMock.mockImplementation(async () => {
       projectFindFirstMock.mockResolvedValue({
         id: PROJECT_ID,
         closingAt: new Date(),
@@ -244,7 +592,7 @@ describe("project social connections service", () => {
       }),
     ).rejects.toThrow("closing or closed");
     expect(socialConnectionIntentCreateMock).not.toHaveBeenCalled();
-    expect(deleteProjectXConnectionIntentMock).toHaveBeenCalledWith({
+    expect(deleteProjectSocialConnectionIntentMock).toHaveBeenCalledWith({
       connectedAccountId: CONNECTION_ID,
     });
   });
@@ -253,7 +601,7 @@ describe("project social connections service", () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("connect"),
     );
-    getConnectedXIdentityMock.mockImplementation(async () => {
+    getConnectedSocialIdentityMock.mockImplementation(async () => {
       projectFindFirstMock.mockResolvedValue({
         id: PROJECT_ID,
         closingAt: new Date(),
@@ -297,7 +645,7 @@ describe("project social connections service", () => {
       where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
       select: { id: true, closingAt: true, closedAt: true },
     });
-    expect(initiateProjectXConnectionMock).toHaveBeenCalledWith({
+    expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
       authConfigId: "ac_x",
       connectorUserId: "sokosumi:user:user_123",
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
@@ -334,7 +682,7 @@ describe("project social connections service", () => {
       }),
     ).rejects.toThrow("Unknown or expired connection");
 
-    expect(getProjectXConnectedAccountMock).not.toHaveBeenCalled();
+    expect(getProjectSocialConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionIntentDeleteMock).not.toHaveBeenCalled();
   });
 
@@ -356,7 +704,7 @@ describe("project social connections service", () => {
       }),
     ).rejects.toThrow("Unknown or expired connection");
 
-    expect(getProjectXConnectedAccountMock).not.toHaveBeenCalled();
+    expect(getProjectSocialConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionCreateMock).not.toHaveBeenCalled();
   });
 
@@ -398,7 +746,7 @@ describe("project social connections service", () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("connect"),
     );
-    getProjectXConnectedAccountMock.mockResolvedValue({
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
       id: CONNECTION_ID,
       status: "ACTIVE",
       toolkitSlug: "twitter",
@@ -418,7 +766,7 @@ describe("project social connections service", () => {
       }),
     ).rejects.toThrow("Unknown or expired connection");
 
-    expect(getConnectedXIdentityMock).not.toHaveBeenCalled();
+    expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
     expect(socialConnectionCreateMock).not.toHaveBeenCalled();
   });
 
@@ -493,7 +841,7 @@ describe("project social connections service", () => {
       }),
     ).rejects.toMatchObject({
       status: 409,
-      message: "This X account is already connected to the Project",
+      message: "This social account is already connected to the Project",
     });
   });
 
@@ -505,7 +853,7 @@ describe("project social connections service", () => {
       createIntent("connect"),
     );
     getEnvMock.mockReturnValue({ COMPOSIO_X_AUTH_CONFIG_ID: "ac_changed" });
-    getProjectXConnectedAccountMock.mockResolvedValue({
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
       id: CONNECTION_ID,
       status: "ACTIVE",
       toolkitSlug: "twitter",
@@ -561,12 +909,11 @@ describe("project social connections service", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
-        provider: "x",
         action: "reconnect",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       }),
     ).rejects.toThrow("requires reauthorization");
-    expect(initiateProjectXConnectionMock).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
 
   it("requires a new connect instead of reconnecting a disconnected row", async () => {
@@ -583,7 +930,6 @@ describe("project social connections service", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
-        provider: "x",
         action: "reconnect",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       }),
@@ -604,13 +950,12 @@ describe("project social connections service", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
-        provider: "x",
         action: "replace",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       }),
     ).rejects.toThrow("live connection");
 
-    expect(initiateProjectXConnectionMock).not.toHaveBeenCalled();
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
     expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -629,7 +974,6 @@ describe("project social connections service", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
-        provider: "x",
         action: "replace",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       }),
@@ -669,7 +1013,7 @@ describe("project social connections service", () => {
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
       },
     });
-    expect(revokeProjectXConnectionMock).toHaveBeenCalledWith({
+    expect(revokeProjectSocialConnectionMock).toHaveBeenCalledWith({
       connectedAccountId: "ca_old",
     });
     expect(socialConnectionAuditUpdateMock).toHaveBeenCalledWith({
@@ -681,23 +1025,27 @@ describe("project social connections service", () => {
     );
     expect(
       socialConnectionAuditCreateMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(revokeProjectXConnectionMock.mock.invocationCallOrder[0]!);
+    ).toBeLessThan(
+      revokeProjectSocialConnectionMock.mock.invocationCallOrder[0]!,
+    );
     expect(
-      revokeProjectXConnectionMock.mock.invocationCallOrder[0],
+      revokeProjectSocialConnectionMock.mock.invocationCallOrder[0],
     ).toBeLessThan(
       socialConnectionAuditUpdateMock.mock.invocationCallOrder[0]!,
     );
     expect(
       socialConnectionAuditUpdateMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(initiateProjectXConnectionMock.mock.invocationCallOrder[0]!);
+    ).toBeLessThan(
+      initiateProjectSocialConnectionMock.mock.invocationCallOrder[0]!,
+    );
     expect(
-      initiateProjectXConnectionMock.mock.invocationCallOrder[0],
+      initiateProjectSocialConnectionMock.mock.invocationCallOrder[0],
     ).toBeLessThan(
       socialConnectionIntentCreateMock.mock.invocationCallOrder[0]!,
     );
   });
 
-  it("reconnects only the existing X identity", async () => {
+  it("reconnects only the existing provider identity", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("reconnect"),
     );
@@ -747,7 +1095,7 @@ describe("project social connections service", () => {
     });
   });
 
-  it("rejects a reconnect to a different X identity", async () => {
+  it("rejects a reconnect to a different provider identity", async () => {
     socialConnectionIntentFindUniqueMock.mockResolvedValue(
       createIntent("reconnect"),
     );
@@ -755,7 +1103,7 @@ describe("project social connections service", () => {
     socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
       createIntent("reconnect"),
     );
-    getConnectedXIdentityMock.mockResolvedValue({
+    getConnectedSocialIdentityMock.mockResolvedValue({
       id: "999",
       handle: "other-account",
     });
@@ -819,7 +1167,7 @@ describe("project social connections service", () => {
         providerOutcome: "local_disconnect",
       },
     });
-    expect(revokeProjectXConnectionMock).toHaveBeenCalledWith({
+    expect(revokeProjectSocialConnectionMock).toHaveBeenCalledWith({
       connectedAccountId: "ca_old",
     });
     expect(socialConnectionAuditUpdateMock).toHaveBeenCalledWith({
@@ -847,7 +1195,7 @@ describe("project social connections service", () => {
     socialConnectionAuditCreateMock
       .mockResolvedValueOnce({ id: "audit_retire" })
       .mockResolvedValueOnce({ id: "audit_reconnect" });
-    revokeProjectXConnectionMock.mockRejectedValueOnce(
+    revokeProjectSocialConnectionMock.mockRejectedValueOnce(
       new Error("provider unavailable"),
     );
     const {
@@ -915,7 +1263,7 @@ describe("project social connections service", () => {
     if (!pending) throw new Error("Expected a pending social revocation");
     socialConnectionFindFirstMock.mockResolvedValueOnce(null);
     await revokeProjectSocialConnectionForClose(pending);
-    expect(revokeProjectXConnectionMock).toHaveBeenLastCalledWith({
+    expect(revokeProjectSocialConnectionMock).toHaveBeenLastCalledWith({
       connectedAccountId: "ca_old",
     });
   });
@@ -969,12 +1317,11 @@ describe("project social connections service", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
-      provider: "x",
       action: "replace",
       socialConnectionId: SOCIAL_CONNECTION_ID,
     });
 
-    expect(revokeProjectXConnectionMock).not.toHaveBeenCalled();
+    expect(revokeProjectSocialConnectionMock).not.toHaveBeenCalled();
     expect(socialConnectionFindFirstMock).toHaveBeenLastCalledWith({
       where: {
         composioConnectedAccountId: "ca_old",
@@ -1001,7 +1348,7 @@ describe("project social connections service", () => {
       status: "disconnected",
       activeExternalAccountKey: null,
     });
-    revokeProjectXConnectionMock.mockRejectedValue(
+    revokeProjectSocialConnectionMock.mockRejectedValue(
       new Error("provider failed"),
     );
     const { disconnectProjectSocialConnection } = await import(
@@ -1035,7 +1382,7 @@ describe("project social connections service", () => {
     socialConnectionFindManyMock.mockResolvedValue([
       { ...socialConnection, status: "active" },
     ]);
-    getProjectXConnectedAccountMock.mockResolvedValue({
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
       id: "ca_old",
       status: "ACTIVE",
       toolkitSlug: "twitter",
@@ -1075,7 +1422,7 @@ describe("project social connections service", () => {
       ...socialConnection,
       status: "reauthorization_required",
     });
-    getProjectXConnectedAccountMock.mockResolvedValue({
+    getProjectSocialConnectedAccountMock.mockResolvedValue({
       id: "ca_old",
       status: "EXPIRED",
       toolkitSlug: "twitter",
@@ -1141,7 +1488,7 @@ describe("project social connections service", () => {
         ]),
       }),
     });
-    expect(revokeProjectXConnectionMock).not.toHaveBeenCalled();
+    expect(revokeProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
 
   it("does not duplicate a disconnected connection's pending retirement during close", async () => {
@@ -1173,7 +1520,7 @@ describe("project social connections service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
       },
     };
-    revokeProjectXConnectionMock.mockRejectedValueOnce(
+    revokeProjectSocialConnectionMock.mockRejectedValueOnce(
       new Error("unavailable"),
     );
     await expect(
@@ -1194,7 +1541,7 @@ describe("project social connections service", () => {
     const { revokeProjectSocialConnectionForClose } = await import(
       "./project-social-connections.service"
     );
-    deleteProjectXConnectionIntentMock.mockRejectedValueOnce(
+    deleteProjectSocialConnectionIntentMock.mockRejectedValueOnce(
       new Error("unavailable"),
     );
     await expect(
@@ -1206,7 +1553,7 @@ describe("project social connections service", () => {
     await revokeProjectSocialConnectionForClose({
       connectedAccountId: CONNECTION_ID,
     });
-    expect(deleteProjectXConnectionIntentMock).toHaveBeenCalledWith({
+    expect(deleteProjectSocialConnectionIntentMock).toHaveBeenCalledWith({
       connectedAccountId: CONNECTION_ID,
     });
     expect(socialConnectionIntentDeleteMock).toHaveBeenCalledWith({

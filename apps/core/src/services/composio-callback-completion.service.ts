@@ -1,4 +1,11 @@
-import { completeComposioAuth } from "@/clients/composio.client";
+import {
+  completeComposioAuth,
+  getProjectSocialConnectedAccount,
+} from "@/clients/composio.client";
+import {
+  isProjectSocialProvider,
+  PROJECT_SOCIAL_PROVIDERS,
+} from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 
@@ -20,6 +27,8 @@ export async function completeComposioCallback(input: {
     select: {
       initiatingUserId: true,
       provider: true,
+      authConfigId: true,
+      callbackRedeemedAt: true,
       expiresAt: true,
       project: { select: { closingAt: true, closedAt: true } },
     },
@@ -27,7 +36,8 @@ export async function completeComposioCallback(input: {
   if (socialIntent) {
     if (
       socialIntent.initiatingUserId !== input.userId ||
-      socialIntent.provider !== "x" ||
+      !isProjectSocialProvider(socialIntent.provider) ||
+      socialIntent.callbackRedeemedAt !== null ||
       socialIntent.expiresAt <= new Date() ||
       socialIntent.project.closingAt ||
       socialIntent.project.closedAt
@@ -39,7 +49,21 @@ export async function completeComposioCallback(input: {
       sessionUri: input.sessionUri,
       userId: projectConnectorUserId(input.userId),
     });
-    if (completion.connectedAccountId !== input.connectionId) {
+    const toolkitSlug =
+      PROJECT_SOCIAL_PROVIDERS[socialIntent.provider].toolkitSlug;
+    if (
+      completion.connectedAccountId !== input.connectionId ||
+      completion.toolkitSlug !== toolkitSlug
+    ) {
+      throw notFound("Unknown or expired connection");
+    }
+    const account = await getProjectSocialConnectedAccount(input.connectionId);
+    if (
+      account.id !== input.connectionId ||
+      account.toolkitSlug !== toolkitSlug ||
+      account.authConfigId !== socialIntent.authConfigId ||
+      account.connectorUserId !== projectConnectorUserId(input.userId)
+    ) {
       throw notFound("Unknown or expired connection");
     }
     const redeemedAt = new Date();
@@ -47,7 +71,9 @@ export async function completeComposioCallback(input: {
       where: {
         connectionId: input.connectionId,
         initiatingUserId: input.userId,
-        provider: "x",
+        provider: socialIntent.provider,
+        authConfigId: socialIntent.authConfigId,
+        callbackRedeemedAt: null,
         expiresAt: { gt: redeemedAt },
         project: { closingAt: null, closedAt: null },
       },

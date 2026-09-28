@@ -150,6 +150,41 @@ const baseEnvSchema = z.object({
     .string()
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
+  /**
+   * **On by default**, by an explicit product decision. It was off, on the
+   * grounds that sending document body text to an external provider should
+   * be a decision someone makes rather than a default. That decision has now
+   * been made, and it shipped together with the spend controls rather than
+   * ahead of them: `PER_WORKSPACE_INPUT_TOKENS_PER_DAY` and
+   * `PER_WORKSPACE_USD_PER_DAY` in `lib/files/jev-scheduler.ts`, enforced in
+   * the same admission transaction as the per-minute ceilings.
+   *
+   * Before those existed, the per-minute workspace ceiling sustained for a
+   * day was 2,160,000,000 input tokens — 436× a heavy day's real use. A
+   * default flipped on without a daily bound is how a surprise invoice
+   * happens.
+   *
+   * Reported usage has **not** been reconciled against the ceilings in
+   * `lib/files/jev-request.ts`; that needs live calls we are not authorized
+   * to make. Until recently it could not have been done at all, because the
+   * ceiling counted only the state and missed the transport envelope — ~686
+   * tokens on a relevance call. That was fixed for search, and then an
+   * independent review found it was still wrong for **labels**, which is
+   * the path this branch rewrote: the envelope charged was a rubric that is
+   * never sent, and a 30-label request was under-counted by ~8,300 tokens.
+   * Both paths now measure what actually goes on the wire.
+   *
+   * The honest cost figure to decide from: a label call at the 30-label
+   * maximum measures ~11,200 tokens against a 12,000 ceiling. A search
+   * relevance call is an order of magnitude smaller.
+   *
+   * Disabled means Files ranks with deterministic filename and full-text
+   * order — the product works, it just does not reorder semantically.
+   */
+  FILES_JEV_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
 
   // First-party Soko Bot control plane and Eve runtime.
   SOKO_BOT_ENABLED: z
@@ -173,6 +208,11 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_FACEBOOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_YOUTUBE_AUTH_CONFIG_ID: z.string().min(1).optional(),
   /**
    * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
    * the web, a shell and a persistent workspace. `in-process`: inside Core,
