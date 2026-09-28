@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SUGGESTION_VOCABULARY_MAX } from "@/services/file-suggestions.service";
 import {
   buildJevLabelRequest,
   buildJevRelatedPairRequest,
@@ -422,5 +423,99 @@ describe("the label excerpt, against document volume", () => {
     expect(labelExcerptFromChunks(chunks)).toBe(
       "One short note.\n\nAnd another.",
     );
+  });
+});
+
+describe("the label shortlist cap and the request ceiling", () => {
+  /**
+   * These two numbers have to agree and nothing said so.
+   *
+   * `buildJevLabelRequest` refuses a request it cannot fit, and
+   * `runSuggestionJob` turns that refusal into
+   * `skipped: "request-too-large"`, completes the job, and shows the
+   * reader the same "Uncategorized / No tags yet" that a document the
+   * model considered and declined shows. No error, no reason, nothing
+   * distinguishing "we did not ask" from "we asked and got nothing" —
+   * the defect class this feature has now produced several times.
+   *
+   * It cannot fire today, and that is worth stating precisely rather
+   * than leaving as a live-looking branch. `SUGGESTION_VOCABULARY_MAX`
+   * caps the shortlist at 30, and the request does not refuse until
+   * well past that. Measured on this tree:
+   *
+   * | label content                    | fits | refused at |
+   * | -------------------------------- | ---- | ---------- |
+   * | ordinary names, no descriptions  |  47  |     48     |
+   * | 200-char names, 2,000-char descs |  40  |     41     |
+   *
+   * The ceiling is driven by the *count* of labels, not by the excerpt:
+   * a 220-character excerpt and a 20,000-character one refuse at the
+   * same point, because the excerpt is trimmed to fit and the per-label
+   * questions are not. Label names and descriptions are bounded before
+   * the request is measured, which is why even absurd ones do not move
+   * it much. No label is dropped silently at 30 — all of them are asked.
+   *
+   * So the margin is 10 labels in the worst case, and it is invisible:
+   * nothing in either file mentions the other, and raising the shortlist
+   * cap is an obvious, reasonable-looking change. This is the check that
+   * makes that change fail loudly instead of turning labelling off for
+   * every document with no reason anybody can read.
+   */
+
+  /** Worse than any real label: both fields far past what a person types. */
+  const worstCase = (count: number) =>
+    Array.from({ length: count }, (_, index) => ({
+      id: `label-${index}`,
+      name: `${"N".repeat(200)}${index}`,
+      description: "d".repeat(2_000),
+    }));
+
+  it("fits a full shortlist of worst-case labels", () => {
+    const request = buildJevLabelRequest({
+      documentExcerpt: "word ".repeat(4_000),
+      vocabulary: worstCase(SUGGESTION_VOCABULARY_MAX),
+      projects: [],
+    });
+
+    expect(
+      isJevRequestRejection(request),
+      `A shortlist of ${SUGGESTION_VOCABULARY_MAX} labels no longer fits. ` +
+        `Raising SUGGESTION_VOCABULARY_MAX past what buildJevLabelRequest ` +
+        `can carry does not produce an error — it makes every document ` +
+        `skip labelling with "request-too-large", which the reader sees ` +
+        `as an ordinary empty state. Lower the cap, or make the refusal ` +
+        `visible to the reader before raising it.`,
+    ).toBe(false);
+  });
+
+  it("asks about every label in the shortlist", () => {
+    // The other way this could go quiet: trimming the vocabulary to fit
+    // rather than refusing. It does not, and that is worth pinning —
+    // silently asking about 20 of 30 would be worse than refusing.
+    const request = buildJevLabelRequest({
+      documentExcerpt: "word ".repeat(4_000),
+      vocabulary: worstCase(SUGGESTION_VOCABULARY_MAX),
+      projects: [],
+    });
+
+    expect(isJevRequestRejection(request)).toBe(false);
+    if (isJevRequestRejection(request)) return;
+    expect(request.askedLabels).toHaveLength(SUGGESTION_VOCABULARY_MAX);
+  });
+
+  it("still refuses rather than trimming when the count is too high", () => {
+    /**
+     * The guard above is only meaningful if the ceiling is real. If
+     * `buildJevLabelRequest` ever started dropping labels to make things
+     * fit, the first test would pass at any cap and this whole coupling
+     * would go unchecked.
+     */
+    const request = buildJevLabelRequest({
+      documentExcerpt: "word ".repeat(4_000),
+      vocabulary: worstCase(60),
+      projects: [],
+    });
+
+    expect(isJevRequestRejection(request)).toBe(true);
   });
 });
