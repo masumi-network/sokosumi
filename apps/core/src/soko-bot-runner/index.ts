@@ -106,21 +106,24 @@ async function sandboxTool<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   await callCore("/actions", { name, toolCallId, input });
-  let output: unknown;
-  try {
-    output = await run();
-    return output as T;
-  } catch (error) {
-    output = { error: error instanceof Error ? error.message : "failed" };
-    throw error;
-  } finally {
-    // What the tool returned, clipped: the audit trail of what the bot read.
-    await callCore("/actions/result", {
+  // What the tool returned, clipped: the audit trail of what the bot read.
+  const report = (status: "completed" | "failed", output: unknown) =>
+    callCore("/actions/result", {
       name,
       toolCallId,
+      status,
       output: JSON.stringify(output ?? null).slice(0, ACTION_OUTPUT_LIMIT),
       sources: citableSources(name, output),
     }).catch(() => undefined);
+  try {
+    const output = await run();
+    await report("completed", output);
+    return output;
+  } catch (error) {
+    await report("failed", {
+      error: error instanceof Error ? error.message : "failed",
+    });
+    throw error;
   }
 }
 

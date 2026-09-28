@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { CreditCost, Prisma } from "@sokosumi/database";
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
+import { TaskVisibility } from "@sokosumi/database";
 import type {
   SokoBotContextPacket,
   TurnClassification,
@@ -10,14 +10,15 @@ import {
   sanitizeSokoBotMemoryMarkdown,
 } from "@sokosumi/soko-bot";
 import { convertCentsToCredits } from "@sokosumi/utils";
-import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
-import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import { DAY_MS } from "@/config/constants";
 import { buildCreditsPayload } from "@/helpers/subscription";
+import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
   buildHumanParentTaskVisibilityWhere,
   buildSokoBotOwnerTaskVisibilityWhere,
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { listHireableAgents } from "./agent-search";
 import { buildSourceCoverage } from "./source-coverage";
 
 const LIMITS = {
@@ -80,12 +81,7 @@ const MARKETPLACE_ROUTES = new Set<TurnClassification["route"]>([
   "MIXED",
 ]);
 
-const FINISHED_TASK_STATUSES = [
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.CANCELED,
-];
-const FINISHED_TASK_WINDOW_MS = 7 * 24 * 60 * 60 * 1_000;
+const FINISHED_TASK_WINDOW_MS = 7 * DAY_MS;
 
 type ContextPacketWithoutHash = Omit<SokoBotContextPacket, "hash">;
 
@@ -97,13 +93,6 @@ interface ProjectStatusTask {
 interface ProjectStatusJob {
   projectId: string | null;
   events: readonly { status: string }[];
-}
-
-interface AgentPricingRow {
-  pricingType: string;
-  fixedPricing: {
-    amounts: readonly { amount: bigint; unit: string }[];
-  } | null;
 }
 
 /**
@@ -350,57 +339,6 @@ function projectStatus(
   };
 }
 
-/** What hiring an Agent costs, as the bot reads it before `hire_agent`. */
-export function agentPriceHint(
-  pricing: AgentPricingRow,
-  creditCosts: readonly CreditCost[],
-) {
-  if (pricing.pricingType === "FREE") {
-    return {
-      pricingType: pricing.pricingType,
-      credits: 0,
-      maxCreditsRequired: false,
-      minimumMaxCredits: null,
-    };
-  }
-
-  if (
-    pricing.pricingType !== "FIXED" ||
-    !pricing.fixedPricing ||
-    pricing.fixedPricing.amounts.length === 0
-  ) {
-    return {
-      pricingType: pricing.pricingType,
-      credits: null,
-      maxCreditsRequired: pricing.pricingType === "FIXED",
-      minimumMaxCredits: null,
-    };
-  }
-
-  try {
-    const price = calculateCentsFromMasumiAmountStrings(
-      pricing.fixedPricing.amounts.map((amount) => ({
-        amount: amount.amount.toString(),
-        unit: amount.unit,
-      })),
-      [...creditCosts],
-    );
-    return {
-      pricingType: pricing.pricingType,
-      credits: convertCentsToCredits(price),
-      maxCreditsRequired: true,
-      minimumMaxCredits: convertCentsToCredits(price),
-    };
-  } catch {
-    return {
-      pricingType: pricing.pricingType,
-      credits: null,
-      maxCreditsRequired: true,
-      minimumMaxCredits: null,
-    };
-  }
-}
-
 function finiteNonNegative(value: number | null | undefined): number | null {
   return typeof value === "number" && Number.isFinite(value)
     ? Math.max(0, value)
@@ -586,39 +524,9 @@ export class ContextPacketBuilder {
       referenceId: organizationId ?? input.userId,
       tx: prisma,
     });
-    const agentsPromise = prisma.$transaction(
-      [
-        prisma.agent.findMany({
-          where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
-          orderBy: [{ jobCount: "desc" }, { id: "desc" }],
-          take: LIMITS.agents,
-          select: {
-            id: true,
-            name: true,
-            summary: true,
-            description: true,
-            capabilityName: true,
-            paymentType: true,
-            riskClassification: true,
-            pricing: {
-              select: {
-                pricingType: true,
-                fixedPricing: {
-                  select: {
-                    amounts: { select: { amount: true, unit: true } },
-                  },
-                },
-              },
-            },
-          },
-        }),
-        prisma.agent.count({
-          where: { isShown: true, status: "ONLINE", apiBaseUrl: { not: null } },
-        }),
-        prisma.creditCost.findMany(),
-      ],
-      AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-    );
+    // Only routes that can hire carry the marketplace; the count still goes in.
+    const hiring = MARKETPLACE_ROUTES.has(input.classification.route);
+    const agentsPromise = listHireableAgents(hiring ? LIMITS.agents : 0);
 
     const askedByKind = input.askedByKind ?? "OWNER";
     const [
@@ -689,12 +597,12 @@ export class ContextPacketBuilder {
               ]
             : []),
           {
-            where: { status: { notIn: FINISHED_TASK_STATUSES } },
+            where: { status: { notIn: [...SETTLED_TASK_STATUSES] } },
             take: LIMITS.tasks - LIMITS.finishedTasks,
           },
           {
             where: {
-              status: { in: FINISHED_TASK_STATUSES },
+              status: { in: [...SETTLED_TASK_STATUSES] },
               updatedAt: {
                 gte: new Date(Date.now() - FINISHED_TASK_WINDOW_MS),
               },
@@ -995,7 +903,7 @@ export class ContextPacketBuilder {
               lastDeliveredAt: true,
             },
           });
-    const [agents, agentCount, creditCosts] = agentRead;
+    const { agents, count: agentCount } = agentRead;
     const counts = {
       projects: projectCount,
       tasks: taskCount,
@@ -1148,10 +1056,7 @@ export class ContextPacketBuilder {
         pricing: null,
         trust: "untrusted-data",
       })),
-      agents: (MARKETPLACE_ROUTES.has(input.classification.route)
-        ? agents
-        : []
-      ).map((agent) => ({
+      agents: (hiring ? agents : []).map((agent) => ({
         id: boundedIdentifier(agent.id),
         name: sanitizeText(agent.name, TEXT_LIMITS.name),
         summary: sanitizeText(
@@ -1163,7 +1068,7 @@ export class ContextPacketBuilder {
           source: "fetch-required",
           availableInContext: false,
         },
-        price: agentPriceHint(agent.pricing, creditCosts),
+        price: agent.price,
         paymentType: agent.paymentType,
         riskClassification: agent.riskClassification,
         trust: "untrusted-data",

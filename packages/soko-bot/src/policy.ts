@@ -150,10 +150,10 @@ const DIRECT_READ_CAPABILITIES = [
   "list_project_social_accounts",
   "list_social_posts",
   "get_social_post",
-  // Marketplace look-ups spend nothing; only `hire_agent` does. Without them
-  // "what could this cost?" can't be answered below the hire route's bar.
+  // Reads the marketplace listing in Sokosumi and spends nothing, so "what
+  // could this cost?" is answerable below the hire route's bar. The input
+  // schema stays on the hire route: fetching it calls the seller's server.
   "find_agents",
-  "get_agent_input_schema",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Social posts can publish externally, including edits to already queued content. */
@@ -270,7 +270,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
-    "find_agents",
     "get_agent_input_schema",
     "hire_agent",
     "request_user_decision",

@@ -1,8 +1,9 @@
+import { SOKO_BOT_SANDBOX_CAPABILITIES } from "@sokosumi/soko-bot";
+import { DAY_MS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
 
 const DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export interface SokoBotAutomationCheck {
   /** `standup`, `weekly-wrap`, `mail`, or `schedule` for an owner's own. */
@@ -72,7 +73,13 @@ export async function getSokoBotDailyStats(input: {
       select: { createdAt: true, kind: true },
     }),
     prisma.sokoBotToolCall.findMany({
-      where: { turn: { sokoBotId: bot.id }, createdAt: { gte: since } },
+      where: {
+        turn: { sokoBotId: bot.id },
+        createdAt: { gte: since },
+        // Sokosumi tools only; the sandbox's web and shell reads are recorded
+        // as tool calls too, but are not what this counts.
+        capability: { notIn: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
+      },
       select: { createdAt: true },
     }),
   ]);

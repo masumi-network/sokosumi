@@ -39,6 +39,7 @@ const {
   taskCountMock,
   files,
   images,
+  marketplace,
   jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -123,7 +124,9 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskCountMock: vi.fn(),
+  marketplace: { list: vi.fn(), rate: vi.fn() },
   images: {
+    access: vi.fn(),
     create: vi.fn(),
     getJob: vi.fn(),
     reconcile: vi.fn(),
@@ -243,6 +246,11 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({ list: files.list, put: files.put }));
+vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
+  listHireableAgents: marketplace.list,
+  rateAgentFit: marketplace.rate,
+}));
 vi.mock("@/lib/image-studio/catalog", () => ({
   imageModel: () => ({ id: "gemini-flash" }),
   resolveImageSettings: (_id: string, settings: unknown) => settings,
@@ -252,6 +260,10 @@ vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
 }));
 vi.mock("@/lib/image-studio/image-model", () => ({
   creditsPerImage: images.credits,
+  IMAGE_ASPECT_RATIOS: ["1:1", "16:9"],
+}));
+vi.mock("@/lib/image-studio/access", () => ({
+  requireProjectAccess: images.access,
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
@@ -4751,10 +4763,7 @@ describe("Drive file tools", () => {
   const authorized = {
     turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
   };
-  const service = new SokoBotRuntimeService() as unknown as Record<
-    string,
-    (authorized: unknown, input: unknown) => Promise<unknown>
-  >;
+  const service = new SokoBotRuntimeService();
   beforeEach(() => {
     files.workspace.mockResolvedValue({ id: "personal-workspace" });
     files.adopt.mockResolvedValue({ ran: false });
@@ -4777,7 +4786,9 @@ describe("Drive file tools", () => {
         },
       ],
     });
-    const result = await service.listFiles(authorized, { query: "launch" });
+    const result = await service["listFiles"](authorized as never, {
+      query: "launch",
+    });
     expect(files.search).toHaveBeenCalledWith(
       expect.objectContaining({
         workspaceId: "personal-workspace",
@@ -4798,7 +4809,7 @@ describe("Drive file tools", () => {
           tags: ["Launch"],
           folder: "Marketing",
           passage: "Launch on the 15th",
-          text: "SUCCEEDED",
+          extraction: "SUCCEEDED",
         },
       ],
     });
@@ -4817,7 +4828,7 @@ describe("Drive file tools", () => {
     ]);
     files.chunks.mockResolvedValueOnce([{ text: "One" }, { text: "Two" }]);
     await expect(
-      service.readFile(authorized, { fileId: "file-1" }),
+      service["readFile"](authorized as never, { fileId: "file-1" }),
     ).resolves.toMatchObject({ text: "One\n\nTwo", truncated: false });
     expect(files.chunks).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -4837,7 +4848,7 @@ describe("Drive file tools", () => {
     ]);
     files.chunks.mockResolvedValueOnce([]);
     await expect(
-      service.readFile(authorized, { fileId: "file-2" }),
+      service["readFile"](authorized as never, { fileId: "file-2" }),
     ).resolves.toMatchObject({
       text: "",
       note: "The file is still being processed; its text is not ready yet.",
@@ -4845,7 +4856,7 @@ describe("Drive file tools", () => {
 
     files.loadLive.mockResolvedValueOnce([]);
     await expect(
-      service.readFile(authorized, { fileId: "someone-elses" }),
+      service["readFile"](authorized as never, { fileId: "someone-elses" }),
     ).rejects.toThrow("File not found");
   });
 
@@ -4854,7 +4865,7 @@ describe("Drive file tools", () => {
     files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
     files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
     files.activate.mockResolvedValue({ resourceId: "file-9" });
-    const result = await service.uploadFile(authorized, {
+    const result = await service["uploadFile"](authorized as never, {
       filename: "notes.md",
       content: "Hello",
     });
@@ -4890,24 +4901,22 @@ describe("Content Studio image tools", () => {
       chainDepth: 0,
     },
   };
-  const service = new SokoBotRuntimeService() as unknown as Record<
-    string,
-    (
-      authorized: unknown,
-      input: unknown,
-      toolCallId?: string,
-    ) => Promise<unknown>
-  >;
+  const service = new SokoBotRuntimeService();
+  const generate = (authorized: unknown, input: unknown, callId: string) =>
+    service["generateImage"](authorized as never, input, callId);
   const request = {
     projectId: "project-1",
     prompt: "A calm launch banner",
     maxCredits: 10,
   };
-  beforeEach(() => images.credits.mockReturnValue(4));
+  beforeEach(() => {
+    images.credits.mockReturnValue(4);
+    images.access.mockResolvedValue({ organizationId: null });
+  });
 
   it("starts an image within the price and links to the studio", async () => {
     images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
-    const result = await service.generateImage(ownerChat, request, "call-1");
+    const result = await generate(ownerChat, request, "call-1");
     expect(images.create).toHaveBeenCalledWith(
       expect.objectContaining({
         projectId: "project-1",
@@ -4927,9 +4936,21 @@ describe("Content Studio image tools", () => {
 
   it("declines an image that costs more than it may spend", async () => {
     images.credits.mockReturnValue(25);
+    await expect(generate(ownerChat, request, "call-2")).rejects.toThrow(
+      "costs 25 credits, more than the 10 allowed",
+    );
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("declines a Project the owner cannot open, and an unknown ratio", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.access.mockRejectedValueOnce(new HTTPException(404));
+    await expect(generate(ownerChat, request, "call-5")).rejects.toThrow(
+      "not one your owner can open",
+    );
     await expect(
-      service.generateImage(ownerChat, request, "call-2"),
-    ).rejects.toThrow("costs 25 credits, more than the 10 allowed");
+      generate(ownerChat, { ...request, aspectRatio: "7:3" }, "call-6"),
+    ).rejects.toThrow("Use one of these aspect ratios: 1:1, 16:9");
     expect(images.create).not.toHaveBeenCalled();
   });
 
@@ -4939,7 +4960,7 @@ describe("Content Studio image tools", () => {
     ["another bot", { turn: { ...ownerChat.turn, chainDepth: 1 } }],
   ])("refuses to spend for %s", async (_label, override) => {
     await expect(
-      service.generateImage({ ...ownerChat, ...override }, request, "call-3"),
+      generate({ ...ownerChat, ...override }, request, "call-3"),
     ).rejects.toThrow("only when your owner asks in chat");
     expect(images.create).not.toHaveBeenCalled();
   });
@@ -4949,12 +4970,12 @@ describe("Content Studio image tools", () => {
     images.create.mockRejectedValue(
       new HTTPException(422, { message: "Not enough credits for this image." }),
     );
-    await expect(
-      service.generateImage(ownerChat, request, "call-4"),
-    ).rejects.toThrow("Not enough credits for this image.");
+    await expect(generate(ownerChat, request, "call-4")).rejects.toThrow(
+      "Not enough credits for this image.",
+    );
   });
 
-  it("reports a finished image with a link to that version", async () => {
+  it("reports a finished image, checking access before the provider", async () => {
     images.getJob.mockResolvedValue({
       id: "job-1",
       status: "SUCCEEDED",
@@ -4962,13 +4983,135 @@ describe("Content Studio image tools", () => {
       failureReason: null,
     });
     await expect(
-      service.getImage(ownerChat, { projectId: "project-1", jobId: "job-1" }),
+      service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "job-1",
+      }),
     ).resolves.toEqual({
       jobId: "job-1",
       status: "SUCCEEDED",
       failureReason: null,
       studioUrl: "/studio?projectId=project-1&v=asset-7",
     });
-    expect(images.reconcile).toHaveBeenCalledWith("project-1");
+    expect(images.access.mock.invocationCallOrder[0]).toBeLessThan(
+      images.reconcile.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("returns nothing for a job that is not in the Project", async () => {
+    images.getJob.mockResolvedValue(null);
+    await expect(
+      service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "missing",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("records a refused image as rejected, before anything is reserved", async () => {
+    images.credits.mockReturnValue(25);
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBotTurn: {
+          findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+        },
+        sokoBotToolCall: {
+          findUnique: transactionToolCallFindUniqueMock,
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          updateMany: toolCallUpdateManyMock,
+        },
+      }),
+    );
+    const refusing = new SokoBotRuntimeService();
+    refusing.authorize = vi.fn().mockResolvedValue(ownerChat);
+    await expect(
+      refusing.executeTool({
+        ...SCOPE,
+        capability: "generate_image",
+        toolCallId: "call-image",
+        input: request,
+      }),
+    ).rejects.toThrow("costs 25 credits");
+    expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(toolCallUpdateManyMock.mock.calls[0][0].data).toMatchObject({
+      status: "FAILED",
+      disposition: "REJECTED",
+      operationKey: null,
+    });
+    expect(images.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("find_agents", () => {
+  const listing = (id: string, name: string) => ({
+    id,
+    name,
+    summary: null,
+    description: null,
+    capabilityName: null,
+    paymentType: "Web3CardanoV1",
+    riskClassification: null,
+    price: { pricingType: "FIXED", credits: 30 },
+  });
+  const search = (query: string) =>
+    new SokoBotRuntimeService()["executeAuthorizedTool"]({
+      ...SCOPE,
+      capability: "find_agents",
+      toolCallId: "call-agents",
+      input: { query },
+    } as never);
+
+  beforeEach(() => {
+    marketplace.list.mockResolvedValue({
+      count: 2,
+      agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "find an agent",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["find_agents"],
+      contextSnapshot: { id: "snapshot", packet: { memory: { version: 1 } } },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+  });
+
+  it("returns unrated Agents, and no verdict, when Jev is unavailable", async () => {
+    marketplace.rate.mockResolvedValue(null);
+    const result = await search("write blog posts");
+    expect(result).toMatchObject({
+      agents: [
+        { id: "a", fit: null, price: { credits: 30 } },
+        { id: "b", fit: null },
+      ],
+    });
+    expect(result).not.toHaveProperty("note");
+  });
+
+  it("says plainly that none fits when Jev rated them all low", async () => {
+    marketplace.rate.mockResolvedValue(
+      new Map([
+        ["a", 0.1],
+        ["b", 0.2],
+      ]),
+    );
+    const result = await search("write blog posts");
+    expect(result).toMatchObject({ agents: [] });
+    expect(result).toHaveProperty(
+      "note",
+      expect.stringContaining("No available Agent fits"),
+    );
   });
 });

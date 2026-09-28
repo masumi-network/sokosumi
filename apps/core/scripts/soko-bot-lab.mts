@@ -1,11 +1,13 @@
 /**
  * Headless Soko Bot behaviour lab: runs the shared scenarios against the
- * local stack (Core + Eve + DB) and scores them, without the web UI.
+ * local stack (Core + DB, turns in the sandbox or in process) and scores
+ * them, without the web UI.
  *
  * pnpm --filter core soko-bot:lab -- --label v1
  * pnpm --filter core soko-bot:lab -- --only ambiguous-request,coworker-question
  * pnpm --filter core soko-bot:lab -- --all-versions --label nightly
- * Requires a running Eve runtime and the same .env Core uses.
+ * Requires a running Core and the same .env Core uses. Point it at a lab
+ * bot: --reset clears the Tasks, schedules, files and memory lab turns made.
  */
 
 import { writeFile } from "node:fs/promises";
@@ -16,11 +18,13 @@ import {
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
 import { del } from "@vercel/blob";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import prisma from "@/lib/db/prisma";
 import {
   SYSTEM_TURN_ROUTES,
   systemScheduleRoute,
 } from "@/lib/soko-bot/system-routes";
+import { tombstoneDriveUploadResources } from "@/services/file-catalog.service";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
@@ -124,7 +128,23 @@ async function resetLabState(owner: {
     },
   });
   const files = ids("upload_file").filter((url) => url.startsWith("https://"));
-  if (files.length) await del(files);
+  if (files.length) {
+    await del(files);
+    // The catalog entry goes with the bytes, as a Drive delete does, or the
+    // next version still finds and reads a file that no longer exists.
+    const workspace = await resolveWorkspaceForContextOrNotFound(
+      owner.bot.userId,
+      null,
+      prisma,
+    );
+    await tombstoneDriveUploadResources({
+      workspaceId: workspace.id,
+      scope: "user",
+      pathnames: files.map((url) =>
+        decodeURIComponent(new URL(url).pathname.slice(1)),
+      ),
+    });
+  }
   await sokoBotControlPlane.resetMemory(owner.bot.userId, owner.workspaceId);
   console.log(
     `Reset: archived ${tasks.count} task(s), removed ${schedules.count} schedule(s) and ${files.length} file(s), cleared memory`,

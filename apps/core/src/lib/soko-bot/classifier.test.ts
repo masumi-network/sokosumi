@@ -81,6 +81,43 @@ describe("Jev route selection", () => {
     expect(result.classification.route).toBe("CLARIFY");
   });
 
+  it("keeps a pooled MANAGE_WORK lead to its own write scope", async () => {
+    // Upgrading it to DELEGATE_TASK once gave an unsure "remember this" chat
+    // posts, uploads and mail; a sure MANAGE_WORK vote gets only memory.
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "MEMORY" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: { MANAGE_WORK: 0.62, DELEGATE_TASK: 0.33 },
+          },
+        },
+      }),
+    ).classify("Remember Anna prefers email", EMPTY_CONTEXT);
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "MEMORY",
+    });
+    const granted = capabilitiesForClassification(result.classification);
+    expect(granted).toContain("update_memory");
+    for (const wider of ["post_chat", "run_integration_tool", "create_task"])
+      expect(granted).not.toContain(wider);
+  });
+
+  it("gives a pooled MANAGE_WORK lead reads only when its scope is unsure", async () => {
+    const result = await new JevTurnClassifier(
+      split({ MANAGE_WORK: 0.6, DELEGATE_TASK: 0.35 }, "MANAGE_WORK"),
+    ).classify("Handle the client follow-ups", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("MANAGE_WORK");
+    expect(result.classification.writeScope).toBeUndefined();
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "update_task",
+    );
+  });
+
   it("does all of a confident MIXED request except hiring", async () => {
     const result = await new JevTurnClassifier(
       answering(jevRoute("MIXED")),

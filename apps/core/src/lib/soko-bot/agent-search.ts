@@ -1,5 +1,9 @@
-import { experimental_evaluate, gateway } from "ai";
-import { SOKO_BOT_ROUTE_MODEL } from "./classifier";
+import type { CreditCost, Prisma } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/utils";
+import { AGENT_PRICING_READ_TRANSACTION_OPTIONS } from "@/helpers/agent";
+import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
+import prisma from "@/lib/db/prisma";
+import { askJev } from "./jev";
 
 export interface AgentSearchCandidate {
   id: string;
@@ -78,8 +82,7 @@ export async function rateAgentFit(
   if (candidates.length === 0) return new Map();
   const rated = candidates.slice(0, MAX_RATED_AGENTS);
   try {
-    const result = await experimental_evaluate({
-      model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
+    const answers = await askJev({
       state: {
         request: request.slice(0, FIELD_LENGTH),
         agents: rated.map((agent, index) => ({
@@ -92,26 +95,15 @@ export async function rateAgentFit(
       questions: Object.fromEntries(
         rated.map((_, index) => [
           `agent${index}`,
-          {
-            type: "boolean" as const,
-            instructions: `Can the marketplace Agent listed under key "agent${index}" do what the request asks, judged by its name, capability and summary? A related topic is not enough: it must produce the requested kind of work.`,
-          },
+          `Can the marketplace Agent listed under key "agent${index}" do what the request asks, judged by its name, capability and summary? A related topic is not enough: it must produce the requested kind of work.`,
         ]),
       ),
-      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
-      maxRetries: 1,
-      providerOptions: {
-        gateway: { zeroDataRetention: true, disallowPromptTraining: true },
-      },
+      timeoutMs: TIMEOUT_MS,
     });
-    const answers = result.answers as Record<
-      string,
-      { probability?: number } | undefined
-    >;
     const ratings = new Map<string, number>();
     rated.forEach((agent, index) => {
-      const probability = answers[`agent${index}`]?.probability;
-      if (typeof probability === "number") ratings.set(agent.id, probability);
+      const probability = answers.get(`agent${index}`);
+      if (probability !== undefined) ratings.set(agent.id, probability);
     });
     return ratings;
   } catch (error) {
@@ -120,4 +112,116 @@ export async function rateAgentFit(
     });
     return null;
   }
+}
+
+export interface AgentPricingRow {
+  pricingType: string;
+  fixedPricing: {
+    amounts: readonly { amount: bigint; unit: string }[];
+  } | null;
+}
+
+/** What hiring an Agent costs, as the bot reads it before `hire_agent`. */
+export function agentPriceHint(
+  pricing: AgentPricingRow,
+  creditCosts: readonly CreditCost[],
+) {
+  if (pricing.pricingType === "FREE") {
+    return {
+      pricingType: pricing.pricingType,
+      credits: 0,
+      maxCreditsRequired: false,
+      minimumMaxCredits: null,
+    };
+  }
+
+  if (
+    pricing.pricingType !== "FIXED" ||
+    !pricing.fixedPricing ||
+    pricing.fixedPricing.amounts.length === 0
+  ) {
+    return {
+      pricingType: pricing.pricingType,
+      credits: null,
+      maxCreditsRequired: pricing.pricingType === "FIXED",
+      minimumMaxCredits: null,
+    };
+  }
+
+  try {
+    const price = calculateCentsFromMasumiAmountStrings(
+      pricing.fixedPricing.amounts.map((amount) => ({
+        amount: amount.amount.toString(),
+        unit: amount.unit,
+      })),
+      [...creditCosts],
+    );
+    return {
+      pricingType: pricing.pricingType,
+      credits: convertCentsToCredits(price),
+      maxCreditsRequired: true,
+      minimumMaxCredits: convertCentsToCredits(price),
+    };
+  } catch {
+    return {
+      pricingType: pricing.pricingType,
+      credits: null,
+      maxCreditsRequired: true,
+      minimumMaxCredits: null,
+    };
+  }
+}
+
+/**
+ * Agents the bot can hire: listed, online, and reachable at their own or an
+ * overridden endpoint — the one `toMasumiAgent` resolves, so an Agent
+ * reachable only through its override is findable as well as hireable.
+ */
+export const SOKO_BOT_HIREABLE_AGENT_WHERE: Prisma.AgentWhereInput = {
+  isShown: true,
+  status: "ONLINE",
+  OR: [
+    { apiBaseUrl: { not: null } },
+    { metadataOverride: { apiBaseUrl: { not: null } } },
+  ],
+};
+
+/** Hireable Agents, most used first, with what each costs and their count. */
+export async function listHireableAgents(take: number) {
+  const [agents, count, creditCosts] = await prisma.$transaction(
+    [
+      prisma.agent.findMany({
+        where: SOKO_BOT_HIREABLE_AGENT_WHERE,
+        orderBy: [{ jobCount: "desc" }, { id: "desc" }],
+        take,
+        select: {
+          id: true,
+          name: true,
+          summary: true,
+          description: true,
+          capabilityName: true,
+          paymentType: true,
+          riskClassification: true,
+          pricing: {
+            select: {
+              pricingType: true,
+              fixedPricing: {
+                select: { amounts: { select: { amount: true, unit: true } } },
+              },
+            },
+          },
+        },
+      }),
+      prisma.agent.count({ where: SOKO_BOT_HIREABLE_AGENT_WHERE }),
+      prisma.creditCost.findMany(),
+    ],
+    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
+  );
+  return {
+    count,
+    agents: agents.map((agent) => ({
+      ...agent,
+      price: agentPriceHint(agent.pricing, creditCosts),
+    })),
+  };
 }

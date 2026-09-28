@@ -40,6 +40,13 @@ Optional, per network:
   turns whose prompt Core writes (task-board and delegation events, inbox
   sync, the stand-up and weekly wrap) run on fixed routes in
   `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
+- The agent model is the turn's version model. The default, GPT-6 Luna
+  (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
+  second owner-approved exception (2026-09-29), for the agent role only:
+  owner prompts, Tasks and mail are processed by OpenAI outside the EU, with
+  zero data retention and no prompt training. EU-pinned versions (v19, on
+  Gemini 3.8) stay available, and the lab judge and preview evaluation runs
+  stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
@@ -96,14 +103,20 @@ the old prefix after DB URLs are clean:
   with `scripts/soko-bot-runner-local.mts`, which needs neither.
 - The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
   per-turn token its network proxy injects. Core serves the prompt, executes
-  Sokosumi tools, proxies and meters every model call under the EU policy, and
+  Sokosumi tools, proxies and meters every model call under the model policy
+  (EU pinning, or the owner-approved global agent models above), and
   settles the turn through `soko_bot_runtime_event` and the
   `/sync/soko-bot-turns` drain as before.
 - Turns are bounded by the 15-minute turn deadline and `SOKO_BOT_MAX_STEPS`.
 - Capability scoping, the pinned context snapshot, lease and deadline checks,
   and administrator pause gate every Sokosumi tool call. After a turn reads the
   web or runs a command, outward actions (hire, job input, integrations,
-  uploads, chat posts) are refused until the owner approves.
+  uploads, image generation, chat posts) are refused until the owner approves.
+- Sandbox tools (web search and fetch, bash, the workspace) are recorded as
+  tool-call rows with their clipped output and the pages they give grounds to
+  cite. They have no actor bot, so they are never receipts, and they do not
+  count toward the per-turn tool limit. A turn's answer keeps only links it
+  found or loaded, was given, or that point into Sokosumi.
 
 ## History
 

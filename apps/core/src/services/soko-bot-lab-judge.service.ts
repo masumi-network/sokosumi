@@ -4,7 +4,6 @@ import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
   SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
-  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_SCENARIOS,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
@@ -90,44 +89,6 @@ export function overallScore(verdict: SokoBotJudgeVerdict): number {
   return Math.max(1, Math.min(5, Math.round(capped)));
 }
 
-interface JudgedCall {
-  capability: string;
-  status: string;
-  input: unknown;
-  result: unknown;
-  errorDetail: string | null;
-}
-
-function sandboxToolCalls(
-  events: {
-    type: string;
-    toolName: string | null;
-    toolCallId: string | null;
-    payload: unknown;
-  }[],
-): JudgedCall[] {
-  const field = (payload: unknown, key: string) =>
-    payload && typeof payload === "object"
-      ? (payload as Record<string, unknown>)[key]
-      : undefined;
-  return events
-    .filter((event) => event.type === "actions.requested")
-    .map((requested) => {
-      const result = events.find(
-        (event) =>
-          event.type === "action.result" &&
-          event.toolCallId === requested.toolCallId,
-      );
-      return {
-        capability: requested.toolName ?? "unknown",
-        status: result ? "COMPLETED" : "PENDING",
-        input: field(requested.payload, "input") ?? null,
-        result: field(result?.payload, "output") ?? null,
-        errorDetail: null,
-      };
-    });
-}
-
 async function loadTranscript(turnId: string, userId?: string) {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: { id: turnId, ...(userId ? { userId } : {}) },
@@ -144,7 +105,6 @@ async function loadTranscript(turnId: string, userId?: string) {
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: {
-          toolCallId: true,
           capability: true,
           status: true,
           input: true,
@@ -157,28 +117,13 @@ async function loadTranscript(turnId: string, userId?: string) {
       // reported from context read as invented, because the judge could see
       // no tool that returned them.
       contextSnapshot: { select: { packet: true } },
-      // Sandbox tools (web, shell, workspace) run in the VM. Newer turns also
-      // record them as tool calls; older ones have only the event trail.
-      events: {
-        where: {
-          type: { in: ["actions.requested", "action.result"] },
-          toolName: { in: [...SOKO_BOT_SANDBOX_CAPABILITIES] },
-        },
-        orderBy: { createdAt: "asc" },
-        select: { type: true, toolName: true, toolCallId: true, payload: true },
-      },
     },
   });
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
-  const recorded = new Set(turn.toolCalls.map((call) => call.toolCallId));
-  const sandboxCalls = sandboxToolCalls(
-    turn.events.filter(
-      (event) => !event.toolCallId || !recorded.has(event.toolCallId),
-    ),
-  );
   const runtimeInput = clip(turn.userMessage);
   const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
-  const calls = [...turn.toolCalls, ...sandboxCalls];
+  // Sandbox tools (web, shell, workspace) are tool calls too, in order.
+  const calls = turn.toolCalls;
   const fitted = fitWithinBudget(
     calls.flatMap((call) => [
       clip(call.input),
@@ -245,7 +190,10 @@ export async function generateSokoBotJudgeText(options: {
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
   });
-  assertSokoBotInferenceRegion(result.providerMetadata, options.model);
+  assertSokoBotInferenceRegion(result.providerMetadata, {
+    model: options.model,
+    role: "judge",
+  });
   return result;
 }
 

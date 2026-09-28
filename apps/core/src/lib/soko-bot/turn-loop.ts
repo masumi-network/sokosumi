@@ -7,6 +7,7 @@ import {
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
+import { z } from "zod";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
@@ -353,6 +354,8 @@ async function ownerNarrative(
  * context packet supplied. A fetch that failed is not grounds, even though its
  * own address is in its output.
  */
+const sandboxSources = z.object({ sources: z.array(z.string()) });
+
 async function citationEvidence(turnId: string): Promise<Set<string>> {
   const turn = await prisma.sokoBotTurn.findUnique({
     where: { id: turnId },
@@ -370,9 +373,7 @@ async function citationEvidence(turnId: string): Promise<Set<string>> {
     ...citationsIn(turn?.contextSnapshot?.packet ?? null),
     ...(turn?.toolCalls ?? []).flatMap((call) =>
       isSokoBotSandboxCapability(call.capability)
-        ? citationsIn(
-            (call.result as { sources?: unknown } | null)?.sources ?? [],
-          )
+        ? citationsIn(sandboxSources.safeParse(call.result).data?.sources)
         : citationsIn(call.result),
     ),
   ];

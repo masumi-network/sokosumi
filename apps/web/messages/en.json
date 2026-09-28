@@ -6632,6 +6632,7 @@
           "update_task": "Updating a Task",
           "assign_task": "Assigning a Task",
           "get_task_status": "Checking Task status",
+          "list_tasks": "Looking through your Tasks",
           "find_agents": "Searching Agents",
           "get_agent_input_schema": "Reading Agent inputs",
           "hire_agent": "Hiring an Agent",
@@ -6642,7 +6643,10 @@
           "update_memory": "Updating memory",
           "scratch_read": "Reading notes",
           "scratch_write": "Writing notes",
-          "scratch_list": "Listing notes"
+          "scratch_list": "Listing notes",
+          "read_file": "Reading a file",
+          "generate_image": "Generating an image",
+          "get_image": "Checking an image"
         },
         "composer": {
           "label": "Message",

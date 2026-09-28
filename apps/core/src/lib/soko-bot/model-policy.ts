@@ -35,7 +35,7 @@ const EU_MODELS: Readonly<
 const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set(["openai/gpt-6-luna"]);
 
 /** Whether the agent may run on `model` without EU pinning. */
-export function isSokoBotGlobalAgentModel(model: string): boolean {
+function isSokoBotGlobalAgentModel(model: string): boolean {
   return GLOBAL_AGENT_MODELS.has(model) || sokoBotLabGlobalModels();
 }
 
@@ -50,13 +50,14 @@ export class SokoBotModelPolicyError extends Error {
 }
 
 /** Check the provider response before the SDK can execute returned tool calls. */
-export function sokoBotRegionMiddleware(
-  model: string,
-): LanguageModelMiddleware {
+export function sokoBotRegionMiddleware(options: {
+  model: string;
+  role: SokoBotModelRole;
+}): LanguageModelMiddleware {
   return {
     async wrapGenerate({ doGenerate }) {
       const result = await doGenerate();
-      assertSokoBotInferenceRegion(result.providerMetadata, model);
+      assertSokoBotInferenceRegion(result.providerMetadata, options);
       return result;
     },
     async wrapStream() {
@@ -120,10 +121,10 @@ export function sokoBotModelRequest(options: {
       model: gateway.languageModel(options.model),
       middleware: evaluation
         ? [
-            sokoBotRegionMiddleware(options.model),
+            sokoBotRegionMiddleware(options),
             evaluationMiddleware(options.model, options.role),
           ]
-        : sokoBotRegionMiddleware(options.model),
+        : sokoBotRegionMiddleware(options),
     }),
     maxRetries: 0,
     providerOptions: {
@@ -132,7 +133,11 @@ export function sokoBotModelRequest(options: {
             inferenceRegion: { scope: "zone" as const, geoRegion: "eu" },
             only: [...policy.providers],
           }
-        : {},
+        : GLOBAL_AGENT_MODELS.has(options.model)
+          ? // Outside the EU, the provider must still keep nothing and train
+            // on nothing, as every Jev call already asks.
+            { zeroDataRetention: true, disallowPromptTraining: true }
+          : {},
     },
   };
 }
@@ -196,9 +201,10 @@ export function sokoBotInferenceEvidence(metadata: unknown) {
 /** Missing metadata is not routing proof; explicit contrary evidence is fatal. */
 export function assertSokoBotInferenceRegion(
   metadata: unknown,
-  model: string,
+  options: { model: string; role: SokoBotModelRole },
 ): void {
-  if (isSokoBotGlobalAgentModel(model)) return;
+  if (options.role === "agent" && isSokoBotGlobalAgentModel(options.model))
+    return;
   if (sokoBotInferenceEvidence(metadata).regionStatus === "MISMATCH") {
     throw new SokoBotModelPolicyError();
   }

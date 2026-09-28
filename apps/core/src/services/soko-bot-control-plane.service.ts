@@ -11,12 +11,12 @@ import {
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
+  isSokoBotCapability,
   isSokoBotSilentAnswer,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
-  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
@@ -2177,7 +2177,13 @@ export class SokoBotControlPlane {
             desiredOutcome: true,
             targetIds: true,
             expiresAt: true,
-            originatingTurn: { select: { route: true, classification: true } },
+            originatingTurn: {
+              select: {
+                route: true,
+                classification: true,
+                capabilityNames: true,
+              },
+            },
             decisions: {
               where: { status: "PENDING" },
               select: { id: true },
@@ -2185,9 +2191,11 @@ export class SokoBotControlPlane {
             },
           },
         });
-    // The bot's last word in this conversation: a bare "yes, post it" is only
-    // classifiable against the question it answers. Same scope as the
-    // packet's recent turns.
+    // The bot's last word to the owner in this conversation: a bare "yes,
+    // post it" is only classifiable against the question it answers. Owner
+    // chat turns only — a briefing's text comes from mail, and a "yes" must
+    // not confirm what a stranger wrote into it — and only the newest one, so
+    // a failed turn never lets "yes" reach back to an older offer.
     const previousTurn =
       source === "CHAT" && !requestedByTeammate
         ? await prisma.sokoBotTurn.findFirst({
@@ -2195,8 +2203,7 @@ export class SokoBotControlPlane {
               sokoBotId: bot.id,
               userId: input.userId,
               workspaceId: input.workspaceId,
-              status: "COMPLETED",
-              finalAnswer: { not: null },
+              source: "CHAT",
               createdAt: {
                 gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
               },
@@ -2210,7 +2217,7 @@ export class SokoBotControlPlane {
                 : { chatMentionId: null }),
             },
             orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-            select: { finalAnswer: true },
+            select: { status: true, finalAnswer: true },
           })
         : null;
     const classifierContext = await this.classificationContext(
@@ -2235,7 +2242,10 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(message, {
               ...classifierContext,
-              previousReply: previousTurn?.finalAnswer ?? null,
+              previousReply:
+                previousTurn?.status === "COMPLETED"
+                  ? previousTurn.finalAnswer
+                  : null,
               pendingIntents: pendingIntents.map((intent) => ({
                 id: intent.id,
                 desiredOutcome: intent.desiredOutcome,
@@ -2320,9 +2330,20 @@ export class SokoBotControlPlane {
         );
       }
     }
-    const routeCapabilities = limitSokoBotWrites(
-      capabilitiesForClassification(classification.classification),
-      input.presetRoute?.writes ?? SOKO_BOT_CAPABILITIES,
+    // A confirmed proposal resumes with the tools its own turn had, so a
+    // "yes" to a stand-up's offer cannot reopen the stand-up's full route.
+    const confirmedWrites = pendingIntents
+      .find(
+        (intent) =>
+          intent.id === classification.classification.selectedIntentId,
+      )
+      ?.originatingTurn.capabilityNames.filter(isSokoBotCapability);
+    const writes = input.presetRoute?.writes ?? confirmedWrites;
+    const classified = capabilitiesForClassification(
+      classification.classification,
+    );
+    const routeCapabilities = (
+      writes ? limitSokoBotWrites(classified, writes) : classified
     ).filter(
       (capability) =>
         !input.presetRoute ||
@@ -4386,6 +4407,9 @@ export class SokoBotControlPlane {
                 writeScope: storedWriteScope(failed.classification),
                 reason: "Operator retry on the failed turn's route.",
                 sandbox: failed.capabilityNames.includes("bash"),
+                // The failed turn's own writes: a stand-up's narrower set,
+                // not its route's.
+                writes: failed.capabilityNames.filter(isSokoBotCapability),
               }
             : undefined,
           // A retry replays untrusted text, so it must not replay it with a

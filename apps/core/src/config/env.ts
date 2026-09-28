@@ -240,6 +240,11 @@ const baseEnvSchema = z.object({
     .number()
     .positive()
     .default(50),
+  /**
+   * Local behaviour lab only: any Gateway model may run the agent without EU
+   * pinning. Ignored on every Vercel deployment (see `model-policy.ts`).
+   */
+  SOKO_BOT_LAB_GLOBAL_MODELS: z.enum(["true", "false"]).optional(),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),

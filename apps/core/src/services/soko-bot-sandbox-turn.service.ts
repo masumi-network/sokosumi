@@ -11,7 +11,6 @@ import {
   forbidden,
   internalServerError,
 } from "@/helpers/error";
-import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
 import {
   ACTION_CAPABILITIES,
@@ -23,7 +22,10 @@ import {
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
-import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import {
+  persistedToolResult,
+  sanitizePersistedValue,
+} from "@/lib/soko-bot/persisted-value";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
@@ -183,7 +185,7 @@ export async function recordSandboxAction(
       toolCallId: input.toolCallId,
       capability: input.name,
       inputHash: actionInputHash(input.toolInput ?? null),
-      input: jsonInput(sanitizePersistedValue(input.toolInput ?? null)),
+      input: persistedToolResult(input.toolInput ?? null),
     },
     update: {},
   });
@@ -205,27 +207,30 @@ export async function recordSandboxActionResult(
   input: {
     name: string;
     toolCallId: string;
+    status?: "completed" | "failed";
     output?: string;
     sources?: string[];
   },
 ): Promise<void> {
   await authorizeTurn(claims);
-  // The runner reports a thrown tool as `{"error": …}`.
-  const failed = input.output?.startsWith('{"error":') ?? false;
+  if (!isSokoBotSandboxCapability(input.name))
+    throw forbidden("Not a sandbox tool");
+  const failed = input.status === "failed";
   await prisma.sokoBotToolCall.updateMany({
     where: {
       turnId: claims.turnId,
       toolCallId: input.toolCallId,
+      // Only the row the runner recorded for this tool: a reused call id
+      // must not settle one of Core's own calls.
+      capability: input.name,
       status: "PENDING",
     },
     data: {
       status: failed ? "FAILED" : "COMPLETED",
-      result: jsonInput(
-        sanitizePersistedValue({
-          output: input.output ?? null,
-          sources: input.sources ?? [],
-        }),
-      ),
+      result: persistedToolResult({
+        output: input.output ?? null,
+        sources: input.sources ?? [],
+      }),
       ...(failed ? { errorDetail: input.output?.slice(0, 500) } : {}),
     },
   });
@@ -314,13 +319,19 @@ export async function proxySandboxModelCall(
     }),
   );
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata, version.model);
+    assertSokoBotInferenceRegion(result.providerMetadata, {
+      model: version.model,
+      role: "agent",
+    });
   } catch (error) {
     throw badGateway(
       error instanceof Error ? error.message : "Inference region rejected",
     );
   }
-  if (gatewayRanTool(result.content, "web_search"))
+  if (
+    gatewayRanTool(result.content, "web_search") ||
+    gatewayRanTool(result.content, "perplexity_search")
+  )
     await markUntrusted(log, "web_search");
   return { status: 200, body: text };
 }

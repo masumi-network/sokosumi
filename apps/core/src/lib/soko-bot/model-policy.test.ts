@@ -54,7 +54,10 @@ describe("Soko Bot EU model policy", () => {
           },
         },
       }),
-      middleware: sokoBotRegionMiddleware("google/gemini-3.6-flash"),
+      middleware: sokoBotRegionMiddleware({
+        model: "google/gemini-3.6-flash",
+        role: "agent",
+      }),
     });
     await expect(
       generateText({
@@ -169,7 +172,10 @@ describe("owner-approved global agent models", () => {
       role: "agent",
       model: "openai/gpt-6-luna",
     });
-    expect(request.providerOptions.gateway).toEqual({});
+    expect(request.providerOptions.gateway).toEqual({
+      zeroDataRetention: true,
+      disallowPromptTraining: true,
+    });
     vi.unstubAllEnvs();
   });
 
@@ -201,10 +207,43 @@ describe("owner-approved global agent models", () => {
       },
     };
     expect(() =>
-      assertSokoBotInferenceRegion(usRouting, "openai/gpt-6-luna"),
+      assertSokoBotInferenceRegion(usRouting, {
+        model: "openai/gpt-6-luna",
+        role: "agent",
+      }),
     ).not.toThrow();
     expect(() =>
-      assertSokoBotInferenceRegion(usRouting, "google/gemini-3.8-flash"),
+      assertSokoBotInferenceRegion(usRouting, {
+        model: "google/gemini-3.8-flash",
+        role: "agent",
+      }),
     ).toThrow("not approved");
+  });
+});
+
+describe("lab region bypass", () => {
+  it("still checks the judge's routing with the lab flag on", () => {
+    vi.stubEnv("SOKO_BOT_LAB_GLOBAL_MODELS", "true");
+    vi.stubEnv("VERCEL", "");
+    const usRouting = {
+      gateway: {
+        routing: {
+          modelAttempts: [
+            {
+              providerAttempts: [
+                { provider: "vertex", inferenceEndpoint: { geoRegion: "us" } },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    expect(() =>
+      assertSokoBotInferenceRegion(usRouting, {
+        model: "anthropic/claude-haiku-4.5",
+        role: "judge",
+      }),
+    ).toThrow("not approved");
+    vi.unstubAllEnvs();
   });
 });

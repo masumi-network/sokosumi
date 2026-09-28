@@ -3,26 +3,40 @@ import {
   citationsIn,
   dropUnverifiedLinks,
   normalizeCitation,
+  urlsIn,
 } from "./citations";
 
-const evidence = new Set([
-  normalizeCitation("https://www.token2049.com/singapore"),
-  normalizeCitation("http://example.org/report?page=2"),
-]);
+const evidence = new Set(
+  citationsIn([
+    "https://www.token2049.com/singapore",
+    "http://example.org/report?page=2",
+  ]),
+);
+const NOTE = "I left out a link I could not confirm from a page I opened.";
 
 describe("normalizeCitation", () => {
-  it("ignores fragments, trailing slashes and sentence punctuation", () => {
+  it("ignores scheme case, fragments and trailing slashes", () => {
     expect(
-      normalizeCitation("https://WWW.Token2049.com/singapore/#dates."),
+      normalizeCitation("HTTPS://WWW.Token2049.com/singapore/#dates"),
     ).toBe("www.token2049.com/singapore");
+  });
+
+  it("reads protocol-relative links and rejects what is not a web address", () => {
+    expect(normalizeCitation("//evil.example/x")).toBe("evil.example/x");
+    expect(normalizeCitation("/tasks/1")).toBeNull();
+    expect(normalizeCitation("mailto:a@example.com")).toBeNull();
   });
 });
 
-describe("citationsIn", () => {
-  it("finds URLs inside serialized tool results", () => {
+describe("urlsIn", () => {
+  it("reads each string of a value, so JSON escapes never join an address", () => {
     expect(
-      citationsIn({ results: [{ url: "https://a.example/one" }] }),
-    ).toEqual(["a.example/one"]);
+      urlsIn({ body: "Offer at https://x.example/offer\nThanks", n: 3 }),
+    ).toEqual(["https://x.example/offer"]);
+  });
+
+  it("drops addresses too long to keep", () => {
+    expect(urlsIn(`https://x.example/${"a".repeat(2_100)}`)).toEqual([]);
   });
 });
 
@@ -33,39 +47,56 @@ describe("dropUnverifiedLinks", () => {
     expect(dropUnverifiedLinks(text, evidence)).toEqual({ text, dropped: 0 });
   });
 
-  it("keeps Sokosumi links", () => {
-    const text = "Open [the task](https://app.sokosumi.com/tasks/1).";
+  it("keeps Sokosumi and relative links", () => {
+    const text =
+      "Open [the task](/tasks/1) or [the app](https://app.sokosumi.com/tasks/1).";
     expect(dropUnverifiedLinks(text, new Set()).dropped).toBe(0);
   });
 
   it("drops an invented link but keeps its text, and says so", () => {
-    const result = dropUnverifiedLinks(
-      "- High-risk rules move to 2027 ([Morgan Lewis](https://www.morganlewis.com/made-up)).",
-      evidence,
-    );
-    expect(result.dropped).toBe(1);
-    expect(result.text).toBe(
-      "- High-risk rules move to 2027 (Morgan Lewis).\n\nI left out a link I could not confirm from a page I opened.",
-    );
+    expect(
+      dropUnverifiedLinks(
+        "- High-risk rules move to 2027 ([Morgan Lewis](https://www.morganlewis.com/made-up)).",
+        evidence,
+      ).text,
+    ).toBe(`- High-risk rules move to 2027 (Morgan Lewis).\n\n${NOTE}`);
   });
 
   it("drops a bare invented URL and keeps the sentence's full stop", () => {
-    const result = dropUnverifiedLinks(
-      "Source: https://invented.example/page. Also https://www.token2049.com/singapore",
-      evidence,
-    );
-    expect(result.dropped).toBe(1);
-    expect(result.text).toBe(
-      "Source: . Also https://www.token2049.com/singapore\n\nI left out a link I could not confirm from a page I opened.",
-    );
+    expect(
+      dropUnverifiedLinks("Source: https://invented.example/page.", evidence)
+        .text,
+    ).toBe(`Source: .\n\n${NOTE}`);
   });
 
-  it("counts several dropped links", () => {
+  it("catches links written in capitals or without a scheme", () => {
     const result = dropUnverifiedLinks(
-      "[a](https://x.example/1) and [b](https://y.example/2)",
+      "[a](HTTPS://evil.example/1) and [b](//evil.example/2)",
       evidence,
     );
     expect(result.dropped).toBe(2);
-    expect(result.text).toContain("I left out 2 links");
+    expect(result.text).toContain("a and b");
+  });
+
+  it("leaves code and the rest of the layout untouched", () => {
+    const text = [
+      "Steps:",
+      "",
+      "```bash",
+      "curl https://api.example.com/v1   # three spaces",
+      "```",
+      "",
+      "Run `http://localhost:3000` locally.",
+      "  - nested  item",
+      "See [docs](https://made-up.example/docs).",
+    ].join("\n");
+    const result = dropUnverifiedLinks(text, evidence);
+    expect(result.dropped).toBe(1);
+    expect(result.text).toContain(
+      "curl https://api.example.com/v1   # three spaces",
+    );
+    expect(result.text).toContain("Run `http://localhost:3000` locally.");
+    expect(result.text).toContain("  - nested  item");
+    expect(result.text).toContain("See docs.");
   });
 });

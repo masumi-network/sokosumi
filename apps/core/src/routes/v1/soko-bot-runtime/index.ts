@@ -33,6 +33,7 @@ const actionSchema = z.object({
   name: z.string().min(1).max(64),
   toolCallId: z.string().min(1).max(200),
   input: z.unknown().optional(),
+  status: z.enum(["completed", "failed"]).optional(),
   output: z.string().max(10_000).optional(),
   sources: z.array(z.string().max(2_000)).max(50).optional(),
 });

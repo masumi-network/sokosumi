@@ -235,7 +235,7 @@ export const sokoBotGenerateImageInputSchema = z
     /** Project whose Content Studio receives the image. */
     projectId: z.string().min(1),
     prompt: z.string().trim().min(1).max(4_000),
-    /** 1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3 or 4:5; defaults to 1:1. */
+    /** Width:height such as "16:9"; the studio checks it. Defaults to 1:1. */
     aspectRatio: z.string().max(10).optional(),
     /** Most credits this image may cost; the price is checked first. */
     maxCredits: z.number().positive().max(10_000),

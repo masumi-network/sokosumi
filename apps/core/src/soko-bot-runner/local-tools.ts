@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { appendFile, glob, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
+import { urlsIn } from "../lib/soko-bot/citations";
 
 /**
  * Tools that run inside the sandbox itself. They see only the bot's
@@ -14,6 +16,7 @@ const DEFAULT_BASH_TIMEOUT_S = 120;
 const MAX_FETCH_BYTES = 3_000_000;
 const DEFAULT_FETCH_CHARS = 20_000;
 const MAX_LIST_ENTRIES = 500;
+const MAX_SOURCES = 50;
 
 function clip(text: string, limit = MAX_OUTPUT_CHARS): string {
   return text.length > limit
@@ -222,9 +225,6 @@ export async function fetchWebPage(input: {
   };
 }
 
-const URL_PATTERN = /https?:\/\/[^\s"'<>()\\]+/g;
-const MAX_SOURCES = 50;
-
 /**
  * The pages a tool call gives the bot grounds to cite: every result a search
  * returned, and a fetched page only when it loaded with content. Read from the
@@ -232,16 +232,14 @@ const MAX_SOURCES = 50;
  */
 export function citableSources(name: string, output: unknown): string[] {
   if (name === "web_fetch") {
-    const page = output as { url?: unknown; status?: unknown; text?: unknown };
-    return typeof page?.url === "string" &&
-      typeof page.status === "number" &&
-      page.status < 400 &&
-      typeof page.text === "string" &&
-      page.text.trim().length > 0
-      ? [page.url]
-      : [];
+    const page = z
+      .object({
+        url: z.string(),
+        status: z.number().max(399),
+        text: z.string().trim().min(1),
+      })
+      .safeParse(output);
+    return page.success ? urlsIn(page.data.url) : [];
   }
-  if (name !== "web_search") return [];
-  const urls = JSON.stringify(output ?? null).match(URL_PATTERN) ?? [];
-  return [...new Set(urls)].slice(0, MAX_SOURCES);
+  return name === "web_search" ? urlsIn(output).slice(0, MAX_SOURCES) : [];
 }

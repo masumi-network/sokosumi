@@ -245,11 +245,16 @@ describe("sandbox turn service", () => {
     await recordSandboxActionResult(claims, {
       name: "web_fetch",
       toolCallId: "c9",
+      status: "completed",
       output: '{"url":"https://example.com","status":200,"text":"Hi"}',
       sources: ["https://example.com"],
     });
     expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith({
-      where: expect.objectContaining({ toolCallId: "c9", status: "PENDING" }),
+      where: expect.objectContaining({
+        toolCallId: "c9",
+        capability: "web_fetch",
+        status: "PENDING",
+      }),
       data: {
         status: "COMPLETED",
         result: {
@@ -262,12 +267,28 @@ describe("sandbox turn service", () => {
     await recordSandboxActionResult(claims, {
       name: "web_fetch",
       toolCallId: "c10",
+      status: "failed",
       output: '{"error":"fetch failed"}',
     });
     expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
       status: "FAILED",
       errorDetail: '{"error":"fetch failed"}',
     });
+  });
+
+  it("settles only sandbox tools from the runner", async () => {
+    await expect(
+      recordSandboxActionResult(claims, {
+        name: "hire_agent",
+        toolCallId: "c11",
+        status: "failed",
+      }),
+    ).rejects.toThrow("Not a sandbox tool");
+    expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ toolCallId: "c11" }),
+      }),
+    );
   });
 
   it("refuses a sandbox tool the turn was not granted", async () => {

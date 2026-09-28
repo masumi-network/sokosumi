@@ -6632,6 +6632,7 @@
           "update_task": "Task wird aktualisiert",
           "assign_task": "Task wird zugewiesen",
           "get_task_status": "Task-Status wird geprüft",
+          "list_tasks": "Tasks werden durchgesehen",
           "find_agents": "Agents werden gesucht",
           "get_agent_input_schema": "Agent-Eingaben werden gelesen",
           "hire_agent": "Agent wird beauftragt",
@@ -6642,7 +6643,10 @@
           "update_memory": "Gedächtnis wird aktualisiert",
           "scratch_read": "Notizen werden gelesen",
           "scratch_write": "Notizen werden geschrieben",
-          "scratch_list": "Notizen werden aufgelistet"
+          "scratch_list": "Notizen werden aufgelistet",
+          "read_file": "Datei wird gelesen",
+          "generate_image": "Bild wird erstellt",
+          "get_image": "Bild wird geprüft"
         },
         "composer": {
           "label": "Nachricht",

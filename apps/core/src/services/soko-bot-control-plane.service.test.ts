@@ -745,8 +745,11 @@ describe("SokoBotControlPlane lifecycle", () => {
     botFindUniqueMock.mockResolvedValue(adminBot());
     turnFindUniqueMock.mockResolvedValue(null);
     turnFindFirstMock.mockImplementation(async (query) =>
-      query?.where?.finalAnswer
-        ? { finalAnswer: "Here is the LinkedIn draft. Want me to post it?" }
+      query?.where?.source === "CHAT"
+        ? {
+            status: "COMPLETED",
+            finalAnswer: "Here is the LinkedIn draft. Want me to post it?",
+          }
         : null,
     );
     turnCreateMock.mockResolvedValue({
@@ -779,18 +782,55 @@ describe("SokoBotControlPlane lifecycle", () => {
       "Here is the LinkedIn draft. Want me to post it?",
     );
     const replyQuery = turnFindFirstMock.mock.calls.find(
-      ([query]) => query?.where?.finalAnswer,
+      ([query]) => query?.where?.source === "CHAT",
     )?.[0];
     expect(replyQuery.where).toMatchObject({
       userId: "user_1",
       workspaceId: "workspace_1",
-      status: "COMPLETED",
+      source: "CHAT",
       requestedByUserId: null,
       chatMentionId: null,
     });
     expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toContain(
       "create_social_post",
     );
+  });
+
+  it("gives a bare yes no referent when the newest turn did not complete", async () => {
+    jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.source === "CHAT"
+        ? { status: "FAILED", finalAnswer: null }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "scope-turn",
+      leaseToken: "scope-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "scope-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "stale-yes",
+      message: "yes",
+    });
+    expect(jevEvaluate.mock.calls[0][0].state.previousReply).toBeNull();
   });
 
   it.each([

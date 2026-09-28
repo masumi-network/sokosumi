@@ -7,6 +7,7 @@ import type {
 import { experimental_evaluate, gateway } from "ai";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
 import { evaluationClassifierContext } from "./evaluation-dispatch";
+import { JEV_PROVIDER_OPTIONS, SOKO_BOT_JEV_MODEL } from "./jev";
 
 /**
  * Jev, TypeSafe AI's evaluation model, picks every route.
@@ -18,7 +19,7 @@ import { evaluationClassifierContext } from "./evaluation-dispatch";
  * same one task tags use: every request still sets zero data retention and
  * no prompt training.
  */
-export const SOKO_BOT_ROUTE_MODEL = "typesafe-ai/jev";
+export const SOKO_BOT_ROUTE_MODEL = SOKO_BOT_JEV_MODEL;
 const CLASSIFIER_VERSION = "soko-bot-classifier-jev-v1";
 const PRESET_VERSION = "soko-bot-system-route-v1";
 /**
@@ -236,9 +237,7 @@ const evaluateWithJev: RouteEvaluator = async ({
     questions: routeQuestions(hasPendingProposals),
     abortSignal,
     maxRetries: 0,
-    providerOptions: {
-      gateway: { zeroDataRetention: true, disallowPromptTraining: true },
-    },
+    providerOptions: JEV_PROVIDER_OPTIONS,
   });
   return {
     answers: result.answers,
@@ -371,13 +370,22 @@ function routeFromAnswers(
     0,
   );
 
-  if (route === "MANAGE_WORK" && confidence >= MIN_ROUTE_CONFIDENCE) {
-    // A write scope Jev is unsure of stays unset, and unset grants reads only.
+  // A MANAGE_WORK lead stays MANAGE_WORK even when only the pooled work vote
+  // is sure: moving it to DELEGATE_TASK gave an unsure vote more writes than
+  // a sure one gets. A write scope Jev is unsure of stays unset, and unset
+  // grants reads only.
+  if (
+    route === "MANAGE_WORK" &&
+    (confidence >= MIN_ROUTE_CONFIDENCE ||
+      workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
+  ) {
     const classification = baseClassification(
       route,
       message,
-      `Jev: ${route} (${percent(confidence)}).`,
-      confidence,
+      confidence >= MIN_ROUTE_CONFIDENCE
+        ? `Jev: ${route} (${percent(confidence)}).`
+        : `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
+      Math.max(confidence, workConfidence),
     );
     const scope = answers.writeScope.choice;
     const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
@@ -387,7 +395,7 @@ function routeFromAnswers(
   }
   if (
     (route === "DELEGATE_TASK" && confidence >= MIN_ROUTE_CONFIDENCE) ||
-    ((WORK_ROUTES as readonly string[]).includes(route) &&
+    ((route === "DELEGATE_TASK" || route === "MIXED") &&
       workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
   ) {
     return baseClassification(

@@ -208,6 +208,17 @@ export async function commitActionReceipt(
  */
 export function externalActionReceipt(capability: string, result: unknown) {
   let targetId: string | null = null;
+  // The studio refused before sending, and refunded: nothing happened.
+  if (
+    capability === "generate_image" &&
+    z.object({ status: z.literal("FAILED") }).safeParse(result).success
+  )
+    return {
+      targetId,
+      disposition: "REJECTED" as const,
+      verification: "NONE" as const,
+      committedAt: null,
+    };
   if (capability === "hire_agent" || capability === "provide_job_input") {
     const acknowledged = z
       .object({

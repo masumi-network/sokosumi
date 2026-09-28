@@ -57,8 +57,8 @@ export interface SokoBotScenario {
   prompt: string;
   trigger?: SokoBotScenarioTrigger;
   /**
-   * CLI lab: wipe the bot's Tasks, schedules and memory, then seed these
-   * schedules (Europe/Berlin) before the turn.
+   * CLI lab: clear what earlier lab turns made (Tasks, schedules, files) and
+   * the bot's memory, then seed these schedules (Europe/Berlin).
    */
   setup?: {
     schedules?: { name: string; cronExpression: string; prompt: string }[];

@@ -66,12 +66,9 @@ import { list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
+import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
-import {
-  AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-  getAgentApiBaseUrl,
-  toMasumiAgent,
-} from "@/helpers/agent";
+import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import {
   batchTableRows,
   createDataTable,
@@ -92,6 +89,7 @@ import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
 import { mapTaskLinkRelationToWriteData } from "@/helpers/task-link";
+import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import {
   buildSokoBotAudienceJobParentTaskWhere,
   buildSokoBotAudienceTaskVisibilityWhere,
@@ -102,9 +100,13 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { requireProjectAccess } from "@/lib/image-studio/access";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
-import { creditsPerImage } from "@/lib/image-studio/image-model";
+import {
+  creditsPerImage,
+  IMAGE_ASPECT_RATIOS,
+} from "@/lib/image-studio/image-model";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
@@ -117,6 +119,7 @@ import {
 } from "@/lib/soko-bot/action-receipts";
 import {
   agentWordScore,
+  listHireableAgents,
   MAX_RATED_AGENTS,
   MIN_AGENT_FIT,
   queryWords,
@@ -129,12 +132,14 @@ import {
   ROOM_BOT_MESSAGE_WINDOW_MS,
   ROOM_BOT_MESSAGES_PER_HOUR,
 } from "@/lib/soko-bot/chat-chain";
-import { agentPriceHint } from "@/lib/soko-bot/context-packet";
 import {
   assertEvaluationActor,
   assertEvaluationTool,
 } from "@/lib/soko-bot/evaluation-dispatch";
-import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import {
+  persistedToolResult,
+  truncateUtf8,
+} from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
   BEARER_USER_SELECT,
@@ -229,7 +234,6 @@ const CORE_TOOL_CALLS = {
 } satisfies Prisma.SokoBotToolCallWhereInput;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
-const TOOL_RESULT_MAX_BYTES = 16_384;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
 
@@ -412,21 +416,6 @@ async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
   }
 }
 
-function truncateUtf8(value: string, maxBytes: number): string {
-  if (Buffer.byteLength(value, "utf8") <= maxBytes) return value;
-  let low = 0;
-  let high = value.length;
-  while (low < high) {
-    const middle = Math.ceil((low + high) / 2);
-    if (Buffer.byteLength(value.slice(0, middle), "utf8") <= maxBytes) {
-      low = middle;
-    } else {
-      high = middle - 1;
-    }
-  }
-  return value.slice(0, low);
-}
-
 function sellerProposalHash(
   toolName: "hire_agent" | "provide_job_input",
   proposal: unknown,
@@ -456,33 +445,6 @@ function serializeSellerReservationMarker(
     ...marker,
     ...(error === undefined ? {} : { error: persistedErrorDetail(error) }),
   });
-}
-
-function persistedToolResult(value: unknown): Prisma.InputJsonValue {
-  const sanitized = sanitizePersistedValue(value);
-  const serialized = JSON.stringify(sanitized);
-  if (Buffer.byteLength(serialized, "utf8") <= TOOL_RESULT_MAX_BYTES) {
-    return jsonInput(sanitized);
-  }
-  const emptyWrapper = JSON.stringify({ truncated: true, preview: "" });
-  let preview = truncateUtf8(
-    serialized,
-    TOOL_RESULT_MAX_BYTES - Buffer.byteLength(emptyWrapper, "utf8"),
-  );
-  let wrapper = { truncated: true, preview };
-  while (
-    Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
-  ) {
-    const excess =
-      Buffer.byteLength(JSON.stringify(wrapper), "utf8") -
-      TOOL_RESULT_MAX_BYTES;
-    preview = truncateUtf8(
-      preview,
-      Math.max(0, Buffer.byteLength(preview, "utf8") - excess - 1),
-    );
-    wrapper = { truncated: true, preview };
-  }
-  return jsonInput(wrapper);
 }
 
 function persistedErrorDetail(error: unknown): string {
@@ -581,47 +543,15 @@ function escapeLikePattern(value: string): string {
   return value.replace(/[\\%_]/g, (match) => `\\${match}`);
 }
 
+/** Where the owner sees a Project's images, or one version of them. */
+function studioLink(projectId: string, assetId?: string | null): string {
+  const base = `/studio?projectId=${encodeURIComponent(projectId)}`;
+  return assetId ? `${base}&v=${encodeURIComponent(assetId)}` : base;
+}
+
 /** Hireable Agents best suited to `query`, with prices and a fit rating. */
 async function findHireableAgents(query: string | undefined) {
-  const [rows, creditCosts] = await prisma.$transaction(
-    [
-      prisma.agent.findMany({
-        where: {
-          isShown: true,
-          status: "ONLINE",
-          // The endpoint `toMasumiAgent` resolves, not the raw column: an
-          // Agent reachable only through its override is hireable, and
-          // `get_agent_input_schema` accepts it, so hiding it here would
-          // leave it hireable but undiscoverable.
-          OR: [
-            { apiBaseUrl: { not: null } },
-            { metadataOverride: { apiBaseUrl: { not: null } } },
-          ],
-        },
-        orderBy: [{ jobCount: "desc" }, { id: "desc" }],
-        take: 100,
-        select: {
-          id: true,
-          name: true,
-          summary: true,
-          description: true,
-          capabilityName: true,
-          paymentType: true,
-          riskClassification: true,
-          pricing: {
-            select: {
-              pricingType: true,
-              fixedPricing: {
-                select: { amounts: { select: { amount: true, unit: true } } },
-              },
-            },
-          },
-        },
-      }),
-      prisma.creditCost.findMany(),
-    ],
-    AGENT_PRICING_READ_TRANSACTION_OPTIONS,
-  );
+  const { agents: rows } = await listHireableAgents(500);
   const words = query ? queryWords(query) : [];
   const matched = rows
     .map((row) => ({ row, score: agentWordScore(words, row) }))
@@ -634,13 +564,13 @@ async function findHireableAgents(query: string | undefined) {
     ? [...new Set([...matched, ...rows])].slice(0, MAX_RATED_AGENTS)
     : rows.slice(0, 20);
   const ratings = query ? await rateAgentFit(query, candidates) : null;
+  // Without Jev nothing was judged, so nothing may be called a non-fit: the
+  // word matches, or else the most used Agents, go back unrated.
   const results = ratings
     ? candidates
         .filter((row) => (ratings.get(row.id) ?? 0) >= MIN_AGENT_FIT)
         .sort((a, b) => (ratings.get(b.id) ?? 0) - (ratings.get(a.id) ?? 0))
-    : query
-      ? matched.slice(0, 10)
-      : candidates;
+    : (matched.length ? matched : candidates).slice(0, 10);
   return {
     agents: results.map((row) => ({
       id: row.id,
@@ -649,13 +579,13 @@ async function findHireableAgents(query: string | undefined) {
       capability: row.capabilityName,
       paymentType: row.paymentType,
       riskClassification: row.riskClassification,
-      price: agentPriceHint(row.pricing, creditCosts),
+      price: row.price,
       fit: ratings?.has(row.id)
         ? Math.round((ratings.get(row.id) ?? 0) * 100) / 100
         : null,
     })),
     availableAgents: rows.length,
-    ...(query && results.length === 0
+    ...(ratings && query && results.length === 0
       ? {
           note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else.`,
         }
@@ -1479,14 +1409,14 @@ export class SokoBotRuntimeService {
   }
 
   /**
-   * Starts an image in a Project's Content Studio. Owner chat turns only, and
-   * priced before it runs: the studio charges on delivery, so this is the
-   * last point where the bot can decline a price it was not given.
+   * Everything that can refuse an image before anything is sent: an owner
+   * chat turn, a Project the owner can open, and a price within maxCredits.
+   * `executeTool` runs it before the external-effect reservation, so a
+   * refusal is recorded as rejected rather than as an unknown outcome.
    */
-  private async generateImage(
+  private async checkImageRequest(
     authorized: AuthorizedSokoBotRuntime,
     raw: unknown,
-    toolCallId: string,
   ) {
     const input = generateImageInputSchema.parse(raw);
     if (
@@ -1497,12 +1427,33 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when your owner asks in chat. Describe the image you would make instead.",
       );
+    const aspectRatio = z
+      .enum(IMAGE_ASPECT_RATIOS)
+      .optional()
+      .safeParse(input.aspectRatio);
+    if (!aspectRatio.success)
+      throw new SokoBotRuntimeValidationError(
+        `Use one of these aspect ratios: ${IMAGE_ASPECT_RATIOS.join(", ")}.`,
+      );
+    try {
+      await requireProjectAccess({
+        projectId: input.projectId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: authorized.turn.userId,
+      });
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotRuntimeValidationError(
+          "That Project is not one your owner can open.",
+        );
+      throw error;
+    }
     await ensureImageCatalogFresh();
-    const settings = {
-      ...DEFAULT_SETTINGS,
-      ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
-    } as ImageJobSettings;
     const model = imageModel();
+    const settings: ImageJobSettings = {
+      ...DEFAULT_SETTINGS,
+      ...(aspectRatio.data ? { aspectRatio: aspectRatio.data } : {}),
+    };
     let credits: number;
     try {
       credits = creditsPerImage(
@@ -1518,6 +1469,20 @@ export class SokoBotRuntimeService {
       throw new SokoBotRuntimeValidationError(
         `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
       );
+    return { input, model, settings, credits };
+  }
+
+  /** Starts an image in a Project's Content Studio, once checked. */
+  private async generateImage(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const { input, model, settings, credits } = await this.checkImageRequest(
+      authorized,
+      raw,
+    );
+    const studioUrl = studioLink(input.projectId);
     let job: Awaited<ReturnType<typeof createImageJob>>;
     try {
       job = await createImageJob({
@@ -1533,8 +1498,8 @@ export class SokoBotRuntimeService {
         idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
       });
     } catch (error) {
-      // The studio's refusals (no access, no balance, too many at once) are
-      // the model's to read, not a transport failure.
+      // The studio's refusals (no balance, too many at once) are the model's
+      // to read, not a transport failure.
       if (error instanceof HTTPException)
         throw new SokoBotRuntimeValidationError(error.message);
       throw error;
@@ -1544,7 +1509,7 @@ export class SokoBotRuntimeService {
       projectId: input.projectId,
       status: job.status,
       credits,
-      studioUrl: `/studio?projectId=${encodeURIComponent(input.projectId)}`,
+      studioUrl,
       note:
         job.status === "SUBMISSION_UNCERTAIN"
           ? "The provider did not confirm this request. Do not start it again; tell the owner."
@@ -1561,17 +1526,17 @@ export class SokoBotRuntimeService {
       userId: authorized.turn.userId,
     };
     try {
+      // Access before reconciling: reconciliation calls the provider, and a
+      // Project id the owner cannot open must not reach it.
+      await requireProjectAccess(scope);
       await reconcileProjectJobs(input.projectId);
       const job = await getJob({ ...scope, jobId: input.jobId });
       if (!job) return null;
-      const studioUrl = `/studio?projectId=${encodeURIComponent(input.projectId)}`;
       return {
         jobId: job.id,
         status: job.status,
         failureReason: job.failureReason ?? null,
-        studioUrl: job.assetId
-          ? `${studioUrl}&v=${encodeURIComponent(job.assetId)}`
-          : studioUrl,
+        studioUrl: studioLink(input.projectId, job.assetId),
       };
     } catch (error) {
       if (error instanceof HTTPException)
@@ -1633,7 +1598,7 @@ export class SokoBotRuntimeService {
         tags: file.tags.map((tag) => tag.displayName),
         folder: file.folderPath,
         passage: file.snippet?.text.slice(0, 300) ?? null,
-        text: file.extractionState,
+        extraction: file.extractionState,
       })),
     };
   }
@@ -1789,11 +1754,7 @@ export class SokoBotRuntimeService {
   private async listTasks(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
     const input = listTasksInputSchema.parse(raw);
     const now = Date.now();
-    const finished = [
-      TaskStatus.COMPLETED,
-      TaskStatus.FAILED,
-      TaskStatus.CANCELED,
-    ];
+    const finished = [...SETTLED_TASK_STATUSES];
     const contains = (value: string) => ({
       contains: value,
       mode: "insensitive" as const,
@@ -1815,7 +1776,7 @@ export class SokoBotRuntimeService {
         input.idleDays
           ? {
               updatedAt: {
-                lte: new Date(now - input.idleDays * 86_400_000),
+                lte: new Date(now - input.idleDays * DAY_MS),
               },
             }
           : {},
@@ -1877,7 +1838,7 @@ export class SokoBotRuntimeService {
                 ? { kind: "assistant", name: task.assigneeSokoBot.name }
                 : null,
           project: task.project,
-          idleDays: Math.floor((now - task.updatedAt.getTime()) / 86_400_000),
+          idleDays: Math.floor((now - task.updatedAt.getTime()) / DAY_MS),
           updatedAt: task.updatedAt.toISOString(),
           latest: latest
             ? {
@@ -3516,6 +3477,29 @@ export class SokoBotRuntimeService {
         input = { ...input, toolCallId: existing.toolCallId };
     }
 
+    if (input.capability === "generate_image") {
+      try {
+        await this.checkImageRequest(authorized, input.input);
+      } catch (error) {
+        // Refused before anything was sent: rejected, and the same request
+        // may be made again once whatever refused it has changed.
+        await prisma.sokoBotToolCall.updateMany({
+          where: {
+            turnId: input.turnId,
+            toolCallId: input.toolCallId,
+            status: "PENDING",
+          },
+          data: {
+            status: "FAILED",
+            disposition: "REJECTED",
+            operationKey: null,
+            errorKind: error instanceof Error ? error.name : "unknown",
+            errorDetail: persistedErrorDetail(error),
+          },
+        });
+        throw error;
+      }
+    }
     const externalEffect = EXTERNAL_EFFECT_CAPABILITIES.has(input.capability);
     if (externalEffect) {
       // Fence cancellation and capability revocation at the durable dispatch
