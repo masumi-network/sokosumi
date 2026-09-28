@@ -16,6 +16,8 @@ const {
   readAssetBytesMock,
   requireProjectAccessMock,
   createTaskEventTransactionMock,
+  jobAggregateMock,
+  getBalanceMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -32,6 +34,14 @@ const {
   readAssetBytesMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
+  jobAggregateMock: vi.fn(),
+  getBalanceMock: vi.fn(),
+}));
+
+// The submit-time balance check: read-only, and not what this suite is about.
+// Money is covered end to end in `image-studio-credits.test.ts`.
+vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: { getBalance: getBalanceMock },
 }));
 
 vi.mock("@/helpers/task-credits", () => ({
@@ -46,6 +56,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     projectImageJob: {
+      aggregate: jobAggregateMock,
       count: jobCountMock,
       create: jobCreateMock,
       findUnique: jobFindUniqueMock,
@@ -168,6 +179,9 @@ describe("image studio job submission", () => {
       organizationId: null,
     });
     createTaskEventTransactionMock.mockResolvedValue("txn-debit-1");
+    jobAggregateMock.mockResolvedValue({ _sum: { chargedCents: null } });
+    // Plenty, so nothing here is refused for money.
+    getBalanceMock.mockResolvedValue(10_000_000_000_000n);
     jobCountMock.mockResolvedValue(0);
     jobFindUniqueMock.mockResolvedValue(null);
     jobCreateMock.mockImplementation(async () => jobRow());

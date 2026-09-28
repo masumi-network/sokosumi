@@ -339,14 +339,11 @@ export interface JobView {
   /** True when a retry could buy a second image. */
   retryMayDuplicateCharge: boolean;
   /**
-   * Credits debited when this job was reserved. Null for a job created before
-   * the studio charged for generation.
+   * What this generation cost. Null until there is an image, because the studio
+   * charges on delivery — so a job that failed reads null, having cost nothing.
    */
   credits: number | null;
-  /**
-   * True once the charge has been paid back. Set for every terminal failure, so
-   * a failed generation reads as having cost nothing — which is what it cost.
-   */
+  /** @deprecated Always false. Nothing is refunded; nothing is taken until success. */
   refunded: boolean;
 }
 
@@ -381,7 +378,7 @@ export async function getJob(options: {
       settledAt: true,
       cancelRequestedAt: true,
       chargedCents: true,
-      refundTransactionId: true,
+      transactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -415,7 +412,7 @@ export async function listJobs(options: {
       settledAt: true,
       cancelRequestedAt: true,
       chargedCents: true,
-      refundTransactionId: true,
+      transactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -438,7 +435,7 @@ function toJobView(job: {
   settledAt: Date | null;
   cancelRequestedAt: Date | null;
   chargedCents: bigint | null;
-  refundTransactionId: string | null;
+  transactionId: string | null;
   asset: { id: string } | null;
 }): JobView {
   return {
@@ -459,8 +456,13 @@ function toJobView(job: {
     cancelRequestedAt: job.cancelRequestedAt,
     retryMayDuplicateCharge:
       job.status === ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+    // Keyed on the transaction, not on `chargedCents`: before delivery that column
+    // holds the *quote*, and reporting a quote as a charge is what made a failed
+    // generation read as costing 8 credits when nothing had been taken.
     credits:
-      job.chargedCents != null ? convertCentsToCredits(job.chargedCents) : null,
-    refunded: job.refundTransactionId != null,
+      job.transactionId != null && job.chargedCents != null
+        ? convertCentsToCredits(job.chargedCents)
+        : null,
+    refunded: false,
   };
 }

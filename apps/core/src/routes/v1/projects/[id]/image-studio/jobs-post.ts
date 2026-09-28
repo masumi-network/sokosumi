@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-import { convertCentsToCredits } from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
@@ -100,11 +99,11 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
           settledAt: job.settledAt,
           cancelRequestedAt: job.cancelRequestedAt,
           retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
-          credits:
-            job.chargedCents != null
-              ? convertCentsToCredits(job.chargedCents)
-              : null,
-          refunded: job.refundTransactionId != null,
+          // A job this fresh has never been delivered, so it has cost nothing yet.
+          // `chargedCents` on the row is the quote, and the composer already knows
+          // that figure — it is the one it showed.
+          credits: null,
+          refunded: false,
         }),
       );
     },

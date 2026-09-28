@@ -1,11 +1,15 @@
 /**
  * What one generated image costs, derived from fal's own published list price.
  *
- * Shared rather than Core-only because two numbers have to be the same number:
- * the pre-flight estimate the composer shows before anybody presses generate,
- * and the debit the reservation actually takes. Two implementations of this
- * formula is a promise to the person that the ledger then quietly breaks, so
- * the catalog row carries fal's figures and both sides run this.
+ * Shared rather than Core-only because three numbers have to be the same number:
+ * the estimate the composer shows before anybody presses generate, the quote the
+ * studio writes on the job row at submit, and the debit it takes **when the image
+ * is delivered**. Two implementations of this formula is a promise to the person
+ * that the ledger then quietly breaks, so the catalog row carries fal's figures
+ * and every side runs this.
+ *
+ * Nothing is taken at submit: the studio charges on success, so a generation that
+ * fails costs nothing and is never refunded, because nothing was ever taken.
  *
  * 1 credit = 1 cent, and there is no markup on fal's list price.
  */

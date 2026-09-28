@@ -1,19 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * The money contract for image generation.
+ * The money contract for image generation: **charge on success**.
  *
- * Three properties, and the tests below exist for them and nothing else:
+ * The studio quotes a price at submit and takes it when it hands over an image.
+ * There is no reservation and no refund, because nothing is taken until there is
+ * something to pay for. Four properties, and these tests exist for them:
  *
- * 1. Reserving a job debits exactly what the catalog says one image costs, in
- *    the same transaction that writes the row.
- * 2. Not enough credits means no job row and no provider call at all.
- * 3. A generation that failed costs nothing: every terminal failure refunds, the
- *    refund happens once however many writers race it, and a submission whose
- *    outcome is unknown is never refunded automatically.
+ * 1. Submitting quotes the catalog price on the job row and takes no money.
+ * 2. A submission the balance cannot cover is refused before a provider call, and
+ *    the balance has to cover this image *plus* the quotes already in flight.
+ * 3. Delivering an image debits exactly the quote, exactly once, however many
+ *    settlers race the same job.
+ * 4. A failure moves no money at all — and a balance that fell between submit and
+ *    delivery costs the person the credits, never the image.
  */
 
 const {
+  jobAggregateMock,
   jobCountMock,
   jobCreateMock,
   jobFindUniqueMock,
@@ -21,11 +25,16 @@ const {
   jobUpdateMock,
   jobUpdateManyMock,
   jobFindManyMock,
+  assetFindUniqueMock,
+  assetFindFirstMock,
+  assetCreateMock,
   getEnvMock,
   submitToQueueMock,
   requireProjectAccessMock,
   createTaskEventTransactionMock,
+  getBalanceMock,
 } = vi.hoisted(() => ({
+  jobAggregateMock: vi.fn(),
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
   jobFindUniqueMock: vi.fn(),
@@ -33,10 +42,14 @@ const {
   jobUpdateMock: vi.fn(),
   jobUpdateManyMock: vi.fn(),
   jobFindManyMock: vi.fn(),
+  assetFindUniqueMock: vi.fn(),
+  assetFindFirstMock: vi.fn(),
+  assetCreateMock: vi.fn(),
   getEnvMock: vi.fn(),
   submitToQueueMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   createTaskEventTransactionMock: vi.fn(),
+  getBalanceMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({
@@ -44,9 +57,14 @@ vi.mock("@/config/env", () => ({
   getBetterAuthPublicBaseUrl: () => "http://localhost:3001",
 }));
 
+vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: { getBalance: getBalanceMock },
+}));
+
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     projectImageJob: {
+      aggregate: jobAggregateMock,
       count: jobCountMock,
       create: jobCreateMock,
       findUnique: jobFindUniqueMock,
@@ -55,7 +73,12 @@ vi.mock("@/lib/db/prisma", () => {
       update: jobUpdateMock,
       updateMany: jobUpdateManyMock,
     },
-    projectImageAsset: { findUnique: vi.fn(), findMany: vi.fn() },
+    projectImageAsset: {
+      findUnique: assetFindUniqueMock,
+      findFirst: assetFindFirstMock,
+      create: assetCreateMock,
+      findMany: vi.fn(),
+    },
     project: { findUnique: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
@@ -82,9 +105,20 @@ vi.mock("@/lib/image-studio/fal-client", async () => ({
     "@/lib/image-studio/fal-client",
   )),
   submitToQueue: submitToQueueMock,
+  downloadImage: vi.fn(async () => ({
+    bytes: pngBytes(1024, 1024),
+    contentType: "image/png",
+  })),
 }));
 
-vi.mock("@/helpers/task-credits", () => ({
+vi.mock("@vercel/blob", () => ({
+  put: vi.fn(async () => ({ pathname: "projects/p/image-studio/job-1-abc" })),
+}));
+
+vi.mock("@/helpers/task-credits", async () => ({
+  ...(await vi.importActual<typeof import("@/helpers/task-credits")>(
+    "@/helpers/task-credits",
+  )),
   createTaskEventTransaction: createTaskEventTransactionMock,
 }));
 
@@ -92,7 +126,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import { convertCreditsToCents } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, convertCreditsToCents } from "@sokosumi/utils";
 
 import { unprocessableEntity } from "@/helpers/error";
 import { imageModel } from "@/lib/image-studio/catalog";
@@ -100,9 +134,17 @@ import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   createImageJob,
   failImageJob,
-  refundFailedImageJobs,
-  refundImageJobCharge,
+  settleWithImage,
 } from "@/services/image-studio-jobs.service";
+
+function pngBytes(width: number, height: number): Uint8Array {
+  const bytes = new Uint8Array(24);
+  bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+  const data = new DataView(bytes.buffer);
+  data.setUint32(16, width);
+  data.setUint32(20, height);
+  return bytes;
+}
 
 const BASE_INPUT = {
   projectId: "project-1",
@@ -127,12 +169,15 @@ const FLASH_1K_CREDITS = creditsPerImage(imageModel("gemini-flash"), {
   resolution: "1K",
 });
 const FLASH_1K_CENTS = convertCreditsToCents(FLASH_1K_CREDITS);
+/** Comfortably more than one image, so a test has to opt into a shortfall. */
+const RICH_BALANCE = FLASH_1K_CENTS * 10n;
 
 function jobRow(overrides: Record<string, unknown> = {}) {
   return {
     id: "job-1",
     projectId: "project-1",
     workspaceId: "workspace-1",
+    requestedByUserId: "user-1",
     model: "fal-ai/gemini-3.1-flash-image-preview",
     kind: "GENERATE",
     prompt: BASE_INPUT.prompt,
@@ -146,36 +191,20 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     settledAt: null,
     error: null,
     chargedCents: FLASH_1K_CENTS,
-    transactionId: "txn-debit-1",
-    refundTransactionId: null,
+    transactionId: null,
     ...overrides,
   };
 }
 
-/**
- * The row shape `refundImageJobCharge` reads, including the ledger transaction it
- * refunds against. The spend is stored negative, which is what makes the refund's
- * positive amount its exact mirror.
- */
-function refundableRow(overrides: Record<string, unknown> = {}) {
-  return {
-    id: "job-1",
-    status: "FAILED",
-    chargedCents: FLASH_1K_CENTS,
-    refundTransactionId: null,
-    transaction: {
-      id: "txn-debit-1",
-      userId: "user-1",
-      organizationId: null,
-      amount: FLASH_1K_CENTS * BigInt(-1),
-    },
+/** A job fal has finished, ready for `settleWithImage`. */
+function settleableJob(overrides: Record<string, unknown> = {}) {
+  return jobRow({
+    status: "QUEUED",
+    falRequestId: "fal-1",
+    submitAttempts: 1,
+    asset: null,
     ...overrides,
-  };
-}
-
-/** True for the refund's own read, which is the only one selecting the refund id. */
-function isRefundLookup(args: { select?: Record<string, unknown> }): boolean {
-  return args?.select?.refundTransactionId === true;
+  });
 }
 
 beforeEach(() => {
@@ -191,6 +220,8 @@ beforeEach(() => {
     organizationId: null,
   });
   jobCountMock.mockResolvedValue(0);
+  jobAggregateMock.mockResolvedValue({ _sum: { chargedCents: null } });
+  getBalanceMock.mockResolvedValue(RICH_BALANCE);
   jobFindUniqueMock.mockResolvedValue(null);
   jobCreateMock.mockImplementation(async () => jobRow());
   jobFindUniqueOrThrowMock.mockImplementation(async () => jobRow());
@@ -198,13 +229,136 @@ beforeEach(() => {
     jobRow({ ...data, status: data.status ?? "PENDING" }),
   );
   jobUpdateManyMock.mockResolvedValue({ count: 1 });
+  assetFindUniqueMock.mockResolvedValue(null);
+  assetFindFirstMock.mockResolvedValue(null);
+  assetCreateMock.mockResolvedValue({ id: "asset-1" });
   createTaskEventTransactionMock.mockResolvedValue("txn-debit-1");
   submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
 });
 
-describe("reserving credits", () => {
-  it("debits the catalog figure in the same transaction that creates the row", async () => {
+describe("submitting quotes, and takes nothing", () => {
+  it("writes the catalog price on the row without debiting anything", async () => {
     await createImageJob(BASE_INPUT);
+
+    // The quote the composer showed, from the same catalog row and the same
+    // function, so the figure taken at delivery is the one they agreed to.
+    expect(FLASH_1K_CREDITS).toBe(8);
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ chargedCents: FLASH_1K_CENTS }),
+      }),
+    );
+    // No money, and no `transactionId` — there is no image yet.
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(jobCreateMock.mock.calls[0]![0].data).not.toHaveProperty(
+      "transactionId",
+    );
+  });
+
+  it("reads the balance without consuming from it", async () => {
+    await createImageJob(BASE_INPUT);
+
+    expect(getBalanceMock).toHaveBeenCalledWith(
+      "user-1",
+      null,
+      expect.anything(),
+    );
+  });
+
+  it("checks the balance against the organization pot when there is one", async () => {
+    requireProjectAccessMock.mockResolvedValue({
+      projectId: "project-1",
+      workspaceId: "workspace-1",
+      userId: "user-1",
+      organizationId: "org-1",
+    });
+
+    await createImageJob(BASE_INPUT);
+
+    expect(getBalanceMock).toHaveBeenCalledWith(
+      "user-1",
+      "org-1",
+      expect.anything(),
+    );
+  });
+});
+
+describe("a submission the balance cannot cover", () => {
+  it("is refused before a provider call, with nothing written", async () => {
+    getBalanceMock.mockResolvedValue(FLASH_1K_CENTS - 1n);
+
+    const refusal = await createImageJob(BASE_INPUT).catch(
+      (error: unknown) => error,
+    );
+
+    expect(refusal).toMatchObject({ status: 422 });
+    expect((refusal as { cause?: unknown }).cause).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+    });
+    expect(jobCreateMock).not.toHaveBeenCalled();
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it("names the shortfall in credits, in the studio's own words", async () => {
+    getBalanceMock.mockResolvedValue(convertCreditsToCents(3));
+
+    const refusal = (await createImageJob(BASE_INPUT).catch(
+      (error: unknown) => error,
+    )) as Error;
+
+    expect(refusal.message).toBe(
+      "Not enough credits. This image costs 8 and your balance is 3.",
+    );
+    // Not cents, and not the repository's own bucket arithmetic.
+    expect(refusal.message).not.toMatch(/cents|consume|bucket|\d{6,}/);
+  });
+
+  it("counts the quotes already in flight, not just this image", async () => {
+    // The window concurrent submissions open: a balance of 16 covers one 8-credit
+    // image twice over, but not a third when two are already generating.
+    getBalanceMock.mockResolvedValue(FLASH_1K_CENTS * 2n);
+    jobAggregateMock.mockResolvedValue({
+      _sum: { chargedCents: FLASH_1K_CENTS * 2n },
+    });
+
+    const refusal = (await createImageJob(BASE_INPUT).catch(
+      (error: unknown) => error,
+    )) as Error;
+
+    expect(refusal).toMatchObject({ status: 422 });
+    expect(refusal.message).toBe(
+      "Not enough credits. This image costs 8, your balance is 16, and 16 is already committed to images still generating.",
+    );
+    expect(jobCreateMock).not.toHaveBeenCalled();
+
+    // The aggregate is over this person's own unsettled jobs.
+    const where = jobAggregateMock.mock.calls[0]![0].where;
+    expect(where.requestedByUserId).toBe("user-1");
+    expect(where.status.in).toEqual([
+      "PENDING",
+      "SUBMITTING",
+      "QUEUED",
+      "RUNNING",
+    ]);
+  });
+
+  it("allows a submission the balance covers alongside what is in flight", async () => {
+    getBalanceMock.mockResolvedValue(FLASH_1K_CENTS * 3n);
+    jobAggregateMock.mockResolvedValue({
+      _sum: { chargedCents: FLASH_1K_CENTS * 2n },
+    });
+
+    await expect(createImageJob(BASE_INPUT)).resolves.toBeDefined();
+    expect(jobCreateMock).toHaveBeenCalled();
+  });
+});
+
+describe("delivering an image is when the money moves", () => {
+  it("debits exactly the quote, once", async () => {
+    jobFindUniqueMock.mockResolvedValue(settleableJob());
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
@@ -213,179 +367,102 @@ describe("reserving credits", () => {
         cents: FLASH_1K_CENTS,
       }),
     );
-    // Same catalog row, same function, and therefore the same number the
-    // composer's pre-flight estimate showed.
-    expect(FLASH_1K_CREDITS).toBe(8);
-    expect(jobCreateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          chargedCents: FLASH_1K_CENTS,
-          transactionId: "txn-debit-1",
-        }),
-      }),
-    );
+    // Recorded on the row beside the asset, in the same transaction.
+    const settled = jobUpdateManyMock.mock.calls.at(-1)![0].data;
+    expect(settled.status).toBe("SUCCEEDED");
+    expect(settled.chargedCents).toBe(FLASH_1K_CENTS);
+    expect(settled.transactionId).toBe("txn-debit-1");
+    expect(assetCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("charges an area-priced model by the frame, not by a flat figure", async () => {
-    const wide = { ...BASE_INPUT.settings, aspectRatio: "16:9" };
-    jobCreateMock.mockResolvedValue(
-      jobRow({ model: "fal-ai/flux-2-pro", settings: wide }),
-    );
-    jobFindUniqueOrThrowMock.mockResolvedValue(
-      jobRow({ model: "fal-ai/flux-2-pro", settings: wide }),
-    );
-    await createImageJob({
-      ...BASE_INPUT,
-      modelId: "flux-2-pro",
-      settings: wide,
-    });
-    // $0.03/MP over 1024x576 is 2 credits, against 4 for the square frame.
-    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ cents: convertCreditsToCents(2) }),
-    );
+  it("debits once when the same job is settled twice", async () => {
+    // A webhook and a poll arriving together. The second settler finds the asset
+    // this job already has and returns before any money moves.
+    jobFindUniqueMock.mockResolvedValue(settleableJob());
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    assetFindUniqueMock.mockResolvedValue({ id: "asset-1" });
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(createTaskEventTransactionMock).toHaveBeenCalledOnce();
+    expect(assetCreateMock).toHaveBeenCalledOnce();
   });
 
-  it("charges the organization pot when the workspace belongs to one", async () => {
-    requireProjectAccessMock.mockResolvedValue({
-      projectId: "project-1",
-      workspaceId: "workspace-1",
-      userId: "user-1",
-      organizationId: "org-1",
-    });
-    await createImageJob(BASE_INPUT);
-    expect(createTaskEventTransactionMock).toHaveBeenCalledWith(
-      expect.objectContaining({ organizationId: "org-1" }),
-    );
-  });
-
-  it("buys nothing and writes nothing when the balance is short", async () => {
-    createTaskEventTransactionMock.mockRejectedValue(
-      unprocessableEntity("Insufficient balance", {
-        kind: "INSUFFICIENT_BALANCE",
-      }),
+  it("does not debit a job whose asset already exists", async () => {
+    jobFindUniqueMock.mockResolvedValue(
+      settleableJob({ asset: { id: "asset-1" } }),
     );
 
-    await expect(createImageJob(BASE_INPUT)).rejects.toMatchObject({
-      status: 422,
-    });
-    // The composer can say "not enough credits" because nothing else happened:
-    // no row to clean up, and fal was never called.
-    expect(jobCreateMock).not.toHaveBeenCalled();
-    expect(submitToQueueMock).not.toHaveBeenCalled();
-  });
-
-  it("does not debit again for a replayed idempotency key", async () => {
-    jobFindUniqueMock.mockResolvedValue(jobRow({ status: "QUEUED" }));
-
-    await createImageJob(BASE_INPUT);
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
-    expect(jobCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the image and charges nothing when the balance no longer covers it", async () => {
+    // Money must never cost somebody an image the platform has already paid fal
+    // for. `prepareConsumption` cannot overdraw, so a balance that fell between
+    // submit and delivery makes the debit throw — and letting that abort the
+    // transaction would leave the asset unwritten and settlement retrying forever.
+    jobFindUniqueMock.mockResolvedValue(settleableJob());
+    createTaskEventTransactionMock.mockRejectedValue(
+      unprocessableEntity("Insufficient balance", {
+        kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE,
+      }),
+    );
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    // The image is stored and the job succeeds.
+    expect(assetCreateMock).toHaveBeenCalledOnce();
+    const settled = jobUpdateManyMock.mock.calls.at(-1)![0].data;
+    expect(settled.status).toBe("SUCCEEDED");
+    // And it reads as free, because it was. Leaving the quote on the row would
+    // make the History trigger report a charge no transaction backs.
+    expect(settled.chargedCents).toBe(0n);
+    expect(settled.transactionId).toBeNull();
+  });
+
+  it("retries rather than giving an image away on a transient failure", async () => {
+    // Only a shortfall is survivable. A pool timeout must abort so the settler can
+    // try again, not silently hand over an image for nothing.
+    jobFindUniqueMock.mockResolvedValue(settleableJob());
+    createTaskEventTransactionMock.mockRejectedValue(
+      new Error("connection terminated unexpectedly"),
+    );
+
+    await expect(
+      settleWithImage("job-1", "https://v3b.fal.media/files/a.png"),
+    ).rejects.toThrow("connection terminated");
+    expect(assetCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("stores a free image without inventing a transaction", async () => {
+    jobFindUniqueMock.mockResolvedValue(settleableJob({ chargedCents: 0n }));
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(assetCreateMock).toHaveBeenCalledOnce();
   });
 });
 
-describe("refunding a failed generation", () => {
-  it("costs the person nothing end to end: reserve, fail, net zero", async () => {
+describe("a failed generation moves no money", () => {
+  it("takes nothing when the provider refuses the submission", async () => {
     submitToQueueMock.mockResolvedValue({
       kind: "rejected",
       status: 422,
-      message: "prompt rejected",
+      message: '{"detail":"Unexpected status code: 422"}',
     });
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
-    );
 
     const job = await createImageJob(BASE_INPUT);
+
     expect(job.status).toBe("FAILED");
-
-    const debited = createTaskEventTransactionMock.mock.calls[0]![0].cents;
-    const refund = jobUpdateMock.mock.calls.find(
-      (call) => call[0].data?.refundTransaction,
-    );
-    expect(refund).toBeDefined();
-    const credited = refund![0].data.refundTransaction.create.amount;
-    // The debit went out as a negative transaction; the refund is its exact
-    // mirror, so the two sum to zero and a failed generation is free.
-    expect(credited).toBe(debited);
-    expect(credited + debited * BigInt(-1)).toBe(0n);
+    // Nothing to give back, because nothing was ever taken. There is no refund
+    // path in the studio any more.
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("refunds once when several writers race the same failed job", async () => {
-    // The second caller sees the refund the first one wrote.
-    let refunded = false;
-    jobFindUniqueMock.mockImplementation(async (args) => {
-      if (!isRefundLookup(args)) return null;
-      return refundableRow({
-        refundTransactionId: refunded ? "txn-refund-1" : null,
-      });
-    });
-    jobUpdateMock.mockImplementation(async () => {
-      refunded = true;
-      return jobRow({ refundTransactionId: "txn-refund-1" });
-    });
-
-    expect(await refundImageJobCharge("job-1")).toBe(true);
-    expect(await refundImageJobCharge("job-1")).toBe(false);
-    expect(jobUpdateMock).toHaveBeenCalledOnce();
-  });
-
-  it("never refunds a submission whose outcome is unknown", async () => {
-    // fal may well have received and charged for this request, and the row stays
-    // recoverable into a real image. Paying it back automatically would hand the
-    // person credits for an image the platform did pay for.
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args)
-        ? refundableRow({ status: "SUBMISSION_UNCERTAIN" })
-        : null,
-    );
-
-    expect(await refundImageJobCharge("job-1")).toBe(false);
-    expect(jobUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("never refunds a job that produced an image", async () => {
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow({ status: "SUCCEEDED" }) : null,
-    );
-    expect(await refundImageJobCharge("job-1")).toBe(false);
-  });
-
-  it.each(["FAILED", "CANCELED", "ORPHANED"])(
-    "refunds a %s job",
-    async (status) => {
-      jobFindUniqueMock.mockImplementation(async (args) =>
-        isRefundLookup(args) ? refundableRow({ status }) : null,
-      );
-      expect(await refundImageJobCharge("job-1")).toBe(true);
-    },
-  );
-
-  it("does nothing for a job that was never charged", async () => {
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args)
-        ? refundableRow({ chargedCents: null, transaction: null })
-        : null,
-    );
-    expect(await refundImageJobCharge("job-1")).toBe(false);
-    expect(jobUpdateMock).not.toHaveBeenCalled();
-  });
-
-  it("swallows a refund failure so settlement is never aborted by it", async () => {
-    // The sweep is what makes the money come back; throwing here would roll back
-    // a settlement that has already stored a paid-for image.
-    jobFindUniqueMock.mockRejectedValue(new Error("connection lost"));
-    await expect(refundImageJobCharge("job-1")).resolves.toBe(false);
-  });
-
-  it("refunds through failImageJob, which every terminal path now goes through", async () => {
-    // The guarantee fal's completion webhook relies on. That handler used to write
-    // FAILED with an `updateMany` of its own and so never refunded — the preview
-    // defect that took eight credits and kept them.
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
-    );
-    jobUpdateManyMock.mockResolvedValue({ count: 1 });
-
+  it("takes nothing when fal's runner reports an error", async () => {
     await failImageJob(
       "job-1",
       "provider_error",
@@ -395,88 +472,36 @@ describe("refunding a failed generation", () => {
     const written = jobUpdateManyMock.mock.calls[0]![0].data;
     expect(written.status).toBe("FAILED");
     expect(written.failureReason).toBe("provider_error");
-    // A sentence, not the provider's transport string. "Unexpected status code:
-    // 422" reached a person's screen; it now only reaches the log.
-    expect(written.error).toBe(
-      "The image provider could not finish this image.",
-    );
-    expect(written.error).not.toContain("422");
-    // And the money came back.
-    const refund = jobUpdateMock.mock.calls.find(
-      (call) => call[0].data?.refundTransaction,
-    );
-    expect(refund).toBeDefined();
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("refunds a generation whose model left the catalog before it was sent", async () => {
-    // Newly reachable now that the catalog is live: a model fal withdraws between
-    // reservation and submission makes `buildFalInput` throw. That used to escape
-    // as a 500 and leave the row SUBMITTING with the charge taken, which the
-    // sweeper then called SUBMISSION_UNCERTAIN — a status deliberately never
-    // refunded. The person paid for a request that was never sent.
+  it("takes nothing when the request could not be prepared", async () => {
+    // A model fal withdrew between submit and send.
     const withdrawn = jobRow({ model: "fal-ai/withdrawn-last-year" });
     jobCreateMock.mockResolvedValue(withdrawn);
     jobFindUniqueOrThrowMock.mockResolvedValue(withdrawn);
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
-    );
 
     const job = await createImageJob(BASE_INPUT);
 
-    // Never sent: the failure happened before `submitToQueue`.
     expect(submitToQueueMock).not.toHaveBeenCalled();
     expect(job.status).toBe("FAILED");
-    const written = jobUpdateMock.mock.calls[0]![0].data;
-    expect(written.failureReason).toBe("request_not_supported");
-    expect(written.error).toBe(
-      "This model, or these settings, are no longer available from the image provider.",
+    expect(jobUpdateMock.mock.calls[0]![0].data.failureReason).toBe(
+      "request_not_supported",
     );
-    const refund = jobUpdateMock.mock.calls.find(
-      (call) => call[0].data?.refundTransaction,
-    );
-    expect(refund).toBeDefined();
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("tells the person a sentence when the provider refuses a submission", async () => {
-    submitToQueueMock.mockResolvedValue({
-      kind: "rejected",
-      status: 422,
-      message: '{"detail":"Unexpected status code: 422"}',
-    });
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
+  it("takes nothing when the project's access went away at settlement", async () => {
+    jobFindUniqueMock.mockResolvedValue(settleableJob());
+    requireProjectAccessMock.mockRejectedValue(
+      Object.assign(new Error("Project not found"), { status: 404 }),
     );
 
-    await createImageJob(BASE_INPUT);
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
 
-    const written = jobUpdateMock.mock.calls[0]![0].data;
-    expect(written.failureReason).toBe("provider_rejected");
-    expect(written.error).toBe("The image provider refused this request.");
-    expect(written.error).not.toContain("422");
-  });
-
-  it("sweeps up a charge whose inline refund never got written", async () => {
-    jobFindManyMock.mockResolvedValue([{ id: "job-1" }]);
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
-    );
-
-    expect(await refundFailedImageJobs(50)).toBe(1);
-    const selection = jobFindManyMock.mock.calls[0]![0].where;
-    expect(selection.refundTransactionId).toBeNull();
-    expect(selection.status.in).toEqual(["FAILED", "CANCELED", "ORPHANED"]);
-  });
-
-  it("can sweep one project, which is the only backstop a preview has", async () => {
-    // `/sync/image-jobs` is cron-driven and Vercel runs crons on production only,
-    // so on a preview deployment a page load is the only thing that ever sweeps.
-    jobFindManyMock.mockResolvedValue([{ id: "job-1" }]);
-    jobFindUniqueMock.mockImplementation(async (args) =>
-      isRefundLookup(args) ? refundableRow() : null,
-    );
-
-    expect(await refundFailedImageJobs(3, { projectId: "project-1" })).toBe(1);
-    expect(jobFindManyMock.mock.calls[0]![0].where.projectId).toBe("project-1");
-    expect(jobFindManyMock.mock.calls[0]![0].take).toBe(3);
+    const orphaned = jobUpdateManyMock.mock.calls.at(-1)![0].data;
+    expect(orphaned.status).toBe("ORPHANED");
+    expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+    expect(assetCreateMock).not.toHaveBeenCalled();
   });
 });
