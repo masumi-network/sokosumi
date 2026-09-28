@@ -391,6 +391,24 @@ function DrivePageWorkspace({
   const scope = driveStore.scope;
   const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   /**
+   * A `?folder=` the reader arrived at rather than applied: Back, Forward, or a
+   * link pasted into a tab that is already open.
+   *
+   * The catalog follows the URL on its own, and the page head did not, so Back
+   * out of a folder left the chip gone from the list and Delete folder still in
+   * the menu, pointed at the folder that was no longer narrowing anything.
+   * Found by driving a preview.
+   *
+   * After the workspace-switch reset above rather than before it: that reset
+   * clears the facet deliberately, and the ref will already hold this value, so
+   * the two cannot fight.
+   */
+  const previousFolderParamRef = useRef(folderParam);
+  if (previousFolderParamRef.current !== folderParam) {
+    previousFolderParamRef.current = folderParam;
+    setFacetFolder(folderParam);
+  }
+  /**
    * The folder this page is scoped to: where an upload lands and where a new
    * folder is created.
    *

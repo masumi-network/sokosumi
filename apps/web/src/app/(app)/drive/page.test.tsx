@@ -1688,6 +1688,39 @@ describe("one catalog, not two", () => {
     });
   });
 
+  it("follows a folder the reader navigated to rather than applied", async () => {
+    /**
+     * Back, Forward, or a link pasted into an open tab. The catalog follows the
+     * URL on its own; without this the page head did not, so Back out of a
+     * folder left Delete folder in the menu pointed at a folder that was no
+     * longer narrowing anything. Found by driving a preview.
+     */
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    const { rerender } = renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("files-delete-folder")).toBeNull();
+
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    rerender(driveTree());
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
+    });
+
+    // And back out of it again.
+    searchParams = new URLSearchParams("view=workspace");
+    rerender(driveTree());
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("files-delete-folder")).toBeNull();
+    });
+  });
+
   it("offers no folder actions when no folder is applied", async () => {
     // There is nothing to rename then, and offering it would have to guess.
     searchParams = new URLSearchParams("view=workspace");
