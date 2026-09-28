@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const useSessionMock = vi.fn();
 const listDriveItemsMock = vi.fn();
 const patchDriveFoldersRenameMock = vi.fn();
+const postDriveFoldersMock = vi.fn();
 const getUsersByIdOrganizationsMock = vi.fn();
 const replaceMock = vi.fn();
 const pushMock = vi.fn();
@@ -139,7 +140,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
   patchDriveFilesRename: vi.fn(),
   patchDriveFoldersRename: (...args: unknown[]) =>
     patchDriveFoldersRenameMock(...args),
-  postDriveFolders: vi.fn(),
+  postDriveFolders: (...args: unknown[]) => postDriveFoldersMock(...args),
 }));
 
 vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => {
@@ -1653,6 +1654,38 @@ describe("one catalog, not two", () => {
     expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
     // And the Tasks view, which was reachable only through a card in the grid.
     expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+  });
+
+  it("lands in a folder it just created, so the folder is not lost", async () => {
+    /**
+     * The facet list names folders that hold a file. A folder created a second
+     * ago holds nothing, so without this it could not be selected, uploaded
+     * into, renamed or deleted: created and then invisible forever. Found by
+     * driving a preview.
+     */
+    const user = userEvent.setup();
+    searchParams = new URLSearchParams("view=workspace");
+    listDriveItemsMock.mockResolvedValue([]);
+    postDriveFoldersMock.mockResolvedValue({ response: { ok: true } });
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+
+    const header = screen.getByTestId("files-desktop-header");
+    await user.click(
+      within(header).getByRole("button", { name: "createFolder" }),
+    );
+    await user.type(screen.getByPlaceholderText("folderName"), "Reports");
+    await user.click(
+      screen.getByRole("button", { name: "createFolderDialogConfirm" }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
+    });
   });
 
   it("offers no folder actions when no folder is applied", async () => {

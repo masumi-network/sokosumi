@@ -129,6 +129,18 @@ export function DriveFileFilters({
   const activeCount = countActiveFileFilters(filters);
   const categories = labels.filter((label) => label.kind === "CATEGORY");
   const tags = labels.filter((label) => label.kind === "TAG");
+  /**
+   * The applied folder is always offered, even when it holds no file.
+   *
+   * The list names folders the catalog has seen a file in. A folder the reader
+   * just created holds nothing and is not in it — and without this the radio
+   * they are standing on would not exist, so the only way out of an empty
+   * folder would be Clear filters.
+   */
+  const folderOptions =
+    draft.folder && !folders.includes(draft.folder)
+      ? [draft.folder, ...folders]
+      : folders;
 
   function apply(next: FileSearchFilterState) {
     onApply(next);
@@ -138,7 +150,7 @@ export function DriveFileFilters({
 
   const body = (
     <div className="flex flex-col gap-5">
-      {folders.length > 0 ? (
+      {folderOptions.length > 0 ? (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">{t("filterFolder")}</legend>
           {/**
@@ -158,7 +170,7 @@ export function DriveFileFilters({
             />
             <span>{t("filterFolderAll")}</span>
           </label>
-          {folders.map((folder) => (
+          {folderOptions.map((folder) => (
             <label
               key={folder}
               className="flex min-h-11 items-center gap-2 text-sm"

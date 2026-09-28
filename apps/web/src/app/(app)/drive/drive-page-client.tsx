@@ -1122,6 +1122,24 @@ function DrivePageWorkspace({
       setCreateFolderDialogOpen(false);
       setNewFolderName("");
       setSnapshotFolder(null);
+      /**
+       * And narrow the catalog to it, or the folder is unreachable.
+       *
+       * The facet list names folders that hold a file, because that is what the
+       * catalog knows about. A folder created a second ago holds nothing, so it
+       * could not be selected, could not be uploaded into, and could not be
+       * renamed or deleted either: created and then invisible forever. Found by
+       * driving a preview, not by a test.
+       *
+       * Applying it here closes the loop. The reader lands in the empty folder
+       * they just made, Upload puts a file in it, and from then on the facet
+       * list carries it like any other.
+       */
+      applyFolderFacet(
+        targetFolder
+          ? `${targetFolder}/${newFolderName.trim()}`
+          : newFolderName.trim(),
+      );
       await refreshDriveItems();
     } catch (err) {
       console.error("Failed to create folder", err);
