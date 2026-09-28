@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WORKSPACE, workspacePath } from "./local-tools";
+import { htmlToText, WORKSPACE, workspacePath } from "./local-tools";
 
 describe("workspace paths", () => {
   it("resolves paths inside the workspace", () => {
@@ -14,4 +14,10 @@ describe("workspace paths", () => {
       expect(() => workspacePath(path)).toThrow("outside the workspace");
     },
   );
+});
+
+describe("html to text", () => {
+  it("decodes entities once", () => {
+    expect(htmlToText("<p>a &amp;lt; b &lt; c</p>")).toBe("a &lt; b < c");
+  });
 });
