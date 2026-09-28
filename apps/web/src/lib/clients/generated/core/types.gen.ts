@@ -50160,7 +50160,7 @@ export type GetTasksByIdEventsData = {
          */
         cursor?: string;
         /**
-         * Number of items to return (max 100)
+         * Number of items to return (max 100). Omit with no cursor to return the full event list.
          */
         limit?: number;
     };
