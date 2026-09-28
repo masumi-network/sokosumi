@@ -10,11 +10,13 @@
  *   node scripts/cloud-agent-db/teardown.mjs
  *   node scripts/cloud-agent-db/teardown.mjs --agent-id bc-…
  *   node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-bc-…
- *   node scripts/cloud-agent-db/teardown.mjs --from-text "$PR_BODY"
+ *   node scripts/cloud-agent-db/teardown.mjs --from-text "<pr body>"
+ *   node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
+ *   node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
  */
 
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { clearState, readState } from "./apply-env.mjs";
 import {
@@ -42,13 +44,15 @@ function fail(message) {
 
 /**
  * @param {string[]} argv
+ * @param {NodeJS.ProcessEnv} [env]
  */
-function parseArgs(argv) {
-  /** @type {{ agentIds: string[], branchNames: string[], fromText: string | null, help: boolean }} */
+export function parseArgs(argv, env = process.env) {
+  /** @type {{ agentIds: string[], branchNames: string[], fromText: string | null, fromWorkflowRun: boolean, help: boolean }} */
   const opts = {
     agentIds: [],
     branchNames: [],
     fromText: null,
+    fromWorkflowRun: false,
     help: false,
   };
 
@@ -58,7 +62,10 @@ function parseArgs(argv) {
     else if (arg === "--agent-id") opts.agentIds.push(argv[++i] ?? "");
     else if (arg === "--branch-name") opts.branchNames.push(argv[++i] ?? "");
     else if (arg === "--from-text") opts.fromText = argv[++i] ?? "";
-    else if (arg.startsWith("--agent-id="))
+    else if (arg === "--from-workflow-run") opts.fromWorkflowRun = true;
+    else if (arg === "--from-agent-id-env") {
+      opts.agentIds.push(env.AGENT_ID ?? "");
+    } else if (arg.startsWith("--agent-id="))
       opts.agentIds.push(arg.slice("--agent-id=".length));
     else if (arg.startsWith("--branch-name="))
       opts.branchNames.push(arg.slice("--branch-name=".length));
@@ -79,7 +86,99 @@ function printHelp() {
   node scripts/cloud-agent-db/teardown.mjs --agent-id <bc-…>
   node scripts/cloud-agent-db/teardown.mjs --branch-name cloud-agent-<bc-…>
   node scripts/cloud-agent-db/teardown.mjs --from-text "<pr body>"
+  node scripts/cloud-agent-db/teardown.mjs --from-workflow-run
+  node scripts/cloud-agent-db/teardown.mjs --from-agent-id-env
 `);
+}
+
+/**
+ * @param {string} token
+ */
+function githubHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Accept: "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+    "User-Agent": "sokosumi-cloud-agent-db-teardown",
+  };
+}
+
+/**
+ * @param {object} options
+ * @param {string} options.token
+ * @param {string} options.url
+ * @param {typeof fetch} [options.fetchImpl]
+ */
+export async function githubJson({ token, url, fetchImpl = globalThis.fetch }) {
+  const response = await fetchImpl(url, { headers: githubHeaders(token) });
+  if (response.status === 404) {
+    return null;
+  }
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(`GitHub ${response.status}: ${JSON.stringify(payload)}`);
+  }
+  return payload;
+}
+
+/**
+ * Same-repo PR bodies for the workflow_run that just completed. Fork PRs
+ * are skipped so a close event cannot name someone else's agent id.
+ *
+ * @param {object} options
+ * @param {string} options.token
+ * @param {string} options.repo
+ * @param {string} options.runId
+ * @param {string} [options.headSha]
+ * @param {typeof fetch} [options.fetchImpl]
+ * @returns {Promise<string[]>}
+ */
+export async function sameRepoPullRequestBodies({
+  token,
+  repo,
+  runId,
+  headSha,
+  fetchImpl = globalThis.fetch,
+}) {
+  if (!token || !repo || !runId) {
+    throw new Error("GH_TOKEN, GH_REPO, and WORKFLOW_RUN_ID are required");
+  }
+
+  const run = await githubJson({
+    token,
+    url: `https://api.github.com/repos/${repo}/actions/runs/${runId}`,
+    fetchImpl,
+  });
+  /** @type {{ number?: number }[]} */
+  let pullRequests = Array.isArray(run?.pull_requests) ? run.pull_requests : [];
+
+  if (pullRequests.length === 0 && headSha) {
+    const associated = await githubJson({
+      token,
+      url: `https://api.github.com/repos/${repo}/commits/${headSha}/pulls`,
+      fetchImpl,
+    });
+    pullRequests = Array.isArray(associated) ? associated : [];
+  }
+
+  const bodies = [];
+  for (const entry of pullRequests) {
+    if (!entry?.number) continue;
+    const pullRequest = await githubJson({
+      token,
+      url: `https://api.github.com/repos/${repo}/pulls/${entry.number}`,
+      fetchImpl,
+    });
+    if (!pullRequest) continue;
+    if (pullRequest.head?.repo?.full_name !== repo) {
+      warn(
+        `Skipping fork pull request ${entry.number} (head ${pullRequest.head?.repo?.full_name ?? "unknown"})`,
+      );
+      continue;
+    }
+    bodies.push(typeof pullRequest.body === "string" ? pullRequest.body : "");
+  }
+  return bodies;
 }
 
 /**
@@ -118,6 +217,14 @@ async function deleteByName(config, branchName) {
   return safeDeleteBranch(config, branch);
 }
 
+export function isMainModule(moduleUrl = import.meta.url) {
+  const entry = process.argv[1];
+  if (!entry) {
+    return false;
+  }
+  return pathToFileURL(path.resolve(entry)).href === moduleUrl;
+}
+
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
@@ -146,8 +253,23 @@ async function main() {
     }
   }
 
+  if (opts.fromWorkflowRun) {
+    const bodies = await sameRepoPullRequestBodies({
+      token: process.env.GH_TOKEN ?? "",
+      repo: process.env.GH_REPO ?? "",
+      runId: process.env.WORKFLOW_RUN_ID ?? "",
+      headSha: process.env.HEAD_SHA,
+    });
+    for (const body of bodies) {
+      for (const agentId of extractAgentIdsFromText(body)) {
+        branchNames.add(agentBranchName(agentId));
+      }
+    }
+  }
+
   const state = await readState(REPO_ROOT);
-  const useStateFallback = branchNames.size === 0 && !opts.fromText;
+  const useStateFallback =
+    branchNames.size === 0 && !opts.fromText && !opts.fromWorkflowRun;
 
   if (useStateFallback && state?.branchName) {
     branchNames.add(state.branchName);
@@ -182,4 +304,6 @@ async function main() {
   }
 }
 
-await main();
+if (isMainModule()) {
+  await main();
+}

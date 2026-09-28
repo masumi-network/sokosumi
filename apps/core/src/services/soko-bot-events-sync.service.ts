@@ -3,6 +3,7 @@ import { getEnv } from "@/config/env";
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -439,6 +440,7 @@ export class SokoBotEventsSyncService {
           clientTurnId: sokoBotEventClientTurnId(changes),
           message: buildEventMessage(changes),
           source: "EVENT",
+          presetRoute: SYSTEM_TURN_ROUTES.events,
           eventBatch: changes.map((change) => ({
             eventId: change.eventId ?? `${change.entityId}:${change.to}`,
             entityId: change.entityId,

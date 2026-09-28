@@ -3636,12 +3636,18 @@
         "title": "Soko Bots",
         "description": "Fleet health and exact per-bot activity across all users.",
         "Health": {
-          "total": "Bots",
-          "running": "Running",
-          "paused": "Paused",
-          "error": "Erroring",
           "pendingDecisions": "Pending approvals",
-          "archived": "Archived"
+          "active": "Active bots",
+          "activeRecently": "Used in last 7 days",
+          "attention": "Need attention",
+          "attentionTitle": "Needs attention",
+          "unnamed": "Unnamed",
+          "reasons": {
+            "error": "In error state",
+            "paused": "Paused by an operator",
+            "failures": "{count, plural, one {# failed turn in a row} other {# failed turns in a row}}",
+            "pending": "{count, plural, one {# approval waiting} other {# approvals waiting}}"
+          }
         },
         "Fleet": {
           "searchPlaceholder": "Search by bot, owner name, or email…",
@@ -3652,14 +3658,13 @@
           "owner": "Owner",
           "status": "Status",
           "turns": "Turns",
-          "pending": "Pending",
-          "schedules": "Schedules",
-          "failures": "Failures",
-          "runtime": "Runtime",
+          "pending": "{count, plural, one {# pending} other {# pending}}",
+          "failures": "{count, plural, one {# failure} other {# failures}}",
           "lastActivity": "Last activity",
           "unnamed": "Unnamed",
           "archived": "Archived",
-          "version": "Version"
+          "version": "Version",
+          "showDormant": "Show unused and archived ({count})"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
@@ -3715,7 +3720,8 @@
           "confirm": "Confirm",
           "working": "Working…",
           "done": "{action} recorded.",
-          "error": "Action failed."
+          "error": "Action failed.",
+          "more": "More actions"
         },
         "Overview": {
           "title": "Overview",
@@ -3729,7 +3735,6 @@
           "lastSucceededAt": "Last success",
           "lastFailedAt": "Last failure",
           "consecutiveFailures": "Consecutive failures",
-          "recentTurns": "Recent turns",
           "recentTurnsValue": "{total} total · {completed} ok · {failed} failed",
           "successRate": "Success rate",
           "runtime": "Runtime",
@@ -3750,7 +3755,10 @@
           "usageCredits": "Credits spent",
           "usageTurns": "Turns",
           "usageTokens": "Tokens (in / out)",
-          "usageModelCost": "Model cost"
+          "usageModelCost": "Model cost",
+          "technicalDetails": "Technical details",
+          "botId": "Bot id",
+          "version": "Version"
         },
         "Turns": {
           "title": "Turns",
@@ -3760,7 +3768,9 @@
           "source": {
             "CHAT": "Chat",
             "SCHEDULE": "Scheduled",
-            "ADMIN_RETRY": "Operator retry"
+            "ADMIN_RETRY": "Operator retry",
+            "EVENT": "Task event",
+            "INGEST": "Inbox sync"
           },
           "yes": "Yes",
           "no": "No",
@@ -3939,7 +3949,8 @@
           "version": "Version",
           "turns": "Turns",
           "avgScore": "Avg score",
-          "realRunsByVersion": "Real usage by version"
+          "realRunsByVersion": "Real usage by version",
+          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days."
         },
         "labLink": "Behaviour lab",
         "versionsLink": "Versions",
@@ -4090,7 +4101,6 @@
           "batchProgress": "Running {done} of {total}"
         },
         "KillSwitch": {
-          "title": "Feature switch",
           "stateEnabled": "Soko Bot is running normally.",
           "stateDisabled": "Disabled — {reason}",
           "noReason": "no reason given",
@@ -4100,7 +4110,13 @@
           "reasonPlaceholder": "Reason shown to users (optional)",
           "disabled": "Soko Bot disabled.",
           "enabled": "Soko Bot enabled.",
-          "error": "Could not change the feature switch."
+          "error": "Could not change the feature switch.",
+          "offTitle": "Soko Bot is off for everyone",
+          "disableEllipsis": "Disable…",
+          "confirmTitle": "Disable Soko Bot for everyone?",
+          "confirmDescription": "No turns start and no model calls are made until you turn it back on. Owners see the reason you enter.",
+          "reasonLabel": "Reason",
+          "cancel": "Cancel"
         },
         "Version": {
           "title": "Agent version",

@@ -30,6 +30,8 @@ import {
   buildSignInMenuItems,
   canToggleSignInNetwork,
   displayTargetLabel,
+  formatVendorReviewLine,
+  formatWorkspaceReviewLine,
   isNetworkSelectionLocked,
   nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
@@ -38,6 +40,8 @@ import {
   resolveStatusCoreClient,
   type StatusAppOptions,
   toggleHostedTarget,
+  vendorMembershipCaption,
+  workspaceMembershipCaption,
 } from "../../src/tui/status-app.js";
 
 test("TUI display values derive from package, config, and OAuth sources", () => {
@@ -295,7 +299,10 @@ test("signed-in home lists Vendors and Workspaces, not a fake Register flow", as
     assert.match(output, /Vendors/);
     assert.match(output, /Workspaces/);
     assert.match(output, /Sign out/);
-    assert.match(output, /coworkers register/);
+    assert.match(output, /coworkers list/);
+    assert.match(output, /coworkers connect/);
+    assert.match(output, /coworkers api-key/);
+    assert.doesNotMatch(output, /coworkers register/);
     assert.doesNotMatch(output, /Register a Coworker/);
     assert.doesNotMatch(output, /pi-sokosumi|OpenClaw|Hermes/);
     await sendInput(terminal.stdin, "q");
@@ -305,6 +312,42 @@ test("signed-in home lists Vendors and Workspaces, not a fake Register flow", as
     await cliPromise;
     instance?.cleanup();
   }
+});
+
+test("Vendor and Workspace screens are read-only review lists", () => {
+  assert.equal(
+    vendorMembershipCaption(false),
+    "Vendor memberships from Core. Review only.",
+  );
+  assert.equal(
+    workspaceMembershipCaption(false),
+    "Organization workspaces from Core. Review only.",
+  );
+  assert.doesNotMatch(vendorMembershipCaption(false), /Choose/);
+  assert.doesNotMatch(workspaceMembershipCaption(false), /Choose|Coworker/);
+  assert.equal(
+    formatVendorReviewLine({
+      id: "vendor-1",
+      createdAt: null,
+      updatedAt: null,
+      name: "Acme",
+      slug: "acme",
+      logos: { light: null, dark: null },
+      role: "admin",
+    }),
+    "Acme · admin · vendor-1",
+  );
+  assert.equal(
+    formatWorkspaceReviewLine({
+      organizationId: "org-1",
+      createdAt: null,
+      name: "Acme Org",
+      slug: "acme",
+      logo: null,
+      role: "owner",
+    }),
+    "Acme Org · owner · org-1",
+  );
 });
 
 test("Ink solely owns API-key input and Esc/arrow navigation", async () => {

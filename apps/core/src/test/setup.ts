@@ -21,7 +21,6 @@ const envDefaults: Record<string, string> = {
   REQUIRE_PERSONAL_WORKSPACE: "false",
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-  SOKO_BOT_CLASSIFIER_MODE: "deterministic",
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter_test",

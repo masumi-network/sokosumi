@@ -13,7 +13,7 @@ public struct SidebarThreadRow: Identifiable, Equatable, Sendable {
   /// Unread replies in this Thread naming the reader (web: absent on an older snapshot, so zero).
   public let mentionCount: Int
   /// The room's members by mention id, for the preview.
-  public let mentionNames: [String: String]
+  let mentionNames: [String: String]
 
   public var id: String {
     "\(roomId)/\(parentMessageId)"

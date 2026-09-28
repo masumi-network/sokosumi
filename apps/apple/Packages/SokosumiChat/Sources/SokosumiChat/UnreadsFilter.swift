@@ -17,7 +17,7 @@ public struct RoomUnreadReads: Equatable, Sendable {
   }
 
   /// A read would still change the room.
-  public var isNeeded: Bool {
+  var isNeeded: Bool {
     readRoom || lookThreads
   }
 }

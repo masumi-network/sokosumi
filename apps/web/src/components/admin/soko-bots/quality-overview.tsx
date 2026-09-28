@@ -33,6 +33,8 @@ interface ScoreChartProps {
   daily: AdminSokoBotQuality["daily"];
   formatDate: (date: string) => string;
   labels: ScoreChartLabels;
+  /** Owner feedback is rare; the thumbs series only appear once there is any. */
+  showThumbs: boolean;
 }
 
 function dateTickIndexes(length: number): number[] {
@@ -43,7 +45,12 @@ function dateTickIndexes(length: number): number[] {
 }
 
 /** Judge score and owner feedback per day, with independent score and count axes. */
-function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
+function ScoreChart({
+  daily,
+  formatDate,
+  labels,
+  showThumbs,
+}: ScoreChartProps) {
   const step = (PLOT_RIGHT - PLOT_LEFT) / Math.max(1, daily.length - 1);
   function x(index: number): number {
     return PLOT_LEFT + index * step;
@@ -87,14 +94,18 @@ function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
           <span aria-hidden className="bg-primary h-px w-4" />
           {labels.scoreLegend}
         </span>
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden className="bg-semantic-success h-px w-4" />
-          {labels.thumbsUpLegend}
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span aria-hidden className="bg-semantic-destructive h-px w-4" />
-          {labels.thumbsDownLegend}
-        </span>
+        {showThumbs ? (
+          <>
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden className="bg-semantic-success h-px w-4" />
+              {labels.thumbsUpLegend}
+            </span>
+            <span className="inline-flex items-center gap-2">
+              <span aria-hidden className="bg-semantic-destructive h-px w-4" />
+              {labels.thumbsDownLegend}
+            </span>
+          </>
+        ) : null}
       </div>
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
@@ -121,15 +132,17 @@ function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
             </text>
           </g>
         ))}
-        <text
-          x={WIDTH - 2}
-          y={9}
-          textAnchor="end"
-          className="fill-muted-foreground text-[0.5625rem]"
-        >
-          {labels.countAxis}
-        </text>
-        {countTicks.map((count) => (
+        {showThumbs ? (
+          <text
+            x={WIDTH - 2}
+            y={9}
+            textAnchor="end"
+            className="fill-muted-foreground text-[0.5625rem]"
+          >
+            {labels.countAxis}
+          </text>
+        ) : null}
+        {(showThumbs ? countTicks : []).map((count) => (
           <text
             key={count}
             x={WIDTH - 2}
@@ -151,22 +164,26 @@ function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
             strokeLinejoin="round"
           />
         ))}
-        <polyline
-          data-series="thumbs-up"
-          points={thumbsUpPoints}
-          fill="none"
-          className="stroke-semantic-success"
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-        />
-        <polyline
-          data-series="thumbs-down"
-          points={thumbsDownPoints}
-          fill="none"
-          className="stroke-semantic-destructive"
-          strokeWidth={1.5}
-          strokeLinejoin="round"
-        />
+        {showThumbs ? (
+          <>
+            <polyline
+              data-series="thumbs-up"
+              points={thumbsUpPoints}
+              fill="none"
+              className="stroke-semantic-success"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+            />
+            <polyline
+              data-series="thumbs-down"
+              points={thumbsDownPoints}
+              fill="none"
+              className="stroke-semantic-destructive"
+              strokeWidth={1.5}
+              strokeLinejoin="round"
+            />
+          </>
+        ) : null}
         {daily.map((day, index) => {
           const date = formatDate(day.date);
           return (
@@ -235,9 +252,11 @@ function ScoreChart({ daily, formatDate, labels }: ScoreChartProps) {
 export async function QualityOverview({
   quality,
   selectedVersionId = null,
+  scope = "fleet",
 }: {
   quality: AdminSokoBotQuality;
   selectedVersionId?: string | null;
+  scope?: "fleet" | "bot";
 }) {
   const [t, formatter] = await Promise.all([
     getTranslations("App.Admin.SokoBots.Quality"),
@@ -250,18 +269,29 @@ export async function QualityOverview({
       timeZone: "UTC",
     });
   }
-  const visibleVersions = selectedVersionId
-    ? quality.versions.filter(
-        (version) => version.versionId === selectedVersionId,
-      )
-    : quality.versions;
+  // Versions nobody ran are catalog entries, not results; the Versions page
+  // lists them.
+  const visibleVersions = quality.versions.filter((version) =>
+    selectedVersionId
+      ? version.versionId === selectedVersionId
+      : version.turns > 0,
+  );
+  const hasProactive =
+    quality.proactive.sent > 0 ||
+    quality.proactive.thumbsUp > 0 ||
+    quality.proactive.thumbsDown > 0;
+  const hasFeedback = quality.daily.some(
+    (day) => day.thumbsUp > 0 || day.thumbsDown > 0,
+  );
   return (
     <section className="bg-background rounded-lg border">
       <header className="flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3">
         <div className="space-y-2">
           <div className="space-y-0.5">
             <h2 className="text-sm font-semibold leading-5">{t("title")}</h2>
-            <p className="text-muted-foreground text-xs">{t("description")}</p>
+            <p className="text-muted-foreground text-xs">
+              {t(scope === "bot" ? "descriptionBot" : "description")}
+            </p>
           </div>
           <QualityVersionFilter
             selectedVersionId={selectedVersionId}
@@ -283,23 +313,26 @@ export async function QualityOverview({
               turns: quality.overall.turns,
             })}
           </span>
-          <span className="text-muted-foreground block">
-            {t("proactive", {
-              sent: quality.proactive.sent,
-              actedOn: quality.proactive.actedOn,
-            })}
-            {" · "}
-            {t("thumbs", {
-              up: quality.proactive.thumbsUp,
-              down: quality.proactive.thumbsDown,
-            })}
-          </span>
+          {hasProactive ? (
+            <span className="text-muted-foreground block">
+              {t("proactive", {
+                sent: quality.proactive.sent,
+                actedOn: quality.proactive.actedOn,
+              })}
+              {" · "}
+              {t("thumbs", {
+                up: quality.proactive.thumbsUp,
+                down: quality.proactive.thumbsDown,
+              })}
+            </span>
+          ) : null}
         </p>
       </header>
       <div className="px-4 py-3">
         <ScoreChart
           daily={quality.daily}
           formatDate={formatDate}
+          showThumbs={hasFeedback}
           labels={{
             chart: t("chartLabel"),
             countAxis: t("countAxis"),
@@ -314,46 +347,48 @@ export async function QualityOverview({
           }}
         />
       </div>
-      <div className="app-scrollbar overflow-x-auto border-t">
-        <table className="w-full text-xs">
-          <caption className="text-muted-foreground px-4 py-2 text-left font-medium">
-            {t("realRunsByVersion")}
-          </caption>
-          <thead className="text-muted-foreground">
-            <tr className="[&>th]:px-4 [&>th]:py-2 [&>th]:text-left [&>th]:font-medium">
-              <th>{t("version")}</th>
-              <th className="text-right!">{t("turns")}</th>
-              <th className="text-right!">{t("avgScore")}</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {visibleVersions.map((version) => (
-              <tr
-                key={version.versionId}
-                className="[&>td]:px-4 [&>td]:py-2 [&>td]:tabular-nums"
-              >
-                <td>
-                  <span className="font-medium">{version.versionId}</span>
-                  {version.name ? (
-                    <span className="text-muted-foreground ml-2">
-                      {version.name}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="text-right">{version.turns}</td>
-                <td
-                  className={cn(
-                    "text-right font-medium",
-                    scoreTone(version.avgScore),
-                  )}
-                >
-                  {version.avgScore ?? "—"}
-                </td>
+      {visibleVersions.length === 0 ? null : (
+        <div className="app-scrollbar overflow-x-auto border-t">
+          <table className="w-full text-xs">
+            <caption className="text-muted-foreground px-4 py-2 text-left font-medium">
+              {t("realRunsByVersion")}
+            </caption>
+            <thead className="text-muted-foreground">
+              <tr className="[&>th]:px-4 [&>th]:py-2 [&>th]:text-left [&>th]:font-medium">
+                <th>{t("version")}</th>
+                <th className="text-right!">{t("turns")}</th>
+                <th className="text-right!">{t("avgScore")}</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="divide-y">
+              {visibleVersions.map((version) => (
+                <tr
+                  key={version.versionId}
+                  className="[&>td]:px-4 [&>td]:py-2 [&>td]:tabular-nums"
+                >
+                  <td>
+                    <span className="font-medium">{version.versionId}</span>
+                    {version.name ? (
+                      <span className="text-muted-foreground ml-2">
+                        {version.name}
+                      </span>
+                    ) : null}
+                  </td>
+                  <td className="text-right">{version.turns}</td>
+                  <td
+                    className={cn(
+                      "text-right font-medium",
+                      scoreTone(version.avgScore),
+                    )}
+                  >
+                    {version.avgScore ?? "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </section>
   );
 }

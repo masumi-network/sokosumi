@@ -3600,12 +3600,18 @@
         "title": "Soko Bots",
         "description": "Flottenzustand und exakte Aktivität pro Bot über alle Nutzer.",
         "Health": {
-          "total": "Bots",
-          "running": "Aktiv",
-          "paused": "Pausiert",
-          "error": "Fehlerhaft",
           "pendingDecisions": "Offene Freigaben",
-          "archived": "Archiviert"
+          "active": "Aktive Bots",
+          "activeRecently": "In den letzten 7 Tagen genutzt",
+          "attention": "Brauchen Aufmerksamkeit",
+          "attentionTitle": "Braucht Aufmerksamkeit",
+          "unnamed": "Unbenannt",
+          "reasons": {
+            "error": "Im Fehlerzustand",
+            "paused": "Von einem Operator pausiert",
+            "failures": "{count, plural, one {# fehlgeschlagener Turn in Folge} other {# fehlgeschlagene Turns in Folge}}",
+            "pending": "{count, plural, one {# Freigabe wartet} other {# Freigaben warten}}"
+          }
         },
         "Fleet": {
           "searchPlaceholder": "Nach Bot, Besitzername oder E-Mail suchen…",
@@ -3616,14 +3622,13 @@
           "owner": "Besitzer",
           "status": "Status",
           "turns": "Turns",
-          "pending": "Offen",
-          "schedules": "Zeitpläne",
-          "failures": "Fehler",
-          "runtime": "Runtime",
+          "pending": "{count, plural, one {# offen} other {# offen}}",
+          "failures": "{count, plural, one {# Fehler} other {# Fehler}}",
           "lastActivity": "Letzte Aktivität",
           "unnamed": "Unbenannt",
           "archived": "Archiviert",
-          "version": "Version"
+          "version": "Version",
+          "showDormant": "Ungenutzte und archivierte anzeigen ({count})"
         },
         "Detail": {
           "backToList": "Zurück zu Soko Bots",
@@ -3679,7 +3684,8 @@
           "confirm": "Bestätigen",
           "working": "Wird ausgeführt…",
           "done": "{action} protokolliert.",
-          "error": "Aktion fehlgeschlagen."
+          "error": "Aktion fehlgeschlagen.",
+          "more": "Weitere Aktionen"
         },
         "Overview": {
           "title": "Übersicht",
@@ -3693,7 +3699,6 @@
           "lastSucceededAt": "Letzter Erfolg",
           "lastFailedAt": "Letzter Fehler",
           "consecutiveFailures": "Fehler in Folge",
-          "recentTurns": "Letzte Turns",
           "recentTurnsValue": "{total} gesamt · {completed} ok · {failed} fehlgeschlagen",
           "successRate": "Erfolgsquote",
           "runtime": "Runtime",
@@ -3714,7 +3719,10 @@
           "usageCredits": "Verbrauchte Credits",
           "usageTurns": "Durchläufe",
           "usageTokens": "Tokens (rein / raus)",
-          "usageModelCost": "Modellkosten"
+          "usageModelCost": "Modellkosten",
+          "technicalDetails": "Technische Details",
+          "botId": "Bot-ID",
+          "version": "Version"
         },
         "Turns": {
           "title": "Turns",
@@ -3724,7 +3732,9 @@
           "source": {
             "CHAT": "Chat",
             "SCHEDULE": "Geplant",
-            "ADMIN_RETRY": "Operator-Wiederholung"
+            "ADMIN_RETRY": "Operator-Wiederholung",
+            "EVENT": "Task-Ereignis",
+            "INGEST": "Posteingang-Sync"
           },
           "yes": "Ja",
           "no": "Nein",
@@ -3903,7 +3913,8 @@
           "version": "Version",
           "turns": "Durchläufe",
           "avgScore": "Ø Score",
-          "realRunsByVersion": "Echte Nutzung nach Version"
+          "realRunsByVersion": "Echte Nutzung nach Version",
+          "descriptionBot": "Judge-Bewertungen (1–5) für echte Turns dieses Bots, letzte 30 Tage."
         },
         "labLink": "Verhaltenslabor",
         "versionsLink": "Versionen",
@@ -4054,7 +4065,6 @@
           "batchProgress": "{done} von {total} werden ausgeführt"
         },
         "KillSwitch": {
-          "title": "Funktionsschalter",
           "stateEnabled": "Soko Bot läuft normal.",
           "stateDisabled": "Deaktiviert — {reason}",
           "noReason": "kein Grund angegeben",
@@ -4064,7 +4074,13 @@
           "reasonPlaceholder": "Grund für Nutzer (optional)",
           "disabled": "Soko Bot deaktiviert.",
           "enabled": "Soko Bot aktiviert.",
-          "error": "Der Funktionsschalter konnte nicht geändert werden."
+          "error": "Der Funktionsschalter konnte nicht geändert werden.",
+          "offTitle": "Soko Bot ist für alle ausgeschaltet",
+          "disableEllipsis": "Deaktivieren…",
+          "confirmTitle": "Soko Bot für alle deaktivieren?",
+          "confirmDescription": "Bis du ihn wieder einschaltest, starten keine Turns und es werden keine Modellaufrufe gemacht. Besitzer sehen den Grund, den du angibst.",
+          "reasonLabel": "Grund",
+          "cancel": "Abbrechen"
         },
         "Version": {
           "title": "Agent-Version",
