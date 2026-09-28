@@ -78,7 +78,7 @@
     {
       "id": "alibaba-qwen-image-3-text-to-image",
       "label": "Qwen Image 3 Text to Image",
-      "description": "Generates images from a text prompt at resolutions up to 2048×2048, with automatic prompt rewriting and prompt-guided resolution selection, building on Qwen's strength in complex text rendering and precise prompt adherence",
+      "description": "Generates images from a text prompt at resolutions up to 2048×2048",
       "generateEndpoint": "alibaba/qwen-image-3/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -113,7 +113,7 @@
     {
       "id": "bitdance",
       "label": "Bitdance",
-      "description": "Image generation with BitDance. Fast, high-resolution photorealistic images using an autoregressive LLM— for efficient, high-quality results.",
+      "description": "Image generation with BitDance",
       "generateEndpoint": "fal-ai/bitdance",
       "editEndpoint": null,
       "aspectRatios": [
@@ -189,7 +189,7 @@
     {
       "id": "bria-fibo-bbq-preview-generate",
       "label": "Fibo Bbq Preview",
-      "description": "A preview to the next level of control of Text-to-Image models.",
+      "description": "A preview to the next level of control of Text-to-Image models",
       "generateEndpoint": "bria/fibo-bbq-preview/generate",
       "editEndpoint": null,
       "aspectRatios": [
@@ -224,7 +224,7 @@
     {
       "id": "bria-fibo-gen-1-5-text-to-image",
       "label": "Fibo Gen 1.5 Text to Image",
-      "description": "Text-to-image model with high-fidelity outputs, accurate typography, and style preset, strong in photorealism, textures, and beyond. JSON-structured prompts give enterprise and agentic workflows production-ready control. Trained on licensed data.",
+      "description": "Text-to-image model with high-fidelity outputs, accurate typography, and style preset",
       "generateEndpoint": "bria/fibo-gen-1.5/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -259,7 +259,7 @@
     {
       "id": "bria-fibo-generate",
       "label": "Fibo",
-      "description": "SOTA open-source text-to-image model delivering high-fidelity outputs with accurate typography. JSON-structured prompts provide production-ready controllability for enterprise and agentic workflows. Trained exclusively on licensed data.",
+      "description": "SOTA open-source text-to-image model delivering high-fidelity outputs with accurate…",
       "generateEndpoint": "bria/fibo/generate",
       "editEndpoint": null,
       "aspectRatios": [
@@ -294,7 +294,7 @@
     {
       "id": "bria-fibo-lite-generate",
       "label": "Fibo Lite",
-      "description": "Fast, low-latency text-to-image model with high-quality output and full JSON-structured controllability. Open-source, trained on licensed data, and optimized for production-scale generation.",
+      "description": "Fast, low-latency text-to-image model with high-quality output and full JSON-structured…",
       "generateEndpoint": "bria/fibo-lite/generate",
       "editEndpoint": null,
       "aspectRatios": [
@@ -329,7 +329,7 @@
     {
       "id": "bria-text-to-image-base",
       "label": "Bria Text-to-Image Base",
-      "description": "Bria's Text-to-Image model, trained exclusively on licensed data for safe and risk-free commercial use. Available also as source code and weights. For access to weights: https://bria.ai/contact-us",
+      "description": "Bria's Text-to-Image model, trained exclusively on licensed data for safe and risk-free…",
       "generateEndpoint": "fal-ai/bria/text-to-image/base",
       "editEndpoint": null,
       "aspectRatios": [
@@ -364,7 +364,7 @@
     {
       "id": "bria-text-to-image-fast",
       "label": "Bria Text-to-Image Fast",
-      "description": "Bria's Text-to-Image model with perfect harmony of latency and quality. Trained exclusively on licensed data for safe and risk-free commercial use. Available also as source code and weights. For access to weights: https://bria.ai/contact-us",
+      "description": "Bria's Text-to-Image model with perfect harmony of latency and quality",
       "generateEndpoint": "fal-ai/bria/text-to-image/fast",
       "editEndpoint": null,
       "aspectRatios": [
@@ -399,7 +399,7 @@
     {
       "id": "bria-text-to-image-hd",
       "label": "Bria Text-to-Image HD",
-      "description": "Bria's Text-to-Image model for HD images. Trained exclusively on licensed data for safe and risk-free commercial use. Available also as source code and weights. For access to weights: https://bria.ai/contact-us",
+      "description": "Bria's Text-to-Image model for HD images",
       "generateEndpoint": "fal-ai/bria/text-to-image/hd",
       "editEndpoint": null,
       "aspectRatios": [
@@ -434,7 +434,7 @@
     {
       "id": "bytedance-seedream-v4-5-text-to-image",
       "label": "Bytedance Seedream V4.5 Text To Image",
-      "description": "A new-generation image creation model ByteDance, Seedream 4.5 integrates image generation and image editing capabilities into a single, unified architecture.",
+      "description": "A new-generation image creation model ByteDance",
       "generateEndpoint": "fal-ai/bytedance/seedream/v4.5/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -471,7 +471,7 @@
     {
       "id": "bytedance-seedream-v4-text-to-image",
       "label": "Bytedance Seedream V4 Text To Image",
-      "description": "A new-generation image creation model ByteDance, Seedream 4.0 integrates image generation and image editing capabilities into a single, unified architecture.",
+      "description": "A new-generation image creation model ByteDance",
       "generateEndpoint": "fal-ai/bytedance/seedream/v4/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -508,7 +508,7 @@
     {
       "id": "bytedance-seedream-v5-flash-text-to-image",
       "label": "Seedream",
-      "description": "Seedream 5.0 Flash is a fast image generation and editing model, built for workflows where speed and budget matter.",
+      "description": "Seedream 5.0 Flash is a fast image generation and editing model",
       "generateEndpoint": "bytedance/seedream/v5/flash/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -545,7 +545,7 @@
     {
       "id": "bytedance-seedream-v5-lite-text-to-image",
       "label": "Seedream",
-      "description": "Text to Image endpoint for the fast Lite version of Seedream 5.0, supporting high quality intelligent text-to-image generation.",
+      "description": "Text to Image endpoint for the fast Lite version of Seedream 5.0",
       "generateEndpoint": "bytedance/seedream/v5/lite/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -582,7 +582,7 @@
     {
       "id": "bytedance-seedream-v5-pro-text-to-image",
       "label": "Seedream 5.0 Pro Text to Image",
-      "description": "ByteDance's Seedream 5.0 Pro is flagship text-to-image model, with deep-thinking prompt understanding, native text in 14 languages, and precise control over dense layouts and structured designs.",
+      "description": "ByteDance's Seedream 5.0 Pro is flagship text-to-image model",
       "generateEndpoint": "bytedance/seedream/v5/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -617,7 +617,7 @@
     {
       "id": "cogview4",
       "label": "CogView",
-      "description": "Generate high quality images from text prompts using CogView4. Longer text prompts will result in better quality images.",
+      "description": "Generate high quality images from text prompts using CogView4",
       "generateEndpoint": "fal-ai/cogview4",
       "editEndpoint": null,
       "aspectRatios": [
@@ -652,7 +652,7 @@
     {
       "id": "dreamshaper",
       "label": "Dreamshaper",
-      "description": "Dreamshaper model.",
+      "description": "Dreamshaper model",
       "generateEndpoint": "fal-ai/dreamshaper",
       "editEndpoint": null,
       "aspectRatios": [
@@ -712,7 +712,7 @@
     {
       "id": "ernie-image",
       "label": "Ernie Image",
-      "description": "High-quality text-to-image model by Baidu. Supports English, Chinese, and Japanese prompts with built-in prompt expansion.",
+      "description": "High-quality text-to-image model by Baidu",
       "generateEndpoint": "fal-ai/ernie-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -747,7 +747,7 @@
     {
       "id": "ernie-image-lora",
       "label": "Ernie Image Lora",
-      "description": "High-quality text-to-image model by Baidu. Supports English, Chinese, and Japanese prompts with built-in prompt expansion.",
+      "description": "High-quality text-to-image model by Baidu",
       "generateEndpoint": "fal-ai/ernie-image/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -782,7 +782,7 @@
     {
       "id": "ernie-image-lora-turbo",
       "label": "Ernie Image Lora Turbo",
-      "description": "High-quality text-to-image model by Baidu. Supports English, Chinese, and Japanese prompts with built-in prompt expansion.",
+      "description": "High-quality text-to-image model by Baidu",
       "generateEndpoint": "fal-ai/ernie-image/lora/turbo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -817,7 +817,7 @@
     {
       "id": "ernie-image-turbo",
       "label": "Ernie Image Turbo",
-      "description": "High-quality text-to-image model by Baidu. Supports English, Chinese, and Japanese prompts with built-in prompt expansion.",
+      "description": "High-quality text-to-image model by Baidu",
       "generateEndpoint": "fal-ai/ernie-image/turbo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -957,7 +957,7 @@
     {
       "id": "fast-sdxl-controlnet-canny",
       "label": "ControlNet SDXL",
-      "description": "Generate Images with ControlNet.",
+      "description": "Generate Images with ControlNet",
       "generateEndpoint": "fal-ai/fast-sdxl-controlnet-canny",
       "editEndpoint": null,
       "aspectRatios": [
@@ -992,7 +992,7 @@
     {
       "id": "flux-1-dev",
       "label": "FLUX.1 [dev]",
-      "description": "FLUX.1 [dev] is a 12 billion parameter flow transformer that generates high-quality images from text. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux-1/dev",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1027,7 +1027,7 @@
     {
       "id": "flux-1-krea",
       "label": "FLUX.1 Krea [dev]",
-      "description": "FLUX.1 Krea [dev] is a 12 billion parameter flow transformer that generates high-quality images from text with incredible aesthetics. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 Krea [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux-1/krea",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1062,7 +1062,7 @@
     {
       "id": "flux-1-schnell",
       "label": "FLUX.1 [schnell]",
-      "description": "Fastest inference in the world for the 12 billion parameter FLUX.1 [schnell] text-to-image model.",
+      "description": "Fastest inference in the world for the 12 billion parameter FLUX.1 [schnell]…",
       "generateEndpoint": "fal-ai/flux-1/schnell",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1097,7 +1097,7 @@
     {
       "id": "flux-1-srpo",
       "label": "FLUX.1 SRPO [dev]",
-      "description": "FLUX.1 SRPO [dev] is a 12 billion parameter flow transformer that generates high-quality images from text with incredible aesthetics. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 SRPO [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux-1/srpo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1132,7 +1132,7 @@
     {
       "id": "flux-2",
       "label": "FLUX 2",
-      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2",
       "editEndpoint": "fal-ai/flux-2/edit",
       "aspectRatios": [
@@ -1173,7 +1173,7 @@
     {
       "id": "flux-2-flash",
       "label": "FLUX 2 Flash",
-      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities— in a flash.",
+      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/flash",
       "editEndpoint": "fal-ai/flux-2/flash/edit",
       "aspectRatios": [
@@ -1214,7 +1214,7 @@
     {
       "id": "flux-2-flex",
       "label": "Flux 2 Flex",
-      "description": "Text-to-image generation with FLUX.2 [flex] from Black Forest Labs. Features adjustable inference steps and guidance scale for fine-tuned control. Enhanced typography and text rendering capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [flex] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2-flex",
       "editEndpoint": "fal-ai/flux-2-flex/edit",
       "aspectRatios": [
@@ -1249,7 +1249,7 @@
     {
       "id": "flux-2-klein-4b",
       "label": "FLUX.2 [klein] 4B",
-      "description": "Text-to-image generation with FLUX.2 [klein] 4B from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 4B from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/klein/4b",
       "editEndpoint": "fal-ai/flux-2/klein/4b/edit",
       "aspectRatios": [
@@ -1290,7 +1290,7 @@
     {
       "id": "flux-2-klein-4b-base",
       "label": "FLUX.2 [klein] 4B Base",
-      "description": "Text-to-image generation with FLUX.2 [klein] 4B Base from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 4B Base from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/klein/4b/base",
       "editEndpoint": "fal-ai/flux-2/klein/4b/base/edit",
       "aspectRatios": [
@@ -1331,7 +1331,7 @@
     {
       "id": "flux-2-klein-4b-base-lora",
       "label": "FLUX.2 [klein] 4B Base LoRA",
-      "description": "Text-to-image generation with LoRA support for FLUX.2 [klein] 4B Base from Black Forest Labs. Custom style adaptation and fine-tuned model variations.",
+      "description": "Text-to-image generation with LoRA support for FLUX.2 [klein] 4B Base from Black Forest…",
       "generateEndpoint": "fal-ai/flux-2/klein/4b/base/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1366,7 +1366,7 @@
     {
       "id": "flux-2-klein-4b-lora",
       "label": "FLUX.2 [klein] 4B LoRA",
-      "description": "Text-to-image generation with FLUX.2 [klein] 4B from Black Forest Labs and custom LoRA. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 4B from Black Forest Labs and custom LoRA",
       "generateEndpoint": "fal-ai/flux-2/klein/4b/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1401,7 +1401,7 @@
     {
       "id": "flux-2-klein-9b",
       "label": "FLUX.2 [klein] 9B",
-      "description": "Text-to-image generation with FLUX.2 [klein] 9B from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 9B from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/klein/9b",
       "editEndpoint": "fal-ai/flux-2/klein/9b/edit",
       "aspectRatios": [
@@ -1442,7 +1442,7 @@
     {
       "id": "flux-2-klein-9b-base",
       "label": "FLUX.2 [klein] 9B Base",
-      "description": "Text-to-image generation with FLUX.2 [klein] 9B Base from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 9B Base from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/klein/9b/base",
       "editEndpoint": "fal-ai/flux-2/klein/9b/base/edit",
       "aspectRatios": [
@@ -1483,7 +1483,7 @@
     {
       "id": "flux-2-klein-9b-base-lora",
       "label": "FLUX.2 [klein] 9B Base LoRA",
-      "description": "Text-to-image generation with LoRA support for FLUX.2 [klein] 9B Base from Black Forest Labs. Custom style adaptation and fine-tuned model variations.",
+      "description": "Text-to-image generation with LoRA support for FLUX.2 [klein] 9B Base from Black Forest…",
       "generateEndpoint": "fal-ai/flux-2/klein/9b/base/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1518,7 +1518,7 @@
     {
       "id": "flux-2-klein-9b-lora",
       "label": "FLUX.2 [klein] 9B LoRA",
-      "description": "Text-to-image generation with FLUX.2 [klein] 9B from Black Forest Labs and custom LoRA.",
+      "description": "Text-to-image generation with FLUX.2 [klein] 9B from Black Forest Labs and custom LoRA",
       "generateEndpoint": "fal-ai/flux-2/klein/9b/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1553,7 +1553,7 @@
     {
       "id": "flux-2-lora",
       "label": "FLUX 2 Lora",
-      "description": "Text-to-image generation with LoRA support for FLUX.2 [dev] from Black Forest Labs. Custom style adaptation and fine-tuned model variations.",
+      "description": "Text-to-image generation with LoRA support for FLUX.2 [dev] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/lora",
       "editEndpoint": "fal-ai/flux-2/lora/edit",
       "aspectRatios": [
@@ -1812,7 +1812,7 @@
     {
       "id": "flux-2-max",
       "label": "Flux 2 Max",
-      "description": "FLUX.2 [max] delivers state-of-the-art image generation and advanced image editing with exceptional realism, precision, and consistency.",
+      "description": "FLUX.2 [max] delivers state-of-the-art image generation and advanced image editing with…",
       "generateEndpoint": "fal-ai/flux-2-max",
       "editEndpoint": "fal-ai/flux-2-max/edit",
       "aspectRatios": [
@@ -1847,7 +1847,7 @@
     {
       "id": "flux-2-pro",
       "label": "Flux 2 Pro",
-      "description": "Image editing with FLUX.2 [pro] from Black Forest Labs. Ideal for high-quality image manipulation, style transfer, and sequential editing workflows",
+      "description": "Image editing with FLUX.2 [pro] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2-pro",
       "editEndpoint": "fal-ai/flux-2-pro/edit",
       "aspectRatios": [
@@ -1882,7 +1882,7 @@
     {
       "id": "flux-2-turbo",
       "label": "FLUX 2 Turbo",
-      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs. Enhanced realism, crisper text generation, and native editing capabilities—all at turbo speed.",
+      "description": "Text-to-image generation with FLUX.2 [dev] from Black Forest Labs",
       "generateEndpoint": "fal-ai/flux-2/turbo",
       "editEndpoint": "fal-ai/flux-2/turbo/edit",
       "aspectRatios": [
@@ -1923,7 +1923,7 @@
     {
       "id": "flux-control-lora-canny",
       "label": "FLUX.1 [dev] Control LoRA Canny",
-      "description": "FLUX Control LoRA Canny is a high-performance endpoint that uses a control image to transfer structure to the generated image, using a Canny edge map.",
+      "description": "FLUX Control LoRA Canny is a high-performance endpoint that uses a control image to…",
       "generateEndpoint": "fal-ai/flux-control-lora-canny",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1958,7 +1958,7 @@
     {
       "id": "flux-control-lora-depth",
       "label": "FLUX.1 [dev] Control LoRA Depth",
-      "description": "FLUX Control LoRA Depth is a high-performance endpoint that uses a control image to transfer structure to the generated image, using a depth map.",
+      "description": "FLUX Control LoRA Depth is a high-performance endpoint that uses a control image to…",
       "generateEndpoint": "fal-ai/flux-control-lora-depth",
       "editEndpoint": null,
       "aspectRatios": [
@@ -1993,7 +1993,7 @@
     {
       "id": "flux-dev",
       "label": "FLUX.1 [dev]",
-      "description": "FLUX.1 [dev] is a 12 billion parameter flow transformer that generates high-quality images from text. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux/dev",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2028,7 +2028,7 @@
     {
       "id": "flux-general",
       "label": "FLUX.1 [dev] with Controlnets and Loras",
-      "description": "A versatile endpoint for the FLUX.1 [dev] model that supports multiple AI extensions including LoRA, ControlNet conditioning, and IP-Adapter integration, enabling comprehensive control over image generation through various guidance methods.",
+      "description": "A versatile endpoint for the FLUX.1 [dev] model that supports multiple AI extensions…",
       "generateEndpoint": "fal-ai/flux-general",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2063,7 +2063,7 @@
     {
       "id": "flux-kontext-lora-text-to-image",
       "label": "Flux Kontext Lora",
-      "description": "Super fast text-to-image endpoint for the FLUX.1 Kontext [dev] model with LoRA support, enabling rapid and high-quality image generation using pre-trained LoRA adaptations for personalization, specific styles, brand identities, and product-specific outputs.",
+      "description": "Super fast text-to-image endpoint for the FLUX.1 Kontext [dev] model with LoRA support",
       "generateEndpoint": "fal-ai/flux-kontext-lora/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2098,7 +2098,7 @@
     {
       "id": "flux-krea",
       "label": "FLUX.1 Krea [dev]",
-      "description": "FLUX.1 Krea [dev] is a 12 billion parameter flow transformer that generates high-quality images from text with incredible aesthetics. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 Krea [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux/krea",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2133,7 +2133,7 @@
     {
       "id": "flux-krea-lora",
       "label": "FLUX.1 Krea [dev] with LoRAs",
-      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support, enabling rapid and high-quality image generation using pre-trained LoRA adaptations for personalization, specific styles, brand identities, and product-specific outputs.",
+      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support",
       "generateEndpoint": "fal-ai/flux-krea-lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2168,7 +2168,7 @@
     {
       "id": "flux-krea-lora-stream",
       "label": "Flux Krea Lora",
-      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support, enabling rapid and high-quality image generation using pre-trained LoRA adaptations for personalization, specific styles, brand identities, and product-specific outputs.",
+      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support",
       "generateEndpoint": "fal-ai/flux-krea-lora/stream",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2203,7 +2203,7 @@
     {
       "id": "flux-lora",
       "label": "FLUX.1 [dev] with LoRAs",
-      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support, enabling rapid and high-quality image generation using pre-trained LoRA adaptations for personalization, specific styles, brand identities, and product-specific outputs.",
+      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support",
       "generateEndpoint": "fal-ai/flux-lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2238,7 +2238,7 @@
     {
       "id": "flux-lora-stream",
       "label": "Flux Lora",
-      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support, enabling rapid and high-quality image generation using pre-trained LoRA adaptations for personalization, specific styles, brand identities, and product-specific outputs.",
+      "description": "Super fast endpoint for the FLUX.1 [dev] model with LoRA support",
       "generateEndpoint": "fal-ai/flux-lora/stream",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2273,7 +2273,7 @@
     {
       "id": "flux-pro-kontext-max-text-to-image",
       "label": "FLUX.1 Kontext [max]",
-      "description": "FLUX.1 Kontext [max] text-to-image is a new premium model brings maximum performance across all aspects – greatly improved prompt adherence.",
+      "description": "FLUX.1 Kontext [max] text-to-image is a new premium model brings maximum performance…",
       "generateEndpoint": "fal-ai/flux-pro/kontext/max/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -2300,7 +2300,7 @@
     {
       "id": "flux-pro-kontext-text-to-image",
       "label": "FLUX.1 Kontext [pro]",
-      "description": "The FLUX.1 Kontext [pro] text-to-image delivers state-of-the-art image generation results with unprecedented prompt following, photorealistic rendering, and flawless typography.",
+      "description": "The FLUX.1 Kontext [pro] text-to-image delivers state-of-the-art image generation results…",
       "generateEndpoint": "fal-ai/flux-pro/kontext/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -2325,7 +2325,7 @@
     {
       "id": "flux-pro-v1-1",
       "label": "FLUX1.1 [pro]",
-      "description": "FLUX1.1 [pro] is an enhanced version of FLUX.1 [pro], improved image generation capabilities, delivering superior composition, detail, and artistic fidelity compared to its predecessor.",
+      "description": "FLUX1.1 [pro] is an enhanced version of FLUX.1 [pro]",
       "generateEndpoint": "fal-ai/flux-pro/v1.1",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2360,7 +2360,7 @@
     {
       "id": "flux-pro-v1-1-ultra",
       "label": "FLUX1.1 [pro] ultra",
-      "description": "FLUX1.1 [pro] ultra is the newest version of FLUX1.1 [pro], maintaining professional-grade image quality while delivering up to 2K resolution with improved photo realism.",
+      "description": "FLUX1.1 [pro] ultra is the newest version of FLUX1.1 [pro]",
       "generateEndpoint": "fal-ai/flux-pro/v1.1-ultra",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -2385,7 +2385,7 @@
     {
       "id": "flux-pro-v1-1-ultra-finetuned",
       "label": "FLUX1.1 [pro] ultra Fine-tuned",
-      "description": "FLUX1.1 [pro] ultra fine-tuned is the newest version of FLUX1.1 [pro] with a fine-tuned LoRA, maintaining professional-grade image quality while delivering up to 2K resolution with improved photo realism.",
+      "description": "FLUX1.1 [pro] ultra fine-tuned is the newest version of FLUX1.1 [pro] with a fine-tuned…",
       "generateEndpoint": "fal-ai/flux-pro/v1.1-ultra-finetuned",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -2410,7 +2410,7 @@
     {
       "id": "flux-schnell",
       "label": "FLUX.1 [schnell]",
-      "description": "FLUX.1 [schnell] is a 12 billion parameter flow transformer that generates high-quality images from text in 1 to 4 steps, suitable for personal and commercial use.",
+      "description": "FLUX.1 [schnell] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux/schnell",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2445,7 +2445,7 @@
     {
       "id": "flux-srpo",
       "label": "FLUX.1 SRPO [dev]",
-      "description": "FLUX.1 SRPO [dev] is a 12 billion parameter flow transformer that generates high-quality images from text with incredible aesthetics. It is suitable for personal and commercial use.",
+      "description": "FLUX.1 SRPO [dev] is a 12 billion parameter flow transformer that generates high-quality…",
       "generateEndpoint": "fal-ai/flux/srpo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2522,7 +2522,7 @@
     {
       "id": "gemini-3-1-flash-image-preview",
       "label": "Gemini 3.1 Flash Image Preview",
-      "description": "Gemini 3.1 Flash Image (a.k.a Nano Banana 2) is Google's new state-of-the-art fast image generation and editing model",
+      "description": "Gemini 3.1 Flash Image (a.k.a Nano Banana 2) is Google's new state-of-the-art fast image…",
       "generateEndpoint": "fal-ai/gemini-3.1-flash-image-preview",
       "editEndpoint": "fal-ai/gemini-3.1-flash-image-preview/edit",
       "aspectRatios": [
@@ -2565,7 +2565,7 @@
     {
       "id": "gemini-3-pro-image-preview",
       "label": "Gemini 3 Pro Image Preview",
-      "description": "Gemini 3 Pro Image (a.k.a Nano Banana Pro) is Google's state-of-the-art high-fidelity image generation and editing model",
+      "description": "Gemini 3 Pro Image (a.k.a Nano Banana Pro) is Google's state-of-the-art high-fidelity…",
       "generateEndpoint": "fal-ai/gemini-3-pro-image-preview",
       "editEndpoint": "fal-ai/gemini-3-pro-image-preview/edit",
       "aspectRatios": [
@@ -2608,7 +2608,7 @@
     {
       "id": "glm-image",
       "label": "GLM Image",
-      "description": "Create high-quality images with accurate text rendering and rich knowledge details—supports editing, style transfer, and maintaining consistent characters across multiple images.",
+      "description": "Create high-quality images with accurate text rendering and rich knowledge…",
       "generateEndpoint": "fal-ai/glm-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2643,7 +2643,7 @@
     {
       "id": "google-nano-banana-2-lite",
       "label": "Nano Banana 2 Lite",
-      "description": "Nano banana lite is the efficiency-focused model in the image generation family. Sub-2 second latency with cost-effective generation and editing, fast multi-turn local edits, and 14 supported aspect ratios.",
+      "description": "Nano banana lite is the efficiency-focused model in the image generation family",
       "generateEndpoint": "google/nano-banana-2-lite",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2684,7 +2684,7 @@
     {
       "id": "google-nano-banana-lite",
       "label": "Nano Banana Lite",
-      "description": "Nano banana lite is the efficiency-focused model in the image generation family. Sub-2 second latency with cost-effective generation and editing, fast multi-turn local edits, and 14 supported aspect ratios.",
+      "description": "Nano banana lite is the efficiency-focused model in the image generation family",
       "generateEndpoint": "google/nano-banana-lite",
       "editEndpoint": "google/nano-banana-lite/edit",
       "aspectRatios": [
@@ -2726,7 +2726,7 @@
     {
       "id": "hidream-i1-dev",
       "label": "Hidream I1 Dev",
-      "description": "HiDream-I1 dev is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
+      "description": "HiDream-I1 dev is a new open-source image generative foundation model with 17B parameters…",
       "generateEndpoint": "fal-ai/hidream-i1-dev",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2761,7 +2761,7 @@
     {
       "id": "hidream-i1-fast",
       "label": "Hidream I1 Fast",
-      "description": "HiDream-I1 fast is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within 16 steps.",
+      "description": "HiDream-I1 fast is a new open-source image generative foundation model with 17B…",
       "generateEndpoint": "fal-ai/hidream-i1-fast",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2796,7 +2796,7 @@
     {
       "id": "hidream-i1-full",
       "label": "Hidream I1 Full",
-      "description": "HiDream-I1 full is a new open-source image generative foundation model with 17B parameters that achieves state-of-the-art image generation quality within seconds.",
+      "description": "HiDream-I1 full is a new open-source image generative foundation model with 17B…",
       "generateEndpoint": "fal-ai/hidream-i1-full",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2831,7 +2831,7 @@
     {
       "id": "hidream-o1-image",
       "label": "Hidream O1 Image",
-      "description": "Unified image generation with HiDream-O1-Image. Create, edit, and personalize high-resolution images up to 2K—single native model handles text-to-image, editing, and custom subjects without external components.",
+      "description": "Unified image generation with HiDream-O1-Image",
       "generateEndpoint": "fal-ai/hidream-o1-image",
       "editEndpoint": "fal-ai/hidream-o1-image/edit",
       "aspectRatios": [
@@ -2872,7 +2872,7 @@
     {
       "id": "hidream-o1-image-dev",
       "label": "Hidream O1 Image",
-      "description": "Unified image generation with HiDream-O1-Image. Create, edit, and personalize high-resolution images up to 2K—single native model handles text-to-image, editing, and custom subjects without external components.",
+      "description": "Unified image generation with HiDream-O1-Image",
       "generateEndpoint": "fal-ai/hidream-o1-image/dev",
       "editEndpoint": "fal-ai/hidream-o1-image/dev/edit",
       "aspectRatios": [
@@ -2913,7 +2913,7 @@
     {
       "id": "hunyuan-image-v2-1-text-to-image",
       "label": "Hunyuan Image",
-      "description": "Use the amazing capabilities of hunyuan image 2.1 to generate images that express the feelings of your text.",
+      "description": "Use the amazing capabilities of hunyuan image 2.1 to generate images that express the…",
       "generateEndpoint": "fal-ai/hunyuan-image/v2.1/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2948,7 +2948,7 @@
     {
       "id": "hunyuan-image-v3-instruct-text-to-image",
       "label": "Hunyuan Image 3.0 Instruct",
-      "description": "Instruct version of Hunyuan-Image 3.0, with internal reasoning capabilities.",
+      "description": "Instruct version of Hunyuan-Image 3.0, with internal reasoning capabilities",
       "generateEndpoint": "fal-ai/hunyuan-image/v3/instruct/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -2985,7 +2985,7 @@
     {
       "id": "hunyuan-image-v3-text-to-image",
       "label": "Hunyuan Image",
-      "description": "Leverage the state-of-the-art capabilities of Hunyuan Image 3.0 to generate visual content that effectively conveys the messaging of your written material.",
+      "description": "Leverage the state-of-the-art capabilities of Hunyuan Image 3.0 to generate visual…",
       "generateEndpoint": "fal-ai/hunyuan-image/v3/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3020,7 +3020,7 @@
     {
       "id": "ideogram-custom-models-generate",
       "label": "Ideogram",
-      "description": "Train Ideogram on your photos, your style, your subject, your look, from a small set of reference images to images that feel consistently yours",
+      "description": "Train Ideogram on your photos, your style, your subject, your look",
       "generateEndpoint": "fal-ai/ideogram/custom-models/generate",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3055,7 +3055,7 @@
     {
       "id": "ideogram-v2",
       "label": "Ideogram V2",
-      "description": "Generate high-quality images, posters, and logos with Ideogram V2. Features exceptional typography handling and realistic outputs optimized for commercial and creative use.",
+      "description": "Generate high-quality images, posters, and logos with Ideogram V2",
       "generateEndpoint": "fal-ai/ideogram/v2",
       "editEndpoint": "fal-ai/ideogram/v2/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3080,7 +3080,7 @@
     {
       "id": "ideogram-v2-turbo",
       "label": "Ideogram V2 Turbo",
-      "description": "Accelerated image generation with Ideogram V2 Turbo. Create high-quality visuals, posters, and logos with enhanced speed while maintaining Ideogram's signature quality.",
+      "description": "Accelerated image generation with Ideogram V2 Turbo",
       "generateEndpoint": "fal-ai/ideogram/v2/turbo",
       "editEndpoint": "fal-ai/ideogram/v2/turbo/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3105,7 +3105,7 @@
     {
       "id": "ideogram-v2a",
       "label": "Ideogram V2A",
-      "description": "Generate high-quality images, posters, and logos with Ideogram V2A. Features exceptional typography handling and realistic outputs optimized for commercial and creative use.",
+      "description": "Generate high-quality images, posters, and logos with Ideogram V2A",
       "generateEndpoint": "fal-ai/ideogram/v2a",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3130,7 +3130,7 @@
     {
       "id": "ideogram-v2a-turbo",
       "label": "Ideogram V2A Turbo",
-      "description": "Accelerated image generation with Ideogram V2A Turbo. Create high-quality visuals, posters, and logos with enhanced speed while maintaining Ideogram's signature quality.",
+      "description": "Accelerated image generation with Ideogram V2A Turbo",
       "generateEndpoint": "fal-ai/ideogram/v2a/turbo",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3155,7 +3155,7 @@
     {
       "id": "ideogram-v3",
       "label": "Ideogram Text to Image",
-      "description": "Generate high-quality images, posters, and logos with Ideogram V3. Features exceptional typography handling and realistic outputs optimized for commercial and creative use.",
+      "description": "Generate high-quality images, posters, and logos with Ideogram V3",
       "generateEndpoint": "fal-ai/ideogram/v3",
       "editEndpoint": "fal-ai/ideogram/v3/edit",
       "aspectRatios": [
@@ -3225,7 +3225,7 @@
     {
       "id": "ideogram-v4",
       "label": "Ideogram V4.0 Text to Image",
-      "description": "Generate high-quality images, posters, and logos with Ideogram's latest V4.0q — producing crisp visuals with accurate text rendering, fine detail, and full creative control for polished, ready-to-use designs.",
+      "description": "Generate high-quality images, posters",
       "generateEndpoint": "ideogram/v4",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3260,7 +3260,7 @@
     {
       "id": "ideogram-v4-fast",
       "label": "V4.0q [fast]",
-      "description": "Generate high-quality images, posters, and logos with Ideogram's latest V4.0q — producing crisp visuals with accurate text rendering, fine detail, and full creative control for polished, ready-to-use designs IN A SECOND.",
+      "description": "Generate high-quality images, posters",
       "generateEndpoint": "ideogram/v4/fast",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3295,7 +3295,7 @@
     {
       "id": "ideogram-v4-instant",
       "label": "V4.0q [instant]",
-      "description": "Generate high-quality images, posters, and logos with Ideogram's latest V4.0q — producing crisp visuals with accurate text rendering, fine detail, and full creative control for polished, ready-to-use designs FRACTION OF A SECOND.",
+      "description": "Generate high-quality images, posters",
       "generateEndpoint": "ideogram/v4/instant",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3330,7 +3330,7 @@
     {
       "id": "ideogram-v4-lora",
       "label": "Ideogram V4.0q Text to Image (LoRA)",
-      "description": "Generate high-quality images, posters, and logos with Ideogram's latest V4.0q using LoRA — producing crisp visuals with accurate text rendering, fine detail, and full creative control for polished, ready-to-use designs.",
+      "description": "Generate high-quality images, posters",
       "generateEndpoint": "ideogram/v4/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3365,7 +3365,7 @@
     {
       "id": "imagineart-imagineart-1-5-preview-text-to-image",
       "label": "Imagineart 1.5 Preview",
-      "description": "ImagineArt 1.5 text-to-image model generates high-fidelity professional-grade visuals with lifelike realism, strong aesthetics, and text that actually reads correctly.",
+      "description": "ImagineArt 1.5 text-to-image model generates high-fidelity professional-grade visuals…",
       "generateEndpoint": "imagineart/imagineart-1.5-preview/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3392,7 +3392,7 @@
     {
       "id": "imagineart-imagineart-1-5-pro-preview-text-to-image",
       "label": "ImagineArt 1.5 Pro Preview",
-      "description": "ImagineArt 1.5 Pro is an advanced text-to-image model that creates ultra-high-fidelity 4K visuals with lifelike realism, refined aesthetics, and powerful creative output suited for professional use.",
+      "description": "ImagineArt 1.5 Pro is an advanced text-to-image model that creates ultra-high-fidelity 4K…",
       "generateEndpoint": "imagineart/imagineart-1.5-pro-preview/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3419,7 +3419,7 @@
     {
       "id": "imagineart-imagineart-2-0-preview-text-to-image",
       "label": "Imagineart 2.0 Preview",
-      "description": "ImagineArt 2.0 is ImagineArt's latest state-of-the-art visual reasoning text-to-image model, generating high-fidelity, professional-grade visuals with lifelike realism, cinematic effects, and strong aesthetic quality.",
+      "description": "ImagineArt 2.0 is ImagineArt's latest state-of-the-art visual reasoning text-to-image…",
       "generateEndpoint": "imagineart/imagineart-2.0-preview/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3456,7 +3456,7 @@
     {
       "id": "janus",
       "label": "DeepSeek Janus-Pro",
-      "description": "DeepSeek Janus-Pro is a novel text-to-image model that unifies multimodal understanding and generation through an autoregressive framework",
+      "description": "DeepSeek Janus-Pro is a novel text-to-image model that unifies multimodal understanding…",
       "generateEndpoint": "fal-ai/janus",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3491,7 +3491,7 @@
     {
       "id": "kling-image-o3-text-to-image",
       "label": "Kling Image",
-      "description": "Kling Omni 3: Top-tier text-to-image with flawless consistency.",
+      "description": "Kling Omni 3: Top-tier text-to-image with flawless consistency",
       "generateEndpoint": "fal-ai/kling-image/o3/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -3586,7 +3586,7 @@
     {
       "id": "krea-2-turbo",
       "label": "Krea 2 Turbo",
-      "description": "Generate high-fidelity images from text in seconds with Krea 2 Turbo, the speed-optimized open-source version of Krea 2, preserving its aesthetic range for rapid ideation.",
+      "description": "Generate high-fidelity images from text in seconds with Krea 2 Turbo",
       "generateEndpoint": "fal-ai/krea-2/turbo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3621,7 +3621,7 @@
     {
       "id": "krea-2-turbo-lora",
       "label": "Krea 2 Text to Image Turbo LoRA",
-      "description": "Generate high-fidelity images from text with Krea 2 using a custom-trained LoRA. Apply your LoRA weights to carry a learned subject, character, or style into new generations, with aspect ratio, creativity, and seed controls.",
+      "description": "Generate high-fidelity images from text with Krea 2 using a custom-trained LoRA",
       "generateEndpoint": "fal-ai/krea-2/turbo/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3656,7 +3656,7 @@
     {
       "id": "krea-2-turbo-style",
       "label": "Krea 2 Text to Image Turbo Style",
-      "description": "Generate high-fidelity images from text with Krea 2 using a style reference image. Apply a reference image to guide the visual style into new generations, with aspect ratio, creativity, and seed controls.",
+      "description": "Generate high-fidelity images from text with Krea 2 using a style reference image",
       "generateEndpoint": "fal-ai/krea-2/turbo/style",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3691,7 +3691,7 @@
     {
       "id": "krea-v2-large-text-to-image",
       "label": "Krea 2 Large",
-      "description": "Generate high-fidelity images from text with Krea 2 Large, supporting aspect ratio, creativity, seed controls, and optional style references.",
+      "description": "Generate high-fidelity images from text with Krea 2 Large, supporting aspect ratio",
       "generateEndpoint": "krea/v2/large/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "16:9", "9:16", "3:2", "2:3", "4:5"],
@@ -3716,7 +3716,7 @@
     {
       "id": "krea-v2-medium-text-to-image",
       "label": "Krea 2 Medium",
-      "description": "Generate high-quality images from text with Krea 2 Medium, supporting aspect ratio, creativity controls, seeds, and optional style references.",
+      "description": "Generate high-quality images from text with Krea 2 Medium, supporting aspect ratio",
       "generateEndpoint": "krea/v2/medium/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "16:9", "9:16", "3:2", "2:3", "4:5"],
@@ -3741,7 +3741,7 @@
     {
       "id": "krea-v2-medium-turbo-text-to-image",
       "label": "Krea 2 Medium Text to Image Turbo",
-      "description": "Generate high-fidelity images extremely fast from text with Krea 2 Medium Turbo, supporting aspect ratio, creativity, seed controls, and optional style references.",
+      "description": "Generate high-fidelity images extremely fast from text with Krea 2 Medium Turbo",
       "generateEndpoint": "krea/v2/medium/turbo/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "16:9", "9:16", "3:2", "2:3", "4:5"],
@@ -3766,7 +3766,7 @@
     {
       "id": "longcat-image",
       "label": "Longcat Image",
-      "description": "LongCat image is a 6B parameter model excelling at multilingual text rendering, photorealism and deployment efficiency.",
+      "description": "LongCat image is a 6B parameter model excelling at multilingual text rendering",
       "generateEndpoint": "fal-ai/longcat-image",
       "editEndpoint": "fal-ai/longcat-image/edit",
       "aspectRatios": [
@@ -3807,7 +3807,7 @@
     {
       "id": "lora",
       "label": "Stable Diffusion with LoRAs",
-      "description": "Run Any Stable Diffusion model with customizable LoRA weights.",
+      "description": "Run Any Stable Diffusion model with customizable LoRA weights",
       "generateEndpoint": "fal-ai/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3842,7 +3842,7 @@
     {
       "id": "luma-agent-uni-1-v1-max",
       "label": "Luma Uni-1 Text to Image Max",
-      "description": "Luma Uni-1 Max generates a single image at the model's highest fidelity, delivering richer detail and stronger prompt adherence than the base tier for hero-quality stills.",
+      "description": "Luma Uni-1 Max generates a single image at the model's highest fidelity",
       "generateEndpoint": "luma/agent/uni-1/v1/max",
       "editEndpoint": "luma/agent/uni-1/v1/max/edit",
       "aspectRatios": ["1:1", "16:9", "9:16", "3:2", "2:3"],
@@ -3867,7 +3867,7 @@
     {
       "id": "luma-agent-uni-1-v1-text-to-image",
       "label": "Luma Uni-1 Text to Image",
-      "description": "Luma Uni-1 turns a text prompt into a single high-fidelity image, with control over aspect ratio and visual style, plus optional web-sourced and reference-image guidance for sharper grounding.",
+      "description": "Luma Uni-1 turns a text prompt into a single high-fidelity image",
       "generateEndpoint": "luma/agent/uni-1/v1/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "16:9", "9:16", "3:2", "2:3"],
@@ -3892,7 +3892,7 @@
     {
       "id": "luma-photon",
       "label": "Luma Photon",
-      "description": "Generate images from your prompts using Luma Photon. Photon is the most creative, personalizable, and intelligent visual models for creatives, bringing a step-function change in the cost of high-quality image generation.",
+      "description": "Generate images from your prompts using Luma Photon",
       "generateEndpoint": "fal-ai/luma-photon",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -3917,7 +3917,7 @@
     {
       "id": "luma-photon-flash",
       "label": "Luma Photon Flash",
-      "description": "Generate images from your prompts using Luma Photon Flash. Photon Flash is the most creative, personalizable, and intelligent visual models for creatives, bringing a step-function change in the cost of high-quality image generation.",
+      "description": "Generate images from your prompts using Luma Photon Flash",
       "generateEndpoint": "fal-ai/luma-photon/flash",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -3942,7 +3942,7 @@
     {
       "id": "lumina-image-v2",
       "label": "Lumina Image 2",
-      "description": "Lumina-Image-2.0 is a 2 billion parameter flow-based diffusion transforer which features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
+      "description": "Lumina-Image-2.0 is a 2 billion parameter flow-based diffusion transforer which features…",
       "generateEndpoint": "fal-ai/lumina-image/v2",
       "editEndpoint": null,
       "aspectRatios": [
@@ -3977,7 +3977,7 @@
     {
       "id": "microsoft-mai-image-2-5",
       "label": "Mai Image 2.5 Text to Image",
-      "description": "MAI-Image-2.5 is Microsoft's photorealistic image generation and editing model that turns text prompts or uploaded images into high-quality, design-ready visuals with fine-grained, pixel-level control.",
+      "description": "MAI-Image-2.5 is Microsoft's photorealistic image generation and editing model that turns…",
       "generateEndpoint": "microsoft/mai-image-2.5",
       "editEndpoint": "microsoft/mai-image-2.5/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -4007,7 +4007,7 @@
     {
       "id": "microsoft-mai-image-2-5-pro",
       "label": "MAI Image 2.5 Pro (Text to Image)",
-      "description": "Generate high-fidelity, design-ready images with precise typography, strong prompt alignment, and rich visual detail using Microsoft's flagship MAI Image 2.5 Pro.",
+      "description": "Generate high-fidelity, design-ready images with precise typography",
       "generateEndpoint": "microsoft/mai-image-2.5-pro",
       "editEndpoint": "microsoft/mai-image-2.5-pro/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -4037,7 +4037,7 @@
     {
       "id": "minimax-image-01",
       "label": "MiniMax (Hailuo AI) Text to Image",
-      "description": "Generate high quality images from text prompts using MiniMax Image-01. Longer text prompts will result in better quality images.",
+      "description": "Generate high quality images from text prompts using MiniMax Image-01",
       "generateEndpoint": "fal-ai/minimax/image-01",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -4190,7 +4190,7 @@
     {
       "id": "nucleus-image",
       "label": "Nucleus Image",
-      "description": "Nucleus-Image is a text-to-image generation model built on a sparse mixture-of-experts (MoE) diffusion transformer architecture.",
+      "description": "Nucleus-Image is a text-to-image generation model built on a sparse mixture-of-experts…",
       "generateEndpoint": "fal-ai/nucleus-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -4215,7 +4215,7 @@
     {
       "id": "nvidia-cosmos-3-super-text-to-image",
       "label": "Cosmos 3 Super",
-      "description": "Cosmos3 is a collection of Omnimodal world models capable of generating dynamic, high-quality video, image, audio, and action commands from combinations of text, image, video, and action trajectory inputs.",
+      "description": "Cosmos3 is a collection of Omnimodal world models capable of generating dynamic",
       "generateEndpoint": "nvidia/cosmos-3-super/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4250,7 +4250,7 @@
     {
       "id": "omnigen-v1",
       "label": "OmniGen v1",
-      "description": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It can be used for various tasks such as Image Editing, Personalized Image Generation, Virtual Try-On, Multi Person Generation and more!",
+      "description": "OmniGen is a unified image generation model that can generate a wide range of images from…",
       "generateEndpoint": "fal-ai/omnigen-v1",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4285,7 +4285,7 @@
     {
       "id": "omnigen-v2",
       "label": "Omnigen V2",
-      "description": "OmniGen is a unified image generation model that can generate a wide range of images from multi-modal prompts. It can be used for various tasks such as Image Editing, Personalized Image Generation, Virtual Try-On, Multi Person Generation and more!",
+      "description": "OmniGen is a unified image generation model that can generate a wide range of images from…",
       "generateEndpoint": "fal-ai/omnigen-v2",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4320,7 +4320,7 @@
     {
       "id": "openai-gpt-image-2",
       "label": "GPT Image 2 API",
-      "description": "GPT Image 2, OpenAI's latest image model, is capable of creating extremely detailed images with fine typography.",
+      "description": "GPT Image 2, OpenAI's latest image model",
       "generateEndpoint": "openai/gpt-image-2",
       "editEndpoint": "openai/gpt-image-2/edit",
       "aspectRatios": [
@@ -4360,7 +4360,7 @@
     {
       "id": "openai-gpt-image-2-5-flare-text-to-image",
       "label": "GPT Image 2.5 Flare Text to Image",
-      "description": "OpenAI's default image model for most applications. Fast, high-quality generation with natural lighting, rich textures, and support for complex layouts including transparent backgrounds.",
+      "description": "OpenAI's default image model for most applications",
       "generateEndpoint": "openai/gpt-image-2.5/flare/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4397,7 +4397,7 @@
     {
       "id": "openai-gpt-image-2-5-sunburst-text-to-image",
       "label": "GPT Image 2.5 Sunburst Text to Image",
-      "description": "OpenAI's precision-focused image model, built for premium visual work, extra fidelity on intricate detail, in exchange for longer generation times.",
+      "description": "OpenAI's precision-focused image model, built for premium visual work",
       "generateEndpoint": "openai/gpt-image-2.5/sunburst/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4434,7 +4434,7 @@
     {
       "id": "ovis-image",
       "label": "Ovis Image",
-      "description": "Ovis-Image is a 7B text-to-image model specifically optimized for quick, high quality text rendering.",
+      "description": "Ovis-Image is a 7B text-to-image model specifically optimized for quick",
       "generateEndpoint": "fal-ai/ovis-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4469,7 +4469,7 @@
     {
       "id": "patina-material",
       "label": "PATINA",
-      "description": "Generate complete seamlessly tiling PBR materials including normal, roughness, basecolor, height and metalness maps up to 8K",
+      "description": "Generate complete seamlessly tiling PBR materials including normal, roughness, basecolor",
       "generateEndpoint": "fal-ai/patina/material",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4504,7 +4504,7 @@
     {
       "id": "phota",
       "label": "Phota Text to Image",
-      "description": "Phota's model empowers developers, photographers, and creators with personalized photograph generation and editing.",
+      "description": "Phota's model empowers developers, photographers",
       "generateEndpoint": "fal-ai/phota",
       "editEndpoint": "fal-ai/phota/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16"],
@@ -4605,7 +4605,7 @@
     {
       "id": "pony-v7",
       "label": "Pony V7",
-      "description": "Pony V7 is a finetuned text to image for superior aesthetics and prompt following.",
+      "description": "Pony V7 is a finetuned text to image for superior aesthetics and prompt following",
       "generateEndpoint": "fal-ai/pony-v7",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4640,7 +4640,7 @@
     {
       "id": "qwen-image",
       "label": "Qwen Image",
-      "description": "Qwen-Image is an image generation foundation model in the Qwen series that achieves significant advances in complex text rendering and precise image editing.",
+      "description": "Qwen-Image is an image generation foundation model in the Qwen series that achieves…",
       "generateEndpoint": "fal-ai/qwen-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4675,7 +4675,7 @@
     {
       "id": "qwen-image-2512",
       "label": "Qwen Image 2512",
-      "description": "Qwen Image 2512 is an improved version of Qwen Image with better text rendering, finer natural textures, and more realistic human generation.",
+      "description": "Qwen Image 2512 is an improved version of Qwen Image with better text rendering",
       "generateEndpoint": "fal-ai/qwen-image-2512",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4710,7 +4710,7 @@
     {
       "id": "qwen-image-2512-lora",
       "label": "Qwen Image 2512",
-      "description": "LoRA inference endpoint for Qwen Image 2512, an improved version of Qwen Image with better text rendering, finer natural textures, and more realistic human generation.",
+      "description": "LoRA inference endpoint for Qwen Image 2512",
       "generateEndpoint": "fal-ai/qwen-image-2512/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4745,7 +4745,7 @@
     {
       "id": "qwen-image-max-text-to-image",
       "label": "Qwen Image Max",
-      "description": "Text-to-Image endpoint for Qwen-Image-Max. Qwen Image Max improves upon the Qwen Image Plus series by enhancing the realism and naturalness of images.",
+      "description": "Text-to-Image endpoint for Qwen-Image-Max",
       "generateEndpoint": "fal-ai/qwen-image-max/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4780,7 +4780,7 @@
     {
       "id": "realistic-vision",
       "label": "Realistic Vision",
-      "description": "Generate realistic images.",
+      "description": "Generate realistic images",
       "generateEndpoint": "fal-ai/realistic-vision",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4815,7 +4815,7 @@
     {
       "id": "recraft-20b",
       "label": "Recraft 20b",
-      "description": "Recraft 20b is a new and affordable text-to-image model.",
+      "description": "Recraft 20b is a new and affordable text-to-image model",
       "generateEndpoint": "fal-ai/recraft-20b",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4850,7 +4850,7 @@
     {
       "id": "recraft-v3-text-to-image",
       "label": "Recraft V3",
-      "description": "Recraft V3 is a text-to-image model with the ability to generate long texts, vector art, images in brand style, and much more. As of today, it is SOTA in image generation, proven by Hugging Face's industry-leading Text-to-Image Benchmark by Artificial Analysis.",
+      "description": "Recraft V3 is a text-to-image model with the ability to generate long texts, vector art",
       "generateEndpoint": "fal-ai/recraft/v3/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4885,7 +4885,7 @@
     {
       "id": "recraft-v4-1-flash-text-to-image",
       "label": "Recraft V4.1 Flash Text to Image",
-      "description": "Recraft V4.1 Flash generates raster images from text prompts, including photography, illustrations, and mixed-media compositions, with controls for image size, color palette, and background color.",
+      "description": "Recraft V4.1 Flash generates raster images from text prompts, including photography",
       "generateEndpoint": "recraft/v4.1/flash/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4920,7 +4920,7 @@
     {
       "id": "recraft-v4-1-pro-text-to-image",
       "label": "Recraft V4.1 Text to Image Pro",
-      "description": "Recraft V4.1 Pro pushes the V4.1 model into high-resolution territory — up to 2048×2048 and ultra-wide formats. Made for hero imagery, campaign work, and print, it preserves the same design taste at sizes ready for the final deliverable.",
+      "description": "Recraft V4.1 Pro pushes the V4.1 model into high-resolution territory — up to 2048×2048…",
       "generateEndpoint": "fal-ai/recraft/v4.1/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4955,7 +4955,7 @@
     {
       "id": "recraft-v4-1-pro-text-to-vector",
       "label": "Recraft V4.1 Text to Vector Pro",
-      "description": "Recraft V4.1 Pro Vector generates large-format, fully editable SVGs with the structural clarity professional illustrators expect. Built for poster art, complex brand assets, and detailed scene illustration, it scales without losing geometric integrity.",
+      "description": "Recraft V4.1 Pro Vector generates large-format",
       "generateEndpoint": "fal-ai/recraft/v4.1/pro/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -4990,7 +4990,7 @@
     {
       "id": "recraft-v4-1-text-to-image",
       "label": "Recraft V4.1 Text to Image",
-      "description": "Recraft V4.1 builds on the design-first foundation of V4 with sharper prompt control and cleaner composition. Tuned for brand systems and editorial work, it delivers production-ready raster images that hold up next to a designer's hand.",
+      "description": "Recraft V4.1 builds on the design-first foundation of V4 with sharper prompt control and…",
       "generateEndpoint": "fal-ai/recraft/v4.1/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5025,7 +5025,7 @@
     {
       "id": "recraft-v4-1-text-to-vector",
       "label": "Recraft V4.1 Text to Vector",
-      "description": "Recraft V4.1 Vector turns prompts into fully editable SVGs with structured layers and clean geometry. Built for logos, icons, and illustration systems, it produces artwork that goes straight from generation into Figma or Illustrator.",
+      "description": "Recraft V4.1 Vector turns prompts into fully editable SVGs with structured layers and…",
       "generateEndpoint": "fal-ai/recraft/v4.1/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5060,7 +5060,7 @@
     {
       "id": "recraft-v4-1-utility-pro-text-to-image",
       "label": "Recraft V4.1 Utility Text to Image",
-      "description": "Recraft V4.1 Utility Pro pairs the high-resolution output of V4.1 Pro with a faster, cost-efficient runtime. Designed for studios shipping large-format work at scale, it makes premium-quality raster generation viable across full creative pipelines.",
+      "description": "Recraft V4.1 Utility Pro pairs the high-resolution output of V4.1 Pro with a faster",
       "generateEndpoint": "fal-ai/recraft/v4.1/utility/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5097,7 +5097,7 @@
     {
       "id": "recraft-v4-1-utility-text-to-image",
       "label": "Recraft V4.1 Text to Image Utility",
-      "description": "Recraft V4.1 Utility is a faster, lighter variant of V4.1 made for high-volume creative workflows. Ideal for ideation, A/B exploration, and content pipelines, it keeps Recraft's design sensibility while optimizing for throughput and cost.",
+      "description": "Recraft V4.1 Utility is a faster",
       "generateEndpoint": "fal-ai/recraft/v4.1/utility/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5134,7 +5134,7 @@
     {
       "id": "recraft-v4-pro-text-to-image",
       "label": "Recraft V4 Pro",
-      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation. Built for brand systems and production-ready workflows, it goes beyond prompt accuracy — delivering stronger composition, refined lighting, realistic materials, and a cohesive aesthetic. The result is imagery shaped by professional design judgment, ready for immediate real-world use without additional post-p",
+      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation",
       "generateEndpoint": "fal-ai/recraft/v4/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5169,7 +5169,7 @@
     {
       "id": "recraft-v4-pro-text-to-vector",
       "label": "Recraft V4 Pro (Vector)",
-      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation. Built for brand systems and production-ready workflows, it goes beyond prompt accuracy — delivering stronger composition, refined lighting, realistic materials, and a cohesive aesthetic. The result is imagery shaped by professional design judgment, ready for immediate real-world use without additional post-p",
+      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation",
       "generateEndpoint": "fal-ai/recraft/v4/pro/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5204,7 +5204,7 @@
     {
       "id": "recraft-v4-style-pro-text-to-image",
       "label": "Recraft V4 Styles Pro Text to Image",
-      "description": "Generates raster images that hold a consistent style, from either a saved style ID or reference images attached directly.",
+      "description": "Generates raster images that hold a consistent style",
       "generateEndpoint": "recraft/v4/style/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5239,7 +5239,7 @@
     {
       "id": "recraft-v4-style-pro-text-to-vector",
       "label": "Recraft V4 Styles Pro Text to Vector",
-      "description": "Generates vector images that hold a consistent style, from either a saved style ID or reference images attached directly.",
+      "description": "Generates vector images that hold a consistent style",
       "generateEndpoint": "recraft/v4/style/pro/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5274,7 +5274,7 @@
     {
       "id": "recraft-v4-style-text-to-image",
       "label": "Recraft V4 Styles Text to Image",
-      "description": "Generates raster images that hold a consistent style, from either a saved style ID or reference images attached directly.",
+      "description": "Generates raster images that hold a consistent style",
       "generateEndpoint": "recraft/v4/style/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5309,7 +5309,7 @@
     {
       "id": "recraft-v4-style-text-to-vector",
       "label": "Recraft V4 Styles Text to Vector",
-      "description": "Generates vector images that hold a consistent style, from either a saved style ID or reference images attached directly.",
+      "description": "Generates vector images that hold a consistent style",
       "generateEndpoint": "recraft/v4/style/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5344,7 +5344,7 @@
     {
       "id": "recraft-v4-text-to-image",
       "label": "Recraft V4",
-      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation. Built for brand systems and production-ready workflows, it goes beyond prompt accuracy delivering stronger composition, refined lighting, realistic materials, and a cohesive aesthetic. The result is imagery shaped by professional design judgment, ready for immediate real-world use without additional post-pro",
+      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation",
       "generateEndpoint": "fal-ai/recraft/v4/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5379,7 +5379,7 @@
     {
       "id": "recraft-v4-text-to-vector",
       "label": "Recraft V4 (Vector)",
-      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation. Built for brand systems and production-ready workflows, it goes beyond prompt accuracy — delivering stronger composition, refined lighting, realistic materials, and a cohesive aesthetic. The result is imagery shaped by professional design judgment, ready for immediate real-world use without additional post-p",
+      "description": "Recraft V4 was developed with designers to bring true visual taste to AI image generation",
       "generateEndpoint": "fal-ai/recraft/v4/text-to-vector",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5414,7 +5414,7 @@
     {
       "id": "rundiffusion-fal-juggernaut-flux-base",
       "label": "Juggernaut Flux Base",
-      "description": "Juggernaut Base Flux by RunDiffusion is a drop-in replacement for Flux [Dev] that delivers sharper details, richer colors, and enhanced realism, while instantly boosting LoRAs and LyCORIS with full compatibility.",
+      "description": "Juggernaut Base Flux by RunDiffusion is a drop-in replacement for Flux [Dev] that…",
       "generateEndpoint": "rundiffusion-fal/juggernaut-flux/base",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5449,7 +5449,7 @@
     {
       "id": "rundiffusion-fal-juggernaut-flux-lightning",
       "label": "Juggernaut Flux Lightning",
-      "description": "Juggernaut Lightning Flux by RunDiffusion provides blazing-fast, high-quality images rendered at five times the speed of Flux. Perfect for mood boards and mass ideation, this model excels in both realism and prompt adherence.",
+      "description": "Juggernaut Lightning Flux by RunDiffusion provides blazing-fast",
       "generateEndpoint": "rundiffusion-fal/juggernaut-flux/lightning",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5486,7 +5486,7 @@
     {
       "id": "rundiffusion-fal-juggernaut-flux-lora",
       "label": "Juggernaut Flux Base LoRA",
-      "description": "Juggernaut Base Flux LoRA by RunDiffusion is a drop-in replacement for Flux [Dev] that delivers sharper details, richer colors, and enhanced realism to all your LoRAs and LyCORIS with full compatibility.",
+      "description": "Juggernaut Base Flux LoRA by RunDiffusion is a drop-in replacement for Flux [Dev] that…",
       "generateEndpoint": "rundiffusion-fal/juggernaut-flux-lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5521,7 +5521,7 @@
     {
       "id": "rundiffusion-fal-juggernaut-flux-pro",
       "label": "Juggernaut Flux Pro",
-      "description": "Juggernaut Pro Flux by RunDiffusion is the flagship Juggernaut model rivaling some of the most advanced image models available, often surpassing them in realism. It combines Juggernaut Base with RunDiffusion Photo and features enhancements like reduced background blurriness.",
+      "description": "Juggernaut Pro Flux by RunDiffusion is the flagship Juggernaut model rivaling some of the…",
       "generateEndpoint": "rundiffusion-fal/juggernaut-flux/pro",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5556,7 +5556,7 @@
     {
       "id": "rundiffusion-fal-rundiffusion-photo-flux",
       "label": "Rundiffusion Photo Flux",
-      "description": "RunDiffusion Photo Flux provides insane realism. With this enhancer, textures and skin details burst to life, turning your favorite prompts into vivid, lifelike creations. Recommended to keep it at 0.65 to 0.80 weight. Supports resolutions up to 1536x1536.",
+      "description": "RunDiffusion Photo Flux provides insane realism",
       "generateEndpoint": "rundiffusion-fal/rundiffusion-photo-flux",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5593,7 +5593,7 @@
     {
       "id": "sana",
       "label": "Sana",
-      "description": "Sana can synthesize high-resolution, high-quality images with strong text-image alignment at a remarkably fast speed, with the ability to generate 4K images in less than a second.",
+      "description": "Sana can synthesize high-resolution",
       "generateEndpoint": "fal-ai/sana",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5628,7 +5628,7 @@
     {
       "id": "sana-sprint",
       "label": "Sana Sprint",
-      "description": "Sana Sprint is a text-to-image model capable of generating 4K images with exceptional speed.",
+      "description": "Sana Sprint is a text-to-image model capable of generating 4K images with exceptional…",
       "generateEndpoint": "fal-ai/sana/sprint",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5663,7 +5663,7 @@
     {
       "id": "sana-v1-5-1-6b",
       "label": "Sana v1.5 1.6B",
-      "description": "Sana v1.5 1.6B is a lightweight text-to-image model that delivers 4K image generation with impressive efficiency.",
+      "description": "Sana v1.5 1.6B is a lightweight text-to-image model that delivers 4K image generation…",
       "generateEndpoint": "fal-ai/sana/v1.5/1.6b",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5698,7 +5698,7 @@
     {
       "id": "sana-v1-5-4-8b",
       "label": "Sana v1.5 4.8B",
-      "description": "Sana v1.5 4.8B is a powerful text-to-image model that generates ultra-high quality 4K images with remarkable detail.",
+      "description": "Sana v1.5 4.8B is a powerful text-to-image model that generates ultra-high quality 4K…",
       "generateEndpoint": "fal-ai/sana/v1.5/4.8b",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5733,7 +5733,7 @@
     {
       "id": "sdxl-controlnet-union",
       "label": "SDXL ControlNet Union",
-      "description": "An efficent SDXL multi-controlnet text-to-image model.",
+      "description": "An efficent SDXL multi-controlnet text-to-image model",
       "generateEndpoint": "fal-ai/sdxl-controlnet-union",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5828,7 +5828,7 @@
     {
       "id": "stable-diffusion-v3-medium",
       "label": "Stable Diffusion V3",
-      "description": "Stable Diffusion 3 Medium (Text to Image) is a Multimodal Diffusion Transformer (MMDiT) model that improves image quality, typography, prompt understanding, and efficiency.",
+      "description": "Stable Diffusion 3 Medium (Text to Image) is a Multimodal Diffusion Transformer (MMDiT)…",
       "generateEndpoint": "fal-ai/stable-diffusion-v3-medium",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5863,7 +5863,7 @@
     {
       "id": "stable-diffusion-v35-large",
       "label": "Stable Diffusion 3.5 Large",
-      "description": "Stable Diffusion 3.5 Large is a Multimodal Diffusion Transformer (MMDiT) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
+      "description": "Stable Diffusion 3.5 Large is a Multimodal Diffusion Transformer (MMDiT) text-to-image…",
       "generateEndpoint": "fal-ai/stable-diffusion-v35-large",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5898,7 +5898,7 @@
     {
       "id": "stable-diffusion-v35-medium",
       "label": "Stable Diffusion 3.5 Medium",
-      "description": "Stable Diffusion 3.5 Medium is a Multimodal Diffusion Transformer (MMDiT) text-to-image model that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency.",
+      "description": "Stable Diffusion 3.5 Medium is a Multimodal Diffusion Transformer (MMDiT) text-to-image…",
       "generateEndpoint": "fal-ai/stable-diffusion-v35-medium",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5933,7 +5933,7 @@
     {
       "id": "vidu-q2-text-to-image",
       "label": "Vidu",
-      "description": "Use vidu Text-to-Image to turn your prompts into reality.",
+      "description": "Use vidu Text-to-Image to turn your prompts into reality",
       "generateEndpoint": "fal-ai/vidu/q2/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "16:9", "9:16"],
@@ -5958,7 +5958,7 @@
     {
       "id": "wan-25-preview-text-to-image",
       "label": "Wan 2.5 Text to Image",
-      "description": "Wan 2.5 text-to-image model.",
+      "description": "Wan 2.5 text-to-image model",
       "generateEndpoint": "fal-ai/wan-25-preview/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -5993,7 +5993,7 @@
     {
       "id": "wan-v2-2-5b-text-to-image",
       "label": "Wan",
-      "description": "Wan 2.2's 5B model generates high-resolution, photorealistic images with powerful prompt understanding and fine-grained visual detail",
+      "description": "Wan 2.2's 5B model generates high-resolution",
       "generateEndpoint": "fal-ai/wan/v2.2-5b/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6028,7 +6028,7 @@
     {
       "id": "wan-v2-2-a14b-text-to-image",
       "label": "Wan",
-      "description": "Wan 2.2's 14B model generates high-resolution, photorealistic images with powerful prompt understanding and fine-grained visual detail",
+      "description": "Wan 2.2's 14B model generates high-resolution",
       "generateEndpoint": "fal-ai/wan/v2.2-a14b/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6063,7 +6063,7 @@
     {
       "id": "wan-v2-2-a14b-text-to-image-lora",
       "label": "Wan v2.2 A14B Text-to-Image A14B with LoRAs",
-      "description": "Wan 2.2's 14B model with LoRA support generates high-fidelity images with enhanced prompt alignment, style adaptability.",
+      "description": "Wan 2.2's 14B model with LoRA support generates high-fidelity images with enhanced prompt…",
       "generateEndpoint": "fal-ai/wan/v2.2-a14b/text-to-image/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6098,7 +6098,7 @@
     {
       "id": "wan-v2-6-text-to-image",
       "label": "Wan v2.6 Text to Image",
-      "description": "Wan 2.6 text-to-image model.",
+      "description": "Wan 2.6 text-to-image model",
       "generateEndpoint": "wan/v2.6/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6133,7 +6133,7 @@
     {
       "id": "wan-v2-7-pro-text-to-image",
       "label": "Wan",
-      "description": "Generate premium-quality images from text prompts using the enhanced WAN 2.7 Pro model with superior detail and composition.",
+      "description": "Generate premium-quality images from text prompts using the enhanced WAN 2.7 Pro model…",
       "generateEndpoint": "fal-ai/wan/v2.7/pro/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6168,7 +6168,7 @@
     {
       "id": "wan-v2-7-text-to-image",
       "label": "Wan",
-      "description": "Generate high-quality images from text prompts using the WAN 2.7 model with advanced prompt understanding and detailed output.",
+      "description": "Generate high-quality images from text prompts using the WAN 2.7 model with advanced…",
       "generateEndpoint": "fal-ai/wan/v2.7/text-to-image",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6203,7 +6203,7 @@
     {
       "id": "xai-grok-imagine-image",
       "label": "Grok Imagine Image",
-      "description": "Generate highly aesthetic images with xAI's Grok Imagine Image generation model.",
+      "description": "Generate highly aesthetic images with xAI's Grok Imagine Image generation model",
       "generateEndpoint": "xai/grok-imagine-image",
       "editEndpoint": "xai/grok-imagine-image/edit",
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -6234,7 +6234,7 @@
     {
       "id": "xai-grok-imagine-image-quality-text-to-image",
       "label": "Grok Imagine Image",
-      "description": "Grok Imagine Pro is an advanced AI model from xAI that creates high-quality visuals from text prompts and allows you to edit or analyze existing images.",
+      "description": "Grok Imagine Pro is an advanced AI model from xAI that creates high-quality visuals from…",
       "generateEndpoint": "xai/grok-imagine-image/quality/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -6266,7 +6266,7 @@
     {
       "id": "xai-grok-imagine-image-v2-0-text-to-image",
       "label": "Grok Imagine Image 2.0",
-      "description": "Generate images from text using xAi's Grok Imagine 2.0 model.",
+      "description": "Generate images from text using xAi's Grok Imagine 2.0 model",
       "generateEndpoint": "xai/grok-imagine-image/v2.0/text-to-image",
       "editEndpoint": null,
       "aspectRatios": ["1:1", "4:3", "3:4", "16:9", "9:16", "3:2", "2:3"],
@@ -6298,7 +6298,7 @@
     {
       "id": "z-image-base",
       "label": "Z Image Base",
-      "description": "Z-Image is the foundation model of the Z- Image family, engineered for good quality, robust generative diversity, broad stylistic coverage, and precise prompt adherence.",
+      "description": "Z-Image is the foundation model of the Z- Image family, engineered for good quality",
       "generateEndpoint": "fal-ai/z-image/base",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6333,7 +6333,7 @@
     {
       "id": "z-image-base-lora",
       "label": "Z Image Base Lora",
-      "description": "LoRA endpoint for Z-Image, the foundation model of the Z- Image family.",
+      "description": "LoRA endpoint for Z-Image, the foundation model of the Z- Image family",
       "generateEndpoint": "fal-ai/z-image/base/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6368,7 +6368,7 @@
     {
       "id": "z-image-turbo",
       "label": "Z Image Turbo",
-      "description": "Z-Image Turbo is a super fast text-to-image model of 6B parameters developed by Tongyi-MAI.",
+      "description": "Z-Image Turbo is a super fast text-to-image model of 6B parameters developed by Tongyi-MAI",
       "generateEndpoint": "fal-ai/z-image/turbo",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6403,7 +6403,7 @@
     {
       "id": "z-image-turbo-lora",
       "label": "Z Image Turbo Lora",
-      "description": "Text-to-Image endpoint with LoRA support for Z-Image Turbo, a super fast text-to-image model of 6B parameters developed by Tongyi-MAI.",
+      "description": "Text-to-Image endpoint with LoRA support for Z-Image Turbo",
       "generateEndpoint": "fal-ai/z-image/turbo/lora",
       "editEndpoint": null,
       "aspectRatios": [
@@ -6473,7 +6473,7 @@
     {
       "id": "z-image-turbo-tiling-lora",
       "label": "Z-Image Turbo Seamless Tiling Lora",
-      "description": "Generate seamlessly tiling photorealistic images from text using Z-Image Turbo and custom LoRA",
+      "description": "Generate seamlessly tiling photorealistic images from text using Z-Image Turbo and custom…",
       "generateEndpoint": "fal-ai/z-image/turbo/tiling/lora",
       "editEndpoint": null,
       "aspectRatios": [

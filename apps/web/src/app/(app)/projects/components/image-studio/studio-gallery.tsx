@@ -95,10 +95,11 @@ export function StudioGallery({
   const t = useTranslations("App.Studio");
   const format = useFormatter();
 
-  // Newest first already, so grouping is one pass: a new group starts whenever
-  // the calendar day changes. Local day, because "yesterday" is the reader's.
+  // Chat order: oldest at the top, newest (and anything in flight) at the
+  // bottom. Grouping is one pass: a new group starts whenever the calendar day
+  // changes. Local day, because "yesterday" is the reader's.
   const groups: { day: string; date: Date; assets: StudioAsset[] }[] = [];
-  for (const asset of assets) {
+  for (const asset of [...assets].reverse()) {
     const ms = epochMs(asset.createdAt);
     const date = new Date(ms ?? 0);
     const day = ms === null ? "" : date.toDateString();
@@ -111,50 +112,6 @@ export function StudioGallery({
     // Named by the heading the studio renders above it, rather than by a
     // duplicate label nobody can see.
     <section aria-labelledby="studio-gallery-heading" className="min-w-0">
-      <ul className={GRID_CLASS}>
-        {queued.map((request) => (
-          <li key={request.id}>
-            <PendingTile
-              label={labels.waitingForSlot}
-              model={request.modelLabel}
-              prompt={request.prompt}
-              variant="queued"
-            />
-          </li>
-        ))}
-
-        {activeJobs.map((job) => {
-          const requested = cancelRequestedJobIds.includes(job.id);
-          return (
-            <li key={job.id}>
-              <PendingTile
-                label={
-                  job.status === "QUEUED" || job.status === "PENDING"
-                    ? labels.queued
-                    : labels.generating
-                }
-                model={resolveModel(catalog, job.model).label}
-                prompt={job.prompt}
-                variant="running"
-              >
-                {/* Cancelling belongs on the thing being cancelled. As a row
-                    of buttons above the gallery it was a second list of the
-                    running jobs, in a different order, with no picture. */}
-                <Button
-                  className="mt-2"
-                  disabled={requested}
-                  onClick={() => onCancelJob(job.id)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {requested ? labels.cancelRequested : labels.cancel}
-                </Button>
-              </PendingTile>
-            </li>
-          );
-        })}
-      </ul>
-
       {groups.map((group) => (
         <div className="mt-6 first:mt-0" key={group.day || "undated"}>
           {group.day ? (
@@ -210,8 +167,8 @@ export function StudioGallery({
                 <li key={asset.id}>
                   <figure
                     className={cn(
-                      "group border-border bg-background relative overflow-hidden rounded-lg border transition-colors",
-                      selected && "border-primary ring-ring-halo ring-2",
+                      "group bg-card-background relative overflow-hidden rounded-xl transition-colors",
+                      selected && "ring-primary ring-2",
                     )}
                     data-asset-id={asset.id}
                   >
@@ -366,6 +323,50 @@ export function StudioGallery({
           </ul>
         </div>
       ))}
+
+      <ul className={cn(GRID_CLASS, groups.length > 0 && "mt-6")}>
+        {queued.map((request) => (
+          <li key={request.id}>
+            <PendingTile
+              label={labels.waitingForSlot}
+              model={request.modelLabel}
+              prompt={request.prompt}
+              variant="queued"
+            />
+          </li>
+        ))}
+
+        {activeJobs.map((job) => {
+          const requested = cancelRequestedJobIds.includes(job.id);
+          return (
+            <li key={job.id}>
+              <PendingTile
+                label={
+                  job.status === "QUEUED" || job.status === "PENDING"
+                    ? labels.queued
+                    : labels.generating
+                }
+                model={resolveModel(catalog, job.model).label}
+                prompt={job.prompt}
+                variant="running"
+              >
+                {/* Cancelling belongs on the thing being cancelled. As a row
+                    of buttons above the gallery it was a second list of the
+                    running jobs, in a different order, with no picture. */}
+                <Button
+                  className="mt-2"
+                  disabled={requested}
+                  onClick={() => onCancelJob(job.id)}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {requested ? labels.cancelRequested : labels.cancel}
+                </Button>
+              </PendingTile>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }
@@ -444,7 +445,7 @@ function PendingTile({
   return (
     <div
       className={cn(
-        "border-border bg-background flex aspect-square flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed p-3 text-center",
+        "bg-card-background flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl p-3 text-center",
         variant === "queued" && "opacity-70",
       )}
     >

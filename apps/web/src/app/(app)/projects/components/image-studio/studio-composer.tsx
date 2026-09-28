@@ -1,17 +1,11 @@
 "use client";
 
-import { ChevronDown, Loader2, X } from "lucide-react";
+import { Check, ChevronDown, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
@@ -26,6 +20,7 @@ import {
   priceUnitLabelKey,
 } from "./catalog";
 import { STUDIO_PILL_CLASS } from "./studio-classes";
+import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import {
   assetContentUrl,
   type StudioAsset,
@@ -144,6 +139,7 @@ export function StudioComposer({
   busy,
   catalog,
   labels,
+  onApplyTemplate,
   onGenerate,
   onPromptChange,
   onTargetChange,
@@ -157,6 +153,7 @@ export function StudioComposer({
   busy: boolean;
   catalog: StudioCatalog;
   labels: StudioLabels;
+  onApplyTemplate: (template: StudioTemplate) => void;
   onGenerate: (requests: QueuedGeneration[]) => void;
   /**
    * The prompt lives above this component.
@@ -194,6 +191,7 @@ export function StudioComposer({
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
+  const [modelQuery, setModelQuery] = useState("");
 
   /**
    * fal's pricing unit, singular and translated where we have a word for it.
@@ -211,6 +209,33 @@ export function StudioComposer({
     () => catalog.models.filter((model) => selectedModelIds.includes(model.id)),
     [catalog.models, selectedModelIds],
   );
+
+  const needle = modelQuery.trim().toLowerCase();
+  const shownModels = useMemo(
+    () =>
+      needle === ""
+        ? catalog.models
+        : catalog.models.filter((model) =>
+            `${model.label} ${model.id}`.toLowerCase().includes(needle),
+          ),
+    [catalog.models, needle],
+  );
+
+  /** Select or unselect exactly the models the search is showing. */
+  function setShown(on: boolean) {
+    const ids = new Set(shownModels.map((model) => model.id));
+    onTargetChange((current) => ({
+      ...current,
+      modelIds: on
+        ? [
+            ...current.modelIds,
+            ...shownModels
+              .map((model) => model.id)
+              .filter((id) => !current.modelIds.includes(id)),
+          ]
+        : current.modelIds.filter((id) => !ids.has(id)),
+    }));
+  }
 
   const setSettings = (update: (current: StudioSettings) => StudioSettings) =>
     onTargetChange((current) => ({
@@ -376,7 +401,7 @@ export function StudioComposer({
       // Docked: once there are results the studio renders the composer below
       // them, and it rides the bottom of the viewport so the next generation
       // is always one keystroke away from the last one.
-      className="border-border bg-background focus-within:border-primary-tertiary sticky bottom-3 z-10 rounded-lg border transition-colors"
+      className="bg-card-background shrink-0 rounded-xl"
     >
       <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea
@@ -430,88 +455,142 @@ export function StudioComposer({
         ) : null}
       </div>
 
+      {/* Templates live in the box and leave as soon as there is text: they
+          are a way to start, and a way to start is noise once you have. */}
+      {prompt === "" ? (
+        <div
+          aria-label={labels.templates}
+          className="app-scrollbar flex gap-2 overflow-x-auto px-3 pt-2 pb-1 sm:px-4"
+          role="group"
+        >
+          {STUDIO_TEMPLATES.map((template) => (
+            <button
+              className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
+              key={template.id}
+              onClick={() => onApplyTemplate(template)}
+              type="button"
+            >
+              <img
+                alt=""
+                className="bg-muted size-8 rounded-md object-cover"
+                loading="lazy"
+                src={`/studio/templates/${template.id}.jpg`}
+              />
+              <span className="text-xs font-medium">
+                {labels.templateLabels[template.id]}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {/* One row, three summaries and the one action. No dividers: the card is
           a single object, and a rule between the prompt and the thing that
           qualifies it made two. */}
       <div className="flex flex-wrap items-center gap-2 p-2 sm:px-3 sm:pb-3">
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+        <Popover>
+          <PopoverTrigger asChild>
             <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
               <TriggerLabel label={labels.model}>{modelSummary}</TriggerLabel>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="start" className="w-80">
-            <div className="flex items-center justify-between gap-2 pr-1">
-              <DropdownMenuLabel>{labels.model}</DropdownMenuLabel>
+          </PopoverTrigger>
+          <PopoverContent
+            align="start"
+            className="w-96 max-w-[calc(100vw-2rem)] p-2"
+          >
+            <div className="flex items-center justify-between gap-2 pb-2">
               {/* One brief on every model is the thing this composer is for,
-                  so it is one click rather than one click per model. */}
-              <Button
-                className="h-7 px-2 text-xs"
-                disabled={catalog.models.every((model) =>
-                  selectedModelIds.includes(model.id),
-                )}
-                onClick={() =>
-                  onTargetChange((current) => ({
-                    ...current,
-                    modelIds: catalog.models.map((model) => model.id),
-                  }))
-                }
-                size="sm"
-                variant="ghost"
-              >
-                {labels.selectAllModels}
-              </Button>
-            </div>
-            {catalog.models.map((model) => {
-              /**
-               * What one image from this model costs, on the row where the
-               * model is chosen.
-               *
-               * 152 models, and the only figure anywhere used to be the
-               * aggregate after selection — so picking between a 3-credit model
-               * and a 15-credit one was guesswork. At the frame currently
-               * chosen, clamped to what this model can run, which is the same
-               * arithmetic the batch total and the reservation use.
-               */
-              const credits = creditsForImage(
-                model,
-                clampToModel(model, settings),
-              );
-              return (
-                <DropdownMenuCheckboxItem
-                  checked={selectedModelIds.includes(model.id)}
-                  className="items-start"
-                  key={model.id}
-                  // Choosing several models is the reason this is a menu and
-                  // not a select, so it must survive its own click.
-                  onSelect={(event) => {
-                    event.preventDefault();
-                    toggleModel(model);
-                  }}
+                  so it is one click rather than one click per model. Both
+                  act on what the search shows, so "select all" after typing
+                  "flux" means every FLUX, not the whole catalog. */}
+              <span className="text-muted-foreground px-1 text-xs font-medium">
+                {labels.model}
+              </span>
+              <div className="flex gap-1">
+                <Button
+                  className="h-7 px-2 text-xs"
+                  disabled={shownModels.every((model) =>
+                    selectedModelIds.includes(model.id),
+                  )}
+                  onClick={() => setShown(true)}
+                  size="sm"
+                  variant="ghost"
                 >
-                  <span className="min-w-0 flex-1">
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      <span className="min-w-0 flex-1 truncate font-medium">
-                        {model.label}
+                  {labels.selectAllModels}
+                </Button>
+                <Button
+                  className="h-7 px-2 text-xs"
+                  disabled={
+                    !shownModels.some((model) =>
+                      selectedModelIds.includes(model.id),
+                    )
+                  }
+                  onClick={() => setShown(false)}
+                  size="sm"
+                  variant="ghost"
+                >
+                  {labels.unselectAllModels}
+                </Button>
+              </div>
+            </div>
+            <Input
+              aria-label={labels.searchModels}
+              className="mb-2 h-8 text-sm"
+              onChange={(event) => setModelQuery(event.currentTarget.value)}
+              placeholder={labels.searchModels}
+              value={modelQuery}
+            />
+            <div
+              className="app-scrollbar max-h-80 overflow-y-auto"
+              role="group"
+              aria-label={labels.model}
+            >
+              {shownModels.length === 0 ? (
+                <p className="text-muted-foreground px-2 py-3 text-xs">
+                  {labels.noModelsMatch}
+                </p>
+              ) : null}
+              {shownModels.map((model) => {
+                const credits = creditsForImage(
+                  model,
+                  clampToModel(model, settings),
+                );
+                const checked = selectedModelIds.includes(model.id);
+                return (
+                  <button
+                    aria-checked={checked}
+                    className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                    key={model.id}
+                    onClick={() => toggleModel(model)}
+                    role="checkbox"
+                    type="button"
+                  >
+                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
+                      {checked ? (
+                        <Check aria-hidden className="size-4" />
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-baseline gap-2">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                          {model.label}
+                        </span>
+                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                          {credits === null
+                            ? labels.creditsNoFigure
+                            : t("creditsCount", { count: credits })}
+                        </span>
                       </span>
-                      {/* Quiet on purpose: a secondary number, in the meta
-                          role and the meta size, so the row still reads as a
-                          model with a price rather than as a price list. */}
-                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {credits === null
-                          ? labels.creditsNoFigure
-                          : t("creditsCount", { count: credits })}
+                      <span className="text-muted-foreground block truncate text-xs">
+                        {model.description}
                       </span>
                     </span>
-                    <span className="text-muted-foreground block text-xs text-pretty">
-                      {model.description}
-                    </span>
-                  </span>
-                </DropdownMenuCheckboxItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                  </button>
+                );
+              })}
+            </div>
+          </PopoverContent>
+        </Popover>
 
         <Popover>
           <PopoverTrigger asChild>

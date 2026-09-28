@@ -24,6 +24,7 @@ import { useStudioState } from "./use-studio-state";
 
 vi.mock("next-intl", () => ({
   useFormatter: () => ({ dateTime: () => "26 Sep 2026" }),
+  useTranslations: () => (key: string) => key,
 }));
 
 function asset(id: string, overrides: Partial<StudioAsset> = {}): StudioAsset {
@@ -235,11 +236,11 @@ describe("an unsaved review note", () => {
     onClearReview: vi.fn(),
     onClose: vi.fn(),
     onRegenerate: vi.fn(),
-    onStep: vi.fn(),
+    onSelect: vi.fn(),
     onUseAsReference: vi.fn(),
     onReject: vi.fn(),
     projectId: "p",
-    stepping: { hasPrevious: false, hasNext: false },
+    siblings: [asset("a")],
   };
 
   it("is reported upward instead of being kept inside the lightbox", () => {

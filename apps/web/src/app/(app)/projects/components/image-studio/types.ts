@@ -214,6 +214,9 @@ export interface StudioLabels {
   outputFormat: string;
   copies: string;
   selectAllModels: string;
+  unselectAllModels: string;
+  searchModels: string;
+  noModelsMatch: string;
   noModelSelected: string;
   generateOne: string;
   moreOptions: string;

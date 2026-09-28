@@ -194,6 +194,12 @@ export function imageModelOverrides(): ImageModelOverride[] {
  * pinned here so a rename upstream cannot silently empty the shortlist. Asserted
  * against the resolved catalog in tests.
  */
+/**
+ * fal publishes no usage or popularity figure. `GET /v1/models` rows carry only
+ * `highlighted`, `pinned`, `tags` and `is_favorited` (the caller's own), and the
+ * usage endpoint reports the calling account's spend, not the platform's. So
+ * "most used" cannot be measured; the five are curated by `curatedRank`.
+ */
 export const CURATED_MODEL_IDS = [
   "gemini-flash",
   "gemini-pro",
