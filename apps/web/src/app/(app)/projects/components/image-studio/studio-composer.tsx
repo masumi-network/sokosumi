@@ -2,7 +2,7 @@
 
 import { Check, ChevronDown, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -192,6 +192,7 @@ export function StudioComposer({
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
   const [modelQuery, setModelQuery] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
 
   /**
    * fal's pricing unit, singular and translated where we have a word for it.
@@ -535,6 +536,7 @@ export function StudioComposer({
             </div>
             <Input
               aria-label={labels.searchModels}
+              ref={searchRef}
               className="mb-2 h-8 text-sm"
               onChange={(event) => setModelQuery(event.currentTarget.value)}
               placeholder={labels.searchModels}
@@ -600,7 +602,14 @@ export function StudioComposer({
               </TriggerLabel>
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="start" className="w-80 space-y-3">
+          <PopoverContent
+            align="start"
+            className="w-80 space-y-3"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              searchRef.current?.focus();
+            }}
+          >
             {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}
