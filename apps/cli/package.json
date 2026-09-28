@@ -1,6 +1,6 @@
 {
   "name": "@masumi_network/sokosumi",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Developer CLI for Sokosumi Coworker builders",
   "type": "module",
   "license": "MIT",
@@ -11,7 +11,8 @@
   },
   "homepage": "https://github.com/masumi-network/sokosumi/tree/main/apps/cli",
   "files": [
-    "dist"
+    "dist",
+    "skills"
   ],
   "publishConfig": {
     "access": "public"

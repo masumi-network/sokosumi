@@ -8,6 +8,8 @@ import type { CommandOutput } from "./command-helpers.js";
 
 export const CLI_COMMANDS = [
   "discover",
+  "skills",
+  "skills path",
   "auth login",
   "auth status",
   "auth whoami",
