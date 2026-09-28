@@ -620,6 +620,34 @@ async function applyLabelVetoWithdrawals(input: {
         decision: FileFieldOverrideDecision.REJECT,
       },
     });
+
+    /**
+     * And the rejected assignment itself, or the withdrawal achieves nothing.
+     *
+     * The tombstone is what bars the label from the shortlist, so deleting it
+     * lets the model consider the label again — and then `runSuggestionJob`
+     * upserts with `update: {}`, because "an existing confirmed or rejected row
+     * is a decision, it stands". The model's new suggestion would land on the
+     * still-REJECTED row and be swallowed: allowed to ask the question,
+     * forbidden to record the answer.
+     *
+     * Withdrawing a veto means there is no longer a decision on this label, so
+     * the row that records the decision goes too. Scoped to REJECTED: a
+     * CONFIRMED assignment is a different statement and is not this gesture's
+     * to remove.
+     *
+     * Found by clicking the control on a preview, not by the tests — those
+     * deleted these rows themselves between runs, which is the test doing the
+     * product's job and passing for a reason the product does not provide.
+     */
+    await input.tx.fileLabel.deleteMany({
+      where: {
+        resourceId: input.resource.id,
+        evidenceScopeId: input.resource.evidenceScopeId,
+        labelId: target,
+        state: FileMetadataState.REJECTED,
+      },
+    });
   }
 }
 

@@ -817,11 +817,20 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
         }),
       ).toBe(1);
 
-      // A re-run must not overrule the person.
-      await prisma.fileLabel.deleteMany({
-        where: { resourceId: vetoResourceId },
-      });
+      // A re-run must not overrule the person. Nothing cleared by hand: the
+      // rejected row stays exactly where the removal left it, which is the
+      // state the withdrawal below has to deal with.
       expect(await runOneJob(201)).not.toContain(tagA);
+      expect(
+        await prisma.fileLabel.count({
+          where: {
+            resourceId: vetoResourceId,
+            labelId: tagA,
+            state: FileMetadataState.REJECTED,
+          },
+        }),
+        "the re-run must leave the person's rejection standing",
+      ).toBe(1);
 
       // Withdrawing the veto re-opens the question.
       const withdrawal = await updateFileMetadata({
@@ -852,10 +861,34 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
         }),
       ).toBe(0);
 
-      // And now the model may answer again.
-      await prisma.fileLabel.deleteMany({
-        where: { resourceId: vetoResourceId },
-      });
+      /**
+       * And it leaves no rejected row either.
+       *
+       * The tombstone alone is not enough. `runSuggestionJob` upserts with
+       * `update: {}` — an existing rejected row is a decision and it stands —
+       * so a surviving REJECTED row swallows the model's next suggestion in
+       * silence. The label would be allowed back into the shortlist and still
+       * never appear: the control would report success and change nothing,
+       * which is what it did on a preview before this assertion existed.
+       */
+      expect(
+        await prisma.fileLabel.count({
+          where: { resourceId: vetoResourceId, labelId: tagA },
+        }),
+        "a surviving rejected row swallows the next suggestion",
+      ).toBe(0);
+
+      /**
+       * And now the model may answer again — with nothing cleared by hand.
+       *
+       * This used to delete the label rows here before re-running, which is the
+       * test doing the product's job: the tombstone is what bars the shortlist,
+       * but `runSuggestionJob` upserts with `update: {}`, so the model's new
+       * suggestion lands on the still-REJECTED row and is swallowed. Clearing
+       * the rows here hid that completely, and the control shipped to a preview
+       * reporting success while changing nothing. The withdrawal clears the
+       * rejected assignment itself now, so this asserts the real path.
+       */
       expect(await runOneJob(202)).toContain(tagA);
     }, 60_000);
 
@@ -894,9 +927,7 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       // The one still vetoed stays out of the shortlist; the forgiven one
       // comes back. Both halves, so a clear that deleted everything fails on
       // the second assertion and one that deleted nothing fails on the first.
-      await prisma.fileLabel.deleteMany({
-        where: { resourceId: vetoResourceId },
-      });
+      // Nothing is cleared by hand here: see the note in the case above.
       const suggested = await runOneJob(210);
       expect(suggested).toContain(tagA);
       expect(suggested).not.toContain(tagB);
