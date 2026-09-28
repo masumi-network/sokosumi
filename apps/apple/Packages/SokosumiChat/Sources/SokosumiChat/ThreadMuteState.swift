@@ -42,7 +42,7 @@ public struct ThreadMuteState: Equatable, Sendable {
 
   /// Answers the click and returns the state to ask Core for, or nil when there is nothing to toggle yet
   /// or a write is still running.
-  public mutating func beginToggle() -> Bool? {
+  mutating func beginToggle() -> Bool? {
     guard let isMuted, !isPending else { return nil }
     self.isMuted = !isMuted
     isPending = true
@@ -64,7 +64,7 @@ public struct ThreadMuteState: Equatable, Sendable {
     failure = isMuted ? .mute : .unmute
   }
 
-  public mutating func dismissFailure() {
+  mutating func dismissFailure() {
     failure = nil
   }
 }
