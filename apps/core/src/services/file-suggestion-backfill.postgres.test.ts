@@ -244,27 +244,30 @@ describe.skipIf(!enabled)("the suggestion backfill sweep", () => {
     });
   });
 
-  it("stops after one extra turn, so a silent document is not paid for twice", async () => {
+  it("stops after its extra turns, so a silent document is not paid for twice", async () => {
     const resourceId = await createResource({
       name: "quiet.txt",
       extractionState: "INDEXED",
     });
     await succeededSuggestJob(resourceId, 1);
 
-    await backfillMissingSuggestionJobs();
-    expect(await suggestJobsFor(resourceId)).toHaveLength(2);
+    // Generation 2 is the sweep that followed the first vocabulary, generation
+    // 3 the one that followed the widened vocabulary. Then it stops.
+    for (const generation of [2, 3]) {
+      await backfillMissingSuggestionJobs();
+      expect(await suggestJobsFor(resourceId)).toHaveLength(generation);
+      // The document the model correctly had nothing to say about looks
+      // exactly like an unevaluated one. Without the generation ceiling this
+      // would be a paid evaluation every minute, forever.
+      await prisma.fileIndexJob.updateMany({
+        where: { resourceId, desiredGeneration: generation },
+        data: { state: FileIndexJobState.SUCCEEDED, completedAt: new Date() },
+      });
+    }
 
-    // The document the model correctly had nothing to say about looks exactly
-    // like an unevaluated one. Without the generation ceiling this would be a
-    // paid evaluation every minute, forever.
-    await prisma.fileIndexJob.updateMany({
-      where: { resourceId, desiredGeneration: 2 },
-      data: { state: FileIndexJobState.SUCCEEDED, completedAt: new Date() },
-    });
-
     await backfillMissingSuggestionJobs();
     await backfillMissingSuggestionJobs();
-    expect(await suggestJobsFor(resourceId)).toHaveLength(2);
+    expect(await suggestJobsFor(resourceId)).toHaveLength(3);
     expect(FILE_SUGGEST_BACKFILL_MAX_GENERATION).toBe(3);
   });
 

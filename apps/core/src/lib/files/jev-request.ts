@@ -93,7 +93,7 @@ const LABEL_NAME_TOKEN_BUDGET = 40;
  * a workspace with five labels measures around a third of it.
  */
 export const LABEL_EVALUATION_CEILINGS: TokenCeilings = {
-  total: 12_000,
+  total: 16_000,
   components: { excerpt: 2_048, vocabulary: 1_536 },
 };
 
