@@ -5,6 +5,7 @@ import {
   extractHttpLinks,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
+import { ArrowDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -433,28 +434,29 @@ export function TaskActivitySection({
     <section className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
-        <TaskActivitySubscribeControl
-          taskId={taskId}
-          viewerId={currentUser?.id ?? null}
-          viewerName={currentUser?.name ?? null}
-          viewerImage={currentUser?.image ?? null}
-          participants={participants}
-          canComment={canComment}
-        />
-      </div>
-
-      {showJumpToRecent ? (
-        <div className="flex justify-center">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-7 rounded-full px-3 text-xs font-semibold"
-            onClick={handleJumpToRecent}
-          >
-            {t("jumpToRecent")}
-          </Button>
+        <div className="flex items-center gap-1">
+          {showJumpToRecent ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground h-7 gap-1 px-2 text-xs"
+              onClick={handleJumpToRecent}
+            >
+              <ArrowDown className="size-3.5" aria-hidden />
+              {t("jumpToRecent")}
+            </Button>
+          ) : null}
+          <TaskActivitySubscribeControl
+            taskId={taskId}
+            viewerId={currentUser?.id ?? null}
+            viewerName={currentUser?.name ?? null}
+            viewerImage={currentUser?.image ?? null}
+            participants={participants}
+            canComment={canComment}
+          />
         </div>
-      ) : null}
+      </div>
 
       {feedItems.length > 0 ? (
         <div

@@ -1323,9 +1323,12 @@ describe("TaskActivitySection", () => {
       />,
     );
 
-    await userEvent.click(
-      screen.getByRole("button", { name: "Jump to latest" }),
-    );
+    const jump = screen.getByRole("button", { name: "Jump to latest" });
+    expect(
+      screen.getByRole("heading", { name: "Activity" }).parentElement,
+    ).toContainElement(jump);
+
+    await userEvent.click(jump);
 
     expect(highlightListMessageMock).toHaveBeenCalledWith(
       "task-activity",
