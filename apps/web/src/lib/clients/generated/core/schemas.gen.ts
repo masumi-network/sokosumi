@@ -16311,6 +16311,42 @@ export const ProjectDesignMdWriteSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarEntrySchema = {
+    allOf: [
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                originalScheduledAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'scheduledAt'
+            ]
+        },
+        {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkspaceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SocialPostCalendarItem'
+                }
+            ]
+        }
+    ]
+} as const;
+
 export const WorkspaceCalendarItemSchema = {
     type: 'object',
     properties: {
@@ -16477,6 +16513,104 @@ export const WorkspaceCalendarItemSchema = {
         'sourceWorkspaceId',
         'sourceType',
         'sourceProjectId'
+    ]
+} as const;
+
+export const SocialPostCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'socialPost'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        postId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'SCHEDULED',
+                'PUBLISHING',
+                'PUBLISHED',
+                'FAILED',
+                'MISSED',
+                'CANCELED'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        scheduledByName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scheduledByImage: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attachmentCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'postId',
+        'text',
+        'status',
+        'externalHandle',
+        'projectName',
+        'scheduledByName',
+        'scheduledByImage',
+        'attachmentCount',
+        'scheduledAt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
     ]
 } as const;
 
@@ -16880,6 +17014,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -16944,6 +17084,37 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 0
+        },
+        nextAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttempt: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostLastAttempt'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         revision: {
             type: 'integer',
             minimum: 0,
@@ -16967,6 +17138,13 @@ export const SocialPostSchema = {
         },
         canCancel: {
             type: 'boolean'
+        },
+        canPublishNow: {
+            type: 'boolean'
+        },
+        connectionNeedsReconnect: {
+            type: 'boolean',
+            description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
         }
     },
     required: [
@@ -16974,6 +17152,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'media',
         'status',
         'scheduledAt',
         'timezone',
@@ -16985,12 +17164,68 @@ export const SocialPostSchema = {
         'publishedExternalId',
         'publishedUrl',
         'lastError',
+        'attemptCount',
+        'nextAttemptAt',
+        'lastAttemptAt',
+        'lastAttempt',
         'revision',
         'createdAt',
         'updatedAt',
         'canEdit',
         'canSchedule',
-        'canCancel'
+        'canCancel',
+        'canPublishNow',
+        'connectionNeedsReconnect'
+    ]
+} as const;
+
+export const SocialPostMediaRefSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 0,
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            minLength: 1,
+            example: 'image/png'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'kind'
     ]
 } as const;
 
@@ -17074,14 +17309,97 @@ export const SocialPostCreatorSchema = {
     ]
 } as const;
 
+export const SocialPostLastAttemptSchema = {
+    type: 'object',
+    properties: {
+        attempt: {
+            type: 'integer',
+            minimum: 1,
+            example: 1
+        },
+        trigger: {
+            type: 'string',
+            enum: [
+                'scheduler',
+                'publish_now'
+            ]
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'succeeded',
+                'failed_transient',
+                'failed_permanent',
+                'missed',
+                'connection_inactive',
+                null
+            ]
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'rate_limited'
+        },
+        providerOutcome: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'attempt',
+        'trigger',
+        'outcome',
+        'errorKind',
+        'providerOutcome',
+        'finishedAt'
+    ]
+} as const;
+
+export const PublishSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const CreateSocialPostRequestSchema = {
     type: 'object',
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -17107,9 +17425,16 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: [

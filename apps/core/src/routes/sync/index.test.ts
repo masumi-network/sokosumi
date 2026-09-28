@@ -65,6 +65,17 @@ vi.mock("@/config/env", () => ({
   }),
 }));
 
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishDueSocialPosts: vi.fn().mockResolvedValue({
+    claimed: 0,
+    published: 0,
+    retried: 0,
+    failed: 0,
+    missed: 0,
+    skipped: 0,
+  }),
+}));
+
 vi.mock("@/services/notification-publish-sync.service", () => ({
   retryNotificationPublishes: vi
     .fn()

@@ -6,11 +6,13 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   getCalendarAccessWhere,
@@ -19,7 +21,7 @@ import {
 } from "@/routes/v1/workspaces/calendar/read";
 import {
   projectCalendarQuerySchema,
-  workspaceCalendarItemSchema,
+  workspaceCalendarEntrySchema,
 } from "@/schemas/workspace-calendar.schema";
 
 const paramsSchema = z.object({
@@ -45,7 +47,7 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(workspaceCalendarItemSchema),
+        z.array(workspaceCalendarEntrySchema),
         "Project Calendar items",
       ),
       400: jsonErrorResponse("Bad Request"),
@@ -61,6 +63,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
+    if (c.req.valid("query").includeSocialPosts === "true") {
+      requireInteractiveUserAuthContext(c.var.authContext);
+      await requireSocialBetaAccess(userContext.userId, prisma);
+    }
 
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");

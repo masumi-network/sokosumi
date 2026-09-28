@@ -7,8 +7,12 @@ const getProjectByIdMock = vi.fn();
 const getProjectCalendarMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
 const getSessionMock = vi.fn();
+const hasSocialBetaAccessMock = vi.fn();
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
+}));
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -142,6 +146,7 @@ describe("loadCalendarPageContext", () => {
 describe("loadWorkspaceCalendarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    hasSocialBetaAccessMock.mockResolvedValue(false);
     getSessionMock.mockResolvedValue({
       session: { activeOrganizationId: "org-1" },
       user: { id: "user-1" },
@@ -178,6 +183,29 @@ describe("loadWorkspaceCalendarPage", () => {
       pagination: null,
     });
   });
+
+  it.each([
+    [undefined, false],
+    [undefined, true],
+    [PROJECT.id, false],
+    [PROJECT.id, true],
+  ] as const)(
+    "preserves Social eligibility for project %s with access %s",
+    async (projectId, allowed) => {
+      hasSocialBetaAccessMock.mockResolvedValue(allowed);
+      const result = await loadWorkspaceCalendarPage({
+        projectId,
+        searchParams: Promise.resolve({}),
+      });
+      expect(result.includeSocialPosts).toBe(allowed);
+      const query = expect.objectContaining({
+        includeSocialPosts: allowed ? "true" : undefined,
+      });
+      if (projectId)
+        expect(getProjectCalendarMock).toHaveBeenCalledWith(projectId, query);
+      else expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(query);
+    },
+  );
 
   it.each([undefined, PROJECT.id])(
     "loads the first ten Agenda occurrences for project %s",

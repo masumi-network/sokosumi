@@ -2352,6 +2352,25 @@
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Aus Drive hinzufügen",
+            "upload": "Hochladen",
+            "uploading": "Wird hochgeladen…",
+            "remove": "{name} entfernen",
+            "hint": "Bis zu 4 Bilder oder ein GIF oder ein Video.",
+            "unsupported": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
+            "alreadyAttached": "Diese Datei ist bereits angehängt.",
+            "uploadDuplicate": "Im Drive existiert bereits eine Datei mit diesem Namen. Benenne sie um und versuche es erneut.",
+            "uploadFailed": "Der Upload ist fehlgeschlagen. Versuche es erneut.",
+            "errors": {
+              "too_many_images": "X erlaubt höchstens 4 Bilder pro Beitrag.",
+              "too_many_gifs": "X erlaubt ein GIF pro Beitrag.",
+              "too_many_videos": "X erlaubt ein Video pro Beitrag.",
+              "mixed_media": "Verwende Bilder, ein GIF oder ein Video – nicht gemischt.",
+              "unsupported_type": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
+              "too_large": "Eine Datei ist zu groß für X."
+            }
+          },
           "account": "Konto",
           "noAccount": "Konto auswählen",
           "unknownHandle": "Unbekanntes X-Konto",
@@ -2378,7 +2397,24 @@
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
           "failed": "Etwas ist schiefgelaufen. Versuche es erneut.",
           "unauthenticated": "Melde dich an, um fortzufahren.",
-          "unauthenticatedAction": "Anmelden"
+          "unauthenticatedAction": "Anmelden",
+          "published": "Beitrag veröffentlicht.",
+          "publishFailed": "Veröffentlichung fehlgeschlagen: {error}"
+        },
+        "needsReconnect": "Konto muss neu verbunden werden",
+        "needsReconnectLink": "Konto erneut verbinden",
+        "viewOnX": "Auf X ansehen",
+        "publishedAt": "Veröffentlicht {date}",
+        "failedAt": "Fehlgeschlagen {date}",
+        "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
+        "actions": {
+          "publishNow": "Jetzt veröffentlichen",
+          "retry": "Erneut versuchen"
+        },
+        "publishDialog": {
+          "title": "Diesen Beitrag jetzt veröffentlichen?",
+          "description": "Der Beitrag wird sofort auf X veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
+          "confirm": "Jetzt veröffentlichen"
         }
       },
       "Detail": {
@@ -6763,6 +6799,14 @@
         "upcoming": "Als Nächstes",
         "loading": "Wird geladen…",
         "loadMore": "Mehr laden"
+      },
+      "socialPost": {
+        "mediaOnly": "Medienbeitrag",
+        "project": "Projekt: {name}",
+        "projectLabel": "Projekt: ",
+        "scheduledBy": "Geplant von {name}",
+        "unknownScheduler": "unbekanntem Nutzer",
+        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
       }
     },
     "You": {

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   projectFindFirstMock,
@@ -48,6 +48,31 @@ const activeConnection = {
   status: "active",
 };
 
+const ORG_ID = "org_123";
+const IMAGE_REF = {
+  pathname: `drive/users/${USER_ID}/launch.png`,
+  fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/launch.png`,
+  name: "launch.png",
+  size: 240_000,
+  mimeType: "image/png",
+  kind: "image" as const,
+};
+const ORG_IMAGE_REF = {
+  ...IMAGE_REF,
+  pathname: `drive/organizations/${ORG_ID}/team photo.jpg`,
+  fileUrl: `https://store.public.blob.vercel-storage.com/drive/organizations/${ORG_ID}/team%20photo.jpg`,
+  name: "team photo.jpg",
+  mimeType: "image/jpeg",
+};
+const GIF_REF = {
+  ...IMAGE_REF,
+  pathname: `drive/users/${USER_ID}/loop.gif`,
+  fileUrl: `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/loop.gif`,
+  name: "loop.gif",
+  mimeType: "image/gif",
+  kind: "gif" as const,
+};
+
 const draftPost = {
   id: POST_ID,
   createdAt: NOW,
@@ -57,6 +82,7 @@ const draftPost = {
   socialConnectionId: null,
   provider: "x",
   text: "Hello world",
+  media: [],
   status: "DRAFT",
   scheduledAt: null,
   timezone: null,
@@ -69,11 +95,17 @@ const draftPost = {
   publishedExternalId: null,
   publishedUrl: null,
   lastError: null,
+  attemptCount: 0,
+  nextAttemptAt: null,
+  leaseToken: null,
+  leaseExpiresAt: null,
+  lastAttemptAt: null,
   revision: 0,
   socialConnection: null,
   creatorUser: { id: USER_ID, name: "Ada Lovelace" },
   creatorCoworker: null,
   creatorSokoBot: null,
+  attempts: [],
 };
 
 const scheduledPost = {
@@ -96,6 +128,10 @@ async function loadService() {
 }
 
 describe("social posts service", () => {
+  beforeAll(async () => {
+    await loadService();
+  });
+
   beforeEach(() => {
     vi.resetAllMocks();
     vi.useFakeTimers();
@@ -127,7 +163,7 @@ describe("social posts service", () => {
   it("lists a bounded page with derived capability flags", async () => {
     const { listSocialPosts } = await loadService();
 
-    const posts = await listSocialPosts({
+    const { posts } = await listSocialPosts({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       statuses: ["DRAFT", "SCHEDULED"],
@@ -144,7 +180,7 @@ describe("social posts service", () => {
         take: 21,
       }),
     );
-    expect(posts.posts).toEqual([
+    expect(posts).toEqual([
       expect.objectContaining({
         id: POST_ID,
         provider: "x",
@@ -203,6 +239,92 @@ describe("social posts service", () => {
     expect(last.pagination.nextCursor).toBeNull();
   });
 
+  it("loads the latest attempt with the post", async () => {
+    const { getSocialPost } = await loadService();
+
+    await getSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      postId: POST_ID,
+    });
+
+    expect(socialPostFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        include: expect.objectContaining({
+          attempts: expect.objectContaining({
+            orderBy: { attempt: "desc" },
+            take: 1,
+          }),
+        }),
+      }),
+    );
+  });
+
+  it("derives publish-now, reconnect, and last-attempt fields", async () => {
+    const lastAttempt = {
+      attempt: 2,
+      trigger: "scheduler",
+      outcome: "failed_transient",
+      errorKind: "rate_limited",
+      providerOutcome: "publish X post failed (429)",
+      finishedAt: NOW,
+    };
+    socialPostFindManyMock.mockResolvedValue([
+      {
+        ...scheduledPost,
+        attemptCount: 2,
+        nextAttemptAt: FUTURE,
+        lastAttemptAt: NOW,
+        attempts: [lastAttempt],
+        socialConnection: {
+          ...scheduledPost.socialConnection,
+          status: "reauthorization_required",
+        },
+      },
+      { ...draftPost, status: "PUBLISHING" },
+      { ...scheduledPost, status: "FAILED" },
+      {
+        ...scheduledPost,
+        status: "PUBLISHED",
+        socialConnection: {
+          ...scheduledPost.socialConnection,
+          status: "reauthorization_required",
+        },
+      },
+    ]);
+    const { listSocialPosts } = await loadService();
+
+    const { posts } = await listSocialPosts({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+
+    expect(posts[0]).toMatchObject({
+      attemptCount: 2,
+      nextAttemptAt: FUTURE,
+      lastAttemptAt: NOW,
+      lastAttempt,
+      canPublishNow: true,
+      connectionNeedsReconnect: true,
+    });
+    expect(posts[1]).toMatchObject({
+      lastAttempt: null,
+      canEdit: false,
+      canCancel: false,
+      canSchedule: false,
+      canPublishNow: false,
+      connectionNeedsReconnect: false,
+    });
+    expect(posts[2]).toMatchObject({
+      canPublishNow: true,
+      connectionNeedsReconnect: false,
+    });
+    expect(posts[3]).toMatchObject({
+      canPublishNow: false,
+      connectionNeedsReconnect: false,
+    });
+  });
+
   it("returns not found for a post in another Project", async () => {
     socialPostFindFirstMock.mockResolvedValue(null);
     const { getSocialPost } = await loadService();
@@ -222,6 +344,7 @@ describe("social posts service", () => {
     const post = await createSocialPost({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
+      organizationId: null,
       userId: USER_ID,
       text: "  Hello world  ",
     });
@@ -234,6 +357,7 @@ describe("social posts service", () => {
           socialConnectionId: null,
           provider: "x",
           text: "Hello world",
+          media: [],
           status: "DRAFT",
           scheduledAt: null,
           timezone: null,
@@ -253,6 +377,7 @@ describe("social posts service", () => {
       createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         text: "x".repeat(281),
       }),
@@ -267,6 +392,7 @@ describe("social posts service", () => {
       createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         text: "Hello world",
         scheduledAt: FUTURE,
@@ -285,6 +411,7 @@ describe("social posts service", () => {
       createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         text: "Hello world",
         socialConnectionId: SOCIAL_CONNECTION_ID,
@@ -308,6 +435,7 @@ describe("social posts service", () => {
       createSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         text: "Hello world",
         socialConnectionId: SOCIAL_CONNECTION_ID,
@@ -327,6 +455,7 @@ describe("social posts service", () => {
     const post = await createSocialPost({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
+      organizationId: null,
       userId: USER_ID,
       text: "Hello world",
       socialConnectionId: SOCIAL_CONNECTION_ID,
@@ -356,6 +485,300 @@ describe("social posts service", () => {
     });
   });
 
+  describe("media", () => {
+    it("stores normalized Drive refs from the personal workspace", async () => {
+      socialPostCreateMock.mockResolvedValue({
+        ...draftPost,
+        media: [IMAGE_REF],
+      });
+      const { createSocialPost } = await loadService();
+
+      const post = await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        text: "",
+        media: [{ ...IMAGE_REF, mimeType: " IMAGE/PNG " }],
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ text: "", media: [IMAGE_REF] }),
+        }),
+      );
+      expect(post.media).toEqual([IMAGE_REF]);
+    });
+
+    it("accepts organization Drive refs in that organization's workspace", async () => {
+      const { createSocialPost } = await loadService();
+
+      await createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: ORG_ID,
+        userId: USER_ID,
+        text: "Team",
+        media: [ORG_IMAGE_REF],
+      });
+
+      expect(socialPostCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ media: [ORG_IMAGE_REF] }),
+        }),
+      );
+    });
+
+    it("rejects a personal Drive ref from an organization workspace", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: ORG_ID,
+          userId: USER_ID,
+          text: "Hello",
+          media: [IMAGE_REF],
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects another organization's Drive ref", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: "org_other",
+          userId: USER_ID,
+          text: "Hello",
+          media: [ORG_IMAGE_REF],
+        }),
+      ).rejects.toMatchObject({ status: 403 });
+    });
+
+    it("rejects a pathname outside Drive", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [
+            {
+              ...IMAGE_REF,
+              pathname: "tasks/tsk_1/launch.png",
+              fileUrl:
+                "https://store.public.blob.vercel-storage.com/tasks/tsk_1/launch.png",
+            },
+          ],
+        }),
+      ).rejects.toMatchObject({ status: 422 });
+    });
+
+    it.each([
+      [
+        "a foreign host",
+        "https://evil.example/drive/users/user_123/launch.png",
+      ],
+      [
+        "plain http",
+        `http://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/launch.png`,
+      ],
+      [
+        "a URL for a different file",
+        `https://store.public.blob.vercel-storage.com/drive/users/${USER_ID}/other.png`,
+      ],
+    ])("rejects a file URL on %s", async (_name, fileUrl) => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [{ ...IMAGE_REF, fileUrl }],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: 'Media file "launch.png" is not a Drive file',
+      });
+    });
+
+    it("rejects an unsupported or mismatched type", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [{ ...IMAGE_REF, mimeType: "image/svg+xml" }],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: 'Media file "launch.png" is not a file type X accepts',
+      });
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [{ ...GIF_REF, kind: "image" }],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: 'Media file "loop.gif" is not a file type X accepts',
+      });
+    });
+
+    it("applies the X media rules", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [IMAGE_REF, GIF_REF],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "X does not allow a post that mixes images, a GIF, or a video",
+      });
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "Hello",
+          media: [{ ...IMAGE_REF, size: 5 * 1024 * 1024 + 1 }],
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "A file is too large for X",
+      });
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+    });
+
+    it("still requires text when no media is attached", async () => {
+      const { createSocialPost } = await loadService();
+
+      await expect(
+        createSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          text: "   ",
+          media: [],
+        }),
+      ).rejects.toMatchObject({ status: 400, message: "Text is required" });
+    });
+
+    it("replaces media on update and re-checks the text rule", async () => {
+      socialPostFindFirstMock
+        .mockResolvedValueOnce({ ...draftPost, text: "", media: [IMAGE_REF] })
+        .mockResolvedValueOnce({ ...draftPost, media: [GIF_REF], revision: 1 });
+      const { updateSocialPost } = await loadService();
+
+      await updateSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        postId: POST_ID,
+        media: [GIF_REF],
+        revision: 0,
+      });
+
+      expect(socialPostUpdateManyMock).toHaveBeenCalledWith({
+        where: { id: POST_ID, revision: 0 },
+        data: { media: [GIF_REF], text: "", revision: { increment: 1 } },
+      });
+    });
+
+    it("refuses to drop the media of a text-less post", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        text: "",
+        media: [IMAGE_REF],
+      });
+      const { updateSocialPost } = await loadService();
+
+      await expect(
+        updateSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          postId: POST_ID,
+          media: [],
+          revision: 0,
+        }),
+      ).rejects.toMatchObject({ status: 400, message: "Text is required" });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("treats malformed stored media as none", async () => {
+      vi.spyOn(console, "warn").mockImplementation(() => {});
+      socialPostFindManyMock.mockResolvedValue([
+        { ...draftPost, media: [{ pathname: 1 }] },
+      ]);
+      const { listSocialPosts } = await loadService();
+
+      const { posts } = await listSocialPosts({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      });
+
+      expect(posts[0].media).toEqual([]);
+      expect(console.warn).toHaveBeenCalledWith(
+        expect.stringContaining("media"),
+        { postId: POST_ID },
+      );
+    });
+
+    it("enforces the media rules when scheduling", async () => {
+      socialPostFindFirstMock.mockResolvedValue({
+        ...draftPost,
+        socialConnectionId: SOCIAL_CONNECTION_ID,
+        media: [IMAGE_REF, GIF_REF],
+      });
+      const { scheduleSocialPost } = await loadService();
+
+      await expect(
+        scheduleSocialPost({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          userId: USER_ID,
+          postId: POST_ID,
+          scheduledAt: FUTURE,
+          revision: 0,
+        }),
+      ).rejects.toMatchObject({
+        status: 400,
+        message: "X does not allow a post that mixes images, a GIF, or a video",
+      });
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    });
+  });
+
   it("maps a stale revision on update to a distinct conflict", async () => {
     socialPostUpdateManyMock.mockResolvedValue({ count: 0 });
     const { updateSocialPost } = await loadService();
@@ -364,6 +787,7 @@ describe("social posts service", () => {
       updateSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
         text: "Edited",
@@ -383,6 +807,7 @@ describe("social posts service", () => {
       updateSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
         text: "Edited",
@@ -409,6 +834,7 @@ describe("social posts service", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
+      organizationId: null,
       postId: POST_ID,
       text: "Edited",
       socialConnectionId: null,
@@ -434,6 +860,7 @@ describe("social posts service", () => {
       updateSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
         socialConnectionId: null,
@@ -454,6 +881,7 @@ describe("social posts service", () => {
       updateSocialPost({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
+        organizationId: null,
         userId: USER_ID,
         postId: POST_ID,
         text: "Edited",
@@ -500,6 +928,8 @@ describe("social posts service", () => {
         socialConnectionId: SOCIAL_CONNECTION_ID,
         scheduledByUserId: USER_ID,
         lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
         revision: { increment: 1 },
       },
     });
