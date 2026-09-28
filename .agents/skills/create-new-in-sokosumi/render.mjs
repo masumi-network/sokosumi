@@ -7,6 +7,7 @@
 import { spawn, spawnSync } from "node:child_process";
 import {
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -25,6 +26,7 @@ if (!contentArg || !outArg) {
   process.exit(1);
 }
 const outPath = resolve(outArg);
+mkdirSync(dirname(outPath), { recursive: true });
 
 function cssBlock(css, selector) {
   const match = new RegExp(`^${selector.replace(".", "\\.")} \\{`, "m").exec(

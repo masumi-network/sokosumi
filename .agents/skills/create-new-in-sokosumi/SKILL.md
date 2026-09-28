@@ -37,13 +37,13 @@ One run turns one change into one announcement image. The frame (layout, the "Ne
      </figure>
    </section>
    ```
-4. **Render.** Save the fragment as `new-in-sokosumi-<slug>.html` in the output directory, `/opt/cursor/artifacts/` in Cursor Cloud or `$TMPDIR` elsewhere, then render it from the repo root:
+4. **Render.** Save the fragment as `new-in-sokosumi-<slug>.html` in the output directory, `/opt/cursor/artifacts/` in Cursor Cloud or `${TMPDIR:-/tmp}` elsewhere, then render it from the repo root:
 
    ```bash
-   OUT=/opt/cursor/artifacts  # or "$TMPDIR"
+   OUT=/opt/cursor/artifacts  # elsewhere: OUT="${TMPDIR:-/tmp}"
    node .agents/skills/create-new-in-sokosumi/render.mjs "$OUT/new-in-sokosumi-<slug>.html" "$OUT/new-in-sokosumi-<slug>.png"
    ```
 
-   Exit 2 means something overflows; it is outlined in red in the PNG. Shorten the copy or simplify the mock and render again. Exit 3 means the image could not be verified: the layout check did not run, or Inter did not load. Fix the cause the message names. Done when the script exits 0.
+   The script creates the output directory. Exit 2 means something overflows; it is outlined in red in the PNG. Shorten the copy or simplify the mock and render again. Exit 3 means the image could not be verified: the layout check did not run, or Inter did not load. Fix the cause the message names. Done when the script exits 0.
 5. **Review the image.** Open the PNG. Done when the headline is two lines, each point and caption sits on one line, nothing is clipped at a panel's bottom edge, each panel's content fills most of its height, and the mocks read as the real UI.
 6. **Deliver.** Show the image in your reply: in Cursor, `<img alt="New in Sokosumi: <headline>" src="<absolute png path>" />`; elsewhere, attach or link the PNG the way the host shows files. Keep the PNG and fragment out of the repo and leave the PR description untouched. Done when the image appears in your reply.

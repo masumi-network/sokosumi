@@ -33,13 +33,15 @@ function run(name, fragment, out = join(work, `${name}.png`), env = {}) {
 }
 
 describe("render.mjs", () => {
-  it("renders a clean fragment", () => {
+  it("renders a clean fragment into a directory that does not exist yet", () => {
+    const out = join(work, "nested", "dir", "clean.png");
     const result = run(
       "clean",
       pitch("Mention them.<br />They're in.") + mock(card("Can you look?")),
+      out,
     );
     assert.equal(result.status, 0, result.stderr);
-    assert.equal(existsSync(result.out), true);
+    assert.equal(existsSync(out), true);
   });
 
   it("exits 2 when text is clipped inside a card", () => {
