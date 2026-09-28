@@ -394,7 +394,7 @@ describe("HistoryListItem", () => {
       expect(iconMocks.agentIcon).not.toHaveBeenCalled();
     });
 
-    it("reads a refunded generation as zero rather than as unknown", () => {
+    it("reads a zero-credit row as zero rather than as unknown", () => {
       render(
         <HistoryListItem
           item={{ ...image, credits: 0 }}
@@ -403,8 +403,8 @@ describe("HistoryListItem", () => {
         />,
       );
 
-      // Core clamps the amount at zero for a refunded failure, and zero is a
-      // fact about what it cost. `creditsUnavailable` would be a different,
+      // Every image that predates charging was backfilled at zero, and zero is
+      // a fact about what it cost. `creditsUnavailable` would be a different,
       // weaker claim.
       expect(screen.getByText("0 credits")).toBeInTheDocument();
     });

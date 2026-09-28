@@ -139,14 +139,20 @@ export function StudioImage({
         </span>
         {outcome === "unreadable" ? (
           <Button
-            onClick={() =>
+            onClick={(event) => {
+              // The gallery wraps this whole tile in a button that opens the
+              // lightbox, so without this a press of Try again also threw the
+              // reader into the full-screen viewer — recovering a thumbnail is
+              // not a request to look at it.
+              event.stopPropagation();
+              event.preventDefault();
               setState({
                 assetId: asset.id,
                 attempt: 0,
                 reload: reload + 1,
                 outcome: null,
-              })
-            }
+              });
+            }}
             size="sm"
             variant="ghost"
           >

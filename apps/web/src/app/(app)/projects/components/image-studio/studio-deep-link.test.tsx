@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
-import type { StudioAsset, StudioLabels } from "./types";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import type { StudioAsset } from "./types";
 
 /**
  * Following a link to one version.
@@ -78,13 +78,6 @@ vi.mock("./use-studio-state", () => ({
   },
 }));
 
-const LABELS = new Proxy(
-  {
-    templateLabels: new Proxy({}, { get: (_target, key: string) => key }),
-  } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 function asset(id: string, version: number, prompt: string): StudioAsset {
   return {
     id,
@@ -117,7 +110,7 @@ function mount(initialSelectedAssetId: string | null) {
       catalog={TEST_CATALOG}
       initialSelectedAssetId={initialSelectedAssetId}
       initialState={{ assets: ASSETS, jobs: [], sessions: [] } as never}
-      labels={LABELS}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );

@@ -459,28 +459,54 @@ export function StudioComposer({
                 {labels.selectAllModels}
               </Button>
             </div>
-            {catalog.models.map((model) => (
-              <DropdownMenuCheckboxItem
-                checked={selectedModelIds.includes(model.id)}
-                className="items-start"
-                key={model.id}
-                // Choosing several models is the reason this is a menu and
-                // not a select, so it must survive its own click.
-                onSelect={(event) => {
-                  event.preventDefault();
-                  toggleModel(model);
-                }}
-              >
-                <span className="min-w-0">
-                  <span className="block truncate font-medium">
-                    {model.label}
+            {catalog.models.map((model) => {
+              /**
+               * What one image from this model costs, on the row where the
+               * model is chosen.
+               *
+               * 152 models, and the only figure anywhere used to be the
+               * aggregate after selection — so picking between a 3-credit model
+               * and a 15-credit one was guesswork. At the frame currently
+               * chosen, clamped to what this model can run, which is the same
+               * arithmetic the batch total and the reservation use.
+               */
+              const credits = creditsForImage(
+                model,
+                clampToModel(model, settings),
+              );
+              return (
+                <DropdownMenuCheckboxItem
+                  checked={selectedModelIds.includes(model.id)}
+                  className="items-start"
+                  key={model.id}
+                  // Choosing several models is the reason this is a menu and
+                  // not a select, so it must survive its own click.
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    toggleModel(model);
+                  }}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {model.label}
+                      </span>
+                      {/* Quiet on purpose: a secondary number, in the meta
+                          role and the meta size, so the row still reads as a
+                          model with a price rather than as a price list. */}
+                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                        {credits === null
+                          ? labels.creditsNoFigure
+                          : t("creditsCount", { count: credits })}
+                      </span>
+                    </span>
+                    <span className="text-muted-foreground block text-xs text-pretty">
+                      {model.description}
+                    </span>
                   </span>
-                  <span className="text-muted-foreground block text-xs text-pretty">
-                    {model.description}
-                  </span>
-                </span>
-              </DropdownMenuCheckboxItem>
-            ))}
+                </DropdownMenuCheckboxItem>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -572,16 +598,51 @@ export function StudioComposer({
                 // becomes visible, so `plan.copies` is what reads as pressed.
                 const overCeiling =
                   selectedModels.length * count > MAX_BATCH && count > 1;
+                /**
+                 * Why this one is unavailable, in its own arithmetic.
+                 *
+                 * The ceiling is unchanged; only the explaining is new. A
+                 * dimmed "3" beside a footnote about a limit left a sighted
+                 * reader to do the multiplication and a screen-reader user with
+                 * "3, dimmed" and nothing at all.
+                 */
+                const reason = overCeiling
+                  ? t("copiesOverCeiling", {
+                      models: selectedModels.length,
+                      copies: count,
+                      images: selectedModels.length * count,
+                      limit: MAX_BATCH,
+                    })
+                  : undefined;
                 return (
                   <button
+                    // `aria-disabled`, not `disabled`: a natively disabled
+                    // control is not focusable, so the reason could never be
+                    // read out — which is the whole point of having one. The
+                    // press is blocked below instead.
+                    aria-describedby={
+                      reason ? `studio-copies-${count}-reason` : undefined
+                    }
+                    aria-disabled={overCeiling || undefined}
                     aria-pressed={plan.copies === count}
                     className={chipClass(plan.copies === count, overCeiling)}
-                    disabled={overCeiling}
                     key={count}
-                    onClick={() => setCopies(count)}
+                    onClick={() => {
+                      if (overCeiling) return;
+                      setCopies(count);
+                    }}
+                    title={reason}
                     type="button"
                   >
                     {count}
+                    {reason ? (
+                      <span
+                        className="sr-only"
+                        id={`studio-copies-${count}-reason`}
+                      >
+                        {reason}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}

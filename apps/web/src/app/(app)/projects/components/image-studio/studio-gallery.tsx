@@ -52,7 +52,7 @@ export function StudioGallery({
    *
    * The charge off the job row, not a figure recomputed from the catalog: a
    * price that moved since the image was made must not silently restate what
-   * the person paid. A refunded job reads as zero.
+   * the person paid.
    */
   creditsByAssetId: Record<string, number>;
   /**
@@ -138,9 +138,11 @@ export function StudioGallery({
                 ? labels.rejected
                 : labels.undecided;
           const elapsed = elapsedByAssetId[asset.id] ?? null;
-          // What this version actually cost, off its job row. Absent rather
-          // than zero when the job has fallen off the page: "we do not know"
-          // and "it was free" are different claims about money.
+          // What this version actually cost, off its job row. `?? null`, never
+          // `|| null`: a job whose row has fallen off the page is absent and
+          // unknown, while a delivered image Core could not charge for carries a
+          // real `0` and was free. Different claims, and a falsy check would
+          // collapse the second into the first.
           const credits = creditsByAssetId[asset.id] ?? null;
           // Everything the caption cannot fit, kept reachable on hover and
           // for the accessible name. The catalog id is in here rather than on

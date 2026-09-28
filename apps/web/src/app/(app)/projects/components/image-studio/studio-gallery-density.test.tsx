@@ -1,14 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
-import {
-  isActive,
-  type StudioAsset,
-  type StudioJob,
-  type StudioLabels,
-} from "./types";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import { isActive, type StudioAsset, type StudioJob } from "./types";
 
 /**
  * The gallery with work in it.
@@ -79,14 +74,6 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-const LABELS = new Proxy(
-  {
-    // Nested, because the studio reads `labels.templateLabels[id]`.
-    templateLabels: new Proxy({}, { get: (_target, key: string) => key }),
-  } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 const ASSET = {
   id: "a",
   rootId: "a",
@@ -111,7 +98,7 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
       catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
       initialState={{ assets, jobs, sessions: [] } as never}
-      labels={LABELS}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );
@@ -168,7 +155,12 @@ function manyAssets(count: number): StudioAsset[] {
   })) as unknown as StudioAsset[];
 }
 
-function job(id: string, status: string, error?: string) {
+function job(
+  id: string,
+  status: string,
+  error?: string,
+  failureReason: string | null = "provider_error",
+) {
   return {
     id,
     status,
@@ -178,6 +170,7 @@ function job(id: string, status: string, error?: string) {
     settings: {},
     referenceAssetIds: [],
     error: error ?? null,
+    failureReason,
     parentAssetId: null,
     assetId: null,
     createdAt: "2026-09-26T00:00:00Z",
@@ -214,7 +207,6 @@ function settledJob(
     submittedAt: as(submittedAt),
     settledAt: as(settledAt),
     credits,
-    refunded: false,
   } as unknown as StudioJob;
 }
 
@@ -276,7 +268,7 @@ describe("a gallery with work in it", () => {
       ).toBeInTheDocument();
     }
     // A settled failure is stated above the gallery.
-    expect(screen.getByRole("alert")).toHaveTextContent("failedBody");
+    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
   });
 
   /**
@@ -293,7 +285,7 @@ describe("a gallery with work in it", () => {
     ]);
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("failedBody");
+    expect(alert).toHaveTextContent("provider_error");
     // Present in the DOM — a `details` only hides its own body visually — but
     // never in the sentence a reader gets handed.
     const summary = screen.getByText("failedDetails");
@@ -306,8 +298,61 @@ describe("a gallery with work in it", () => {
   it("offers no disclosure when the provider said nothing", () => {
     mount(manyAssets(2), [job("failed", "FAILED")]);
 
-    expect(screen.getByRole("alert")).toHaveTextContent("failedBody");
+    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
     expect(screen.queryByText("failedDetails")).toBeNull();
+  });
+
+  /**
+   * Core reports a stable code now, and the sentence is chosen by it.
+   *
+   * The point is that the reader gets *their* language: the code is what Web
+   * branches on, and Core's English `error` string — itself a real sentence
+   * since the last Core pass — never becomes the headline.
+   */
+  it("says why, per the reason Core reported", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 409 from upstream", "cancelled"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("cancelled");
+    expect(alert).not.toHaveTextContent("provider_error");
+  });
+
+  /**
+   * The money sentence, and what it must not say.
+   *
+   * Images are charged on success, so a generation that produced none was never
+   * charged — there is nothing to give back and nothing that says otherwise. It
+   * is unconditional for that reason: no per-job flag decides it.
+   */
+  it("says a failed generation cost nothing, without a refund in sight", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 500 from upstream", "provider_error"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedNoCharge");
+    // No wording about money coming back, in any of the three languages this
+    // ships in. The strings are keys here, so this guards the shape rather than
+    // the prose — the locale files are where the prose is checked.
+    expect(alert.textContent ?? "").not.toMatch(
+      /refund|erstatt|reembols|devuelt/i,
+    );
+  });
+
+  it("has a sentence for a row from before Core recorded reasons", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Something went wrong", null),
+    ]);
+
+    // Not a blank line and not the raw string: `failureReason` is null on every
+    // job that settled before the column existed.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedBodyUnreported");
+    expect(alert.querySelector("p")?.textContent).not.toContain(
+      "Something went wrong",
+    );
   });
 
   /**
@@ -371,6 +416,28 @@ describe("a gallery with work in it", () => {
     expect(tile?.textContent).toContain('creditsCount:{"count":4}');
   });
 
+  /**
+   * Zero is a fact, and absent is not zero.
+   *
+   * Core's charge-on-success build has a deliberate zero case: if the balance no
+   * longer covers the quote at delivery, the image is stored anyway and the job
+   * succeeds with nothing charged — the image is given away rather than lost. So
+   * a delivered image can legitimately carry 0, and printing nothing for it
+   * would turn "this was free" into "we do not know what this cost".
+   */
+  it("shows zero credits as zero, not as silence", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      [settledJob("j1", "v1", 3_200, "iso", 0)],
+    );
+
+    const tile = document.querySelector("figure[data-asset-id]");
+    expect(tile?.textContent).toContain('creditsCount:{"count":0}');
+    // Nullish coalescing is what makes this work — `0 ?? null` is 0 — so this
+    // guards against somebody reaching for a falsy check.
+    expect(tile?.textContent).toContain("3.2s");
+  });
+
   it("says nothing about credits for a version whose job carries none", () => {
     mount(
       [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
@@ -418,6 +485,36 @@ describe("a gallery with work in it", () => {
     const text = document.querySelector("figure[data-asset-id]")?.textContent;
     // No invented duration, and no zero either: absent is not "took no time".
     expect(text).not.toMatch(/\d+(\.\d+)?s/);
+  });
+
+  /**
+   * The gallery wraps each tile in a button that opens the lightbox, and the
+   * recovery control from a broken thumbnail sits inside it. Without
+   * `stopPropagation` the click reached both, so recovering a thumbnail threw
+   * the reader into the full-screen viewer — which is not what they asked for.
+   */
+  it("recovers a broken thumbnail without opening the lightbox", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    mount([{ ...ASSET, id: "v1" } as unknown as StudioAsset]);
+
+    // Two failures and a 503 probe: the neutral placeholder with its button.
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /imageRetry/ }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // And it did retry: the image is back, asking for a fresh URL.
+    expect(screen.getByRole("img").getAttribute("src")).toContain("reload=1-");
   });
 
   it("offers comparison once two versions are selected", () => {
