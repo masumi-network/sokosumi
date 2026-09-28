@@ -1,3 +1,4 @@
+import { CliError } from "../cli/errors.js";
 import { loadCliEnvironment } from "../config/loader.js";
 import {
   type AuthEnvironment,
@@ -233,7 +234,7 @@ export async function requireAuthenticatedSession(session: {
     targetExplicit: session.targetExplicit,
   });
   if (!auth.authenticated) {
-    throw new Error(AUTHENTICATION_REQUIRED_MESSAGE);
+    throw new CliError("AUTH_REQUIRED", AUTHENTICATION_REQUIRED_MESSAGE);
   }
   return auth;
 }
