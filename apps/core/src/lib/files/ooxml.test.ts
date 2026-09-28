@@ -505,28 +505,44 @@ describe("parts are found by name, not by enumerating the archive", () => {
    * ours to bound.
    */
 
-  it("reads the contiguous run and ignores a crowd of decoys", async () => {
+  it("reads what the archive lists, up to the cap, and counts all of it", async () => {
+    /**
+     * The name probe read only a contiguous run from 1, which meant it
+     * ignored same-prefix entries numbered elsewhere. That looked like a
+     * feature — "decoys are skipped" — and it was a guess.
+     *
+     * A slide's filename is not what makes it a slide; the relationship
+     * list is, and nothing requires the numbering to be contiguous or to
+     * start at 1. So an entry at an unexpected number is as likely to be
+     * a real slide as a decoy, and skipping it silently dropped content
+     * from both the text and the coverage denominator.
+     *
+     * Reading the archive's own list costs what it costs and reports
+     * honestly: everything listed is a part, the cap bounds how many are
+     * read, and the denominator counts them all.
+     */
     const zip = new JSZip();
     for (let index = 1; index <= 5; index += 1) {
       zip.file(`ppt/slides/slide${index}.xml`, `<a:t>Real ${index}</a:t>`);
     }
-    // Entries the old prefix filter matched and read: numbered far away,
-    // so a numeric sort placed them after the real slides and they
-    // consumed 195 of the 200 read slots.
-    for (let index = 0; index < 2_000; index += 1) {
-      zip.file(`ppt/slides/slide${900_000 + index}.xml`, "<a:t>Decoy</a:t>");
+    for (let index = 0; index < 400; index += 1) {
+      zip.file(
+        `ppt/slides/slide${900_000 + index}.xml`,
+        `<a:t>Far ${index}</a:t>`,
+      );
     }
     const bytes = await zip.generateAsync({ type: "uint8array" });
 
     const outcome = await extractOoxmlText(bytes, "pptx");
 
     expect(outcome?.text).toContain("Real 5");
-    expect(outcome?.text).not.toContain("Decoy");
-    // And the decoys do not drag coverage down either: they are not parts
-    // of this document, so they are in neither the numerator nor the
-    // denominator.
-    expect(outcome?.coverage).toBe(1);
-    expect(outcome?.shortfall).toBeNull();
+    // Read in numeric order, so the low-numbered parts come first and
+    // fill the cap before the distant ones.
+    expect(outcome?.text).toContain("Far 0");
+    expect(outcome?.shortfall).toBe("parts");
+    // 200 read of 405 listed — the denominator is the archive's count,
+    // not the reader's reach.
+    expect(outcome?.coverage).toBeCloseTo(200 / 405, 4);
   }, 120_000);
 
   it("steps over a gap rather than stopping at it", async () => {
@@ -545,4 +561,77 @@ describe("parts are found by name, not by enumerating the archive", () => {
     expect(outcome?.text).toContain("Slide 1");
     expect(outcome?.text).toContain("Slide 6");
   });
+});
+
+describe("a gap in the numbering does not hide the rest of the document", () => {
+  /**
+   * The probe I introduced reintroduced the defect its own commit was
+   * written to remove, one level up.
+   *
+   * `probeParts` stopped after a fixed number of consecutive misses and
+   * `partsPresent` was incremented by what the probe found — so the
+   * denominator was a number the probe supplied, not one the document
+   * held. A gap wider than the lookahead ended the probe, and every part
+   * beyond it was missing from the numerator and the denominator alike.
+   * `partsRead / partsPresent` came out at 1, coverage at 1, shortfall
+   * null: fully indexed, with most of the deck unread.
+   *
+   * That is this file's own header rule at the next level: a coverage
+   * number computed from a number the probe supplies is the same mistake
+   * as a cap computed from a number the archive supplies.
+   *
+   * Raising the lookahead does not fix it. Any fixed number is a guess at
+   * a producer convention and the failure stays silent past it.
+   */
+
+  it("counts parts beyond a gap wider than any lookahead", async () => {
+    // Two parts, a gap of ten, then ten more. Twelve parts present.
+    const zip = new JSZip();
+    const present = [1, 2, ...Array.from({ length: 10 }, (_, i) => 13 + i)];
+    for (const index of present) {
+      zip.file(
+        `ppt/slides/slide${index}.xml`,
+        `<p:sld><a:t>Slide ${index} body</a:t></p:sld>`,
+      );
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const outcome = await extractOoxmlText(bytes, "pptx");
+
+    // Every part is read, because nothing here exceeds any cap.
+    expect(outcome?.text).toContain("Slide 1 body");
+    expect(outcome?.text).toContain("Slide 22 body");
+    expect(outcome?.coverage).toBe(1);
+    expect(outcome?.shortfall).toBeNull();
+  }, 60_000);
+
+  it("reports a shortfall when the cap refuses parts beyond a gap", async () => {
+    /**
+     * The same archive shape, past the enumerated-part cap, so the
+     * denominator has to be the document's part count and not the
+     * probe's reach. Under the probe this reported coverage 1 with a
+     * fraction of the deck in the text.
+     */
+    const zip = new JSZip();
+    const present = [
+      1,
+      2,
+      ...Array.from({ length: 300 }, (_, index) => 13 + index),
+    ];
+    for (const index of present) {
+      zip.file(
+        `ppt/slides/slide${index}.xml`,
+        `<p:sld><a:t>Slide ${index} body</a:t></p:sld>`,
+      );
+    }
+    const bytes = await zip.generateAsync({ type: "uint8array" });
+
+    const outcome = await extractOoxmlText(bytes, "pptx");
+
+    expect(outcome?.shortfall).toBe("parts");
+    expect(outcome?.truncated).toBe(true);
+    // 200 of 302 parts present, not 200 of 200.
+    expect(outcome?.coverage).toBeCloseTo(200 / present.length, 4);
+    expect(outcome?.coverage).toBeLessThan(1);
+  }, 120_000);
 });

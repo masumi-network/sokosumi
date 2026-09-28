@@ -306,25 +306,6 @@ async function readPart(
   return new TextDecoder("utf-8").decode(Buffer.concat(chunks));
 }
 
-/**
- * How many part names to probe before concluding the document has no more.
- *
- * Bounds the probe loop. Far above any real document — a 10,000-slide deck
- * does not exist — and the loop stops at the first gap anyway, so this only
- * matters for an archive built to make us count.
- */
-const MAX_PART_PROBE = 10_000;
-
-/**
- * A gap in the numbering is not necessarily the end.
- *
- * Every producer numbers slides and worksheets from 1 with no gaps, but an
- * edited or hand-built archive need not, and stopping at the first miss
- * would silently read less than the old enumeration did. Looking a few
- * names ahead costs a few map lookups and removes the regression.
- */
-const PART_PROBE_LOOKAHEAD = 8;
-
 /** Which cap, if any, kept text out of the result. */
 export type OoxmlShortfall =
   | "parts"
@@ -415,31 +396,53 @@ export async function extractOoxmlText(
   };
 
   /**
-   * Which part names this document has, found by asking for them.
+   * Which parts this document has, taken from the archive's own entry
+   * list.
    *
-   * This enumerated every entry in the archive, filtered, sorted and then
-   * sliced to the cap — so the cap bounded how many parts were *read* and
-   * not the cost of deciding which. Measured as a synchronous block in the
-   * API process: 376 ms at 60,000 matching entries, 1,734 ms at 300,000,
-   * bounded only by the 50 MiB input limit. This module's own header says
-   * "no cap may be computed from a number the archive supplies" and that
-   * "a post-check is a check that runs once the memory is already spent",
-   * and then did precisely that; it also claims only named parts are read,
-   * which was not true either. Probing by name makes both true.
+   * This was a name probe — asking for slide1, slide2 and so on until a
+   * run of misses — and that reintroduced, one level up, the defect this
+   * module exists to prevent. `partsPresent` came from what the probe
+   * found, so the coverage denominator was a number the probe supplied.
+   * A gap wider than the lookahead ended it, and every part beyond the
+   * gap was missing from the numerator and the denominator alike:
+   * coverage 1, shortfall null, most of the document unread. Reproduced
+   * on a deck with a gap of ten, which reported fully indexed with 2 of
+   * 12 parts in the text.
+   *
+   * Raising the lookahead does not fix that. Any fixed number is a guess
+   * at a producer convention and the failure stays silent past it.
+   *
+   * The pre-check rule is still satisfied, because the probe was bounding
+   * the wrong thing. The work a cap has to run in front of here is
+   * *decompression*, not name enumeration: the entry list is
+   * central-directory metadata jszip has already parsed and is holding,
+   * and `MAX_ENUMERATED_PARTS` is applied below before any part's content
+   * is read. Enumerating costs 180 ms on a 300,000-entry archive against
+   * the 1,603 ms `loadAsync` already spends on it unconditionally —
+   * about 11% of a path we walk anyway, bounded by the same
+   * `FILE_EXTRACTION_MAX_BYTES` — which is a better trade than a silent
+   * under-report.
+   *
+   * Ordering is by numeric suffix, which is what it was before the probe
+   * and is **not** verified to be presentation order. For a presentation
+   * that is the relationship list, not the filename; the fixtures
+   * available here carry no relationship part, so this is unchanged
+   * rather than confirmed correct.
    */
-  const probeParts = (prefix: string): string[] => {
-    const found: string[] = [];
-    let misses = 0;
-    for (let index = 1; index <= MAX_PART_PROBE; index += 1) {
-      if (zip.file(`${prefix}${index}.xml`)) {
-        found.push(`${prefix}${index}.xml`);
-        misses = 0;
-        continue;
-      }
-      misses += 1;
-      if (misses > PART_PROBE_LOOKAHEAD) break;
+  const enumeratedParts = (prefix: string): string[] => {
+    const pattern = new RegExp(
+      `^${prefix.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}(\\d+)\\.xml$`,
+      "u",
+    );
+
+    const found: { path: string; index: number }[] = [];
+    for (const path of Object.keys(zip.files)) {
+      const match = pattern.exec(path);
+      if (match) found.push({ path, index: Number(match[1]) });
     }
-    return found;
+    // "slide10" must not sort before "slide2".
+    found.sort((left, right) => left.index - right.index);
+    return found.map((entry) => entry.path);
   };
 
   try {
@@ -457,7 +460,7 @@ export async function extractOoxmlText(
 
     const prefix = enumeratedPrefix(kind);
     if (prefix) {
-      const all = probeParts(prefix);
+      const all = enumeratedParts(prefix);
       partsPresent += all.length;
 
       const paths = all.slice(0, MAX_ENUMERATED_PARTS);
