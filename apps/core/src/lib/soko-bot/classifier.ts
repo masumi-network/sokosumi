@@ -38,7 +38,7 @@ const MIN_CONFIRMATION_CONFIDENCE = 0.85;
 
 const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   DIRECT_RESPONSE:
-    "Conversation, a question, or a request the assistant answers by reading: greetings, explanations, status of tasks or jobs, what is on the calendar, what arrived in the inbox, what is in files, tables, chats or memory. Nothing is created, changed or sent.",
+    "Conversation, a question, or work the assistant does on its own without changing anything in Sokosumi or for other people: greetings, explanations, status of tasks or jobs, what is on the calendar or in the inbox, what is in files, tables, chats or memory, and research on the web, reading pages, analysing data, writing files in its own workspace or running commands there. Nothing in Sokosumi is created or changed and nothing is sent to anyone.",
   CLARIFY:
     "Nothing can be acted on yet: the owner refuses or postpones the action they mention (do not, not yet, wait until), is thinking aloud (what if, should we, do you think), quotes someone else, gives a bare confirmation with nothing to confirm, or leaves out what is needed (which task, which person, what outcome). Asking the assistant to stop, cancel or forget something is not a refusal; that is a change.",
   DELEGATE_TASK:
@@ -71,7 +71,7 @@ const WRITE_SCOPE_INSTRUCTIONS =
 const CONFIRMATION_INSTRUCTIONS =
   "Does the latest message simply agree to one of the pending proposals the assistant made earlier (yes, go ahead, do it), without adding a new request?";
 
-function questions(hasPendingProposals: boolean) {
+export function routeQuestions(hasPendingProposals: boolean) {
   return {
     route: {
       type: "choice" as const,
@@ -140,6 +140,12 @@ export interface PresetRoute {
   route: SokoBotRoute;
   writeScope?: NonNullable<TurnClassification["writeScope"]>;
   reason: string;
+  /**
+   * Whether the turn keeps the sandbox (web, shell, workspace). Off for
+   * prompts Core composes from mail and task comments; a replay of an owner
+   * turn keeps whatever that turn had.
+   */
+  sandbox?: boolean;
 }
 
 /** A turn that skips Jev because Core already knows what it is for. */
@@ -202,7 +208,7 @@ const evaluateWithJev: RouteEvaluator = async ({
   const result = await experimental_evaluate({
     model: gateway.evaluationModel(SOKO_BOT_ROUTE_MODEL),
     state,
-    questions: questions(hasPendingProposals),
+    questions: routeQuestions(hasPendingProposals),
     abortSignal,
     maxRetries: 0,
     providerOptions: {
@@ -304,8 +310,15 @@ export function classificationFromAnswers(
 
   const route = answers.route.choice;
   const confidence = answers.route.probabilities?.[route] ?? 0;
+  // DIRECT_RESPONSE grants no more than CLARIFY (reads and the sandbox), so
+  // being unsure between them costs nothing; only a route that adds writes
+  // has to clear the bar.
   const minimum =
-    route === "HIRE_AGENT" ? MIN_HIRE_CONFIDENCE : MIN_ROUTE_CONFIDENCE;
+    route === "HIRE_AGENT"
+      ? MIN_HIRE_CONFIDENCE
+      : route === "DIRECT_RESPONSE"
+        ? 0
+        : MIN_ROUTE_CONFIDENCE;
   if (!isRoute(route) || confidence < minimum) {
     return baseClassification(
       "CLARIFY",

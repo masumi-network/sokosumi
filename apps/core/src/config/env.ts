@@ -173,9 +173,29 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /**
+   * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
+   * the web, a shell and a persistent workspace. `in-process`: inside Core,
+   * Sokosumi tools only (preview evaluation runs always use it).
+   */
   SOKO_BOT_RUNTIME_ADAPTER: z
-    .enum(["in-memory", "in-process"])
-    .default("in-process"),
+    .enum(["in-memory", "in-process", "sandbox"])
+    .default("sandbox"),
+  /** Region for bot sandboxes; `fra1` keeps workspaces in the EU. */
+  SOKO_BOT_SANDBOX_REGION: z.string().min(1).default("fra1"),
+  SOKO_BOT_SANDBOX_VCPUS: z.coerce.number().int().min(1).max(8).default(2),
+  /**
+   * Public base URL sandboxes call Core on. Defaults to the deployment's own
+   * URL; set it locally to a tunnel, since a sandbox cannot reach localhost.
+   */
+  SOKO_BOT_RUNTIME_PUBLIC_URL: z.url().optional(),
+  /**
+   * Explicit Vercel credentials for creating sandboxes. On Vercel the
+   * function's OIDC token is used instead; locally all three are needed.
+   */
+  VERCEL_SANDBOX_TOKEN: z.string().min(1).optional(),
+  VERCEL_SANDBOX_TEAM_ID: z.string().min(1).optional(),
+  VERCEL_SANDBOX_PROJECT_ID: z.string().min(1).optional(),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
   /** Most credits one hire may commit on a turn no owner asked for. */
@@ -325,15 +345,14 @@ function isProductionEnvironment(
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
-  // The agent runs inside Core, so enabling it needs no runtime deployment,
-  // signing key, or allowlist — only a real adapter in a deployed environment.
+  // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
-  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
+  if (value.SOKO_BOT_RUNTIME_ADAPTER === "in-memory") {
     context.addIssue({
       code: "custom",
       path: ["SOKO_BOT_RUNTIME_ADAPTER"],
       message:
-        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+        "SOKO_BOT_RUNTIME_ADAPTER must be sandbox or in-process when Soko Bot is enabled in a deployed environment",
     });
   }
 });

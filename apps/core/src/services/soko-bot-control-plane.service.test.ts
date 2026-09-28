@@ -607,6 +607,9 @@ describe("SokoBotControlPlane lifecycle", () => {
       const capabilities =
         turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
       expect(capabilities).toContain(allowed);
+      // The owner asked: the sandbox comes with every owner route.
+      expect(capabilities).toContain("bash");
+      expect(capabilities).toContain("web_search");
       for (const denied of [
         "create_task",
         "update_task",
@@ -1334,6 +1337,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(data?.route).toBe("DIRECT_RESPONSE");
     expect(data?.classifierModel).toBeNull();
     expect(data?.capabilityNames).not.toContain("hire_agent");
+    // Core wrote this prompt from mail; no shell or web for it.
+    expect(data?.capabilityNames).not.toContain("bash");
+    expect(data?.capabilityNames).not.toContain("web_fetch");
   });
 
   it("grants a self-started turn the same spend it grants the owner", async () => {

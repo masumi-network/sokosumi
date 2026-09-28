@@ -50,6 +50,13 @@ describe("Jev route selection", () => {
     );
   });
 
+  it("answers directly when Jev leans that way, since it grants nothing extra", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("DIRECT_RESPONSE", { probability: 0.55 })),
+    ).classify("research our competitors and summarise", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DIRECT_RESPONSE");
+  });
+
   it("needs a higher bar before it lets a turn spend on a hire", async () => {
     const result = await new JevTurnClassifier(
       answering(jevRoute("HIRE_AGENT", { probability: 0.7 })),

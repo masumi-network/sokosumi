@@ -50,9 +50,50 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
+  "web_search",
+  "web_fetch",
+  "bash",
+  "workspace_read",
+  "workspace_write",
+  "workspace_list",
+  "workspace_search",
+  "update_plan",
+  "run_subagent",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * Tools that run inside the bot's own sandbox: the web, a shell and a
+ * persistent workspace. They touch no Sokosumi data, so every owner route
+ * carries them; the teammate and bot-to-bot ceilings leave them out because the
+ * workspace is the owner's, and Core strips them from turns it wrote itself.
+ */
+export const SOKO_BOT_SANDBOX_CAPABILITIES = [
+  "web_search",
+  "web_fetch",
+  "bash",
+  "workspace_read",
+  "workspace_write",
+  "workspace_list",
+  "workspace_search",
+  "update_plan",
+  "run_subagent",
+] as const satisfies readonly SokoBotCapability[];
+
+/**
+ * Tools whose effect leaves Sokosumi or reaches another person. Once a turn has
+ * read the open web or run a shell command, Core refuses these and the bot has
+ * to ask the owner first: a fetched page must not be able to send mail.
+ */
+export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
+  "hire_agent",
+  "provide_job_input",
+  "run_integration_tool",
+  "upload_file",
+  "post_chat",
+  "open_direct_chat",
+] as const satisfies readonly SokoBotCapability[];
 
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
@@ -146,11 +187,17 @@ export function exceedsUnattendedHireBudget(params: {
   return unattended && params.maxCredits > params.ceiling;
 }
 
+/** Reads plus the sandbox: what every owner turn starts from. */
+const OWNER_BASE_CAPABILITIES = [
+  ...DIRECT_READ_CAPABILITIES,
+  ...SOKO_BOT_SANDBOX_CAPABILITIES,
+] as const;
+
 export const SOKO_BOT_ROUTE_CAPABILITIES = {
-  DIRECT_RESPONSE: [...DIRECT_READ_CAPABILITIES],
-  CLARIFY: [...DIRECT_READ_CAPABILITIES],
+  DIRECT_RESPONSE: [...OWNER_BASE_CAPABILITIES],
+  CLARIFY: [...OWNER_BASE_CAPABILITIES],
   DELEGATE_TASK: [
-    ...DIRECT_READ_CAPABILITIES,
+    ...OWNER_BASE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -165,7 +212,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "link_tasks",
   ],
   HIRE_AGENT: [
-    ...DIRECT_READ_CAPABILITIES,
+    ...OWNER_BASE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -176,7 +223,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "provide_job_input",
   ],
   MANAGE_WORK: [
-    ...DIRECT_READ_CAPABILITIES,
+    ...OWNER_BASE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -190,7 +237,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "find_coworkers",
     "create_task",
   ],
-  MIXED: [...DIRECT_READ_CAPABILITIES],
+  MIXED: [...OWNER_BASE_CAPABILITIES],
 } as const satisfies Record<SokoBotRoute, readonly SokoBotCapability[]>;
 
 export const SOKO_BOT_MEMORY_LIMITS = {
@@ -208,7 +255,7 @@ export function capabilitiesForClassification(
     classification.writeScope === "WORK"
   )
     return route;
-  if (!classification.writeScope) return DIRECT_READ_CAPABILITIES;
+  if (!classification.writeScope) return OWNER_BASE_CAPABILITIES;
   const writes: Record<
     Exclude<NonNullable<TurnClassification["writeScope"]>, "WORK">,
     readonly SokoBotCapability[]
@@ -219,7 +266,7 @@ export function capabilitiesForClassification(
     FILE: ["upload_file"],
     INTEGRATION: ["run_integration_tool", "request_user_decision"],
   };
-  return [...DIRECT_READ_CAPABILITIES, ...writes[classification.writeScope]];
+  return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];
 }
 
 export interface TurnClassification {

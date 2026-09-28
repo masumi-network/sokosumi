@@ -15,6 +15,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -2112,8 +2113,9 @@ export class SokoBotControlPlane {
       : input.chat
         ? null
         : await prisma.chatRoom.findFirst({
+            // Rooms carry no workspace; the bot's membership scopes this to
+            // the workspace the bot lives in (one bot per user and workspace).
             where: {
-              workspaceId: input.workspaceId,
               kind: "direct",
               archivedAt: null,
               sokoBotMembers: { some: { sokoBotId: bot.id } },
@@ -2259,6 +2261,13 @@ export class SokoBotControlPlane {
     }
     const routeCapabilities = capabilitiesForClassification(
       classification.classification,
+    ).filter(
+      (capability) =>
+        !input.presetRoute ||
+        input.presetRoute.sandbox === true ||
+        !(SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(
+          capability,
+        ),
     );
     const capabilities = applyVersionCapabilities(
       version,
@@ -4317,6 +4326,7 @@ export class SokoBotControlPlane {
                 route: failed.route,
                 writeScope: storedWriteScope(failed.classification),
                 reason: "Operator retry on the failed turn's route.",
+                sandbox: failed.capabilityNames.includes("bash"),
               }
             : undefined,
           // A retry replays untrusted text, so it must not replay it with a

@@ -83,20 +83,27 @@ the old prefix after DB URLs are clean:
 
 ## Runtime shape
 
-- `SOKO_BOT_RUNTIME_ADAPTER` is `in-process` everywhere except tests, which use
-  `in-memory`. A deployed environment with Soko Bot enabled rejects any other
-  value at env-validation time, so a misconfigured deploy fails to boot rather
-  than silently running a stub.
-- A turn is accepted by the control plane and executed in the background of the
-  same Core function (`waitUntil`). The loop appends to `soko_bot_runtime_event`
-  as it goes, and the existing `/sync/soko-bot-turns` cron drains that log and
-  settles the turn — unchanged from when the runtime was a separate service.
-- Turns are bounded by Core's function `maxDuration` (300s, set in
-  `apps/core/vercel.json`) and by `MAX_STEPS` in the runtime.
-- Tools execute in-process against `sokoBotRuntimeService`. Capability scoping,
-  the pinned context snapshot, lease and deadline checks, and administrator
-  pause all still gate every call — they read the turn row rather than a signed
-  grant.
+- `SOKO_BOT_RUNTIME_ADAPTER` defaults to `sandbox`: each bot's loop runs in its
+  own persistent Vercel Sandbox (`SOKO_BOT_SANDBOX_REGION`, default `fra1`)
+  with web search/fetch, a shell and a workspace. See
+  [ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md). `in-process`
+  runs the loop inside Core without sandbox tools; preview evaluation runs
+  always use it. Tests use `in-memory`, which a deployed environment rejects.
+- On Vercel, sandboxes are created with the function's OIDC token (the Core
+  project needs OIDC enabled). Locally, set `VERCEL_SANDBOX_TOKEN`,
+  `VERCEL_SANDBOX_TEAM_ID` and `VERCEL_SANDBOX_PROJECT_ID`, and
+  `SOKO_BOT_RUNTIME_PUBLIC_URL` to a URL the sandbox can reach — or run a turn
+  with `scripts/soko-bot-runner-local.mts`, which needs neither.
+- The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
+  per-turn token its network proxy injects. Core serves the prompt, executes
+  Sokosumi tools, proxies and meters every model call under the EU policy, and
+  settles the turn through `soko_bot_runtime_event` and the
+  `/sync/soko-bot-turns` drain as before.
+- Turns are bounded by the 15-minute turn deadline and `SOKO_BOT_MAX_STEPS`.
+- Capability scoping, the pinned context snapshot, lease and deadline checks,
+  and administrator pause gate every Sokosumi tool call. After a turn reads the
+  web or runs a command, outward actions (hire, job input, integrations,
+  uploads, chat posts) are refused until the owner approves.
 
 ## History
 

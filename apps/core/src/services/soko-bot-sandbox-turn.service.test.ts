@@ -1,0 +1,210 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const {
+  authorizeMock,
+  createEventMock,
+  executeToolMock,
+  findFirstEventMock,
+  fetchMock,
+} = vi.hoisted(() => ({
+  authorizeMock: vi.fn(),
+  createEventMock: vi.fn(),
+  executeToolMock: vi.fn(),
+  findFirstEventMock: vi.fn(),
+  fetchMock: vi.fn(),
+}));
+
+vi.mock("@/config/env", () => ({
+  getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
+}));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    sokoBotRuntimeEvent: {
+      create: createEventMock,
+      findFirst: findFirstEventMock,
+    },
+    sokoBotTurn: { findUnique: vi.fn().mockResolvedValue(null) },
+  },
+}));
+vi.mock("@/services/soko-bot-runtime.service", () => ({
+  sokoBotRuntimeService: {
+    authorize: authorizeMock,
+    executeTool: executeToolMock,
+  },
+}));
+vi.mock("@/services/soko-bot-version.service", () => ({
+  resolveRunnableSokoBotVersion: vi.fn().mockResolvedValue({
+    model: "google/gemini-3.6-flash",
+    inferenceRegion: "eu",
+  }),
+}));
+vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
+  stopBotSandbox: vi.fn(),
+}));
+
+import {
+  proxySandboxModelCall,
+  recordSandboxAction,
+  runSandboxTool,
+} from "./soko-bot-sandbox-turn.service";
+
+const claims = {
+  turnId: "01960001-0001-7001-8001-000000000001",
+  sessionId: "sess_1",
+  expiresAt: Date.now() + 60_000,
+};
+
+function events(): { type: string; data: Record<string, unknown> }[] {
+  return createEventMock.mock.calls.map((call) => call[0].data);
+}
+
+function modelRequest(overrides: Record<string, string> = {}) {
+  return {
+    headers: new Headers({
+      "ai-language-model-id": "google/gemini-3.6-flash",
+      "ai-language-model-streaming": "false",
+      "ai-language-model-specification-version": "4",
+      ...overrides,
+    }),
+    body: JSON.stringify({
+      prompt: [],
+      providerOptions: { gateway: { only: ["openai"] } },
+    }),
+  };
+}
+
+function gatewayAnswer(content: unknown[] = []) {
+  return new Response(
+    JSON.stringify({
+      content,
+      usage: {
+        inputTokens: { total: 1_000, cacheRead: 200 },
+        outputTokens: { total: 50 },
+      },
+      providerMetadata: {
+        gateway: {
+          cost: "0.004",
+          routing: { finalProvider: "vertex" },
+        },
+      },
+    }),
+    { status: 200 },
+  );
+}
+
+describe("sandbox turn service", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.stubGlobal("fetch", fetchMock);
+    findFirstEventMock.mockResolvedValue(null);
+    createEventMock.mockResolvedValue({});
+    authorizeMock.mockResolvedValue({
+      turn: { id: claims.turnId, versionId: "v16" },
+      grant: { capabilities: ["web_fetch", "post_chat", "update_plan"] },
+    });
+  });
+
+  it("refuses streaming and any model but the turn's", async () => {
+    await expect(
+      proxySandboxModelCall(
+        claims,
+        modelRequest({ "ai-language-model-streaming": "true" }),
+      ),
+    ).rejects.toThrow("Streaming");
+    await expect(
+      proxySandboxModelCall(
+        claims,
+        modelRequest({ "ai-language-model-id": "openai/gpt-5.5" }),
+      ),
+    ).rejects.toThrow("not this turn's");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("forwards with Core's key and EU routing, and meters the step itself", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    const result = await proxySandboxModelCall(claims, modelRequest());
+
+    expect(result.status).toBe(200);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(new Headers(init.headers).get("authorization")).toBe(
+      "Bearer gateway-key",
+    );
+    const sent = JSON.parse(String(init.body));
+    expect(sent.providerOptions.gateway.only).not.toContain("openai");
+    expect(sent.providerOptions.gateway.inferenceRegion).toBeDefined();
+    expect(events().map((event) => event.type)).toEqual([
+      "step.started",
+      "step.completed",
+    ]);
+    expect(events()[1]?.data).toMatchObject({
+      usage: {
+        inputTokens: 1_000,
+        outputTokens: 50,
+        cacheReadTokens: 200,
+        costUsd: 0.004,
+      },
+    });
+  });
+
+  it("marks the turn once the Gateway ran a web search", async () => {
+    fetchMock.mockResolvedValue(
+      gatewayAnswer([{ type: "tool-result", toolName: "web_search" }]),
+    );
+    await proxySandboxModelCall(claims, modelRequest());
+    expect(events().map((event) => event.type)).toContain(
+      "sandbox.untrusted_input",
+    );
+  });
+
+  it("marks the turn before a sandbox tool runs, but not for the plan", async () => {
+    await recordSandboxAction(claims, {
+      name: "update_plan",
+      toolCallId: "c1",
+      toolInput: { steps: [] },
+    });
+    expect(events().map((event) => event.type)).toEqual(["actions.requested"]);
+
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c2",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(events().map((event) => event.type)).toEqual([
+      "actions.requested",
+      "sandbox.untrusted_input",
+      "actions.requested",
+    ]);
+  });
+
+  it("refuses a sandbox tool the turn was not granted", async () => {
+    await expect(
+      recordSandboxAction(claims, {
+        name: "bash",
+        toolCallId: "c3",
+        toolInput: { command: "id" },
+      }),
+    ).rejects.toThrow("not granted");
+  });
+
+  it("keeps sandbox tools off the Sokosumi tool path", async () => {
+    await expect(
+      runSandboxTool(claims, {
+        capability: "bash",
+        toolCallId: "c4",
+        toolInput: { command: "id" },
+      }),
+    ).rejects.toThrow("Unknown Sokosumi tool");
+  });
+
+  it("refuses an outward action after the turn read the web", async () => {
+    findFirstEventMock.mockResolvedValue({ id: "taint" });
+    await expect(
+      runSandboxTool(claims, {
+        capability: "post_chat",
+        toolCallId: "c5",
+        toolInput: {},
+      }),
+    ).rejects.toThrow("request_user_decision");
+    expect(executeToolMock).not.toHaveBeenCalled();
+  });
+});
