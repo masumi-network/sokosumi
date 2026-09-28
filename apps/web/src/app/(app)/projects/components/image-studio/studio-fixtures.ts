@@ -1,4 +1,24 @@
-import type { StudioCatalog } from "./types";
+import type { StudioCatalog, StudioLabels } from "./types";
+
+/**
+ * Every label as its own key, for tests.
+ *
+ * A proxy rather than a literal, so adding a label never breaks an unrelated
+ * test — but the **record-valued** labels are spelled out, because a flat proxy
+ * hands back the string `"failedBody"` and indexing that by a reason gives
+ * `undefined`. That renders as an empty sentence and slips past a loose
+ * assertion, which it has now done twice: once for `templateLabels` and once
+ * for `failedBody`. Adding a third record-valued label means adding it here.
+ */
+const echoKeys = new Proxy({}, { get: (_target, key: string) => key });
+
+export const TEST_LABELS = new Proxy(
+  {
+    templateLabels: echoKeys,
+    failedBody: echoKeys,
+  } as Record<string, unknown>,
+  { get: (target, key: string) => target[key] ?? key },
+) as unknown as StudioLabels;
 
 /**
  * A catalog shaped like the one Core sends, for tests only.

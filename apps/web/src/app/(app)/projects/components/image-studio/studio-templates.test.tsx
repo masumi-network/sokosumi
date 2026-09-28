@@ -2,9 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
 import { STUDIO_TEMPLATES } from "./studio-templates";
-import type { StudioLabels } from "./types";
 
 /**
  * The template presses, driven through the real composer.
@@ -57,23 +56,13 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-const LABELS = new Proxy(
-  {
-    // Nested, because the studio reads `labels.templateLabels[id]`: a flat
-    // proxy would hand back the string "templateLabels" and every press would
-    // render with no name.
-    templateLabels: new Proxy({}, { get: (_target, key: string) => key }),
-  } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 function mount() {
   return render(
     <ImageStudio
       catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
       initialState={{ assets: [], jobs: [], sessions: [] } as never}
-      labels={LABELS}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );

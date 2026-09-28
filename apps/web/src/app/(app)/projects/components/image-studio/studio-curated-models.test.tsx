@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { curatedModels } from "./catalog";
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
-import type { StudioCatalog, StudioLabels } from "./types";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import type { StudioCatalog } from "./types";
 
 /**
  * Which models the studio opens with, and whether that stays a suggestion.
@@ -103,13 +103,6 @@ vi.mock("@/components/ui/popover", () => {
   };
 });
 
-const LABELS = new Proxy(
-  {
-    templateLabels: new Proxy({}, { get: (_target, key: string) => key }),
-  } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 /**
  * A catalog shaped like the real one: a ranked shortlist, out of order, with
  * unranked models around it.
@@ -138,7 +131,7 @@ function mount(catalog: StudioCatalog) {
       catalog={catalog}
       initialSelectedAssetId={null}
       initialState={{ assets: [], jobs: [], sessions: [] } as never}
-      labels={LABELS}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );
@@ -147,7 +140,9 @@ function mount(catalog: StudioCatalog) {
 /** The model entries, in render order, with whether each is selected. */
 function modelEntries() {
   return screen.getAllByRole("menuitemcheckbox").map((entry) => ({
-    label: entry.textContent?.split("Fast")[0]?.trim() ?? "",
+    // A row is the model's name, then its price, then its description, so the
+    // name is the first element rather than the row's whole text.
+    label: entry.querySelector(".font-medium")?.textContent?.trim() ?? "",
     checked: entry.getAttribute("data-checked") === "true",
   }));
 }

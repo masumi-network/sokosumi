@@ -194,6 +194,64 @@ function generate(prompt = "a calm product shot") {
   fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
 }
 
+describe("choosing between 152 models", () => {
+  it("prices every row, so the choice is not guesswork", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    const rows = screen.getAllByRole("menuitemcheckbox");
+    // Model A is 4 credits an image at 1K and Model B is 10. Before this the
+    // only figure anywhere was the aggregate after selection.
+    expect(rows[0]).toHaveTextContent('creditsCount:{"count":4}');
+    expect(rows[1]).toHaveTextContent('creditsCount:{"count":10}');
+  });
+
+  it("follows the frame, because the frame is what decides it", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickChip("2K");
+
+    // Model A has a verified 2K figure; Model B falls through to its megapixel
+    // unit price at 2048x2048. A row showing the 1K price at 2K would be the
+    // picker disagreeing with the button.
+    const rows = screen.getAllByRole("menuitemcheckbox");
+    expect(rows[0]).toHaveTextContent('creditsCount:{"count":8}');
+    expect(rows[1]).toHaveTextContent('creditsCount:{"count":21}');
+  });
+
+  it("says so rather than nothing when a model cannot be priced", () => {
+    const unpriceable: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        catalog={unpriceable}
+        initial={targetFor(["by-the-second"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    expect(screen.getAllByRole("menuitemcheckbox")[0]).toHaveTextContent(
+      "creditsNoFigure",
+    );
+  });
+});
+
 describe("what the composer says without being opened", () => {
   it("names the single chosen model", () => {
     render(
@@ -315,6 +373,84 @@ describe("the line above Generate", () => {
       "model-a",
       "model-b",
     ]);
+  });
+});
+
+describe("a copy count the ceiling rules out", () => {
+  /** The chips, by their visible number. */
+  function copyChip(count: string) {
+    const chip = [...document.querySelectorAll("button")].find(
+      (node) => node.textContent?.trim().startsWith(count) && node.title,
+    );
+    return chip ?? null;
+  }
+
+  it("says why, in its own arithmetic", () => {
+    // Five interchangeable models: 5x3 and 5x4 are over the twelve-image cap.
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const three = copyChip("3");
+    expect(three).not.toBeNull();
+    // The multiplication, not a pointer at a footnote. A dimmed "3" beside
+    // "at most 12 images per press" left the reader to do this themselves.
+    const reason =
+      'copiesOverCeiling:{"models":5,"copies":3,"images":15,"limit":12}';
+    expect(three?.title).toBe(reason);
+    expect(three?.textContent).toContain(reason);
+  });
+
+  it("stays focusable, so the reason can be read out", () => {
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const three = copyChip("3");
+    // `aria-disabled`, not `disabled`: a natively disabled control is not
+    // focusable, so a screen reader could never reach the description. It heard
+    // "3, dimmed" and nothing else.
+    expect(three?.getAttribute("aria-disabled")).toBe("true");
+    expect(three?.hasAttribute("disabled")).toBe(false);
+    expect(three?.getAttribute("aria-describedby")).toBe(
+      "studio-copies-3-reason",
+    );
+    expect(document.getElementById("studio-copies-3-reason")).not.toBeNull();
+  });
+
+  it("still refuses the press", () => {
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const before = screen.getByText(/^runPlanCredits/).textContent;
+    const three = copyChip("3");
+    if (three) fireEvent.click(three);
+
+    // The cap is unchanged; only the explaining is new.
+    expect(screen.getByText(/^runPlanCredits/).textContent).toBe(before);
+  });
+
+  it("says nothing on a count that is available", () => {
+    render(<Harness initial={targetFor(["model-a"])} onGenerate={vi.fn()} />);
+
+    // One model, so every count fits and no chip needs a reason.
+    const withReason = [...document.querySelectorAll("button")].filter(
+      (node) => node.title,
+    );
+    expect(withReason).toHaveLength(0);
   });
 });
 
