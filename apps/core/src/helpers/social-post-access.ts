@@ -1,8 +1,8 @@
 import type { Prisma } from "@sokosumi/database";
 import { requireCoworkerCapability } from "@/helpers/access-control";
-import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { forbidden } from "@/helpers/error";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type AuthenticationContext,

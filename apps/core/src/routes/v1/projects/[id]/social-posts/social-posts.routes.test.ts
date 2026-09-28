@@ -754,7 +754,7 @@ describe("Project social post routes", () => {
       userId: USER_ID,
       organizationId: null,
     });
-    requireCalendarBetaAccessMock.mockRejectedValue(
+    requireSocialBetaAccessMock.mockRejectedValue(
       forbidden("Beta access required"),
     );
     const responses = await Promise.all(
