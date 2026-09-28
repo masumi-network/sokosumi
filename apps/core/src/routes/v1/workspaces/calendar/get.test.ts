@@ -567,7 +567,9 @@ describe("GET /workspaces/calendar", () => {
       { access: { scheduleReader: reader, task: {} } },
     );
 
-    expect(items.map((item) => item.canChangeRun)).toEqual([false, true]);
+    expect(
+      items.map((item) => item.kind !== "socialPost" && item.canChangeRun),
+    ).toEqual([false, true]);
   });
 
   it("serves any authorized user without a membership lookup", async () => {
@@ -880,6 +882,28 @@ describe("GET /workspaces/calendar", () => {
       ]),
     );
   });
+  it.each([false, true])(
+    "requires Social beta membership for an interactive opt-in: %s",
+    async (allowed) => {
+      memberFindFirstMock.mockResolvedValue(
+        allowed ? { id: "member_123" } : null,
+      );
+      const response = await createApp({
+        ...USER_AUTH_CONTEXT,
+        authenticationMethod: "session",
+      }).request(
+        `/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true&status=READY`,
+      );
+      expect(response.status).toBe(allowed ? 200 : 403);
+      expect(memberFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { userId: "user_123", organization: { slug: "utxo" } },
+        }),
+      );
+      if (!allowed)
+        expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+    },
+  );
   it("rejects automation opt-in to Social post calendar data", async () => {
     const response = await createApp(USER_AUTH_CONTEXT).request(
       `/calendar?from=${FROM}&to=${TO}&includeSocialPosts=true`,

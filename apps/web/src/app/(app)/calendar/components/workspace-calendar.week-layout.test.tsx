@@ -133,12 +133,12 @@ describe("WorkspaceCalendar week layout", () => {
     },
   );
 
-  it("labels skipped occurrences as skipped rather than showing the task's live status", () => {
+  it("does not show a task status for a planned run", () => {
     renderCalendar(
       <NuqsTestingAdapter>
         <WorkspaceCalendar
           initialDate="2026-08-18"
-          items={[{ ...WEEK_ITEM, state: "SKIPPED", taskStatus: "RUNNING" }]}
+          items={[{ ...WEEK_ITEM, state: "PLANNED", taskStatus: null }]}
         />
       </NuqsTestingAdapter>,
     );
@@ -157,10 +157,6 @@ describe("WorkspaceCalendar week layout", () => {
       </>,
     );
     const card = within(screen.getByTestId("calendar-event"));
-    expect(card.getByRole("img", { name: "Skipped" })).toHaveAttribute(
-      "title",
-      "Skipped",
-    );
     expect(
       card.queryByRole("img", { name: "Running" }),
     ).not.toBeInTheDocument();
@@ -359,7 +355,7 @@ describe("WorkspaceCalendar week layout", () => {
       clientY: 0,
     });
     expect(toastInfoMock).toHaveBeenCalledWith(
-      "Only the task owner can reschedule it.",
+      "Only upcoming runs of your own active schedules can be moved.",
     );
   });
 });

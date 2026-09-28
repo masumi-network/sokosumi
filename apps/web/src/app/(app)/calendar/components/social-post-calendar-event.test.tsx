@@ -43,7 +43,7 @@ function renderCard(overrides: Partial<SocialPostCalendarItem> = {}) {
 describe("Social post calendar event", () => {
   it.each([
     ["SCHEDULED", "Scheduled"],
-    ["PUBLISHING", "Publishing…"],
+    ["PUBLISHING", "Publishing"],
     ["PUBLISHED", "Published"],
     ["FAILED", "Failed"],
     ["MISSED", "Missed"],

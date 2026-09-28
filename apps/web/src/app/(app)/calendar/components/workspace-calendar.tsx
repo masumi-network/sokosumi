@@ -375,7 +375,12 @@ function CalendarEvent({
           {sourceName}
         </span>
         {item.taskStatus ? (
-          <TaskStatusBadge status={item.taskStatus} label={t(`status.${item.taskStatus}`)} showLabel={false} className="size-5 justify-center p-0" />
+          <TaskStatusBadge
+            status={item.taskStatus}
+            label={t(`status.${item.taskStatus}`)}
+            showLabel={false}
+            className="size-5 justify-center p-0"
+          />
         ) : null}
       </span>
       <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
@@ -567,17 +572,17 @@ function CalendarView({
                   {item.kind === "socialPost" ? (
                     <SocialPostCalendarEvent item={item} timeZone={timeZone} />
                   ) : (
-                  <CalendarEvent
-                    item={item}
-                    people={findCalendarPeople(item, coworkers)}
-                    {...runHandlers}
-                    source={sources.find(
-                      ({ sourceId }) => sourceId === item.sourceId,
-                    )}
-                    timeText={formatDate(item.scheduledAt, "time", {
-                      timeZone,
-                    })}
-                  />
+                    <CalendarEvent
+                      item={item}
+                      people={findCalendarPeople(item, coworkers)}
+                      {...runHandlers}
+                      source={sources.find(
+                        ({ sourceId }) => sourceId === item.sourceId,
+                      )}
+                      timeText={formatDate(item.scheduledAt, "time", {
+                        timeZone,
+                      })}
+                    />
                   )}
                 </li>
               ))}

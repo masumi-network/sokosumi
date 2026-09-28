@@ -6,7 +6,10 @@ import {
   changeTaskScheduleRun,
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
-import type { WorkspaceCalendarEntry, WorkspaceCalendarItem } from "@/lib/clients/generated/core";
+import type {
+  WorkspaceCalendarEntry,
+  WorkspaceCalendarItem,
+} from "@/lib/clients/generated/core";
 
 type RunChange =
   | { action: "skip" | "restore" }

@@ -1034,49 +1034,55 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("loads and renders the next calendar page without being asked", async () => {
-    getWorkspaceCalendarMock.mockResolvedValue({
-      data: [
-        {
-          ...WORKSPACE_ITEM,
-          id: "run-2",
-          taskName: "Publish release notes",
+  it.each([false, true])(
+    "loads the next calendar page with Social opt-in %s",
+    async (includeSocialPosts) => {
+      getWorkspaceCalendarMock.mockResolvedValue({
+        data: [
+          {
+            ...WORKSPACE_ITEM,
+            id: "run-2",
+            taskName: "Publish release notes",
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: "cursor-2",
+            limit: 100,
+            total: 101,
+            nextCursor: null,
+          },
         },
-      ],
-      meta: {
-        pagination: {
-          cursor: "cursor-2",
-          limit: 100,
-          total: 101,
-          nextCursor: null,
-        },
-      },
-    });
+      });
 
-    render(
-      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
+      render(
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=workspace%3Aworkspace-1">
+          <WorkspaceCalendar
+            includeSocialPosts={includeSocialPosts}
+            items={ITEMS}
+            initialDate="2026-08-18"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
 
-    expect(await screen.findAllByText("Publish release notes")).toHaveLength(1);
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
-      from: new Date("2026-08-01T00:00:00.000Z"),
-      to: new Date("2026-09-01T00:00:00.000Z"),
-      includeSocialPosts: "true",
-      agendaOnly: undefined,
-      cursor: "cursor-2",
-      limit: 100,
-      scope: "workspace",
-      assigneeId: undefined,
-      status: undefined,
-      sourceId: "workspace:workspace-1",
-    });
-  });
+      expect(await screen.findAllByText("Publish release notes")).toHaveLength(
+        1,
+      );
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
+        from: new Date("2026-08-01T00:00:00.000Z"),
+        to: new Date("2026-09-01T00:00:00.000Z"),
+        includeSocialPosts: includeSocialPosts ? "true" : undefined,
+        agendaOnly: undefined,
+        cursor: "cursor-2",
+        limit: 100,
+        scope: "workspace",
+        assigneeId: undefined,
+        status: undefined,
+        sourceId: "workspace:workspace-1",
+      });
+    },
+  );
 
   it.each(["onAccessRevoked", "onResync", "onInvalidated"] as const)(
     "rejects pending pages after %s",
@@ -1166,37 +1172,41 @@ describe("WorkspaceCalendar", () => {
     expect(screen.queryByText(/Removed task/)).not.toBeInTheDocument();
   });
 
-  it("loads more Project Calendar items through the Project endpoint", async () => {
-    getProjectCalendarMock.mockResolvedValue({
-      data: [],
-      meta: { pagination: { nextCursor: null } },
-    });
+  it.each([false, true])(
+    "loads the next Project Calendar page with Social opt-in %s",
+    async (includeSocialPosts) => {
+      getProjectCalendarMock.mockResolvedValue({
+        data: [],
+        meta: { pagination: { nextCursor: null } },
+      });
 
-    render(
-      <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          initialDate="2026-08-18"
-          items={ITEMS}
-          lockedProjectId="project-1"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
+      render(
+        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
+          <WorkspaceCalendar
+            includeSocialPosts={includeSocialPosts}
+            initialDate="2026-08-18"
+            items={ITEMS}
+            lockedProjectId="project-1"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
 
-    await waitFor(() =>
-      expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
-        from: new Date("2026-08-01T00:00:00.000Z"),
-        to: new Date("2026-09-01T00:00:00.000Z"),
-        includeSocialPosts: "true",
-        agendaOnly: undefined,
-        cursor: "cursor-2",
-        limit: 100,
-        scope: "owned",
-        assigneeId: "coworker-1",
-        status: "QUEUED",
-      }),
-    );
-  });
+      await waitFor(() =>
+        expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+          from: new Date("2026-08-01T00:00:00.000Z"),
+          to: new Date("2026-09-01T00:00:00.000Z"),
+          includeSocialPosts: includeSocialPosts ? "true" : undefined,
+          agendaOnly: undefined,
+          cursor: "cursor-2",
+          limit: 100,
+          scope: "owned",
+          assigneeId: "coworker-1",
+          status: "QUEUED",
+        }),
+      );
+    },
+  );
 
   it("shows an empty state after filters exclude all calendar items", () => {
     render(

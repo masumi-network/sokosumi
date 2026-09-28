@@ -4,12 +4,15 @@ import { readWorkspaceCalendar } from "./read";
 const mocks = vi.hoisted(() => ({
   tasks: vi.fn(),
   taskCount: vi.fn(),
+  runAtTasks: vi.fn(),
+  runAtTaskCount: vi.fn(),
   posts: vi.fn(),
   postCount: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    taskScheduleOccurrence: { findMany: mocks.tasks, count: mocks.taskCount },
+    taskScheduleRun: { findMany: mocks.tasks, count: mocks.taskCount },
+    task: { findMany: mocks.runAtTasks, count: mocks.runAtTaskCount },
     socialPost: { findMany: mocks.posts, count: mocks.postCount },
   },
 }));
@@ -47,26 +50,24 @@ const post = {
     },
   ],
 };
-const occurrence = {
+const run = {
   id: "00000000-0000-7000-8000-000000000001",
-  scheduleVersion: 2,
   originalScheduledAt: new Date(at),
   effectiveScheduledAt: new Date(at),
   state: "PLANNED",
   sourceWorkspaceId: workspaceId,
   sourceProjectId: projectId,
   sourceType: "PROJECT",
-  sourceAccuracy: "EXACT",
-  timeAccuracy: "EXACT",
-  seriesTask: {
-    id: "task",
+  schedule: {
+    id: "44444444-4444-7444-8444-444444444444",
     name: "Prepare",
     ownerId: "user",
-    status: "READY",
+    state: "ACTIVE",
+    revision: 2,
+    creatorCoworkerId: null,
+    assignee: null,
     assigneeId: null,
     assigneeUserId: null,
-    metadata: null,
-    scheduleRevision: 0,
   },
   releasedTask: null,
 };
@@ -76,14 +77,16 @@ describe("Social posts in the calendar", () => {
     vi.clearAllMocks();
     mocks.tasks.mockResolvedValue([]);
     mocks.taskCount.mockResolvedValue(0);
+    mocks.runAtTasks.mockResolvedValue([]);
+    mocks.runAtTaskCount.mockResolvedValue(0);
     mocks.posts.mockResolvedValue([post]);
     mocks.postCount.mockResolvedValue(1);
   });
   it("merges tasks and posts with stable pagination at the same timestamp", async () => {
-    mocks.tasks.mockResolvedValue([occurrence]);
+    mocks.tasks.mockResolvedValue([run]);
     mocks.taskCount.mockResolvedValue(1);
     const first = await readWorkspaceCalendar(workspaceId, "user", query);
-    expect(first.items[0]?.id).toBe(occurrence.id);
+    expect(first.items[0]?.id).toBe(run.id);
     expect(first.pagination.total).toBe(2);
     const cursor = JSON.parse(
       Buffer.from(first.pagination.nextCursor!, "base64url").toString(),

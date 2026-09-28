@@ -122,7 +122,10 @@ export async function loadWorkspaceCalendarPage({
   searchParams: Promise<CalendarPageSearchParams>;
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
-  const [session, includeSocialPosts] = await Promise.all([getSession(), hasCurrentUserSocialBetaAccess()]);
+  const [session, includeSocialPosts] = await Promise.all([
+    getSession(),
+    hasCurrentUserSocialBetaAccess(),
+  ]);
   const params = await searchParams;
   const { calendarStatus, latestCalendarDate, initialDate, range } =
     resolveCalendarPageQuery(
