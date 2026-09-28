@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { SiX } from "react-icons/si";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -334,9 +335,9 @@ export function ProjectSocialPosts({
                     >
                       <span
                         aria-hidden
-                        className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
+                        className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
                       >
-                        X
+                        <SiX className="size-5" />
                       </span>
                       <div className="min-w-0 flex-1 space-y-1">
                         <p className="text-sm whitespace-pre-wrap break-words">

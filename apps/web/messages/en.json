@@ -2266,6 +2266,8 @@
         "description": "Connect social accounts to this project. Publishing is currently available for X.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
+        "connectHeading": "Connect an account",
+        "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",

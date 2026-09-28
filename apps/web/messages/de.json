@@ -2266,6 +2266,8 @@
         "description": "Verbinde Social-Media-Konten mit diesem Projekt. Beiträge können derzeit auf X veröffentlicht werden.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
+        "connectHeading": "Konto verbinden",
+        "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
