@@ -26,6 +26,7 @@ import {
   buildJevLabelRequest,
   isJevRequestRejection,
   labelExcerptFromChunks,
+  type TokenCeilings,
 } from "@/lib/files/jev-request";
 import { FILES_RANKING_MODEL } from "@/lib/files/jev-rubrics";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
@@ -60,6 +61,62 @@ import { getJevScheduler } from "@/lib/files/jev-scheduler";
 
 /** Labels one request may ask about, so the shortlist is deterministic. */
 export const SUGGESTION_VOCABULARY_MAX = 30;
+
+/**
+ * MEASUREMENT HARNESS ONLY — this branch is throwaway and never merges.
+ *
+ * Patrick asked for the real gateway cost of labelling one long PDF two
+ * ways: today's first-three-chunks excerpt, and the whole extracted text.
+ * The arm is selected from the document's own name so that all arms run
+ * against one deployed build. Two arms taken from one build and one
+ * upload would otherwise be two readings of the same measurement.
+ *
+ * - no marker         -> arm 1, today's behaviour, untouched.
+ * - `costarm-full`    -> every chunk, ceiling effectively removed.
+ * - `costarm-max-N`   -> every chunk, excerpt ceiling of N code points.
+ *
+ * `costarm-max-N` exists because Jev's published limits are 32,000 tokens
+ * for the state and 64,000 for the whole request, while this repo counts
+ * code points as a deliberate over-estimate of tokens. N is therefore
+ * bisected against the live model rather than derived, and changing it
+ * needs a new upload rather than a new deployment.
+ */
+function costMeasureArm(displayName: string): {
+  kind: "excerpt" | "full" | "max";
+  ceilings: TokenCeilings | undefined;
+} {
+  const name = displayName.toLowerCase();
+
+  if (name.includes("costarm-full")) {
+    // Far past anything the document can reach, so `fitWithin` never
+    // halves and the request goes out at full length -- which is the
+    // point: we are measuring whether the provider accepts it.
+    return {
+      kind: "full",
+      ceilings: {
+        total: 100_000_000,
+        components: { excerpt: 100_000_000, vocabulary: 1_536 },
+      },
+    };
+  }
+
+  const max = /costarm-max-(\d+)/.exec(name);
+  if (max) {
+    const excerpt = Number(max[1]);
+    return {
+      kind: "max",
+      // The envelope for 30 labels measures ~7,300 tokens and the
+      // vocabulary another 1,536; 40,000 of headroom keeps `finalize`
+      // from rejecting on overhead while still bounding the document.
+      ceilings: {
+        total: excerpt + 40_000,
+        components: { excerpt, vocabulary: 1_536 },
+      },
+    };
+  }
+
+  return { kind: "excerpt", ceilings: undefined };
+}
 
 /**
  * Slots each kind keeps even when the other has more labels than the
@@ -254,7 +311,10 @@ export async function runSuggestionJob(
           id: true,
           chunks: {
             orderBy: { ordinal: "asc" },
-            take: 3,
+            // MEASUREMENT HARNESS: was `take: 3`. All chunks are fetched so
+            // the arm can be chosen per document, below. Arm 1 slices back
+            // to the first three, which produces a byte-identical excerpt:
+            // `labelExcerptFromChunks` only ever reads a prefix.
             select: { text: true, chunkId: true, anchor: true },
           },
         },
@@ -432,7 +492,16 @@ export async function runSuggestionJob(
   // `labelExcerptFromChunks`: joining every chunk built an 800,000
   // character string to send 2,048 tokens of it, which PDFs turned from a
   // rare case into the ordinary one.
-  const excerpt = labelExcerptFromChunks(resource.versions[0].chunks);
+  const arm = costMeasureArm(resource.displayName);
+  const allChunks = resource.versions[0].chunks;
+
+  // Arm 1 is today's code path, reached by every document whose name
+  // carries no marker. Arms 2a/2b join every chunk, which is the
+  // `chunks.join` shape the comment above describes.
+  const excerpt =
+    arm.kind === "excerpt"
+      ? labelExcerptFromChunks(allChunks.slice(0, 3))
+      : allChunks.map((chunk) => chunk.text).join("\n\n");
 
   const scheduler = getJevScheduler();
   const evaluator = dependencies.evaluator ?? gatewayJevEvaluator;
@@ -510,6 +579,7 @@ export async function runSuggestionJob(
 
   const request = buildJevLabelRequest({
     documentExcerpt: excerpt,
+    ceilings: arm.ceilings,
     vocabulary: shortlist.map((entry) => ({
       id: entry.id,
       name: entry.displayName,
