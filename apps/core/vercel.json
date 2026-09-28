@@ -12,7 +12,7 @@
   "functions": {
     "dist/index.js": {
       "maxDuration": 300,
-      "includeFiles": "dist/soko-bot-runner.mjs"
+      "includeFiles": "{dist/soko-bot-runner.mjs,node_modules/pdfjs-dist/legacy/build/**}"
     }
   },
   "relatedProjects": [
@@ -31,6 +31,10 @@
     {
       "path": "/sync/image-catalog",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/sync/drive-index",
+      "schedule": "* * * * *"
     },
     {
       "path": "/sync/agents-summary",

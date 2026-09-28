@@ -35,6 +35,21 @@ overrides:
   # >=8.0.0 <8.10.2. Pin latest 8.x. Selector starts at 8 so 6.x/7.x stay put.
   "undici@>=8.0.0 <8.11.2": "8.11.2"
 
+ignoredOptionalDependencies:
+  # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
+  # rendering PDF pages to images. Files extraction reads the **text layer
+  # only** and never rasterizes, so nothing here calls it.
+  #
+  # Installing it is not free and not neutral: it brings 11 platform-specific
+  # packages of prebuilt native code, 34 MB for linux-x64-gnu alone, into a
+  # tree that then has to ship it to a serverless function. Native code is
+  # also the one kind of dependency whose failures are not contained by the
+  # JavaScript sandbox the parser process relies on.
+  #
+  # pdfjs falls back cleanly when it is absent — `getTextContent` does not
+  # touch canvas. There is a test asserting text extraction works without it.
+  - "@napi-rs/canvas"
+
 allowBuilds:
   # pnpm 11+: workspace prepare scripts are blocked unless listed (strictDepBuilds).
   # These packages compile to dist/ on install; without them, Next/Turbopack cannot resolve exports.

@@ -126,9 +126,69 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter=@sokosumi/core
 
-      - name: Test Projects API and Calendar erasure against PostgreSQL
+      # `optInDbExclude` in apps/core/vitest.config.ts keeps every
+      # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
+      # here or they run nowhere.
+      #
+      # A substring filter rather than a list of filenames, deliberately.
+      # An enumerated list degrades silently: `vitest run <name>` treats a
+      # name that matches nothing as contributing nothing, so a typo, a
+      # rename or a deletion yields "N-1 passed, exit 0" and no warning.
+      # Measured on this repository — six names with one misspelt gives
+      # "Test Files 5 passed, Tests 49 passed, exit 0" — which is the exact
+      # silent failure this step exists to end, reproduced by the step
+      # itself. The substring picks up new suites without anyone
+      # remembering to come back here, and `--passWithNoTests=false` plus
+      # pnpm's `--fail-if-no-match` turn an empty collection into a red
+      # build instead of a green one. Same guard as the migration-order
+      # check in the packages job below.
+      #
+      # `optInPostgresFiles` is not what decides this, and an earlier
+      # version of this comment claiming the two lists had to be edited
+      # together was wrong. Precisely: `cliSelectsOptInDbFile` returns true
+      # on `filter.includes(".postgres.test.ts")` before it consults that
+      # list, so the list has no bearing on any argument containing that
+      # literal — every full path, and the filter below. It is still
+      # load-bearing for an abbreviated one: `pnpm --filter core test
+      # calendar-erasure` reaches the `names.some(...)` branch and works
+      # only because the list holds that file. `opt-in-db-collect.test.ts`
+      # pins exactly that.
+      #
+      # The two lists look parallel and are not, which is what made the old
+      # claim plausible. `optInIntegrationFiles` is spread into
+      # `optInDbExclude`, so adding to it genuinely excludes a file.
+      # `optInPostgresFiles` is not spread anywhere — the glob already
+      # excludes those — so adding to it excludes nothing.
+      #
+      # One file is held out, in `vitest.config.ts` rather than here, so
+      # the reason sits with the pattern and a local run behaves the way
+      # this does: `push-device-consent.postgres.test.ts` needs
+      # `SOK939_TEST_DATABASE_URL` and a separate `sok_939` database that
+      # no job in this repository provisions, and it throws during
+      # collection instead of skipping. Owning PR #5291.
+      #
+      # Not full coverage of the repository, only of this package.
+      # `packages/database/src/helpers/image-studio-concurrency.postgres.test.ts`
+      # is a different vitest project and out of reach of this filter; the
+      # packages job below runs only `job-sync.postgres.test.ts`. That one
+      # is gated on `IMAGE_STUDIO_TEST_DATABASE_URL` and skips cleanly, so
+      # it is a dormant hole rather than a red one — but it is a hole.
+      #
+      # `--no-file-parallelism`, on this step only: these files share one
+      # database and, through it, one job queue.
+      # `leaseNextFileIndexJob` takes a pipeline and no workspace filter,
+      # so it hands back the globally oldest runnable job — whoever owns
+      # it. Two suites running at once therefore steal each other's work
+      # and fail on a row the other one wrote, which reads as a flake in
+      # whichever file lost the race rather than as a defect anywhere.
+      # Serial here, and only here; the unit step above keeps its
+      # parallelism.
+      - name: Test against PostgreSQL
         env: *migrated-db
-        run: RUN_DATABASE_INTEGRATION_TESTS=true pnpm --filter core test src/routes/v1/projects/get.postgres.test.ts src/helpers/project-activity.postgres.test.ts src/helpers/calendar-erasure.postgres.test.ts
+        run: |
+          RUN_DATABASE_INTEGRATION_TESTS=true \
+            pnpm --filter core --fail-if-no-match test .postgres.test.ts \
+            --passWithNoTests=false --no-file-parallelism
 
   packages:
     name: Test Packages

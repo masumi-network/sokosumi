@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-export type DrivePrimaryView = "recents" | "browse" | "tables";
+export type DrivePrimaryView = "recents" | "all" | "browse" | "tables";
 
 interface DriveViewTabsProps {
   activeView: DrivePrimaryView;
@@ -38,6 +38,9 @@ export function DriveViewTabs({
           className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
         >
           {t("recentsTab")}
+        </TabsTrigger>
+        <TabsTrigger value="all" className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}>
+          {t("allFilesTab")}
         </TabsTrigger>
         <TabsTrigger
           value="browse"
