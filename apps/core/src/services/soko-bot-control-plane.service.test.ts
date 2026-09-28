@@ -737,6 +737,62 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it("classifies a bare yes against the bot's last reply in the same conversation", async () => {
+    jevEvaluate.mockResolvedValue(
+      jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.finalAnswer
+        ? { finalAnswer: "Here is the LinkedIn draft. Want me to post it?" }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "scope-turn",
+      leaseToken: "scope-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "scope-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "yes-client",
+      message: "yes, post it",
+    });
+
+    expect(jevEvaluate.mock.calls[0][0].state.previousReply).toBe(
+      "Here is the LinkedIn draft. Want me to post it?",
+    );
+    const replyQuery = turnFindFirstMock.mock.calls.find(
+      ([query]) => query?.where?.finalAnswer,
+    )?.[0];
+    expect(replyQuery.where).toMatchObject({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      status: "COMPLETED",
+      requestedByUserId: null,
+      chatMentionId: null,
+    });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toContain(
+      "create_social_post",
+    );
+  });
+
   it.each([
     ["Also research Y", false, "DELEGATE_TASK"],
     ["Instead, research Y", true, "DELEGATE_TASK"],

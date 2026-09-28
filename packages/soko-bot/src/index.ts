@@ -28,6 +28,7 @@ export {
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,

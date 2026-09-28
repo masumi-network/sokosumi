@@ -208,10 +208,52 @@ describe("pending proposals", () => {
         hasPendingProposals: true,
         state: {
           message: "ja, mach",
+          previousReply: null,
           pendingProposals: ["Create the authorized task"],
         },
       }),
     );
+  });
+
+  it("gives Jev the bot's last reply so a bare yes has a referent", async () => {
+    const evaluate = answering(
+      jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
+    );
+    const result = await new JevTurnClassifier(evaluate).classify(
+      "yes, post it",
+      {
+        ...EMPTY_CONTEXT,
+        previousReply: "Here is the LinkedIn draft. Want me to post it?",
+      },
+    );
+    expect(evaluate.mock.calls[0][0].state.previousReply).toBe(
+      "Here is the LinkedIn draft. Want me to post it?",
+    );
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "SOCIAL",
+    });
+  });
+
+  it("keeps the proposal's write scope when the owner confirms it", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("CLARIFY", { confirmsPending: 0.95 })),
+    ).classify("yes", {
+      ...EMPTY_CONTEXT,
+      pendingIntents: [
+        {
+          ...intent,
+          route: "MANAGE_WORK",
+          writeScope: "SOCIAL",
+          requiresApproval: false,
+        },
+      ],
+    });
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "SOCIAL",
+      continuation: "CONTINUE",
+    });
   });
 
   it("keeps only authorized task targets on a continuation", async () => {

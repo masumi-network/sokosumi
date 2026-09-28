@@ -293,6 +293,20 @@ export const SOKO_BOT_MEMORY_LIMITS = {
   maxEntryLength: 500,
 } as const;
 
+/**
+ * The reads every owner route has, and of its writes only those listed. For
+ * turns Core starts itself, whose job needs far fewer writes than the route.
+ */
+export function limitSokoBotWrites(
+  capabilities: readonly SokoBotCapability[],
+  writes: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  const reads: readonly SokoBotCapability[] = OWNER_BASE_CAPABILITIES;
+  return capabilities.filter(
+    (capability) => reads.includes(capability) || writes.includes(capability),
+  );
+}
+
 export function capabilitiesForClassification(
   classification: TurnClassification,
 ): readonly SokoBotCapability[] {

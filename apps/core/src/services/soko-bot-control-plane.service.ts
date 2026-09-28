@@ -12,9 +12,11 @@ import {
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
   isSokoBotSilentAnswer,
+  limitSokoBotWrites,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
@@ -97,6 +99,9 @@ const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
+/** How far back a bare "yes" can reach for the reply it answers. */
+const PREVIOUS_REPLY_WINDOW_MS = 12 * 60 * 60 * 1_000;
+
 export const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.QUEUED,
   SokoBotTurnStatus.STARTING,
@@ -2172,7 +2177,7 @@ export class SokoBotControlPlane {
             desiredOutcome: true,
             targetIds: true,
             expiresAt: true,
-            originatingTurn: { select: { route: true } },
+            originatingTurn: { select: { route: true, classification: true } },
             decisions: {
               where: { status: "PENDING" },
               select: { id: true },
@@ -2180,6 +2185,34 @@ export class SokoBotControlPlane {
             },
           },
         });
+    // The bot's last word in this conversation: a bare "yes, post it" is only
+    // classifiable against the question it answers. Same scope as the
+    // packet's recent turns.
+    const previousTurn =
+      source === "CHAT" && !requestedByTeammate
+        ? await prisma.sokoBotTurn.findFirst({
+            where: {
+              sokoBotId: bot.id,
+              userId: input.userId,
+              workspaceId: input.workspaceId,
+              status: "COMPLETED",
+              finalAnswer: { not: null },
+              createdAt: {
+                gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
+              },
+              requestedByUserId: null,
+              ...(conversationMention?.message.roomId
+                ? {
+                    chatMention: {
+                      message: { roomId: conversationMention.message.roomId },
+                    },
+                  }
+                : { chatMentionId: null }),
+            },
+            orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+            select: { finalAnswer: true },
+          })
+        : null;
     const classifierContext = await this.classificationContext(
       input.userId,
       input.workspaceId,
@@ -2202,6 +2235,7 @@ export class SokoBotControlPlane {
           () =>
             this.classifier.classify(message, {
               ...classifierContext,
+              previousReply: previousTurn?.finalAnswer ?? null,
               pendingIntents: pendingIntents.map((intent) => ({
                 id: intent.id,
                 desiredOutcome: intent.desiredOutcome,
@@ -2214,6 +2248,9 @@ export class SokoBotControlPlane {
                   : [],
                 expiresAt: intent.expiresAt.toISOString(),
                 route: intent.originatingTurn.route ?? "CLARIFY",
+                writeScope: storedWriteScope(
+                  intent.originatingTurn.classification,
+                ),
                 requiresApproval: intent.decisions.length > 0,
               })),
             }),
@@ -2283,8 +2320,9 @@ export class SokoBotControlPlane {
         );
       }
     }
-    const routeCapabilities = capabilitiesForClassification(
-      classification.classification,
+    const routeCapabilities = limitSokoBotWrites(
+      capabilitiesForClassification(classification.classification),
+      input.presetRoute?.writes ?? SOKO_BOT_CAPABILITIES,
     ).filter(
       (capability) =>
         !input.presetRoute ||
