@@ -51,7 +51,14 @@ describe("the pdfjs packaging guard", () => {
     const result = run(PACKAGE_ROOT);
 
     expect(result.status, result.stderr).toBe(0);
-    expect(result.stdout).toContain("pdfjs shipped by includeFiles");
+    // What the glob matched, by name, not a restatement of the input.
+    expect(result.stdout).toContain("includeFiles");
+    expect(result.stdout).toContain(
+      "node_modules/pdfjs-dist/legacy/build/pdf.mjs",
+    );
+    expect(result.stdout).toContain(
+      "node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    );
   });
 
   it("fails when it cannot see the config it guards", () => {
@@ -76,7 +83,7 @@ describe("the pdfjs packaging guard", () => {
     const result = run(REPO_ROOT);
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("would not be present");
+    expect(result.stderr).toContain("missing files it needs");
     expect(result.stderr).toContain("parser-unavailable");
     expect(result.stderr).toContain("cannot read vercel.json");
     // Reported, not thrown.
@@ -205,6 +212,83 @@ describe("the pdfjs packaging guard", () => {
     } finally {
       rmSync(withoutOurHalf, { recursive: true, force: true });
     }
+  });
+
+  it("fails when the glob stops covering the Soko Bot runner", () => {
+    /**
+     * The half this guard could not see, and the half I resolved without
+     * being able to exercise it.
+     *
+     * Both features share one `includeFiles` string, so a merge can drop
+     * either side. The guard only ever asked about pdfjs, which means the
+     * resolution most likely to break — dropping main's entry from a
+     * Files branch — would have passed it.
+     *
+     * Coverage is asserted against the pattern rather than the
+     * filesystem, because `dist/` only exists after `pnpm run build`.
+     * `vercel-build` runs the guard after the build, so the file is there
+     * in the deploy; confirmed in a real deployment, where tsup wrote
+     * `dist/soko-bot-runner.mjs` at 01:35:55.060 and the guard ran at
+     * 01:35:55.437.
+     */
+    const withoutMainsHalf = mkdtempSync(`${tmpdir()}/pdfjs-runner-`);
+    try {
+      const copied = `${withoutMainsHalf}/check-pdfjs-bundle.mjs`;
+      copyFileSync(SCRIPT, copied);
+      symlinkSync(
+        path.join(PACKAGE_ROOT, "node_modules"),
+        `${withoutMainsHalf}/node_modules`,
+        "dir",
+      );
+      const config = JSON.parse(
+        readFileSync(path.join(PACKAGE_ROOT, "vercel.json"), "utf8"),
+      ) as { functions: Record<string, { includeFiles?: string }> };
+      config.functions["dist/index.js"].includeFiles =
+        "node_modules/pdfjs-dist/legacy/build/**";
+      writeFileSync(
+        `${withoutMainsHalf}/vercel.json`,
+        JSON.stringify(config, null, 2),
+      );
+
+      const result = spawnSync(process.execPath, [copied], {
+        cwd: withoutMainsHalf,
+        encoding: "utf8",
+      });
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain("dist/soko-bot-runner.mjs");
+      expect(result.stderr).toContain("not matched by the includeFiles glob");
+      // And it says what breaks, not just that something is missing.
+      expect(result.stderr).toContain("Soko Bot");
+    } finally {
+      rmSync(withoutMainsHalf, { recursive: true, force: true });
+    }
+  });
+
+  it("reports the files it matched, not the number it expected", () => {
+    /**
+     * The success line read `${SPECIFIERS.length} files matched` — the
+     * constant 2, whatever the glob did — and that line was quoted back
+     * as evidence that two files had shipped. It was the script
+     * repeating its own input: the defect this file exists to catch,
+     * committed inside it.
+     *
+     * pdfjs ships more than the two the parser loads, so a count of
+     * exactly 2 would itself have been wrong.
+     */
+    const result = run(PACKAGE_ROOT);
+
+    expect(result.status).toBe(0);
+    const named = result.stdout
+      .split("\n")
+      .filter((line) => line.trim().startsWith("- "));
+    expect(named.length).toBeGreaterThan(2);
+    expect(result.stdout).toMatch(/matched \d+ file\(s\)/u);
+    // The count printed is the count listed.
+    const declared = Number(
+      /matched (\d+) file\(s\)/u.exec(result.stdout)?.[1],
+    );
+    expect(declared).toBe(named.length);
   });
 
   it("ships main's file as well as ours", () => {

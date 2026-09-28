@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fail the build if the PDF parser will not be in the function.
+ * Fail the build if the shared `includeFiles` glob has stopped covering
+ * everything that depends on it.
  *
  * The parser reaches the deployed function through exactly one mechanism:
  * the `includeFiles` glob in `apps/core/vercel.json`. Nothing traces it —
@@ -29,6 +30,20 @@
  * `includeFiles` on the same function — would have left the guard green
  * while shipping no parser. A guard that does not read the file it is
  * guarding is checking its own opinion.
+ *
+ * ## Both halves, not just ours
+ *
+ * The position takes a single string, so two features share one pattern
+ * through brace expansion. A merge resolution can drop either half, and
+ * the half this script could not see was `dist/soko-bot-runner.mjs` —
+ * the one a Files change is least likely to exercise and most likely to
+ * break. It is asserted here too.
+ *
+ * Ordering is what makes that possible: `vercel-build` runs
+ * `pnpm run build` before this script, so tsup has already emitted the
+ * runner. Confirmed in a real deployment rather than assumed — tsup
+ * wrote `dist/soko-bot-runner.mjs` at 01:35:55.060 and this guard ran at
+ * 01:35:55.437.
  */
 import { globSync, readFileSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -39,6 +54,17 @@ import process from "node:process";
 const SPECIFIERS = [
   "pdfjs-dist/legacy/build/pdf.mjs",
   "pdfjs-dist/legacy/build/pdf.worker.mjs",
+];
+
+/**
+ * Build outputs the same glob has to carry, checked by path rather than
+ * by resolution because they are emitted by tsup, not installed.
+ */
+const BUILD_OUTPUTS = [
+  {
+    file: "dist/soko-bot-runner.mjs",
+    why: "Soko Bot turns run in a sandbox from this file",
+  },
 ];
 
 /** The function key whose `includeFiles` has to cover the parser. */
@@ -67,19 +93,41 @@ function includedFiles(projectRoot) {
      * should see both — an exception here hid a perfectly good
      * "cannot resolve (MODULE_NOT_FOUND)" behind a stack trace.
      */
-    return { pattern: null, unreadable: true, matched: new Set() };
+    return {
+      pattern: null,
+      unreadable: true,
+      matched: new Set(),
+      covers: () => false,
+    };
   }
 
   const pattern = config?.functions?.[FUNCTION_KEY]?.includeFiles;
   if (typeof pattern !== "string" || pattern.length === 0) {
-    return { pattern: null, unreadable: false, matched: new Set() };
+    return {
+      pattern: null,
+      unreadable: false,
+      matched: new Set(),
+      covers: () => false,
+    };
   }
   const matched = new Set(
     globSync(pattern, { cwd: projectRoot }).map((file) =>
       file.replaceAll("\\", "/"),
     ),
   );
-  return { pattern, unreadable: false, matched };
+  /**
+   * Whether the pattern *would* carry a path, separately from whether
+   * that path exists right now.
+   *
+   * Build outputs only exist after `pnpm run build`, and this script is
+   * also run on trees where nothing has been built. Asking the pattern
+   * rather than the filesystem keeps the coverage assertion meaningful
+   * in both places, and it is the question that actually matters: a
+   * merge that drops half the glob breaks the deploy whether or not the
+   * file happens to be on disk at the time.
+   */
+  const covers = (file) => path.matchesGlob(file, pattern);
+  return { pattern, unreadable: false, matched, covers };
 }
 
 /** Where the glob has to place the parser, relative to the project root. */
@@ -146,21 +194,43 @@ for (const specifier of SPECIFIERS) {
   }
 }
 
-if (failures.length > 0) {
-  console.error(
-    "\nThe PDF parser would not be present in the deployed function.\n",
+for (const { file, why } of BUILD_OUTPUTS) {
+  if (included.covers(file)) continue;
+  failures.push(
+    included.unreadable
+      ? `${file}: cannot read vercel.json from ${projectRoot}, so whether ` +
+          `the glob covers it is unknown (${why})`
+      : included.pattern === null
+        ? `${file}: vercel.json sets no includeFiles for "${FUNCTION_KEY}" ` +
+          `(${why})`
+        : `${file}: not matched by the includeFiles glob in vercel.json ` +
+          `(${included.pattern}) — ${why}`,
   );
+}
+
+if (failures.length > 0) {
+  console.error("\nThe deployed function would be missing files it needs.\n");
   for (const failure of failures) console.error(`  - ${failure}`);
   console.error(
-    "\nEvery PDF would extract as UNSUPPORTED with reason " +
-      "'parser-unavailable', quietly, on every document.\n" +
-      "Fix the dependency or the includeFiles glob in " +
+    "\nA missing parser makes every PDF extract as UNSUPPORTED with " +
+      "reason 'parser-unavailable', quietly, on every document.\n" +
+      "Fix the dependency, the build output, or the includeFiles glob in " +
       "apps/core/vercel.json; do not delete this check.\n",
   );
   process.exit(1);
 }
 
+/**
+ * What the glob matched, counted and named.
+ *
+ * This printed `SPECIFIERS.length` — the constant 2 — whatever the glob
+ * actually matched, and that line was quoted back as evidence that two
+ * files had shipped. It was the script repeating its own input, which is
+ * the defect this whole file exists to catch, committed inside it.
+ */
+const matched = [...included.matched].sort();
 console.log(
-  `[files] pdfjs shipped by includeFiles: ${SPECIFIERS.length} files ` +
-    `matched by ${included.pattern}`,
+  `[files] includeFiles ${JSON.stringify(included.pattern)} matched ` +
+    `${matched.length} file(s):`,
 );
+for (const file of matched) console.log(`  - ${file}`);
