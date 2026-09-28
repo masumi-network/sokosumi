@@ -28,7 +28,6 @@ describe("Jev route selection", () => {
     "DIRECT_RESPONSE",
     "DELEGATE_TASK",
     "HIRE_AGENT",
-    "MIXED",
     "CLARIFY",
   ] as const)("takes Jev's confident %s", async (route) => {
     const result = await new JevTurnClassifier(
@@ -38,6 +37,75 @@ describe("Jev route selection", () => {
     expect(result.classification.confidence).toBe(0.98);
     expect(result.model).toBe(SOKO_BOT_ROUTE_MODEL);
     expect(result.failed).toBe(false);
+  });
+
+  function split(probabilities: Record<string, number>, choice: string) {
+    const evaluation = jevRoute("DELEGATE_TASK");
+    return answering({
+      ...evaluation,
+      answers: {
+        ...(evaluation.answers as object),
+        route: { choice, probabilities },
+      },
+    });
+  }
+
+  it("acts on a request split across work routes, e.g. a task plus check-ins", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { DELEGATE_TASK: 0.55, MIXED: 0.3, MANAGE_WORK: 0.12 },
+        "DELEGATE_TASK",
+      ),
+    ).classify("Create the task and check in daily", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining(["create_task", "create_schedule"]),
+    );
+  });
+
+  it("asks rather than acts when a vague request only leans towards work", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        {
+          MANAGE_WORK: 0.55,
+          DELEGATE_TASK: 0.11,
+          CLARIFY: 0.2,
+          DIRECT_RESPONSE: 0.14,
+        },
+        "MANAGE_WORK",
+      ),
+    ).classify(
+      "Sort out the thing with the client from last week",
+      EMPTY_CONTEXT,
+    );
+    expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("does all of a confident MIXED request except hiring", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("MIXED")),
+    ).classify("Hire an agent and create a task", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "hire_agent",
+    );
+  });
+
+  it("does not let a refusal be outvoted by split work routes", async () => {
+    const result = await new JevTurnClassifier(
+      split({ CLARIFY: 0.4, DELEGATE_TASK: 0.35, MIXED: 0.25 }, "CLARIFY"),
+    ).classify("Don't create the task yet", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("answers rather than asks when an unsure write leans towards a reply", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { MANAGE_WORK: 0.4, DIRECT_RESPONSE: 0.35, CLARIFY: 0.25 },
+        "MANAGE_WORK",
+      ),
+    ).classify("Give me a status rundown", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DIRECT_RESPONSE");
   });
 
   it("drops to read-only CLARIFY when Jev is unsure", async () => {
@@ -65,6 +133,16 @@ describe("Jev route selection", () => {
       EMPTY_CONTEXT,
     );
     expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("lets a plain hire request through at the score Jev gives it", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("HIRE_AGENT", { probability: 0.83 })),
+    ).classify(
+      "Find an agent that writes SEO posts and hire it if it costs under 10 credits",
+      EMPTY_CONTEXT,
+    );
+    expect(result.classification.route).toBe("HIRE_AGENT");
   });
 
   it("carries the message as the brief of a delegated task", async () => {

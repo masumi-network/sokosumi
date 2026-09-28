@@ -45,12 +45,22 @@ export function runCommand(input: {
 }): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   const timeoutMs = (input.timeoutSeconds ?? DEFAULT_BASH_TIMEOUT_S) * 1_000;
   return new Promise((resolve) => {
+    // Its own process group: a timeout kills the pipeline bash started, not
+    // just bash, whose children would otherwise hold the output open forever.
     const child = spawn("bash", ["-lc", input.command], {
       cwd: WORKSPACE,
       env: commandEnv(),
-      timeout: timeoutMs,
-      killSignal: "SIGKILL",
+      detached: true,
     });
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        if (child.pid) process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }, timeoutMs);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => {
@@ -59,18 +69,18 @@ export function runCommand(input: {
     child.stderr.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_OUTPUT_CHARS * 2) stderr += chunk.toString();
     });
-    child.on("close", (code, signal) => {
+    child.on("close", (code) => {
+      clearTimeout(timer);
       resolve({
         exitCode: code,
         stdout: clip(stdout),
         stderr: clip(
-          signal === "SIGKILL"
-            ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]`
-            : stderr,
+          timedOut ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]` : stderr,
         ),
       });
     });
     child.on("error", (error) => {
+      clearTimeout(timer);
       resolve({ exitCode: null, stdout: "", stderr: error.message });
     });
   });

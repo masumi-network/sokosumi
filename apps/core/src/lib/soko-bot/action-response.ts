@@ -38,6 +38,70 @@ const ACTION_LABELS: Record<string, string> = {
   publish_social_post: "Published social post",
 };
 
+const TASK_TARGET_CAPABILITIES = new Set([
+  "create_task",
+  "update_task",
+  "archive_task",
+  "assign_task",
+  "reply_to_task",
+  "update_assigned_task",
+]);
+
+interface TaskLabel {
+  name: string;
+  assignee: string | null;
+}
+
+/** Names come from the stored task, never from the model's narration. */
+async function taskLabels(
+  tx: Prisma.TransactionClient,
+  ids: string[],
+): Promise<Map<string, TaskLabel>> {
+  if (!ids.length) return new Map();
+  const tasks = await tx.task.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: {
+      id: true,
+      name: true,
+      assignee: { select: { name: true } },
+      assigneeUser: { select: { name: true } },
+      assigneeSokoBot: { select: { name: true } },
+    },
+  });
+  return new Map(
+    tasks.map((task) => [
+      task.id,
+      {
+        name: task.name,
+        assignee:
+          task.assignee?.name ??
+          task.assigneeUser?.name ??
+          task.assigneeSokoBot?.name ??
+          null,
+      },
+    ]),
+  );
+}
+
+function linkText(value: string): string {
+  return value.replace(/[[\]\\]/g, "").slice(0, 120);
+}
+
+function actionTarget(
+  call: { capability: string; targetId: string | null },
+  tasks: Map<string, TaskLabel>,
+): string {
+  const id = call.targetId ?? "";
+  if (call.capability === "create_table")
+    return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  const task = tasks.get(id);
+  if (!task) return `(${id})`;
+  const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;
+  return call.capability === "assign_task" && task.assignee
+    ? `${link} → ${linkText(task.assignee)}`
+    : link;
+}
+
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
   SCOPE: "What should I change, and what should stay as it is?",
@@ -49,6 +113,8 @@ const QUESTIONS = {
 export const actionNarrativeSchema = z
   .object({
     kind: z.enum(["REPORT", "CLARIFY", "SILENT"]),
+    /** The bot's own words; action lines never come from here. */
+    message: z.string().trim().max(8_000).nullable().optional(),
     question: z
       .enum(["TARGET", "SCOPE", "TIME", "APPROVAL", "DETAILS"])
       .nullable(),
@@ -56,14 +122,20 @@ export const actionNarrativeSchema = z
   })
   .strict();
 
+export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
+
 export function parseActionNarrative(value: unknown) {
   const parsed = actionNarrativeSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
+/** Accepts the object on its own, fenced as ```json, or wrapped in prose. */
 export function parseActionNarrativeText(text: string) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
   try {
-    return parseActionNarrative(JSON.parse(text));
+    return parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
   } catch {
     return null;
   }
@@ -307,9 +379,17 @@ export async function buildActionResponse(
       receiptId: call.id,
       reason: call.disposition === "UNKNOWN" ? "UNKNOWN" : "NOT_VERIFIED",
     }));
+  const tasks = await taskLabels(
+    tx,
+    unique.flatMap((call) =>
+      TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
+        ? [call.targetId]
+        : [],
+    ),
+  );
   const actionText = unique.map(
     (call) =>
-      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} (${call.capability === "create_table" ? `[Open table](/drive/tables/${encodeURIComponent(call.targetId ?? "")})` : call.targetId}).`,
+      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} ${actionTarget(call, tasks)}.`,
   );
   for (const action of unfulfilledActions) {
     actionText.push(
@@ -344,11 +424,16 @@ export async function buildActionResponse(
       observations.push(...describeRead(read.capability, read.result));
     }
   }
+  const message = narrative?.message || null;
   const question =
-    narrative?.kind === "CLARIFY" && narrative.question
+    !message && narrative?.kind === "CLARIFY" && narrative.question
       ? QUESTIONS[narrative.question]
       : null;
-  const narrativeText = [...observations, ...(question ? [question] : [])];
+  const narrativeText = [
+    ...observations,
+    ...(message ? [message] : []),
+    ...(question ? [question] : []),
+  ];
   const silent =
     !calls.length &&
     (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));
@@ -360,9 +445,11 @@ export async function buildActionResponse(
     answerText: silent
       ? "Nothing to add."
       : calls.length || narrativeText.length
-        ? [...actionText, ...narrativeText].join("\n")
+        ? [actionText.join("\n"), narrativeText.join("\n")]
+            .filter(Boolean)
+            .join("\n\n")
         : actionRequested
-          ? "No action was verified. Please specify the target and change you want."
+          ? "Nothing was changed in this turn."
           : answerText,
   };
 }

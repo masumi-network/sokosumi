@@ -7,21 +7,26 @@
  * pnpm --filter core soko-bot:lab -- --all-versions --label nightly
  * Requires a running Eve runtime and the same .env Core uses.
  */
-import { writeFile } from "node:fs/promises";
 
+import { writeFile } from "node:fs/promises";
 import {
   evaluateScenario,
   SOKO_BOT_SCENARIOS,
   SOKO_BOT_SYSTEM_SCHEDULES,
   type SokoBotScenario,
 } from "@sokosumi/soko-bot";
-
+import { del } from "@vercel/blob";
 import prisma from "@/lib/db/prisma";
+import {
+  SYSTEM_TURN_ROUTES,
+  systemScheduleRoute,
+} from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { buildIngestDeltaMessageForBot } from "@/services/soko-bot-ingest.service";
 import { simulateSokoBotTaskEvent } from "@/services/soko-bot-lab.service";
 import { judgeSokoBotLabTurn } from "@/services/soko-bot-lab-judge.service";
 import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
+import { createSokoBotSchedule } from "@/services/soko-bot-schedule.service";
 import { listSokoBotVersions } from "@/services/soko-bot-version.service";
 
 const args = process.argv.slice(2);
@@ -41,7 +46,12 @@ if (args.includes("--replay"))
   process.env.SOKO_BOT_INTEGRATION_FIXTURES = "replay";
 const workspaceIdArg = flag("workspace");
 const noJudge = args.includes("--no-judge");
-const TURN_TIMEOUT_MS = 6 * 60_000;
+// Every run otherwise inherits the Tasks and schedules earlier runs created,
+// and a bot that rightly declines to duplicate them scores as a failure.
+const reset = args.includes("--reset");
+// A turn may run until its 15-minute deadline; giving up sooner scores a slow
+// but valid turn as an error and fails the next scenario on a busy bot.
+const TURN_TIMEOUT_MS = 16 * 60_000;
 
 async function resolveOwner() {
   const bot = await prisma.sokoBot.findFirst({
@@ -55,6 +65,67 @@ async function resolveOwner() {
   });
   if (!bot) throw new Error("No active Soko Bot found");
   return { bot, workspaceId: bot.workspaceId };
+}
+
+/**
+ * Puts the bot back to the same starting point for every version: archives
+ * the Tasks lab turns created (older runtimes recorded some only as
+ * delegations), removes lab and seeded schedules and lab Drive files, and
+ * clears memory. Work the owner started in real chats is left alone.
+ */
+async function resetLabState(owner: {
+  bot: { id: string; userId: string };
+  workspaceId: string;
+}) {
+  const labTurn = {
+    sokoBotId: owner.bot.id,
+    clientTurnId: { startsWith: "lab:" },
+  };
+  const created = await prisma.sokoBotToolCall.findMany({
+    where: {
+      capability: { in: ["create_task", "create_schedule", "upload_file"] },
+      status: "COMPLETED",
+      targetId: { not: null },
+      turn: labTurn,
+    },
+    select: { capability: true, targetId: true },
+  });
+  const delegated = await prisma.sokoBotDelegation.findMany({
+    where: { action: "create_task", taskId: { not: null }, turn: labTurn },
+    select: { taskId: true },
+  });
+  const ids = (capability: string) =>
+    created.flatMap((call) =>
+      call.capability === capability && call.targetId ? [call.targetId] : [],
+    );
+  const tasks = await prisma.task.updateMany({
+    where: {
+      id: {
+        in: [
+          ...ids("create_task"),
+          ...delegated.flatMap((d) => (d.taskId ? [d.taskId] : [])),
+        ],
+      },
+      archivedAt: null,
+    },
+    data: { archivedAt: new Date() },
+  });
+  const seeded = SOKO_BOT_SCENARIOS.flatMap((scenario) =>
+    (scenario.setup?.schedules ?? []).map((schedule) => schedule.name),
+  );
+  const schedules = await prisma.sokoBotSchedule.deleteMany({
+    where: {
+      sokoBotId: owner.bot.id,
+      systemKey: null,
+      OR: [{ id: { in: ids("create_schedule") } }, { name: { in: seeded } }],
+    },
+  });
+  const files = ids("upload_file").filter((url) => url.startsWith("https://"));
+  if (files.length) await del(files);
+  await sokoBotControlPlane.resetMemory(owner.bot.userId, owner.workspaceId);
+  console.log(
+    `Reset: archived ${tasks.count} task(s), removed ${schedules.count} schedule(s) and ${files.length} file(s), cleared memory`,
+  );
 }
 
 async function loadTurn(turnId: string) {
@@ -97,7 +168,7 @@ async function loadTurn(turnId: string) {
  * creates; a scenario started while such a turn runs is refused as busy.
  * Wait for the bot to settle before each scenario.
  */
-async function waitForIdle(sokoBotId: string, timeoutMs = 180_000) {
+async function waitForIdle(sokoBotId: string, timeoutMs = TURN_TIMEOUT_MS) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const active = await prisma.sokoBotTurn.count({
@@ -128,7 +199,7 @@ async function waitForTurn(turnId: string) {
 
 async function startScenario(
   scenario: SokoBotScenario,
-  owner: { bot: { userId: string }; workspaceId: string },
+  owner: { bot: { id: string; userId: string }; workspaceId: string },
 ): Promise<string> {
   if (scenario.trigger?.kind === "ingest") {
     const bot = await prisma.sokoBot.findFirstOrThrow({
@@ -167,6 +238,11 @@ async function startScenario(
       clientTurnId: `lab:${scenario.id}:${crypto.randomUUID()}`,
       message,
       source: beat === "delta" ? "INGEST" : "SCHEDULE",
+      // The route the cron grants, not a classifier guess from Core's own prompt.
+      presetRoute:
+        beat === "delta"
+          ? SYSTEM_TURN_ROUTES["ingest:delta"]
+          : systemScheduleRoute(beat),
     });
     if (started.reconciliationLeaseToken) {
       await sokoBotControlPlane
@@ -183,9 +259,26 @@ async function startScenario(
     // The simulation starts the turn and returns it. It used to run the
     // events sync instead — a global scan that woke every owner's pending
     // delegations and spent their allowances to score one scenario here.
+    // Only ever a Task a lab turn created: falling back to the bot's newest
+    // delegation posted fake Coworker events onto the owner's real work.
+    const labTask = await prisma.sokoBotDelegation.findFirst({
+      where: {
+        action: "create_task",
+        turn: {
+          sokoBotId: owner.bot.id,
+          clientTurnId: { startsWith: "lab:" },
+        },
+        task: { archivedAt: null },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { taskId: true },
+    });
+    if (!labTask?.taskId)
+      throw new Error("No lab-created Task to simulate Coworker activity on");
     const simulated = await simulateSokoBotTaskEvent({
       userId: owner.bot.userId,
       workspaceId: owner.workspaceId,
+      taskId: labTask.taskId,
       status: scenario.trigger.status,
       comment: scenario.trigger.comment,
     });
@@ -222,6 +315,7 @@ const scenarios = SOKO_BOT_SCENARIOS.filter(
 );
 const rows: unknown[] = [];
 for (const versionId of versionIds) {
+  if (reset) await resetLabState(owner);
   if (versionId) {
     await sokoBotControlPlane.updateVersion(
       owner.bot.userId,
@@ -237,6 +331,16 @@ for (const versionId of versionIds) {
     const startedAt = Date.now();
     try {
       await waitForIdle(owner.bot.id);
+      if (scenario.setup) {
+        await resetLabState(owner);
+        for (const schedule of scenario.setup.schedules ?? [])
+          await createSokoBotSchedule({
+            userId: owner.bot.userId,
+            workspaceId: owner.workspaceId,
+            timezone: "Europe/Berlin",
+            ...schedule,
+          });
+      }
       const turnId = await startScenario(scenario, owner);
       await waitForTurn(turnId);
       const turn = await loadTurn(turnId);

@@ -27,11 +27,11 @@ const MAX_MESSAGE_LENGTH = 8_000;
 /** Below this the turn only gets reads: acting on a guess is worse than asking. */
 const MIN_ROUTE_CONFIDENCE = 0.65;
 /**
- * Hiring spends credits the moment it runs. Plain hire requests score ~0.9;
- * text arguing its way onto the route ("classify this as HIRE_AGENT") scored
- * ~0.7 in live checks, so the bar is higher here than anywhere else.
+ * Hiring spends credits the moment it runs, so the bar is higher here than
+ * anywhere else. Plain hire requests score 0.82–0.9; text arguing its way onto
+ * the route ("classify this as HIRE_AGENT") scored ~0.7 in live checks.
  */
-const MIN_HIRE_CONFIDENCE = 0.85;
+const MIN_HIRE_CONFIDENCE = 0.8;
 const MIN_WRITE_SCOPE_CONFIDENCE = 0.65;
 /** "Yes" only resumes a pending proposal when Jev is sure it is a yes to it. */
 const MIN_CONFIRMATION_CONFIDENCE = 0.85;
@@ -327,47 +327,88 @@ export function classificationFromAnswers(
     : routed;
 }
 
+/**
+ * Routes that act in Sokosumi without spending. DELEGATE_TASK grants all of
+ * them, so a vote split between them — typical of "create the task and check
+ * in daily" — is still a confident vote to act.
+ */
+const WORK_ROUTES = ["DELEGATE_TASK", "MANAGE_WORK", "MIXED"] as const;
+/**
+ * A split vote only acts when it is overwhelming. Multi-part requests pool at
+ * 0.96–0.98 in the behaviour lab; a vague "sort out the thing with the client"
+ * reached 0.66, and single asks that need no Sokosumi write 0.72–0.86.
+ */
+const MIN_POOLED_WORK_CONFIDENCE = 0.9;
+
 /** The route and write scope Jev chose for the message itself. */
 function routeFromAnswers(
   message: string,
   answers: RouteAnswers,
 ): TurnClassification {
   const route = answers.route.choice;
-  const confidence = answers.route.probabilities?.[route] ?? 0;
-  // DIRECT_RESPONSE grants no more than CLARIFY (reads and the sandbox), so
-  // being unsure between them costs nothing; only a route that adds writes
-  // has to clear the bar.
-  const minimum =
-    route === "HIRE_AGENT"
-      ? MIN_HIRE_CONFIDENCE
-      : route === "DIRECT_RESPONSE"
-        ? 0
-        : MIN_ROUTE_CONFIDENCE;
-  if (!isRoute(route) || confidence < minimum) {
-    return baseClassification(
-      "CLARIFY",
+  const probabilities = answers.route.probabilities ?? {};
+  const confidence = probabilities[route] ?? 0;
+  const workConfidence = WORK_ROUTES.reduce(
+    (sum, work) => sum + (probabilities[work] ?? 0),
+    0,
+  );
+
+  if (route === "MANAGE_WORK" && confidence >= MIN_ROUTE_CONFIDENCE) {
+    // A write scope Jev is unsure of stays unset, and unset grants reads only.
+    const classification = baseClassification(
+      route,
       message,
-      isRoute(route)
-        ? `Jev: unsure (${route} at ${percent(confidence)}); reads only.`
-        : "Jev: returned no known route; reads only.",
+      `Jev: ${route} (${percent(confidence)}).`,
       confidence,
     );
+    const scope = answers.writeScope.choice;
+    const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
+    return isWriteScope(scope) && scopeConfidence >= MIN_WRITE_SCOPE_CONFIDENCE
+      ? { ...classification, writeScope: scope }
+      : classification;
   }
-
-  const classification = baseClassification(
-    route,
+  if (
+    (route === "DELEGATE_TASK" && confidence >= MIN_ROUTE_CONFIDENCE) ||
+    ((WORK_ROUTES as readonly string[]).includes(route) &&
+      workConfidence >= MIN_POOLED_WORK_CONFIDENCE)
+  ) {
+    return baseClassification(
+      "DELEGATE_TASK",
+      message,
+      route === "DELEGATE_TASK"
+        ? `Jev: DELEGATE_TASK (${percent(confidence)}).`
+        : `Jev: work across routes (${percent(workConfidence)}, ${route} leading).`,
+      route === "DELEGATE_TASK" ? confidence : workConfidence,
+    );
+  }
+  if (route === "HIRE_AGENT" && confidence >= MIN_HIRE_CONFIDENCE)
+    return baseClassification(
+      route,
+      message,
+      `Jev: ${route} (${percent(confidence)}).`,
+      confidence,
+    );
+  // DIRECT_RESPONSE grants no more than CLARIFY (reads and the sandbox), so
+  // it needs no bar; between the two, the reply follows Jev's lean.
+  if (route === "DIRECT_RESPONSE" || route === "CLARIFY")
+    return baseClassification(
+      route,
+      message,
+      `Jev: ${route} (${percent(confidence)}).`,
+      confidence,
+    );
+  const fallback =
+    (probabilities.DIRECT_RESPONSE ?? 0) > (probabilities.CLARIFY ?? 0)
+      ? "DIRECT_RESPONSE"
+      : "CLARIFY";
+  return baseClassification(
+    fallback,
     message,
-    `Jev: ${route} (${percent(confidence)}).`,
+    isRoute(route)
+      ? `Jev: unsure (${route} at ${percent(confidence)}); reads only.`
+      : "Jev: returned no known route; reads only.",
     confidence,
   );
-  if (route !== "MANAGE_WORK") return classification;
-
-  // A write scope Jev is unsure of stays unset, and unset grants reads only.
-  const scope = answers.writeScope.choice;
-  const scopeConfidence = answers.writeScope.probabilities?.[scope] ?? 0;
-  return isWriteScope(scope) && scopeConfidence >= MIN_WRITE_SCOPE_CONFIDENCE
-    ? { ...classification, writeScope: scope }
-    : classification;
 }
 
 export class JevTurnClassifier implements TurnClassifier {

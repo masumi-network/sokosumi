@@ -97,7 +97,6 @@ const TURN_DEADLINE_MS = 15 * 60 * 1_000;
 const TURN_LEASE_MS = 16 * 60 * 1_000;
 const RECONCILER_HEARTBEAT_MS = 15_000;
 export const SOKO_BOT_START_RECOVERY_GRACE_MS = 120_000;
-
 export const ACTIVE_TURN_STATUSES = [
   SokoBotTurnStatus.QUEUED,
   SokoBotTurnStatus.STARTING,
@@ -454,6 +453,8 @@ function addTurnUsage(
 
 const EVENT_TEXT_LIMIT = 800;
 const EVENT_INPUT_LIMIT = 1_200;
+/** A sandbox tool's output: enough to show every search result's source. */
+const EVENT_OUTPUT_LIMIT = 8_000;
 
 /** Model-authored text, bounded and secret-scrubbed, for the owner's explain view. */
 function safeEventText(
@@ -469,10 +470,13 @@ function safeEventText(
     : scrubbed;
 }
 
-function safeEventJson(value: unknown): string | null {
+function safeEventJson(
+  value: unknown,
+  limit = EVENT_INPUT_LIMIT,
+): string | null {
   if (value === undefined) return null;
   try {
-    return safeEventText(JSON.stringify(value), EVENT_INPUT_LIMIT);
+    return safeEventText(JSON.stringify(value), limit);
   } catch {
     return null;
   }
@@ -551,9 +555,10 @@ function safeEventProjection(type: string, data: Record<string, unknown>) {
       }
       return undefined;
     };
+    const output = safeEventJson(data.output, EVENT_OUTPUT_LIMIT);
     return {
       summary: "Action completed",
-      payload: undefined,
+      payload: output ? jsonInput({ output }) : undefined,
       toolName: pick("name", "toolName", "tool"),
       toolCallId: pick("callId", "toolCallId", "id"),
       toolStatus: "completed",
@@ -1731,8 +1736,9 @@ export class SokoBotControlPlane {
       const blockerKind = outcome?.blockerKind ?? "";
       // Refined unverified outcomes describe a delegated result that cannot
       // exist yet at settlement, so they are not worth prefixing onto a
-      // successful turn's answer. A direct MANAGE_WORK action gets no such
-      // pass: its answer must not claim a change that no receipt proves.
+      // successful turn's answer, blocked or partial. A direct MANAGE_WORK
+      // action gets no such pass: its answer must not claim a change that no
+      // receipt proves.
       const suppressBlockerPrefix =
         turn.route !== "MANAGE_WORK" &&
         [
@@ -1747,7 +1753,10 @@ export class SokoBotControlPlane {
         outcome &&
         ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
         !isSokoBotSilentAnswer(responseContract.answerText) &&
-        (outcome.state !== "BLOCKED" || !suppressBlockerPrefix)
+        !(
+          ["BLOCKED", "PARTIAL"].includes(outcome.state) &&
+          suppressBlockerPrefix
+        )
       ) {
         const answerText = `${outcomeSummary}\n\n${responseContract.answerText}`;
         await tx.sokoBotTurn.update({

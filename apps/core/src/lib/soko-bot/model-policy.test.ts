@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
   sokoBotInferenceEvidence,
+  sokoBotLabGlobalModels,
   sokoBotModelRequest,
   sokoBotRegionMiddleware,
 } from "./model-policy";
@@ -130,5 +131,31 @@ describe("Soko Bot EU model policy", () => {
     });
     expect(evidence.regionStatus).toBe("MISMATCH");
     expect(JSON.stringify(evidence)).not.toContain("private");
+  });
+});
+
+describe("local lab global models", () => {
+  it("ignores the flag on any Vercel deployment", () => {
+    vi.stubEnv("SOKO_BOT_LAB_GLOBAL_MODELS", "true");
+    vi.stubEnv("VERCEL", "1");
+    expect(sokoBotLabGlobalModels()).toBe(false);
+    expect(() =>
+      sokoBotModelRequest({ role: "agent", model: "openai/gpt-6-luna" }),
+    ).toThrow();
+    vi.unstubAllEnvs();
+  });
+
+  it("runs any agent model unpinned locally, but never the judge", () => {
+    vi.stubEnv("SOKO_BOT_LAB_GLOBAL_MODELS", "true");
+    vi.stubEnv("VERCEL", "");
+    const request = sokoBotModelRequest({
+      role: "agent",
+      model: "openai/gpt-6-luna",
+    });
+    expect(request.providerOptions.gateway).toEqual({});
+    expect(() =>
+      sokoBotModelRequest({ role: "judge", model: "openai/gpt-6-luna" }),
+    ).toThrow();
+    vi.unstubAllEnvs();
   });
 });

@@ -50,12 +50,24 @@ export const sokoBotRegionMiddleware: LanguageModelMiddleware = {
   },
 };
 
+/**
+ * Local behaviour-lab comparisons only: any Gateway model may run the agent,
+ * without EU pinning. Every Vercel deployment sets `VERCEL`, so this can never
+ * apply to preprod or production.
+ */
+export function sokoBotLabGlobalModels(): boolean {
+  return (
+    process.env.SOKO_BOT_LAB_GLOBAL_MODELS === "true" && !process.env.VERCEL
+  );
+}
+
 /** Pure validation shared by authoring, selection and inference. */
 export function assertSokoBotModelPolicy(options: {
   role: SokoBotModelRole;
   model: string;
   inferenceRegion?: string | null;
 }): void {
+  if (options.role === "agent" && sokoBotLabGlobalModels()) return;
   const policy = Object.hasOwn(EU_MODELS, options.model)
     ? EU_MODELS[options.model]
     : undefined;
@@ -75,7 +87,9 @@ export function sokoBotModelRequest(options: {
   inferenceRegion?: "eu" | "us";
 }) {
   assertSokoBotModelPolicy(options);
-  const policy = EU_MODELS[options.model];
+  const policy = Object.hasOwn(EU_MODELS, options.model)
+    ? EU_MODELS[options.model]
+    : undefined;
   const evaluation = process.env.SOKO_BOT_EVALUATION_ALLOWANCE
     ? evaluationBinding()
     : null;
@@ -91,10 +105,12 @@ export function sokoBotModelRequest(options: {
     }),
     maxRetries: 0,
     providerOptions: {
-      gateway: {
-        inferenceRegion: { scope: "zone", geoRegion: "eu" },
-        only: [...policy.providers],
-      },
+      gateway: policy
+        ? {
+            inferenceRegion: { scope: "zone" as const, geoRegion: "eu" },
+            only: [...policy.providers],
+          }
+        : {},
     },
   };
 }
@@ -157,6 +173,7 @@ export function sokoBotInferenceEvidence(metadata: unknown) {
 
 /** Missing metadata is not routing proof; explicit contrary evidence is fatal. */
 export function assertSokoBotInferenceRegion(metadata: unknown): void {
+  if (sokoBotLabGlobalModels()) return;
   if (sokoBotInferenceEvidence(metadata).regionStatus === "MISMATCH") {
     throw new SokoBotModelPolicyError();
   }

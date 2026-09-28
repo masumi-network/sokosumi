@@ -612,8 +612,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       intentId: "intent-one",
       intentRevision: 1,
       evidenceRevision: "evidence-one",
-      state: "PARTIAL",
-      blockerKind: "OUTCOME_SCOPE_REQUIRES_REVIEW",
+      state: "BLOCKED",
+      blockerKind: "UNCERTAIN_ACTION",
       remainingSteps: ["research-scope"],
       criteriaResults: [],
       evidenceIds: ["receipt-one"],
@@ -625,7 +625,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "COMPLETED",
     });
     const answerText =
-      "The requested outcome is partially complete. The result still needs a review against the requested scope. 1 acceptance criterion remains unverified.\n\nCreated task (task-one).";
+      "The requested outcome is blocked. An action outcome is uncertain; reconciliation is required before retrying. 1 acceptance criterion remains unverified.\n\nCreated task (task-one).";
     expect(turnUpdateMock).toHaveBeenCalledWith({
       where: { id: "turn_1" },
       data: {
@@ -637,6 +637,50 @@ describe("SokoBotControlPlane lifecycle", () => {
       vi.mocked(enqueueSokoBotDelivery).mock.invocationCallOrder[0],
     );
   });
+
+  it.each([
+    ["BLOCKED", "RESULT_EVIDENCE_UNAVAILABLE"],
+    ["PARTIAL", "OUTCOME_SCOPE_REQUIRES_REVIEW"],
+  ] as const)(
+    "does not prefix delegated work still reporting back (%s %s)",
+    async (state, blockerKind) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        sokoBotId: BOT_ID,
+        userId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Created task (task-one).",
+        capabilityNames: ["create_task"],
+        leaseToken: null,
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      vi.mocked(assessSokoBotIntentOutcome).mockResolvedValueOnce({
+        id: "outcome-one",
+        intentId: "intent-one",
+        intentRevision: 1,
+        evidenceRevision: "evidence-one",
+        state,
+        blockerKind,
+        remainingSteps: ["requested-outcome"],
+        criteriaResults: [],
+        evidenceIds: [],
+        verifierVersion: "test-verifier",
+        assessedAt: new Date(),
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      expect(turnUpdateMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ finalAnswer: expect.anything() }),
+        }),
+      );
+    },
+  );
 
   it.each([
     ["Remember my preference for short replies", "MEMORY", "update_memory"],

@@ -105,14 +105,24 @@ async function sandboxTool<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   await callCore("/actions", { name, toolCallId, input });
+  let output: unknown;
   try {
-    return await run();
+    output = await run();
+    return output as T;
+  } catch (error) {
+    output = { error: error instanceof Error ? error.message : "failed" };
+    throw error;
   } finally {
-    await callCore("/actions/result", { name, toolCallId }).catch(
-      () => undefined,
-    );
+    // What the tool returned, clipped: the audit trail of what the bot read.
+    await callCore("/actions/result", {
+      name,
+      toolCallId,
+      output: JSON.stringify(output ?? null).slice(0, ACTION_OUTPUT_LIMIT),
+    }).catch(() => undefined);
   }
 }
+
+const ACTION_OUTPUT_LIMIT = 8_000;
 
 const plan: { step: string; status: string }[] = [];
 
@@ -181,7 +191,8 @@ function buildTools(
  * One search, in its own model call. The Gateway runs the search inside that
  * call; keeping it out of the main conversation matters because Gemini
  * rejects a replayed history that mixes Gateway-executed and runner-executed
- * tool calls in one step.
+ * tool calls in one step. The key must not be `web_search`: OpenAI models map
+ * that name to their own built-in tool and reject the call.
  */
 async function searchWeb(
   query: string,
@@ -190,8 +201,10 @@ async function searchWeb(
 ): Promise<{ query: string; results: unknown[] }> {
   const result = await generateText({
     model: gateway(model),
-    tools: { web_search: gateway.tools.perplexitySearch({ maxResults: 5 }) },
-    toolChoice: { type: "tool", toolName: "web_search" },
+    tools: {
+      perplexity_search: gateway.tools.perplexitySearch({ maxResults: 5 }),
+    },
+    toolChoice: { type: "tool", toolName: "perplexity_search" },
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
   });
@@ -256,7 +269,11 @@ async function main(): Promise<void> {
       maxRetries: 1,
     });
     await callCore("/complete", {
-      text: result.text,
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      text:
+        result.text ||
+        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
     });
   } catch (error) {

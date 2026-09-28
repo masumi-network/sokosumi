@@ -132,7 +132,11 @@ async function runTurn(
     await finishTurn({
       log,
       turnId: input.turnId,
-      text: result.text,
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      text:
+        result.text ||
+        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
       requiresActionProof: turn.requiresActionProof,
     });

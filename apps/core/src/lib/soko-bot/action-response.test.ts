@@ -2,12 +2,15 @@ import type { SokoBotToolCall } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
-import { buildActionResponse } from "./action-response";
+import {
+  buildActionResponse,
+  parseActionNarrativeText,
+} from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
-  task: { findFirst: vi.fn() },
+  task: { findFirst: vi.fn(), findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
@@ -53,6 +56,7 @@ function replay() {
 describe("authoritative action responses", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    db.task.findMany.mockResolvedValue([]);
     db.sokoBotTurn.findUnique.mockResolvedValue({
       sokoBotId: "bot-one",
       workspaceId: "workspace-one",
@@ -130,6 +134,60 @@ describe("authoritative action responses", () => {
       "All requested work is complete.",
     );
     expect(result.answerText).toBe("Created task (task-one).");
+  });
+
+  it("shows the bot's own message beneath the verified receipts", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+    ]);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      JSON.stringify({
+        kind: "CLARIFY",
+        message: "Hannah will cover pricing. Should I include Sokosumi itself?",
+        question: "SCOPE",
+        observationToolCallIds: [],
+      }),
+    );
+    expect(result.answerText).toBe(
+      "Created task (task-one).\n\nHannah will cover pricing. Should I include Sokosumi itself?",
+    );
+  });
+
+  it("reads the narrative when the model fences it or wraps it in prose", () => {
+    const narrative = {
+      kind: "REPORT",
+      message: "Done looking.",
+      question: null,
+      observationToolCallIds: [],
+    };
+    for (const text of [
+      `\`\`\`json\n${JSON.stringify(narrative)}\n\`\`\``,
+      `Here you go: ${JSON.stringify(narrative)}`,
+    ])
+      expect(parseActionNarrativeText(text)).toEqual(narrative);
+    expect(parseActionNarrativeText("No JSON here.")).toBeNull();
+  });
+
+  it("names created and assigned tasks from the stored task", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+      receipt({ id: "receipt-two", capability: "assign_task" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "x402 news [draft]",
+        assignee: { name: "Hannah" },
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(result.answerText).toBe(
+      "Created task [x402 news draft](/tasks/task-one).\nAssigned task [x402 news draft](/tasks/task-one) → Hannah.",
+    );
   });
 
   it.each([
@@ -573,7 +631,7 @@ describe("authoritative action responses", () => {
       },
     );
     expect(response.answerText).toBe(
-      'Updated task (task-one).\nObserved task "Launch": status "IN_PROGRESS".',
+      'Updated task (task-one).\n\nObserved task "Launch": status "IN_PROGRESS".',
     );
     expect(db.sokoBotToolCall.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -707,7 +765,7 @@ describe("authoritative action responses", () => {
         observations: [],
         unfulfilledActions: [],
         answerText: actionRequested
-          ? "No action was verified. Please specify the target and change you want."
+          ? "Nothing was changed in this turn."
           : "Synthetic response",
       });
       expect(db.sokoBotTurn.findUnique).not.toHaveBeenCalled();

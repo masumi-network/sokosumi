@@ -180,13 +180,16 @@ export async function recordSandboxAction(
 
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
-  input: { name: string; toolCallId: string },
+  input: { name: string; toolCallId: string; output?: string },
 ): Promise<void> {
   await authorizeTurn(claims);
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,
       callId: input.toolCallId,
+      ...(input.output === undefined
+        ? {}
+        : { output: sanitizePersistedValue(input.output) }),
     }),
   );
 }

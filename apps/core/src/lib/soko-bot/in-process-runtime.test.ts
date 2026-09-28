@@ -120,9 +120,7 @@ describe("InProcessSokoBotRuntime", () => {
     const completed = recordedEvents().find(
       (event) => event.type === "message.completed",
     );
-    expect(completed?.data.message).toBe(
-      "No action was verified. Please specify the target and change you want.",
-    );
+    expect(completed?.data.message).toBe("Nothing was changed in this turn.");
   });
 
   it("reports the model and metered usage the drain bills on", async () => {
@@ -178,9 +176,7 @@ describe("InProcessSokoBotRuntime", () => {
       expect(
         recordedEvents().find((event) => event.type === "message.completed")
           ?.data.message,
-      ).toBe(
-        "No action was verified. Please specify the target and change you want.",
-      );
+      ).toBe("Nothing was changed in this turn.");
       expect(executeToolMock).not.toHaveBeenCalled();
     },
   );
