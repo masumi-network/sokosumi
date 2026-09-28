@@ -41,18 +41,6 @@ export const CANDIDATE_BUDGET_EXACT_NAME = 20;
  */
 export const CANDIDATE_BUDGET_FTS_DOCUMENTS = 120;
 
-/**
- * The old name, kept so the reviewer's reproduction compiles unmodified.
- *
- * `fts-document-drop.postgres.test.ts` came from a reviewer and imports
- * this symbol; it was copied in byte-for-byte and none of its assertions
- * were touched, which meant the name it imports had to keep existing.
- * The value is the same constant, so case C — which asserts
- * `recall.fullText` equals the budget — tests the real number.
- *
- * Safe to delete once that file is re-pointed at the accurate name.
- */
-export const CANDIDATE_BUDGET_FTS_CHUNKS = CANDIDATE_BUDGET_FTS_DOCUMENTS;
 export const CANDIDATE_BUDGET_METADATA = 40;
 /** The bounded window everything downstream operates on. */
 export const RESULT_WINDOW_LIMIT = 120;

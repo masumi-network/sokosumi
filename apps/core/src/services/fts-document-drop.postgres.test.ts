@@ -40,14 +40,20 @@
  *   C. 150 documents x 1 matching chunk
  *        returned 100; recall.fullText = 100; truncated = TRUE
  *        (the only shape where the flag's units coincide)
- *   D. 120 documents x 2 matching chunks
- *        returned 50 of 120; recall.fullText = 50; truncated = false
+ *   D. 121 documents x 2 matching chunks
+ *        returned 50 of 121; recall.fullText = 50; truncated = false
  *
  * B is reachable with a single ordinary upload: `FILE_CHUNK_MAX_PER_VERSION`
  * is 400 and the budget is 100, and nothing upstream prevents one document's
- * chunks from filling it. Three of the four assertions below fail today; C
- * passes and is kept, because it documents the one shape in which the flag
- * happens to work and a fix must not break it.
+ * chunks from filling it.
+ *
+ * **All four cases fail against the shipped chunk-budget query and pass
+ * against the document-budget fix.** C used to pass in both directions,
+ * because it was asserted against a constant whose value happened to be the
+ * chunk budget; it is now asserted against `CANDIDATE_BUDGET_FTS_DOCUMENTS`
+ * and reads 100 against 120 on the old query. It is kept because it is still
+ * the one shape where a document count and a chunk count coincide, which is
+ * what made the unit error survivable for so long.
  */
 import { randomUUID } from "node:crypto";
 import {
@@ -61,7 +67,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ensureEvidenceScope } from "@/lib/files/evidence-scope";
 import {
-  CANDIDATE_BUDGET_FTS_CHUNKS,
+  CANDIDATE_BUDGET_FTS_DOCUMENTS,
   retrieveFileCandidates,
 } from "@/lib/files/retrieval";
 
@@ -77,7 +83,11 @@ const TERM = "zarquon";
 let ownerId = "";
 let workspaceId = "";
 let scopeId = "";
-const actor = { userId: "", organizationId: null, kind: "interactive" as const };
+const actor = {
+  userId: "",
+  organizationId: null,
+  kind: "interactive" as const,
+};
 
 /**
  * One document whose every chunk contains TERM.
@@ -236,20 +246,30 @@ describe.skipIf(!enabled)(
 
       const result = await search();
 
-      expect(result.recall.fullText).toBe(CANDIDATE_BUDGET_FTS_CHUNKS);
+      expect(result.recall.fullText).toBe(CANDIDATE_BUDGET_FTS_DOCUMENTS);
       expect(result.truncated).toBe(true);
     }, 300_000);
 
     /**
-     * DEFECT 2. Measured: 50 of 120 returned, `truncated = false`. The
-     * response claims the result set is complete while 70 matching
-     * documents are missing. This assertion is what proves fixing the
-     * limit alone is not enough: with the limit corrected the count of
-     * documents returned still is not the count of chunks budgeted.
+     * DEFECT 2. One matching document past the budget, so a cut genuinely
+     * happens and the flag has something true to report.
+     *
+     * Seeded at 121 rather than at the budget, deliberately. At exactly the
+     * budget nothing is cut, and asserting `truncated` there could only pass
+     * if the comparison used `>=` — reporting a cut that did not happen,
+     * which is the original lie pointed the other way. 121 is the smallest
+     * corpus where both halves are true at once: the flag is set because a
+     * document really was dropped, and the page is the budget.
+     *
+     * Measured against the shipped chunk-budget query: 50 of 121 came back
+     * with `truncated = false`, because 242 matching chunks were cut to 100
+     * and the flag then compared a document count of 50 against a chunk
+     * budget of 100. Fixing the limit alone does not close that: the count
+     * of documents returned is still not the count of chunks budgeted.
      */
     it("D. does not claim a complete result set while dropping matches", async () => {
       await clearDocs();
-      for (let d = 1; d <= 120; d += 1) {
+      for (let d = 1; d <= 121; d += 1) {
         await seedDoc(`doc-d-${String(d).padStart(3, "0")}`, 2);
       }
 
@@ -257,10 +277,13 @@ describe.skipIf(!enabled)(
 
       expect(
         result.truncated,
-        `${result.candidates.length} of 120 matching documents came back and ` +
+        `${result.candidates.length} of 121 matching documents came back and ` +
           "truncated was false, so nothing told the caller the set was cut",
       ).toBe(true);
-      expect(result.candidates.length).toBe(120);
+      expect(
+        result.candidates.length,
+        "one document past the budget was dropped, so the page is the budget",
+      ).toBe(CANDIDATE_BUDGET_FTS_DOCUMENTS);
     }, 300_000);
   },
 );
