@@ -758,7 +758,6 @@ export function StudioComposer({
         <Button
           disabled={!canGenerate}
           onClick={submit}
-          title="⌘↵"
           size="sm"
           variant="primary"
         >
