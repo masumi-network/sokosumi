@@ -521,7 +521,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "Keine ausgeführten Jobs",
-        "emptyJobs": "Noch keine Jobs.",
+        "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
         "loadMore": "Mehr laden",
         "loading": "Wird geladen...",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
@@ -1648,7 +1648,7 @@
         },
         "recentTitle": "Zuletzt",
         "emptyRecent": "Keine kürzlich abgeschlossenen Jobs.",
-        "emptyList": "Noch keine Jobs.",
+        "emptyList": "Noch keine Jobs. Beauftrage einen Coworker, dann erscheinen sie hier.",
         "emptySection": "Keine Jobs in diesem Status.",
         "untitled": "Unbenannter Job",
         "unknownAgent": "Unbekannter Agent"
@@ -2473,7 +2473,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "Diesem Projekt sind noch keine Jobs zugeordnet.",
+          "empty": "Noch keine Jobs zugeordnet. Füge einen hinzu, um seine Ergebnisse hier zu bündeln.",
           "add": "Job hinzufügen",
           "remove": "Job entfernen",
           "viewAll": "Alle Jobs anzeigen",
@@ -2487,7 +2487,7 @@
         },
         "tasks": {
           "title": "Tasks",
-          "empty": "Diesem Projekt sind noch keine Tasks zugeordnet.",
+          "empty": "Noch keine Tasks zugeordnet. Füge einen hinzu, um ihn diesem Projekt zuzuordnen.",
           "add": "Task hinzufügen",
           "pickerTitle": "Task hinzufügen",
           "pickerDescription": "Wähle einen nicht zugewiesenen Task aus, um ihn diesem Projekt zuzuordnen.",

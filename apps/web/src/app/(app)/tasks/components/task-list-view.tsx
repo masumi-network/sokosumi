@@ -37,7 +37,7 @@ export function TaskListView({
           {footer ? <div className="py-3">{footer}</div> : null}
         </div>
       ) : (
-        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
+        <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 flex items-center justify-center py-16 text-sm text-pretty duration-200">
           {labels.emptyList}
         </div>
       )}

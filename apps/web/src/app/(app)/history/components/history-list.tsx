@@ -105,12 +105,12 @@ export function HistoryList({
 
 function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
   return (
-    <div className="bg-card-background flex min-h-[320px] flex-col items-center justify-center rounded-xl px-6 py-12 text-center">
+    <div className="bg-card-background motion-safe:animate-in motion-safe:fade-in-0 flex min-h-[320px] flex-col items-center justify-center rounded-xl px-6 py-12 text-center duration-200">
       <div className="max-w-sm">
-        <h2 className="text-foreground text-lg font-semibold">
+        <h2 className="text-foreground text-lg font-semibold text-balance">
           {labels.title}
         </h2>
-        <p className="text-muted-foreground mt-2 text-sm">
+        <p className="text-muted-foreground mt-2 text-sm text-pretty">
           {labels.description}
         </p>
       </div>

@@ -55,7 +55,7 @@ export function KanbanColumn({
         )}
         {footer}
         {isEmpty && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 flex flex-1 items-center justify-center py-8 duration-200">
             <p className="text-muted-foreground text-sm">{emptyLabel}</p>
           </div>
         )}

@@ -85,7 +85,7 @@ export function NotificationEmptyState({
   const { icon: Icon, title, description, isNarrowed } = EMPTY_COPY[view];
 
   return (
-    <div className="flex flex-col items-center justify-center gap-1 px-6 py-10 text-center">
+    <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center justify-center gap-1 px-6 py-10 text-center duration-200 ease-out">
       <span
         className="bg-quinary text-muted-foreground mb-2 flex size-10 items-center justify-center rounded-full"
         aria-hidden

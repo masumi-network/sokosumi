@@ -537,7 +537,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
-        "emptyJobs": "No jobs yet.",
+        "emptyJobs": "No jobs yet. Hire this coworker to start one.",
         "loadMore": "Load more",
         "loading": "Loading...",
         "loadMoreError": "Failed to load more jobs"
@@ -1648,7 +1648,7 @@
         },
         "recentTitle": "Recent",
         "emptyRecent": "No recently finished jobs.",
-        "emptyList": "No jobs yet.",
+        "emptyList": "No jobs yet. Hire a coworker and your jobs show up here.",
         "emptySection": "No jobs in this status.",
         "untitled": "Untitled job",
         "unknownAgent": "Unknown agent"
@@ -2473,7 +2473,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
+          "empty": "No jobs linked yet. Add one to keep its results here.",
           "add": "Add job",
           "remove": "Remove job",
           "viewAll": "View all jobs",
@@ -2487,7 +2487,7 @@
         },
         "tasks": {
           "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
+          "empty": "No tasks linked yet. Add one to keep it with this project.",
           "add": "Add task",
           "pickerTitle": "Add task",
           "pickerDescription": "Choose an unassigned task to link to this project.",
