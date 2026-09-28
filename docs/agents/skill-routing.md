@@ -40,6 +40,10 @@ Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skil
 
 Parity rows run one per fresh session: the user types `/apple-parity-next`, optionally with a row id such as `/apple-parity-next 24h` (user-invoked, [`.agents/skills/apple-parity-next/`](../../.agents/skills/apple-parity-next/)), which carries the next `apps/apple/PARITY.md` row from dispatch to a merged PR.
 
+### New in Sokosumi
+
+The user types `/create-new-in-sokosumi` with a PR, a description or screenshots (user-invoked, [`.agents/skills/create-new-in-sokosumi/`](../../.agents/skills/create-new-in-sokosumi/)). It renders a release announcement image from the design-system template and shows it in the reply.
+
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
