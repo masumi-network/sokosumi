@@ -20,11 +20,6 @@ const QUEUE_ORIGIN = "https://queue.fal.run";
 const STORAGE_INITIATE_URL =
   "https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3";
 
-/** Text to image. Verified 2026-09-25: takes no reference image. */
-export const IMAGE_MODEL_GENERATE = "fal-ai/gemini-3.1-flash-image-preview";
-/** Image to image. Verified 2026-09-25: takes `image_urls`. */
-export const IMAGE_MODEL_EDIT = "fal-ai/gemini-3.1-flash-image-preview/edit";
-
 const SUBMIT_TIMEOUT_MS = 20_000;
 const STATUS_TIMEOUT_MS = 15_000;
 const UPLOAD_TIMEOUT_MS = 60_000;

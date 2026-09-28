@@ -96,15 +96,21 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
-import {
-  IMAGE_MODEL_EDIT,
-  IMAGE_MODEL_GENERATE,
-} from "@/lib/image-studio/fal-client";
+import { imageModel } from "@/lib/image-studio/catalog";
 import {
   createImageJob,
   readPngDimensions,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+
+/**
+ * The default model's endpoints, taken from the catalog rather than written out.
+ *
+ * The studio has a hundred and fifty models now, so a literal here would be a
+ * second opinion about which one is the default.
+ */
+const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
+const DEFAULT_IMAGE_ENDPOINT_EDIT = imageModel().editEndpoint!;
 
 // Credits are covered end to end in `image-studio-credits.test.ts`; this suite is
 // about submission, and only stubs the debit so reservation can get past it.
@@ -131,7 +137,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     id: "job-1",
     projectId: "project-1",
     workspaceId: "workspace-1",
-    model: IMAGE_MODEL_GENERATE,
+    model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
     kind: "GENERATE",
     prompt: BASE_INPUT.prompt,
     settings: BASE_INPUT.settings,
@@ -365,7 +371,7 @@ describe("image studio job submission", () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(
       jobRow({
         kind: "EDIT",
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         referenceAssetIds: ["asset-1"],
         parentAssetId: "asset-1",
       }),
@@ -392,7 +398,7 @@ describe("image studio job submission", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "EDIT",
-          model: IMAGE_MODEL_EDIT,
+          model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         }),
       }),
     );
@@ -400,7 +406,7 @@ describe("image studio job submission", () => {
     // there would quietly become an unrelated fresh image.
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         input: expect.objectContaining({
           image_urls: ["https://v3b.fal.media/files/x.png"],
         }),
@@ -412,7 +418,7 @@ describe("image studio job submission", () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(
       jobRow({
         kind: "EDIT",
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         referenceAssetIds: ["asset-1"],
       }),
     );
