@@ -2319,6 +2319,9 @@
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
+        "outcomes": {
+          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
+        },
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",

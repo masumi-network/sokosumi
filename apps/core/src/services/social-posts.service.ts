@@ -108,6 +108,7 @@ export interface SocialPostSummary {
   } | null;
   creator: SocialPostCreator;
   scheduledByUserId: string | null;
+  scheduledByCoworkerId: string | null;
   canceledAt: Date | null;
   publishedAt: Date | null;
   publishedExternalId: string | null;
@@ -152,6 +153,7 @@ export interface CreateSocialPostInput
   extends ProjectScope,
     WorkspaceOwnerScope {
   userId: string;
+  coworkerId?: string;
   text: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
@@ -163,6 +165,7 @@ export interface UpdateSocialPostInput
   extends ProjectScope,
     WorkspaceOwnerScope {
   userId: string;
+  coworkerId?: string;
   postId: string;
   text?: string;
   media?: SocialPostMediaRef[];
@@ -172,6 +175,7 @@ export interface UpdateSocialPostInput
 
 export interface ScheduleSocialPostInput extends ProjectScope {
   userId: string;
+  coworkerId?: string;
   postId: string;
   scheduledAt: Date;
   timezone?: string;
@@ -181,6 +185,7 @@ export interface ScheduleSocialPostInput extends ProjectScope {
 
 export interface CancelSocialPostInput extends ProjectScope {
   userId: string;
+  coworkerId?: string;
   postId: string;
   revision: number;
 }
@@ -211,6 +216,7 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
     socialConnection: record.socialConnection,
     creator: mapCreator(record),
     scheduledByUserId: record.scheduledByUserId,
+    scheduledByCoworkerId: record.scheduledByCoworkerId,
     canceledAt: record.canceledAt,
     publishedAt: record.publishedAt,
     publishedExternalId: record.publishedExternalId,
@@ -546,8 +552,10 @@ export async function createSocialPost(
       status: scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
-      creatorUserId: input.userId,
+      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorCoworkerId: input.coworkerId ?? null,
       scheduledByUserId: scheduled ? input.userId : null,
+      scheduledByCoworkerId: scheduled ? (input.coworkerId ?? null) : null,
     },
     include: socialPostInclude,
   });
@@ -564,7 +572,13 @@ export async function updateSocialPost(
   }
   requireRevision(post, input.revision);
 
-  const data: Prisma.SocialPostUncheckedUpdateManyInput = {};
+  const data: Prisma.SocialPostUncheckedUpdateManyInput =
+    post.status === "SCHEDULED"
+      ? {
+          scheduledByUserId: input.userId,
+          scheduledByCoworkerId: input.coworkerId ?? null,
+        }
+      : {};
   let media = parseSocialPostMedia(post.media, post.id);
   if (input.media !== undefined) {
     media = normalizeSocialPostMedia({
@@ -643,6 +657,7 @@ export async function scheduleSocialPost(
       timezone: input.timezone ?? post.timezone,
       socialConnectionId: connection.id,
       scheduledByUserId: input.userId,
+      scheduledByCoworkerId: input.coworkerId ?? null,
       lastError: null,
       attemptCount: 0,
       nextAttemptAt: null,
