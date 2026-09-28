@@ -76,8 +76,8 @@ describe.skipIf(!enabled)("curated vocabulary on workspace creation", () => {
       select: { kind: true, displayName: true, createdByUserId: true },
     });
     expect(labels).toHaveLength(CURATED_FILE_VOCABULARY.length);
-    expect(labels.filter((label) => label.kind === "CATEGORY")).toHaveLength(8);
-    expect(labels.filter((label) => label.kind === "TAG")).toHaveLength(12);
+    expect(labels.filter((label) => label.kind === "CATEGORY")).toHaveLength(13);
+    expect(labels.filter((label) => label.kind === "TAG")).toHaveLength(24);
 
     // The null is the provenance marker: it is the only thing telling a label
     // the product shipped from one a person made.
