@@ -87,6 +87,109 @@ test("joins URL segments and sends JSON with the requested method", async () => 
   assert.equal(requestInit?.body, JSON.stringify({ name: "Updated" }));
 });
 
+test("PUT forwards JSON, selected target, auth, and cancellation", async () => {
+  const controller = new AbortController();
+  let requestUrl = "";
+  let requestInit: RequestInit | undefined;
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com/",
+    authManager: createManager(),
+    environment: { SOKOSUMI_AUTH_TOKEN: "preprod-session-token" },
+    fetchImpl: async (input, init) => {
+      requestUrl = String(input);
+      requestInit = init;
+      return new Response(JSON.stringify({ data: { updated: true } }));
+    },
+  });
+
+  const result = await client.put(
+    "/v1/organizations/org-1/design-md",
+    { designMd: "Design" },
+    controller.signal,
+  );
+
+  assert.deepEqual(result, { data: { updated: true } });
+  assert.equal(
+    requestUrl,
+    "https://api.preprod.sokosumi.com/v1/organizations/org-1/design-md",
+  );
+  assert.equal(requestInit?.method, "PUT");
+  const headers = new Headers(requestInit?.headers);
+  assert.equal(headers.get("authorization"), "Bearer preprod-session-token");
+  assert.equal(headers.get("content-type"), "application/json");
+  assert.equal(requestInit?.body, '{"designMd":"Design"}');
+  assert.equal(requestInit?.signal, controller.signal);
+});
+
+test("PUT supports Seat assignment without a request body", async () => {
+  let requestInit: RequestInit | undefined;
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    fetchImpl: async (_input, init) => {
+      requestInit = init;
+      return new Response(
+        JSON.stringify({
+          data: {
+            memberId: "member-1",
+            seatAssignedAt: "2026-09-27T12:00:00.000Z",
+          },
+        }),
+      );
+    },
+  });
+
+  await client.put(
+    "/v1/admin/organizations/hackathon/members/member-1/seat",
+    undefined,
+  );
+
+  assert.equal(requestInit?.method, "PUT");
+  assert.equal(requestInit?.body, undefined);
+  assert.equal(new Headers(requestInit?.headers).has("content-type"), false);
+});
+
+test("PUT preserves Core errors and request IDs while redacting credentials", async () => {
+  const token = "put-session-secret";
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    environment: { SOKOSUMI_AUTH_TOKEN: token },
+    fetchImpl: async () =>
+      new Response(
+        JSON.stringify({
+          message: `No unused seats available. ${token}`,
+          token: "response-token-secret",
+          meta: { requestId: "seat-request-1" },
+        }),
+        { status: 400 },
+      ),
+  });
+
+  await assert.rejects(
+    client.put(
+      "/v1/admin/organizations/hackathon/members/member-1/seat",
+      undefined,
+    ),
+    (error) => {
+      assert.ok(error instanceof Error);
+      assert.equal("status" in error && error.status, 400);
+      assert.equal(error.name, "CoreApiError");
+      assert.match(error.message, /No unused seats available/);
+      assert.match(error.message, /seat-request-1/);
+      assert.doesNotMatch(
+        error.message,
+        /put-session-secret|response-token-secret/,
+      );
+      assert.doesNotMatch(
+        JSON.stringify(error),
+        /put-session-secret|response-token-secret/,
+      );
+      return true;
+    },
+  );
+});
+
 test("recursively redacts credential-shaped error fields", async () => {
   const credential = "very-secret-token";
   const nestedAccessToken = "nested-access-token";

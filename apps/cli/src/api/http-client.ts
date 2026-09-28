@@ -17,6 +17,7 @@ export interface CoreHttpClientOptions {
 export interface CoreHttpClient {
   get<T>(pathname: string, signal?: AbortSignal): Promise<T>;
   post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
+  put<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
 }
 
@@ -108,6 +109,8 @@ export function createCoreHttpClient({
       request<T>("GET", pathname, undefined, signal),
     post: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("POST", pathname, body, signal),
+    put: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
+      request<T>("PUT", pathname, body, signal),
     patch: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("PATCH", pathname, body, signal),
   };
