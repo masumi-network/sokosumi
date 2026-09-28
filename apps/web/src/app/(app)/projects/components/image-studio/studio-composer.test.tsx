@@ -171,6 +171,21 @@ function clickChip(text: string) {
   fireEvent.click(chip);
 }
 
+/**
+ * Toggle one model's menu entry.
+ *
+ * By role, not by text: the trigger summarises the selection, so when one model
+ * is left it *also* reads "Model B" — and it comes first in the DOM, so a
+ * text-first search clicks the trigger and silently does nothing.
+ */
+function clickModel(label: string) {
+  const entry = screen
+    .getAllByRole("menuitemcheckbox")
+    .find((node) => node.textContent?.includes(label));
+  if (!entry) throw new Error(`no model entry for ${label}`);
+  fireEvent.click(entry);
+}
+
 function generate(prompt = "a calm product shot") {
   fireEvent.change(screen.getByRole("textbox"), { target: { value: prompt } });
   // By name rather than by an exact label: the button says "generateOne" for a
@@ -300,6 +315,41 @@ describe("the line above Generate", () => {
       "model-a",
       "model-b",
     ]);
+  });
+});
+
+describe("unselecting a model", () => {
+  it("leaves the frame where it was", () => {
+    // A property rather than a regression: unselecting narrows nothing, so it
+    // has no business touching the frame. `toggleModel` only clamps on the way
+    // in for that reason. (The clamp on the way out was a no-op — every
+    // selected model already supports the current frame — so this pins the
+    // property, it does not commemorate a bug.)
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickModel("Model B");
+    expect(screen.getByTestId("models").textContent).toBe("model-a");
+    clickChip("9:16");
+    expect(screen.getByTestId("frame").textContent).toBe("9:16");
+
+    // Model B cannot frame 9:16, so adding it does move the frame.
+    clickModel("Model B");
+    const clamped = screen.getByTestId("frame").textContent;
+    expect(clamped).not.toBe("9:16");
+
+    // Taking it back out does not.
+    clickModel("Model B");
+    expect(screen.getByTestId("frame").textContent).toBe(clamped);
+  });
+
+  it("can empty the selection, and refuses to generate on an empty one", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickModel("Model A");
+    clickModel("Model B");
+
+    expect(screen.getByTestId("models").textContent).toBe("");
+    expect(screen.getByRole("button", { name: /^generate/i })).toBeDisabled();
   });
 });
 

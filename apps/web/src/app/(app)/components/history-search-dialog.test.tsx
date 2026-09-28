@@ -119,7 +119,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
   });
@@ -139,7 +139,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
   });
@@ -196,7 +196,7 @@ describe("HistorySearchDialog", () => {
     });
   });
 
-  it("passes task and job types when searching", async () => {
+  it("passes every history kind when searching", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
@@ -221,7 +221,7 @@ describe("HistorySearchDialog", () => {
         q: "new",
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job"],
+        types: ["task", "job", "image"],
       });
     });
   });

@@ -2709,7 +2709,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, or conversations",
+      "description": "Search for tasks, jobs, or images",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",

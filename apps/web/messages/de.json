@@ -2709,7 +2709,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs oder Unterhaltungen",
+      "description": "Suche nach Aufgaben, Jobs oder Bildern",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",

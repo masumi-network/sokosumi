@@ -2709,7 +2709,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos o conversaciones",
+      "description": "Buscar tareas, trabajos o imágenes",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",

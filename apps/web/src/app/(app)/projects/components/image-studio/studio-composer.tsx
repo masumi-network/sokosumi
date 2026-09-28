@@ -35,14 +35,17 @@ import type { QueuedGeneration } from "./use-generation-queue";
 /**
  * The most a single press of Generate may buy.
  *
- * Twelve, and the number is picked against three separate limits rather than
+ * Twelve, and the number is picked against Core's own limits rather than
  * chosen for feel.
  *
- * It is the whole catalog at the highest copy count: three models times four
- * copies. The point of this composer is one brief across every model at once,
- * so the ceiling has to be at least the cross-product, or the top copy counts
- * are permanently greyed out the moment a second model is selected — which is
- * what a ceiling of four did.
+ * It used to be justified as "the whole catalog at the highest copy count:
+ * three models times four copies". That reading is gone — the catalog is 152
+ * models now and the studio opens on the curated five — so the ceiling is no
+ * longer a cross-product of anything. What it still is, is comfortably more
+ * than one run of the shortlist, which is the batch this composer exists to
+ * make. The visible cost is that five models cap out at two copies each; the
+ * copy chips disable themselves and `plan` brings the count down, so the line
+ * above the button stays true about it.
  *
  * It is four times Core's in-flight limit of three per project
  * (`IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT`), which is the safe direction.
@@ -62,9 +65,10 @@ export const MAX_BATCH = 12;
 /**
  * Runs per model offered.
  *
- * Four is the top because four times the three-model catalog is the ceiling.
- * The chips disable themselves against the ceiling, so this list can grow with
- * the catalog without becoming a way to ask for more than a batch may hold.
+ * Four is reachable only with one, two or three models selected; past that the
+ * batch ceiling takes it down and the chips grey themselves out against it. So
+ * this list is what may be *asked* for, never what may be bought, and it stays
+ * correct however many models the catalog grows to.
  */
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 
@@ -289,8 +293,15 @@ export function StudioComposer({
       return {
         ...current,
         modelIds: next,
-        // A newly selected model may not offer what is currently chosen.
-        settings: clampToModel(model, current.settings),
+        // Only when adding, which is the only direction that can need it: a
+        // newly selected model may not offer what is currently chosen, while
+        // removing one can only widen the intersection. Clamping on the way out
+        // is a no-op today — every selected model already supports the current
+        // frame — so this is not a bug fix, it is refusing to run a rule in the
+        // direction where it could only ever be wrong.
+        settings: adding
+          ? clampToModel(model, current.settings)
+          : current.settings,
       };
     });
   }
