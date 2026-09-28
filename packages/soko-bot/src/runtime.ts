@@ -169,3 +169,9 @@ export interface SokoBotActionResponse {
   unfulfilledActions: { action: string; receiptId: string; reason: string }[];
   answerText: string;
 }
+
+/**
+ * Header carrying a sandboxed turn's credential to Core. The sandbox network
+ * proxy adds it; no process in the sandbox holds the value.
+ */
+export const SOKO_BOT_TURN_TOKEN_HEADER = "x-soko-bot-turn-token";

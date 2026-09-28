@@ -15,3 +15,48 @@ export function gatewayCostUsd(metadata: unknown): number {
     ? parsed
     : 0;
 }
+
+function tokenCount(value: unknown): number {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object" && "total" in value)
+    return tokenCount((value as { total: unknown }).total);
+  return 0;
+}
+
+function nestedCount(value: unknown, key: "cacheRead" | "cacheWrite"): number {
+  return value && typeof value === "object" && key in value
+    ? tokenCount((value as Record<string, unknown>)[key])
+    : 0;
+}
+
+/**
+ * Usage of one language-model call as the Gateway reports it on the wire:
+ * token counts are plain numbers or `{ total, … }` objects depending on the
+ * spec version.
+ */
+export function gatewayCallUsage(result: {
+  usage?: { inputTokens?: unknown; outputTokens?: unknown };
+  providerMetadata?: unknown;
+}) {
+  const input = result.usage?.inputTokens;
+  return {
+    inputTokens: tokenCount(input),
+    outputTokens: tokenCount(result.usage?.outputTokens),
+    cacheReadTokens: nestedCount(input, "cacheRead"),
+    cacheWriteTokens: nestedCount(input, "cacheWrite"),
+    costUsd: gatewayCostUsd(result.providerMetadata),
+  };
+}
+
+/** Whether a call's content includes a Gateway-run tool of this name. */
+export function gatewayRanTool(content: unknown, toolName: string): boolean {
+  return (
+    Array.isArray(content) &&
+    content.some(
+      (part) =>
+        part !== null &&
+        typeof part === "object" &&
+        (part as { toolName?: unknown }).toolName === toolName,
+    )
+  );
+}

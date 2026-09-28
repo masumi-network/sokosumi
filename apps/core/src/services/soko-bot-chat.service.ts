@@ -31,6 +31,15 @@ const CAPABILITY_LABELS: Record<string, string> = {
   request_user_decision: "Asking for your approval",
   read_memory: "Reading memory",
   update_memory: "Updating memory",
+  web_search: "Searching the web",
+  web_fetch: "Reading a web page",
+  bash: "Running a command",
+  workspace_read: "Reading a file",
+  workspace_write: "Writing a file",
+  workspace_list: "Looking through files",
+  workspace_search: "Searching files",
+  update_plan: "Planning",
+  run_subagent: "Asking a helper",
 };
 
 export function sokoBotCapabilityLabel(toolName: string | null): string {

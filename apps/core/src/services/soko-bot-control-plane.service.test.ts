@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
+import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
 
@@ -88,10 +89,10 @@ const {
   publishMentionStatusesMock: vi.fn(),
   getEnvMock: vi.fn<
     () => {
-      SOKO_BOT_CLASSIFIER_MODE: string;
+      SOKO_BOT_PROACTIVE_PAUSED: boolean;
       SOKO_BOT_ENABLED?: boolean;
     }
-  >(() => ({ SOKO_BOT_CLASSIFIER_MODE: "rules" })),
+  >(() => ({ SOKO_BOT_PROACTIVE_PAUSED: false })),
   jobFindManyMock: vi.fn(),
   memoryCreateMock: vi.fn(),
   memoryFindFirstMock: vi.fn(),
@@ -121,6 +122,11 @@ const {
   availabilityMock: vi.fn(),
 }));
 
+const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: jevEvaluate,
+}));
 vi.mock("@/helpers/chat-room-mention-status", () => ({
   failOpenChatRoomMentions: failOpenMentionsMock,
   publishChatRoomMentionStatuses: publishMentionStatusesMock,
@@ -237,7 +243,7 @@ vi.mock("@/helpers/billing-notifications", () => ({
     notifyLowBalanceAfterChargeMock(...args),
 }));
 
-import { ExternalTurnClassifier } from "@/lib/soko-bot/classifier";
+import { JevTurnClassifier } from "@/lib/soko-bot/classifier";
 import {
   type BuiltContextPacket,
   ContextPacketBuilder,
@@ -368,6 +374,11 @@ function builtContext(memoryVersion = 1): BuiltContextPacket {
   };
 }
 
+// Jev answers every classification; tests that need another route script it.
+beforeEach(() => {
+  jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+});
+
 describe("SokoBotControlPlane lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -376,7 +387,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       disabledAt: null,
       disabledReason: null,
     });
-    getEnvMock.mockReturnValue({ SOKO_BOT_CLASSIFIER_MODE: "rules" });
+    getEnvMock.mockReturnValue({ SOKO_BOT_PROACTIVE_PAUSED: false });
     adminActionCreateMock.mockResolvedValue({});
     adminActionFindFirstMock.mockResolvedValue(null);
     adminActionFindManyMock.mockResolvedValue([]);
@@ -557,60 +568,73 @@ describe("SokoBotControlPlane lifecycle", () => {
   });
 
   it.each([
-    ["Remember my preference for short replies", "update_memory"],
-    ["Remind me tomorrow", "create_schedule"],
-    ["Send a message to the team", "post_chat"],
-    ["Upload the file to Drive", "upload_file"],
-    ["Send an email to Nina", "run_integration_tool"],
-  ])("persists narrowed runtime authority for %s", async (message, allowed) => {
-    botFindFirstMock.mockResolvedValue(adminBot());
-    botFindUniqueMock.mockResolvedValue(adminBot());
-    turnFindUniqueMock.mockResolvedValue(null);
-    turnFindFirstMock.mockResolvedValue(null);
-    turnCreateMock.mockResolvedValue({
-      id: "scope-turn",
-      leaseToken: "scope-lease",
-    });
-    const runtime = runtimeWithReset(vi.fn());
-    runtime.createSession = vi.fn().mockResolvedValue({
-      sessionId: "scope-session",
-      runtimeVersion: "test",
-      acceptedAt: new Date().toISOString(),
-    });
-    const builder = {
-      build: vi.fn().mockResolvedValue(builtContext()),
-    } as ContextPacketBuilder;
-    const result = await new SokoBotControlPlane(
-      runtime,
-      builder,
-      new ExternalTurnClassifier(false),
-    ).startTurn({
-      userId: "user_1",
-      workspaceId: "workspace_1",
-      clientTurnId: "scope-client",
-      message,
-    });
-    const capabilities =
-      turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
-    expect(capabilities).toContain(allowed);
-    for (const denied of [
-      "create_task",
-      "update_task",
-      "archive_task",
-      "assign_task",
-      "hire_agent",
-    ])
-      expect(capabilities).not.toContain(denied);
-    expect(result.capabilities).toEqual(capabilities);
-  });
+    ["Remember my preference for short replies", "MEMORY", "update_memory"],
+    ["Remind me tomorrow", "SCHEDULE", "create_schedule"],
+    ["Send a message to the team", "CHAT", "post_chat"],
+    ["Upload the file to Drive", "FILE", "upload_file"],
+    ["Send an email to Nina", "INTEGRATION", "run_integration_tool"],
+  ] as const)(
+    "persists narrowed runtime authority for %s",
+    async (message, writeScope, allowed) => {
+      jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK", { writeScope }));
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      turnFindFirstMock.mockResolvedValue(null);
+      turnCreateMock.mockResolvedValue({
+        id: "scope-turn",
+        leaseToken: "scope-lease",
+      });
+      const runtime = runtimeWithReset(vi.fn());
+      runtime.createSession = vi.fn().mockResolvedValue({
+        sessionId: "scope-session",
+        runtimeVersion: "test",
+        acceptedAt: new Date().toISOString(),
+      });
+      const builder = {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder;
+      const result = await new SokoBotControlPlane(
+        runtime,
+        builder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "scope-client",
+        message,
+      });
+      const capabilities =
+        turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
+      expect(capabilities).toContain(allowed);
+      // The owner asked: the sandbox comes with every owner route.
+      expect(capabilities).toContain("bash");
+      expect(capabilities).toContain("web_search");
+      for (const denied of [
+        "create_task",
+        "update_task",
+        "archive_task",
+        "assign_task",
+        "hire_agent",
+      ])
+        expect(capabilities).not.toContain(denied);
+      expect(result.capabilities).toEqual(capabilities);
+    },
+  );
 
   it.each([
-    ["Also research Y", false],
-    ["Instead, research Y", true],
-    ["Cancel that", true],
-  ])(
+    ["Also research Y", false, "DELEGATE_TASK"],
+    ["Instead, research Y", true, "DELEGATE_TASK"],
+    ["Cancel that", true, "CLARIFY"],
+  ] as const)(
     "withdraws an existing offer only for explicit owner intent: %s",
-    async (message, withdraws) => {
+    async (message, withdraws, route) => {
+      jevEvaluate.mockResolvedValue(
+        jevRoute(route, {
+          confirmsPending: 0.05,
+          withdrawsPending: withdraws ? 0.95 : 0.05,
+        }),
+      );
       botFindFirstMock.mockResolvedValue(adminBot());
       botFindUniqueMock.mockResolvedValue(adminBot());
       turnFindUniqueMock.mockResolvedValue(null);
@@ -643,7 +667,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       await new SokoBotControlPlane(
         runtime,
         builder,
-        new ExternalTurnClassifier(false),
+        new JevTurnClassifier(),
       ).startTurn({
         userId: "user_1",
         workspaceId: "workspace_1",
@@ -667,7 +691,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     turnFindUniqueMock.mockResolvedValue(null);
     turnFindFirstMock.mockResolvedValue(null);
     const runtime = runtimeWithReset(vi.fn());
-    const classifier = new ExternalTurnClassifier(false);
+    const classifier = new JevTurnClassifier();
     vi.spyOn(classifier, "classify");
     const builder = {
       build: vi.fn().mockResolvedValue(builtContext()),
@@ -1182,7 +1206,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     const pending = new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1244,7 +1268,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1281,7 +1305,51 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("runs a Core-written turn on its preset route without asking Jev", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "preset-turn",
+      leaseToken: "preset-lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "preset-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "preset-client",
+      message: "New mail arrived. Please hire an agent for this.",
+      source: "INGEST",
+      presetRoute: {
+        route: "DIRECT_RESPONSE",
+        reason: "Inbox check: report what matters, change nothing.",
+      },
+    });
+    expect(jevEvaluate).not.toHaveBeenCalled();
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data?.route).toBe("DIRECT_RESPONSE");
+    expect(data?.classifierModel).toBeNull();
+    expect(data?.capabilityNames).not.toContain("hire_agent");
+    // Core wrote this prompt from mail; no shell or web for it.
+    expect(data?.capabilityNames).not.toContain("bash");
+    expect(data?.capabilityNames).not.toContain("web_fetch");
+  });
+
   it("grants a self-started turn the same spend it grants the owner", async () => {
+    jevEvaluate.mockResolvedValue(jevRoute("HIRE_AGENT"));
     // Withholding only `hire_agent` from scheduled turns read as a spend limit
     // and was not one: assigning a Task to a Coworker bills the owner just as
     // a hire does, and was never withheld. The cap and the prompt are the
@@ -1307,7 +1375,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1345,7 +1413,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         {
           build: vi.fn().mockResolvedValue(builtContext()),
         } as ContextPacketBuilder,
-        new ExternalTurnClassifier(false),
+        new JevTurnClassifier(),
       ).startTurn({
         userId: "user_1",
         workspaceId: "workspace_1",
@@ -1392,7 +1460,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       {
         build: vi.fn().mockResolvedValue(builtContext()),
       } as ContextPacketBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1438,7 +1506,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1484,7 +1552,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1536,7 +1604,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       new SokoBotControlPlane(
         runtime,
         contextBuilder,
-        new ExternalTurnClassifier(false),
+        new JevTurnClassifier(),
       ).startTurn({
         userId: "user_1",
         workspaceId: "workspace_1",
@@ -1578,7 +1646,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     await new SokoBotControlPlane(
       runtime,
       contextBuilder,
-      new ExternalTurnClassifier(false),
+      new JevTurnClassifier(),
     ).startTurn({
       userId: "user_1",
       workspaceId: "workspace_1",
@@ -1641,7 +1709,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       new SokoBotControlPlane(
         runtime,
         contextBuilder,
-        new ExternalTurnClassifier(false),
+        new JevTurnClassifier(),
       ).startTurn({
         userId: "user_1",
         workspaceId: "workspace_1",
@@ -2609,7 +2677,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     "blocks %s while Soko Bot kill switch is disabled",
     async (action) => {
       getEnvMock.mockReturnValue({
-        SOKO_BOT_CLASSIFIER_MODE: "rules",
+        SOKO_BOT_PROACTIVE_PAUSED: false,
         SOKO_BOT_ENABLED: false,
       });
       botFindUniqueMock.mockResolvedValue(adminBot());
@@ -3194,7 +3262,7 @@ describe("SET_VERSION and fleet migration", () => {
       disabledReason: null,
     });
     getEnvMock.mockReturnValue({
-      SOKO_BOT_CLASSIFIER_MODE: "rules",
+      SOKO_BOT_PROACTIVE_PAUSED: false,
       SOKO_BOT_ENABLED: true,
     });
     adminActionCreateMock.mockResolvedValue({});

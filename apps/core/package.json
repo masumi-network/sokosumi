@@ -16,7 +16,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsup",
+    "build": "rm -rf dist && tsup",
     "vercel-build": "pnpm --filter @sokosumi/database prisma:generate && pnpm run build && pnpm --filter @sokosumi/database prisma:migrate:deploy",
     "start": "node dist/index.js",
     "format": "biome format --write .",
@@ -63,6 +63,7 @@
     "@vercel/blob": "2.8.0",
     "@vercel/functions": "3.9.9",
     "@vercel/related-projects": "1.1.1",
+    "@vercel/sandbox": "3.5.0",
     "ably": "2.29.0",
     "ai": "7.0.114",
     "better-auth": "1.7.6",

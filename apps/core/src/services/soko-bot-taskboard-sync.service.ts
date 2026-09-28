@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -526,6 +527,7 @@ export class SokoBotTaskboardSyncService {
         .digest("hex")}`,
       message,
       source: "EVENT",
+      presetRoute: SYSTEM_TURN_ROUTES.taskboard,
       eventBatch: batch.flatMap((item) => {
         const ids = [
           ...new Set([
