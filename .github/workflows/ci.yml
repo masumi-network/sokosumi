@@ -252,14 +252,14 @@ jobs:
       - *setup
 
       - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=@sokosumi/cli
+        run: pnpm exec turbo run test:ci --filter=@masumi_network/sokosumi
 
       # apps/cli is excluded from the `js` filter, so Typecheck, Biome and
       # Build all skip on a CLI-only PR. These three steps carry that
       # coverage instead — without them the CLI would merge on `tsx --test`
       # alone, which strips types rather than checking them.
       - name: Typecheck the CLI
-        run: pnpm --filter @sokosumi/cli typecheck
+        run: pnpm --filter @masumi_network/sokosumi typecheck
 
       - name: Lint the CLI
         run: pnpm exec biome check apps/cli
@@ -269,7 +269,7 @@ jobs:
       # source via tsx rather than dist.
       - name: Smoke the built CLI
         run: |
-          pnpm --filter @sokosumi/cli build
+          pnpm --filter @masumi_network/sokosumi build
           node apps/cli/dist/bin/sokosumi.js --version
 
   local-env:
