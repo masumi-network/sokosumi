@@ -276,25 +276,25 @@ export const sokoBotManageReminderInputSchema = z
 
 const workspacePathSchema = z.string().trim().min(1).max(500);
 
-export const sokoBotWebSearchInputSchema = z
+const sokoBotWebSearchInputSchema = z
   .object({ query: z.string().trim().min(1).max(400) })
   .strict();
 
-export const sokoBotWebFetchInputSchema = z
+const sokoBotWebFetchInputSchema = z
   .object({
     url: z.url(),
     maxChars: z.number().int().min(500).max(100_000).optional(),
   })
   .strict();
 
-export const sokoBotBashInputSchema = z
+const sokoBotBashInputSchema = z
   .object({
     command: z.string().min(1).max(8_000),
     timeoutSeconds: z.number().int().min(1).max(600).optional(),
   })
   .strict();
 
-export const sokoBotWorkspaceReadInputSchema = z
+const sokoBotWorkspaceReadInputSchema = z
   .object({
     path: workspacePathSchema,
     offset: z.number().int().min(0).optional(),
@@ -302,7 +302,7 @@ export const sokoBotWorkspaceReadInputSchema = z
   })
   .strict();
 
-export const sokoBotWorkspaceWriteInputSchema = z
+const sokoBotWorkspaceWriteInputSchema = z
   .object({
     path: workspacePathSchema,
     content: z.string().max(1_000_000),
@@ -310,21 +310,21 @@ export const sokoBotWorkspaceWriteInputSchema = z
   })
   .strict();
 
-export const sokoBotWorkspaceListInputSchema = z
+const sokoBotWorkspaceListInputSchema = z
   .object({
     path: workspacePathSchema.optional(),
     pattern: z.string().trim().max(200).optional(),
   })
   .strict();
 
-export const sokoBotWorkspaceSearchInputSchema = z
+const sokoBotWorkspaceSearchInputSchema = z
   .object({
     pattern: z.string().min(1).max(500),
     path: workspacePathSchema.optional(),
   })
   .strict();
 
-export const sokoBotUpdatePlanInputSchema = z
+const sokoBotUpdatePlanInputSchema = z
   .object({
     steps: z
       .array(
@@ -339,7 +339,7 @@ export const sokoBotUpdatePlanInputSchema = z
   })
   .strict();
 
-export const sokoBotRunSubagentInputSchema = z
+const sokoBotRunSubagentInputSchema = z
   .object({ task: z.string().trim().min(1).max(4_000) })
   .strict();
 
