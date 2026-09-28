@@ -5035,6 +5035,13 @@ model FileResource {
   mimeType String?
   sizeBytes Int?
 
+  /// One line saying what the file is, written by a model from its extracted
+  /// text. Null until generated, and for files with no text to read.
+  summary         String?
+  /// The `contentRevision` a summary was last attempted for, so a file the
+  /// model declined is not asked about again until its bytes change.
+  summaryRevision Int?
+
   /// For a `NATIVE_TABLE` resource: the `TableChange.sequence` this index
   /// was built from. A table is stale when `MAX(sequence)` for it exceeds
   /// this. Null for every other source kind, and for a table never indexed.

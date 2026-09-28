@@ -12375,6 +12375,12 @@ export const FileResourceSchema = {
                 'null'
             ]
         },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
         snippet: {
             type: [
                 'object',
@@ -12447,6 +12453,7 @@ export const FileResourceSchema = {
         'rejected',
         'projects',
         'folderPath',
+        'summary',
         'snippet',
         'relatedReason',
         'filenameMatch'

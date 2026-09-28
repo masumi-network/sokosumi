@@ -265,7 +265,7 @@ describe.skipIf(!enabled)("the suggestion backfill sweep", () => {
     await backfillMissingSuggestionJobs();
     await backfillMissingSuggestionJobs();
     expect(await suggestJobsFor(resourceId)).toHaveLength(2);
-    expect(FILE_SUGGEST_BACKFILL_MAX_GENERATION).toBe(2);
+    expect(FILE_SUGGEST_BACKFILL_MAX_GENERATION).toBe(3);
   });
 
   it("leaves a document that already has a label alone", async () => {

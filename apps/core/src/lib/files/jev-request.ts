@@ -83,7 +83,7 @@ const LABEL_NAME_TOKEN_BUDGET = 40;
  * It has to cover the state — context, a 2,048-token excerpt and the
  * bounded vocabulary — *and* the question map, which is one boolean
  * question per label carrying that label's name and description. At the
- * `SUGGESTION_VOCABULARY_MAX` of 30 that envelope alone measures ~7,300
+ * `SUGGESTION_VOCABULARY_MAX` of 40 that envelope alone measures ~9,700
  * tokens, so the previous 4,400 was not a ceiling a full request could ever
  * have met: it was set against a two-rung rubric that is not sent on this
  * path.

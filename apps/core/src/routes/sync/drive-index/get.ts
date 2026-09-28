@@ -7,6 +7,7 @@ import {
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
 import { processFileIndexJobs } from "@/services/file-index.service";
+import { summarizeMissingFiles } from "@/services/file-summary.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
 import { processStaleTableIndexes } from "@/services/file-table-index.service";
 
@@ -66,6 +67,11 @@ export default function mount(app: Hono) {
         const suggestions = await processFileSuggestionJobs({
           shouldContinue: context.shouldContinue,
         });
+        // The line under each file in the list. After suggestions, so the
+        // labels a document gets are never delayed by this.
+        const summaries = await summarizeMissingFiles({
+          shouldContinue: context.shouldContinue,
+        });
         // Tables carry their own staleness signal — `TableChange.sequence`
         // — so this re-indexes only what has actually moved.
         const tables = await processStaleTableIndexes({
@@ -87,6 +93,7 @@ export default function mount(app: Hono) {
           backfilled,
           extraction,
           suggestions,
+          summaries,
           tables,
           prunedAdmissions,
           prunedResultWindows,

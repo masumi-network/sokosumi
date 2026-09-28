@@ -3566,6 +3566,7 @@ export type FileResource = {
         evidenceSnippet: string | null;
     }>;
     folderPath: string | null;
+    summary: string | null;
     /**
      * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
      */

@@ -337,7 +337,7 @@ export async function reviveFailedSuggestionJobs(input?: {
  * per-job vocabulary column the product does not need yet: the version has
  * never been bumped.
  */
-export const FILE_SUGGEST_BACKFILL_MAX_GENERATION = 2;
+export const FILE_SUGGEST_BACKFILL_MAX_GENERATION = 3;
 
 /** One sweep requeues at most this many documents, so a tick stays bounded. */
 const SUGGEST_BACKFILL_BATCH = 20;
