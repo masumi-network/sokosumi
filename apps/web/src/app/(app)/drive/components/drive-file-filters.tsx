@@ -117,7 +117,8 @@ export function DriveFileFilters({
     if (open || sheetOpen) setDraft(filters);
   }, [open, sheetOpen, filters]);
 
-  const activeCount = countActiveFileFilters(filters);
+  // The folder is the trail's, not a filter.
+  const activeCount = countActiveFileFilters({ ...filters, folder: "" });
   const categories = labels.filter((label) => label.kind === "CATEGORY");
   const tags = labels.filter((label) => label.kind === "TAG");
   function apply(next: FileSearchFilterState) {
