@@ -76,6 +76,12 @@ type ValueOptionName =
   | "workspace-id"
   | "organization-id"
   | "organization-slug"
+  | "provider"
+  | "model"
+  | "hermes-path"
+  | "hermes-home"
+  | "runtime-directory"
+  | "timeout-ms"
   | "result-file"
   | "email"
   | "slug";
@@ -177,6 +183,7 @@ const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
   "runtime key-import": "[options]",
   "runtime start": "TASK_ID [options]",
   "runtime complete": "TASK_ID [options]",
+  "runtime run": "TASK_ID [options]",
   "tasks list": "[options]",
   "tasks create": "[--organization-slug WORKSPACE_SLUG]",
   "tasks get": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
@@ -294,11 +301,17 @@ Organization Tasks:
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
-  runtime start and complete require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  runtime start, complete, and run require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
   Runtime commands do not read developer credentials or target configuration.
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
   Use --json for tools. Run one executor per Task; inspect state before any retry.
+
+Optional Hermes runner:
+  runtime run requires --hermes-home EXISTING_PROFILE_DIR --runtime-directory ABSOLUTE_DIR.
+  Optional overrides: --provider NAME --model NAME --hermes-path EXECUTABLE --timeout-ms MS (default: 300000).
+  Run one READY Task using the developer's configured Hermes profile.
+  The adapter preserves the profile's tools and model. It does not poll for more work.
 `;
 }
 
@@ -335,6 +348,12 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "workspace-id",
   "organization-id",
   "organization-slug",
+  "provider",
+  "model",
+  "hermes-path",
+  "hermes-home",
+  "runtime-directory",
+  "timeout-ms",
   "result-file",
   "email",
   "slug",
