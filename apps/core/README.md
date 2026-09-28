@@ -69,12 +69,41 @@ connection supports reconnection, replacement, and disconnection. Publishing
 and scheduling currently support **X only**; the other accounts cannot be
 selected by the post composer or attached to posts through the API.
 
-See the [Project social accounts setup guide](../../docs/project-social-accounts-setup.md)
-for the provider-by-provider developer account requirements, managed versus
-custom OAuth choices, callback URLs, scopes, Core environment variables,
-production approvals, and live verification checklist. **X and TikTok require
-custom OAuth apps**; managed OAuth is available for the other four providers.
-An explicit Composio auth config ID is required for every enabled provider.
+Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
+on the Core deployment. Create each OAuth configuration in the same Composio
+environment as that API key. Omit unconfigured variables; connecting that
+provider returns a setup error without starting authorization.
+
+| Provider | Composio toolkit | Core environment variable | Identity access |
+| --- | --- | --- | --- |
+| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) |
+| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` |
+| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` |
+| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` |
+| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` |
+| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` |
+
+Use the provider OAuth callback shown by Composio when registering your OAuth
+app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
+one-use Composio session before Core verifies the account against the stored
+provider, auth configuration, and connecting user. Accounts are shared only
+with the Project’s Core executor. Tokens remain in Composio.
+
+Account types and setup requirements:
+
+- [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
+  Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
+- [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
+  Creator accounts, not Personal accounts.
+- [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
+  member. [Facebook](https://docs.composio.dev/toolkits/facebook) connects the
+  authorizing user; this does not select a Facebook Page for publishing.
+- [YouTube](https://docs.composio.dev/toolkits/youtube) connects a channel. The
+  identity lookup requires exactly one authenticated channel; it rejects missing
+  or ambiguous channel identities instead of selecting one silently.
+
+Live OAuth requires configured provider apps and accounts. Unit tests use
+provider-response fixtures and do not replace a live authorization check.
 
 ### Turnstile protection for authentication email
 
