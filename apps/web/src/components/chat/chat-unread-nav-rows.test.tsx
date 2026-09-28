@@ -406,13 +406,15 @@ describe("ChatUnreadNavRows", () => {
       expect(onUnreadOnlyChange).toHaveBeenCalledWith(false);
     });
 
-    it("stands down while typing, and with alt or on repeat", () => {
+    it("stands down while typing, without shift, with alt or on repeat", () => {
       mockUserAgent(
         "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
       );
       const onUnreadOnlyChange = vi.fn();
       renderRows([], { onUnreadOnlyChange });
 
+      // ⌘U alone stays the browser's and the composer's.
+      pressUnreadsShortcut({ metaKey: true });
       pressUnreadsShortcut({ metaKey: true, shiftKey: true, altKey: true });
       pressUnreadsShortcut({ metaKey: true, shiftKey: true, repeat: true });
       expect(onUnreadOnlyChange).not.toHaveBeenCalled();
