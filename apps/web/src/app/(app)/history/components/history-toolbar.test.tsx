@@ -39,7 +39,8 @@ const filterLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
-    unattributed: "Unattributed",
+    topUp: "Top up",
+    unattributed: "Other",
   },
 };
 

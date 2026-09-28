@@ -1356,12 +1356,13 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
-          "unattributed": "Unattributed"
+          "topUp": "Top up",
+          "unattributed": "Other"
         }
       },
       "Empty": {
         "title": "No transactions yet",
-        "description": "Every job run, image generation and other credit consumption will appear here."
+        "description": "Every job run, image generation, other credit consumption and top up will appear here."
       },
       "List": {
         "loadMore": "Load more",
@@ -1379,7 +1380,8 @@
           "task": "Task",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
-          "unattributed": "Unattributed"
+          "topUp": "Top up",
+          "unattributed": "Other"
         }
       }
     },
@@ -2804,6 +2806,7 @@
       "empty": "No results found",
       "loading": "Loading...",
       "error": "Failed to load results",
+      "updated": "Updated",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
       "filesFilenameMatch": "Filename match"

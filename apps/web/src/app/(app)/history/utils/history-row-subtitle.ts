@@ -13,9 +13,13 @@ export function getHistoryRowSubtitle(
     return description;
   }
 
-  // Nothing links an unattributed spend to an entity, so the bucket it drew
-  // from is the only source signal left. Reported, never guessed.
-  if (item.kind === "unattributed" && item.bucketSource) {
+  // Nothing links an unattributed spend to an entity, and a top up is only
+  // ever described by the bucket it created, so the bucket is the one source
+  // signal left on both. Reported, never guessed.
+  if (
+    (item.kind === "unattributed" || item.kind === "topUp") &&
+    item.bucketSource
+  ) {
     return formatBucketSource(item.bucketSource);
   }
 

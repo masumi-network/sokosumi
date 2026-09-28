@@ -4,10 +4,11 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
  * Transaction History is the credit ledger, not an activity feed. One row is
- * one `Transaction` that took credits from the account, labelled by whichever
- * entity links to it. Rows carry the consumption date, which is the ledger
- * row's own `createdAt` and therefore immune to the row-touch writes that
- * corrupted the old `history.sortAt` projection.
+ * one `Transaction` — credits taken by a job, an image, a task event, a
+ * coworker seat or Soko Bot, or credits added by a top up — labelled by
+ * whichever entity links to it. Rows carry the ledger row's own `createdAt`
+ * and are therefore immune to the row-touch writes that corrupted the old
+ * `history.sortAt` projection.
  */
 export const transactionHistoryKinds = [
   "job",
@@ -15,6 +16,7 @@ export const transactionHistoryKinds = [
   "task",
   "coworker",
   "sokoBot",
+  "topUp",
   "unattributed",
 ] as const;
 
@@ -51,12 +53,12 @@ const transactionHistoryBaseItemSchema = z.object({
   }),
   credits: z.number().openapi({
     description:
-      "Credits taken from the account, always positive. Derived from the negative ledger amount.",
+      "Credits this row moved, always positive. `kind: topUp` added them; every other kind took them. The magnitude of the signed ledger amount.",
     example: 5,
   }),
   consumedAt: dateTimeSchema.openapi({
     description:
-      "When the credits were taken (`Transaction.createdAt`). The list sorts by this field.",
+      "When the credits moved (`Transaction.createdAt`). The list sorts by this field.",
   }),
   projectId: z.string().uuid().nullable().openapi({
     description:
@@ -148,6 +150,22 @@ export const transactionHistorySokoBotItemSchema =
     })
     .openapi("TransactionHistorySokoBotItem");
 
+export const transactionHistoryTopUpItemSchema =
+  transactionHistoryBaseItemSchema
+    .extend({
+      kind: z.literal("topUp"),
+      /**
+       * A top up is only ever described by the credit bucket it created, so
+       * the bucket's reference type is the source of the row's label.
+       */
+      bucketSource: z.string().nullable().openapi({
+        description:
+          "`CreditBucketReferenceType` of the bucket this top up created (STRIPE_TOPUP, STRIPE_FREE, STRIPE_SUBSCRIPTION_PERIOD, REFUND, ENTERPRISE_PERIOD, ENTERPRISE_TOP_UP, SIGNUP_BONUS, FREE). Null when no bucket records one.",
+        example: "STRIPE_TOPUP",
+      }),
+    })
+    .openapi("TransactionHistoryTopUpItem");
+
 export const transactionHistoryUnattributedItemSchema =
   transactionHistoryBaseItemSchema
     .extend({
@@ -172,6 +190,7 @@ export const transactionHistoryItemSchema = z
     transactionHistoryTaskItemSchema,
     transactionHistoryCoworkerItemSchema,
     transactionHistorySokoBotItemSchema,
+    transactionHistoryTopUpItemSchema,
     transactionHistoryUnattributedItemSchema,
   ])
   .openapi("TransactionHistoryItem");
@@ -194,6 +213,21 @@ export const transactionHistoryListResponseExample = {
       agentId: "agent_123",
       agentName: "Research Agent",
       agentIcon: "https://example.com/research.svg",
+      owner: {
+        userId: "550e8400-e29b-41d4-a716-446655440002",
+        name: "Bob Smith",
+        image: null,
+      },
+    },
+    {
+      kind: "topUp",
+      id: "01960001-0001-7001-8001-000000000003",
+      title: "Credit top up",
+      description: null,
+      credits: 1000,
+      consumedAt: "2026-01-20T08:00:00.000Z",
+      projectId: null,
+      bucketSource: "STRIPE_TOPUP",
       owner: {
         userId: "550e8400-e29b-41d4-a716-446655440002",
         name: "Bob Smith",

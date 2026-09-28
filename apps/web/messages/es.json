@@ -1356,12 +1356,13 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
-          "unattributed": "Sin atribuir"
+          "topUp": "Recarga",
+          "unattributed": "Otros"
         }
       },
       "Empty": {
         "title": "Aún no hay transacciones",
-        "description": "Cada ejecución de job, generación de imagen y demás consumos de créditos aparecerán aquí."
+        "description": "Cada ejecución de job, generación de imagen, demás consumos de créditos y recargas aparecerán aquí."
       },
       "List": {
         "loadMore": "Cargar más",
@@ -1379,7 +1380,8 @@
           "task": "Tarea",
           "coworker": "Coworker",
           "sokoBot": "Soko Bot",
-          "unattributed": "Sin atribuir"
+          "topUp": "Recarga",
+          "unattributed": "Otros"
         }
       }
     },
@@ -2804,6 +2806,7 @@
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
       "error": "Error al cargar los resultados",
+      "updated": "Actualizado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre"

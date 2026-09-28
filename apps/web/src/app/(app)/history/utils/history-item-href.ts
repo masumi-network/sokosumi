@@ -36,8 +36,9 @@ export function getHistoryItemHref(
       return item.projectId
         ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
         : "/studio";
-    // Coworker seats, Soko Bot usage and unattributed spends are ledger entries
-    // with no page behind them. A link to nowhere is worse than no link.
+    // Coworker seats, Soko Bot usage, top ups and unattributed spends are
+    // ledger entries with no page behind them. A link to nowhere is worse than
+    // no link.
     default:
       return null;
   }

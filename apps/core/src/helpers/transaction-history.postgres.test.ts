@@ -100,8 +100,8 @@ async function seed(tx: Tx): Promise<void> {
     VALUES (${SOKO_BOT_ID}::uuid, NOW(), NOW(), ${USER_ID}, ${WORKSPACE_ID}::uuid)
   `;
 
-  // One ledger row per consumption, plus a topup and an organization spend that
-  // must not reach this workspace's list.
+  // One ledger row per consumption, plus a topup and an organization spend
+  // that must not reach this workspace's list.
   await tx.$executeRaw`
     INSERT INTO "Transaction" ("id", "createdAt", "updatedAt", "amount", "userId", "organizationId")
     VALUES
@@ -219,7 +219,7 @@ async function withSeededLedger(
 describe.skipIf(!enabled)(
   "Transaction History ledger against PostgreSQL",
   () => {
-    it("lists every credit consumption in the workspace, newest consumption first", async () => {
+    it("lists every ledger row in the workspace, newest first", async () => {
       await withSeededLedger(async (tx) => {
         const { rows, hasMore } = await findTransactionHistoryPage(
           personalScope,
@@ -229,6 +229,7 @@ describe.skipIf(!enabled)(
 
         expect(hasMore).toBe(false);
         expect(rows.map((row) => [row.id, row.kind])).toEqual([
+          ["tx-topup", "topUp"],
           ["tx-unattr", "unattributed"],
           ["tx-coworker", "coworker"],
           ["tx-task", "task"],
@@ -236,11 +237,26 @@ describe.skipIf(!enabled)(
           ["tx-image", "image"],
           ["tx-sokobot", "sokoBot"],
         ]);
-        expect(await countTransactionHistory(personalScope, tx)).toBe(6);
+        expect(await countTransactionHistory(personalScope, tx)).toBe(7);
       });
     });
 
-    it("excludes topups, non-charging activity and other workspaces", async () => {
+    it("lists a top up with the bucket it created and its positive amount", async () => {
+      await withSeededLedger(async (tx) => {
+        const { rows } = await findTransactionHistoryPage(
+          { ...personalScope, kinds: ["topUp"] },
+          { take: 20 },
+          tx,
+        );
+
+        expect(rows.map((row) => row.id)).toEqual(["tx-topup"]);
+        expect(rows[0]?.kind).toBe("topUp");
+        expect(rows[0]?.amount).toBe(100n * CREDIT);
+        expect(rows[0]?.topUpSource).toBe("STRIPE_SUBSCRIPTION_PERIOD");
+      });
+    });
+
+    it("excludes non-charging activity and other workspaces", async () => {
       await withSeededLedger(async (tx) => {
         const { rows } = await findTransactionHistoryPage(
           personalScope,
@@ -249,8 +265,6 @@ describe.skipIf(!enabled)(
         );
         const ids = rows.map((row) => row.id);
 
-        // A topup adds credits, so it is not a consumption.
-        expect(ids).not.toContain("tx-topup");
         // Another workspace's spend.
         expect(ids).not.toContain("tx-org");
         // The free taskEvent charged nothing, so it produced no ledger row at
@@ -292,6 +306,7 @@ describe.skipIf(!enabled)(
           before.rows.map((row) => row.id),
         );
         expect(after.rows.map((row) => row.consumedAt.toISOString())).toEqual([
+          "2026-07-01T10:00:00.000Z",
           "2026-06-01T10:00:00.000Z",
           "2026-05-01T10:00:00.000Z",
           "2026-04-01T10:00:00.000Z",
@@ -307,7 +322,7 @@ describe.skipIf(!enabled)(
         const seen: string[] = [];
         let cursor: string | undefined;
 
-        for (let page = 0; page < 5; page += 1) {
+        for (let page = 0; page < 6; page += 1) {
           const { rows, hasMore } = await findTransactionHistoryPage(
             personalScope,
             { cursor, take: 2 },
@@ -319,6 +334,7 @@ describe.skipIf(!enabled)(
         }
 
         expect(seen).toEqual([
+          "tx-topup",
           "tx-unattr",
           "tx-coworker",
           "tx-task",

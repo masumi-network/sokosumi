@@ -40,7 +40,8 @@ const labels: HistoryListItemLabels = {
     task: "Task",
     coworker: "Coworker",
     sokoBot: "Soko Bot",
-    unattributed: "Unattributed",
+    topUp: "Top up",
+    unattributed: "Other",
   },
 };
 
@@ -187,5 +188,34 @@ describe("HistoryListItem", () => {
     });
 
     expect(screen.getByText("Coworker")).toBeInTheDocument();
+  });
+
+  it("shows a top up with its source and a signed amount", () => {
+    renderItem({
+      ...base,
+      kind: "topUp",
+      id: "tx-topup",
+      credits: 1000,
+      title: "Credit top up",
+      bucketSource: "STRIPE_TOPUP",
+    });
+
+    expect(screen.getByText("Credit top up")).toBeInTheDocument();
+    // The sign is what stops a top up reading as a spend. Spends stay unsigned,
+    // exactly as they render on main.
+    expect(screen.getByText("+1,000 credits")).toBeInTheDocument();
+  });
+
+  it("leaves a spend amount unsigned", () => {
+    renderItem({
+      ...base,
+      kind: "sokoBot",
+      id: "tx-sb",
+      credits: 6,
+      title: "Soko Bot usage",
+      sokoBotId: "bot-1",
+    });
+
+    expect(screen.getByText("6 credits")).toBeInTheDocument();
   });
 });

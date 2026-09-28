@@ -25,6 +25,7 @@ export interface HistoryListItemLabels {
     task: string;
     coworker: string;
     sokoBot: string;
+    topUp: string;
     unattributed: string;
   };
 }
@@ -43,14 +44,18 @@ export function HistoryListItem({
   const { formatDateWithYear } = useLocalizedDateTime();
   const formatter = useFormatter();
   const description = getHistoryRowSubtitle(item, labels);
-  const credits = formatHistoryCredits(item.credits, labels, formatter.number);
+  const credits = formatHistoryCredits(item, labels, formatter.number);
   const href = getHistoryItemHref(item);
   const showOwner = activeOrganizationId !== null;
+  // Main's grid minus the status column. The amount column takes 110px rather
+  // than main's 80px because a ledger amount runs to five or six digits
+  // ("14,568 credits") where a task's was three; at 80px it wrapped onto a
+  // second line and gave every row a ragged right edge.
   const rowClassName = cn(
     "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
-      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_80px] sm:items-center sm:gap-4"
-      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_80px] sm:items-center sm:gap-4",
+      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px] sm:items-center sm:gap-4"
+      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px] sm:items-center sm:gap-4",
     href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
   );
   const content = (
@@ -124,7 +129,7 @@ function HistoryListItemContent({
         />
         <span
           className={cn(
-            "text-muted-foreground tabular-nums sm:text-right",
+            "text-muted-foreground tabular-nums whitespace-nowrap sm:text-right",
             showOwner
               ? "sm:col-start-5 sm:row-start-1"
               : "sm:col-start-4 sm:row-start-1",
@@ -152,20 +157,30 @@ export function HistoryTypeColumn({
       >
         <HistoryTypeIcon item={item} />
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
+      {/* `truncate`: the column is 120px wide and the chip label is now a
+          source name, not one of main's three short words. Without it a long
+          label ran under the title and broke the row's left alignment. */}
+      <span className="text-muted-foreground w-full truncate rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>
   );
 }
 
+/**
+ * A spend reads exactly as it did on main. A top up carries a leading `+`, so
+ * the two directions are told apart by the sign and the source chip rather than
+ * by a colour: the app has no green/red convention for a credit amount, and
+ * inventing one here would be a new accent role on a surface that has none.
+ */
 function formatHistoryCredits(
-  credits: number,
+  item: TransactionHistoryItem,
   labels: Pick<HistoryListItemLabels, "credit" | "credits">,
   formatNumber: (value: number) => string,
 ): string {
-  const formattedCredits = formatCreditsForDisplay(credits);
+  const formattedCredits = formatCreditsForDisplay(item.credits);
   const unit = formattedCredits === 1 ? labels.credit : labels.credits;
+  const amount = `${formatNumber(formattedCredits)} ${unit}`;
 
-  return `${formatNumber(formattedCredits)} ${unit}`;
+  return item.kind === "topUp" ? `+${amount}` : amount;
 }

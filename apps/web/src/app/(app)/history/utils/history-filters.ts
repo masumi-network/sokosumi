@@ -1,7 +1,7 @@
 /**
- * Filters for Transaction History. Every row is a credit consumption, so there
- * is no status axis: a spend has an amount and a date, not a lifecycle. The
- * type axis names the source that consumed the credits.
+ * Filters for Transaction History. Every row is a ledger transaction, so there
+ * is no status axis: a spend or a top up has an amount and a date, not a
+ * lifecycle. The type axis names the source that moved the credits.
  */
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
@@ -11,6 +11,7 @@ export const HISTORY_TYPE_VALUES = [
   "task",
   "coworker",
   "sokoBot",
+  "topUp",
   "unattributed",
 ] as const;
 export const HISTORY_DEFAULT_API_TYPES = HISTORY_TYPE_VALUES;

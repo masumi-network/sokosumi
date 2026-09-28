@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
-  getHistory: vi.fn(),
+  getTransactions: vi.fn(),
 };
 
 vi.mock("@/lib/clients/core.client", () => ({
@@ -32,7 +32,7 @@ describe("history.service", () => {
 
   it("lists history and forwards filters to the core client", async () => {
     const item = buildHistoryItem();
-    coreClientMock.getHistory.mockResolvedValue({
+    coreClientMock.getTransactions.mockResolvedValue({
       data: [item],
       meta: {
         pagination: {
@@ -54,7 +54,7 @@ describe("history.service", () => {
       types: ["task", "job"],
     });
 
-    expect(coreClientMock.getHistory).toHaveBeenCalledWith({
+    expect(coreClientMock.getTransactions).toHaveBeenCalledWith({
       cursor: "cursor-1",
       limit: 20,
       projectId: "null",
@@ -74,7 +74,7 @@ describe("history.service", () => {
   });
 
   it("converts ISO string consumedAt values from core into Date objects", async () => {
-    coreClientMock.getHistory.mockResolvedValue({
+    coreClientMock.getTransactions.mockResolvedValue({
       data: [
         {
           ...buildHistoryItem(),
@@ -93,7 +93,7 @@ describe("history.service", () => {
 
   it("omits null cursor and returns null pagination when absent", async () => {
     const item = buildHistoryItem();
-    coreClientMock.getHistory.mockResolvedValue({
+    coreClientMock.getTransactions.mockResolvedValue({
       data: [item],
     });
 
@@ -104,7 +104,7 @@ describe("history.service", () => {
       types: ["task", "job"],
     });
 
-    expect(coreClientMock.getHistory).toHaveBeenCalledWith({
+    expect(coreClientMock.getTransactions).toHaveBeenCalledWith({
       cursor: undefined,
       limit: 10,
       projectId: undefined,

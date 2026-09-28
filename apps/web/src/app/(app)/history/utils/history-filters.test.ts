@@ -37,6 +37,7 @@ describe("history-filters", () => {
       "task",
       "coworker",
       "sokoBot",
+      "topUp",
       "unattributed",
     ]);
     expect(resolveHistoryApiTypes(null)).toEqual([...HISTORY_TYPE_VALUES]);

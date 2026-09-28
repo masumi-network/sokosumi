@@ -53,7 +53,6 @@ export function HistorySearchDialogProvider({
   children,
 }: HistorySearchDialogProviderProps) {
   const tSearch = useTranslations("App.HistorySearchDialog");
-  const tHistory = useTranslations("App.TransactionHistory");
   const [open, setOpen] = useState(false);
   const isApplePlatform = useIsApplePlatform();
   const searchShortcutLabel = isApplePlatform ? "⌘K" : "Ctrl+K";
@@ -99,7 +98,7 @@ export function HistorySearchDialogProvider({
           empty: tSearch("empty"),
           loading: tSearch("loading"),
           error: tSearch("error"),
-          consumed: tHistory("Row.consumed"),
+          updated: tSearch("updated"),
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
           filesFilenameMatch: tSearch("filesFilenameMatch"),

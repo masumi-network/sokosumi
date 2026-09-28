@@ -2,19 +2,19 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  GetHistoryData,
+  GetTransactionsData,
   TransactionHistoryItem,
 } from "@/lib/clients/generated/core/types.gen";
 
-type HistoryQuery = NonNullable<GetHistoryData["query"]>;
+type TransactionQuery = NonNullable<GetTransactionsData["query"]>;
 
 export interface ListHistoryParams {
   cursor?: string | null;
   limit?: number;
-  projectId?: HistoryQuery["projectId"];
-  q?: HistoryQuery["q"];
-  scope?: HistoryQuery["scope"];
-  types?: HistoryQuery["types"];
+  projectId?: TransactionQuery["projectId"];
+  q?: TransactionQuery["q"];
+  scope?: TransactionQuery["scope"];
+  types?: TransactionQuery["types"];
 }
 
 export type { TransactionHistoryItem };
@@ -30,6 +30,12 @@ function mapHistoryItem(item: TransactionHistoryItem): TransactionHistoryItem {
   };
 }
 
+/**
+ * The credit ledger behind Transaction History.
+ *
+ * `GET /v1/transactions`, not `GET /v1/history`: the feed endpoint still backs
+ * the Cmd+K palette, which has to find a task or a job that never charged.
+ */
 export const historyService = (() => {
   async function listHistory(params: ListHistoryParams = {}): Promise<{
     history: TransactionHistoryItem[];
@@ -40,7 +46,7 @@ export const historyService = (() => {
       nextCursor: string | null;
     } | null;
   }> {
-    const result = await coreClient.getHistory({
+    const result = await coreClient.getTransactions({
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       projectId: params.projectId,

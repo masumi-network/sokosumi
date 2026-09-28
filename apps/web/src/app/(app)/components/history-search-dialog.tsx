@@ -2,14 +2,15 @@
 
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  HistorySearchItemIcon,
+  HistorySearchItemOwner,
+  HistorySearchItemTime,
+} from "@/app/components/history-search-item";
+import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
+import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
-import {
-  HistoryMetaTime,
-  HistoryOwnerAvatar,
-} from "@/app/history/components/history-meta";
-import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
-import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import {
   CommandDialog,
   CommandEmpty,
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/command";
 import type {
   FileResource,
-  TransactionHistoryItem,
+  HistoryItem,
 } from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -31,7 +32,7 @@ interface HistorySearchDialogLabels {
   empty: string;
   loading: string;
   error: string;
-  consumed: string;
+  updated: string;
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
@@ -51,7 +52,7 @@ export function HistorySearchDialog({
   activeOrganizationId,
 }: HistorySearchDialogProps) {
   const router = useRouter();
-  const { formatDateWithYear } = useLocalizedDateTime();
+  const { formatTimeAgo } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
   const { query, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
@@ -87,16 +88,12 @@ export function HistorySearchDialog({
     );
   }
 
-  function handleSelect(item: TransactionHistoryItem) {
-    const href = getHistoryItemHref(item);
+  function handleSelect(item: HistoryItem) {
+    const href = getHistorySearchItemHref(item);
     // Use the same close path as the dialog itself so we reset state
     // and ignore any in-flight history requests.
     handleOpenChange(false);
-    // Coworker, Soko Bot and unattributed consumptions have no page behind
-    // them, so selecting one just closes the dialog.
-    if (href) {
-      router.push(href);
-    }
+    router.push(href);
   }
 
   return (
@@ -138,23 +135,24 @@ export function HistorySearchDialog({
                 onSelect={() => handleSelect(item)}
                 className="flex items-start gap-2"
               >
-                <HistoryTypeIcon item={item} className="mt-0.5 size-4" />
+                <HistorySearchItemIcon item={item} className="mt-0.5 size-4" />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{item.title}</span>
-                  <HistoryMetaTime
-                    consumedAt={item.consumedAt}
-                    formatShortDate={formatDateWithYear}
-                    consumedLabel={labels.consumed}
+                  <HistorySearchItemTime
+                    updatedAt={item.updatedAt}
+                    formatTimeAgo={formatTimeAgo}
+                    updatedLabel={labels.updated}
                     className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
                   />
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-center">
                   {showOwner && (
-                    <HistoryOwnerAvatar
+                    <HistorySearchItemOwner
                       owner={item.owner}
                       className="hidden sm:inline-flex"
                     />
                   )}
+                  <HistorySearchItemStatus item={item} />
                 </div>
               </CommandItem>
             ))}

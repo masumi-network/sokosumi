@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ImagePlus, ListTodo, Receipt, Users } from "lucide-react";
+import { Bot, ImagePlus, ListTodo, Plus, Receipt, Users } from "lucide-react";
 
 import { AgentIcon } from "@/components/agents/agent-icon";
 import type { TransactionHistoryItem } from "@/lib/services/history.service";
@@ -30,6 +30,8 @@ export function HistoryTypeIcon({
       return <Users className={className} aria-hidden />;
     case "sokoBot":
       return <Bot className={className} aria-hidden />;
+    case "topUp":
+      return <Plus className={className} aria-hidden />;
     case "unattributed":
       return <Receipt className={className} aria-hidden />;
     default:

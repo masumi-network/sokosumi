@@ -52,6 +52,7 @@ import type {
   GetTasksSchedulesByIdRunsData,
   GetTasksSchedulesData,
   GetTasksSummaryData,
+  GetTransactionsData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
   ListAdminTaskX402PaymentsData,
@@ -275,6 +276,7 @@ import {
   getTasksSchedulesByIdRuns as coreGetTasksSchedulesByIdRuns,
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
+  getTransactions as coreGetTransactions,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -494,12 +496,24 @@ function toDate(value: Date | string): Date {
 function transformHistoryResponseEnvelope(data: any) {
   data.data = data.data.map((item: any) => ({
     ...item,
-    consumedAt: toDate(item.consumedAt),
+    updatedAt: toDate(item.updatedAt),
+    archivedAt: item.archivedAt ? toDate(item.archivedAt) : null,
   }));
   if (data.meta?.timestamp) {
     data.meta.timestamp = toDate(data.meta.timestamp);
   }
 
+  return data;
+}
+
+function transformTransactionsResponseEnvelope(data: any) {
+  data.data = data.data.map((item: any) => ({
+    ...item,
+    consumedAt: toDate(item.consumedAt),
+  }));
+  if (data.meta?.timestamp) {
+    data.meta.timestamp = toDate(data.meta.timestamp);
+  }
   return data;
 }
 
@@ -1352,6 +1366,21 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformHistoryResponseEnvelope(data),
         }),
       "Failed to fetch history",
+    );
+  }
+
+  async function getTransactions(query?: GetTransactionsData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactions({
+          client,
+          query,
+          cache: "no-store",
+          responseTransformer: async (data) =>
+            transformTransactionsResponseEnvelope(data),
+        }),
+      "Failed to fetch transactions",
     );
   }
 
@@ -5596,6 +5625,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     addChatRoomMessageReaction,
     removeChatRoomMessageReaction,
     getHistory,
+    getTransactions,
     getNotifications,
     getNotificationsCounts,
     updateChatRoom,

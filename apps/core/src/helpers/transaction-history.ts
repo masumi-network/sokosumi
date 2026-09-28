@@ -11,8 +11,8 @@ import type {
 } from "@/schemas/transaction-history.schema";
 
 /**
- * A `Transaction` row that took credits, already resolved against every
- * relation that can explain it. Shaped by {@link buildTransactionHistorySql}.
+ * A `Transaction` row — a spend or a top up — already resolved against every
+ * relation that can explain it. Shaped by {@link buildLedgerSql}.
  */
 export interface TransactionHistoryRow {
   id: string;
@@ -35,6 +35,8 @@ export interface TransactionHistoryRow {
   coworkerName: string | null;
   sokoBotId: string | null;
   bucketSource: string | null;
+  topUpSource: string | null;
+  topUpNote: string | null;
 }
 
 export interface BuildTransactionHistoryParams {
@@ -49,13 +51,19 @@ export interface BuildTransactionHistoryParams {
 export type TransactionHistoryPrismaClient = Pick<typeof prisma, "$queryRaw">;
 
 /**
- * Attribution is resolved in priority order. `task_payment_claim` and
+ * Attribution is resolved in priority order. A positive amount is always a top
+ * up (`Transaction.amount` is signed), and it is tested first because a refund
+ * links back to its job through `refundTransactionId`, never `transactionId`,
+ * so no entity join can claim it.
+ *
+ * `task_payment_claim` and
  * `task_x402_payment` are deliberately absent: on mainnet every transaction
  * they reference also carries the `taskEvent` that charged it, so listing them
  * here would only shadow a better label.
  */
 const KIND_CASE = PrismaRaw.sql`
   CASE
+    WHEN t."amount" > 0 THEN 'topUp'
     WHEN j."id" IS NOT NULL THEN 'job'
     WHEN pij."id" IS NOT NULL THEN 'image'
     WHEN te."id" IS NOT NULL THEN 'task'
@@ -113,9 +121,9 @@ function buildFilterSql(
 }
 
 /**
- * The ledger projection: one row per spend, labelled by whatever links to it.
- * Selected as a subquery so the computed `kind`, `projectId` and `searchText`
- * are filterable without repeating their expressions.
+ * The ledger projection: one row per transaction, labelled by whatever links to
+ * it. Selected as a subquery so the computed `kind`, `projectId` and
+ * `searchText` are filterable without repeating their expressions.
  */
 function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
   return PrismaRaw.sql`
@@ -140,6 +148,8 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       cw."name" AS "coworkerName",
       sbu."sokoBotId"::TEXT AS "sokoBotId",
       bucket."referenceType" AS "bucketSource",
+      topup."referenceType"::TEXT AS "topUpSource",
+      topup."referenceNote" AS "topUpNote",
       CONCAT_WS(
         ' ',
         j."name",
@@ -148,7 +158,9 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         pij."prompt",
         tk."name",
         te."comment",
-        cw."name"
+        cw."name",
+        topup."referenceType"::TEXT,
+        topup."referenceNote"
       ) AS "searchText"
     FROM "Transaction" AS t
     LEFT JOIN "Job" AS j ON j."transactionId" = t."id"
@@ -176,8 +188,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       ORDER BY cc."createdAt" ASC, cc."id" ASC
       LIMIT 1
     ) AS bucket ON TRUE
-    WHERE t."amount" < 0
-      AND ${buildScopeSql(params)}
+    -- The bucket a top up created. One-to-one with the transaction that paid
+    -- for it, so this is a plain join rather than a lateral pick.
+    LEFT JOIN "credit_bucket" AS topup ON topup."sourceTransactionId" = t."id"
+    WHERE ${buildScopeSql(params)}
   `;
 }
 
@@ -233,7 +247,9 @@ export async function findTransactionHistoryPage(
       ledger."coworkerId",
       ledger."coworkerName",
       ledger."sokoBotId",
-      ledger."bucketSource"
+      ledger."bucketSource",
+      ledger."topUpSource",
+      ledger."topUpNote"
     FROM (${buildLedgerSql(params)}) AS ledger
     ${buildWhereSql(filters)}
     ORDER BY ledger."consumedAt" DESC, ledger."id" DESC
@@ -264,6 +280,22 @@ export interface MapTransactionHistoryRowOptions {
   userPreviewById?: Map<string, UserPreview>;
 }
 
+/**
+ * A top up is named by the bucket it created. `CreditBucketReferenceType` is
+ * the only thing that distinguishes a purchase from a refund or a plan grant,
+ * and `referenceNote` carries the free-text detail when there is one.
+ */
+const TOP_UP_TITLE_BY_SOURCE: Record<string, string> = {
+  STRIPE_TOPUP: "Credit top up",
+  STRIPE_FREE: "Free credits",
+  STRIPE_SUBSCRIPTION_PERIOD: "Subscription credits",
+  REFUND: "Refund",
+  ENTERPRISE_PERIOD: "Enterprise plan credits",
+  ENTERPRISE_TOP_UP: "Enterprise top up",
+  SIGNUP_BONUS: "Signup bonus",
+  FREE: "Free credits",
+};
+
 /** A prompt is a paragraph; a list row is a line. */
 function truncate(value: string, max = 120): string {
   const normalized = value.replace(/\s+/g, " ").trim();
@@ -281,9 +313,10 @@ export function mapTransactionHistoryRow(
     : undefined;
   const base = {
     id: row.id,
-    // Ledger spends are negative. The surface talks about credits taken, so
-    // report the magnitude and let the label carry the direction.
-    credits: convertCentsToCredits(-row.amount),
+    // `Transaction.amount` is signed: negative is a spend, positive is a top
+    // up. Report the magnitude and let `kind` carry the direction, so no
+    // caller has to know the sign convention to render a number.
+    credits: convertCentsToCredits(row.amount < 0n ? -row.amount : row.amount),
     consumedAt: row.consumedAt.toISOString(),
     projectId: row.projectId,
     owner: userPreview
@@ -356,6 +389,14 @@ export function mapTransactionHistoryRow(
         title: "Soko Bot usage",
         description: null,
         sokoBotId: row.sokoBotId ?? "",
+      };
+    case "topUp":
+      return {
+        ...base,
+        kind: "topUp",
+        title: TOP_UP_TITLE_BY_SOURCE[row.topUpSource ?? ""] ?? "Top up",
+        description: row.topUpNote ? truncate(row.topUpNote) : null,
+        bucketSource: row.topUpSource,
       };
     case "unattributed":
       // Nothing links this spend to an entity. Say so plainly: the date, the
