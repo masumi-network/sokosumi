@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
+  CreateProjectImageJobRequest,
   ProjectImageAsset,
   ProjectImageJob,
+  ProjectImageSettings,
 } from "@/lib/clients/generated/core/types.gen";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import {
@@ -22,9 +24,19 @@ import {
 
 interface StartGenerationParameters extends AuthenticatedRequest {
   projectId: string;
+  /**
+   * A catalog id, not an endpoint. Core maps it to the fal endpoint it has
+   * verified and rejects anything else, so the browser never names a provider
+   * URL of its own.
+   */
+  modelId: string | null;
   prompt: string;
-  aspectRatio: string;
-  resolution: string;
+  /**
+   * Passed through whole. Spelling the fields out here meant every new
+   * setting — `placementId` was the one that exposed it — had to be added in
+   * three places and was silently dropped if it was not.
+   */
+  settings: ProjectImageSettings;
   parentAssetId: string | null;
   referenceAssetIds: string[];
   sessionId: string | null;
@@ -35,6 +47,20 @@ interface StartGenerationParameters extends AuthenticatedRequest {
    */
   idempotencyKey: string;
 }
+
+/**
+ * Why this one action returns a result instead of throwing.
+ *
+ * Next replaces a thrown server-action error with an opaque digest in
+ * production, so a `kind` carried on the exception reaches the browser in
+ * development and nowhere else. The bulk queue has to tell "the project is
+ * already at its concurrency cap, hold this request" apart from "this request
+ * will never work" — getting that wrong either drops images the person asked
+ * for or retries a rejected one forever. So the outcome is data.
+ */
+export type StartGenerationResult =
+  | { ok: true; job: ProjectImageJob }
+  | { ok: false; kind: string | null; message: string };
 
 interface ReviewParameters extends AuthenticatedRequest {
   projectId: string;
@@ -62,26 +88,31 @@ function rethrow(error: unknown, fallback: string): never {
 
 export const startImageGeneration = withSession<
   StartGenerationParameters,
-  ProjectImageJob
+  StartGenerationResult
 >(async (input) => {
   try {
     const job = await imageStudioService.createJob(input.projectId, {
+      ...(input.modelId
+        ? { modelId: input.modelId as CreateProjectImageJobRequest["modelId"] }
+        : {}),
       prompt: input.prompt,
-      settings: {
-        aspectRatio: input.aspectRatio as never,
-        resolution: input.resolution as never,
-        outputFormat: "png",
-        seed: null,
-      },
+      settings: input.settings,
       referenceAssetIds: input.referenceAssetIds,
       parentAssetId: input.parentAssetId,
       sessionId: input.sessionId,
       idempotencyKey: input.idempotencyKey,
     });
     revalidatePath(`/projects/${input.projectId}/studio`);
-    return job;
+    return { ok: true, job };
   } catch (error) {
-    rethrow(error, "Could not start the image generation.");
+    if (error instanceof CoreApiRequestError) {
+      return {
+        ok: false,
+        kind: error.kind ?? null,
+        message: error.message || "Could not start the image generation.",
+      };
+    }
+    throw error;
   }
 });
 

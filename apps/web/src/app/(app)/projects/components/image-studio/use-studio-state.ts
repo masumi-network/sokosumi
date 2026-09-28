@@ -18,6 +18,15 @@ import { isActive } from "./types";
  * clicked onto something else — that is them saying "not this one". So a
  * result is selected only when the selection has not been touched by hand
  * since that job was started.
+ *
+ * Nothing survives a change of project. `projectId` identifies whose state
+ * this is, so a new one is a new state rather than something to merge into the
+ * old one, and any request already in the air for the project that just left
+ * is dropped when it lands instead of being folded into the one that arrived.
+ * The studio subtree is also remounted per project (see the `key` in the
+ * studio route), which is what clears the filter, the reference selection, the
+ * draft prompt and the in-page queue; this hook is correct without that, so
+ * neither is load-bearing on its own.
  */
 
 const IDLE_POLL_MS = 15_000;
@@ -34,6 +43,18 @@ export interface StudioStateHook {
   selectedAsset: StudioAsset | null;
   selectAsset: (assetId: string) => void;
   activeJobs: StudioJob[];
+  /**
+   * Fold one server-confirmed asset back into state.
+   *
+   * The refresh below pins only the *selected* version, so a mutation applied
+   * to any other version — which comparison made possible, since it can review
+   * a version that is not the selected one — comes back in no subsequent
+   * response. Its row is retained from the previous state and keeps showing
+   * the decision it had before the save. Merging the mutation's own return
+   * value is what closes that, and it has to happen before the refresh so the
+   * retained copy is already the updated one.
+   */
+  applyAsset: (asset: StudioAsset) => void;
   refresh: () => Promise<void>;
   /** Appends the next, older page of versions. */
   loadOlder: () => Promise<void>;
@@ -58,17 +79,53 @@ export function useStudioState(options: {
   const [state, setState] = useState<StudioState>(initialState);
   const [error, setError] = useState<StudioErrorCode | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [selection, setSelection] = useState<Selection>({
-    assetId: initialSelectedAssetId ?? initialState.assets[0]?.id ?? null,
-    chosenByUserAt: initialSelectedAssetId ? Date.now() : null,
-  });
+  const [selection, setSelection] = useState<Selection>(() =>
+    openingSelection(initialState, initialSelectedAssetId),
+  );
+
+  /**
+   * Which project the state on screen belongs to, and the reset when it moves.
+   *
+   * Adjusting state during render rather than in an Effect, which is React's
+   * own answer to "reset when a prop changes": an Effect would let one paint
+   * through with the previous project's gallery still on it, and that paint is
+   * the bug — the images of a project the reader has just navigated away from,
+   * under the name of the one they navigated to, until a reload.
+   *
+   * `shownState` and `shownSelection` are what the rest of this render reads,
+   * so the switch is complete in the same pass that noticed it and the refs
+   * below cannot be written with the departing project's data.
+   */
+  const [shownProjectId, setShownProjectId] = useState(projectId);
+  const switching = projectId !== shownProjectId;
+  const shownState = switching ? initialState : state;
+  const shownSelection = switching
+    ? openingSelection(initialState, initialSelectedAssetId)
+    : selection;
+  if (switching) {
+    setShownProjectId(projectId);
+    setState(initialState);
+    setSelection(shownSelection);
+    setError(null);
+    setIsRefreshing(false);
+  }
 
   // Read inside the fetch callback without making it a dependency, so a
   // selection change never restarts the poll.
-  const selectionRef = useRef(selection);
-  selectionRef.current = selection;
-  const stateRef = useRef(state);
-  stateRef.current = state;
+  const selectionRef = useRef(shownSelection);
+  selectionRef.current = shownSelection;
+  const stateRef = useRef(shownState);
+  stateRef.current = shownState;
+  /**
+   * The project every reply is checked against.
+   *
+   * A refresh or a page load started for the previous project can still be in
+   * flight when the switch happens. Applying it would put that project's
+   * assets back on the new project's gallery — the same stale gallery this
+   * hook resets to avoid, arriving a few hundred milliseconds late.
+   */
+  const shownProjectIdRef = useRef(projectId);
+  shownProjectIdRef.current = projectId;
   const onSelectionChange = options.onSelectionChange;
 
   /**
@@ -135,6 +192,22 @@ export function useStudioState(options: {
     [onSelectionChange],
   );
 
+  const applyAsset = useCallback((asset: StudioAsset) => {
+    const previous = stateRef.current;
+    if (!previous.assets.some((candidate) => candidate.id === asset.id)) return;
+    const merged = {
+      ...previous,
+      assets: previous.assets.map((candidate) =>
+        candidate.id === asset.id ? asset : candidate,
+      ),
+    };
+    // Written through the ref as well as through state: a refresh started in
+    // the same tick reads `stateRef.current` to decide what to retain, and
+    // would otherwise retain the pre-mutation row it was called to replace.
+    stateRef.current = merged;
+    setState(merged);
+  }, []);
+
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -147,6 +220,9 @@ export function useStudioState(options: {
         `/api/projects/${projectId}/image-studio/state${query}`,
         { credentials: "same-origin", cache: "no-store" },
       );
+      // Abandoned: the reader has moved to another project since this went
+      // out. Neither its rows nor its failure belongs to what is on screen.
+      if (projectId !== shownProjectIdRef.current) return;
       if (!response.ok) {
         // A code, not a sentence: the page owns the wording so German and
         // Spanish readers do not get an English string on a translated page.
@@ -155,16 +231,19 @@ export function useStudioState(options: {
         );
         return;
       }
+      const next = (await response.json()) as StudioState;
+      if (projectId !== shownProjectIdRef.current) return;
       setError(null);
-      applyState((await response.json()) as StudioState);
+      applyState(next);
     } catch {
+      if (projectId !== shownProjectIdRef.current) return;
       setError("refresh_failed");
     } finally {
-      setIsRefreshing(false);
+      if (projectId === shownProjectIdRef.current) setIsRefreshing(false);
     }
   }, [projectId, applyState]);
 
-  const activeJobs = state.jobs.filter(isActive);
+  const activeJobs = shownState.jobs.filter(isActive);
   const hasActive = activeJobs.length > 0;
 
   // Synchronizing with a server is exactly what an Effect is for. The interval
@@ -184,7 +263,10 @@ export function useStudioState(options: {
    * newest page both survive.
    */
   const loadOlder = useCallback(async () => {
-    const cursor = state.nextCursor;
+    // Through the ref rather than through a dependency: the ref always holds
+    // the project on screen, so this cannot page the previous project's
+    // history into the current project's gallery.
+    const cursor = stateRef.current.nextCursor;
     if (!cursor) return;
     setIsRefreshing(true);
     try {
@@ -200,6 +282,9 @@ export function useStudioState(options: {
       );
       if (!response.ok) return;
       const older = (await response.json()) as StudioState;
+      // Same rule as the refresh: an older page of the project the reader has
+      // left is not older history of the one they are looking at.
+      if (projectId !== shownProjectIdRef.current) return;
       const previous = stateRef.current;
       const known = new Set(previous.assets.map((asset) => asset.id));
       const merged = {
@@ -213,11 +298,12 @@ export function useStudioState(options: {
       stateRef.current = merged;
       setState(merged);
     } catch {
+      if (projectId !== shownProjectIdRef.current) return;
       setError("load_older_failed");
     } finally {
-      setIsRefreshing(false);
+      if (projectId === shownProjectIdRef.current) setIsRefreshing(false);
     }
-  }, [projectId, state.nextCursor]);
+  }, [projectId]);
 
   const selectAsset = useCallback(
     (assetId: string) => {
@@ -228,17 +314,36 @@ export function useStudioState(options: {
   );
 
   const selectedAsset =
-    state.assets.find((asset) => asset.id === selection.assetId) ?? null;
+    shownState.assets.find((asset) => asset.id === shownSelection.assetId) ??
+    null;
 
   return {
-    state,
+    state: shownState,
     selectedAsset,
     selectAsset,
     activeJobs,
+    applyAsset,
     refresh,
     loadOlder,
-    hasOlder: state.nextCursor !== null,
-    isRefreshing,
-    error,
+    hasOlder: shownState.nextCursor !== null,
+    isRefreshing: switching ? false : isRefreshing,
+    error: switching ? null : error,
+  };
+}
+
+/**
+ * Which version a freshly opened project shows.
+ *
+ * The URL's `?v=` wins, because it is the reader naming one; otherwise the
+ * newest, and `chosenByUserAt` stays null so the first result that arrives may
+ * still take the preview.
+ */
+function openingSelection(
+  state: StudioState,
+  selectedAssetId: string | null,
+): Selection {
+  return {
+    assetId: selectedAssetId ?? state.assets[0]?.id ?? null,
+    chosenByUserAt: selectedAssetId ? Date.now() : null,
   };
 }

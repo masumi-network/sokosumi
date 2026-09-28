@@ -126,6 +126,8 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  /** Immutable operator-issued preview partition; never accepted from API input. */
+  SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])
@@ -171,12 +173,26 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /**
+   * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
+   * the web, a shell and a persistent workspace. `in-process`: inside Core,
+   * Sokosumi tools only (preview evaluation runs always use it).
+   */
   SOKO_BOT_RUNTIME_ADAPTER: z
-    .enum(["in-memory", "in-process"])
-    .default("in-process"),
-  SOKO_BOT_CLASSIFIER_MODE: z
-    .enum(["deterministic", "model"])
-    .default("deterministic"),
+    .enum(["in-memory", "in-process", "sandbox"])
+    .default("sandbox"),
+  /**
+   * Public base URL sandboxes call Core on. Defaults to the deployment's own
+   * URL; set it locally to a tunnel, since a sandbox cannot reach localhost.
+   */
+  SOKO_BOT_RUNTIME_PUBLIC_URL: z.url().optional(),
+  /**
+   * Explicit Vercel credentials for creating sandboxes. On Vercel the
+   * function's OIDC token is used instead; locally all three are needed.
+   */
+  VERCEL_SANDBOX_TOKEN: z.string().min(1).optional(),
+  VERCEL_SANDBOX_TEAM_ID: z.string().min(1).optional(),
+  VERCEL_SANDBOX_PROJECT_ID: z.string().min(1).optional(),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
   /** Most credits one hire may commit on a turn no owner asked for. */
@@ -272,6 +288,7 @@ const baseEnvSchema = z.object({
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
   /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_PUSH_ADMIN_KEY: z.string().min(1).optional(),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
@@ -325,15 +342,14 @@ function isProductionEnvironment(
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
-  // The agent runs inside Core, so enabling it needs no runtime deployment,
-  // signing key, or allowlist — only a real adapter in a deployed environment.
+  // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
-  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
+  if (value.SOKO_BOT_RUNTIME_ADAPTER === "in-memory") {
     context.addIssue({
       code: "custom",
       path: ["SOKO_BOT_RUNTIME_ADAPTER"],
       message:
-        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+        "SOKO_BOT_RUNTIME_ADAPTER must be sandbox or in-process when Soko Bot is enabled in a deployed environment",
     });
   }
 });

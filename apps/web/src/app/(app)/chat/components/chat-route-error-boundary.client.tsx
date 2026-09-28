@@ -47,6 +47,14 @@ export function chatRouteErrorBoundaryKey(
 }
 
 /**
+ * The room whose render threw, taken off the URL for the error report. A room
+ * page is `/chat/rooms/<id>`; anything else (list, landing) reports no room.
+ */
+export function chatRouteRoomId(pathname: string): string | null {
+  return pathname.match(/^\/chat\/rooms\/([^/]+)\/?$/)?.[1] ?? null;
+}
+
+/**
  * Page-only error boundary keyed by pathname + search so a failed segment
  * does not latch across soft navigations within the chat layout (layout
  * stays mounted).
@@ -58,11 +66,14 @@ export function ChatRouteErrorBoundary({
 }): React.ReactElement {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const roomId = chatRouteRoomId(pathname);
 
   return (
     <DefaultErrorBoundary
       key={chatRouteErrorBoundaryKey(pathname, searchParams)}
-      fallback={<ChatErrorFallback />}
+      boundaryName="chat"
+      context={{ pathname, ...(roomId ? { roomId } : {}) }}
+      fallback={<ChatErrorFallback roomId={roomId} />}
     >
       {children}
     </DefaultErrorBoundary>

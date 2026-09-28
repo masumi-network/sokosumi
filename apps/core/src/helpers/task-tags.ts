@@ -55,21 +55,6 @@ export function mapTaskTags(task: StoredTaskTags) {
   };
 }
 
-export function correctTaskTags(
-  task: StoredTaskTags,
-  add: string[],
-  remove: string[],
-) {
-  return {
-    manualTags: knownTags([...(task.manualTags ?? []), ...add]).filter(
-      (id) => !remove.includes(id),
-    ),
-    rejectedTags: knownTags([...(task.rejectedTags ?? []), ...remove]).filter(
-      (id) => !add.includes(id),
-    ),
-  };
-}
-
 const answerSchema = z.object({
   type: z.literal("boolean"),
   probability: z.number().finite().min(0).max(1),

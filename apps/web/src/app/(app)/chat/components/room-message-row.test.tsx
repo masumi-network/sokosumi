@@ -199,6 +199,25 @@ function coworkerMessage(
   };
 }
 
+function sokoBotMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "sokoBot",
+      sokoBot: {
+        id: "bot-1",
+        name: "Joseph",
+        caption: null,
+        image: null,
+        avatarSeed: "seed-1",
+        presence: "online",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -2965,6 +2984,27 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.queryByTestId("coworker-loading-state"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the Thought trace on a Soko Bot mention placeholder", () => {
+    renderRow({
+      message: sokoBotMessage({
+        id: "msg-bot-1",
+        content: "",
+        metadata: {
+          streaming: true,
+          mention_id: "mention-1",
+          reasoning: [{ type: "reasoning", text: "Creating a Task" }],
+        },
+      }),
+    });
+
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
+      "Creating a Task",
+    );
   });
 
   it("shows working Thought trace with live beat on stream overlay", () => {

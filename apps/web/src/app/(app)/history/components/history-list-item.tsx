@@ -27,6 +27,7 @@ export interface HistoryListItemLabels {
   kind: {
     task: string;
     job: string;
+    image: string;
   };
   taskStatus: Record<TaskStatus, string>;
 }
@@ -186,6 +187,13 @@ function HistoryStatus({
     return (
       <TaskStatusBadge status={status} label={labels.taskStatus[status]} />
     );
+  }
+
+  // An image has no lifecycle of its own — Core types its status as the literal
+  // `"active"` for that reason. A badge here would be a job status word
+  // ("Started", "Payment failed") applied to a finished picture.
+  if (item.kind === "image") {
+    return null;
   }
 
   return <JobStatusBadge status={item.status as SokosumiJobStatus} />;

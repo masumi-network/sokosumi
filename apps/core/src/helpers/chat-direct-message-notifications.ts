@@ -21,6 +21,7 @@ export function shouldEmitChatDirectMessageNotifications(
 }
 
 export interface EmitChatDirectMessageNotificationsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   organizationId: string | null;
@@ -47,6 +48,7 @@ export async function emitChatDirectMessageNotifications(
   try {
     await emit(params);
   } catch (error) {
+    if (params.throwOnError) throw error;
     Sentry.captureException(error, {
       tags: { context: "chat_direct_message_notifications" },
       extra: {

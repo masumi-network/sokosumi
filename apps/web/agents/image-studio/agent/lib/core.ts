@@ -398,19 +398,35 @@ function readDeliveryFacts(value: unknown): DeliveryFacts | null {
   };
 }
 
+export async function listImageOptions(
+  identity: AgentIdentity,
+): Promise<{ catalog: unknown }> {
+  return await call(identity, "/options", { method: "GET" });
+}
+
 export interface VersionSummary {
   id: string;
   version: number;
   lineageId: string;
   parentId: string | null;
   prompt: string;
+  model: string;
+  settings: unknown;
+  width: number;
+  height: number;
   createdAt: string;
   review: "APPROVED" | "REJECTED" | "UNDECIDED";
 }
 
 export async function listVersions(identity: AgentIdentity): Promise<{
   versions: VersionSummary[];
-  activeJobs: { id: string; status: string; prompt: string }[];
+  activeJobs: {
+    id: string;
+    status: string;
+    prompt: string;
+    model: string;
+    settings: unknown;
+  }[];
 }> {
   return await call(identity, "/versions", { method: "GET" });
 }
@@ -423,9 +439,21 @@ export async function startGeneration(
     referenceAssetIds: string[];
     aspectRatio: string;
     resolution: string;
+    modelId?: string;
+    placementId?: string | null;
+    outputFormat?: string;
+    seed?: number | null;
     idempotencyKey: string;
   },
-): Promise<{ job: { id: string; status: string; note: string } }> {
+): Promise<{
+  job: {
+    id: string;
+    status: string;
+    note: string;
+    model: string;
+    settings: unknown;
+  };
+}> {
   return await call(identity, "/generations", {
     method: "POST",
     body: JSON.stringify(input),
@@ -439,6 +467,8 @@ export async function readGeneration(
   job: {
     id: string;
     status: string;
+    model: string;
+    settings: unknown;
     error: string | null;
     retryMayDuplicateCharge: boolean;
   };
@@ -446,6 +476,8 @@ export async function readGeneration(
     id: string;
     version: number;
     lineageId: string;
+    model: string;
+    settings: unknown;
     review: string;
   } | null;
 }> {

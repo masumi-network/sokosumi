@@ -1,4 +1,10 @@
 import { getEnv } from "@/config/env";
+import {
+  imageModel,
+  imageModelForEndpoint,
+  resolveImageSettings,
+} from "./catalog";
+import { imageDimensions } from "./image-model";
 
 /**
  * The fal queue protocol, and nothing else.
@@ -13,11 +19,6 @@ import { getEnv } from "@/config/env";
 const QUEUE_ORIGIN = "https://queue.fal.run";
 const STORAGE_INITIATE_URL =
   "https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3";
-
-/** Text to image. Verified 2026-09-25: takes no reference image. */
-export const IMAGE_MODEL_GENERATE = "fal-ai/gemini-3.1-flash-image-preview";
-/** Image to image. Verified 2026-09-25: takes `image_urls`. */
-export const IMAGE_MODEL_EDIT = "fal-ai/gemini-3.1-flash-image-preview/edit";
 
 const SUBMIT_TIMEOUT_MS = 20_000;
 const STATUS_TIMEOUT_MS = 15_000;
@@ -85,8 +86,27 @@ function authHeaders(): Record<string, string> {
   };
 }
 
-export function falModelForKind(kind: "GENERATE" | "EDIT"): string {
-  return kind === "EDIT" ? IMAGE_MODEL_EDIT : IMAGE_MODEL_GENERATE;
+/**
+ * The endpoint a job of this kind goes to.
+ *
+ * Throws for an EDIT against a model fal lists no `/edit` variant for. That is
+ * the whole reason `editEndpoint` is nullable: such a model generates and cannot
+ * refine, and the alternative — falling back to the generate endpoint — silently
+ * drops the references and hands the person an unrelated fresh image while
+ * charging them for a refinement.
+ */
+export function falModelForKind(
+  kind: "GENERATE" | "EDIT",
+  modelId?: string,
+): string {
+  const model = imageModel(modelId);
+  if (kind === "GENERATE") return model.generateEndpoint;
+  if (!model.editEndpoint) {
+    throw new Error(
+      `${model.label} cannot refine an existing image: fal lists no edit endpoint for it.`,
+    );
+  }
+  return model.editEndpoint;
 }
 
 /**
@@ -108,17 +128,40 @@ export function queueRequestModel(model: string): string {
   return segments.length > 2 ? segments.slice(0, 2).join("/") : model;
 }
 
+/**
+ * The provider payload for one generation.
+ *
+ * Only fields the endpoint's own fal schema declares are sent. That is not
+ * caution, it is the difference between a generation and a 422: `num_images` and
+ * `limit_generations` are Gemini's fields, not the catalog's, and the studio now
+ * offers a hundred and fifty models that have never heard of them.
+ */
 export function buildFalInput(
   input: FalGenerationInput,
+  endpoint = falModelForKind(input.imageUrls.length ? "EDIT" : "GENERATE"),
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = {
-    prompt: input.prompt,
-    aspect_ratio: input.aspectRatio,
-    resolution: input.resolution,
-    output_format: input.outputFormat,
-    num_images: 1,
-  };
-  if (input.seed !== null) body.seed = input.seed;
+  const model = imageModelForEndpoint(endpoint);
+  resolveImageSettings(model.id, input, input.imageUrls.length);
+  if (input.imageUrls.length > 0 !== (endpoint === model.editEndpoint)) {
+    throw new Error("Reference images require the model edit endpoint.");
+  }
+  const accepts = (field: (typeof model.providerFields)[number]): boolean =>
+    model.providerFields.includes(field);
+
+  const body: Record<string, unknown> = { prompt: input.prompt };
+  if (accepts("output_format")) body.output_format = input.outputFormat;
+  if (model.dimensionMode === "image-size") {
+    body.image_size = imageDimensions(input.aspectRatio, input.resolution);
+  } else {
+    body.aspect_ratio = input.aspectRatio;
+    if (accepts("resolution")) body.resolution = input.resolution;
+  }
+  // One image per job, because one job is one charge. A model that cannot be
+  // told this returns whatever its own default is, and settlement keeps the
+  // first image either way.
+  if (accepts("num_images")) body.num_images = 1;
+  if (accepts("limit_generations")) body.limit_generations = true;
+  if (input.seed !== null && accepts("seed")) body.seed = input.seed;
   // Only the `/edit` endpoint accepts this field. Sending it to the base
   // endpoint would be silently ignored, which is exactly how a refinement
   // turns into an unrelated fresh image, so the caller picks the endpoint from

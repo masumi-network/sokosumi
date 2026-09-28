@@ -2,28 +2,40 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/config/env", () => ({ getEnv: () => ({ FAL_KEY: "test-key" }) }));
 
+import { imageModel } from "@/lib/image-studio/catalog";
 import {
   buildFalInput,
   downloadImage,
   falModelForKind,
   fetchQueueStatus,
-  IMAGE_MODEL_EDIT,
-  IMAGE_MODEL_GENERATE,
   isAllowedMediaUrl,
   parseImages,
   queueRequestModel,
   submitToQueue,
 } from "@/lib/image-studio/fal-client";
 
+/**
+ * The default model's endpoints, taken from the catalog rather than written out.
+ *
+ * The studio has a hundred and fifty models now, so a literal here would be a
+ * second opinion about which one is the default.
+ */
+const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
+const DEFAULT_IMAGE_ENDPOINT_EDIT = imageModel().editEndpoint!;
+
 describe("queueRequestModel", () => {
   it("drops a variant sub-path, because the queue's request routes ignore it", () => {
     // Verified live on 2026-09-25: polling under `/edit` answers 405, so a
     // refinement would poll forever and then settle as failed.
-    expect(queueRequestModel(IMAGE_MODEL_EDIT)).toBe(IMAGE_MODEL_GENERATE);
+    expect(queueRequestModel(DEFAULT_IMAGE_ENDPOINT_EDIT)).toBe(
+      DEFAULT_IMAGE_ENDPOINT_GENERATE,
+    );
   });
 
   it("leaves a plain owner/app id alone", () => {
-    expect(queueRequestModel(IMAGE_MODEL_GENERATE)).toBe(IMAGE_MODEL_GENERATE);
+    expect(queueRequestModel(DEFAULT_IMAGE_ENDPOINT_GENERATE)).toBe(
+      DEFAULT_IMAGE_ENDPOINT_GENERATE,
+    );
   });
 });
 
@@ -63,10 +75,63 @@ describe("buildFalInput", () => {
   });
 });
 
+describe("model-specific payloads", () => {
+  const settings = {
+    prompt: "a cup",
+    aspectRatio: "16:9",
+    resolution: "2K",
+    outputFormat: "png",
+    seed: 42,
+    imageUrls: [] as string[],
+  };
+
+  it("sends only FLUX settings and selects the matching edit endpoint", () => {
+    const endpoint = falModelForKind("GENERATE", "flux-2-pro");
+    expect(buildFalInput(settings, endpoint)).toEqual({
+      prompt: "a cup",
+      image_size: { width: 2048, height: 1152 },
+      output_format: "png",
+      seed: 42,
+    });
+    const edit = falModelForKind("EDIT", "flux-2-pro");
+    expect(edit).toBe("fal-ai/flux-2-pro/edit");
+    expect(
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/reference.png"] },
+        edit,
+      ),
+    ).toHaveProperty("image_urls", ["https://v3.fal.media/reference.png"]);
+    expect(queueRequestModel(edit)).toBe(endpoint);
+  });
+
+  it("uses Gemini Pro settings and bounds generated image count", () => {
+    expect(
+      buildFalInput(settings, falModelForKind("GENERATE", "gemini-pro")),
+    ).toMatchObject({
+      aspect_ratio: "16:9",
+      resolution: "2K",
+      num_images: 1,
+      limit_generations: true,
+    });
+  });
+
+  it("rejects references on a generation endpoint rather than silently dropping them", () => {
+    expect(() =>
+      buildFalInput(
+        { ...settings, imageUrls: ["https://v3.fal.media/ref.png"] },
+        DEFAULT_IMAGE_ENDPOINT_GENERATE,
+      ),
+    ).toThrow("edit endpoint");
+    expect(() => buildFalInput(settings, DEFAULT_IMAGE_ENDPOINT_EDIT)).toThrow(
+      "edit endpoint",
+    );
+  });
+});
+
 describe("falModelForKind", () => {
   it("sends a refinement to the endpoint that accepts a reference", () => {
-    expect(falModelForKind("EDIT")).toBe(IMAGE_MODEL_EDIT);
-    expect(falModelForKind("GENERATE")).toBe(IMAGE_MODEL_GENERATE);
+    expect(falModelForKind("EDIT")).toBe(DEFAULT_IMAGE_ENDPOINT_EDIT);
+    expect(falModelForKind("GENERATE")).toBe(DEFAULT_IMAGE_ENDPOINT_GENERATE);
   });
 });
 
@@ -78,7 +143,7 @@ describe("submitToQueue outcome classification", () => {
     );
     await expect(
       submitToQueue({
-        model: IMAGE_MODEL_GENERATE,
+        model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
         input: {},
         webhookUrl: null,
       }),
@@ -93,7 +158,7 @@ describe("submitToQueue outcome classification", () => {
     );
     await expect(
       submitToQueue({
-        model: IMAGE_MODEL_GENERATE,
+        model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
         input: {},
         webhookUrl: null,
       }),
@@ -110,7 +175,7 @@ describe("submitToQueue outcome classification", () => {
     );
     await expect(
       submitToQueue({
-        model: IMAGE_MODEL_GENERATE,
+        model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
         input: {},
         webhookUrl: null,
       }),
@@ -125,7 +190,7 @@ describe("submitToQueue outcome classification", () => {
     );
     await expect(
       submitToQueue({
-        model: IMAGE_MODEL_GENERATE,
+        model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
         input: {},
         webhookUrl: null,
       }),
@@ -143,12 +208,12 @@ describe("submitToQueue outcome classification", () => {
       }),
     );
     await submitToQueue({
-      model: IMAGE_MODEL_GENERATE,
+      model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
       input: {},
       webhookUrl: "https://core.example.com/webhooks/fal/image-jobs",
     });
     await submitToQueue({
-      model: IMAGE_MODEL_GENERATE,
+      model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
       input: {},
       webhookUrl: null,
     });
@@ -169,10 +234,10 @@ describe("fetchQueueStatus", () => {
       }),
     );
     await expect(
-      fetchQueueStatus({ model: IMAGE_MODEL_EDIT, requestId: "r1" }),
+      fetchQueueStatus({ model: DEFAULT_IMAGE_ENDPOINT_EDIT, requestId: "r1" }),
     ).resolves.toEqual({ kind: "in_queue", queuePosition: 2 });
     expect(seen[0]).toBe(
-      `https://queue.fal.run/${IMAGE_MODEL_GENERATE}/requests/r1/status`,
+      `https://queue.fal.run/${DEFAULT_IMAGE_ENDPOINT_GENERATE}/requests/r1/status`,
     );
     vi.unstubAllGlobals();
   });

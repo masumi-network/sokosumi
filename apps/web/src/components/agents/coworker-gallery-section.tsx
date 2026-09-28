@@ -274,7 +274,7 @@ function VendorDashboard({
           columns pad to the bottom so it reaches the closing rule below. */}
       <div className="grid gap-6 md:grid-cols-[13.5rem_1fr] md:gap-0">
         {/* Rail — coworker selector (horizontal on mobile, vertical list on desktop) */}
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pt-6 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pt-6 md:pr-6 md:pb-10">
+        <div className="app-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 pt-6 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pt-6 md:pr-6 md:pb-10">
           {members.map((member) => {
             const isActive = member.id === active.id;
             return (

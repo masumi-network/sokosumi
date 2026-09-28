@@ -201,6 +201,132 @@ describe("the settlement lease", () => {
   });
 });
 
+describe("model and placement provenance", () => {
+  it("copies the saved job endpoint and placement settings to the immutable version", async () => {
+    const settings = {
+      aspectRatio: "2:3",
+      resolution: "2K",
+      outputFormat: "png",
+      seed: 17,
+      placementId: "pinterest-pin",
+    };
+    jobFindUniqueMock.mockResolvedValue({
+      ...JOB,
+      model: "fal-ai/flux-2-pro",
+      settings,
+    });
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ model: "fal-ai/flux-2-pro", settings }),
+      }),
+    );
+  });
+});
+
+describe("the stored version's dimensions", () => {
+  /** A real PNG header, so the byte-reading fallback has something to read. */
+  function pngBytes(width: number, height: number): Uint8Array {
+    const bytes = new Uint8Array(24);
+    bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
+    const data = new DataView(bytes.buffer);
+    data.setUint32(16, width);
+    data.setUint32(20, height);
+    return bytes;
+  }
+
+  /** A minimal lossy WebP, which is what `recraft/v3` actually returns. */
+  function webpBytes(width: number, height: number): Uint8Array {
+    const bytes = new Uint8Array(30);
+    bytes.set([0x52, 0x49, 0x46, 0x46], 0);
+    bytes.set([0x57, 0x45, 0x42, 0x50], 8);
+    bytes.set([0x56, 0x50, 0x38, 0x20], 12);
+    bytes.set([0x9d, 0x01, 0x2a], 23);
+    const data = new DataView(bytes.buffer);
+    data.setUint16(26, width, true);
+    data.setUint16(28, height, true);
+    return bytes;
+  }
+
+  it("takes the provider's figures when fal reports them", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    downloadImageMock.mockResolvedValue({
+      bytes: pngBytes(1, 1),
+      contentType: "image/png",
+    });
+
+    // 1344x768 is what nucleus-image really returned at 16:9. The provider knows
+    // without anybody guessing, so it wins over the header.
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png", {
+      width: 1344,
+      height: 768,
+    });
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 1344, height: 768 }),
+      }),
+    );
+  });
+
+  it("reads the image's own header when fal reports nothing", async () => {
+    // `fal-ai/recraft/v3/text-to-image` — one of the curated five — returns WebP
+    // and no dimensions, and every such asset stored 0x0 until this read the bytes.
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    downloadImageMock.mockResolvedValue({
+      bytes: webpBytes(1024, 1024),
+      contentType: "image/webp",
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.webp", {
+      width: null,
+      height: null,
+    });
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 1024, height: 1024 }),
+      }),
+    );
+  });
+
+  it("reads the header when the call carries no provider size at all", async () => {
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    downloadImageMock.mockResolvedValue({
+      bytes: pngBytes(832, 1216),
+      contentType: "image/png",
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.png");
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 832, height: 1216 }),
+      }),
+    );
+  });
+
+  it("stores zero, and keeps the image, when nothing can be read", async () => {
+    // Not a failure: the client falls back to the rendered image's intrinsic size.
+    // Throwing away an image we paid for because its header is exotic would be
+    // much worse than a missing number.
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+    downloadImageMock.mockResolvedValue({
+      bytes: new Uint8Array([1, 2, 3]),
+      contentType: "image/avif",
+    });
+
+    await settleWithImage("job-1", "https://v3b.fal.media/files/a.avif");
+
+    expect(assetCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ width: 0, height: 0 }),
+      }),
+    );
+  });
+});
+
 describe("concurrent settlement", () => {
   it("does the paid work once when many settlers race one job", async () => {
     // Only the first caller wins the lease; the rest are refused before they

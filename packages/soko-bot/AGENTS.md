@@ -22,7 +22,7 @@ The live tree is `src/`. One main export in `package.json`. `prepare` compiles `
 | `versions/` | Version ids, skills, system-prompt composition |
 | `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts |
 
-The in-process loop lives in Core (`apps/core/src/lib/soko-bot/`). There is no `apps/soko-bot`.
+The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`, served by Core over `/v1/soko-bot-runtime`), or in Core for evaluation runs (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
 
 ## Entry Points
 
@@ -35,7 +35,7 @@ import {
 } from "@sokosumi/soko-bot";
 ```
 
-Core implements the port (`in-process-runtime.ts`, `in-memory-runtime.ts`) and owns data, classification, context packets, schedules, memory writes, and Task/Job mutations. Web imports this package for admin scenario-lab and product copy that must stay aligned with capabilities — not to run the bot.
+Core implements the port (`sandbox/sandbox-runtime.ts`, `in-process-runtime.ts`, `in-memory-runtime.ts`) and owns data, classification, context packets, schedules, memory writes, and Task/Job mutations. Web imports this package for admin scenario-lab and product copy that must stay aligned with capabilities — not to run the bot.
 
 ## Key Conventions
 
@@ -72,5 +72,6 @@ Cross-module contract tests live in `src/__tests__/`.
 
 - [Root AGENTS.md](../../AGENTS.md)
 - [Core AGENTS.md](../../apps/core/AGENTS.md) (`lib/soko-bot/`)
-- [ADR 0007](../../docs/adr/0007-soko-bot-eve-runtime.md) — loop runs in-process in Core
+- [ADR 0007](../../docs/adr/0007-soko-bot-eve-runtime.md) — Core is the control plane
+- [ADR 0043](../../docs/adr/0043-soko-bot-runs-in-per-bot-sandboxes.md) — the loop runs in per-bot sandboxes
 - [Skill routing](../../docs/agents/skill-routing.md) (Soko Bot)

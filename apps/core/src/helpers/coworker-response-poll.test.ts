@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { pollCoworkerResponseStatus } from "./coworker-response-poll";
+import {
+  coworkerResponseText,
+  pollCoworkerResponseStatus,
+  retrieveCoworkerResponse,
+} from "./coworker-response-poll";
 
 const fetchMock = vi.fn();
 
@@ -106,5 +110,75 @@ describe("pollCoworkerResponseStatus", () => {
       responseId: "resp_pending",
     });
     expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("coworkerResponseText", () => {
+  it("prefers output_text and falls back to assistant message parts", () => {
+    expect(coworkerResponseText({ output_text: " Done. " })).toBe("Done.");
+    expect(
+      coworkerResponseText({
+        output: [
+          {
+            type: "reasoning",
+            summary: [{ type: "summary_text", text: "private" }],
+          },
+          {
+            type: "message",
+            content: [
+              { type: "output_text", text: "PR " },
+              { type: "output_text", text: "merged." },
+            ],
+          },
+        ],
+      }),
+    ).toBe("PR merged.");
+    expect(coworkerResponseText({ output: [] })).toBeNull();
+    expect(coworkerResponseText(null)).toBeNull();
+  });
+});
+
+describe("retrieveCoworkerResponse", () => {
+  it("returns the status and final text of a finished response", async () => {
+    const fetchFn = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "resp_1",
+          status: "completed",
+          output_text: "Merged.",
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const retrieved = await retrieveCoworkerResponse({
+      ...DEFAULT_PARAMS,
+      responseId: "resp_1",
+      fetchFn,
+    });
+
+    expect(retrieved).toEqual({
+      result: { status: "completed", responseId: "resp_1" },
+      text: "Merged.",
+    });
+  });
+});
+
+describe("retrieveCoworkerResponse errors", () => {
+  it("reports the HTTP status of a failed retrieve", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValue(new Response("not found", { status: 404 }));
+
+    const retrieved = await retrieveCoworkerResponse({
+      ...DEFAULT_PARAMS,
+      fetchFn,
+    });
+
+    expect(retrieved.result).toMatchObject({
+      status: "error",
+      httpStatus: 404,
+    });
+    expect(retrieved.text).toBeNull();
   });
 });

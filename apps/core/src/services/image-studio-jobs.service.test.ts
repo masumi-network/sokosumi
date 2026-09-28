@@ -15,6 +15,9 @@ const {
   uploadReferenceMock,
   readAssetBytesMock,
   requireProjectAccessMock,
+  createTaskEventTransactionMock,
+  jobAggregateMock,
+  getBalanceMock,
 } = vi.hoisted(() => ({
   jobCountMock: vi.fn(),
   jobCreateMock: vi.fn(),
@@ -30,6 +33,19 @@ const {
   uploadReferenceMock: vi.fn(),
   readAssetBytesMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
+  createTaskEventTransactionMock: vi.fn(),
+  jobAggregateMock: vi.fn(),
+  getBalanceMock: vi.fn(),
+}));
+
+// The submit-time balance check: read-only, and not what this suite is about.
+// Money is covered end to end in `image-studio-credits.test.ts`.
+vi.mock("@sokosumi/database/repositories", () => ({
+  creditBucketRepository: { getBalance: getBalanceMock },
+}));
+
+vi.mock("@/helpers/task-credits", () => ({
+  createTaskEventTransaction: createTaskEventTransactionMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -40,6 +56,7 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/db/prisma", () => {
   const client = {
     projectImageJob: {
+      aggregate: jobAggregateMock,
       count: jobCountMock,
       create: jobCreateMock,
       findUnique: jobFindUniqueMock,
@@ -55,6 +72,7 @@ vi.mock("@/lib/db/prisma", () => {
       create: vi.fn(),
     },
     project: { findUnique: vi.fn() },
+    transaction: { create: vi.fn() },
     $transaction: (run: (tx: unknown) => unknown) => run(client),
   };
   return { default: client };
@@ -89,15 +107,24 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: readAssetBytesMock,
 }));
 
-import {
-  IMAGE_MODEL_EDIT,
-  IMAGE_MODEL_GENERATE,
-} from "@/lib/image-studio/fal-client";
+import { imageModel } from "@/lib/image-studio/catalog";
 import {
   createImageJob,
-  readPngDimensions,
+  readProviderSize,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
+
+/**
+ * The default model's endpoints, taken from the catalog rather than written out.
+ *
+ * The studio has a hundred and fifty models now, so a literal here would be a
+ * second opinion about which one is the default.
+ */
+const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
+const DEFAULT_IMAGE_ENDPOINT_EDIT = imageModel().editEndpoint!;
+
+// Credits are covered end to end in `image-studio-credits.test.ts`; this suite is
+// about submission, and only stubs the debit so reservation can get past it.
 
 const BASE_INPUT = {
   projectId: "project-1",
@@ -121,7 +148,7 @@ function jobRow(overrides: Record<string, unknown> = {}) {
     id: "job-1",
     projectId: "project-1",
     workspaceId: "workspace-1",
-    model: IMAGE_MODEL_GENERATE,
+    model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
     kind: "GENERATE",
     prompt: BASE_INPUT.prompt,
     settings: BASE_INPUT.settings,
@@ -149,7 +176,12 @@ describe("image studio job submission", () => {
       projectId: "project-1",
       workspaceId: "workspace-1",
       userId: "user-1",
+      organizationId: null,
     });
+    createTaskEventTransactionMock.mockResolvedValue("txn-debit-1");
+    jobAggregateMock.mockResolvedValue({ _sum: { chargedCents: null } });
+    // Plenty, so nothing here is refused for money.
+    getBalanceMock.mockResolvedValue(10_000_000_000_000n);
     jobCountMock.mockResolvedValue(0);
     jobFindUniqueMock.mockResolvedValue(null);
     jobCreateMock.mockImplementation(async () => jobRow());
@@ -160,6 +192,82 @@ describe("image studio job submission", () => {
     // One caller wins the lease.
     jobUpdateManyMock.mockResolvedValue({ count: 1 });
   });
+
+  it("persists the chosen model before submitting the model-specific payload", async () => {
+    const stored = jobRow({
+      model: "fal-ai/flux-2-pro",
+      settings: { ...BASE_INPUT.settings, aspectRatio: "2:3" },
+    });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({
+      kind: "queued",
+      requestId: "fal-123",
+    });
+    await createImageJob({
+      ...BASE_INPUT,
+      modelId: "flux-2-pro",
+      settings: { ...BASE_INPUT.settings, aspectRatio: "2:3" },
+    });
+    expect(jobCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          model: "fal-ai/flux-2-pro",
+          settings: expect.objectContaining({ aspectRatio: "2:3" }),
+        }),
+      }),
+    );
+    expect(submitToQueueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: "fal-ai/flux-2-pro",
+        input: expect.objectContaining({
+          image_size: { width: 672, height: 1024 },
+        }),
+      }),
+    );
+    expect(submitToQueueMock.mock.calls[0][0].input).not.toHaveProperty(
+      "resolution",
+    );
+  });
+
+  it("sends only the provider fields the chosen endpoint declares", async () => {
+    // `num_images` and `limit_generations` are Gemini's fields. Sending them to
+    // a model that never declared them is a 422 on a generation that would
+    // otherwise have worked.
+    const stored = jobRow({ model: "fal-ai/flux-2-pro" });
+    jobCreateMock.mockResolvedValue(stored);
+    jobFindUniqueOrThrowMock.mockResolvedValue(stored);
+    submitToQueueMock.mockResolvedValue({ kind: "queued", requestId: "fal-1" });
+    await createImageJob({ ...BASE_INPUT, modelId: "flux-2-pro" });
+    const input = submitToQueueMock.mock.calls[0]![0].input;
+    expect(input).not.toHaveProperty("num_images");
+    expect(input).not.toHaveProperty("limit_generations");
+    expect(input).not.toHaveProperty("aspect_ratio");
+    expect(input).toHaveProperty("image_size");
+  });
+
+  it.each([
+    { modelId: "unverified-model" },
+    {
+      modelId: "flux-2-pro",
+      settings: { ...BASE_INPUT.settings, outputFormat: "webp" },
+    },
+    {
+      modelId: "gemini-pro",
+      settings: { ...BASE_INPUT.settings, resolution: "0.5K" },
+    },
+  ])(
+    "rejects incompatible model settings before reserving or spending",
+    async (invalid) => {
+      await expect(
+        createImageJob({ ...BASE_INPUT, ...invalid }),
+      ).rejects.toMatchObject({ status: 422 });
+      expect(jobCreateMock).not.toHaveBeenCalled();
+      expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
+      expect(submitToQueueMock).not.toHaveBeenCalled();
+      expect(uploadReferenceMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("classifies a definite provider refusal as failed and therefore retryable", async () => {
     submitToQueueMock.mockResolvedValue({
@@ -277,7 +385,7 @@ describe("image studio job submission", () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(
       jobRow({
         kind: "EDIT",
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         referenceAssetIds: ["asset-1"],
         parentAssetId: "asset-1",
       }),
@@ -304,7 +412,7 @@ describe("image studio job submission", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           kind: "EDIT",
-          model: IMAGE_MODEL_EDIT,
+          model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         }),
       }),
     );
@@ -312,7 +420,7 @@ describe("image studio job submission", () => {
     // there would quietly become an unrelated fresh image.
     expect(submitToQueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         input: expect.objectContaining({
           image_urls: ["https://v3b.fal.media/files/x.png"],
         }),
@@ -324,7 +432,7 @@ describe("image studio job submission", () => {
     jobFindUniqueOrThrowMock.mockResolvedValue(
       jobRow({
         kind: "EDIT",
-        model: IMAGE_MODEL_EDIT,
+        model: DEFAULT_IMAGE_ENDPOINT_EDIT,
         referenceAssetIds: ["asset-1"],
       }),
     );
@@ -397,16 +505,22 @@ describe("stalled submission sweep", () => {
   });
 });
 
-describe("readPngDimensions", () => {
-  it("reads width and height from a PNG header", () => {
-    const bytes = new Uint8Array(24);
-    bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-    new DataView(bytes.buffer).setUint32(16, 1024);
-    new DataView(bytes.buffer).setUint32(20, 768);
-    expect(readPngDimensions(bytes)).toEqual({ width: 1024, height: 768 });
+describe("readProviderSize", () => {
+  it("takes the provider's figures when it reports them", () => {
+    expect(readProviderSize({ width: 1344, height: 768 })).toEqual({
+      width: 1344,
+      height: 768,
+    });
   });
 
-  it("returns null for anything that is not a PNG", () => {
-    expect(readPngDimensions(new Uint8Array([1, 2, 3]))).toBeNull();
+  it("refuses a size the provider did not really give", () => {
+    // fal sends nulls for endpoints that report nothing, and the shape allows
+    // anything. A half-reported size must not be stored as `1024x0`.
+    expect(readProviderSize(undefined)).toBeNull();
+    expect(readProviderSize({ width: null, height: null })).toBeNull();
+    expect(readProviderSize({ width: 1024, height: null })).toBeNull();
+    expect(readProviderSize({ width: 0, height: 0 })).toBeNull();
+    expect(readProviderSize({ width: -1, height: 10 })).toBeNull();
+    expect(readProviderSize({ width: 10.5, height: 10 })).toBeNull();
   });
 });

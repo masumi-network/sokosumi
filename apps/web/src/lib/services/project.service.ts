@@ -15,7 +15,6 @@ import type {
   ProjectCloseStatus,
   ProjectContextMd,
   ProjectListItem,
-  ProjectNeedsAttention,
   ProjectSocialConnection,
   ProjectStar,
   ProjectStatsEntry,
@@ -88,13 +87,6 @@ export const projectService = (() => {
 
       throw error;
     }
-  }
-
-  async function getProjectNeedsAttention(
-    projectId: string,
-  ): Promise<ProjectNeedsAttention> {
-    const result = await coreClient.getProjectsByIdNeedsAttention(projectId);
-    return result.data;
   }
 
   async function getProjectCloseStatus(
@@ -358,7 +350,6 @@ export const projectService = (() => {
     listProjects,
     getProjectsStats,
     getProjectById,
-    getProjectNeedsAttention,
     getProjectCloseStatus,
     getProjectContextMd,
     getProjectCalendar,

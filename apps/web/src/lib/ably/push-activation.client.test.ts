@@ -2,6 +2,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const unsubscribeDeviceMock = vi.fn();
 const subscribeDeviceMock = vi.fn();
+const beginPushActivationMock = vi.fn();
+vi.mock("@/lib/services/push-devices.service", () => ({
+  beginPushActivation: (...args: unknown[]) => beginPushActivationMock(...args),
+  subscribePushDevice: (...args: unknown[]) => {
+    calls.push("subscribeDevice");
+    return subscribeDeviceMock(...args);
+  },
+}));
+beforeEach(() => {
+  beginPushActivationMock.mockReset().mockResolvedValue({
+    id: "consent-1",
+    revision: 1,
+    revoked: false,
+    replaceDevice: false,
+  });
+});
 const activateMock = vi.fn();
 const deactivateMock = vi.fn();
 const unsubscribeMock = vi.fn();
@@ -47,18 +63,29 @@ beforeEach(() => {
   rememberRenewalMock.mockReset().mockResolvedValue(undefined);
   revokeRenewalMock.mockReset().mockResolvedValue(undefined);
 });
+const recordBrowserMock = vi.fn();
+vi.mock("./push-device-browser.client", () => ({
+  recordPushDeviceBrowser: (...args: unknown[]) => recordBrowserMock(...args),
+}));
+beforeEach(() => {
+  recordBrowserMock.mockReset().mockResolvedValue(undefined);
+});
 const calls: string[] = [];
 
 /** Set to make the singleton throw the way a first construction can. */
 let clientConstructionError: Error | null = null;
 
 vi.mock("./push-client.client", () => ({
-  createAblyPushClient: () => {
+  createAblyPushClient: (userId: string) => {
     if (clientConstructionError) {
       throw clientConstructionError;
     }
     return {
-      getDevice: () => getDeviceMock(),
+      getDevice: async () => ({
+        id: "device-1",
+        clientId: `${userId}:instance`,
+        ...(await getDeviceMock()),
+      }),
       push: {
         activate: () => {
           calls.push("activate");
@@ -75,8 +102,9 @@ vi.mock("./push-client.client", () => ({
           return {
             push: {
               subscribeDevice: () => {
-                calls.push("subscribeDevice");
-                return subscribeDeviceMock();
+                throw new Error(
+                  "Browser must not bind a push channel directly",
+                );
               },
               unsubscribeDevice: () => {
                 calls.push("unsubscribeDevice");
@@ -99,6 +127,11 @@ vi.mock("@/lib/utils/notification-service-worker", () => ({
 }));
 
 import { activatePush, deactivatePush } from "./push-activation.client";
+import {
+  hasPushDeviceIdentity,
+  rememberPushDeviceIdentity,
+} from "./push-device-identity.client";
+import { wantsPushHere } from "./push-preference.client";
 import { notePushTeardown, queuePushWork } from "./push-work-queue.client";
 
 describe("deactivatePush", () => {
@@ -111,7 +144,7 @@ describe("deactivatePush", () => {
     calls.length = 0;
     clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
-    subscribeDeviceMock.mockResolvedValue(undefined);
+    subscribeDeviceMock.mockResolvedValue(true);
     unsubscribeDeviceMock.mockResolvedValue(undefined);
     deactivateMock.mockResolvedValue(undefined);
     // The browser, not a constant: a subscription that unsubscribes is gone
@@ -430,7 +463,7 @@ describe("activatePush", () => {
     calls.length = 0;
     clientConstructionError = null;
     activateMock.mockResolvedValue(undefined);
-    subscribeDeviceMock.mockResolvedValue(undefined);
+    subscribeDeviceMock.mockResolvedValue(true);
     deactivateMock.mockResolvedValue(undefined);
     hasWebPushSubscriptionMock.mockResolvedValue(true);
     browserRequestPermission = vi.fn().mockResolvedValue("granted");
@@ -443,6 +476,369 @@ describe("activatePush", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     localStorage.clear();
+  });
+
+  it("honors remote revocation before activation or reset and keeps the consent after reload", async () => {
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    localStorage.setItem("ably.push.deviceIdentityToken", "token");
+    beginPushActivationMock.mockResolvedValueOnce({
+      id: "consent-1",
+      revision: 2,
+      revoked: true,
+      replaceDevice: false,
+    });
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: async () => ({ unsubscribe }) },
+    });
+
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(false);
+    expect(activateMock).not.toHaveBeenCalled();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(revokeRenewalMock).toHaveBeenCalled();
+    expect(localStorage.getItem("ably.push.deviceIdentityToken")).toBeNull();
+    expect(localStorage.getItem("sokosumi.push.preference")).toBeNull();
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+    const { readPushConsentId } = await import("./push-consent.client");
+    expect(readPushConsentId("user_1")).toBe("consent-1");
+    expect(recordOutcomeMock).toHaveBeenLastCalledWith({ notify: true });
+  });
+
+  it("stops local delivery when revocation wins the final binding race", async () => {
+    subscribeDeviceMock.mockResolvedValueOnce(false);
+    const unsubscribe = vi.fn().mockResolvedValue(true);
+    getNotificationServiceWorkerMock.mockResolvedValueOnce({
+      pushManager: { getSubscription: async () => ({ unsubscribe }) },
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(false);
+    expect(activateMock).toHaveBeenCalledOnce();
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+    expect(rememberRenewalMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+  });
+
+  it("uses the retained consent when explicitly enabling a revoked browser later", async () => {
+    beginPushActivationMock
+      .mockResolvedValueOnce({
+        id: "consent-1",
+        revision: 2,
+        revoked: true,
+        replaceDevice: false,
+      })
+      .mockResolvedValueOnce({
+        id: "consent-1",
+        revision: 3,
+        revoked: false,
+        replaceDevice: false,
+      });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(false);
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(beginPushActivationMock).toHaveBeenLastCalledWith({
+      consentId: "consent-1",
+      deviceId: "device-1",
+      readerInitiated: true,
+    });
+    expect(subscribeDeviceMock).toHaveBeenCalledWith("device-1", {
+      consentId: "consent-1",
+      revision: 3,
+    });
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+  });
+
+  it("replaces a healthy revoked registration before binding the new consent revision", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    rememberPushDeviceIdentity("user_1", {
+      id: "device-1",
+      clientId: "user_1:instance",
+    });
+    beginPushActivationMock.mockResolvedValueOnce({
+      id: "consent-1",
+      revision: 3,
+      revoked: false,
+      replaceDevice: true,
+    });
+    let deviceId = "device-1";
+    getDeviceMock.mockImplementation(async () => ({
+      id: deviceId,
+      deviceIdentityToken: "token",
+    }));
+    deactivateMock.mockImplementationOnce(async () => {
+      deviceId = "device-2";
+      localStorage.setItem(
+        "ably.push.deviceId",
+        JSON.stringify({ value: deviceId }),
+      );
+    });
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledOnce();
+    expect(activateMock).toHaveBeenCalledTimes(2);
+    expect(subscribeDeviceMock).toHaveBeenCalledExactlyOnceWith("device-2", {
+      consentId: "consent-1",
+      revision: 3,
+    });
+    expect(hasPushDeviceIdentity("user_1", "device-2")).toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+  });
+
+  it("does not join an explicit enable to a pending automatic repair", async () => {
+    let resolveBegin = (_value: {
+      id: string;
+      revision: number;
+      revoked: boolean;
+    }) => {};
+    beginPushActivationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBegin = resolve;
+      }),
+    );
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    const automatic = activatePush("user_1", { readerInitiated: false });
+    await vi.waitFor(() =>
+      expect(beginPushActivationMock).toHaveBeenCalledOnce(),
+    );
+    const explicit = activatePush("user_1");
+    resolveBegin({ id: "consent-1", revision: 2, revoked: true });
+    await expect(automatic).resolves.toBe(false);
+    await expect(explicit).resolves.toBe(true);
+    expect(beginPushActivationMock).toHaveBeenCalledTimes(2);
+    expect(beginPushActivationMock).toHaveBeenLastCalledWith({
+      consentId: "consent-1",
+      deviceId: "device-1",
+      readerInitiated: true,
+    });
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+    expect(wantsPushHere("user_1")).toBe(true);
+  });
+
+  it("retains explicit recovery intent after an earlier revoked repair and SDK failure", async () => {
+    let resolveBegin = (_value: {
+      id: string;
+      revision: number;
+      revoked: boolean;
+      replaceDevice: boolean;
+    }) => {};
+    beginPushActivationMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveBegin = resolve;
+      }),
+    );
+    getNotificationServiceWorkerMock.mockResolvedValueOnce(undefined);
+    const automatic = activatePush("user_1", { readerInitiated: false });
+    await vi.waitFor(() =>
+      expect(beginPushActivationMock).toHaveBeenCalledOnce(),
+    );
+    activateMock.mockRejectedValueOnce(new Error("SDK unavailable"));
+    const explicit = activatePush("user_1");
+    const explicitFailure = expect(explicit).rejects.toThrow("SDK unavailable");
+    resolveBegin({
+      id: "consent-1",
+      revision: 2,
+      revoked: true,
+      replaceDevice: false,
+    });
+    await expect(automatic).resolves.toBe(false);
+    await explicitFailure;
+    expect(wantsPushHere("user_1")).toBe(true);
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBeNull();
+  });
+
+  it("keeps intentional off when an explicit re-enable cannot reach Core", async () => {
+    localStorage.setItem("sokosumi.push.teardownStarted", "1");
+    beginPushActivationMock.mockRejectedValueOnce(
+      new Error("Core unavailable"),
+    );
+    await expect(activatePush("user_1")).rejects.toThrow("Core unavailable");
+    expect(localStorage.getItem("sokosumi.push.teardownStarted")).toBe("1");
+    expect(activateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not activate when Core cannot establish device consent", async () => {
+    beginPushActivationMock.mockRejectedValueOnce(
+      new Error("Core unavailable"),
+    );
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).rejects.toThrow("Core unavailable");
+    expect(activateMock).not.toHaveBeenCalled();
+    expect(deactivateMock).not.toHaveBeenCalled();
+    expect(subscribeDeviceMock).not.toHaveBeenCalled();
+  });
+
+  it("does not reset a device if its stable consent cannot be stored", async () => {
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key.startsWith("sokosumi.push.consent:"))
+          throw new Error("Storage full");
+        setItem(key, value);
+      });
+    try {
+      await expect(activatePush("user_1")).rejects.toThrow("Storage full");
+      expect(activateMock).not.toHaveBeenCalled();
+      expect(deactivateMock).not.toHaveBeenCalled();
+      expect(subscribeDeviceMock).not.toHaveBeenCalled();
+    } finally {
+      storage.mockRestore();
+    }
+  });
+
+  it("does not repeatedly reset a working legacy device when marker storage is full", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    const setItem = localStorage.setItem.bind(localStorage);
+    const storage = vi
+      .spyOn(localStorage, "setItem")
+      .mockImplementation((key, value) => {
+        if (key === "sokosumi.push.identifiedDevice")
+          throw new DOMException("Storage full", "QuotaExceededError");
+        setItem(key, value);
+      });
+    try {
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      await expect(
+        activatePush("user_1", { readerInitiated: false }),
+      ).rejects.toThrow("Storage full");
+      expect(deactivateMock).not.toHaveBeenCalled();
+      expect(activateMock).not.toHaveBeenCalled();
+      expect(unsubscribeDeviceMock).not.toHaveBeenCalled();
+      expect(unsubscribeMock).not.toHaveBeenCalled();
+      expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    } finally {
+      storage.mockRestore();
+    }
+  });
+
+  it("replaces an existing unnamed registration once and marks the new device", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    let activations = 0;
+    activateMock.mockImplementation(async () => {
+      if (++activations === 2) {
+        localStorage.setItem(
+          "ably.push.deviceId",
+          JSON.stringify({ value: "device-1" }),
+        );
+      }
+    });
+
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(true);
+    expect(hasPushDeviceIdentity("user_1", "legacy-device")).toBe(false);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+    await expect(activatePush("user_1")).resolves.toBe(true);
+    expect(deactivateMock).toHaveBeenCalledTimes(1);
+    expect(recordBrowserMock).toHaveBeenLastCalledWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
+  });
+
+  it("does not mark a migration whose channel binding failed", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "legacy-device" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    subscribeDeviceMock.mockRejectedValueOnce(new Error("Binding failed"));
+
+    await expect(activatePush("user_1")).rejects.toThrow("Binding failed");
+    expect(hasPushDeviceIdentity("user_1", "device-1")).toBe(false);
+  });
+
+  it("records browser metadata after subscribing and keeps push active if recording fails", async () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    recordBrowserMock.mockRejectedValueOnce(new Error("metadata unavailable"));
+    expect(await activatePush("user_1")).toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledWith(
+      expect.any(Object),
+      "user_1",
+      expect.any(Date),
+    );
+    expect(recordBrowserMock.mock.invocationCallOrder[0]).toBeGreaterThan(
+      subscribeDeviceMock.mock.invocationCallOrder[0],
+    );
+    warning.mockRestore();
+  });
+
+  it("captures a fresh registration date only after activation succeeds", async () => {
+    let finish = () => {};
+    activateMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    const work = activatePush("user_1");
+    await vi.waitFor(() => expect(activateMock).toHaveBeenCalledOnce());
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+    const activatedAt = Date.now();
+    finish();
+    await expect(work).resolves.toBe(true);
+    const registeredAt = recordBrowserMock.mock.calls[0][2];
+    expect(registeredAt).toBeInstanceOf(Date);
+    expect(registeredAt.getTime()).toBeGreaterThanOrEqual(activatedAt);
+    expect(registeredAt.getTime()).toBeLessThanOrEqual(Date.now());
+  });
+
+  it("does not record a date when SDK activation fails", async () => {
+    activateMock.mockRejectedValueOnce(new Error("Activation failed"));
+    await expect(activatePush("user_1")).rejects.toThrow("Activation failed");
+    expect(recordBrowserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not date an existing healthy registration during recovery", async () => {
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "device-1" }),
+    );
+    localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
+    rememberPushDeviceIdentity("user_1", {
+      id: "device-1",
+      clientId: "user_1:instance",
+    });
+    await expect(
+      activatePush("user_1", { readerInitiated: false }),
+    ).resolves.toBe(true);
+    expect(recordBrowserMock).toHaveBeenCalledExactlyOnceWith(
+      expect.any(Object),
+      "user_1",
+      undefined,
+    );
+    expect(deactivateMock).not.toHaveBeenCalled();
   });
 
   it("stops before binding when the device owner cannot be saved", async () => {
@@ -683,7 +1079,14 @@ describe("activatePush", () => {
    * teardown and re-registration on every activation and every repair.
    */
   it("keeps a device this browser already holds for this reader", async () => {
-    localStorage.setItem("ably.push.deviceId", "my-device");
+    localStorage.setItem(
+      "ably.push.deviceId",
+      JSON.stringify({ value: "my-device" }),
+    );
+    rememberPushDeviceIdentity("user_1", {
+      id: "my-device",
+      clientId: "user_1:instance",
+    });
     localStorage.setItem("sokosumi.push.deviceOwner", "user_1");
     hasWebPushSubscriptionMock.mockResolvedValue(true);
 
@@ -735,15 +1138,22 @@ describe("activatePush", () => {
     expect(calls).toEqual(["activate", "subscribeDevice"]);
   });
 
-  it("binds a preview device only to its branch channel", async () => {
+  it("keeps preview consent separate while Core owns channel binding", async () => {
     envMock.NEXT_PUBLIC_VERCEL_ENV = "preview";
     envMock.NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF = "fix/push-urls";
 
     await activatePush("user_1");
 
-    expect(getChannelMock).toHaveBeenCalledWith(
-      "notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_1",
-    );
+    expect(
+      localStorage.getItem(
+        "sokosumi.push.consent:notifications:preview:mainnet:branch_fix%2Fpush-urls:user_user_1",
+      ),
+    ).toBe("consent-1");
+    expect(subscribeDeviceMock).toHaveBeenCalledWith("device-1", {
+      consentId: "consent-1",
+      revision: 1,
+    });
+    expect(getChannelMock).not.toHaveBeenCalled();
   });
 
   it("does not bind the channel when activation fails", async () => {
@@ -1130,6 +1540,7 @@ describe("activatePush", () => {
     subscribeDeviceMock.mockRejectedValueOnce(new Error("channel failed"));
     await expect(activatePush("user_1")).rejects.toThrow("channel failed");
     expect(rememberRenewalMock).not.toHaveBeenCalled();
+    expect(recordBrowserMock).not.toHaveBeenCalled();
   });
 
   it("keeps foreground activation usable when renewal storage fails", async () => {

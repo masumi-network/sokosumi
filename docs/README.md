@@ -21,6 +21,14 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 - [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
 
+## Features
+
+- [`features/task-tags.md`](./features/task-tags.md) — Core task-tag vocabulary, `/sync/task-tags` worker (50 queued + 200 historical), spend bounds, and production-log caution
+
+## Native tables
+
+- [`native-tables.md`](./native-tables.md) — Files tables storage, Core API, bounds, and isolated `native_tables` verification
+
 ## Wayfinder
 
 - [`wayfinder/x402-evm/PR2-SPEC.md`](./wayfinder/x402-evm/PR2-SPEC.md) — remaining x402/EVM implementer spec (`Job.paymentRail` / `JobX402Payment`); substrate [`adr/0001-x402-evm-payment-rail.md`](./adr/0001-x402-evm-payment-rail.md)

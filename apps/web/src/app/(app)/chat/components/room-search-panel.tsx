@@ -441,7 +441,7 @@ export function RoomSearchPanel({
           id={listboxId}
           role="listbox"
           aria-label={labels.open}
-          className="max-h-80 overflow-y-auto p-1"
+          className="app-scrollbar max-h-80 overflow-y-auto p-1"
         >
           {showLoading ? (
             <div className="text-muted-foreground flex items-center justify-center gap-2 px-2 py-6 text-sm">

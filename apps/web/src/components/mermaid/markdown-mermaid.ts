@@ -6,14 +6,16 @@ interface MarkdownNode {
   lang?: string | null;
   value?: string;
   children?: MarkdownNode[];
-  position?: { start: { offset?: number }; end: { offset?: number } };
+  // unist points are independently optional: `mdast-util-to-hast` builds
+  // `position` from `pointStart`/`pointEnd`, either of which can be undefined.
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
 }
 
 interface HtmlNode {
   tagName?: string;
   properties?: Record<string, unknown>;
   children?: HtmlNode[];
-  position?: { start: { offset?: number } };
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
 }
 
 interface MermaidSource {
@@ -43,8 +45,8 @@ export function prepareMermaidMarkdown({
   let protectedSource = "";
   function collect(node: MarkdownNode) {
     if (node.type === "code" && node.lang?.toLowerCase() === "mermaid") {
-      const start = node.position?.start.offset;
-      const end = node.position?.end.offset;
+      const start = node.position?.start?.offset;
+      const end = node.position?.end?.offset;
       if (start === undefined || end === undefined) return;
       const raw = source.slice(start, end);
       // Search must not highlight the placeholder itself.
@@ -92,7 +94,7 @@ export function prepareMermaidMarkdown({
   function rehypeMermaid() {
     return (tree: HtmlNode) => {
       function visit(node: HtmlNode) {
-        const offset = node.position?.start.offset;
+        const offset = node.position?.start?.offset;
         if (node.tagName === "pre" && offset !== undefined) {
           const block = blocks.get(offset);
           if (block)

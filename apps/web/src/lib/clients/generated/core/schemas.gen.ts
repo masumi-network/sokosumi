@@ -929,6 +929,34 @@ export const AdminSokoBotOwnerSchema = {
 export const AdminSokoBotQualitySchema = {
     type: 'object',
     properties: {
+        reliability: {
+            type: 'object',
+            properties: {
+                fulfillment: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                delivery: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                invalidActionClaims: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'fulfillment',
+                'delivery',
+                'invalidActionClaims'
+            ]
+        },
         overall: {
             type: 'object',
             properties: {
@@ -1041,6 +1069,7 @@ export const AdminSokoBotQualitySchema = {
         }
     },
     required: [
+        'reliability',
         'overall',
         'proactive',
         'daily',
@@ -2558,6 +2587,13 @@ export const SokoBotTurnSchema = {
             items: {
                 $ref: '#/components/schemas/SokoBotToolCall'
             }
+        },
+        evaluation: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
         },
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
@@ -13014,13 +13050,17 @@ export const HistoryItemSchema = {
         },
         {
             $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryImageItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem'
+            job: '#/components/schemas/HistoryJobItem',
+            image: '#/components/schemas/HistoryImageItem'
         }
     }
 } as const;
@@ -13279,6 +13319,290 @@ export const HistoryJobItemSchema = {
         'agentId',
         'agentName',
         'agentIcon'
+    ]
+} as const;
+
+export const HistoryImageItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active'
+            ]
+        },
+        assetId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the image was generated in',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        modelLabel: {
+            type: 'string',
+            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            example: 'Gemini 3.1 Flash Image'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'assetId',
+        'projectId',
+        'modelLabel'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
+            }
+        },
+        snapshotDate: {
+            type: 'string'
+        },
+        refreshedAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'snapshotDate',
+        'refreshedAt'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        generateEndpoint: {
+            type: 'string'
+        },
+        editEndpoint: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        outputFormats: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        supportsSeed: {
+            type: 'boolean'
+        },
+        maxReferences: {
+            type: 'integer'
+        },
+        dimensionMode: {
+            type: 'string',
+            enum: [
+                'aspect-ratio',
+                'image-size'
+            ]
+        },
+        providerFields: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'aspect_ratio',
+                    'resolution',
+                    'image_size',
+                    'output_format',
+                    'num_images',
+                    'seed',
+                    'limit_generations',
+                    'image_urls'
+                ]
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perImageUsd: {
+                    type: 'object',
+                    properties: {
+                        '0.5K': {
+                            type: 'number'
+                        },
+                        '1K': {
+                            type: 'number'
+                        },
+                        '2K': {
+                            type: 'number'
+                        }
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        },
+        sourceUrls: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        verifiedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'generateEndpoint',
+        'editEndpoint',
+        'aspectRatios',
+        'resolutions',
+        'outputFormats',
+        'supportsSeed',
+        'maxReferences',
+        'dimensionMode',
+        'providerFields',
+        'curatedRank',
+        'notes',
+        'price',
+        'sourceUrls',
+        'verifiedAt'
     ]
 } as const;
 
@@ -16993,7 +17317,9 @@ export const ProjectImageSettingsSchema = {
                 '16:9',
                 '9:16',
                 '3:2',
-                '2:3'
+                '2:3',
+                '4:5',
+                '5:4'
             ],
             default: '1:1'
         },
@@ -17088,6 +17414,9 @@ export const ProjectImageJobSchema = {
                 'EDIT'
             ]
         },
+        model: {
+            type: 'string'
+        },
         prompt: {
             type: 'string'
         },
@@ -17105,6 +17434,27 @@ export const ProjectImageJobSchema = {
             type: [
                 'string',
                 'null'
+            ]
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
             ]
         },
         parentAssetId: {
@@ -17152,23 +17502,36 @@ export const ProjectImageJobSchema = {
         },
         retryMayDuplicateCharge: {
             type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
         }
     },
     required: [
         'id',
         'status',
         'kind',
+        'model',
         'prompt',
         'settings',
         'referenceAssetIds',
         'error',
+        'failureReason',
         'parentAssetId',
         'assetId',
         'createdAt',
         'submittedAt',
         'settledAt',
         'cancelRequestedAt',
-        'retryMayDuplicateCharge'
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
     ]
 } as const;
 
@@ -17215,6 +17578,12 @@ export const ProjectImageSessionSchema = {
 export const CreateProjectImageJobRequestSchema = {
     type: 'object',
     properties: {
+        modelId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            default: 'gemini-flash'
+        },
         prompt: {
             type: 'string',
             minLength: 1,
@@ -18217,6 +18586,195 @@ export const NotificationCountsSchema = {
     ]
 } as const;
 
+export const PushDeviceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        browserDetails: {
+            $ref: '#/components/schemas/PushDeviceBrowserDetails'
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        platform: {
+            type: 'string',
+            enum: [
+                'browser',
+                'ios',
+                'android',
+                'unknown'
+            ]
+        },
+        formFactor: {
+            type: 'string',
+            enum: [
+                'phone',
+                'tablet',
+                'desktop',
+                'tv',
+                'watch',
+                'car',
+                'embedded',
+                'other'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'active',
+                'failing',
+                'failed',
+                'unknown'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'platform',
+        'formFactor',
+        'state'
+    ]
+} as const;
+
+export const PushDeviceBrowserDetailsSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        }
+    },
+    required: [
+        'browser',
+        'operatingSystem'
+    ]
+} as const;
+
+export const PushDeviceActivationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        revoked: {
+            type: 'boolean'
+        },
+        replaceDevice: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'revision',
+        'revoked',
+        'replaceDevice'
+    ]
+} as const;
+
+export const PushDeviceActivationRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        deviceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256
+        },
+        readerInitiated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'deviceId',
+        'readerInitiated'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceSubscriptionRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        }
+    },
+    required: [
+        'consentId',
+        'revision'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceBrowserUpdateSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    additionalProperties: false
+} as const;
+
 export const MarkAllReadResponseSchema = {
     type: 'object',
     properties: {
@@ -18919,6 +19477,43 @@ export const CreateSokoBotApiKeyResponseSchema = {
         'token',
         'name',
         'expiresAt'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthRequestSchema = {
+    type: 'object',
+    properties: {
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            description: 'The single-use session URI Composio hands to the verifier'
+        }
+    },
+    required: [
+        'sessionUri'
     ]
 } as const;
 

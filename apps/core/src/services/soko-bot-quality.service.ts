@@ -1,7 +1,9 @@
 import type { SokoBotTurnSource } from "@sokosumi/database";
 import { isSokoBotSilentAnswer, SOKO_BOT_VERSIONS } from "@sokosumi/soko-bot";
-
+import { z } from "zod";
 import prisma from "@/lib/db/prisma";
+
+const receiptIdSchema = z.uuid();
 
 const DAYS = 30;
 const DAY_MS = 24 * 60 * 60 * 1_000;
@@ -9,6 +11,11 @@ const DAY_MS = 24 * 60 * 60 * 1_000;
 export interface SokoBotQualityOverview {
   overall: { turns: number; judged: number; avgScore: number | null };
   /** Self-started turns that reached the owner, and how many they acted on within a day. */
+  reliability: {
+    fulfillment: Record<string, number>;
+    delivery: Record<string, number>;
+    invalidActionClaims: number;
+  };
   proactive: {
     sent: number;
     actedOn: number;
@@ -69,6 +76,13 @@ export async function getSokoBotQualityOverview(
       ...(options.sokoBotId ? { sokoBotId: options.sokoBotId } : {}),
     },
     select: {
+      id: true,
+      workspaceId: true,
+      intentId: true,
+      intentRevision: true,
+      fulfillmentState: true,
+      deliveries: { select: { status: true } },
+      responseContract: true,
       createdAt: true,
       qualityScore: true,
       versionId: true,
@@ -109,7 +123,13 @@ export async function getSokoBotQualityOverview(
       ]);
     }
   }
-  const proactiveTurns = panelTurns.filter(isProactiveTurn);
+  const proactiveTurns = panelTurns.filter(
+    (turn) =>
+      isProactiveTurn(turn) &&
+      turn.deliveries.some(
+        (item) => item.status === "PERSISTED" || item.status === "PUBLISHED",
+      ),
+  );
   const thumbsByDay = new Map<string, { up: number; down: number }>();
   for (const turn of panelFeedbackTurns) {
     if (
@@ -166,7 +186,115 @@ export async function getSokoBotQualityOverview(
         c.createdAt.getTime() - p.createdAt.getTime() <= DAY_MS,
     ),
   ).length;
+  const fulfillment: Record<string, number> = {};
+  const delivery: Record<string, number> = {};
+  let invalidActionClaims = 0;
+  for (const turn of panelTurns) {
+    const outcome = turn.fulfillmentState ?? "UNKNOWN";
+    fulfillment[outcome] = (fulfillment[outcome] ?? 0) + 1;
+    for (const status of turn.deliveries.length
+      ? turn.deliveries.map((item) => item.status)
+      : ["UNTRACKED"]) {
+      delivery[status] = (delivery[status] ?? 0) + 1;
+    }
+    const contract = turn.responseContract;
+    if (
+      contract &&
+      typeof contract === "object" &&
+      !Array.isArray(contract) &&
+      Array.isArray(contract.appliedReceiptIds)
+    ) {
+      const verified = new Set<string>();
+      const claimed = [
+        ...new Set(
+          contract.appliedReceiptIds.filter(
+            (id): id is string =>
+              typeof id === "string" && receiptIdSchema.safeParse(id).success,
+          ),
+        ),
+      ];
+      // Fetch only claimed proof, in bounded batches; ordinary/read tool history
+      // is irrelevant to this metric and must not be materialized for the panel.
+      for (let offset = 0; offset < claimed.length; offset += 100) {
+        const sources = await prisma.sokoBotToolCall.findMany({
+          where: {
+            id: { in: claimed.slice(offset, offset + 100) },
+            actorBotId: turn.sokoBotId,
+            status: "COMPLETED",
+            disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
+            verification: { not: "NONE" },
+            committedAt: { not: null },
+            targetId: { not: null },
+            turn: { sokoBotId: turn.sokoBotId, workspaceId: turn.workspaceId },
+          },
+          take: 100,
+          select: {
+            id: true,
+            actorBotId: true,
+            capability: true,
+            inputHash: true,
+            turn: {
+              select: {
+                id: true,
+                sokoBotId: true,
+                workspaceId: true,
+                intentId: true,
+                intentRevision: true,
+              },
+            },
+          },
+        });
+        const replaySources = sources.filter(
+          (source) =>
+            source.actorBotId === turn.sokoBotId &&
+            source.turn.sokoBotId === turn.sokoBotId &&
+            source.turn.workspaceId === turn.workspaceId &&
+            turn.intentId !== null &&
+            source.turn.intentId === turn.intentId &&
+            source.turn.intentRevision === turn.intentRevision,
+        );
+        for (const source of sources)
+          if (source.turn.id === turn.id) verified.add(source.id);
+        if (!replaySources.length) continue;
+        let cursor: string | undefined;
+        while (true) {
+          const wrappers = await prisma.sokoBotToolCall.findMany({
+            where: {
+              turnId: turn.id,
+              replayedReceiptId: {
+                in: replaySources.map((source) => source.id),
+              },
+              ...(cursor ? { id: { gt: cursor } } : {}),
+            },
+            orderBy: { id: "asc" },
+            take: 100,
+            select: {
+              id: true,
+              replayedReceiptId: true,
+              capability: true,
+              inputHash: true,
+            },
+          });
+          for (const call of wrappers) {
+            const source = replaySources.find(
+              (source) =>
+                source.id === call.replayedReceiptId &&
+                source.capability === call.capability &&
+                source.inputHash === call.inputHash,
+            );
+            if (source) verified.add(source.id);
+          }
+          if (wrappers.length < 100) break;
+          cursor = wrappers.at(-1)?.id;
+        }
+      }
+      invalidActionClaims += contract.appliedReceiptIds.filter(
+        (id) => typeof id !== "string" || !verified.has(id),
+      ).length;
+    }
+  }
   return {
+    reliability: { fulfillment, delivery, invalidActionClaims },
     overall: {
       turns: panelTurns.length,
       judged: judged.length,

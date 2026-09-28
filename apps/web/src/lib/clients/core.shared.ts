@@ -1,9 +1,5 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
-import {
-  suggestTaskTags as coreSuggestTaskTags,
-  patchTasksByIdTags,
-} from "@/lib/clients/generated/core";
-import type { PatchTasksByIdTagsData } from "@/lib/clients/generated/core/types.gen";
+import { suggestTaskTags as coreSuggestTaskTags } from "@/lib/clients/generated/core";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
 export type TaskScheduleStateAction = "pause" | "resume" | "end";
@@ -133,6 +129,7 @@ import {
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
+  completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -225,6 +222,7 @@ import {
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
+  getImageStudioCatalog as coreGetImageStudioCatalog,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -3046,6 +3044,27 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * The studio's model catalog, which is global rather than project-scoped.
+   *
+   * Its own route because it is ~158KB and the studio polls its *state* every
+   * three seconds; the catalog used to ride along on that payload. Core sets
+   * `private, max-age=300`, and the read is authenticated, so this stays on the
+   * session client rather than moving to `coreCatalogClient` — a cookie-free
+   * call would be refused.
+   */
+  async function getImageStudioCatalog() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch the image studio catalog",
+    );
+  }
+
   async function getProjectsByIdImageStudio(
     id: string,
     query?: GetProjectsByIdImageStudioData["query"],
@@ -3820,17 +3839,6 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreSuggestTaskTags({ client, body }),
       "Task tag suggestions unavailable",
-    );
-  }
-
-  async function patchTaskTags(
-    id: string,
-    body: NonNullable<PatchTasksByIdTagsData["body"]>,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) => patchTasksByIdTags({ client, path: { id }, body }),
-      "Failed to update task tags",
     );
   }
 
@@ -4776,6 +4784,15 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreFinalizeMySokoBotIntegration({ client, path: { provider } }),
       "Failed to finish the integration",
+    );
+  }
+
+  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
+      "Failed to verify the integration",
     );
   }
 
@@ -5739,6 +5756,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getImageStudioCatalog,
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
@@ -5775,7 +5793,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
-    patchTaskTags,
     suggestTaskTags,
     putJobShare,
     putTaskShare,
@@ -5811,6 +5828,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     searchSokoBotIntegrationCatalog,
     connectMySokoBotIntegration,
     finalizeMySokoBotIntegration,
+    completeMySokoBotIntegrationAuth,
     disconnectMySokoBotIntegration,
     listMySokoBotSkills,
     getSokoBotTeam,

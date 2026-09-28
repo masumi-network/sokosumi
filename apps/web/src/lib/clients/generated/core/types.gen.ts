@@ -226,6 +226,15 @@ export type AdminSokoBotOwner = {
 };
 
 export type AdminSokoBotQuality = {
+    reliability: {
+        fulfillment: {
+            [key: string]: number;
+        };
+        delivery: {
+            [key: string]: number;
+        };
+        invalidActionClaims: number;
+    };
     overall: {
         turns: number;
         judged: number;
@@ -582,6 +591,9 @@ export type SokoBotTurn = {
     delegations?: Array<SokoBotDelegation>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
     toolCalls?: Array<SokoBotToolCall>;
+    evaluation?: {
+        [key: string]: unknown;
+    } | null;
     contextSummary?: SokoBotContextSummary;
     contextPacket?: unknown;
     requestedBy?: {
@@ -3815,7 +3827,9 @@ export type HistoryItem = ({
     kind: 'task';
 } & HistoryTaskItem) | ({
     kind: 'job';
-} & HistoryJobItem);
+} & HistoryJobItem) | ({
+    kind: 'image';
+} & HistoryImageItem);
 
 export type HistoryTaskItem = {
     /**
@@ -3924,6 +3938,89 @@ export type HistoryJobItem = {
      * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
      */
     agentIcon: string | null;
+};
+
+export type HistoryImageItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'image';
+    status: 'active';
+    /**
+     * Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.
+     */
+    assetId: string;
+    /**
+     * Project the image was generated in
+     */
+    projectId: string | null;
+    /**
+     * Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
+     */
+    modelLabel: string;
+};
+
+export type ProjectImageStudioCatalog = {
+    defaultModelId: string;
+    models: Array<ProjectImageStudioCatalogModel>;
+    snapshotDate: string;
+    refreshedAt: string | null;
+};
+
+export type ProjectImageStudioCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    generateEndpoint: string;
+    editEndpoint: string | null;
+    aspectRatios: Array<string>;
+    resolutions: Array<string>;
+    outputFormats: Array<string>;
+    supportsSeed: boolean;
+    maxReferences: number;
+    dimensionMode: 'aspect-ratio' | 'image-size';
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perImageUsd?: {
+            '0.5K'?: number;
+            '1K'?: number;
+            '2K'?: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+    sourceUrls: Array<string>;
+    verifiedAt: string;
 };
 
 /**
@@ -5070,7 +5167,7 @@ export type ProjectImageAsset = {
 };
 
 export type ProjectImageSettings = {
-    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
     resolution?: '0.5K' | '1K' | '2K';
     outputFormat?: 'png' | 'jpeg' | 'webp';
     seed?: number | null;
@@ -5087,10 +5184,12 @@ export type ProjectImageJob = {
     id: string;
     status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
     kind: 'GENERATE' | 'EDIT';
+    model: string;
     prompt: string;
     settings: ProjectImageSettings;
     referenceAssetIds: Array<string>;
     error: string | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
     parentAssetId: string | null;
     assetId: string | null;
     createdAt: Date;
@@ -5098,6 +5197,8 @@ export type ProjectImageJob = {
     settledAt: Date | null;
     cancelRequestedAt: Date | null;
     retryMayDuplicateCharge: boolean;
+    credits: number | null;
+    refunded: boolean;
 };
 
 export type ProjectImageSession = {
@@ -5110,6 +5211,7 @@ export type ProjectImageSession = {
 };
 
 export type CreateProjectImageJobRequest = {
+    modelId?: string;
     prompt: string;
     settings?: ProjectImageSettings;
     referenceAssetIds?: Array<string>;
@@ -5398,6 +5500,44 @@ export type NotificationCounts = {
     mentions: number;
 };
 
+export type PushDevice = {
+    id: string;
+    browserDetails?: PushDeviceBrowserDetails;
+    registeredAt?: Date;
+    platform: 'browser' | 'ios' | 'android' | 'unknown';
+    formFactor: 'phone' | 'tablet' | 'desktop' | 'tv' | 'watch' | 'car' | 'embedded' | 'other';
+    state: 'active' | 'failing' | 'failed' | 'unknown';
+};
+
+export type PushDeviceBrowserDetails = {
+    browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+};
+
+export type PushDeviceActivation = {
+    id: string;
+    revision: number;
+    revoked: boolean;
+    replaceDevice: boolean;
+};
+
+export type PushDeviceActivationRequest = {
+    consentId?: string;
+    deviceId: string;
+    readerInitiated: boolean;
+};
+
+export type PushDeviceSubscriptionRequest = {
+    consentId: string;
+    revision: number;
+};
+
+export type PushDeviceBrowserUpdate = {
+    browser?: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem?: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+    registeredAt?: Date;
+};
+
 export type MarkAllReadResponse = {
     /**
      * Number of notifications marked as read
@@ -5551,6 +5691,18 @@ export type CreateSokoBotApiKeyResponse = {
     token: string;
     name: string | null;
     expiresAt: Date | null;
+};
+
+export type CompleteSokoBotIntegrationAuthResponse = {
+    provider: string;
+    status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
+};
+
+export type CompleteSokoBotIntegrationAuthRequest = {
+    /**
+     * The single-use session URI Composio hands to the verifier
+     */
+    sessionUri: string;
 };
 
 export type SokoBotState = {
@@ -25734,13 +25886,13 @@ export type GetHistoryData = {
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.
+         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
          */
         status?: Array<string>;
         /**
-         * Comma-separated history kinds to include: task, job
+         * Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.
          */
-        types?: Array<'task' | 'job'>;
+        types?: Array<'task' | 'job' | 'image'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -26078,6 +26230,64 @@ export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
 };
 
 export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
+
+export type GetImageStudioCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio/catalog';
+};
+
+export type GetImageStudioCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioCatalogError = GetImageStudioCatalogErrors[keyof GetImageStudioCatalogErrors];
+
+export type GetImageStudioCatalogResponses = {
+    /**
+     * The image studio model catalog
+     */
+    200: {
+        data: ProjectImageStudioCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioCatalogResponse = GetImageStudioCatalogResponses[keyof GetImageStudioCatalogResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
@@ -38948,6 +39158,623 @@ export type GetNotificationsCountsResponses = {
 
 export type GetNotificationsCountsResponse = GetNotificationsCountsResponses[keyof GetNotificationsCountsResponses];
 
+export type GetNotificationsPushDevicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-devices';
+};
+
+export type GetNotificationsPushDevicesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to retrieve push devices
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device listing is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesError = GetNotificationsPushDevicesErrors[keyof GetNotificationsPushDevicesErrors];
+
+export type GetNotificationsPushDevicesResponses = {
+    /**
+     * Push devices retrieved
+     */
+    200: {
+        data: Array<PushDevice>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesResponse = GetNotificationsPushDevicesResponses[keyof GetNotificationsPushDevicesResponses];
+
+export type PostNotificationsPushDevicesActivationsData = {
+    body: PushDeviceActivationRequest;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-devices/activations';
+};
+
+export type PostNotificationsPushDevicesActivationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostNotificationsPushDevicesActivationsError = PostNotificationsPushDevicesActivationsErrors[keyof PostNotificationsPushDevicesActivationsErrors];
+
+export type PostNotificationsPushDevicesActivationsResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: PushDeviceActivation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostNotificationsPushDevicesActivationsResponse = PostNotificationsPushDevicesActivationsResponses[keyof PostNotificationsPushDevicesActivationsResponses];
+
+export type PutNotificationsPushDevicesByIdSubscriptionData = {
+    body: PushDeviceSubscriptionRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}/subscription';
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionError = PutNotificationsPushDevicesByIdSubscriptionErrors[keyof PutNotificationsPushDevicesByIdSubscriptionErrors];
+
+export type PutNotificationsPushDevicesByIdSubscriptionResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: {
+            subscribed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionResponse = PutNotificationsPushDevicesByIdSubscriptionResponses[keyof PutNotificationsPushDevicesByIdSubscriptionResponses];
+
+export type DeleteNotificationsPushDevicesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}';
+};
+
+export type DeleteNotificationsPushDevicesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteNotificationsPushDevicesByIdError = DeleteNotificationsPushDevicesByIdErrors[keyof DeleteNotificationsPushDevicesByIdErrors];
+
+export type DeleteNotificationsPushDevicesByIdResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: {
+            success: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteNotificationsPushDevicesByIdResponse = DeleteNotificationsPushDevicesByIdResponses[keyof DeleteNotificationsPushDevicesByIdResponses];
+
+export type PatchNotificationsPushDevicesByIdBrowserData = {
+    body: PushDeviceBrowserUpdate;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}/browser';
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid browser details
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to update push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserError = PatchNotificationsPushDevicesByIdBrowserErrors[keyof PatchNotificationsPushDevicesByIdBrowserErrors];
+
+export type PatchNotificationsPushDevicesByIdBrowserResponses = {
+    /**
+     * Browser details recorded
+     */
+    200: {
+        data: {
+            success: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserResponse = PatchNotificationsPushDevicesByIdBrowserResponses[keyof PatchNotificationsPushDevicesByIdBrowserResponses];
+
 export type PatchNotificationsByIdReadData = {
     body?: never;
     headers?: {
@@ -39759,6 +40586,79 @@ export type GetMySokoBotTaskEventsResponses = {
 };
 
 export type GetMySokoBotTaskEventsResponse = GetMySokoBotTaskEventsResponses[keyof GetMySokoBotTaskEventsResponses];
+
+export type CompleteMySokoBotIntegrationAuthData = {
+    body?: CompleteSokoBotIntegrationAuthRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/integrations/complete-auth';
+};
+
+export type CompleteMySokoBotIntegrationAuthErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteMySokoBotIntegrationAuthError = CompleteMySokoBotIntegrationAuthErrors[keyof CompleteMySokoBotIntegrationAuthErrors];
+
+export type CompleteMySokoBotIntegrationAuthResponses = {
+    /**
+     * Connection state after Composio verified the returning user
+     */
+    200: {
+        data: CompleteSokoBotIntegrationAuthResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CompleteMySokoBotIntegrationAuthResponse = CompleteMySokoBotIntegrationAuthResponses[keyof CompleteMySokoBotIntegrationAuthResponses];
 
 export type ArchiveMySokoBotData = {
     body?: never;
@@ -44400,10 +45300,6 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 export type PostTasksData = {
     body?: {
         tagSuggestionReceipt?: string;
-        tagCorrections?: {
-            add?: Array<TaskTagId>;
-            remove?: Array<TaskTagId>;
-        };
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -46812,99 +47708,6 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
-
-export type PatchTasksByIdTagsData = {
-    body?: {
-        add?: Array<TaskTagId>;
-        remove?: Array<TaskTagId>;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/tasks/{id}/tags';
-};
-
-export type PatchTasksByIdTagsErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Unprocessable entity
-     */
-    422: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PatchTasksByIdTagsError = PatchTasksByIdTagsErrors[keyof PatchTasksByIdTagsErrors];
-
-export type PatchTasksByIdTagsResponses = {
-    /**
-     * Persisted task tags
-     */
-    200: {
-        data: TaskTags;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PatchTasksByIdTagsResponse = PatchTasksByIdTagsResponses[keyof PatchTasksByIdTagsResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

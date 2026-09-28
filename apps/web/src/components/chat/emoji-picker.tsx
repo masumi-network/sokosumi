@@ -210,7 +210,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
       style={{ maxHeight: maxHeightPx }}
       className="flex max-h-full flex-col overflow-hidden"
     >
-      <nav className="border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
+      <nav className="app-scrollbar border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
         <NavButton
           label={t("searchPlaceholder")}
           active={resolvedActiveNavId === SEARCH_NAV_ID}
@@ -256,7 +256,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
         />
       </div>
 
-      <div className="min-h-[7.5rem] flex-1 touch-pan-y overflow-y-auto overscroll-contain p-2">
+      <div className="app-scrollbar min-h-[7.5rem] flex-1 touch-pan-y overflow-y-auto overscroll-contain p-2">
         {isSearching ? (
           searchResults.length === 0 ? (
             <p className="text-muted-foreground px-1 py-6 text-center text-sm">

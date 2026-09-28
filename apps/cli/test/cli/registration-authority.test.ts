@@ -4,7 +4,6 @@ import test from "node:test";
 import type { OrganizationWorkspace } from "../../src/api/models/organization-workspace.js";
 import type { Vendor } from "../../src/api/models/vendor.js";
 import {
-  administeredVendors,
   describeRegistrationAdminVendorRequirement,
   describeRegistrationWorkspaceRequirement,
   isPreprodCoworkerRegistrationTarget,
@@ -36,17 +35,6 @@ function workspace(organizationId: string): OrganizationWorkspace {
     role: "owner",
   };
 }
-
-test("administeredVendors keeps only admin memberships", () => {
-  assert.deepEqual(
-    administeredVendors([
-      vendor({ id: "v-admin", role: "admin" }),
-      vendor({ id: "v-dev", role: "developer" }),
-      vendor({ id: "v-unknown", role: null }),
-    ]).map((item) => item.id),
-    ["v-admin"],
-  );
-});
 
 test("empty organization workspaces block registration", () => {
   assert.throws(

@@ -2,12 +2,17 @@ import {
   ProjectImageJobStatus,
   type ProjectImageReviewDecision,
 } from "@sokosumi/database";
+import { convertCentsToCredits } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
 import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { requireStudioBlobToken } from "@/lib/image-studio/blob-store";
+import {
+  type ImageJobFailureReason,
+  readImageJobFailureReason,
+} from "@/lib/image-studio/failure-reason";
 
 /**
  * Versions, lineage, review decisions, and the bytes behind them.
@@ -310,12 +315,20 @@ export interface JobView {
   id: string;
   status: ProjectImageJobStatus;
   kind: string;
+  model: string;
   prompt: string;
   /** The provider input this job asked for, so a retry can ask for the same. */
   settings: unknown;
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
+  /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
+  /**
+   * The stable code a client localises. Null for a job that failed before the
+   * studio recorded one, and for the one outage case whose own wording is better
+   * than any code — a client falls back to `error` for those.
+   */
+  failureReason: ImageJobFailureReason | null;
   parentAssetId: string | null;
   assetId: string | null;
   createdAt: Date;
@@ -325,6 +338,13 @@ export interface JobView {
   cancelRequestedAt: Date | null;
   /** True when a retry could buy a second image. */
   retryMayDuplicateCharge: boolean;
+  /**
+   * What this generation cost. Null until there is an image, because the studio
+   * charges on delivery — so a job that failed reads null, having cost nothing.
+   */
+  credits: number | null;
+  /** @deprecated Always false. Nothing is refunded; nothing is taken until success. */
+  refunded: boolean;
 }
 
 /**
@@ -346,15 +366,19 @@ export async function getJob(options: {
       id: true,
       status: true,
       kind: true,
+      model: true,
       prompt: true,
       settings: true,
       referenceAssetIds: true,
       error: true,
+      failureReason: true,
       parentAssetId: true,
       createdAt: true,
       submittedAt: true,
       settledAt: true,
       cancelRequestedAt: true,
+      chargedCents: true,
+      transactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -376,15 +400,19 @@ export async function listJobs(options: {
       id: true,
       status: true,
       kind: true,
+      model: true,
       prompt: true,
       settings: true,
       referenceAssetIds: true,
       error: true,
+      failureReason: true,
       parentAssetId: true,
       createdAt: true,
       submittedAt: true,
       settledAt: true,
       cancelRequestedAt: true,
+      chargedCents: true,
+      transactionId: true,
       asset: { select: { id: true } },
     },
   });
@@ -395,25 +423,31 @@ function toJobView(job: {
   id: string;
   status: ProjectImageJobStatus;
   kind: string;
+  model: string;
   prompt: string;
   settings: unknown;
   referenceAssetIds: string[];
   error: string | null;
+  failureReason: string | null;
   parentAssetId: string | null;
   createdAt: Date;
   submittedAt: Date | null;
   settledAt: Date | null;
   cancelRequestedAt: Date | null;
+  chargedCents: bigint | null;
+  transactionId: string | null;
   asset: { id: string } | null;
 }): JobView {
   return {
     id: job.id,
     status: job.status,
     kind: job.kind,
+    model: job.model,
     prompt: job.prompt,
     settings: job.settings,
     referenceAssetIds: job.referenceAssetIds,
     error: job.error,
+    failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,
     assetId: job.asset?.id ?? null,
     createdAt: job.createdAt,
@@ -422,5 +456,13 @@ function toJobView(job: {
     cancelRequestedAt: job.cancelRequestedAt,
     retryMayDuplicateCharge:
       job.status === ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
+    // Keyed on the transaction, not on `chargedCents`: before delivery that column
+    // holds the *quote*, and reporting a quote as a charge is what made a failed
+    // generation read as costing 8 credits when nothing had been taken.
+    credits:
+      job.transactionId != null && job.chargedCents != null
+        ? convertCentsToCredits(job.chargedCents)
+        : null,
+    refunded: false,
   };
 }

@@ -45,7 +45,9 @@ Deployment needs the task-tag migration, Core Gateway credentials with account
 access to the compliant route, and the existing authenticated `/sync/task-tags`
 cron (every five minutes). Creation and title/description edits enqueue work via
 the database trigger. Enabling also drains tasks already `pending` from earlier
-creates/edits while disabled; untouched `unclassified` tasks remain untouched.
+creates/edits while disabled. Spare tick capacity classifies existing
+`unclassified` history; see below.
+
 Vercel preview deployments do not run production crons, so preview verification
 must invoke the authenticated sync route explicitly. For fixture-only verification,
 `/sync/task-tags?fixtureTaskId=<uuid>&fixtureOwnerId=<owner>` requires the same
@@ -56,30 +58,35 @@ Draft task whose name starts with `SYNTHETIC `. This does not enqueue old tasks,
 change retries, or bypass revision/lease guards. Use only synthetic test-owned
 fixtures and a branch-specific preview credential. Missing configuration,
 unavailable discovery, or privacy-compatible routing failure leaves creation and
-manual corrections independent of classification. No production deployment or
-backfill is part of this change.
+manual corrections independent of classification.
 
-## Bounded existing-task backfill design (not executed)
+## Historical classification
 
-Backfill is a separate, explicitly approved operational action, not migration or
-read behavior. A future operator command must default to dry-run and require one
-workspace ID, a maximum of 100 eligible tasks, an explicit USD budget, and a saved
-cursor. It first verifies current routing/retention requirements and credentials.
-Select only unarchived `unclassified` tasks for that workspace in `(createdAt,id)`
-order, at most ten at a time. Transactionally compare revision and state before
-setting `pending`; never reset completed/failed work, attempts, manual choices,
-rejections, or a newer revision. Persist the last processed cursor and counts in
-the operation record so rerunning cannot enqueue the same task twice.
+The same `/sync/task-tags` worker classifies existing unclassified tasks. It
+selects due queued work first (at most 50), then oldest eligible nonarchived
+unclassified tasks (at most 200). Every queued row is evaluated before any
+history, so a large historical batch cannot delay an interactive create, edit, or
+retry. There is no mass enqueue, operator dry-run, or separate backfill command.
+Existing state, revision, and lease fields provide durable resume and race
+protection. Complete results, including empty classifications, and terminal
+failures are excluded. Each unchanged revision still has at most two attempts.
 
-Drain each batch through the normal bounded worker before admitting another.
-Use the live catalog input rate and a conservative bound for truncated input plus
-question overhead to reserve both attempts before enqueue. At the observed
-$0.042/million input tokens, 20,000 tokens per attempt reserves $0.00168/task;
-this is a budgeting example, not a billing guarantee. Reconcile Gateway costs,
-stop on missing costs, rate changes, exhausted budget/count, policy denial, or
-provider failure, and require review before resuming. A queued batch can be
-stopped by disabling the flag; no bulk provider requests or automatic full-table
-scan is part of this feature. No production backfill has been run.
+Historical throughput is at most 2,400 attempts per hour per target, less when
+queued work, retries, or stop conditions consume capacity. Raising the historical
+rate does not raise total spend: the backlog is a fixed, finite set of rows. At
+the measured ~$0.0000373 per task the whole backlog observed on 2026-09-27 costs
+about $0.71 on mainnet (19,006 rows) and $0.23 on preprod (6,105), whether it
+takes days or hours. The rate of spend does rise with the rate of work.
+
+Three guards bound one tick, each observable as `stopReason` in the batch log:
+the existing sync deadline (`LOCK_TIMEOUT - LOCK_TIMEOUT_BUFFER`, 275 seconds on
+the defaults production runs on), a 120-second claim budget, and a $0.05
+reported-cost ceiling. Disabling `TASK_TAG_CLASSIFICATION_ENABLED` stops provider
+work; restoring it resumes from durable state.
+
+Do not claim older production tasks were processed until production cron logs
+show historical completions and declining remaining history. Check failures and
+unreported costs before estimating total cost or completion.
 
 ## Compatibility and rollback
 

@@ -12,6 +12,9 @@ import { fetchAblyBrowserAuthTokenRequest } from "./auth.client";
 export async function createAblyPushClient(userId: string): Promise<Ably.Rest> {
   const clientInstanceId = getOrCreateAblyClientInstanceId();
   const client = new Ably.Rest({
+    // REST authorization does not copy the token identity into auth.clientId.
+    // Push registration reads that property when it creates the device.
+    clientId: `${userId}:${clientInstanceId}`,
     plugins: { Push },
     pushServiceWorkerUrl: getNotificationServiceWorkerUrl(),
     authCallback: (_params, callback) => {

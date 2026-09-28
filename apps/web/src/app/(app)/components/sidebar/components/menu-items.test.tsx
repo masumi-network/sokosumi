@@ -8,12 +8,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const openHistorySearchMock = vi.fn();
 const setOpenMobileMock = vi.fn();
 const openNewTaskWizardMock = vi.fn();
-const { pathnameRef } = vi.hoisted(() => ({
+const { pathnameRef, searchRef } = vi.hoisted(() => ({
   pathnameRef: { current: "/" },
+  searchRef: { current: "" },
 }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => pathnameRef.current,
+  useSearchParams: () => new URLSearchParams(searchRef.current),
 }));
 
 vi.mock("next-intl", () => ({
@@ -198,7 +200,7 @@ describe("MenuItems search action", () => {
     expect(
       screen.getByRole("link", { name: /taskManager/i }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /projects/i })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /projects/i })).toBeNull();
   });
 
   it("shows Calendar to everyone", () => {
@@ -225,7 +227,7 @@ describe("MenuItems search action", () => {
     expect(screen.queryByRole("link", { name: /drive/i })).toBeNull();
   });
 
-  it("shows Files after Calendar on desktop", () => {
+  it("shows Files after Calendar and the studio on desktop", () => {
     const { container } = renderMenu(true, false);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -234,10 +236,10 @@ describe("MenuItems search action", () => {
     const primaryOrder = [
       "search",
       "exploreAgents",
-      "projects",
       "taskManager",
       "schedules",
       "calendar",
+      "contentStudio",
       "drive",
       "history",
     ];
@@ -253,7 +255,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Projects, Tasks, Schedules, Calendar, History", () => {
+  it("orders primary destinations Search, Agents, Tasks, Schedules, Calendar, Studio, History", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -262,10 +264,10 @@ describe("MenuItems search action", () => {
     const primaryOrder = [
       "search",
       "exploreAgents",
-      "projects",
       "taskManager",
       "schedules",
       "calendar",
+      "contentStudio",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
@@ -349,13 +351,10 @@ describe("MenuItems search action", () => {
       "newTask",
       "searchCtrl+K",
       "exploreAgents",
-      // Projects answers hover with its flyout, so it passes no tooltip that
-      // would race the panel to the same spot; the panel's own heading names
-      // it there.
-      "",
       "taskManager",
       "schedules",
       "calendar",
+      "contentStudio",
       "drive",
       "history",
     ]);
@@ -395,15 +394,96 @@ describe("MenuItems rail selection bar", () => {
   });
 
   it("marks the destination from one of its own pages too", () => {
-    pathnameRef.current = "/projects/project-1";
+    pathnameRef.current = "/tasks/task-1";
     renderMenu();
-    expect(markedHrefs()).toEqual(["/projects"]);
+    expect(markedHrefs()).toEqual(["/tasks"]);
   });
 
   // The actions (new task, search) are not destinations, so nothing is open.
   it("marks nothing on a route no nav item owns", () => {
     pathnameRef.current = "/";
     renderMenu();
+    expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
+  });
+});
+
+describe("MenuItems project scope", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    newTaskWizardValue = { openNewTaskWizard: openNewTaskWizardMock };
+    pathnameRef.current = "/tasks";
+    searchRef.current = "";
+  });
+
+  it("omits the old Projects navigation row", () => {
+    renderMenu(true, false);
+
+    expect(screen.queryByRole("link", { name: "projects" })).toBeNull();
+  });
+
+  it("keeps plain destination links in the workspace view", () => {
+    renderMenu(true, false);
+
+    for (const [name, href] of [
+      ["taskManager", "/tasks"],
+      ["schedules", "/schedules"],
+      ["calendar", "/calendar"],
+      ["contentStudio", "/studio"],
+      ["drive", "/drive"],
+      ["history", "/history"],
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+  });
+
+  it("carries the selected project to scoped destinations", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu(true, false);
+
+    for (const [name, href] of [
+      ["taskManager", "/tasks?projectId=p-1"],
+      ["schedules", "/schedules?projectId=p-1"],
+      ["calendar", "/calendar?projectId=p-1"],
+      ["contentStudio", "/studio?projectId=p-1"],
+      ["drive", "/drive?view=tasks&projectId=p-1"],
+      ["history", "/history?projectId=p-1"],
+    ]) {
+      expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
+    }
+    expect(screen.getByRole("link", { name: "exploreAgents" })).toHaveAttribute(
+      "href",
+      "/agents",
+    );
+  });
+
+  it("passes the current project when opening New Task", () => {
+    searchRef.current = "projectId=p-1";
+    renderMenu();
+
+    fireEvent.click(screen.getByRole("button", { name: /newTask/i }));
+
+    expect(openNewTaskWizardMock).toHaveBeenCalledWith({ projectId: "p-1" });
+  });
+
+  it("keeps the current project in the New Task fallback link", () => {
+    searchRef.current = "projectId=p-1";
+    newTaskWizardValue = null;
+    renderMenu();
+
+    expect(screen.getByRole("link", { name: /newTask/i })).toHaveAttribute(
+      "href",
+      "/tasks?projectId=p-1&create=true",
+    );
+  });
+
+  it("keeps the project when navigating from its overview", () => {
+    pathnameRef.current = "/projects/p-1";
+    renderMenu(true, false);
+
+    expect(screen.getByRole("link", { name: "taskManager" })).toHaveAttribute(
+      "href",
+      "/tasks?projectId=p-1",
+    );
     expect(screen.queryByTestId("rail-selection-bar")).toBeNull();
   });
 });

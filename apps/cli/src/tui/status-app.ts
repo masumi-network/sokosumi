@@ -44,16 +44,6 @@ import {
 } from "../auth/oauth.js";
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
-import {
-  administeredVendors,
-  describeRegistrationAdminVendorRequirement,
-  describeRegistrationWorkspaceRequirement,
-  isPreprodCoworkerRegistrationTarget,
-} from "../cli/registration-authority.js";
-import {
-  COWORKER_FRAMEWORK_PRESETS,
-  describeRegisterNextStep,
-} from "../coworker/presets.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
 import { TUI_THEME } from "./theme.js";
 
@@ -85,13 +75,12 @@ type AuthScreen =
   | "api-key-input"
   | "api-key-target"
   | "api-key-wait"
-  | "register"
   | "vendors"
   | "workspaces"
   | "success"
   | "error";
 
-type HomeAction = "register" | "vendors" | "workspaces" | "sign-out";
+type HomeAction = "vendors" | "workspaces" | "sign-out";
 
 function adaptSelectHandler<T>(
   handler: (value: T) => void,
@@ -258,11 +247,14 @@ function createTargetConfig(
 function navigationHint({
   back = false,
   showNetworkToggle = false,
+  selectable = true,
 }: {
   back?: boolean;
   showNetworkToggle?: boolean;
+  selectable?: boolean;
 } = {}) {
-  const parts = ["Use arrows, then Enter"];
+  const parts: string[] = [];
+  if (selectable) parts.push("Use arrows, then Enter");
   if (showNetworkToggle) parts.push("Tab switch network");
   if (back) parts.push("Esc back");
   parts.push("q quit");
@@ -289,6 +281,7 @@ function quietFrame({
   showBackHint = false,
   showNavigationHint = true,
   showNetworkToggle = false,
+  showSelectionHint = true,
 }: {
   route: "boot" | "auth" | "signed-in";
   target: string | null;
@@ -297,6 +290,7 @@ function quietFrame({
   showBackHint?: boolean;
   showNavigationHint?: boolean;
   showNetworkToggle?: boolean;
+  showSelectionHint?: boolean;
 }): React.ReactElement {
   return React.createElement(
     Box,
@@ -333,7 +327,11 @@ function quietFrame({
       ? signedInIdentityLine(target, authMethod)
       : null,
     showNavigationHint
-      ? navigationHint({ back: showBackHint, showNetworkToggle })
+      ? navigationHint({
+          back: showBackHint,
+          showNetworkToggle,
+          selectable: showSelectionHint,
+        })
       : null,
   );
 }
@@ -376,6 +374,68 @@ function messageLine(
             : undefined,
     },
     message,
+  );
+}
+
+export function vendorMembershipCaption(loading: boolean): string {
+  return loading
+    ? "Loading vendor memberships…"
+    : "Vendor memberships from Core. Review only.";
+}
+
+export function workspaceMembershipCaption(loading: boolean): string {
+  return loading
+    ? "Loading organization workspaces…"
+    : "Organization workspaces from Core. Review only.";
+}
+
+export function formatVendorReviewLine(vendor: Vendor): string {
+  return `${vendor.name || "Unnamed vendor"} · ${vendor.role || "unknown"} · ${vendor.id}`;
+}
+
+export function formatWorkspaceReviewLine(
+  workspace: OrganizationWorkspace,
+): string {
+  return `${workspace.name || "Unnamed workspace"} · ${workspace.role || workspace.slug || "unknown"} · ${workspace.organizationId}`;
+}
+
+function resourceReviewScreen({
+  title,
+  caption,
+  emptyLabel,
+  loading,
+  rows,
+  message,
+  phase,
+}: {
+  title: string;
+  caption: string;
+  emptyLabel: string;
+  loading: boolean;
+  rows: readonly { key: string; label: string }[];
+  message: string;
+  phase: AuthPhase;
+}): React.ReactElement {
+  const body = loading
+    ? []
+    : rows.length > 0
+      ? rows.map((row) =>
+          React.createElement(Text, { key: row.key }, row.label),
+        )
+      : [
+          React.createElement(
+            Text,
+            { key: "empty", dimColor: true },
+            emptyLabel,
+          ),
+        ];
+  return React.createElement(
+    Box,
+    { flexDirection: "column", width: "100%" },
+    React.createElement(Text, { bold: true }, title),
+    React.createElement(Text, { dimColor: true }, caption),
+    ...body,
+    messageLine(message, phase),
   );
 }
 
@@ -518,11 +578,7 @@ function StatusApp({
 
   useEffect(() => {
     if (route !== "signed-in") return;
-    if (
-      screen !== "vendors" &&
-      screen !== "workspaces" &&
-      screen !== "register"
-    ) {
+    if (screen !== "vendors" && screen !== "workspaces") {
       return;
     }
     let cancelled = false;
@@ -535,19 +591,10 @@ function StatusApp({
           const { vendors: nextVendors } =
             await fetchVendorMemberships(coreClient);
           if (!cancelled) setVendors(nextVendors);
-        } else if (screen === "workspaces") {
+        } else {
           const { organizationWorkspaces } =
             await fetchOrganizationWorkspaces(coreClient);
           if (!cancelled) setWorkspaces(organizationWorkspaces);
-        } else {
-          const [vendorResult, workspaceResult] = await Promise.all([
-            fetchVendorMemberships(coreClient),
-            fetchOrganizationWorkspaces(coreClient),
-          ]);
-          if (!cancelled) {
-            setVendors(vendorResult.vendors);
-            setWorkspaces(workspaceResult.organizationWorkspaces);
-          }
         }
       } catch (error: unknown) {
         if (!cancelled) {
@@ -882,11 +929,7 @@ function StatusApp({
       }
 
       if (route === "signed-in") {
-        if (
-          screen === "register" ||
-          screen === "vendors" ||
-          screen === "workspaces"
-        ) {
+        if (screen === "vendors" || screen === "workspaces") {
           setScreen("home");
           setMessage("");
           setPhase("idle");
@@ -920,7 +963,6 @@ function StatusApp({
   };
 
   const homeItems: SelectorItem<HomeAction>[] = [
-    { value: "register", label: "Register a Coworker" },
     { value: "vendors", label: "Vendors", hint: "memberships you administer" },
     {
       value: "workspaces",
@@ -1150,128 +1192,34 @@ function StatusApp({
     });
   }
 
+  const reviewingResources = screen === "vendors" || screen === "workspaces";
   let signedInContent: React.ReactNode;
-  if (screen === "register") {
-    const adminVendors = administeredVendors(vendors);
-    const missingWorkspace = !resourceLoading && workspaces.length === 0;
-    const missingAdminVendor = !resourceLoading && adminVendors.length === 0;
-    const preprodOnly = !isPreprodCoworkerRegistrationTarget(
-      selectedConfig.target,
-    );
-    const registrationBlocked =
-      preprodOnly || missingWorkspace || missingAdminVendor;
-    const rawWebUrl = String(env.SOKOSUMI_WEB_URL || "").trim();
-    const webBase = rawWebUrl ? sanitizeApiUrl(rawWebUrl) : "";
-    const gateHint = preprodOnly
-      ? "Coworker registration is Preprod only. Restart with `sokosumi --preprod` to register."
-      : resourceLoading
-        ? "Checking workspace and Vendor admin authority…"
-        : missingWorkspace
-          ? describeRegistrationWorkspaceRequirement(webBase || undefined)
-          : missingAdminVendor
-            ? describeRegistrationAdminVendorRequirement(webBase || undefined)
-            : "Choose a preset to see the next step. An organizer must provision its Coworker ID first. Then use `coworkers connect` for the selected Workspace.";
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Register a Coworker"),
-      React.createElement(Text, { dimColor: true }, gateHint),
-      registrationBlocked
-        ? null
-        : React.createElement(SelectInput, {
-            items: COWORKER_FRAMEWORK_PRESETS.map((preset) => ({
-              value: preset.id,
-              label: preset.label,
-            })),
-            onSelect: adaptSelectHandler<string>((presetId) => {
-              const preset = COWORKER_FRAMEWORK_PRESETS.find(
-                (candidate) => candidate.id === presetId,
-              );
-              if (preset) setMessage(describeRegisterNextStep(preset));
-            }),
-            listen: !busy && !resourceLoading,
-          }),
-      messageLine(message, phase),
-    );
-  } else if (screen === "vendors") {
-    const vendorItems: SelectorItem<string>[] = vendors.length
-      ? vendors.map((vendor) => ({
-          value: vendor.id,
-          label: vendor.name || "Unnamed vendor",
-          hint:
-            vendor.role === "admin"
-              ? "admin · Vendor access"
-              : vendor.role || undefined,
-        }))
-      : [{ value: "empty", label: "No vendors found", hint: "empty" }];
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Vendors"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        resourceLoading
-          ? "Loading vendor memberships…"
-          : "Choose an administered Vendor. Core also checks who can create Coworkers.",
-      ),
-      React.createElement(SelectInput, {
-        items: vendorItems,
-        onSelect: adaptSelectHandler<string>((vendorId) => {
-          if (vendorId === "empty") return;
-          const vendor = vendors.find((candidate) => candidate.id === vendorId);
-          if (!vendor) return;
-          setPhase("idle");
-          setMessage(
-            `${vendor.name || vendor.id} · role ${vendor.role || "unknown"} · id ${vendor.id}`,
-          );
-        }),
-        listen: !resourceLoading,
-      }),
-      messageLine(message, phase),
-    );
+  if (screen === "vendors") {
+    signedInContent = resourceReviewScreen({
+      title: "Vendors",
+      caption: vendorMembershipCaption(resourceLoading),
+      emptyLabel: "No vendors found.",
+      loading: resourceLoading,
+      rows: vendors.map((vendor) => ({
+        key: vendor.id,
+        label: formatVendorReviewLine(vendor),
+      })),
+      message,
+      phase,
+    });
   } else if (screen === "workspaces") {
-    const workspaceItems: SelectorItem<string>[] = workspaces.length
-      ? workspaces.map((workspace) => ({
-          value: workspace.organizationId,
-          label: workspace.name || "Unnamed workspace",
-          hint: workspace.role || workspace.slug || undefined,
-        }))
-      : [
-          {
-            value: "empty",
-            label: "No organization workspaces found",
-            hint: "empty",
-          },
-        ];
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Organization workspaces"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        resourceLoading
-          ? "Loading organization workspaces…"
-          : "Choose a workspace for the Coworker.",
-      ),
-      React.createElement(SelectInput, {
-        items: workspaceItems,
-        onSelect: adaptSelectHandler<string>((organizationId) => {
-          if (organizationId === "empty") return;
-          const workspace = workspaces.find(
-            (candidate) => candidate.organizationId === organizationId,
-          );
-          if (!workspace) return;
-          setPhase("idle");
-          setMessage(
-            `${workspace.name || workspace.organizationId} · organization ${workspace.organizationId}${workspace.role ? ` · role ${workspace.role}` : ""}`,
-          );
-        }),
-        listen: !resourceLoading,
-      }),
-      messageLine(message, phase),
-    );
+    signedInContent = resourceReviewScreen({
+      title: "Organization workspaces",
+      caption: workspaceMembershipCaption(resourceLoading),
+      emptyLabel: "No organization workspaces found.",
+      loading: resourceLoading,
+      rows: workspaces.map((workspace) => ({
+        key: workspace.organizationId,
+        label: formatWorkspaceReviewLine(workspace),
+      })),
+      message,
+      phase,
+    });
   } else {
     signedInContent = centeredScreen(
       React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
@@ -1285,12 +1233,12 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "sokosumi coworkers update --id <id> --name <name>",
+        "sokosumi coworkers connect <id>",
       ),
       React.createElement(
         Text,
         { dimColor: true },
-        "sokosumi coworkers api-key --id <id>",
+        "sokosumi coworkers api-key <id>",
       ),
       React.createElement(SelectInput, {
         items: homeItems,
@@ -1305,8 +1253,8 @@ function StatusApp({
     route: "signed-in",
     target: targetLabel,
     authMethod: authState.authMethod,
-    showBackHint:
-      screen === "register" || screen === "vendors" || screen === "workspaces",
+    showBackHint: reviewingResources,
+    showSelectionHint: !reviewingResources,
     children: signedInContent,
   });
 }

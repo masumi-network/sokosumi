@@ -1,5 +1,4 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -28,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/image-studio",
     description:
-      "Image studio state for a Project: versions with their review decisions, recent generation jobs, and the conversations bound to this Project.",
+      "Image studio state for a Project: versions with their review decisions, recent generation jobs, and the conversations bound to this Project. The model catalog is NOT here — clients poll this route every few seconds and the catalog is about a hundred and fifty rows, so it has its own cached route at GET /v1/image-studio/catalog.",
     tags: ["Projects"],
     request: {
       params: imageStudioProjectParamsSchema,

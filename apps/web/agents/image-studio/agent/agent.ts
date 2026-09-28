@@ -3,7 +3,7 @@ import { defineAgent } from "eve";
 /**
  * The Project image studio agent.
  *
- * Scoped on purpose: its entire tool surface is four image tools, and it has
+ * Scoped on purpose: its entire tool surface is five image tools, and it has
  * no access to Sokosumi's wider capability set. It is not Soko Bot and shares
  * none of its persona, memory, or capabilities.
  *
@@ -20,7 +20,7 @@ import { defineAgent } from "eve";
 export default defineAgent({
   /**
    * No shell, no filesystem, no web access. The agent's whole surface is the
-   * four image tools beside this file, so the optional defaults are all
+   * five image tools beside this file, so the optional defaults are all
    * capability it does not need and should not be able to reach. Turning them
    * off also means the agent needs no sandbox at all.
    */

@@ -99,7 +99,7 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     self.init(metadata: message.metadata?.additionalProperties)
   }
 
-  public var isLastHop: Bool {
+  var isLastHop: Bool {
     depth >= maxDepth
   }
 

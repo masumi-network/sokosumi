@@ -37,6 +37,7 @@ const labels = {
   typeOptions: {
     task: "Task",
     job: "Job",
+    image: "Image",
   },
   statusOptions: {
     archived: "Archived",

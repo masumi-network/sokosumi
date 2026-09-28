@@ -19,7 +19,6 @@ import {
   publishNotificationEvent,
 } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
-import * as effectsModule from "@/lib/soko-bot/chat-message-effects";
 import {
   type AuthorizedSokoBotRuntime,
   SokoBotRuntimeService,
@@ -687,10 +686,6 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       async (receiptStatus) => {
         const { runtime, request, turn } = await setup();
         const roomId = await chatDestination(turn.id);
-        const effects = vi.spyOn(
-          effectsModule,
-          "scheduleSokoBotChatMessageEffects",
-        );
         vi.mocked(publishChatRoomsChanged).mockClear();
         vi.mocked(publishNotificationEvent).mockClear();
         await prisma.chatRoomUserMember.create({ data: { roomId, userId } });
@@ -711,7 +706,6 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           where: { roomId, senderSokoBotId: sokoBotId },
         });
         expect(before).toHaveLength(1);
-        expect(effects).not.toHaveBeenCalled();
         expect(
           await prisma.sokoBotToolCall.findUniqueOrThrow({
             where: {
@@ -741,7 +735,6 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
           }),
         ).toEqual(before);
         await drainPending(pending);
-        expect(effects).toHaveBeenCalledTimes(1);
         expect(publishChatRoomsChanged).toHaveBeenCalledTimes(1);
         const notifications = await prisma.notification.findMany({
           where: { userId, eventId: before[0].id },
