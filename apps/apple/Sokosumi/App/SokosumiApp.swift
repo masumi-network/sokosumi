@@ -51,11 +51,12 @@ struct SokosumiApp: App {
           set: { workspaces.sidebar.setUnreadsFilter($0) }
         ))
         .keyboardShortcut("u", modifiers: [.command, .shift])
+        .disabled(!auth.isSignedIn)
 
         Button("Mark All as Read") {
           Task { @MainActor in await workspaces.markAllUnreadRead(auth: auth) }
         }
-        .disabled(workspaces.unreadsFilter?.showsMarkAll != true || workspaces.sidebar.isMarkingAllUnreadRead)
+        .disabled(!auth.isSignedIn || workspaces.unreadsFilter?.showsMarkAll != true || workspaces.sidebar.isMarkingAllUnreadRead)
       }
     }
   }
