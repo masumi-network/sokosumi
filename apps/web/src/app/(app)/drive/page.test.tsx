@@ -198,6 +198,57 @@ vi.mock("@/app/drive/components/drive-tasks-filters", () => ({
   },
 }));
 
+const listDataTablesMock = vi.fn();
+
+vi.mock("@/lib/services/data-table.client", () => ({
+  dataTableService: {
+    list: (...args: unknown[]) => listDataTablesMock(...args),
+  },
+}));
+
+/**
+ * Stands in for the shared `FilterDropdownMenu` the real control wraps, the
+ * way `drive-tasks-filters` is stubbed above: these tests are about where the
+ * control lives and what it drives, not about the dropdown's internals.
+ */
+vi.mock("@/app/drive/components/drive-tables-filters", () => ({
+  DriveTablesFilters: ({
+    archived,
+    onArchivedChange,
+  }: {
+    archived: boolean;
+    onArchivedChange: (archived: boolean) => void;
+  }) => (
+    <button
+      type="button"
+      data-testid="tables-archived-filter"
+      data-archived={archived ? "true" : "false"}
+      onClick={() => onArchivedChange(!archived)}
+    >
+      filterStatusLabel
+    </button>
+  ),
+}));
+
+/**
+ * The catalog panel, stubbed.
+ *
+ * It renders at the Workspace root now, and these cases are about the page
+ * shell — which tab is selected, which controls sit in the header row, what the
+ * folder listing does. The real panel fetches through the generated client and
+ * imports enough of the app that the worker aborts before it mounts
+ * (`drive-all-files-panel.a11y.test.ts` documents the same measurement), so a
+ * marker is what the shell needs to assert against.
+ */
+vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
+  DriveAllFilesPanel: ({ initialQuery }: { initialQuery?: string }) => (
+    <div
+      data-testid="drive-all-files"
+      data-initial-query={initialQuery ?? ""}
+    />
+  ),
+}));
+
 vi.mock("@/components/ui/image-viewer", () => ({
   ImageViewer: ({
     images,
@@ -546,7 +597,7 @@ describe("DrivePage tasks mobile toolbar", () => {
 
     expect(screen.getByRole("tab", { name: "recentsTab" })).toBeVisible();
     await waitFor(() => {
-      expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
         "aria-selected",
         "true",
       );
@@ -668,7 +719,7 @@ describe("DrivePage recents view", () => {
     });
 
     expect(fetchDriveRecentsPageMock).not.toHaveBeenCalled();
-    expect(screen.getByRole("tab", { name: "Org A" })).toHaveAttribute(
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
       "aria-selected",
       "true",
     );
@@ -684,7 +735,7 @@ describe("DrivePage recents view", () => {
       expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
     });
 
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -755,7 +806,7 @@ describe("DrivePage files view mode", () => {
     expect(screen.queryByTestId("files-layout-grid")).not.toBeInTheDocument();
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -779,7 +830,7 @@ describe("DrivePage files view mode", () => {
     expect(screen.queryByTestId("files-layout-list")).not.toBeInTheDocument();
     expect(fetchDriveRecentsPageMock.mock.calls.length).toBe(recentsCalls);
 
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -973,7 +1024,10 @@ describe("DrivePage files view mode", () => {
 
   it("opens a file preview when the card is clicked", async () => {
     const user = userEvent.setup();
-    searchParams = new URLSearchParams("view=browse");
+    // Inside a folder: that is where the listing carries files. At the
+    // Workspace root the listing carries folders and the catalog carries the
+    // files, so a root file row no longer exists to click.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     listDriveItemsMock.mockResolvedValue([
       {
         type: "file" as const,
@@ -1051,8 +1105,10 @@ describe("DrivePage files view mode", () => {
     ).toBeVisible();
   });
 
-  it("puts desktop tabs and browse actions on one header row", async () => {
-    searchParams = new URLSearchParams("view=browse");
+  it("puts desktop tabs and folder actions on one header row", async () => {
+    // Inside a folder, because the page's search field is the folder
+    // listing's. At the root the catalog owns search and this header has none.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     listDriveItemsMock.mockResolvedValue([]);
 
     renderDrive();
@@ -1142,8 +1198,38 @@ describe("DrivePage files sort", () => {
     useSessionMock.mockReturnValue(sessionFor("org_a"));
   });
 
+  it("replaces rather than pushes when the archived filter changes", async () => {
+    searchParams = new URLSearchParams("view=tables");
+    const user = userEvent.setup();
+    renderDriveWithUrlSpy();
+
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenCalled();
+    });
+
+    await user.click(screen.getByTestId("tables-archived-filter"));
+
+    await waitFor(() => {
+      expect(onUrlUpdate).toHaveBeenCalled();
+    });
+    const lastUpdate = onUrlUpdate.mock.calls.at(-1)?.[0] as {
+      searchParams: URLSearchParams;
+      options: { history?: string };
+    };
+    expect(lastUpdate.searchParams.get("archived")).toBe("true");
+    // A filter is not a navigation step. The sort control beside it and the
+    // tasks filter this one copies both replace, and the toggle it replaced
+    // added no history at all — pushing makes Back undo the filter instead of
+    // leaving the page.
+    expect(lastUpdate.options.history).toBe("replace");
+  });
+
   it("Browse omit default shows Name; Date stays explicit in URL and fetch", async () => {
     const user = userEvent.setup();
+    // Inside a folder: that is where this control sorts the list the reader is
+    // looking at. At the Workspace root the list below is the catalog, which
+    // this does not order, so the control is not offered there.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     renderDriveWithUrlSpy();
 
     await waitFor(() => {
@@ -1171,7 +1257,7 @@ describe("DrivePage files sort", () => {
     };
     expect(lastUpdate.searchParams.get("sortBy")).toBe("date");
     expect(lastUpdate.searchParams.get("sortOrder")).toBe("desc");
-    expect(lastUpdate.searchParams.get("view")).toBe("browse");
+    expect(lastUpdate.searchParams.get("view")).toBe("workspace");
 
     await waitFor(() => {
       const options = listDriveItemsMock.mock.calls.at(-1)?.[0] as Record<
@@ -1249,7 +1335,7 @@ describe("DrivePage files sort", () => {
     expect(recentsCall).not.toHaveProperty("sortOrder");
 
     const user = userEvent.setup();
-    await user.click(screen.getByRole("tab", { name: "Org A" }));
+    await user.click(screen.getByRole("tab", { name: "workspaceTab" }));
 
     await waitFor(() => {
       expect(listDriveItemsMock).toHaveBeenCalled();
@@ -1260,6 +1346,464 @@ describe("DrivePage files sort", () => {
     >;
     expect(browseCall).not.toHaveProperty("sortBy");
     expect(browseCall).not.toHaveProperty("sortOrder");
-    expect(screen.getByTestId("files-sort-trigger")).toBeVisible();
+    // The tab lands at the Workspace root, where the list is the catalog and
+    // this control would not order it. Its presence inside a folder is covered
+    // by "keeps the sort control inside a folder".
+    expect(screen.queryByTestId("files-sort-trigger")).toBeNull();
+  });
+});
+
+describe("DrivePage workspace tab and breadcrumb root", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=browse");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    listDataTablesMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({ items: [], nextCursor: null });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    listDataTablesMock.mockResolvedValue({ items: [], nextCursor: null });
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("names the second tab for the view, not for the organization", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
+    // The organization name used to be the tab's label, so it must no longer
+    // name any tab on this page.
+    expect(screen.queryByRole("tab", { name: "Org A" })).toBeNull();
+  });
+
+  it("drops the breadcrumb root chip at the workspace root", async () => {
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    // The chip carried the organization name and an aria-label of its own.
+    expect(
+      screen.queryByRole("navigation", { name: "breadcrumbNavLabel" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Org A" })).toBeNull();
+  });
+
+  it("keeps a keyboard-reachable root control inside a folder", async () => {
+    searchParams = new URLSearchParams("view=browse&folder=Reports");
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    const nav = screen.getByRole("navigation", {
+      name: "breadcrumbNavLabel",
+    });
+    const root = within(nav).getByRole("button", { name: "workspaceTab" });
+    expect(root).toBeVisible();
+
+    // It is a real button, so it is a tab stop and Enter/Space activate it.
+    expect(root.tagName).toBe("BUTTON");
+
+    await userEvent.setup().click(root);
+    expect(pushMock).toHaveBeenCalledWith(
+      expect.stringContaining("view=workspace"),
+    );
+    expect(pushMock.mock.calls.at(-1)?.[0]).not.toContain("folder=");
+  });
+
+  /**
+   * The row is `@xl:items-center`, so from `@xl` up its height is its tallest
+   * child's and the 36px tab strip is centred in it: any control still 40px
+   * there lifts the row and moves the strip, and the page under it, by 2px on
+   * a tab switch. happy-dom computes no layout, so this asserts the rule that
+   * produces the height rather than the height.
+   *
+   * It is deliberately a sweep over every control in the row, not a check of
+   * one known control: the previous version asserted `md:h-8` on the search
+   * box alone and passed while the jump was still live at 624px, 700px and
+   * 760px, because `md:` is a viewport query and this row's layout is driven
+   * by container queries.
+   */
+  function headerRowControls(): HTMLElement[] {
+    const header = screen.getByTestId("files-desktop-header");
+    return [
+      ...header.querySelectorAll<HTMLElement>(
+        'button, input:not([type="file"]), [role="tablist"]',
+      ),
+    ];
+  }
+
+  function assertHeaderRowHeightContract(controls: HTMLElement[]) {
+    expect(controls.length).toBeGreaterThan(0);
+    for (const control of controls) {
+      const classes = control.className;
+      if (classes.includes("h-10")) {
+        // A 40px control is fine while the row is stacked, but it has to step
+        // down on the row's own container query.
+        expect(
+          classes,
+          `${control.tagName} "${(control.textContent || "").trim().slice(0, 24)}" is h-10 without the @xl step-down`,
+        ).toContain("@xl:h-8");
+      }
+      // A viewport step in this row is the F1 defect: it disagrees with the
+      // container queries that decide when the row becomes a centred row.
+      expect(
+        classes,
+        `${control.tagName} "${(control.textContent || "").trim().slice(0, 24)}" steps on a viewport query in a container-query row`,
+      ).not.toContain("md:h-8");
+    }
+  }
+
+  it("keeps every Recents header-row control at the tab strip's height", async () => {
+    searchParams = new URLSearchParams();
+    renderDrive();
+    await waitFor(() => {
+      expect(fetchDriveRecentsPageMock).toHaveBeenCalled();
+    });
+
+    const controls = headerRowControls();
+    assertHeaderRowHeightContract(controls);
+    // The search box is the one control here that is not `size="sm"`.
+    const search = within(
+      screen.getByTestId("files-desktop-header"),
+    ).getByPlaceholderText("searchPlaceholder");
+    expect(search.className).toContain("@xl:h-8");
+  });
+
+  it("keeps every Workspace header-row control at the tab strip's height", async () => {
+    searchParams = new URLSearchParams("view=browse");
+    renderDrive();
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    assertHeaderRowHeightContract(headerRowControls());
+  });
+
+  it("keeps every Tables header-row control at the tab strip's height", async () => {
+    searchParams = new URLSearchParams("view=tables");
+    renderDrive();
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenCalled();
+    });
+
+    const controls = headerRowControls();
+    assertHeaderRowHeightContract(controls);
+    // `New table` renders at every width — unlike every other tab's controls,
+    // which are `hidden @2xl:*` — so it is the control that would keep the
+    // Tables row taller than the others between @xl and @2xl.
+    const createTable = controls.find((c) =>
+      (c.textContent || "").includes("newTable"),
+    );
+    expect(createTable).toBeDefined();
+    expect(createTable?.className).toContain("@xl:h-8");
+  });
+
+  it("keeps the tasks-view breadcrumb root crumb at every depth", async () => {
+    searchParams = new URLSearchParams("view=tasks");
+    renderDrive();
+
+    await waitFor(() => {
+      expect(fetchDriveTasksPageMock).toHaveBeenCalled();
+    });
+
+    // The tasks view shares the workspace tab, so its tab is already selected
+    // and cannot navigate: unlike the browse trail, this nav must render its
+    // root crumb even at the root or the file root becomes unreachable here.
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    const root = within(nav).getByRole("button", { name: "workspaceTab" });
+    expect(root).toBeVisible();
+    expect(root.tagName).toBe("BUTTON");
+    // The organization chip this replaced carried an icon and the org name.
+    expect(root.querySelector("svg")).toBeNull();
+    expect(within(nav).queryByRole("button", { name: "Org A" })).toBeNull();
+
+    await userEvent.setup().click(root);
+    expect(pushMock.mock.calls.at(-1)?.[0]).toContain("view=workspace");
+  });
+
+  it("drops the tables-only archived param when navigating away", async () => {
+    searchParams = new URLSearchParams(
+      "view=browse&folder=Reports&archived=true",
+    );
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+
+    // These paths rebuild the query from the current URL. Only the tables list
+    // reads `archived`, so left in it rides into browse and tasks and ends up
+    // in shared links.
+    const nav = screen.getByRole("navigation", { name: "breadcrumbNavLabel" });
+    await userEvent
+      .setup()
+      .click(within(nav).getByRole("button", { name: "workspaceTab" }));
+
+    const pushed = pushMock.mock.calls.at(-1)?.[0] as string;
+    expect(pushed).toContain("view=workspace");
+    expect(pushed).not.toContain("archived");
+  });
+
+  it("puts the archived filter in the page filter row and drives the list", async () => {
+    searchParams = new URLSearchParams("view=tables");
+    const user = userEvent.setup();
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenCalled();
+    });
+
+    // In the page header row that holds the tabs and the other filters, not
+    // inside the list panel.
+    const header = screen.getByTestId("files-desktop-header");
+    const filter = within(header).getByTestId("tables-archived-filter");
+    expect(filter).toHaveAttribute("data-archived", "false");
+    expect(listDataTablesMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ archived: "false" }),
+    );
+
+    await user.click(filter);
+
+    await waitFor(() => {
+      expect(listDataTablesMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ archived: "true" }),
+      );
+    });
+    expect(
+      within(screen.getByTestId("files-desktop-header")).getByTestId(
+        "tables-archived-filter",
+      ),
+    ).toHaveAttribute("data-archived", "true");
+  });
+});
+
+describe("one catalog, not two", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=workspace");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    listDataTablesMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({ items: [], nextCursor: null });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDataTablesMock.mockResolvedValue([]);
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("offers three tabs, and no All files tab", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "recentsTab" })).toBeVisible();
+    });
+
+    // Two tabs listing the same files was the defect. Workspace is the
+    // catalog now, so there is nothing for a fourth tab to hold.
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "tablesTab" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "allFilesTab" })).toBeNull();
+  });
+
+  it("renders the catalog at the Workspace root, with the Workspace tab selected", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("keeps folders on the Workspace root so they can still be navigated", async () => {
+    // The catalog lists files and has no folder rows, so without these the
+    // merge would have removed the only way into a folder — and with it
+    // folder create, rename, move and delete, which live in this listing.
+    listDriveItemsMock.mockResolvedValue([
+      reportsFolder(),
+      {
+        type: "file" as const,
+        name: "root-file.png",
+        pathname: "root-file.png",
+        fileUrl: "https://example.com/root-file.png",
+        size: 10,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+    expect(
+      screen.getByRole("button", { name: /renameAction/i }),
+    ).toBeInTheDocument();
+
+    // And the root file is NOT duplicated into the folder listing: the
+    // catalog below is the one place every file is listed.
+    expect(screen.queryByRole("button", { name: "root-file.png" })).toBeNull();
+  });
+
+  it("narrows to the folder listing inside a folder, and drops the catalog", async () => {
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "file" as const,
+        name: "inside.png",
+        pathname: "Reports/inside.png",
+        fileUrl: "https://example.com/inside.png",
+        size: 10,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "inside.png" })).toBeVisible();
+    });
+    // A folder is a scope on the same tab, not a second list beside it.
+    expect(screen.queryByTestId("drive-all-files")).toBeNull();
+    expect(
+      screen.getByRole("navigation", { name: "breadcrumbNavLabel" }),
+    ).toBeVisible();
+  });
+
+  it("opens the Workspace tab for a legacy view=all link, carrying its query", async () => {
+    // Global search's "See all files" and the file detail page's back link
+    // both shipped pointing at view=all.
+    searchParams = new URLSearchParams("view=all&q=invoice");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-initial-query",
+      "invoice",
+    );
+  });
+
+  it("opens the Workspace tab for a legacy view=browse link", async () => {
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("offers no sort control at the root, because it would not sort what is shown", async () => {
+    // Found in a browser, not by a test. The control drives the folder strip;
+    // the list a reader looks at is the catalog below it, ordered by relevance
+    // or recency. A sort control that does not reorder the list under it is the
+    // same kind of quiet lie the tab merge removed, one level down.
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    const header = screen.getByTestId("files-desktop-header");
+    expect(within(header).queryByTestId("files-sort-control")).toBeNull();
+  });
+
+  it("keeps the sort control inside a folder, where it does sort the list", async () => {
+    // The other direction: hiding it everywhere would also pass the case above.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(listDriveItemsMock).toHaveBeenCalled();
+    });
+    const header = screen.getByTestId("files-desktop-header");
+    expect(within(header).getByTestId("files-sort-control")).toBeVisible();
+  });
+
+  it("does not reserve a page of blank space above the catalog", async () => {
+    // The folder strip carried the min-height meant for a list that is the whole
+    // page. With the catalog directly beneath it, that put a screen of nothing
+    // between two folders and the search field, which reads as a failed load.
+    listDriveItemsMock.mockResolvedValue([reportsFolder()]);
+    renderDrive();
+
+    const panel = await waitFor(() => screen.getByTestId("files-layout-list"));
+    expect(panel.className).not.toContain("min-h-");
+  });
+
+  it("shows one search field at the root, and it belongs to the catalog", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    // The page's own field would be a second search box over one list, which
+    // is the duplication the tab merge removed one level down.
+    expect(screen.queryByPlaceholderText("searchPlaceholder")).toBeNull();
+    // Folder management stays reachable at the root. Scoped to the header,
+    // because the mobile actions menu carries its own copy and the stubbed
+    // dropdown renders its content at every width.
+    const header = screen.getByTestId("files-desktop-header");
+    expect(
+      within(header).getByRole("button", { name: "createFolder" }),
+    ).toBeVisible();
+    expect(
+      within(header).queryByPlaceholderText("searchPlaceholder"),
+    ).toBeNull();
   });
 });

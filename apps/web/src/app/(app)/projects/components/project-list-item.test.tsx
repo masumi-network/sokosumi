@@ -78,11 +78,16 @@ describe("ProjectListItem", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("renders as a horizontal list row with no mobile card chrome", () => {
+  it("stacks metadata on narrow screens while preserving desktop row layout", () => {
     render(<ProjectListItem project={project} labels={labels} />);
 
     const link = screen.getByRole("link", { name: /Autumn Launch/ });
-    expect(link.className).toContain("flex-row");
+    expect(link).toHaveClass(
+      "flex-col",
+      "items-stretch",
+      "sm:flex-row",
+      "sm:items-center",
+    );
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
     // The row sits inside PROJECTS_BROWSE_LAYOUT_CLASS, which is

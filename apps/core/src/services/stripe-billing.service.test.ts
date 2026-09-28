@@ -65,7 +65,10 @@ vi.mock("@/clients/stripe.client", () => ({
   },
 }));
 
-import { stripeBillingService } from "./stripe-billing.service";
+import {
+  stripeAmountToMajorUnits,
+  stripeBillingService,
+} from "./stripe-billing.service";
 
 const PRICE = (amountPerCredit: number) => ({
   id: `price_${amountPerCredit}`,
@@ -468,12 +471,36 @@ describe("claimCoupon validation", () => {
   });
 });
 
+describe("stripeAmountToMajorUnits", () => {
+  it("divides two-decimal currencies by 100", () => {
+    expect(stripeAmountToMajorUnits(4900, "eur")).toBe(49);
+    expect(stripeAmountToMajorUnits(4999, "USD")).toBe(49.99);
+  });
+
+  it("leaves zero-decimal currencies alone", () => {
+    expect(stripeAmountToMajorUnits(4900, "jpy")).toBe(4900);
+    expect(stripeAmountToMajorUnits(4900, "KRW")).toBe(4900);
+  });
+
+  it("keeps Stripe's two-decimal representation for UGX, ISK, HUF and TWD", () => {
+    expect(stripeAmountToMajorUnits(4900, "ugx")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "isk")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "huf")).toBe(49);
+    expect(stripeAmountToMajorUnits(4900, "twd")).toBe(49);
+  });
+
+  it("divides three-decimal currencies by 1000", () => {
+    expect(stripeAmountToMajorUnits(4900, "kwd")).toBe(4.9);
+  });
+});
+
 describe("getCheckoutSessionAnalytics ownership", () => {
   beforeEach(() => {
     getCheckoutSessionMock.mockResolvedValue({
       id: "cs_123",
       status: "complete",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },
@@ -492,7 +519,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     expect(analytics).toMatchObject({
       sessionId: "cs_123",
       currency: "eur",
-      value: 12000,
+      value: 120,
     });
   });
 
@@ -505,6 +532,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       id: "cs_123",
       status: "complete",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_org",
       line_items: { data: [] },
@@ -514,6 +542,192 @@ describe("getCheckoutSessionAnalytics ownership", () => {
     await expect(
       stripeBillingService.getCheckoutSessionAnalytics("cs_123", "user_1"),
     ).resolves.toMatchObject({ sessionId: "cs_123" });
+  });
+
+  it("returns analytics for a Better Auth subscription checkout started by the user", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+    organizationFindManyMock.mockResolvedValue([]);
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_sub",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "paid",
+      amount_total: 4900,
+      amount_subtotal: 4900,
+      currency: "eur",
+      customer: "cus_org_new",
+      line_items: {
+        data: [
+          {
+            quantity: 3,
+            price: { product: { id: "prod_pro", name: "Pro" } },
+          },
+        ],
+      },
+      // Set by @better-auth/stripe on every subscription Checkout Session.
+      metadata: {
+        userId: "user_1",
+        subscriptionId: "sub_row_1",
+        referenceId: "org_1",
+      },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_sub", "user_1"),
+    ).resolves.toEqual({
+      sessionId: "cs_sub",
+      currency: "eur",
+      value: 49,
+      items: [{ itemId: "prod_pro", itemName: "Pro", quantity: 3 }],
+    });
+  });
+
+  it("rejects a subscription checkout started by another user", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_other" });
+    organizationFindManyMock.mockResolvedValue([]);
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_sub",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "paid",
+      amount_total: 4900,
+      amount_subtotal: 4900,
+      currency: "eur",
+      customer: "cus_org_new",
+      line_items: { data: [] },
+      metadata: { userId: "user_2" },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_sub", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
+  });
+
+  it("reports net value in major units: after discounts, before tax", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_tax",
+      status: "complete",
+      payment_status: "paid",
+      amount_subtotal: 4900,
+      amount_total: 4760,
+      total_details: { amount_discount: 900, amount_tax: 760 },
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_tax", "user_1"),
+    ).resolves.toMatchObject({ currency: "eur", value: 40 });
+  });
+
+  it("excludes inclusive tax from revenue", async () => {
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_inclusive",
+      status: "complete",
+      payment_status: "paid",
+      currency: "eur",
+      metadata: { userId: "user_1" },
+      // Verified against Stripe TEST MODE: EUR 12 including 20% VAT.
+      amount_subtotal: 1200,
+      amount_total: 1200,
+      total_details: {
+        amount_discount: 0,
+        amount_tax: 200,
+        amount_shipping: 0,
+      },
+      line_items: { data: [] },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics(
+        "cs_inclusive",
+        "user_1",
+      ),
+    ).resolves.toMatchObject({ value: 10 });
+  });
+
+  it("returns zero value for a subscription trial that needs no payment", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_trial",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "no_payment_required",
+      amount_total: 0,
+      amount_subtotal: 0,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_trial", "user_1"),
+    ).resolves.toMatchObject({ sessionId: "cs_trial", value: 0 });
+  });
+
+  it("subtracts shipping without subtracting its tax twice", async () => {
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_shipping",
+      status: "complete",
+      payment_status: "paid",
+      currency: "eur",
+      metadata: { userId: "user_1" },
+      amount_total: 1800,
+      total_details: { amount_tax: 300 },
+      shipping_cost: { amount_total: 600, amount_tax: 100 },
+      line_items: { data: [] },
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_shipping", "user_1"),
+    ).resolves.toMatchObject({ value: 10 });
+  });
+
+  it.each([
+    { amount_total: null, currency: "eur" },
+    { amount_total: 1200, currency: null },
+  ])(
+    "leaves revenue unknown when Stripe omits money fields: %j",
+    async (money) => {
+      getCheckoutSessionMock.mockResolvedValue({
+        id: "cs_unknown",
+        status: "complete",
+        payment_status: "paid",
+        metadata: { userId: "user_1" },
+        ...money,
+      });
+
+      await expect(
+        stripeBillingService.getCheckoutSessionAnalytics(
+          "cs_unknown",
+          "user_1",
+        ),
+      ).resolves.toMatchObject({ value: null });
+    },
+  );
+
+  it("rejects a completed checkout whose payment has not cleared", async () => {
+    findUniqueMock.mockResolvedValue({ stripeCustomerId: "cus_user" });
+    getCheckoutSessionMock.mockResolvedValue({
+      id: "cs_unpaid",
+      mode: "subscription",
+      status: "complete",
+      payment_status: "unpaid",
+      amount_total: 4900,
+      amount_subtotal: 4900,
+      currency: "eur",
+      customer: "cus_user",
+      line_items: { data: [] },
+      metadata: {},
+    });
+
+    await expect(
+      stripeBillingService.getCheckoutSessionAnalytics("cs_unpaid", "user_1"),
+    ).rejects.toThrow("Checkout session not found");
   });
 
   it("rejects checkout session analytics when the customer is not owned by the caller", async () => {
@@ -530,6 +744,7 @@ describe("getCheckoutSessionAnalytics ownership", () => {
       id: "cs_123",
       status: "open",
       amount_total: 12000,
+      amount_subtotal: 12000,
       currency: "eur",
       customer: "cus_user",
       line_items: { data: [] },

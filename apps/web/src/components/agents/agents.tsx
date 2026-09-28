@@ -37,7 +37,7 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
   return (
     <div className={cn("w-full", className)}>
       <div className="md:hidden">
-        <div className="flex gap-4 overflow-x-auto pb-4">
+        <div className="app-scrollbar flex gap-4 overflow-x-auto pb-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="min-h-[317px] shrink-0 basis-full">
               <AgentCardSkeleton />

@@ -8,7 +8,6 @@ const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
       getProjectCloseStatus: vi.fn(),
       getProjectById: vi.fn(),
       getProjectsStats: vi.fn(),
-      getProjectNeedsAttention: vi.fn(),
     },
     notFoundMock: vi.fn(() => {
       throw new Error("NOT_FOUND");
@@ -17,6 +16,8 @@ const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
+  // The project tab bar reads the current route to mark its own tab.
+  usePathname: () => "/projects/project-1",
 }));
 
 vi.mock("next-intl/server", async () => {
@@ -52,21 +53,11 @@ vi.mock("@/app/projects/components/project-close-status", () => ({
   ),
 }));
 
-vi.mock("@/app/projects/components/project-memory-row", () => ({
-  ProjectMemoryRow: () => <div data-testid="memory-stat">Memory stat</div>,
-}));
-
 vi.mock("@/app/projects/components/project-brand-card", () => ({
   ProjectBrandProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>
   ),
   ProjectBrandCard: () => <div data-testid="brand-card">Brand card</div>,
-}));
-
-vi.mock("@/app/projects/components/project-needs-attention-section", () => ({
-  ProjectNeedsAttentionSection: () => (
-    <div data-testid="needs-attention-section">Needs attention</div>
-  ),
 }));
 
 function buildProject() {
@@ -102,7 +93,7 @@ describe("ProjectDetailPage", () => {
     hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
-  it("calls notFound without loading needs-attention when the project is missing", async () => {
+  it("calls notFound when the project is missing", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(null);
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -117,18 +108,12 @@ describe("ProjectDetailPage", () => {
       "project-missing",
     );
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
-    expect(projectServiceMock.getProjectNeedsAttention).not.toHaveBeenCalled();
     expect(notFoundMock).toHaveBeenCalledOnce();
   });
 
-  it("loads needs-attention after the project exists", async () => {
+  it("is one column of what the project is, and nothing else", async () => {
     const project = buildProject();
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
-      taskCount: 3,
-      jobCount: 2,
-      items: [],
-    });
 
     const { default: ProjectDetailPage } = await import("./page");
 
@@ -136,132 +121,116 @@ describe("ProjectDetailPage", () => {
       params: Promise.resolve({ projectId: "project-1" }),
     });
 
-    expect(projectServiceMock.getProjectNeedsAttention).toHaveBeenCalledWith(
-      "project-1",
-    );
     expect(projectServiceMock.getProjectCloseStatus).not.toHaveBeenCalled();
     expect(projectServiceMock.getProjectsStats).not.toHaveBeenCalled();
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { container } = render(html);
-    expect(container.firstChild).toHaveClass(
-      "mx-auto",
-      "w-full",
-      "max-w-6xl",
-      "py-6",
-    );
+    expect(container.firstChild).toHaveClass("w-full", "min-w-0");
+    expect(container.firstChild).not.toHaveClass("max-w-6xl");
+    expect(container.firstChild).not.toHaveClass("mx-auto");
     expect(container.firstChild).not.toHaveClass("-mx-4");
-    expect(container.firstChild).not.toHaveClass("w-[calc(100%+2rem)]");
-    expect(container.firstChild).not.toHaveClass("md:px-6");
-    expect(container.querySelector(".max-w-4xl")).toBeNull();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", {
-        name: "App.Projects.Detail.modules.calendar.title",
-      }),
-    ).toHaveAttribute("href", "/projects/project-1/calendar");
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://example.com/about",
     );
     expect(
-      screen.getByRole("heading", {
-        name: "App.Projects.Detail.briefing",
-      }),
+      screen.getByRole("heading", { name: "App.Projects.Detail.briefing" }),
     ).toBeInTheDocument();
     expect(
       screen.queryByTestId("project-latest-update"),
     ).not.toBeInTheDocument();
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
-    expect(screen.getByTestId("memory-stat")).toBeInTheDocument();
-    expect(screen.getByTestId("needs-attention-section")).toBeInTheDocument();
 
-    const layoutGrid = container.querySelector(
-      ".xl\\:grid-cols-\\[minmax\\(0\\,1fr\\)_minmax\\(16rem\\,20rem\\)\\]",
-    );
-    expect(layoutGrid).toBeTruthy();
-    expect(layoutGrid?.className).not.toContain("lg:grid-cols-");
+    // Every removed section, asserted absent rather than assumed gone: the
+    // calendar and the workspace tiles are top-level destinations or gone,
+    // needs-attention is gone, and memory has a tab of its own.
+    expect(
+      screen.queryByTestId("needs-attention-section"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/modules\.title/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/modules\.comingSoonList/),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("project-memory-panel"),
+    ).not.toBeInTheDocument();
+    for (const href of [
+      "/projects/project-1/calendar",
+      "/projects/project-1/studio",
+      "/drive?view=tasks&projectId=project-1",
+    ]) {
+      expect(container.querySelector(`a[href="${href}"]`)).toBeNull();
+    }
 
-    const introColumn = screen
-      .getByRole("heading", { name: "Launch plan" })
-      .closest(".space-y-8");
-    const aside = screen.getByTestId("brand-card").closest("aside");
-    const needsAttentionColumn = screen
-      .getByTestId("needs-attention-section")
-      .closest(".space-y-8");
-    expect(introColumn).toBeTruthy();
-    expect(aside).toBeTruthy();
-    expect(aside?.className).toContain("xl:row-span-2");
-    expect(needsAttentionColumn).toBeTruthy();
-    expect(aside?.contains(screen.getByTestId("memory-stat"))).toBe(true);
-    expect(aside?.contains(screen.getByTestId("brand-card"))).toBe(true);
-    expect(aside?.contains(screen.getByTestId("needs-attention-section"))).toBe(
-      false,
-    );
-    expect(introColumn?.contains(screen.getByTestId("brand-card"))).toBe(false);
-    expect(
-      needsAttentionColumn?.contains(
-        screen.getByTestId("needs-attention-section"),
-      ),
-    ).toBe(true);
-    expect(
-      introColumn?.contains(screen.getByTestId("needs-attention-section")),
-    ).toBe(false);
+    // The grid and its aside are gone with the things that filled them: what
+    // is left reads top to bottom in one capped column.
+    expect(container.querySelector("aside")).toBeNull();
+    expect(container.querySelector('[class*="xl:grid-cols-"]')).toBeNull();
+    const column = screen.getByTestId("project-briefing").closest(".space-y-8");
+    expect(column?.className).toContain("max-w-3xl");
+    expect(column?.contains(screen.getByTestId("brand-card"))).toBe(true);
 
-    const briefingHeading = screen.getByRole("heading", {
-      name: "App.Projects.Detail.briefing",
-    });
-    const brandCard = screen.getByTestId("brand-card");
-    const needsAttention = screen.getByTestId("needs-attention-section");
+    // Brand comes after the briefing: the briefing is what the project is for,
+    // the brand is how it should look.
     expect(
-      briefingHeading.compareDocumentPosition(brandCard) &
+      screen
+        .getByTestId("project-briefing")
+        .compareDocumentPosition(screen.getByTestId("brand-card")) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-    expect(
-      brandCard.compareDocumentPosition(needsAttention) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+  });
 
-    expect(layoutGrid?.className).not.toContain("order-");
-    expect(layoutGrid?.className).not.toContain("xl:grid-cols-3");
-    expect(layoutGrid?.className).not.toContain("xl:col-span-2");
+  it("navigates Overview, Design and Memory, plus Social inside the beta", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
 
-    expect(container.innerHTML).not.toContain(
-      "bg-card-background border-border rounded-none border p-4",
-    );
-    const workspaceHeading = screen.getByText(
-      "App.Projects.Detail.modules.title",
-    );
-    expect(workspaceHeading).toBeInTheDocument();
-    const workspaceSection = workspaceHeading.closest("section");
-    expect(workspaceSection?.className).toContain("space-y-3");
-    expect(workspaceSection?.className).not.toContain("xl:col-span-2");
-    expect(workspaceSection?.querySelector(".grid")?.className).toContain(
-      "md:grid-cols-4",
-    );
-    expect(workspaceSection?.querySelector(".grid")?.className).not.toContain(
-      "xl:grid-cols-7",
-    );
-    expect(workspaceSection?.className).not.toContain("px-4");
-    expect(workspaceSection?.className).not.toContain("md:px-0");
-    expect(needsAttentionColumn?.contains(workspaceSection!)).toBe(true);
-    expect(container.querySelectorAll('[aria-disabled="true"]')).toHaveLength(
-      5,
-    );
-    const fileBrowserLink = screen.getByRole("link", {
-      name: /App\.Projects\.Detail\.modules\.fileBrowser\.title/i,
-    });
-    expect(fileBrowserLink).toHaveAttribute(
-      "href",
-      `/drive?view=tasks&projectId=${project.id}`,
-    );
-    expect(
-      screen.getByRole("link", {
-        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
       }),
-    ).toHaveAttribute("href", `/projects/${project.id}/social`);
+    );
+
+    const tabs = screen.getByRole("navigation");
+    expect(
+      Array.from(tabs.querySelectorAll("a")).map((link) =>
+        link.getAttribute("href"),
+      ),
+    ).toEqual([
+      "/projects/project-1",
+      "/projects/project-1/design-md",
+      "/projects/project-1/memory",
+      "/projects/project-1/social",
+    ]);
+    // Overview is the default tab, and it is the one that is open.
+    expect(
+      screen.getByRole("link", { name: "App.Projects.Detail.tabs.overview" }),
+    ).toHaveAttribute("aria-current", "page");
+  });
+
+  it("drops the Social tab outside the beta", async () => {
+    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
+    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
+
+    const { default: ProjectDetailPage } = await import("./page");
+    render(
+      await ProjectDetailPage({
+        params: Promise.resolve({ projectId: "project-1" }),
+      }),
+    );
+
+    expect(
+      Array.from(screen.getByRole("navigation").querySelectorAll("a")).map(
+        (link) => link.getAttribute("href"),
+      ),
+    ).toEqual([
+      "/projects/project-1",
+      "/projects/project-1/design-md",
+      "/projects/project-1/memory",
+    ]);
   });
 
   it("loads and renders close status only after closing starts", async () => {
@@ -275,11 +244,6 @@ describe("ProjectDetailPage", () => {
       state: "CLOSING",
     };
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
-      taskCount: 0,
-      jobCount: 0,
-      items: [],
-    });
     projectServiceMock.getProjectCloseStatus.mockResolvedValue(closeStatus);
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -296,35 +260,6 @@ describe("ProjectDetailPage", () => {
     );
   });
 
-  it("keeps the Calendar card but hides Social outside the beta", async () => {
-    const project = buildProject();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
-    projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
-      taskCount: 0,
-      jobCount: 0,
-      items: [],
-    });
-
-    const { default: ProjectDetailPage } = await import("./page");
-    const html = await ProjectDetailPage({
-      params: Promise.resolve({ projectId: "project-1" }),
-    });
-
-    render(html);
-
-    expect(
-      screen.getByRole("link", {
-        name: "App.Projects.Detail.modules.calendar.title",
-      }),
-    ).toHaveAttribute("href", "/projects/project-1/calendar");
-    expect(
-      screen.queryByRole("link", {
-        name: /App\.Projects\.Detail\.modules\.socialMedia\.title/i,
-      }),
-    ).not.toBeInTheDocument();
-  });
-
   it("renders Latest update above Briefing when a report exists", async () => {
     const project = {
       ...buildProject(),
@@ -335,11 +270,6 @@ describe("ProjectDetailPage", () => {
       },
     };
     projectServiceMock.getProjectById.mockResolvedValue(project);
-    projectServiceMock.getProjectNeedsAttention.mockResolvedValue({
-      taskCount: 0,
-      jobCount: 0,
-      items: [],
-    });
 
     const { default: ProjectDetailPage } = await import("./page");
     const html = await ProjectDetailPage({
@@ -357,11 +287,11 @@ describe("ProjectDetailPage", () => {
     expect(latestHeading.compareDocumentPosition(briefingHeading)).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
-    const latestUpdate = screen.getByTestId("project-latest-update");
-    const briefing = screen.getByTestId("project-briefing");
-    const introColumn = latestHeading.closest(".space-y-8");
-    expect(introColumn?.contains(latestUpdate)).toBe(true);
-    expect(introColumn?.contains(briefing)).toBe(true);
+    const column = latestHeading.closest(".space-y-8");
+    expect(column?.contains(screen.getByTestId("project-latest-update"))).toBe(
+      true,
+    );
+    expect(column?.contains(screen.getByTestId("project-briefing"))).toBe(true);
     expect(screen.getByText(/Shipped/)).toBeInTheDocument();
   });
 });

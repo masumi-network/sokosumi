@@ -1,3 +1,5 @@
+import { asRecord, nullableString } from "./parse-helpers.js";
+
 export type OrganizationRole = "owner" | "admin" | "member";
 
 export interface OrganizationWorkspace {
@@ -14,16 +16,6 @@ const ORGANIZATION_ROLES: readonly OrganizationRole[] = [
   "admin",
   "member",
 ];
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
-}
-
-function nullableString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
 
 function requiredOrganizationId(value: unknown): string {
   if (typeof value !== "string" || value.trim().length === 0) {

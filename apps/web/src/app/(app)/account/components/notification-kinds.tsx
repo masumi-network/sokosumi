@@ -15,7 +15,6 @@ import {
   EmailCell,
   type EmailChoice,
   KindCells,
-  UnusedChannelCells,
 } from "./notification-cells";
 import {
   type PushBlock,
@@ -276,8 +275,7 @@ function KindRow({
  * It is not a notification about the reader's work, and Core holds it as an
  * account switch rather than a cell of the matrix. It is still a thing
  * Sokosumi sends, so it answers in the same columns instead of sitting under
- * the card as a switch of its own. The two columns it does not use say so
- * rather than leaving a hole where an answer should be.
+ * the card as a switch of its own. Only the email column has a control.
  */
 function NewsRow({ news }: { news: EmailChoice }) {
   const t = useTranslations("App.Account.Notifications");
@@ -298,7 +296,6 @@ function NewsRow({ news }: { news: EmailChoice }) {
         aria-label={t("newsDeliveryAriaLabel")}
         className="flex shrink-0 items-center justify-end gap-2"
       >
-        <UnusedChannelCells kind={label} />
         <EmailCell
           // Its own name rather than "Email for Marketing emails", which is
           // what composing gives on a row that is already about email.
@@ -327,7 +324,13 @@ function NewsRow({ news }: { news: EmailChoice }) {
  * one in a cell asks the browser, and a browser that cannot show one says so
  * in a banner over the rows rather than in a row about the browser.
  */
-export function NotificationKinds({ news }: { news: EmailChoice }) {
+export function NotificationKinds({
+  news,
+  pushDevices,
+}: {
+  news: EmailChoice;
+  pushDevices?: ReactNode;
+}) {
   const t = useTranslations("App.Account.Notifications");
   const choices = useNotificationDelivery();
 
@@ -408,21 +411,24 @@ export function NotificationKinds({ news }: { news: EmailChoice }) {
           and offers to fix that; the other says one will, and offers to stop
           it. `device` is null whenever a block is set, so they cannot both
           stand. */}
-      {choices.pushBlock && choices.pushWanted ? (
-        <PushBanner
-          block={choices.pushBlock}
-          saving={choices.pushSaving}
-          onEnable={() => {
-            void choices.activatePush();
-          }}
-        />
-      ) : null}
-      {choices.device ? (
-        <DeviceBanner
-          saving={choices.device.saving}
-          onSilence={choices.device.onSilence}
-        />
-      ) : null}
+      <div className="space-y-1">
+        {choices.pushBlock && choices.pushWanted ? (
+          <PushBanner
+            block={choices.pushBlock}
+            saving={choices.pushSaving}
+            onEnable={() => {
+              void choices.activatePush();
+            }}
+          />
+        ) : null}
+        {choices.device ? (
+          <DeviceBanner
+            saving={choices.device.saving}
+            onSilence={choices.device.onSilence}
+          />
+        ) : null}
+        {pushDevices}
+      </div>
       {/* One open explanation for both boxes. A pointer sweeping down a
           column crosses the names of every head on it, and each legend
           holding its own would leave the one it came from standing. */}
@@ -450,12 +456,13 @@ export function NotificationKinds({ news }: { news: EmailChoice }) {
             ))}
           </div>
         ) : null}
-        {/* Drawn whether or not the read landed: the marketing row is always
-            here, and so are its three cells. */}
+        {/* Marketing email stays available while the matrix loads. */}
         <div className="divide-y overflow-hidden rounded-lg border">
-          <div className="bg-card-background px-4">
-            <ChannelLegend pushBlock={choices.pushBlock} named="row" />
-          </div>
+          {single.length > 0 ? (
+            <div className="bg-card-background px-4">
+              <ChannelLegend pushBlock={choices.pushBlock} named="row" />
+            </div>
+          ) : null}
           {single.map(({ group, kind }) => (
             <KindRow
               key={group.spec.id}

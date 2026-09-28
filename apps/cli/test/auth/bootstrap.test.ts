@@ -11,6 +11,7 @@ import {
   selectBootRoute,
 } from "../../src/auth/bootstrap.js";
 import { MAINNET_API_URL, PREPROD_API_URL } from "../../src/auth/config.js";
+import { CliError } from "../../src/cli/errors.js";
 
 function memoryAuthManager(): AuthManager {
   return new AuthManager({
@@ -230,6 +231,42 @@ test("bootstrapCliSession infers preprod from a target-coded API key", () => {
   assert.equal(session.targetExplicit, false);
 });
 
+test("Coworker registration can default to Preprod without changing other commands", () => {
+  const registration = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+  const otherCommand = bootstrapCliSession({
+    environment: {},
+    loadFiles: false,
+    authManager: memoryAuthManager(),
+  });
+
+  assert.equal(registration.config.target, "preprod");
+  assert.equal(registration.targetExplicit, false);
+  assert.equal(otherCommand.config.target, "mainnet");
+});
+
+test("explicit network settings override the Coworker Preprod default", () => {
+  const apiUrl = bootstrapCliSession({
+    environment: { SOKOSUMI_API_URL: MAINNET_API_URL },
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+  const apiKey = bootstrapCliSession({
+    environment: { SOKOSUMI_API_KEY: "soko_mainnet_secret" },
+    loadFiles: false,
+    preprodDefault: true,
+    authManager: memoryAuthManager(),
+  });
+
+  assert.equal(apiUrl.config.target, "mainnet");
+  assert.equal(apiKey.config.target, "mainnet");
+});
+
 test("bootstrapCliSession keeps an explicit API URL over API-key inference", () => {
   const session = bootstrapCliSession({
     environment: {
@@ -313,7 +350,12 @@ test("requireAuthenticatedSession rejects before Core when unsigned-in", async (
       env: {},
       targetExplicit: true,
     }),
-    new Error(AUTHENTICATION_REQUIRED_MESSAGE),
+    (error: unknown) => {
+      assert.ok(error instanceof CliError);
+      assert.equal(error.code, "AUTH_REQUIRED");
+      assert.equal(error.message, AUTHENTICATION_REQUIRED_MESSAGE);
+      return true;
+    },
   );
 });
 

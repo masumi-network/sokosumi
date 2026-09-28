@@ -65,6 +65,17 @@ vi.mock("@/config/env", () => ({
   }),
 }));
 
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishDueSocialPosts: vi.fn().mockResolvedValue({
+    claimed: 0,
+    published: 0,
+    retried: 0,
+    failed: 0,
+    missed: 0,
+    skipped: 0,
+  }),
+}));
+
 vi.mock("@/services/notification-publish-sync.service", () => ({
   retryNotificationPublishes: vi
     .fn()
@@ -75,6 +86,14 @@ vi.mock("@/services/notification-follow-up-sync.service", () => ({
   notificationFollowUpSyncService: {
     sendFollowUps: sendFollowUpsMock,
   },
+}));
+
+vi.mock("@/services/coworker-late-responses-sync.service", () => ({
+  syncLateCoworkerResponses: vi.fn(async () => ({
+    delivered: 0,
+    dropped: 0,
+    waiting: 0,
+  })),
 }));
 
 vi.mock("@/services/sync-lock.service", () => ({

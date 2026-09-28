@@ -165,7 +165,13 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
         </aside>
 
         <div className={cn(TASK_DETAIL_MAIN_CLASS, "pb-20")}>
-          <TaskFiles title={tTaskDetail("files")} files={task.files ?? []} />
+          <TaskFiles
+            taskId={task.id}
+            title={tTaskDetail("files")}
+            files={task.files ?? []}
+            expandLabel={tTaskDetail("expand")}
+            collapseLabel={tTaskDetail("collapse")}
+          />
 
           {task.jobs.length > 0 ? (
             <div>

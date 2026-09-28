@@ -43,7 +43,7 @@ export default async function AuthAside() {
 
       <div
         data-testid="auth-aside-scroll"
-        className="absolute inset-0 z-10 overflow-y-auto p-10 xl:p-12"
+        className="app-scrollbar absolute inset-0 z-10 overflow-y-auto p-10 xl:p-12"
       >
         <div className="relative z-10 max-w-md">
           <h2

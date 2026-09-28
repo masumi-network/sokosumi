@@ -3,7 +3,6 @@
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
   Check,
   ChevronRight,
   Copy,
@@ -12,7 +11,6 @@ import {
   Folder,
   FolderPlus,
   Folders,
-  Home,
   ListFilter,
   MoreHorizontal,
   Search,
@@ -22,11 +20,17 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import {
+  parseAsBoolean,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryStates,
+} from "nuqs";
 import {
   type ReactElement,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -34,6 +38,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
+import { DriveAllFilesPanel } from "@/app/drive/components/drive-all-files-panel";
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -46,20 +51,23 @@ import {
   DriveSortControl,
   DriveSortMenuItems,
 } from "@/app/drive/components/drive-sort-control";
+import { DriveTablesFilters } from "@/app/drive/components/drive-tables-filters";
 import { DriveTasksFilters } from "@/app/drive/components/drive-tasks-filters";
 import {
   DRIVE_FILE_TYPE_ICON_CLASS,
+  DRIVE_HEADER_CONTROL_CLASS,
   driveItemIconWellClass,
   driveItemMetaDesktopClass,
   driveItemMetaMobileClass,
   driveItemsListClass,
   driveItemsPanelClass,
 } from "@/app/drive/components/drive-view-layout";
-import { DriveViewModeSwitch } from "@/app/drive/components/drive-view-mode-switch";
 import {
   type DrivePrimaryView,
   DriveViewTabs,
 } from "@/app/drive/components/drive-view-tabs";
+import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
+import { TableList } from "@/app/drive/tables/table-list";
 import { PROJECTS_LIST_CARD_MIN_H_CLASS } from "@/app/projects/constants";
 import {
   AlertDialog,
@@ -90,6 +98,7 @@ import {
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-context";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -129,6 +138,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import type { FileStore } from "@/lib/utils/file-search.client";
 import {
   FILES_SORT_BY_VALUES,
   FILES_SORT_ORDER_VALUES,
@@ -151,6 +161,21 @@ function withoutLegacyDriveScopeParam(
 ): URLSearchParams {
   const next = new URLSearchParams(params.toString());
   next.delete("scope");
+  return next;
+}
+
+/**
+ * The query a drive navigation should carry forward.
+ *
+ * Drops the legacy `scope`, and `archived` — which only the Tables list reads.
+ * Every caller here rebuilds the query from the current URL and then navigates
+ * into browse or tasks, so without this a `?archived=true` left over from the
+ * Tables tab rides along into views that ignore it and ends up in shared links.
+ * `navigateToPrimaryView` clears it through nuqs for the same reason.
+ */
+function driveNavParams(params: URLSearchParams): URLSearchParams {
+  const next = withoutLegacyDriveScopeParam(params);
+  next.delete("archived");
   return next;
 }
 
@@ -224,7 +249,7 @@ export function DrivePageClient({
     ) {
       return;
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.delete("folder");
     params.delete("view");
     params.delete("projectId");
@@ -268,6 +293,7 @@ function DrivePageWorkspace({
     assigneeId: parseAsString,
     sortBy: filesSortByParser,
     sortOrder: filesSortOrderParser,
+    archived: parseAsBoolean.withDefault(false),
   });
   const pathname = usePathname();
   const [uploading, setUploading] = useState(false);
@@ -357,12 +383,61 @@ function DrivePageWorkspace({
   const folderParam = driveNavQuery.folder ?? searchParams.get("folder") ?? "";
   const currentFolder = folderParam;
   const viewParam = driveNavQuery.view ?? searchParams.get("view");
+  const isTablesView = viewParam === "tables";
+  const tablesArchived = driveNavQuery.archived;
   const isTasksView = viewParam === "tasks";
-  const isBrowseView =
-    !isTasksView && (viewParam === "browse" || folderParam.length > 0);
-  const isRecentsView = !isTasksView && !isBrowseView;
-  const primaryView: DrivePrimaryView =
-    isBrowseView || isTasksView ? "browse" : "recents";
+  /**
+   * One tab, and it is the catalog.
+   *
+   * `all` held the searchable catalog and `browse` held the folder tree, as two
+   * tabs over the same files. Both URLs still land here — links to each
+   * shipped, including global search's "See all files" and the file detail
+   * page's back link — and `workspace` is the value the tab now writes.
+   *
+   * A bare `?folder=` still counts, so a folder deep link opens the Workspace
+   * tab rather than silently falling through to Recents.
+   */
+  const isWorkspaceView =
+    !isTablesView &&
+    !isTasksView &&
+    (viewParam === "workspace" ||
+      viewParam === "all" ||
+      viewParam === "browse" ||
+      folderParam.length > 0);
+  /**
+   * The catalog is the Workspace tab at its root; a folder narrows it.
+   *
+   * Folder navigation survives the merge as a scope inside this tab rather
+   * than as a tab of its own. At the root the reader gets every file, searchable
+   * and filterable; inside a folder they get that folder's contents with the
+   * folder management — create, rename, move, delete — that lives nowhere else.
+   */
+  const isWorkspaceRoot = isWorkspaceView && currentFolder === "";
+  const isRecentsView = !isTablesView && !isTasksView && !isWorkspaceView;
+  const primaryView: DrivePrimaryView = isTablesView
+    ? "tables"
+    : isWorkspaceView || isTasksView
+      ? "workspace"
+      : "recents";
+  /**
+   * One stable object for the All files panel.
+   *
+   * It used to be an inline literal, so its identity changed on every
+   * render of this page — upload progress, the tasks-view search box, a
+   * dialog opening. The panel memoises its search on the store, so each of
+   * those re-ran the search and cleared the reader's bulk selection
+   * mid-edit.
+   */
+  const allFilesOrganizationId =
+    driveStore.scope === "org" ? driveStore.organizationId : null;
+  const allFilesStore = useMemo<FileStore>(
+    () =>
+      allFilesOrganizationId
+        ? { scope: "org", organizationId: allFilesOrganizationId }
+        : { scope: "me" },
+    [allFilesOrganizationId],
+  );
+
   const filesSortSelection = parseFilesSortSelection(
     driveNavQuery.sortBy,
     driveNavQuery.sortOrder,
@@ -406,14 +481,20 @@ function DrivePageWorkspace({
       search: debouncedSearchQuery,
       ...filesSortQuery,
     }),
-    enabled: isBrowseView && !isTasksView,
+    // Enabled at the root as well: the catalog lists files and not folders,
+    // so the folder rows a reader navigates by come from this listing.
+    enabled: isWorkspaceView && !isTasksView,
   });
   const items = driveItemsQuery.data ?? [];
   const loading = isRecentsView
     ? false
     : isTasksView
       ? tasksLoading
-      : driveItemsQuery.isPending;
+      : isWorkspaceRoot
+        ? // The catalog renders its own skeleton directly below, so a second
+          // one for the folder rows reads as two lists loading separately.
+          false
+        : driveItemsQuery.isPending;
 
   useEffect(() => {
     if (!driveItemsQuery.isError) {
@@ -877,12 +958,12 @@ function DrivePageWorkspace({
   }
 
   function navigateToFolder(folderName: string) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     const newPath = currentFolder
       ? `${currentFolder}/${folderName}`
       : folderName;
     params.set("folder", newPath);
-    params.set("view", "browse");
+    params.set("view", "workspace");
     params.delete("projectId");
     params.delete("taskId");
     params.delete("assigneeId");
@@ -890,10 +971,10 @@ function DrivePageWorkspace({
   }
 
   function navigateToBreadcrumb(index: number) {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     if (index === -1) {
       params.delete("folder");
-      params.set("view", "browse");
+      params.set("view", "workspace");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
@@ -901,7 +982,7 @@ function DrivePageWorkspace({
       const segments = currentFolder.split("/");
       const newPath = segments.slice(0, index + 1).join("/");
       params.set("folder", newPath);
-      params.set("view", "browse");
+      params.set("view", "workspace");
       params.delete("projectId");
       params.delete("taskId");
       params.delete("assigneeId");
@@ -912,18 +993,19 @@ function DrivePageWorkspace({
   function navigateToPrimaryView(view: DrivePrimaryView) {
     void setDriveNavQuery(
       {
-        view: view === "recents" ? null : "browse",
+        view: view === "recents" ? null : view,
         folder: null,
         projectId: null,
         taskId: null,
         assigneeId: null,
+        archived: null,
       },
       { history: "push" },
     );
   }
 
   function navigateToTasksRoot() {
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.delete("folder");
     params.delete("projectId");
@@ -940,7 +1022,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("projectId", projectId);
     params.delete("folder");
@@ -956,7 +1038,7 @@ function DrivePageWorkspace({
         return next;
       });
     }
-    const params = withoutLegacyDriveScopeParam(searchParams);
+    const params = driveNavParams(searchParams);
     params.set("view", "tasks");
     params.set("taskId", taskId);
     params.delete("folder");
@@ -1242,15 +1324,34 @@ function DrivePageWorkspace({
         result.push({ kind: "tasks-root" });
       }
     }
+    /**
+     * Folders only at the Workspace root; the catalog below lists the files.
+     *
+     * Showing both would put every root file in two lists on one screen — the
+     * folder listing's copy and the catalog's — which is the duplication the
+     * tab merge removed, moved down a level. Inside a folder the listing is
+     * the whole answer and carries files as before.
+     */
+    const visible = isWorkspaceRoot
+      ? items.filter((item) => item.type === "folder")
+      : items;
+
     return result.concat(
-      items.map((item) => ({
+      visible.map((item) => ({
         kind: item.type === "file" ? "blob-file" : "blob-folder",
         ...item,
       })),
     );
   })();
 
-  const emptyState = !loading && exploreItems.length === 0;
+  /**
+   * At the Workspace root the catalog owns both of these.
+   *
+   * A workspace with no folders is not an empty workspace, so the page's
+   * "No files yet" must not appear above a catalog that is about to list
+   * files — and its skeleton must not stack on top of the catalog's own.
+   */
+  const emptyState = !loading && !isWorkspaceRoot && exploreItems.length === 0;
   const hasItems = exploreItems.length > 0;
 
   const tasksBreadcrumbs = (() => {
@@ -1308,6 +1409,22 @@ function DrivePageWorkspace({
     loadMore: t("loadMore"),
   };
 
+  const driveTablesFilterLabels = {
+    title: t("filterTitle"),
+    searchPlaceholder: t("filterSearchPlaceholder"),
+    emptyResults: t("filterEmptyResults"),
+    statusLabel: t("filterStatusLabel"),
+    active: t("filterStatusActive"),
+    archived: t("filterStatusArchived"),
+  };
+
+  function handleTablesArchivedChange(next: boolean) {
+    void setDriveNavQuery(
+      { archived: next ? true : null },
+      { history: "replace" },
+    );
+  }
+
   function handleFilesViewModeChange(next: FilesViewMode) {
     setFilesViewMode(next);
     document.cookie = serializeFilesViewModeCookie(next);
@@ -1318,7 +1435,9 @@ function DrivePageWorkspace({
   }
 
   const filesViewModeSwitch = (
-    <DriveViewModeSwitch
+    <ListGridViewSwitch
+      className="hidden @2xl:flex"
+      data-testid="files-view-mode-switch"
       value={filesViewMode}
       onChange={handleFilesViewModeChange}
       labels={{
@@ -1357,7 +1476,6 @@ function DrivePageWorkspace({
           <div className="flex min-w-0 items-center gap-3 @xl:flex-1">
             <DriveViewTabs
               activeView={primaryView}
-              browseLabel={storeRootLabel}
               onViewChange={navigateToPrimaryView}
             />
           </div>
@@ -1372,7 +1490,10 @@ function DrivePageWorkspace({
                       placeholder={t("tasksSearchPlaceholder")}
                       value={searchQuery}
                       onChange={(e) => handleSearchChange(e.target.value)}
-                      className="w-64 max-w-full pl-8"
+                      className={cn(
+                        "w-64 max-w-full pl-8",
+                        DRIVE_HEADER_CONTROL_CLASS,
+                      )}
                     />
                   </div>
                 </div>
@@ -1390,18 +1511,26 @@ function DrivePageWorkspace({
                 </div>
               </>
             )}
-            {!isTasksView && isBrowseView && (
+            {!isTasksView && isWorkspaceView && (
               <div className="hidden items-center gap-2 @2xl:flex">
-                <div className="relative">
-                  <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-                  <Input
-                    type="text"
-                    placeholder={t("searchPlaceholder")}
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 max-w-full pl-8"
-                  />
-                </div>
+                {/* Inside a folder only. At the Workspace root the catalog
+                    below has its own search field, and two search boxes over
+                    one list is the duplication the tab merge removed. */}
+                {isWorkspaceRoot ? null : (
+                  <div className="relative">
+                    <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+                    <Input
+                      type="text"
+                      placeholder={t("searchPlaceholder")}
+                      value={searchQuery}
+                      onChange={(e) => handleSearchChange(e.target.value)}
+                      className={cn(
+                        "w-64 max-w-full pl-8",
+                        DRIVE_HEADER_CONTROL_CLASS,
+                      )}
+                    />
+                  </div>
+                )}
                 <Button
                   type="button"
                   size="sm"
@@ -1446,38 +1575,58 @@ function DrivePageWorkspace({
                     placeholder={t("searchPlaceholder")}
                     value={searchQuery}
                     onChange={(e) => handleSearchChange(e.target.value)}
-                    className="w-64 max-w-full pl-8"
+                    className={cn(
+                      "w-64 max-w-full pl-8",
+                      DRIVE_HEADER_CONTROL_CLASS,
+                    )}
                   />
                 </div>
               </div>
             )}
-            {!isRecentsView && filesSortControl}
-            {filesViewModeSwitch}
+            {isTablesView && (
+              <>
+                <DriveTablesFilters
+                  archived={tablesArchived}
+                  onArchivedChange={handleTablesArchivedChange}
+                  labels={driveTablesFilterLabels}
+                />
+                <TableCreateDialog
+                  key={activeOrganizationId ?? "personal"}
+                  workspaceId={activeOrganizationId}
+                />
+              </>
+            )}
+            {/* Not at the Workspace root. The list a reader sees there is the
+                catalog, which orders by relevance or recency and is not what
+                this control drives — it sorts the folder strip above it. A sort
+                control that does not reorder the list under it is exactly the
+                kind of thing this tab was merged to remove. */}
+            {!isTablesView && !isRecentsView && !isWorkspaceRoot
+              ? filesSortControl
+              : null}
+            {!isTablesView && filesViewModeSwitch}
           </div>
         </div>
 
-        {!isTasksView && isBrowseView ? (
+        {!isTasksView && isWorkspaceView && breadcrumbSegments.length > 0 ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
+            {/* The root crumb. It used to be an icon-plus-organization-name
+            chip that restated the tab sitting directly above it, so it is a
+            plain crumb now, named after the tab, and the whole nav is dropped
+            at the root where it would have been the only thing in it. Inside a
+            folder it stays: the tab is already selected there, so clicking it
+            does not fire a change and this is the only route back to the
+            root. */}
             <button
               type="button"
               onClick={() => navigateToBreadcrumb(-1)}
-              className={cn(
-                "hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors",
-                breadcrumbSegments.length === 0 &&
-                  "text-foreground font-medium",
-              )}
-              aria-label={storeRootLabel}
-              title={storeRootLabel}
+              className="hover:text-foreground whitespace-nowrap transition-colors"
+              title={t("workspaceTab")}
             >
-              {scope === "org" ? (
-                <Building2 className="size-4" aria-hidden />
-              ) : (
-                <Home className="size-4" aria-hidden />
-              )}
-              <span className="ml-1">{storeRootLabel}</span>
+              {t("workspaceTab")}
             </button>
             {breadcrumbSegments.map((segment, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
@@ -1500,22 +1649,20 @@ function DrivePageWorkspace({
         ) : null}
         {isTasksView ? (
           <nav
-            className="text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
+            className="app-scrollbar text-muted-foreground flex items-center gap-1 overflow-x-auto text-sm"
             aria-label={t("breadcrumbNavLabel")}
           >
+            {/* Same root crumb as the browse trail. The tasks view keeps it at
+            every depth: its tab is the workspace tab, which is already
+            selected here, so this is the only control that leaves the tasks
+            list for the file root. */}
             <button
               type="button"
               onClick={() => navigateToBreadcrumb(-1)}
-              className="hover:text-foreground inline-flex items-center whitespace-nowrap transition-colors"
-              aria-label={storeRootLabel}
-              title={storeRootLabel}
+              className="hover:text-foreground whitespace-nowrap transition-colors"
+              title={t("workspaceTab")}
             >
-              {scope === "org" ? (
-                <Building2 className="size-4" aria-hidden />
-              ) : (
-                <Home className="size-4" aria-hidden />
-              )}
-              <span className="ml-1">{storeRootLabel}</span>
+              {t("workspaceTab")}
             </button>
             {tasksBreadcrumbs.map((crumb, index) => (
               <span key={index} className="flex shrink-0 items-center gap-1">
@@ -1595,18 +1742,25 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {!isTasksView && isBrowseView && (
+      {!isTasksView && isWorkspaceView && (
         <div className="mb-6 flex items-center gap-2 @2xl:hidden">
-          <div className="relative flex-1">
-            <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
-            <Input
-              type="text"
-              placeholder={t("searchPlaceholder")}
-              value={searchQuery}
-              onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-8"
-            />
-          </div>
+          {/* Same rule as the desktop header: the root's search is the
+              catalog's own. The actions menu stays at every depth, because
+              New folder lives in it. */}
+          {isWorkspaceRoot ? (
+            <div className="flex-1" />
+          ) : (
+            <div className="relative flex-1">
+              <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
+              <Input
+                type="text"
+                placeholder={t("searchPlaceholder")}
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+                className="w-full pl-8"
+              />
+            </div>
+          )}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -1655,7 +1809,13 @@ function DrivePageWorkspace({
         </div>
       )}
 
-      {isRecentsView ? (
+      {isTablesView ? (
+        <TableList
+          archived={tablesArchived}
+          key={activeOrganizationId ?? "personal"}
+          workspaceId={activeOrganizationId}
+        />
+      ) : isRecentsView ? (
         <DriveRecentsPanel
           driveStore={driveStore}
           activeOrganizationId={activeOrganizationId}
@@ -1686,7 +1846,7 @@ function DrivePageWorkspace({
       ) : emptyState ? (
         <div
           className={cn(
-            "bg-card-background border-border -mx-4 flex flex-col items-center justify-center overflow-hidden rounded-none border-0 py-12 text-center md:mx-0 md:rounded-xl md:border",
+            "bg-card-background flex flex-col items-center justify-center overflow-hidden rounded-xl px-4 py-12 text-center",
             PROJECTS_LIST_CARD_MIN_H_CLASS,
           )}
         >
@@ -1713,7 +1873,12 @@ function DrivePageWorkspace({
         </div>
       ) : hasItems ? (
         <div
-          className={driveItemsPanelClass(layoutMode)}
+          className={driveItemsPanelClass(layoutMode, {
+            // At the Workspace root this panel holds only the folders, with the
+            // catalog directly below it. Reserving a full list's height there
+            // puts a screen of blank space between the two.
+            fillsThePage: !isWorkspaceRoot,
+          })}
           data-testid={
             layoutMode === "grid" ? "files-layout-grid" : "files-layout-list"
           }
@@ -2184,7 +2349,32 @@ function DrivePageWorkspace({
         </div>
       ) : null}
 
-      {!isTasksView && isBrowseView && (
+      {/**
+       * The catalog, at the root of the Workspace tab.
+       *
+       * Every file in the workspace, searchable and filterable, with the
+       * folders above it as navigation. This used to be a tab of its own
+       * beside a folder tree listing the same files.
+       *
+       * Below the folders rather than instead of them: the catalog lists
+       * files and has no folder rows, so it cannot be navigated by, and
+       * folder create, rename, move and delete live only in the listing
+       * above. Inside a folder this panel is not rendered — the listing there
+       * is the same files narrowed to that folder, which is the scope the
+       * reader asked for.
+       */}
+      {isWorkspaceRoot ? (
+        <DriveAllFilesPanel
+          store={allFilesStore}
+          viewMode={layoutMode}
+          isMobile={isMobile}
+          // Global search's "See all files" arrives with the query already
+          // typed; dropping it made the reader type it a second time.
+          initialQuery={searchParams.get("q") ?? ""}
+        />
+      ) : null}
+
+      {!isTasksView && isWorkspaceView && (
         <ListMobileCreateFab
           ariaLabel={t("uploadFab")}
           onOpen={handleFabOpen}
@@ -2275,7 +2465,7 @@ function DrivePageWorkspace({
             </DialogTitle>
             <DialogDescription>{t("moveDialogDescription")}</DialogDescription>
           </DialogHeader>
-          <div className="max-h-96 space-y-2 overflow-y-auto">
+          <div className="app-scrollbar max-h-96 space-y-2 overflow-y-auto">
             {loadingAllFolders ? (
               <p className="text-muted-foreground text-sm">
                 {t("loadingFolders")}

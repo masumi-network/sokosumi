@@ -6,7 +6,7 @@ import Foundation
 /// Core enforces the same rules; this only shapes the UI.
 public struct GroupNameDraft: Equatable, Sendable {
   /// Core's cap, counted after trimming in UTF-16 units like the channel name.
-  public static let maxLength = 80
+  static let maxLength = 80
 
   /// The Group name the room carries now; empty when unnamed.
   public let current: String
@@ -35,7 +35,7 @@ public struct GroupNameDraft: Equatable, Sendable {
   }
 
   /// Saving the name the room already has changes nothing.
-  public var isUnchanged: Bool {
+  var isUnchanged: Bool {
     groupName == (current.isEmpty ? nil : current)
   }
 

@@ -1,4 +1,5 @@
 import { type AgentJob, parseAgentJob } from "./agent-job.js";
+import { asRecord } from "./parse-helpers.js";
 
 export interface Task {
   id: string | null;
@@ -14,12 +15,6 @@ export interface Task {
   jobs: AgentJob[];
   totalCredits: number | null;
   events: unknown[];
-}
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
 }
 
 export function parseTask(input: unknown): Task {

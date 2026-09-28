@@ -11,7 +11,7 @@ import { getSession } from "@/lib/auth/auth.server";
 import {
   type Project,
   TaskStatus,
-  type WorkspaceCalendarItem,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
@@ -25,6 +25,7 @@ import {
   taskService,
   type WorkspaceCalendarPage,
 } from "@/lib/services/task.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 export interface CalendarPageSearchParams {
@@ -44,9 +45,10 @@ export interface LoadedWorkspaceCalendarPage {
   currentUserId: string | null;
   workspaceId: string;
   calendarKey: string;
+  includeSocialPosts: boolean;
   coworkerOptions: CoworkerOption[];
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate: string;
   pagination: WorkspaceCalendarPage["pagination"];
   project: Project | null;
@@ -120,7 +122,10 @@ export async function loadWorkspaceCalendarPage({
   searchParams: Promise<CalendarPageSearchParams>;
 }): Promise<LoadedWorkspaceCalendarPage> {
   await connection();
-  const session = await getSession();
+  const [session, includeSocialPosts] = await Promise.all([
+    getSession(),
+    hasCurrentUserSocialBetaAccess(),
+  ]);
   const params = await searchParams;
   const { calendarStatus, latestCalendarDate, initialDate, range } =
     resolveCalendarPageQuery(
@@ -143,6 +148,8 @@ export async function loadWorkspaceCalendarPage({
       await Promise.all([
         projectService.getProjectCalendar(project.id, {
           ...range,
+          agendaOnly: params.view === "agenda" ? "true" : undefined,
+          includeSocialPosts: includeSocialPosts ? "true" : undefined,
           assigneeId: params.assigneeId,
           assigneeUserId: params.assigneeUserId,
           limit: params.view === "agenda" ? 10 : 100,
@@ -158,6 +165,7 @@ export async function loadWorkspaceCalendarPage({
 
     return {
       activeOrganizationId,
+      includeSocialPosts,
       currentUserId: session?.user?.id ?? null,
       workspaceId: project.workspaceId,
       calendarKey: `${project.id}-${initialDate}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,
@@ -180,6 +188,8 @@ export async function loadWorkspaceCalendarPage({
   ] = await Promise.all([
     taskService.getWorkspaceCalendar({
       ...range,
+      agendaOnly: params.view === "agenda" ? "true" : undefined,
+      includeSocialPosts: includeSocialPosts ? "true" : undefined,
       assigneeId: params.assigneeId,
       assigneeUserId: params.assigneeUserId,
       limit: params.view === "agenda" ? 10 : 100,
@@ -207,6 +217,7 @@ export async function loadWorkspaceCalendarPage({
 
   return {
     activeOrganizationId,
+    includeSocialPosts,
     currentUserId: session?.user?.id ?? null,
     workspaceId,
     calendarKey: `${initialDate}-${params.projectId ?? "all"}-${params.sourceId ?? "all"}-${params.scope ?? "workspace"}-${params.assigneeId ?? "all"}-${calendarStatus ?? "all"}-${params.view ?? "all"}`,

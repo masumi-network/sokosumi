@@ -849,7 +849,11 @@ export function TaskScheduleSection(props: TaskScheduleSectionProps) {
                         aria-invalid={!!errors.endOnDate}
                       >
                         {endOnDate
-                          ? endOnDate.toLocaleDateString()
+                          ? formatter.dateTime(endOnDate, {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            })
                           : t("pickDate")}
                       </Button>
                     </PopoverTrigger>

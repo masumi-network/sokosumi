@@ -5,6 +5,7 @@ import type {
 
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -333,6 +334,7 @@ export class SokoBotIngestSyncService {
         events,
       }),
       source: "INGEST",
+      presetRoute: SYSTEM_TURN_ROUTES[`ingest:${kind}`],
     });
     await stamp();
     if (

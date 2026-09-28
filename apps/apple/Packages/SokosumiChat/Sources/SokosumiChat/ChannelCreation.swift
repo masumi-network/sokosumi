@@ -12,7 +12,7 @@ public struct ChannelRoster: Sendable {
   }
 }
 
-public enum ChannelCreationError: Error, Equatable, Sendable {
+enum ChannelCreationError: Error, Equatable, Sendable {
   case slugTaken
 }
 

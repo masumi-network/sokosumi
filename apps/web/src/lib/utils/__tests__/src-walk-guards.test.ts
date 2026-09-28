@@ -687,6 +687,7 @@ const URL_DATA_PROP = /(?:^|[\s,{(])(?:params|searchParams)\s*:\s*Promise</m;
  */
 const SUSPENSE_WRAPPED = new Set([
   "(app)/admin/enterprise-contracts/page.tsx",
+  "(app)/drive/files/[resourceId]/page.tsx",
   "(app)/agents/[agentId]/jobs/layout.tsx",
   "(app)/chat/rooms/[roomId]/page.tsx",
   "(app)/projects/(root)/page.tsx",
@@ -724,7 +725,6 @@ const INSTANT_WORKLIST = new Set([
   "(app)/organizations/[organizationSlug]/design-md/edit/page.tsx",
   "(app)/organizations/[organizationSlug]/page.tsx",
   "(app)/projects/[projectId]/@modal/(.)edit/page.tsx",
-  "(app)/projects/[projectId]/calendar/page.tsx",
   "(app)/projects/[projectId]/design-md/edit/page.tsx",
   "(app)/projects/[projectId]/edit/page.tsx",
   "(app)/projects/[projectId]/layout.tsx",

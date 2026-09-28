@@ -82,7 +82,7 @@ describe("Soko Bot deployment environment", () => {
     });
 
     expectInvalidEnvironment(
-      "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+      "SOKO_BOT_RUNTIME_ADAPTER must be sandbox or in-process when Soko Bot is enabled in a deployed environment",
     );
   });
 
@@ -249,6 +249,16 @@ describe("Turnstile deployment configuration", () => {
     validateEnv();
 
     expect(consoleWarn).not.toHaveBeenCalled();
+  });
+});
+
+describe("Task tag classification environment", () => {
+  it.each([
+    [undefined, true],
+    ["false", false],
+  ])("parses %s as enabled=%s", (value, enabled) => {
+    vi.stubEnv("TASK_TAG_CLASSIFICATION_ENABLED", value);
+    expect(validateEnv().TASK_TAG_CLASSIFICATION_ENABLED).toBe(enabled);
   });
 });
 

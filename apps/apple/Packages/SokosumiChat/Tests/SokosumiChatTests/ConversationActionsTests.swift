@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 import HTTPTypes
 import OpenAPIRuntime
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private let peerRoomId = "550e8400-e29b-41d4-a716-446655440101"

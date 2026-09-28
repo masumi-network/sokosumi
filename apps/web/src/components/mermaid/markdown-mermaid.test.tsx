@@ -165,6 +165,36 @@ describe("chat Mermaid Markdown integration", () => {
     expect(blocks[7]).toHaveAttribute("data-limit", "false");
     expect(blocks[8]).toHaveAttribute("data-limit", "true");
   });
+  // A CommonMark hard break (line ending in two spaces or a backslash) makes
+  // `mdast-util-to-hast` emit a positionless "\n" text node after the <br>.
+  // `rehype-raw` then merges it with the *positioned* text that follows, and
+  // the merged node keeps `position.end` but loses `position.start`. Reading
+  // `position.start.offset` through a `position?.` guard alone threw
+  // "Cannot read properties of undefined (reading 'offset')", which the chat
+  // error boundary turned into a whole unopenable room.
+  it("survives a hard break, which leaves a node positioned only at its end", () => {
+    const { container } = render(
+      <Markdown enableMermaid>
+        {"Total: 423.  \n\\* Archived overlaps."}
+      </Markdown>,
+    );
+
+    expect(container.querySelector("br")).toBeInTheDocument();
+    expect(container.textContent).toContain("* Archived overlaps.");
+  });
+
+  it("still tags a Mermaid block when a hard break precedes it", () => {
+    const { container } = render(
+      <Markdown enableMermaid>
+        {`Chart below.  \n\\* see note\n\n${fence("flowchart LR\nA-->B")}`}
+      </Markdown>,
+    );
+
+    expect(container.querySelector("figure")?.textContent).toBe(
+      "flowchart LR\nA-->B",
+    );
+  });
+
   it("recovers unmodified source before Markdown sanitization and search highlighting", () => {
     const original =
       'flowchart LR\n A["<img src=x onerror=alert(1)> _word_ & text"]';

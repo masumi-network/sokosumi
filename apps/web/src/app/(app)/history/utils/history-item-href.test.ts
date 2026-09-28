@@ -54,26 +54,14 @@ describe("getHistoryItemHref", () => {
   });
 
   it("lives in a server-safe module (SOK-990 / SOKOSUMI-RW)", () => {
+    // Both callers are client components today — the needs-attention section
+    // that was the server one is gone with the project workspace tiles. The
+    // module stays free of "use client" anyway: that is what lets the next
+    // server component render a history row without pulling a client boundary
+    // in behind it, which is the regression SOK-990 fixed.
     const hrefModule = stripComments(
       readFileSync(join(here, "history-item-href.ts"), "utf8"),
     );
     expect(hrefModule).not.toMatch(/["']use client["']/);
-
-    const needsAttention = stripComments(
-      readFileSync(
-        join(
-          here,
-          "../../projects/components/project-needs-attention-section.tsx",
-        ),
-        "utf8",
-      ),
-    );
-    expect(needsAttention).not.toMatch(/["']use client["']/);
-    expect(needsAttention).toMatch(
-      /getHistoryItemHref[\s\S]*from\s+["']@\/app\/history\/utils\/history-item-href["']/,
-    );
-    expect(needsAttention).not.toMatch(
-      /getHistoryItemHref[\s\S]*from\s+["']@\/app\/history\/components\/history-list-item["']/,
-    );
   });
 });

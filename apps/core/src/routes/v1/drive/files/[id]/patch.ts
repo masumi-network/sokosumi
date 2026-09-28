@@ -12,6 +12,7 @@ import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { conflict, notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -20,6 +21,7 @@ import {
   driveFileSchema,
   renameDriveFileRequestSchema,
 } from "@/schemas/drive-file.schema";
+import { renameDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "patch",
@@ -169,6 +171,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     const pathSegments = newPathname.split("/");
     const name = pathSegments[pathSegments.length - 1] || "unnamed";
+
+    // The document is the same document. Only its name and object key move,
+    // so nothing is re-extracted and no manual label is lost.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: scope === "user" ? "me" : "org",
+      organizationId: scope === "organization" ? ownerId : undefined,
+    });
+    await renameDriveUploadResource({
+      workspaceId: workspace.workspaceId,
+      scope,
+      fromPathname: oldPathname,
+      toPathname: renamedBlob.pathname,
+      displayName: name,
+    });
 
     return ok(
       c,

@@ -133,11 +133,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   onBlur?: () => void;
   disabled?: boolean;
   ariaLabel?: string;
-  /**
-   * Inline edit mode: Ctrl/Cmd+Enter submits instead of inserting a newline,
-   * and plain Enter submits even on touch devices (no Save button exists).
-   */
-  modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
@@ -158,7 +153,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold",
   "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_del]:line-through",
   "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-  "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+  "[&_pre]:app-scrollbar [&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
   "[&_a]:text-primary [&_a]:underline",
   "[&_blockquote]:border-input [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
@@ -235,7 +230,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   onBlur,
   disabled = false,
   ariaLabel,
-  modifierEnterSubmits = false,
   onLinkShortcut,
   onActiveFormatsChange,
   onSelectedKeysChange,
@@ -1236,11 +1230,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
           shiftKey: event.shiftKey,
-          metaKey: modifierEnterSubmits ? false : event.metaKey,
-          ctrlKey: modifierEnterSubmits ? false : event.ctrlKey,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
           isSuggestionKeyboardActive: isDropdownVisible,
-          // Inline edit has no Save button, so Enter must still commit there.
-          isTouchDevice: modifierEnterSubmits ? false : !devicePrefersHover(),
+          isTouchDevice: !devicePrefersHover(),
         });
 
         if (action === "ignore") return;
@@ -1279,7 +1272,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertEmojiShortcode,
       insertMention,
       isOpen,
-      modifierEnterSubmits,
       onEscape,
       onLinkShortcut,
       onSubmitShortcut,
@@ -1428,7 +1420,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning
-        enterKeyHint={modifierEnterSubmits ? "send" : undefined}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
         onInput={handleInput}
@@ -1463,7 +1454,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
+              "app-scrollbar bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
               triggerPosition?.width == null && "w-72",
               !triggerPosition && "mt-1 max-h-60",
             )}

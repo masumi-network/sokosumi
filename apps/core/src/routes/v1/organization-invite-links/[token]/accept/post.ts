@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import { memberRepository } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
@@ -83,12 +82,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let outcome: "joined" | "already_member" | "depleted";
     try {
       outcome = await prisma.$transaction(async (tx) => {
-        const existing =
-          await memberRepository.getMemberByUserIdAndOrganizationId(
-            userContext.userId,
-            organizationId,
-            tx,
-          );
+        const existing = await tx.member.findUnique({
+          where: {
+            userId_organizationId: {
+              userId: userContext.userId,
+              organizationId,
+            },
+          },
+        });
         if (existing) {
           await cancelPendingOrganizationInvitationsForUser(
             userContext.userId,
@@ -110,12 +111,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           { tx, organizationId },
         );
 
-        await memberRepository.createMember(
-          userContext.userId,
-          organizationId,
-          MemberRole.MEMBER,
-          tx,
-        );
+        await tx.member.create({
+          data: {
+            user: {
+              connect: {
+                id: userContext.userId,
+              },
+            },
+            organization: {
+              connect: {
+                id: organizationId,
+              },
+            },
+            role: MemberRole.MEMBER,
+          },
+        });
         await upgradeGuestChatRoomMembershipsToMember(
           userContext.userId,
           organizationId,

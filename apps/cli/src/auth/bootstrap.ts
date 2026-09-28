@@ -1,3 +1,4 @@
+import { CliError } from "../cli/errors.js";
 import { loadCliEnvironment } from "../config/loader.js";
 import {
   type AuthEnvironment,
@@ -58,6 +59,7 @@ export interface BootstrapCliSessionOptions {
   environment?: AuthEnvironment;
   loadFiles?: boolean;
   preprod?: boolean;
+  preprodDefault?: boolean;
   apiUrl?: string;
   authUrl?: string;
   clientId?: string;
@@ -90,20 +92,25 @@ function resolveSessionConfig(
   env: AuthEnvironment,
   options: Pick<
     BootstrapCliSessionOptions,
-    "preprod" | "apiUrl" | "authUrl" | "clientId"
+    "preprod" | "preprodDefault" | "apiUrl" | "authUrl" | "clientId"
   >,
 ): CliTargetConfig {
   const detectedApiKeyTarget = targetFromUserApiKey(
     String(env.SOKOSUMI_API_KEY || ""),
   );
+  const apiUrlFromKeyTarget =
+    detectedApiKeyTarget === "preprod"
+      ? PREPROD_API_URL
+      : detectedApiKeyTarget === "mainnet"
+        ? MAINNET_API_URL
+        : undefined;
   const apiUrl =
     options.apiUrl ||
     (options.preprod
       ? PREPROD_API_URL
       : env.SOKOSUMI_API_URL ||
-        (detectedApiKeyTarget === "preprod"
-          ? PREPROD_API_URL
-          : MAINNET_API_URL));
+        apiUrlFromKeyTarget ||
+        (options.preprodDefault ? PREPROD_API_URL : MAINNET_API_URL));
   return resolveCliConfig({
     env,
     apiUrl,
@@ -138,6 +145,7 @@ export function bootstrapCliSession({
   environment = process.env,
   loadFiles = true,
   preprod,
+  preprodDefault,
   apiUrl,
   authUrl,
   clientId,
@@ -150,6 +158,7 @@ export function bootstrapCliSession({
   });
   const config = resolveSessionConfig(env, {
     preprod,
+    preprodDefault,
     apiUrl,
     authUrl,
     clientId,
@@ -225,7 +234,7 @@ export async function requireAuthenticatedSession(session: {
     targetExplicit: session.targetExplicit,
   });
   if (!auth.authenticated) {
-    throw new Error(AUTHENTICATION_REQUIRED_MESSAGE);
+    throw new CliError("AUTH_REQUIRED", AUTHENTICATION_REQUIRED_MESSAGE);
   }
   return auth;
 }

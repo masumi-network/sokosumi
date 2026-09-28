@@ -2,7 +2,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 
-import { getAdminOrganizationBySlug } from "@/helpers/admin-organization-overview.js";
 import { internalServerError, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -43,7 +42,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { slug, memberId } = c.req.valid("param");
 
-    const organization = await getAdminOrganizationBySlug(slug, prisma);
+    const organization = await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
     if (!organization) {
       throw notFound("Organization not found");
     }

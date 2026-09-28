@@ -1,4 +1,20 @@
-/** Minimal Neon API client for Cloud agent branches and preview resets. */
+/** Minimal Neon API client for Cloud agent and PR preview branches. */
+
+/**
+ * @typedef {object} NeonBranch
+ * @property {string} id
+ * @property {string} name
+ * @property {string} [parent_id]
+ * @property {boolean} [default]
+ * @property {boolean} [protected]
+ * @property {string} [expires_at]
+ */
+
+/**
+ * @typedef {object} NeonBranchOperation
+ * @property {NeonBranch} [branch]
+ * @property {{ id: string, status?: string }[]} [operations]
+ */
 
 const NEON_API_BASE = "https://console.neon.tech/api/v2";
 // The branch list is paged and its docs give no default page size, so ask for
@@ -86,7 +102,7 @@ export async function neonFetch(config, path, init = {}) {
 /**
  * @param {NeonConfig} config
  * @param {string} [search] partial branch name or id; Neon filters server-side
- * @returns {Promise<object[]>}
+ * @returns {Promise<NeonBranch[]>}
  */
 export async function listBranches(config, search) {
   const query = new URLSearchParams({ limit: String(BRANCH_LIST_LIMIT) });
@@ -143,8 +159,9 @@ export async function resolveParentBranch(config, isAgentName) {
 /**
  * @param {NeonConfig} config
  * @param {{ name: string, parentId: string, expiresAt: string }} input
+ * @returns {Promise<NeonBranchOperation>}
  */
-export async function createAgentBranch(config, input) {
+export async function createBranch(config, input) {
   return neonFetch(config, `/projects/${config.projectId}/branches`, {
     method: "POST",
     body: JSON.stringify({
@@ -170,7 +187,7 @@ export async function refreshBranchExpiration(config, branchId, input) {
     {
       method: "PATCH",
       body: JSON.stringify({
-        expires_at: input.expiresAt,
+        branch: { expires_at: input.expiresAt },
       }),
     },
   );
@@ -179,6 +196,7 @@ export async function refreshBranchExpiration(config, branchId, input) {
 /**
  * @param {NeonConfig} config
  * @param {string} branchId
+ * @returns {Promise<NeonBranchOperation>}
  */
 export async function deleteBranch(config, branchId) {
   return neonFetch(
@@ -245,6 +263,28 @@ const OPERATION_TIMEOUT_MS = 5 * 60 * 1000;
 const defaultSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Run `request`, retrying with doubling waits while `isRetryable(error)`.
+ * The last error is thrown after `attempts` tries.
+ * @template T
+ * @param {() => Promise<T>} request
+ * @param {{ isRetryable: (error: unknown) => boolean, attempts: number, firstDelayMs: number, sleep?: (ms: number) => Promise<void> }} options
+ * @returns {Promise<T>}
+ */
+export async function retryNeon(
+  request,
+  { isRetryable, attempts, firstDelayMs, sleep = defaultSleep },
+) {
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await request();
+    } catch (error) {
+      if (!isRetryable(error) || attempt >= attempts) throw error;
+      await sleep(firstDelayMs * 2 ** (attempt - 1));
+    }
+  }
+}
+
+/**
  * Throw unless `branch` is a Vercel preview branch that a reset may replace.
  * @param {{ name: string, parent_id?: string, default?: boolean, protected?: boolean }} branch
  */
@@ -277,23 +317,23 @@ export async function resetPreviewBranchToParent(
 ) {
   assertPreviewBranchResettable(branch);
 
-  for (let attempt = 1; ; attempt += 1) {
-    try {
-      return await neonFetch(
+  return retryNeon(
+    () =>
+      neonFetch(
         config,
         `/projects/${config.projectId}/branches/${branch.id}/restore`,
         {
           method: "POST",
           body: JSON.stringify({ source_branch_id: branch.parent_id }),
         },
-      );
-    } catch (error) {
-      if (error?.status !== LOCKED_STATUS || attempt >= LOCKED_ATTEMPTS) {
-        throw error;
-      }
-      await sleep(LOCKED_FIRST_DELAY_MS * 2 ** (attempt - 1));
-    }
-  }
+      ),
+    {
+      isRetryable: (error) => error?.status === LOCKED_STATUS,
+      attempts: LOCKED_ATTEMPTS,
+      firstDelayMs: LOCKED_FIRST_DELAY_MS,
+      sleep,
+    },
+  );
 }
 
 /**

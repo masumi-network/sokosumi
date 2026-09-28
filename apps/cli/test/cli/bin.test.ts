@@ -65,6 +65,7 @@ test("no-argument JSON errors emit one redacted document", async () => {
   assert.equal(output.length, 1);
   assert.deepEqual(JSON.parse(output[0]), {
     error: "Authorization Bearer [REDACTED]",
+    code: "UNKNOWN",
   });
   assert.equal(output.join("").includes(secret), false);
 });
@@ -121,6 +122,7 @@ test("headless auth errors emit one redacted JSON document", async () => {
   assert.equal(output.length, 1);
   assert.deepEqual(JSON.parse(output[0]), {
     error: "Authorization Bearer [REDACTED]",
+    code: "UNKNOWN",
   });
   assert.equal(output.join("").includes(secret), false);
 });
@@ -135,7 +137,8 @@ test("direct JSON headless errors do not add a stderr copy", () => {
   assert.equal(result.status, 1);
   assert.deepEqual(JSON.parse(result.stdout), {
     error:
-      "Usage: sokosumi discover | agents list | coworkers | vendors me|create | workspaces list | tasks | jobs | auth login|status|logout",
+      "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | runtime key-import|start|complete | tasks | jobs | auth login|status|whoami|logout",
+    code: "UNKNOWN",
   });
   assert.equal(result.stderr, "");
 });

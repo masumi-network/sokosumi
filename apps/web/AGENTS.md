@@ -8,6 +8,8 @@
 **Location**: `apps/web/` directory within the pnpm workspace
 **Key Directories**: The live tree is `src/`. Conventions that still match: `src/app/` (routes), `src/components/` (Shadcn + Radix), `src/lib/` (three-layer services/actions/utils, including `src/lib/auth/`), `src/hooks/`, `src/contexts/`. Also `src/config/`, `src/i18n/`, `src/queries/`, `src/middleware/` (auth helpers). The Next.js 16 request interceptor is `src/proxy.ts` (`export async function proxy`), not `middleware.ts`.
 
+Outside `src/`: `agents/image-studio/` is the Project image studio's eve agent. `withEve()` in `next.config.ts` builds it as a service inside this deployment at `/eve/image-studio/v1/*`, so its model credential and its Core origin are this project's environment. See [image studio deployment](../../docs/image-studio/deployment.md).
+
 ## App Router Structure
 
 The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth callbacks), `share/`, `(app)/tasks`, `maintenance`.

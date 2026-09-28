@@ -1,14 +1,16 @@
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getFormatter, getTranslations } from "next-intl/server";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
+import {
+  getProjectWorkspaceLabels,
+  ProjectWorkspaceShell,
+} from "@/app/projects/components/project-workspace-shell";
 import {
   SECTION_ORDER,
   SECTION_STATUSES,
 } from "@/app/projects/components/social-posts/constants";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
-import { PROJECTS_DETAIL_SHELL_CLASS } from "@/app/projects/constants";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
@@ -17,10 +19,12 @@ export const instant = false;
 
 interface ProjectSocialPageProps {
   params: Promise<{ projectId: string }>;
+  searchParams?: Promise<{ postId?: string }>;
 }
 
 export default async function ProjectSocialPage({
   params,
+  searchParams,
 }: ProjectSocialPageProps) {
   await connection();
   if (!(await hasCurrentUserSocialBetaAccess())) {
@@ -33,7 +37,8 @@ export default async function ProjectSocialPage({
     notFound();
   }
 
-  const [pages, connections, t, formatter] = await Promise.all([
+  const selectedPostId = (await searchParams)?.postId;
+  const [pages, connections, t, formatter, selectedPost] = await Promise.all([
     Promise.all(
       SECTION_ORDER.map((section) =>
         projectService.listSocialPosts(project.id, {
@@ -44,36 +49,50 @@ export default async function ProjectSocialPage({
     projectService.listSocialConnections(project.id),
     getTranslations("App.Projects.Detail"),
     getFormatter(),
+    selectedPostId
+      ? projectService.getSocialPost(project.id, selectedPostId)
+      : Promise.resolve(null),
   ]);
+  const workspaceLabels = await getProjectWorkspaceLabels();
   const activeConnections = connections.filter(
-    (socialConnection) => socialConnection.status === "active",
+    (socialConnection) =>
+      socialConnection.status === "active" && socialConnection.provider === "x",
   );
 
   return (
-    <div className={PROJECTS_DETAIL_SHELL_CLASS}>
-      <ProjectDetailHeader
-        backHref={`/projects/${project.id}`}
-        backLabel={t("backToProject")}
-        metadata={[
-          {
-            label: t("header.updated"),
-            value: formatter.dateTime(project.updatedAt, "dateTime"),
-          },
-          {
-            label: t("header.created"),
-            value: formatter.dateTime(project.createdAt, "dateTime"),
-          },
-        ]}
-        projectLogo={project.logo}
-        projectName={project.name}
-        showBackOnMobile
-        websiteUrl={project.websiteUrl}
-      />
-
-      <div className="mt-8 space-y-8">
+    <ProjectWorkspaceShell
+      metadata={[
+        {
+          label: t("header.updated"),
+          value: formatter.dateTime(project.updatedAt, "dateTime"),
+        },
+        {
+          label: t("header.created"),
+          value: formatter.dateTime(project.createdAt, "dateTime"),
+        },
+      ]}
+      labels={workspaceLabels}
+      projectId={project.id}
+      projectLogo={project.logo}
+      projectName={project.name}
+      // This page 404s without beta access, so reaching it means the tab
+      // belongs in the row.
+      showSocialTab
+      websiteUrl={project.websiteUrl}
+    >
+      <div className="space-y-8">
         <ProjectSocialPosts
           connections={activeConnections}
-          posts={pages.flatMap((page) => page.posts)}
+          posts={
+            selectedPost
+              ? [
+                  selectedPost,
+                  ...pages
+                    .flatMap((page) => page.posts)
+                    .filter((post) => post.id !== selectedPost.id),
+                ]
+              : pages.flatMap((page) => page.posts)
+          }
           nextCursors={Object.fromEntries(
             SECTION_ORDER.map((section, index) => [
               section,
@@ -87,6 +106,6 @@ export default async function ProjectSocialPage({
           connections={connections}
         />
       </div>
-    </div>
+    </ProjectWorkspaceShell>
   );
 }

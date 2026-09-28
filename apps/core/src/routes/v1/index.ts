@@ -18,7 +18,10 @@ import creditCostsRouter from "./credit-costs/index.js";
 import developerRouter from "./developer/index.js";
 import driveRouter from "./drive/index.js";
 import enterpriseRouter from "./enterprise/index.js";
+import exportsRouter from "./exports/index.js";
 import historyRouter from "./history/index.js";
+import imageStudioRouter from "./image-studio/index.js";
+import imageStudioAgentV1Router from "./image-studio-agent/index.js";
 import invitationsRouter from "./invitations/index.js";
 import jobsRouter from "./jobs/index.js";
 import notificationsRouter from "./notifications/index.js";
@@ -28,6 +31,7 @@ import productsRouter from "./products/index.js";
 import projectsRouter from "./projects/index.js";
 import realtimeRouter from "./realtime/index.js";
 import shareRouter from "./share/index.js";
+import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
 import sokoBotsRouter from "./soko-bots/index.js";
 import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
@@ -43,7 +47,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
   description:
-    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot runtime routes use their documented Vercel OIDC plus scoped turn-grant authentication.",
+    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot sandbox runtime routes are machine-only, left out of this document, and authenticate with a per-turn token.",
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {
@@ -136,7 +140,10 @@ app.route("/credit-costs", creditCostsRouter);
 app.route("/developer", developerRouter);
 app.route("/drive", driveRouter);
 app.route("/enterprise", enterpriseRouter);
+app.route("/exports", exportsRouter);
 app.route("/history", historyRouter);
+app.route("/image-studio-agent", imageStudioAgentV1Router);
+app.route("/image-studio", imageStudioRouter);
 app.route("/users", usersRouter);
 app.route("/organizations", organizationsRouter);
 app.route("/organization-invite-links", organizationInviteLinksRouter);
@@ -146,6 +153,7 @@ app.route("/jobs", jobsRouter);
 app.route("/notifications", notificationsRouter);
 app.route("/invitations", invitationsRouter);
 app.route("/share", shareRouter);
+app.route("/soko-bot-runtime", sokoBotRuntimeRouter);
 app.route("/soko-bots", sokoBotsRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);

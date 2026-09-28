@@ -46,6 +46,18 @@ interface Feedback {
 
 type OAuthAction = "connect" | "reconnect" | "replace";
 
+const SOCIAL_PROVIDERS = [
+  { id: "x", name: "X" },
+  { id: "tiktok", name: "TikTok" },
+  { id: "instagram", name: "Instagram" },
+  { id: "linkedin", name: "LinkedIn" },
+  { id: "facebook", name: "Facebook" },
+  { id: "youtube", name: "YouTube" },
+] as const satisfies readonly {
+  id: ProjectSocialConnection["provider"];
+  name: string;
+}[];
+
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
   | "status.active"
@@ -59,8 +71,12 @@ const STATUS_TRANSLATION_KEYS: Record<
   disconnected: "status.disconnected",
 };
 
-function formatHandle(handle: string | null): string | null {
+function formatHandle(
+  handle: string | null,
+  provider: ProjectSocialConnection["provider"],
+): string | null {
   if (!handle) return null;
+  if (provider !== "x" && provider !== "instagram") return handle;
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
@@ -78,6 +94,9 @@ export function ProjectSocialAccounts({
   const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [pendingProvider, setPendingProvider] = useState<
+    ProjectSocialConnection["provider"] | null
+  >(null);
   const [pendingAction, setPendingAction] = useState<
     "disconnect" | OAuthAction | null
   >(null);
@@ -110,6 +129,7 @@ export function ProjectSocialAccounts({
   function finishAction(): void {
     if (isMountedRef.current) {
       setPendingAction(null);
+      setPendingProvider(null);
     }
   }
 
@@ -117,24 +137,28 @@ export function ProjectSocialAccounts({
     const message = error.message?.toLowerCase();
     showFeedback({
       kind: "error",
-      message: isExpiredIntentError(error)
-        ? t("errors.intent")
-        : message?.includes("already connected")
-          ? t("errors.duplicate")
-          : message?.includes("reconnect must match")
-            ? t("errors.reconnectMismatch")
-            : fallback,
+      message: message?.includes("not configured")
+        ? t("errors.notConfigured")
+        : isExpiredIntentError(error)
+          ? t("errors.intent")
+          : message?.includes("already connected")
+            ? t("errors.duplicate")
+            : message?.includes("reconnect must match")
+              ? t("errors.reconnectMismatch")
+              : fallback,
     });
   }
 
   async function startOAuth(
     action: OAuthAction,
     socialConnectionId?: string,
+    provider?: ProjectSocialConnection["provider"],
   ): Promise<void> {
     try {
       const popupRun = await runPopupOAuth(async (flow) => {
         setFeedback(null);
         setPendingAction(action);
+        setPendingProvider(provider ?? null);
         const refreshAfterReplace = action === "replace";
         let refreshed = false;
 
@@ -142,6 +166,7 @@ export function ProjectSocialAccounts({
           const initiation = await initiateProjectSocialConnection({
             projectId,
             action,
+            ...(provider ? { provider } : {}),
             ...(socialConnectionId ? { socialConnectionId } : {}),
           });
           if (!initiation.ok) {
@@ -306,7 +331,14 @@ export function ProjectSocialAccounts({
       {connections.length > 0 ? (
         <div className="divide-y rounded-lg border">
           {connections.map((connection) => {
-            const handle = formatHandle(connection.externalHandle);
+            const handle = formatHandle(
+              connection.externalHandle,
+              connection.provider,
+            );
+            const providerName =
+              SOCIAL_PROVIDERS.find(
+                (provider) => provider.id === connection.provider,
+              )?.name ?? connection.provider;
             const canReconnect =
               connection.status === "reauthorization_required";
             const canReplace =
@@ -325,14 +357,14 @@ export function ProjectSocialAccounts({
                     aria-hidden
                     className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
                   >
-                    X
+                    {providerName.slice(0, 1)}
                   </span>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium">
                       {handle ?? t("unknownHandle")}
                     </p>
                     <p className="text-muted-foreground text-xs">
-                      {t("account")}
+                      {t("account", { provider: providerName })}
                     </p>
                   </div>
                 </div>
@@ -409,20 +441,31 @@ export function ProjectSocialAccounts({
         </div>
       ) : null}
 
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={isBusy}
-        onClick={() => {
-          void startOAuth("connect");
-        }}
-      >
-        {pendingAction === "connect" ? (
-          <Loader2 className="size-4 animate-spin" aria-hidden />
-        ) : null}
-        {pendingAction === "connect" ? t("connecting") : t("connect")}
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        {SOCIAL_PROVIDERS.map((provider) => (
+          <Button
+            key={provider.id}
+            aria-busy={
+              pendingAction === "connect" && pendingProvider === provider.id
+            }
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={isBusy}
+            onClick={() => {
+              void startOAuth("connect", undefined, provider.id);
+            }}
+          >
+            {pendingAction === "connect" && pendingProvider === provider.id ? (
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-none"
+                aria-hidden
+              />
+            ) : null}
+            {t("connect", { provider: provider.name })}
+          </Button>
+        ))}
+      </div>
 
       <AlertDialog
         open={pendingConfirmation !== null}

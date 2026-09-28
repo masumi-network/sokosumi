@@ -2,6 +2,10 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioApiError } from "@/clients/composio.client";
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -13,12 +17,16 @@ import mountListProjectSocialConnections from "./get.js";
 import mountInitiateProjectSocialConnection from "./initiate/post.js";
 
 const {
+  requireAuthorizedUserContextMock,
+  requireCoworkerCapabilityMock,
   disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnectionMock,
   initiateProjectSocialConnectionMock,
   listProjectSocialConnectionsMock,
   requireSocialBetaAccessMock,
 } = vi.hoisted(() => ({
+  requireAuthorizedUserContextMock: vi.fn(),
+  requireCoworkerCapabilityMock: vi.fn(),
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
   initiateProjectSocialConnectionMock: vi.fn(),
@@ -35,6 +43,13 @@ vi.mock("@/services/project-social-connections.service", () => ({
 
 vi.mock("@/helpers/social-beta-access", () => ({
   requireSocialBetaAccess: requireSocialBetaAccessMock,
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  requireAuthorizedUserContext: requireAuthorizedUserContextMock,
+}));
+vi.mock("@/helpers/access-control", () => ({
+  requireCoworkerCapability: requireCoworkerCapabilityMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
@@ -119,6 +134,10 @@ function createApp(
 describe("Project social connection routes", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    requireAuthorizedUserContextMock.mockRejectedValue(
+      forbidden("Coworker delegation required"),
+    );
+    requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     requireSocialBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
     initiateProjectSocialConnectionMock.mockResolvedValue({
@@ -131,6 +150,51 @@ describe("Project social connection routes", () => {
       providerRevocation: "revoked",
     });
   });
+
+  it.each(Object.keys(PROJECT_SOCIAL_PROVIDERS) as ProjectSocialProvider[])(
+    "accepts and returns %s connections",
+    async (provider) => {
+      const app = createApp();
+      const initiation = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "connect", provider }),
+        },
+      );
+      expect(initiation.status).toBe(201);
+      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        action: "connect",
+        provider,
+      });
+      listProjectSocialConnectionsMock.mockResolvedValue([
+        { ...connection, provider },
+      ]);
+      const listing = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections`,
+      );
+      expect(listing.status).toBe(200);
+      expect(await listing.json()).toMatchObject({ data: [{ provider }] });
+      finalizeProjectSocialConnectionMock.mockResolvedValue({
+        ...connection,
+        provider,
+      });
+      const finalization = await app.request(
+        `http://localhost/${PROJECT_ID}/social-connections/finalize`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ connectionId: CONNECTION_ID }),
+        },
+      );
+      expect(finalization.status).toBe(201);
+      expect(await finalization.json()).toMatchObject({ data: { provider } });
+    },
+  );
 
   it("lists credential-free active connections for the current workspace", async () => {
     listProjectSocialConnectionsMock.mockResolvedValue([
@@ -227,7 +291,6 @@ describe("Project social connection routes", () => {
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
         action,
-        provider: "x",
         socialConnectionId: SOCIAL_CONNECTION_ID,
       });
     },
@@ -458,7 +521,7 @@ describe("Project social connection routes", () => {
     finalizeProjectSocialConnectionMock
       .mockRejectedValueOnce(notFound("Unknown or expired connection"))
       .mockRejectedValueOnce(
-        conflict("This X account is already connected to the Project"),
+        conflict("This social account is already connected to the Project"),
       )
       .mockRejectedValueOnce(
         new ComposioApiError(
@@ -497,5 +560,26 @@ describe("Project social connection routes", () => {
     expect(duplicate.status).toBe(409);
     expect(unavailable.status).toBe(503);
     expect(await unavailable.text()).not.toContain("provider-secret");
+  });
+  it("lets authorized coworkers discover connected accounts without managing credentials", async () => {
+    requireAuthorizedUserContextMock.mockResolvedValue({
+      userId: USER_ID,
+      organizationId: null,
+    });
+    const app = createApp(COWORKER_CONTEXT_AUTH);
+    const response = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections`,
+    );
+    expect(response.status).toBe(200);
+    const denied = await app.request(
+      `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connect", provider: "x" }),
+      },
+    );
+    expect(denied.status).toBe(403);
+    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
 });

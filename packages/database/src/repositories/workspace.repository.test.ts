@@ -70,6 +70,7 @@ describe("workspaceRepository", () => {
     let findUniqueCall: unknown;
     let createCall: unknown;
     let grantCreateCall: unknown;
+    let labelCreateManyCall: unknown;
     const tx = {
       workspace: {
         findUnique: async (args: unknown) => {
@@ -85,6 +86,12 @@ describe("workspaceRepository", () => {
             updatedAt: new Date("2026-01-01T00:00:00.000Z"),
             userId: null,
           };
+        },
+      },
+      workspaceLabel: {
+        createMany: async (args: unknown) => {
+          labelCreateManyCall = args;
+          return { count: 20 };
         },
       },
       vendorGrant: {
@@ -125,6 +132,23 @@ describe("workspaceRepository", () => {
         resolvedById: null,
       },
     });
+
+    // The vocabulary seed fires on this creation path too. Without it the
+    // workspace produces no tags ever, silently: the suggestion job counts
+    // zero labels, completes, and reports success.
+    const seeded = labelCreateManyCall as {
+      data: { workspaceId: string; createdByUserId: null }[];
+      skipDuplicates: boolean;
+    };
+    assert.equal(seeded.data.length, 20);
+    assert.equal(seeded.skipDuplicates, true);
+    assert.equal(seeded.data[0].workspaceId, "workspace-org-1");
+    // Null is the provenance marker: the only thing telling a label the
+    // product shipped from one a person made.
+    assert.equal(
+      seeded.data.every((row) => row.createdByUserId === null),
+      true,
+    );
   });
 
   it("does not create a personal workspace when resolving a missing personal context", async () => {
@@ -158,6 +182,7 @@ describe("workspaceRepository", () => {
   it("creates a missing personal workspace without clearing preferredOrganizationId", async () => {
     let createCall: unknown;
     let userUpdateCalled = false;
+    let labelCreateManyCall: unknown;
     const tx = {
       workspace: {
         findUnique: async () => null,
@@ -170,6 +195,12 @@ describe("workspaceRepository", () => {
             updatedAt: new Date("2026-01-01T00:00:00.000Z"),
             userId: "user-2",
           };
+        },
+      },
+      workspaceLabel: {
+        createMany: async (args: unknown) => {
+          labelCreateManyCall = args;
+          return { count: 20 };
         },
       },
       user: {
@@ -201,6 +232,19 @@ describe("workspaceRepository", () => {
       data: { userId: "user-2" },
     });
     assert.equal(userUpdateCalled, false);
+
+    // Same seed, same chokepoint, on the personal path.
+    const seeded = labelCreateManyCall as {
+      data: { workspaceId: string; createdByUserId: null }[];
+      skipDuplicates: boolean;
+    };
+    assert.equal(seeded.data.length, 20);
+    assert.equal(seeded.skipDuplicates, true);
+    assert.equal(seeded.data[0].workspaceId, "workspace-user-2");
+    assert.equal(
+      seeded.data.every((row) => row.createdByUserId === null),
+      true,
+    );
   });
 
   it("returns the existing personal workspace without creating", async () => {

@@ -35,6 +35,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
+import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -439,6 +440,7 @@ export function TaskDetailActions({
     startArchiveTransition(async () => {
       try {
         await deleteTask({ taskId });
+        markTaskArchived(taskId);
         setIsOpen(false);
         router.push("/tasks");
       } catch (error) {
@@ -1045,6 +1047,8 @@ export function TaskDetailActions({
             }
             onCreateTask={async ({
               description,
+              name,
+              tagSuggestionReceipt,
               assigneeId,
               assigneeSokoBotId,
               assigneeUserId,
@@ -1057,6 +1061,8 @@ export function TaskDetailActions({
               const result = await createTaskAndLink({
                 taskId,
                 description,
+                name,
+                tagSuggestionReceipt,
                 assigneeId,
                 assigneeSokoBotId,
                 assigneeUserId: assigneeUserId ?? null,

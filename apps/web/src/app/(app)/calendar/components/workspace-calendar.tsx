@@ -49,6 +49,7 @@ import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   TASK_SCHEDULES_PATH,
@@ -81,6 +82,7 @@ import { coreClient } from "@/lib/clients/core.browser.client";
 import {
   TaskStatus,
   type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -98,6 +100,7 @@ import {
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
+import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
@@ -148,10 +151,11 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  includeSocialPosts?: boolean;
   activeOrganizationId?: string | null;
   currentUserId?: string | null;
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate?: string;
   sources?: WorkspaceCalendarSource[];
   pagination?: {
@@ -367,9 +371,17 @@ function CalendarEvent({
             {timeText}
           </span>
         ) : null}
-        <span className="text-muted-foreground min-w-0 truncate">
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {sourceName}
         </span>
+        {item.taskStatus ? (
+          <TaskStatusBadge
+            status={item.taskStatus}
+            label={t(`status.${item.taskStatus}`)}
+            showLabel={false}
+            className="size-5 justify-center p-0"
+          />
+        ) : null}
       </span>
       <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -462,7 +474,7 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   sources: WorkspaceCalendarSource[];
@@ -523,15 +535,21 @@ function CalendarView({
       getCalendarItemDateKey(item.scheduledAt, timeZone),
     );
     return (
-      <div className="flex flex-col gap-4" data-testid="calendar-agenda">
+      <div
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-3"
+        data-testid="calendar-agenda"
+      >
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
-          <p className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
+          <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
             {t("empty.title")}
           </p>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
-          <section className="overflow-hidden rounded-xl border" key={day}>
+          <section
+            className="bg-background overflow-hidden rounded-lg border border-border"
+            key={day}
+          >
             <h3 className="bg-muted flex items-center justify-between gap-2 border-b px-3 py-2 text-sm font-semibold">
               <span>
                 {formatDate(dayItems[0].scheduledAt, {
@@ -551,17 +569,21 @@ function CalendarView({
             <ul className="flex flex-col gap-2 p-3">
               {dayItems.map((item) => (
                 <li key={item.id}>
-                  <CalendarEvent
-                    item={item}
-                    people={findCalendarPeople(item, coworkers)}
-                    {...runHandlers}
-                    source={sources.find(
-                      ({ sourceId }) => sourceId === item.sourceId,
-                    )}
-                    timeText={formatDate(item.scheduledAt, "time", {
-                      timeZone,
-                    })}
-                  />
+                  {item.kind === "socialPost" ? (
+                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                  ) : (
+                    <CalendarEvent
+                      item={item}
+                      people={findCalendarPeople(item, coworkers)}
+                      {...runHandlers}
+                      source={sources.find(
+                        ({ sourceId }) => sourceId === item.sourceId,
+                      )}
+                      timeText={formatDate(item.scheduledAt, "time", {
+                        timeZone,
+                      })}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -574,7 +596,7 @@ function CalendarView({
   return (
     <>
       <div
-        className="workspace-calendar-theme -mx-4 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
+        className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -592,7 +614,7 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.taskName,
+            title: item.kind === "socialPost" ? item.text : item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
             startEditable: isChangeableRun(item),
@@ -622,6 +644,10 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
+            if (item.kind === "socialPost")
+              return (
+                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+              );
             return (
               <CalendarEvent
                 item={item}
@@ -657,6 +683,7 @@ export function WorkspaceCalendar({
   coworkers = [],
   lockedProjectId,
   workspaceId = null,
+  includeSocialPosts = false,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -673,7 +700,7 @@ export function WorkspaceCalendar({
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
     cursor: string;
-    items: WorkspaceCalendarItem[];
+    items: WorkspaceCalendarEntry[];
   } | null>(null);
   const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
@@ -773,8 +800,19 @@ export function WorkspaceCalendar({
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
-    .filter(
-      (item) =>
+    .filter((item) => {
+      if (item.kind === "socialPost")
+        return (
+          (view !== "agenda" ||
+            (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
+              getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+                Temporal.Now.plainDateISO(timeZone).toString())) &&
+          state.assigneeId === null &&
+          state.assigneeUserId === null &&
+          state.status === null &&
+          (selectedSourceId === null || item.sourceId === selectedSourceId)
+        );
+      return (
         (view !== "agenda" ||
           (item.state === "PLANNED" &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -784,8 +822,9 @@ export function WorkspaceCalendar({
         (state.assigneeUserId === null ||
           item.taskAssigneeUserId === state.assigneeUserId) &&
         (state.status === null || item.taskStatus === state.status) &&
-        (selectedSourceId === null || item.sourceId === selectedSourceId),
-    )
+        (selectedSourceId === null || item.sourceId === selectedSourceId)
+      );
+    })
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
@@ -883,6 +922,8 @@ export function WorkspaceCalendar({
       const query = {
         from: range.from,
         to: range.to,
+        includeSocialPosts: includeSocialPosts ? ("true" as const) : undefined,
+        agendaOnly: view === "agenda" ? ("true" as const) : undefined,
         cursor: nextCursor,
         limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,
@@ -1119,9 +1160,9 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:flex-nowrap">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
           <Tabs
-            className="min-w-0 max-w-full max-sm:flex-1"
+            className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
               const nextView = CALENDAR_VIEWS.find(
@@ -1135,7 +1176,7 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >
@@ -1187,23 +1228,25 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {visibleItems.length === 0 && view !== "agenda" ? (
-        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-          {t("empty.title")}
-        </div>
-      ) : null}
-      <CalendarView
-        key={calendarRenderEpoch}
-        canCreate={canCreate}
-        coworkers={coworkers}
-        date={date}
-        items={visibleItems}
-        onDateClick={handleDateClick}
-        runHandlers={runHandlers}
-        sources={sources}
-        timeZone={timeZone}
-        view={view}
-      />
+      <div className="flex min-w-0 flex-col gap-4">
+        {visibleItems.length === 0 && view !== "agenda" ? (
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {t("empty.title")}
+          </div>
+        ) : null}
+        <CalendarView
+          key={calendarRenderEpoch}
+          canCreate={canCreate}
+          coworkers={coworkers}
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          runHandlers={runHandlers}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
       {view === "agenda" && nextCursor ? (
         <div className="flex justify-center" ref={agendaBoundaryRef}>
           <Button

@@ -13,15 +13,45 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
  * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
+ *
+ * No route draws it any more — the tabbed project areas use
+ * `PROJECTS_WORKSPACE_SHELL_CLASS`, and project edit is a modal. It survives as
+ * the reference width that `TASK_DETAIL_SHELL_CLASS` is pinned against, which
+ * is the one thing still asking what a detail page is as wide as.
  */
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
-export const PROJECTS_CALENDAR_SHELL_CLASS = "mx-auto w-full max-w-7xl py-6";
+/**
+ * The tabbed project workspace: overview, design, memory, social.
+ *
+ * Full available width, deliberately. The application shell's own `p-4`
+ * remains the only horizontal padding; each tab caps its own reading column
+ * where its content is prose, rather than the shell capping all of them.
+ */
+export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 
 /**
- * Workspace modules (`modules.title`): stacks heading + tiles in the main column.
+ * The project workspace as one surface. Shared with the image studio, which is
+ * its own destination now but draws the same card.
+ *
+ * Deliberately the same card the projects index and Drive already draw —
+ * `bg-card-background`, hairline border, `rounded-xl` from `md`, full-bleed
+ * and border-free below it. The project page used to be a stack of things
+ * floating on the page background: a title, then a rule with tabs on it, then
+ * content, then a panel of tiles nested inside. Putting the identity, the tab
+ * strip and the active area inside one container is what makes it read as a
+ * page of this product rather than as a pile of components.
+ *
+ * No `overflow-hidden`, unlike the browse card. The studio's assistant column
+ * is `position: sticky`, and an ancestor with a clipped overflow silently
+ * turns sticky into static. Nothing here needs clipping: the tab rule is
+ * straight and the content is inset by its own padding.
  */
-export const PROJECTS_DETAIL_WORKSPACE_CLASS = "space-y-3";
+export const PROJECTS_WORKSPACE_CARD_CLASS =
+  "bg-card-background border-border -mx-4 rounded-none border-0 md:mx-0 md:rounded-xl md:border";
+
+/** Horizontal inset shared by the card's header, tab strip and content. */
+export const PROJECTS_WORKSPACE_GUTTER_CLASS = "px-4 md:px-6";
 
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state
@@ -33,19 +63,14 @@ export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 /**
  * Primary browse outer chrome: divided list at all breakpoints (Tasks/Drive rhythm).
  * Square corners on mobile; `md:rounded-xl` + border on desktop.
- * Shared by live `ProjectsView`, Instant skeleton, and project needs-attention list.
+ * Shared by live `ProjectsView` and the Instant skeleton.
  */
 export const PROJECTS_BROWSE_LAYOUT_CLASS =
   "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border";
 
-/**
- * Header row of the browse card: filter, sort label, and the desktop create
- * control on one line, divided from the rows it labels. Shared by live
- * `ProjectsView` and the Instant skeleton so the swap keeps its 52px height
- * (`h-8` control inside `py-2.5`).
- */
+/** Toolbar shared by the Projects index and its loading shell. */
 export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
-  "border-border flex items-center gap-3 border-b px-4 py-2.5";
+  "flex items-center justify-end gap-3";
 
 /**
  * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.

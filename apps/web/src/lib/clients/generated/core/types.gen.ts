@@ -226,6 +226,15 @@ export type AdminSokoBotOwner = {
 };
 
 export type AdminSokoBotQuality = {
+    reliability: {
+        fulfillment: {
+            [key: string]: number;
+        };
+        delivery: {
+            [key: string]: number;
+        };
+        invalidActionClaims: number;
+    };
     overall: {
         turns: number;
         judged: number;
@@ -582,6 +591,9 @@ export type SokoBotTurn = {
     delegations?: Array<SokoBotDelegation>;
     pendingDecisions?: Array<SokoBotPendingDecision>;
     toolCalls?: Array<SokoBotToolCall>;
+    evaluation?: {
+        [key: string]: unknown;
+    } | null;
     contextSummary?: SokoBotContextSummary;
     contextPacket?: unknown;
     requestedBy?: {
@@ -1136,6 +1148,7 @@ export type Task = {
      * @deprecated
      */
     sokoBot: SokoBotSummary | null;
+    tags?: TaskTags;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -1259,6 +1272,27 @@ export type TaskCreatorSokoBot = {
     id: string;
     sokoBot: SokoBotSummary;
 };
+
+export type TaskTags = {
+    automatic: Array<TaskTagId>;
+    manual: Array<TaskTagId>;
+    rejected: Array<TaskTagId>;
+};
+
+export const TaskTagId = {
+    RESEARCH: 'research',
+    STRATEGY: 'strategy',
+    WRITING: 'writing',
+    DESIGN: 'design',
+    ANALYSIS: 'analysis',
+    DEVELOPMENT: 'development',
+    MARKETING: 'marketing',
+    SOCIAL: 'social',
+    SEO: 'seo',
+    OPERATIONS: 'operations'
+} as const;
+
+export type TaskTagId = typeof TaskTagId[keyof typeof TaskTagId];
 
 /**
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
@@ -2999,6 +3033,9 @@ export type CreateCreditCheckoutSession = {
 export type CheckoutSessionAnalytics = {
     sessionId: string;
     currency: string | null;
+    /**
+     * Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.
+     */
     value: number | null;
     items: Array<{
         itemId: string;
@@ -3093,6 +3130,19 @@ export type DeveloperTaskDetail = {
         name: string;
         slug: string;
     } | null;
+};
+
+export type FileCollection = {
+    id: string;
+    name: string;
+    definition: {
+        [key: string]: unknown;
+    };
+    sortBy: string | null;
+    sortOrder: string | null;
+    isShared: boolean;
+    definitionVersion: number;
+    isOwner: boolean;
 };
 
 export type DriveFileUploadSession = {
@@ -3268,6 +3318,15 @@ export type DeleteDriveFileRequest = {
     pathname: string;
 };
 
+export type WorkspaceLabel = {
+    id: string;
+    kind: 'TAG' | 'CATEGORY';
+    displayName: string;
+    description: string | null;
+    archived: boolean;
+    vocabularyVersion: number;
+};
+
 export type CreateDriveFolderRequest = {
     /**
      * Folder path relative to scope root (may be nested with slashes)
@@ -3393,6 +3452,291 @@ export type DriveRecentsTaskOutputItem = {
      * Parent project name, or null
      */
     projectName: string | null;
+};
+
+export type FileSelectionTokenResponse = {
+    token: string;
+    /**
+     * Entries in this bounded window that are still eligible, never a corpus total.
+     */
+    count: number;
+    expiresAt: Date;
+};
+
+export type FileMetadataBatchResponse = {
+    outcomes: Array<{
+        resourceId: string;
+        status: 'applied' | 'conflict' | 'forbidden' | 'not-found';
+        metadataRevision: number | null;
+    }>;
+    revisedCount: number | null;
+};
+
+export type FileMetadataBatchRequest = {
+    resourceIds?: Array<string>;
+    selectionToken?: string;
+    idempotencyKey: string;
+    addTagLabelIds?: Array<string>;
+    removeTagLabelIds?: Array<string>;
+    categoryLabelId?: string | null;
+    expectedRevisions?: Array<{
+        resourceId: string;
+        metadataRevision: number;
+    }>;
+};
+
+export type FileResource = {
+    id: string;
+    displayName: string;
+    mimeType: string | null;
+    sizeBytes: number | null;
+    /**
+     * Canonical source this document comes from
+     */
+    sourceKind: 'DRIVE_UPLOAD' | 'TASK_OUTPUT' | 'PROJECT_DOCUMENT' | 'NATIVE_TABLE' | 'STUDIO_ASSET';
+    sourceTaskId: string | null;
+    sourceProjectId: string | null;
+    updatedAt: Date;
+    contentRevision: number;
+    metadataRevision: number;
+    /**
+     * Processing state of the current version. PARTIAL means some text is searchable, never all of it.
+     */
+    extractionState: 'PENDING' | 'RUNNING' | 'INDEXED' | 'PARTIAL' | 'UNSUPPORTED' | 'ENCRYPTED' | 'QUARANTINED' | 'FAILED' | null;
+    extractionCoverage: number | null;
+    extractionReason: string | null;
+    category: {
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    } | null;
+    tags: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
+    suggestions: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
+    rejected: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
+    projects: Array<{
+        id: string;
+        projectId: string;
+        projectName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+    }>;
+    /**
+     * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
+     */
+    snippet: {
+        text: string;
+        highlights: Array<{
+            start: number;
+            end: number;
+        }>;
+        truncatedStart: boolean;
+        truncatedEnd: boolean;
+    } | null;
+    relatedReason: string | null;
+    filenameMatch: boolean;
+};
+
+export type FileRelatedResponse = {
+    items: Array<FileResource>;
+    /**
+     * 'not-indexed' means processing has not finished and neighbours may still appear; 'no-text' means processing finished and the document has no readable text, so none are coming; 'unavailable' means ranking failed and the reader may retry.
+     */
+    state: 'ok' | 'empty' | 'not-indexed' | 'no-text' | 'unavailable';
+};
+
+export type UpdateFileMetadataRequest = {
+    /**
+     * Reject the edit if someone else changed this document's metadata first.
+     */
+    expectedMetadataRevision: number;
+    addTagLabelIds?: Array<string>;
+    removeTagLabelIds?: Array<string>;
+    categoryLabelId?: string | null;
+    confirmProjectIds?: Array<string>;
+    removeProjectIds?: Array<string>;
+    allowSuggestionsFor?: Array<'category' | 'tags'>;
+    allowSuggestionsForLabelIds?: Array<string>;
+};
+
+export type FileSuggestionDecisionRequest = {
+    decision: 'accept' | 'reject';
+    expectedMetadataRevision: number;
+};
+
+export type FileSearchResponse = {
+    items: Array<FileResource>;
+    search: FileSearchMeta;
+};
+
+export type FileSearchMeta = {
+    /**
+     * Which ordering produced this page. 'deterministic' means the model stage did not apply.
+     */
+    rankingMode: 'deterministic' | 'model';
+    /**
+     * Why 'deterministic' was returned. Null when the model stage applied, or when no ranking was attempted for this page.
+     */
+    rankingFallback: 'disabled' | 'not-applicable' | 'capacity' | 'timeout' | 'provider-error' | null;
+    resultWindowLimit: number;
+    /**
+     * Authorized entries in this bounded window, not a corpus total.
+     */
+    windowCount: number;
+    remainingWindowCount: number;
+    /**
+     * A retrieval budget or the window cap was reached, so more may match. Independent of hasMore.
+     */
+    truncated: boolean;
+    /**
+     * Unconsumed positions remain in this snapshot. Not a claim about the corpus.
+     */
+    hasMore: boolean;
+    nextCursor: string | null;
+    /**
+     * The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.
+     */
+    restarted: boolean;
+    /**
+     * Adoption of pre-existing files did not finish, so this workspace's catalog is known to be missing files. Results are correct for what is catalogued.
+     */
+    catalogIncomplete: boolean;
+    /**
+     * Coverage over this window only, so the UI can be honest about what is searchable.
+     */
+    indexCoverage: {
+        indexed: number;
+        processing: number;
+        filenameOnly: number;
+    };
+};
+
+export type DataTable = {
+    id: string;
+    workspaceId: string;
+    projectId: string | null;
+    title: string;
+    description: string;
+    createdBy: string;
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+    columns: Array<TableColumn>;
+    views: Array<TableView>;
+};
+
+export type TableColumn = {
+    id: string;
+    name: string;
+    description?: string;
+    type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+    options?: Array<string>;
+    tableId: string;
+    position: number;
+    version: number;
+};
+
+export type TableView = {
+    id: string;
+    tableId: string;
+    name: string;
+    version: number;
+    definition: {
+        filters?: Array<{
+            columnId: string;
+            operator: 'equals' | 'contains' | 'empty';
+            value?: string | number | boolean | Array<string> | null;
+        }>;
+        sort?: {
+            columnId: string;
+            direction: 'asc' | 'desc';
+        } | null;
+        visibleColumnIds?: Array<string>;
+    };
+};
+
+export type TableRow = {
+    id: string;
+    tableId: string;
+    values: {
+        [key: string]: string | number | boolean | Array<string> | null;
+    };
+    evidence: {
+        [key: string]: Array<{
+            url: string;
+            note?: string;
+        }>;
+    };
+    version: number;
+    archivedAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+};
+
+export type TableBatchResult = {
+    batchId: string;
+    rows: Array<TableRow>;
+};
+
+export type TableChange = {
+    id: string;
+    tableId: string;
+    batchId: string;
+    actorId: string;
+    actorKind: string;
+    actorName?: string | null;
+    taskId: string | null;
+    rowId: string | null;
+    columnId: string | null;
+    before?: unknown;
+    after?: unknown;
+    evidence?: unknown;
+    createdAt: Date;
 };
 
 export type DriveTasksList = Array<DriveTasksListItem>;
@@ -3687,13 +4031,28 @@ export type ActivateEnterpriseContractRequest = {
     paymentReference?: string;
 };
 
+export type ExportLease = {
+    token: string;
+    durationMs: number;
+};
+
+export type ReleaseExportLeaseResponse = {
+    released: boolean;
+};
+
+export type ReleaseExportLeaseBody = {
+    token: string;
+};
+
 export type HistoryList = Array<HistoryItem>;
 
 export type HistoryItem = ({
     kind: 'task';
 } & HistoryTaskItem) | ({
     kind: 'job';
-} & HistoryJobItem);
+} & HistoryJobItem) | ({
+    kind: 'image';
+} & HistoryImageItem);
 
 export type HistoryTaskItem = {
     /**
@@ -3802,6 +4161,89 @@ export type HistoryJobItem = {
      * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
      */
     agentIcon: string | null;
+};
+
+export type HistoryImageItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'image';
+    status: 'active';
+    /**
+     * Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.
+     */
+    assetId: string;
+    /**
+     * Project the image was generated in
+     */
+    projectId: string | null;
+    /**
+     * Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
+     */
+    modelLabel: string;
+};
+
+export type ProjectImageStudioCatalog = {
+    defaultModelId: string;
+    models: Array<ProjectImageStudioCatalogModel>;
+    snapshotDate: string;
+    refreshedAt: string | null;
+};
+
+export type ProjectImageStudioCatalogModel = {
+    id: string;
+    label: string;
+    description: string;
+    generateEndpoint: string;
+    editEndpoint: string | null;
+    aspectRatios: Array<string>;
+    resolutions: Array<string>;
+    outputFormats: Array<string>;
+    supportsSeed: boolean;
+    maxReferences: number;
+    dimensionMode: 'aspect-ratio' | 'image-size';
+    providerFields: Array<'aspect_ratio' | 'resolution' | 'image_size' | 'output_format' | 'num_images' | 'seed' | 'limit_generations' | 'image_urls'>;
+    curatedRank: number | null;
+    notes: string;
+    price: {
+        unit: string;
+        unitPriceUsd: number;
+        perImageUsd?: {
+            '0.5K'?: number;
+            '1K'?: number;
+            '2K'?: number;
+        };
+        basis: string;
+        sourceUrl: string;
+        verifiedAt: string;
+    };
+    sourceUrls: Array<string>;
+    verifiedAt: string;
 };
 
 /**
@@ -4680,6 +5122,11 @@ export type ProjectDesignMdWrite = {
     extractionId?: string | null;
 };
 
+export type WorkspaceCalendarEntry = {
+    scheduledAt: Date;
+    originalScheduledAt?: Date | null;
+} & (WorkspaceCalendarItem | SocialPostCalendarItem);
+
 export type WorkspaceCalendarItem = {
     /**
      * The Task Schedule Run this item shows, or the Task for a RUN_AT item
@@ -4746,6 +5193,24 @@ export type WorkspaceCalendarItem = {
     sourceProjectId: string | null;
 };
 
+export type SocialPostCalendarItem = {
+    kind: 'socialPost';
+    id: string;
+    postId: string;
+    text: string;
+    status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
+    externalHandle: string | null;
+    projectName: string;
+    scheduledByName: string | null;
+    scheduledByImage: string | null;
+    attachmentCount: number;
+    scheduledAt: Date;
+    sourceId: string;
+    sourceProjectId: string;
+    sourceWorkspaceId: string;
+    sourceType: 'PROJECT';
+};
+
 export type ProjectCloseStatus = {
     id: string;
     projectId: string;
@@ -4807,12 +5272,23 @@ export type ProjectStar = {
 
 export type ProjectSocialConnection = {
     id: string;
-    provider: 'x';
+    provider: ProjectSocialProvider;
     externalHandle: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
 };
+
+export const ProjectSocialProvider = {
+    X: 'x',
+    TIKTOK: 'tiktok',
+    INSTAGRAM: 'instagram',
+    LINKEDIN: 'linkedin',
+    FACEBOOK: 'facebook',
+    YOUTUBE: 'youtube'
+} as const;
+
+export type ProjectSocialProvider = typeof ProjectSocialProvider[keyof typeof ProjectSocialProvider];
 
 export type InitiateProjectSocialConnectionResponse = {
     connectionId: string;
@@ -4821,7 +5297,7 @@ export type InitiateProjectSocialConnectionResponse = {
 
 export type InitiateProjectSocialConnectionRequest = {
     action: 'connect';
-    provider: 'x';
+    provider: ProjectSocialProvider;
 } | {
     action: 'reconnect';
     socialConnectionId: string;
@@ -4843,23 +5319,52 @@ export type SocialPost = {
     projectId: string;
     provider: 'x';
     text: string;
+    media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
     socialConnection: SocialPostSocialConnection;
     creator: SocialPostCreator;
     scheduledByUserId: string | null;
+    /**
+     * Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.
+     */
+    scheduledByCoworkerId?: string | null;
     canceledAt: Date | null;
     publishedAt: Date | null;
     publishedExternalId: string | null;
     publishedUrl: string | null;
     lastError: string | null;
+    attemptCount: number;
+    nextAttemptAt: Date | null;
+    lastAttemptAt: Date | null;
+    lastAttempt: SocialPostLastAttempt | null;
     revision: number;
     createdAt: Date;
     updatedAt: Date;
     canEdit: boolean;
     canSchedule: boolean;
     canCancel: boolean;
+    canPublishNow: boolean;
+    /**
+     * The linked connection exists but is not active, so the post cannot go out until someone reconnects
+     */
+    connectionNeedsReconnect: boolean;
+};
+
+export type SocialPostMediaRef = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    size: number;
+    mimeType: string;
+    kind: 'image' | 'gif' | 'video';
 };
 
 export const SocialPostStatus = {
@@ -4886,8 +5391,28 @@ export type SocialPostCreator = {
     name: string | null;
 };
 
+export type SocialPostLastAttempt = {
+    attempt: number;
+    trigger: 'scheduler' | 'publish_now';
+    outcome: 'succeeded' | 'failed_transient' | 'failed_permanent' | 'missed' | 'connection_inactive' | 'authorization_revoked' | null;
+    errorKind: string | null;
+    providerOutcome: string | null;
+    finishedAt: Date | null;
+};
+
+export type PublishSocialPostRequest = {
+    /**
+     * Revision the client last observed; mismatches return 409
+     */
+    revision: number;
+};
+
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -4895,6 +5420,10 @@ export type CreateSocialPostRequest = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;
     /**
      * Revision the client last observed; mismatches return 409
@@ -4917,6 +5446,97 @@ export type CancelSocialPostRequest = {
      * Revision the client last observed; mismatches return 409
      */
     revision: number;
+};
+
+export type ProjectImageStudioState = {
+    assets: Array<ProjectImageAsset>;
+    jobs: Array<ProjectImageJob>;
+    sessions: Array<ProjectImageSession>;
+    nextCursor: {
+        createdAt: Date;
+        id: string;
+    } | null;
+};
+
+export type ProjectImageAsset = {
+    id: string;
+    rootId: string;
+    parentId: string | null;
+    version: number;
+    prompt: string;
+    model: string;
+    width: number;
+    height: number;
+    bytes: number;
+    contentType: string;
+    createdAt: Date;
+    jobId: string;
+    settings: ProjectImageSettings;
+    contentPath: string;
+    review?: ProjectImageReview;
+};
+
+export type ProjectImageSettings = {
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
+    resolution?: '0.5K' | '1K' | '2K';
+    outputFormat?: 'png' | 'jpeg' | 'webp';
+    seed?: number | null;
+};
+
+export type ProjectImageReview = {
+    decision: 'APPROVED' | 'REJECTED';
+    feedback: string | null;
+    decidedAt: Date;
+    decidedByUserId: string;
+};
+
+export type ProjectImageJob = {
+    id: string;
+    status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
+    kind: 'GENERATE' | 'EDIT';
+    model: string;
+    prompt: string;
+    settings: ProjectImageSettings;
+    referenceAssetIds: Array<string>;
+    error: string | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    parentAssetId: string | null;
+    assetId: string | null;
+    createdAt: Date;
+    submittedAt: Date | null;
+    settledAt: Date | null;
+    cancelRequestedAt: Date | null;
+    retryMayDuplicateCharge: boolean;
+    credits: number | null;
+    refunded: boolean;
+};
+
+export type ProjectImageSession = {
+    id: string;
+    eveSessionId: string;
+    title: string | null;
+    createdByUserId: string;
+    lastActivityAt: Date;
+    createdAt: Date;
+};
+
+export type CreateProjectImageJobRequest = {
+    modelId?: string;
+    prompt: string;
+    settings?: ProjectImageSettings;
+    referenceAssetIds?: Array<string>;
+    parentAssetId?: string | null;
+    sessionId?: string | null;
+    idempotencyKey: string;
+};
+
+export type CancelProjectImageJobResponse = {
+    accepted: boolean;
+};
+
+export type ReviewProjectImageAssetRequest = {
+    decision: 'APPROVED' | 'REJECTED';
+    feedback?: string | null;
 };
 
 export type PatchProjectRequest = {
@@ -5190,6 +5810,44 @@ export type NotificationCounts = {
     mentions: number;
 };
 
+export type PushDevice = {
+    id: string;
+    browserDetails?: PushDeviceBrowserDetails;
+    registeredAt?: Date;
+    platform: 'browser' | 'ios' | 'android' | 'unknown';
+    formFactor: 'phone' | 'tablet' | 'desktop' | 'tv' | 'watch' | 'car' | 'embedded' | 'other';
+    state: 'active' | 'failing' | 'failed' | 'unknown';
+};
+
+export type PushDeviceBrowserDetails = {
+    browser: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+};
+
+export type PushDeviceActivation = {
+    id: string;
+    revision: number;
+    revoked: boolean;
+    replaceDevice: boolean;
+};
+
+export type PushDeviceActivationRequest = {
+    consentId?: string;
+    deviceId: string;
+    readerInitiated: boolean;
+};
+
+export type PushDeviceSubscriptionRequest = {
+    consentId: string;
+    revision: number;
+};
+
+export type PushDeviceBrowserUpdate = {
+    browser?: 'Chrome' | 'Edge' | 'Firefox' | 'Safari' | 'Opera' | 'Samsung Internet';
+    operatingSystem?: 'macOS' | 'Windows' | 'Windows Phone' | 'Android' | 'iOS' | 'Linux' | 'ChromeOS';
+    registeredAt?: Date;
+};
+
 export type MarkAllReadResponse = {
     /**
      * Number of notifications marked as read
@@ -5343,6 +6001,18 @@ export type CreateSokoBotApiKeyResponse = {
     token: string;
     name: string | null;
     expiresAt: Date | null;
+};
+
+export type CompleteSokoBotIntegrationAuthResponse = {
+    provider: string;
+    status: 'DISCONNECTED' | 'PENDING' | 'ACTIVE' | 'FAILED' | 'REVOKED';
+};
+
+export type CompleteSokoBotIntegrationAuthRequest = {
+    /**
+     * The single-use session URI Composio hands to the verifier
+     */
+    sessionUri: string;
 };
 
 export type SokoBotState = {
@@ -5892,6 +6562,7 @@ export type TaskListItem = {
      * @deprecated
      */
     sokoBot: SokoBotSummary | null;
+    tags?: TaskTags;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -5946,6 +6617,11 @@ export type TaskActivitySummary = {
      * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
      */
     workedMinutes: number;
+};
+
+export type TaskTagSuggestion = {
+    tags: Array<TaskTagId>;
+    receipt: string;
 };
 
 export type TaskSchedule = {
@@ -21906,6 +22582,333 @@ export type GetDeveloperOwnedCoworkerTaskResponses = {
 
 export type GetDeveloperOwnedCoworkerTaskResponse = GetDeveloperOwnedCoworkerTaskResponses[keyof GetDeveloperOwnedCoworkerTaskResponses];
 
+export type GetDriveCollectionsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/collections';
+};
+
+export type GetDriveCollectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveCollectionsError = GetDriveCollectionsErrors[keyof GetDriveCollectionsErrors];
+
+export type GetDriveCollectionsResponses = {
+    /**
+     * Collections
+     */
+    200: {
+        data: Array<FileCollection>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveCollectionsResponse = GetDriveCollectionsResponses[keyof GetDriveCollectionsResponses];
+
+export type PostDriveCollectionsData = {
+    body: {
+        name: string;
+        definition: {
+            [key: string]: unknown;
+        };
+        sortBy?: string | null;
+        sortOrder?: 'asc' | 'desc' | null;
+        isShared?: boolean;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/collections';
+};
+
+export type PostDriveCollectionsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveCollectionsError = PostDriveCollectionsErrors[keyof PostDriveCollectionsErrors];
+
+export type PostDriveCollectionsResponses = {
+    /**
+     * Collection created
+     */
+    201: {
+        data: FileCollection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveCollectionsResponse = PostDriveCollectionsResponses[keyof PostDriveCollectionsResponses];
+
+export type DeleteDriveCollectionsByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/collections/{id}';
+};
+
+export type DeleteDriveCollectionsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteDriveCollectionsByIdError = DeleteDriveCollectionsByIdErrors[keyof DeleteDriveCollectionsByIdErrors];
+
+export type DeleteDriveCollectionsByIdResponses = {
+    /**
+     * Collection deleted
+     */
+    204: void;
+};
+
+export type DeleteDriveCollectionsByIdResponse = DeleteDriveCollectionsByIdResponses[keyof DeleteDriveCollectionsByIdResponses];
+
+export type PatchDriveCollectionsByIdData = {
+    body: {
+        name?: string;
+        definition?: {
+            [key: string]: unknown;
+        };
+        sortBy?: string | null;
+        sortOrder?: 'asc' | 'desc' | null;
+        isShared?: boolean;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/collections/{id}';
+};
+
+export type PatchDriveCollectionsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveCollectionsByIdError = PatchDriveCollectionsByIdErrors[keyof PatchDriveCollectionsByIdErrors];
+
+export type PatchDriveCollectionsByIdResponses = {
+    /**
+     * Collection updated
+     */
+    200: {
+        data: FileCollection;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveCollectionsByIdResponse = PatchDriveCollectionsByIdResponses[keyof PatchDriveCollectionsByIdResponses];
+
 export type GetDriveFilesData = {
     body?: never;
     path?: never;
@@ -22204,6 +23207,103 @@ export type PostDriveFilesResponses = {
 };
 
 export type PostDriveFilesResponse = PostDriveFilesResponses[keyof PostDriveFilesResponses];
+
+export type PostDriveFilesFinalizeData = {
+    body: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        pathname: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/files/finalize';
+};
+
+export type PostDriveFilesFinalizeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveFilesFinalizeError = PostDriveFilesFinalizeErrors[keyof PostDriveFilesFinalizeErrors];
+
+export type PostDriveFilesFinalizeResponses = {
+    /**
+     * Upload finalized
+     */
+    200: {
+        data: {
+            resourceId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveFilesFinalizeResponse = PostDriveFilesFinalizeResponses[keyof PostDriveFilesFinalizeResponses];
 
 export type PatchDriveFilesMoveData = {
     body: MoveDriveItemRequest;
@@ -22581,6 +23681,284 @@ export type DeleteDriveFilesDeleteResponses = {
 };
 
 export type DeleteDriveFilesDeleteResponse = DeleteDriveFilesDeleteResponses[keyof DeleteDriveFilesDeleteResponses];
+
+export type GetDriveLabelsData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        kind?: 'TAG' | 'CATEGORY';
+        includeArchived?: 'true' | 'false';
+    };
+    url: '/drive/labels';
+};
+
+export type GetDriveLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveLabelsError = GetDriveLabelsErrors[keyof GetDriveLabelsErrors];
+
+export type GetDriveLabelsResponses = {
+    /**
+     * Workspace labels
+     */
+    200: {
+        data: Array<WorkspaceLabel>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveLabelsResponse = GetDriveLabelsResponses[keyof GetDriveLabelsResponses];
+
+export type PostDriveLabelsData = {
+    body: {
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        description?: string | null;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/labels';
+};
+
+export type PostDriveLabelsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveLabelsError = PostDriveLabelsErrors[keyof PostDriveLabelsErrors];
+
+export type PostDriveLabelsResponses = {
+    /**
+     * Label created
+     */
+    201: {
+        data: WorkspaceLabel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveLabelsResponse = PostDriveLabelsResponses[keyof PostDriveLabelsResponses];
+
+export type PatchDriveLabelsByIdData = {
+    body: {
+        displayName?: string;
+        description?: string | null;
+        archived?: boolean;
+        mergeIntoLabelId?: string;
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/labels/{id}';
+};
+
+export type PatchDriveLabelsByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveLabelsByIdError = PatchDriveLabelsByIdErrors[keyof PatchDriveLabelsByIdErrors];
+
+export type PatchDriveLabelsByIdResponses = {
+    /**
+     * Label updated
+     */
+    200: {
+        data: WorkspaceLabel;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveLabelsByIdResponse = PatchDriveLabelsByIdResponses[keyof PatchDriveLabelsByIdResponses];
 
 export type PostDriveFoldersData = {
     body: CreateDriveFolderRequest;
@@ -23067,6 +24445,2219 @@ export type GetDriveRecentsResponses = {
 };
 
 export type GetDriveRecentsResponse = GetDriveRecentsResponses[keyof GetDriveRecentsResponses];
+
+export type PostDriveResourcesSelectionTokenData = {
+    body: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        windowCursor: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/resources/selection-token';
+};
+
+export type PostDriveResourcesSelectionTokenErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesSelectionTokenError = PostDriveResourcesSelectionTokenErrors[keyof PostDriveResourcesSelectionTokenErrors];
+
+export type PostDriveResourcesSelectionTokenResponses = {
+    /**
+     * Selection token
+     */
+    201: {
+        data: FileSelectionTokenResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesSelectionTokenResponse = PostDriveResourcesSelectionTokenResponses[keyof PostDriveResourcesSelectionTokenResponses];
+
+export type PostDriveResourcesMetadataBatchData = {
+    body: FileMetadataBatchRequest & {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/resources/metadata-batch';
+};
+
+export type PostDriveResourcesMetadataBatchErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesMetadataBatchError = PostDriveResourcesMetadataBatchErrors[keyof PostDriveResourcesMetadataBatchErrors];
+
+export type PostDriveResourcesMetadataBatchResponses = {
+    /**
+     * Per-item outcomes
+     */
+    200: {
+        data: FileMetadataBatchResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesMetadataBatchResponse = PostDriveResourcesMetadataBatchResponses[keyof PostDriveResourcesMetadataBatchResponses];
+
+export type GetDriveResourcesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}';
+};
+
+export type GetDriveResourcesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdError = GetDriveResourcesByIdErrors[keyof GetDriveResourcesByIdErrors];
+
+export type GetDriveResourcesByIdResponses = {
+    /**
+     * File
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdResponse = GetDriveResourcesByIdResponses[keyof GetDriveResourcesByIdResponses];
+
+export type GetDriveResourcesByIdContentData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        /**
+         * Force an attachment even for a type that would otherwise render in place.
+         */
+        download?: 'true' | 'false';
+    };
+    url: '/drive/resources/{id}/content';
+};
+
+export type GetDriveResourcesByIdContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - file storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdContentError = GetDriveResourcesByIdContentErrors[keyof GetDriveResourcesByIdContentErrors];
+
+export type GetDriveResourcesByIdContentResponses = {
+    /**
+     * File bytes
+     */
+    200: Blob | File;
+};
+
+export type GetDriveResourcesByIdContentResponse = GetDriveResourcesByIdContentResponses[keyof GetDriveResourcesByIdContentResponses];
+
+export type GetDriveResourcesByIdRelatedData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/related';
+};
+
+export type GetDriveResourcesByIdRelatedErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdRelatedError = GetDriveResourcesByIdRelatedErrors[keyof GetDriveResourcesByIdRelatedErrors];
+
+export type GetDriveResourcesByIdRelatedResponses = {
+    /**
+     * Related files
+     */
+    200: {
+        data: FileRelatedResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveResourcesByIdRelatedResponse = GetDriveResourcesByIdRelatedResponses[keyof GetDriveResourcesByIdRelatedResponses];
+
+export type PatchDriveResourcesByIdMetadataData = {
+    body: UpdateFileMetadataRequest;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/metadata';
+};
+
+export type PatchDriveResourcesByIdMetadataErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveResourcesByIdMetadataError = PatchDriveResourcesByIdMetadataErrors[keyof PatchDriveResourcesByIdMetadataErrors];
+
+export type PatchDriveResourcesByIdMetadataResponses = {
+    /**
+     * Updated file
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveResourcesByIdMetadataResponse = PatchDriveResourcesByIdMetadataResponses[keyof PatchDriveResourcesByIdMetadataResponses];
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionData = {
+    body: FileSuggestionDecisionRequest;
+    path: {
+        id: string;
+        suggestionId: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/suggestions/{suggestionId}/decision';
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionError = PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors[keyof PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionErrors];
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses = {
+    /**
+     * Updated file
+     */
+    200: {
+        data: FileResource;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponse = PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses[keyof PostDriveResourcesByIdSuggestionsBySuggestionIdDecisionResponses];
+
+export type PostDriveResourcesByIdReindexData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/resources/{id}/reindex';
+};
+
+export type PostDriveResourcesByIdReindexErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdReindexError = PostDriveResourcesByIdReindexErrors[keyof PostDriveResourcesByIdReindexErrors];
+
+export type PostDriveResourcesByIdReindexResponses = {
+    /**
+     * Reindex queued
+     */
+    200: {
+        data: {
+            queued: boolean;
+            outcome: 'queued' | 'already-pending';
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveResourcesByIdReindexResponse = PostDriveResourcesByIdReindexResponses[keyof PostDriveResourcesByIdReindexResponses];
+
+export type GetDriveSearchData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+        q?: string;
+        categoryLabelIds?: string;
+        tagLabelIds?: string;
+        tagMatch?: 'any' | 'all';
+        projectIds?: string;
+        sourceKinds?: string;
+        typeFamilies?: string;
+        extractionStates?: string;
+        creatorUserIds?: string;
+        modifiedAfter?: string;
+        modifiedBefore?: string;
+        sortBy?: 'relevance' | 'modified' | 'name';
+        sortOrder?: 'asc' | 'desc';
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/drive/search';
+};
+
+export type GetDriveSearchErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveSearchError = GetDriveSearchErrors[keyof GetDriveSearchErrors];
+
+export type GetDriveSearchResponses = {
+    /**
+     * File search results
+     */
+    200: {
+        data: FileSearchResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveSearchResponse = GetDriveSearchResponses[keyof GetDriveSearchResponses];
+
+export type GetDriveTablesData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path?: never;
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        archived?: 'true' | 'false';
+        projectId?: string;
+    };
+    url: '/drive/tables';
+};
+
+export type GetDriveTablesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesError = GetDriveTablesErrors[keyof GetDriveTablesErrors];
+
+export type GetDriveTablesResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<DataTable>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesResponse = GetDriveTablesResponses[keyof GetDriveTablesResponses];
+
+export type PostDriveTablesData = {
+    body?: {
+        key: string;
+        title: string;
+        description?: string;
+        projectId?: string | null;
+        columns: Array<{
+            id?: string;
+            name: string;
+            description?: string;
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            options?: Array<string>;
+        }>;
+        rows?: Array<{
+            id?: string;
+            values: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/drive/tables';
+};
+
+export type PostDriveTablesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesError = PostDriveTablesErrors[keyof PostDriveTablesErrors];
+
+export type PostDriveTablesResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesResponse = PostDriveTablesResponses[keyof PostDriveTablesResponses];
+
+export type GetDriveTablesByIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}';
+};
+
+export type GetDriveTablesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesByIdError = GetDriveTablesByIdErrors[keyof GetDriveTablesByIdErrors];
+
+export type GetDriveTablesByIdResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesByIdResponse = GetDriveTablesByIdResponses[keyof GetDriveTablesByIdResponses];
+
+export type PatchDriveTablesByIdData = {
+    body?: {
+        key: string;
+        version: number;
+        title?: string;
+        description?: string;
+        archived?: boolean;
+        columns?: Array<{
+            id?: string;
+            name: string;
+            description?: string;
+            type: 'text' | 'long_text' | 'number' | 'date' | 'checkbox' | 'url' | 'email' | 'single_select' | 'multiple_select';
+            options?: Array<string>;
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}';
+};
+
+export type PatchDriveTablesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchDriveTablesByIdError = PatchDriveTablesByIdErrors[keyof PatchDriveTablesByIdErrors];
+
+export type PatchDriveTablesByIdResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: DataTable;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchDriveTablesByIdResponse = PatchDriveTablesByIdResponses[keyof PatchDriveTablesByIdResponses];
+
+export type PostDriveTablesByIdQueryData = {
+    body?: {
+        filters?: Array<{
+            columnId: string;
+            operator: 'equals' | 'contains' | 'empty';
+            value?: string | number | boolean | Array<string> | null;
+        }>;
+        sort?: {
+            columnId: string;
+            direction: 'asc' | 'desc';
+        } | null;
+        visibleColumnIds?: Array<string>;
+        cursor?: string;
+        limit?: number;
+        archived?: boolean;
+        rowIds?: Array<string>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/query';
+};
+
+export type PostDriveTablesByIdQueryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdQueryError = PostDriveTablesByIdQueryErrors[keyof PostDriveTablesByIdQueryErrors];
+
+export type PostDriveTablesByIdQueryResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<TableRow>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdQueryResponse = PostDriveTablesByIdQueryResponses[keyof PostDriveTablesByIdQueryResponses];
+
+export type PostDriveTablesByIdRowsData = {
+    body?: {
+        key: string;
+        taskId?: string;
+        insert?: Array<{
+            id?: string;
+            values: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+        }>;
+        patch?: Array<{
+            id: string;
+            version: number;
+            values?: {
+                [key: string]: string | number | boolean | Array<string> | null;
+            };
+            evidence?: {
+                [key: string]: Array<{
+                    url: string;
+                    note?: string;
+                }>;
+            };
+            archived?: boolean;
+        }>;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/rows';
+};
+
+export type PostDriveTablesByIdRowsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdRowsError = PostDriveTablesByIdRowsErrors[keyof PostDriveTablesByIdRowsErrors];
+
+export type PostDriveTablesByIdRowsResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableBatchResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdRowsResponse = PostDriveTablesByIdRowsResponses[keyof PostDriveTablesByIdRowsResponses];
+
+export type PostDriveTablesByIdViewsData = {
+    body?: {
+        key: string;
+        id?: string;
+        version?: number;
+        name: string;
+        definition: {
+            filters?: Array<{
+                columnId: string;
+                operator: 'equals' | 'contains' | 'empty';
+                value?: string | number | boolean | Array<string> | null;
+            }>;
+            sort?: {
+                columnId: string;
+                direction: 'asc' | 'desc';
+            } | null;
+            visibleColumnIds?: Array<string>;
+        };
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/views';
+};
+
+export type PostDriveTablesByIdViewsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdViewsError = PostDriveTablesByIdViewsErrors[keyof PostDriveTablesByIdViewsErrors];
+
+export type PostDriveTablesByIdViewsResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableView;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdViewsResponse = PostDriveTablesByIdViewsResponses[keyof PostDriveTablesByIdViewsResponses];
+
+export type PostDriveTablesByIdUndoData = {
+    body?: {
+        key: string;
+        batchId: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/undo';
+};
+
+export type PostDriveTablesByIdUndoErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdUndoError = PostDriveTablesByIdUndoErrors[keyof PostDriveTablesByIdUndoErrors];
+
+export type PostDriveTablesByIdUndoResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: TableBatchResult;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdUndoResponse = PostDriveTablesByIdUndoResponses[keyof PostDriveTablesByIdUndoResponses];
+
+export type GetDriveTablesByIdHistoryData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+        rowId?: string;
+        columnId?: string;
+    };
+    url: '/drive/tables/{id}/history';
+};
+
+export type GetDriveTablesByIdHistoryErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid table input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveTablesByIdHistoryError = GetDriveTablesByIdHistoryErrors[keyof GetDriveTablesByIdHistoryErrors];
+
+export type GetDriveTablesByIdHistoryResponses = {
+    /**
+     * Table operation completed
+     */
+    200: {
+        data: Array<TableChange>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveTablesByIdHistoryResponse = GetDriveTablesByIdHistoryResponses[keyof GetDriveTablesByIdHistoryResponses];
+
+export type PostDriveTablesByIdEnrichData = {
+    body?: {
+        key: string;
+        prompt: string;
+        rowIds: Array<string>;
+        columnIds: Array<string>;
+        assigneeId?: string;
+        assigneeSokoBotId?: string;
+    };
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+        /**
+         * Assigned task context. Required for direct coworker and Soko Bot table operations; enforces persisted selected-row scope.
+         */
+        'X-Table-Task-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/drive/tables/{id}/enrich';
+};
+
+export type PostDriveTablesByIdEnrichErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid input
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostDriveTablesByIdEnrichError = PostDriveTablesByIdEnrichErrors[keyof PostDriveTablesByIdEnrichErrors];
+
+export type PostDriveTablesByIdEnrichResponses = {
+    /**
+     * Enrichment task created
+     */
+    200: {
+        data: {
+            taskId: string;
+            tableId: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostDriveTablesByIdEnrichResponse = PostDriveTablesByIdEnrichResponses[keyof PostDriveTablesByIdEnrichResponses];
 
 export type GetDriveTasksData = {
     body?: never;
@@ -23979,6 +27570,182 @@ export type PostEnterpriseContractsByIdCancelResponses = {
 
 export type PostEnterpriseContractsByIdCancelResponse = PostEnterpriseContractsByIdCancelResponses[keyof PostEnterpriseContractsByIdCancelResponses];
 
+export type ReleaseExportLeaseData = {
+    body: ReleaseExportLeaseBody;
+    path?: never;
+    query?: never;
+    url: '/exports/leases';
+};
+
+export type ReleaseExportLeaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Interactive session required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid lease token
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export admission unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ReleaseExportLeaseError = ReleaseExportLeaseErrors[keyof ReleaseExportLeaseErrors];
+
+export type ReleaseExportLeaseResponses = {
+    /**
+     * Export lease released or no longer owned
+     */
+    200: {
+        data: ReleaseExportLeaseResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ReleaseExportLeaseResponse2 = ReleaseExportLeaseResponses[keyof ReleaseExportLeaseResponses];
+
+export type AcquireExportLeaseData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/exports/leases';
+};
+
+export type AcquireExportLeaseErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Interactive session required
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export limit exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Export admission unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type AcquireExportLeaseError = AcquireExportLeaseErrors[keyof AcquireExportLeaseErrors];
+
+export type AcquireExportLeaseResponses = {
+    /**
+     * Export admitted
+     */
+    200: {
+        data: ExportLease;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type AcquireExportLeaseResponse = AcquireExportLeaseResponses[keyof AcquireExportLeaseResponses];
+
 export type GetHistoryData = {
     body?: never;
     headers?: {
@@ -24002,13 +27769,13 @@ export type GetHistoryData = {
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.
+         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
          */
         status?: Array<string>;
         /**
-         * Comma-separated history kinds to include: task, job
+         * Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.
          */
-        types?: Array<'task' | 'job'>;
+        types?: Array<'task' | 'job' | 'image'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -24101,6 +27868,309 @@ export type GetHistoryResponses = {
 };
 
 export type GetHistoryResponse = GetHistoryResponses[keyof GetHistoryResponses];
+
+export type PostImageStudioAgentSessionsData = {
+    body: {
+        eveSessionId: string;
+        title?: string | null;
+        clientIntentId?: string | null;
+        expectsInitialTurn?: boolean;
+    };
+    path?: never;
+    query?: never;
+    url: '/image-studio-agent/sessions';
+};
+
+export type PostImageStudioAgentSessionsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsError = PostImageStudioAgentSessionsErrors[keyof PostImageStudioAgentSessionsErrors];
+
+export type PostImageStudioAgentSessionsResponses = {
+    /**
+     * Conversation recorded
+     */
+    201: {
+        data: {
+            sessionId: string;
+            eveSessionId: string;
+            created: boolean;
+            initialTurn: 'NONE' | 'PENDING' | 'CLAIMED' | 'DELIVERING' | 'DELIVERED' | 'UNCERTAIN';
+            mayDeliver: boolean;
+            deliveryToken: string | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsResponse = PostImageStudioAgentSessionsResponses[keyof PostImageStudioAgentSessionsResponses];
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnData = {
+    body: {
+        transition: 'claim' | 'dispatching' | 'delivered' | 'undelivered' | 'uncertain';
+        deliveryToken?: string | null;
+    };
+    path: {
+        eveSessionId: string;
+    };
+    query?: never;
+    url: '/image-studio-agent/sessions/{eveSessionId}/initial-turn';
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnError = PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnErrors];
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses = {
+    /**
+     * First-message state recorded
+     */
+    200: {
+        data: {
+            sessionId: string;
+            eveSessionId: string;
+            initialTurn: 'NONE' | 'PENDING' | 'CLAIMED' | 'DELIVERING' | 'DELIVERED' | 'UNCERTAIN';
+            accepted: boolean;
+            mayDeliver: boolean;
+            deliveryToken: string | null;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponse = PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses[keyof PostImageStudioAgentSessionsByEveSessionIdInitialTurnResponses];
+
+export type GetImageStudioCatalogData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/image-studio/catalog';
+};
+
+export type GetImageStudioCatalogErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioCatalogError = GetImageStudioCatalogErrors[keyof GetImageStudioCatalogErrors];
+
+export type GetImageStudioCatalogResponses = {
+    /**
+     * The image studio model catalog
+     */
+    200: {
+        data: ProjectImageStudioCatalog;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioCatalogResponse = GetImageStudioCatalogResponses[keyof GetImageStudioCatalogResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;
@@ -32415,6 +36485,14 @@ export type GetProjectsByIdCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -32527,7 +36605,7 @@ export type GetProjectsByIdCalendarResponses = {
      * Project Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -33246,6 +37324,14 @@ export type GetProjectsByIdSocialConnectionsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -33841,6 +37927,14 @@ export type GetProjectsByIdSocialPostsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -33965,6 +38059,14 @@ export type PostProjectsByIdSocialPostsData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34099,6 +38201,148 @@ export type PostProjectsByIdSocialPostsResponses = {
 
 export type PostProjectsByIdSocialPostsResponse = PostProjectsByIdSocialPostsResponses[keyof PostProjectsByIdSocialPostsResponses];
 
+export type PostProjectsByIdSocialPostsByPostIdPublishData = {
+    body: PublishSocialPostRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        postId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/social-posts/{postId}/publish';
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishError = PostProjectsByIdSocialPostsByPostIdPublishErrors[keyof PostProjectsByIdSocialPostsByPostIdPublishErrors];
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponses = {
+    /**
+     * Social post publish attempted
+     */
+    200: {
+        data: SocialPost;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdSocialPostsByPostIdPublishResponse = PostProjectsByIdSocialPostsByPostIdPublishResponses[keyof PostProjectsByIdSocialPostsByPostIdPublishResponses];
+
 export type GetProjectsByIdSocialPostsByPostIdData = {
     body?: never;
     headers?: {
@@ -34106,6 +38350,14 @@ export type GetProjectsByIdSocialPostsByPostIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34218,6 +38470,14 @@ export type PatchProjectsByIdSocialPostsByPostIdData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34360,6 +38620,14 @@ export type PostProjectsByIdSocialPostsByPostIdScheduleData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34502,6 +38770,14 @@ export type PostProjectsByIdSocialPostsByPostIdCancelData = {
          * Optional organization slug to set the organization context.
          */
         'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
     };
     path: {
         id: string;
@@ -34621,6 +38897,583 @@ export type PostProjectsByIdSocialPostsByPostIdCancelResponses = {
 };
 
 export type PostProjectsByIdSocialPostsByPostIdCancelResponse = PostProjectsByIdSocialPostsByPostIdCancelResponses[keyof PostProjectsByIdSocialPostsByPostIdCancelResponses];
+
+export type GetProjectsByIdImageStudioData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: {
+        assetId?: string;
+        before?: Date;
+        beforeId?: string;
+    };
+    url: '/projects/{id}/image-studio';
+};
+
+export type GetProjectsByIdImageStudioErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioError = GetProjectsByIdImageStudioErrors[keyof GetProjectsByIdImageStudioErrors];
+
+export type GetProjectsByIdImageStudioResponses = {
+    /**
+     * Image studio state
+     */
+    200: {
+        data: ProjectImageStudioState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioResponse = GetProjectsByIdImageStudioResponses[keyof GetProjectsByIdImageStudioResponses];
+
+export type PostProjectsByIdImageStudioJobsData = {
+    body: CreateProjectImageJobRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/jobs';
+};
+
+export type PostProjectsByIdImageStudioJobsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too Many Requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioJobsError = PostProjectsByIdImageStudioJobsErrors[keyof PostProjectsByIdImageStudioJobsErrors];
+
+export type PostProjectsByIdImageStudioJobsResponses = {
+    /**
+     * Image generation started
+     */
+    201: {
+        data: ProjectImageJob;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioJobsResponse = PostProjectsByIdImageStudioJobsResponses[keyof PostProjectsByIdImageStudioJobsResponses];
+
+export type PostProjectsByIdImageStudioJobsByJobIdCancelData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        jobId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/jobs/{jobId}/cancel';
+};
+
+export type PostProjectsByIdImageStudioJobsByJobIdCancelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioJobsByJobIdCancelError = PostProjectsByIdImageStudioJobsByJobIdCancelErrors[keyof PostProjectsByIdImageStudioJobsByJobIdCancelErrors];
+
+export type PostProjectsByIdImageStudioJobsByJobIdCancelResponses = {
+    /**
+     * Cancellation requested
+     */
+    200: {
+        data: CancelProjectImageJobResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioJobsByJobIdCancelResponse = PostProjectsByIdImageStudioJobsByJobIdCancelResponses[keyof PostProjectsByIdImageStudioJobsByJobIdCancelResponses];
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdContentData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/content';
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable - image storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdContentError = GetProjectsByIdImageStudioAssetsByAssetIdContentErrors[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentErrors];
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
+    /**
+     * Image bytes
+     */
+    200: Blob | File;
+};
+
+export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
+
+export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/review';
+};
+
+export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewError = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
+
+export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
+    /**
+     * Undecided version
+     */
+    200: {
+        data: ProjectImageAsset;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponse = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdReviewData = {
+    body: ReviewProjectImageAssetRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        assetId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/image-studio/assets/{assetId}/review';
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdReviewError = PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
+    /**
+     * Reviewed version
+     */
+    200: {
+        data: ProjectImageAsset;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponse = PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;
@@ -36394,6 +41247,623 @@ export type GetNotificationsCountsResponses = {
 
 export type GetNotificationsCountsResponse = GetNotificationsCountsResponses[keyof GetNotificationsCountsResponses];
 
+export type GetNotificationsPushDevicesData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-devices';
+};
+
+export type GetNotificationsPushDevicesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to retrieve push devices
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device listing is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesError = GetNotificationsPushDevicesErrors[keyof GetNotificationsPushDevicesErrors];
+
+export type GetNotificationsPushDevicesResponses = {
+    /**
+     * Push devices retrieved
+     */
+    200: {
+        data: Array<PushDevice>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetNotificationsPushDevicesResponse = GetNotificationsPushDevicesResponses[keyof GetNotificationsPushDevicesResponses];
+
+export type PostNotificationsPushDevicesActivationsData = {
+    body: PushDeviceActivationRequest;
+    path?: never;
+    query?: never;
+    url: '/notifications/push-devices/activations';
+};
+
+export type PostNotificationsPushDevicesActivationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostNotificationsPushDevicesActivationsError = PostNotificationsPushDevicesActivationsErrors[keyof PostNotificationsPushDevicesActivationsErrors];
+
+export type PostNotificationsPushDevicesActivationsResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: PushDeviceActivation;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostNotificationsPushDevicesActivationsResponse = PostNotificationsPushDevicesActivationsResponses[keyof PostNotificationsPushDevicesActivationsResponses];
+
+export type PutNotificationsPushDevicesByIdSubscriptionData = {
+    body: PushDeviceSubscriptionRequest;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}/subscription';
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionError = PutNotificationsPushDevicesByIdSubscriptionErrors[keyof PutNotificationsPushDevicesByIdSubscriptionErrors];
+
+export type PutNotificationsPushDevicesByIdSubscriptionResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: {
+            subscribed: boolean;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutNotificationsPushDevicesByIdSubscriptionResponse = PutNotificationsPushDevicesByIdSubscriptionResponses[keyof PutNotificationsPushDevicesByIdSubscriptionResponses];
+
+export type DeleteNotificationsPushDevicesByIdData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}';
+};
+
+export type DeleteNotificationsPushDevicesByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device registration changed
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid push device request
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to manage push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteNotificationsPushDevicesByIdError = DeleteNotificationsPushDevicesByIdErrors[keyof DeleteNotificationsPushDevicesByIdErrors];
+
+export type DeleteNotificationsPushDevicesByIdResponses = {
+    /**
+     * Push device updated
+     */
+    200: {
+        data: {
+            success: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteNotificationsPushDevicesByIdResponse = DeleteNotificationsPushDevicesByIdResponses[keyof DeleteNotificationsPushDevicesByIdResponses];
+
+export type PatchNotificationsPushDevicesByIdBrowserData = {
+    body: PushDeviceBrowserUpdate;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/notifications/push-devices/{id}/browser';
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Invalid browser details
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unable to update push device
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Push device administration is not configured
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserError = PatchNotificationsPushDevicesByIdBrowserErrors[keyof PatchNotificationsPushDevicesByIdBrowserErrors];
+
+export type PatchNotificationsPushDevicesByIdBrowserResponses = {
+    /**
+     * Browser details recorded
+     */
+    200: {
+        data: {
+            success: true;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchNotificationsPushDevicesByIdBrowserResponse = PatchNotificationsPushDevicesByIdBrowserResponses[keyof PatchNotificationsPushDevicesByIdBrowserResponses];
+
 export type PatchNotificationsByIdReadData = {
     body?: never;
     headers?: {
@@ -37205,6 +42675,79 @@ export type GetMySokoBotTaskEventsResponses = {
 };
 
 export type GetMySokoBotTaskEventsResponse = GetMySokoBotTaskEventsResponses[keyof GetMySokoBotTaskEventsResponses];
+
+export type CompleteMySokoBotIntegrationAuthData = {
+    body?: CompleteSokoBotIntegrationAuthRequest;
+    path?: never;
+    query?: never;
+    url: '/soko-bots/me/integrations/complete-auth';
+};
+
+export type CompleteMySokoBotIntegrationAuthErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteMySokoBotIntegrationAuthError = CompleteMySokoBotIntegrationAuthErrors[keyof CompleteMySokoBotIntegrationAuthErrors];
+
+export type CompleteMySokoBotIntegrationAuthResponses = {
+    /**
+     * Connection state after Composio verified the returning user
+     */
+    200: {
+        data: CompleteSokoBotIntegrationAuthResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CompleteMySokoBotIntegrationAuthResponse = CompleteMySokoBotIntegrationAuthResponses[keyof CompleteMySokoBotIntegrationAuthResponses];
 
 export type ArchiveMySokoBotData = {
     body?: never;
@@ -41845,6 +47388,7 @@ export type GetTasksResponse = GetTasksResponses[keyof GetTasksResponses];
 
 export type PostTasksData = {
     body?: {
+        tagSuggestionReceipt?: string;
         name?: string;
         description?: string | null;
         projectId?: string | null;
@@ -42062,6 +47606,112 @@ export type GetTasksSummaryResponses = {
 };
 
 export type GetTasksSummaryResponse = GetTasksSummaryResponses[keyof GetTasksSummaryResponses];
+
+export type SuggestTaskTagsData = {
+    body?: {
+        name?: string;
+        description?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/tasks/tag-suggestions';
+};
+
+export type SuggestTaskTagsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Too many requests
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Suggestions unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SuggestTaskTagsError = SuggestTaskTagsErrors[keyof SuggestTaskTagsErrors];
+
+export type SuggestTaskTagsResponses = {
+    /**
+     * Suggested tags and signed receipt
+     */
+    200: {
+        data: TaskTagSuggestion;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SuggestTaskTagsResponse = SuggestTaskTagsResponses[keyof SuggestTaskTagsResponses];
 
 export type GetTasksSchedulesData = {
     body?: never;
@@ -48644,6 +54294,14 @@ export type GetWorkspacesCalendarData = {
          */
         to: Date;
         /**
+         * Include Social post entries. Omit for the existing task-only contract. Requires interactive beta access.
+         */
+        includeSocialPosts?: 'true' | 'false';
+        /**
+         * Agenda view: only future SCHEDULED/PUBLISHING Social posts are returned. Omit for the week/month contract.
+         */
+        agendaOnly?: 'true' | 'false';
+        /**
          * Whether to show only the caller's tasks or the workspace
          */
         scope?: 'owned' | 'workspace';
@@ -48764,7 +54422,7 @@ export type GetWorkspacesCalendarResponses = {
      * Active workspace Calendar items
      */
     200: {
-        data: Array<WorkspaceCalendarItem>;
+        data: Array<WorkspaceCalendarEntry>;
         meta: {
             timestamp: Date;
             requestId: string;

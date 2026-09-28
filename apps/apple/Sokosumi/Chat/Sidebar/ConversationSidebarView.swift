@@ -348,7 +348,7 @@ struct ConversationSidebarView: View {
       .accessibilityAddTraits(isOn ? [.isToggle, .isSelected] : .isToggle)
       .accessibilityValue(isOn ? "Showing unread only" : "")
       .help(isOn ? "Show every chat" : "Show only chats with something unread")
-      if let filter, !filter.markAllTargets.isEmpty {
+      if let filter, filter.showsMarkAll {
         markAllButton
       }
     }

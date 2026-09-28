@@ -33,29 +33,11 @@ import type { KindChoice } from "./use-notification-delivery";
  */
 const CELL =
   "focus-visible:border-ring focus-visible:ring-ring-halo flex size-8 shrink-0 items-center justify-center rounded-md border transition-[color,background-color,border-color,scale] ease-out outline-none focus-visible:ring-[3px]";
-/**
- * The squeeze a cell gives back while it is held.
- *
- * Only on the cells that write something. The dead cell borrows `CELL` for its
- * shape, and a cell that moves under the finger and then does nothing is the
- * worst of the three states to be in.
- */
+/** Press feedback applies only to cells that save a preference. */
 const CELL_PRESS = "motion-safe:active:scale-95";
 const CELL_ON = "border-primary bg-primary-solid text-primary-solid-foreground";
 const CELL_OFF =
   "text-muted-foreground border-input hover:bg-accent hover:text-accent-foreground";
-/**
- * Nothing to press, and the lightest of the three: a filled cell is on, an
- * outlined one is off, and this one carries no box at all. A border here would
- * make the one cell that cannot be pressed the most drawn of the row.
- *
- * The icon is a step lighter than the one in an off cell as well. Without it
- * the two differ by the border alone, so the only thing separating "off" from
- * "not available here" is a line measuring about 3:1 on the card (3.00 light,
- * 3.01 dark), and a reader who reads the icon rather than the box sees no
- * difference at all.
- */
-const CELL_DEAD = "text-disabled-foreground cursor-default border-transparent";
 /**
  * The column a cell stands in, holding one width for the cell and its name.
  *
@@ -110,28 +92,15 @@ export interface EmailChoice {
   onChange: (next: boolean) => void;
 }
 
-/**
- * A cell the reader cannot press, and a reason they can reach.
- *
- * Kept in the row rather than dropped, so the column has no hole in it and the
- * row still says what that channel would mean here. The reason opens on hover
- * and on focus, and it is the cell's own description, because a native title
- * waits a second, never opens on a phone, and never opens on focus.
- *
- * `on` is the one that arrives anyway: a channel somebody else mails. Drawn
- * filled like a cell that is on, because that is what it is saying, while the
- * shape and the disabled state keep it from reading as something to press.
- */
+/** External email stays on; the description explains who sends it. */
 function UnpressableCell({
   icon: Icon,
   label,
   hint,
-  on = false,
 }: {
   icon: LucideIcon;
   label: string;
   hint: string;
-  on?: boolean;
 }) {
   const hintId = useId();
 
@@ -146,7 +115,7 @@ function UnpressableCell({
           aria-disabled="true"
           aria-label={label}
           aria-describedby={hintId}
-          className={cn(CELL, on ? cn(CELL_ON, "cursor-default") : CELL_DEAD)}
+          className={cn(CELL, CELL_ON, "cursor-default")}
         >
           <Icon className="size-4" aria-hidden="true" />
         </button>
@@ -158,32 +127,6 @@ function UnpressableCell({
       <span aria-hidden="true" id={hintId} className="sr-only">
         {hint}
       </span>
-    </>
-  );
-}
-
-/**
- * Every channel of the matrix, on a row that none of them carries.
- *
- * Derived from the same list the heads are, so a channel Core adds later gets
- * a cell here rather than a head with nothing under it.
- */
-export function UnusedChannelCells({ kind }: { kind: string }) {
-  const t = useTranslations("App.Account.Notifications");
-
-  return (
-    <>
-      {CHANNEL_SPECS.map((spec) => (
-        <UnpressableCell
-          key={spec.id}
-          icon={CHANNEL_ICON[spec.id]}
-          label={t("channelUnavailableLabel", {
-            channel: t(spec.labelKey),
-            kind,
-          })}
-          hint={t("marketingEmailOnlyHint")}
-        />
-      ))}
     </>
   );
 }
@@ -374,7 +317,6 @@ export function KindCells({
 
     return (
       <UnpressableCell
-        on
         icon={Mail}
         label={t("channelEmailExternalLabel", { kind: label })}
         hint={t("channelEmailExternalHint")}
@@ -427,8 +369,7 @@ export function KindCells({
           </span>
         );
       })}
-      {/* Hidden from the tree and still read, the way a dead cell carries its
-          own reason. */}
+      {/* Read as the push cell's description, without repeating as text. */}
       {pushHint ? (
         <span aria-hidden="true" id={pushHintId} className="sr-only">
           {pushHint}

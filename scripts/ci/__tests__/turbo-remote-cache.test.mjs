@@ -136,25 +136,36 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("pins Neon teardown to trusted default-branch checkout", async () => {
+  it("pins Neon teardown to workflow_run from the default branch", async () => {
     const workflow = await readRepoFile(
       ".github",
       "workflows",
       "cloud-agent-db-teardown.yml",
     );
+    const signal = await readRepoFile(".github", "workflows", "pr-closed.yml");
     const triggerSection = workflow.split(/^jobs:/m)[0];
-    assert.match(triggerSection, /pull_request_target:/);
-    assert.doesNotMatch(triggerSection, /^\s+pull_request:\s*$/m);
-    assert.match(
-      workflow,
-      /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/,
-    );
+    // A pull_request_target trigger loads YAML from the PR base. A same-repo
+    // branch that replaces this file would then run with NEON_API_KEY.
+    assert.doesNotMatch(triggerSection, /^\s+pull_request_target:/m);
+    assert.match(triggerSection, /workflow_run:/);
+    assert.match(triggerSection, /workflows:\s*\["PR closed"\]/);
+    assert.match(signal, /^name: PR closed$/m);
+    assert.doesNotMatch(signal, /secrets\./);
+    assert.match(signal, /pull_request:\s*\n\s+types:\s*\[closed\]/);
     assert.match(workflow, /persist-credentials:\s*false/);
     assert.match(workflow, /github\.event\.repository\.default_branch/);
+    assert.match(workflow, /--from-workflow-run/);
+    assert.match(workflow, /--from-agent-id-env/);
+    assert.doesNotMatch(workflow, /--from-text/);
+    assert.doesNotMatch(workflow, /--agent-id /);
     assert.doesNotMatch(workflow, /pull_request\.base\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);
+    // Preview deletion belongs to the per-PR lifecycle queue. The former
+    // branch-name teardown bypasses ownership checks and deletes legacy data.
+    assert.doesNotMatch(workflow, /preview-teardown:|preview-branch-teardown/);
+    assert.doesNotMatch(workflow, /secrets\.VERCEL_TOKEN/);
   });
 
   it("path-gated jobs skip at job level and fail open", async () => {
@@ -250,7 +261,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     // than checking them, so without these the CLI loses type and lint
     // coverage entirely. Root `pnpm build` is covered by the smoke step.
     for (const [name, command] of [
-      ["Typecheck the CLI", /pnpm --filter @sokosumi\/cli typecheck/],
+      [
+        "Typecheck the CLI",
+        /pnpm --filter @masumi_network\/sokosumi typecheck/,
+      ],
       ["Lint the CLI", /biome check apps\/cli/],
     ]) {
       const step = block.match(

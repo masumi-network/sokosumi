@@ -16,6 +16,7 @@ import {
   assertDriveFolderPathNotReserved,
   resolveMovedFolderPath,
 } from "@/helpers/drive-folder-reserved-names";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -27,6 +28,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { moveDriveItemRequestSchema } from "@/schemas/drive-file.schema";
+import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "patch",
@@ -74,6 +76,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
     const body = c.req.valid("json");
+
+    /**
+     * Tell the catalog what moved.
+     *
+     * Both branches below mutate Drive objects and neither used to say so,
+     * which left every relocated document indexed under its old pathname.
+     */
+    // Resolved once, and deliberately resolved *before* the blob mutation
+    // in each branch: resolving it afterwards means a failure here leaves
+    // the objects moved and the catalog pointing at where they used to be.
+    let resolvedWorkspaceId: string | null = null;
+    const workspaceIdFor = async (scope: "user" | "organization") => {
+      if (resolvedWorkspaceId !== null) return resolvedWorkspaceId;
+      const workspace = await resolveDriveTasksWorkspace({
+        userContext,
+        scope: scope === "user" ? "me" : "org",
+        organizationId:
+          scope === "organization"
+            ? (body.organizationId ?? undefined)
+            : undefined,
+      });
+      resolvedWorkspaceId = workspace.workspaceId;
+      return resolvedWorkspaceId;
+    };
+
+    const reconcileMoves = async (
+      moves: readonly { fromPathname: string; toPathname: string }[],
+      scope: "user" | "organization",
+    ) => {
+      if (moves.length === 0) return;
+      await reconcileDriveUploadMoves({
+        workspaceId: await workspaceIdFor(scope),
+        scope,
+        moves,
+      });
+    };
 
     const env = getEnv();
     const token = env.BLOB_READ_WRITE_TOKEN;
@@ -143,6 +181,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("A folder with that name already exists");
       }
 
+      // Before the mutation, so a workspace-resolution failure cannot
+      // leave a moved object with a stale catalog entry.
+      await workspaceIdFor(scope);
+
       const maxAge = parseCacheControlMaxAge(sourceMetadata.cacheControl);
       await rename(body.sourcePathname, targetPathname, {
         token,
@@ -151,6 +193,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         contentType: sourceMetadata.contentType,
         cacheControlMaxAge: maxAge,
       });
+
+      // Follow the object in the catalog. Without this the entry kept
+      // pointing at the vacated pathname, so a later upload there inherited
+      // this document's manual tags.
+      await reconcileMoves(
+        [{ fromPathname: body.sourcePathname, toPathname: targetPathname }],
+        scope,
+      );
 
       return ok(c, body);
     }
@@ -278,18 +328,30 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      await workspaceIdFor(scope);
+
       // Bounded-concurrency head + rename (10 concurrent operations)
       const limit = pLimit(10);
+
+      // Pairs that really moved, collected as they succeed so a partial
+      // failure reconciles exactly what happened and nothing more.
+      const moved: { fromPathname: string; toPathname: string }[] = [];
 
       const renameTasks = allPathnames.map((sourcePathname) =>
         limit(async () => {
           const relativePath = sourcePathname.slice(oldPrefix.length);
           const newPathname = `${newPrefix}${relativePath}`;
 
-          // Skip if already at target (retry-safe)
+          // Skip if already at target (retry-safe). It still counts as
+          // moved — see the note in the folder rename route: on a retry
+          // these are precisely the files that moved first time round.
           try {
             const targetCheck = await head(newPathname, { token });
             if (targetCheck) {
+              moved.push({
+                fromPathname: sourcePathname,
+                toPathname: newPathname,
+              });
               return;
             }
           } catch (error) {
@@ -325,10 +387,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             }
             throw error;
           }
+
+          moved.push({ fromPathname: sourcePathname, toPathname: newPathname });
         }),
       );
 
-      await Promise.all(renameTasks);
+      // `allSettled`: a partial failure must still reconcile what moved.
+      // `Promise.all` rejected before the reconcile, leaving the catalog
+      // pointing at pathnames the objects had already left.
+      const outcomes = await Promise.allSettled(renameTasks);
+
+      await reconcileMoves(moved, scope);
+
+      const failed = outcomes.find((outcome) => outcome.status === "rejected");
+      if (failed) throw failed.reason;
 
       return ok(c, body);
     }

@@ -1,5 +1,4 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
 import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
@@ -36,6 +35,7 @@ import mountGetTaskScheduleAssignees from "./schedules/assignees/get.js";
 import mountGetTaskSchedules from "./schedules/get.js";
 import mountPostTaskSchedule from "./schedules/post.js";
 import mountGetTaskSummary from "./summary/get.js";
+import mountSuggestTaskTags from "./tag-suggestions/post.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
@@ -47,6 +47,7 @@ mountLegacyVendorSchedules(app);
 mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
+mountSuggestTaskTags(app);
 mountGetTaskSchedules(app);
 mountGetTaskScheduleAssignees(app);
 mountPostTaskSchedule(app);
