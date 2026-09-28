@@ -236,7 +236,7 @@ export function BrandProfileSection({
       <Card>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <fieldset disabled={isBusy}>
+            <fieldset className="space-y-6" disabled={isBusy}>
               <CardHeader>
                 <CardTitle>{t("title")}</CardTitle>
                 <CardDescription>{t("description")}</CardDescription>

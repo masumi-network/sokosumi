@@ -145,7 +145,7 @@ export function ProjectMemoryPanel({
         {content ? (
           <Markdown className="text-foreground">{content}</Markdown>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 text-sm text-pretty duration-200">
             {contextMd ? t("errors.contextMd") : t("memory.emptyBody")}
           </p>
         )}

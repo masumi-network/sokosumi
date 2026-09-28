@@ -258,7 +258,7 @@ export function JobsList({
               </section>
             ))
           ) : (
-            <div className="text-muted-foreground px-2 py-8 text-sm">
+            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
               {t("emptyJobs")}
             </div>
           )}

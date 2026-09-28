@@ -1891,7 +1891,7 @@
         "hostingLabel": "Hosted in",
         "taskStepTitle": "What should {name} do?",
         "noAgentsFound": "No agents found.",
-        "tasksTitle": "Ready-To-Run Tasks",
+        "tasksTitle": "Ready-to-run tasks",
         "startFromScratch": "Start from scratch",
         "startFromScratchHint": "Write your own instructions",
         "previewExample": "Preview example",
@@ -2746,7 +2746,7 @@
       },
       "Content": {
         "MenuItems": {
-          "newTask": "New Task",
+          "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
@@ -5321,7 +5321,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Start a new task for {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5336,7 +5336,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Ready-to-run tasks",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5369,7 +5369,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -5718,7 +5718,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
-      "directMessages": "Direct Messages",
+      "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",

@@ -1007,7 +1007,7 @@ export function DriveAllFilesPanel({
           </Button>
         </div>
       ) : state.items.length === 0 ? (
-        <div className="bg-card-background rounded-lg border p-10 text-center">
+        <div className="bg-card-background motion-safe:animate-in motion-safe:fade-in-0 duration-200 rounded-lg border p-10 text-center">
           <p className="text-sm font-medium">
             {appliedQuery || activeFilterCount > 0
               ? t("noMatchesTitle")

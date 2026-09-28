@@ -145,7 +145,7 @@ export function JobsListView({
                   />
                 ))
               ) : (
-                <div className="text-muted-foreground px-4 py-3 text-sm">
+                <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                   {labels.emptyRecent}
                 </div>
               )}
@@ -175,7 +175,7 @@ export function JobsListView({
                       />
                     ))
                   ) : (
-                    <div className="text-muted-foreground px-4 py-3 text-sm">
+                    <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                       {labels.emptySection}
                     </div>
                   )}
@@ -185,7 +185,7 @@ export function JobsListView({
           })}
         </div>
       ) : (
-        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
+        <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 flex items-center justify-center py-16 text-sm text-pretty">
           {labels.emptyList}
         </div>
       )}
