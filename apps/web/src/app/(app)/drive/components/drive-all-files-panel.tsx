@@ -50,6 +50,7 @@ import {
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
+import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 
 /**
  * All files: one search field over filenames, extracted text and confirmed
@@ -89,6 +90,14 @@ interface SearchState {
   loading: boolean;
   loadingMore: boolean;
   error: string | null;
+  /**
+   * The last page replaced this list because its window had expired.
+   *
+   * Shown beside Load more, and cleared by anything that starts a fresh
+   * list, so the notice describes the list currently on screen rather
+   * than lingering over a later one.
+   */
+  restarted: boolean;
 }
 
 export function DriveAllFilesPanel({
@@ -134,6 +143,7 @@ export function DriveAllFilesPanel({
     loading: true,
     loadingMore: false,
     error: null,
+    restarted: false,
   });
 
   const sequenceRef = useRef(0);
@@ -180,6 +190,9 @@ export function DriveAllFilesPanel({
           loading: false,
           loadingMore: false,
           error: null,
+          // A search the reader just asked for is not a refreshed list,
+          // even when the server rebuilt a window to serve it.
+          restarted: false,
         });
         if (input.keepSelection) {
           // A row that is no longer in the result set cannot be retried, so
@@ -268,6 +281,7 @@ export function DriveAllFilesPanel({
       loading: true,
       loadingMore: false,
       error: null,
+      restarted: false,
     });
   }, [storeKey]);
 
@@ -285,15 +299,17 @@ export function DriveAllFilesPanel({
         sortOrder: "desc",
         cursor,
       });
-      setState((current) => ({
-        // A later page can be short or empty when entries changed. That is
-        // the snapshot working, not an error.
-        items: [...current.items, ...page.items],
-        meta: page.search,
-        loading: false,
-        loadingMore: false,
-        error: null,
-      }));
+      setState((current) => {
+        const merged = mergeLoadedFilePage(current.items, page);
+        return {
+          items: merged.items,
+          meta: merged.meta,
+          loading: false,
+          loadingMore: false,
+          error: null,
+          restarted: merged.restarted,
+        };
+      });
     } catch {
       setState((current) => ({
         ...current,
@@ -854,6 +870,21 @@ export function DriveAllFilesPanel({
               </li>
             ))}
           </ul>
+
+          {state.restarted ? (
+            /**
+             * Beside Load more, because that is where the surprise
+             * happens. Deliberately plain: nothing about the reader's
+             * files changed, only our bookmark into them, so this is not
+             * an error and does not say so.
+             */
+            <p
+              className="text-muted-foreground text-center text-xs"
+              data-testid="drive-all-files-restarted"
+            >
+              {t("statusRestarted")}
+            </p>
+          ) : null}
 
           {state.meta?.hasMore ? (
             <Button

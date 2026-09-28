@@ -6320,6 +6320,7 @@
         "noMatchesDescription": "Prueba con otras palabras o quita los filtros.",
         "statusLoading": "Cargando archivos",
         "statusShown": "Mostrando {shown} de {window} en esta ventana de resultados",
+        "statusRestarted": "This list was refreshed. Showing it from the start.",
         "statusTruncated": "Puede haber más: precisa la búsqueda",
         "statusProcessing": "{count} aún en proceso",
         "filterHeading": "Filtros",
