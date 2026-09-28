@@ -1,0 +1,3 @@
+Disposable preview lifecycle smoke test after PR #5337.
+This marker changes no application behavior. Do not merge this branch.
+Phase: initial deployment.
