@@ -236,8 +236,14 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
     new RegExp(errorMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   );
   assert.equal(coreCalls, 0);
-  assert.equal(output.join(""), `${JSON.stringify({ error: errorMessage })}\n`);
-  assert.deepEqual(JSON.parse(output.join("")), { error: errorMessage });
+  assert.equal(
+    output.join(""),
+    `${JSON.stringify({ error: errorMessage, code: "AUTH_REQUIRED" })}\n`,
+  );
+  assert.deepEqual(JSON.parse(output.join("")), {
+    error: errorMessage,
+    code: "AUTH_REQUIRED",
+  });
 });
 
 test("preprod auth ignores a hosted mainnet auth URL flag", async () => {
@@ -429,6 +435,7 @@ test("rejects inline values for boolean options without echoing them", async () 
   );
   assert.deepEqual(JSON.parse(output.join("")), {
     error: "Option --details does not accept a value",
+    code: "VALIDATION",
   });
   assert.equal(output.join("").includes(secret), false);
 });
@@ -444,7 +451,7 @@ test("unsupported inline option values are never echoed", async () => {
   );
   assert.equal(
     output.join(""),
-    `${JSON.stringify({ error: "Unknown option: --api-key" })}\n`,
+    `${JSON.stringify({ error: "Unknown option: --api-key", code: "VALIDATION" })}\n`,
   );
   assert.equal(output.join("").includes(secret), false);
 });
@@ -480,6 +487,7 @@ test("index JSON errors redact credential assignments", async () => {
   assert.deepEqual(JSON.parse(serialized), {
     error:
       "Core API failed: apiKey: [REDACTED] refreshToken: [REDACTED] ordinary detail",
+    code: "UNKNOWN",
   });
 });
 
@@ -813,6 +821,7 @@ test("auth status rejected promises emit one redacted JSON error", async () => {
   assert.equal(output.length, 1);
   assert.deepEqual(JSON.parse(output[0]), {
     error: "Authorization Bearer [REDACTED]",
+    code: "UNKNOWN",
   });
   assert.equal(output[0].includes(secret), false);
 });
@@ -845,6 +854,7 @@ test("malformed HOME config emits one redacted JSON error", () => {
       secret,
       "[REDACTED]",
     )}`,
+    code: "UNKNOWN",
   });
   assert.equal(result.stdout.includes(secret), false);
 });
@@ -990,7 +1000,9 @@ test("new read commands reject unauthenticated calls before Core", async () => {
       /Authentication required/,
     );
     assert.equal(coreCalls, 0);
-    assert.deepEqual(output, [JSON.stringify({ error: authError }) + "\n"]);
+    assert.deepEqual(output, [
+      `${JSON.stringify({ error: authError, code: "AUTH_REQUIRED" })}\n`,
+    ]);
   }
 });
 
