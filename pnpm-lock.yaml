@@ -511,8 +511,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       eve:
-        specifier: 0.66.3
-        version: 0.66.3(@opentelemetry/api@1.9.1)(ai@7.0.118(zod@4.6.5))
+        specifier: 0.67.2
+        version: 0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118(zod@4.6.5))
       fake-indexeddb:
         specifier: 6.2.5
         version: 6.2.5
@@ -6757,6 +6757,32 @@ packages:
 
   eve@0.66.3:
     resolution: {integrity: sha512-oJkQdVrlmb1GFeaSUNY6IF71ttXjQdFnkKQP+84Qlvs/M+fUqMjGTqnwevQ+qFvc8KCswo3cbBohKOCGdgZPFg==}
+    engines: {node: '>=24'}
+    hasBin: true
+    peerDependencies:
+      '@opentelemetry/api': ^1.0.0
+      ai: ^7.0.105
+      braintrust: ^3.0.0
+      chat: ^4.41.0
+      dd-trace: ^6.13.0
+      just-bash: ^3.1.0
+      microsandbox: ^0.5.0
+    peerDependenciesMeta:
+      '@opentelemetry/api':
+        optional: true
+      braintrust:
+        optional: true
+      chat:
+        optional: true
+      dd-trace:
+        optional: true
+      just-bash:
+        optional: true
+      microsandbox:
+        optional: true
+
+  eve@0.67.2:
+    resolution: {integrity: sha512-SMdO0GbKLDIN0vsV6zbKca0OlWYaGb79yrdJLIAm7HWWjO/X2M598dJdxVTBWV+20SDtrLv0yrSLmb9CxP5QCQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -16166,6 +16192,15 @@ snapshots:
       '@types/estree': 1.0.9
 
   eve@0.66.3(@opentelemetry/api@1.9.1)(ai@7.0.118(zod@4.6.5)):
+    dependencies:
+      ai: 7.0.118(zod@4.6.5)
+      nitro: 3.0.260903-beta
+      undici: 8.11.2
+    optionalDependencies:
+      '@opentelemetry/api': 1.9.1
+    optional: true
+
+  eve@0.67.2(@opentelemetry/api@1.9.1)(ai@7.0.118(zod@4.6.5)):
     dependencies:
       ai: 7.0.118(zod@4.6.5)
       nitro: 3.0.260903-beta
