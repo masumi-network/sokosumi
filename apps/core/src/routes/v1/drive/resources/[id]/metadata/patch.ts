@@ -92,6 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         confirmProjectIds: body.confirmProjectIds,
         removeProjectIds: body.removeProjectIds,
         allowSuggestionsFor: body.allowSuggestionsFor,
+        allowSuggestionsForLabelIds: body.allowSuggestionsForLabelIds,
       },
     });
 

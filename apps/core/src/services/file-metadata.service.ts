@@ -40,6 +40,27 @@ export interface MetadataEditRequest {
   confirmProjectIds?: string[];
   removeProjectIds?: string[];
   allowSuggestionsFor?: ("category" | "tags")[];
+  /**
+   * Withdraw the veto on these labels, and do nothing else.
+   *
+   * Deletes the REJECT tombstone for each named label so the model may
+   * propose it again. It writes no `FileLabel` row, changes no state and
+   * sets no provenance: a person only ever vetoes a label or withdraws a
+   * veto, and the model still has to decide.
+   *
+   * Per label, not per field, and that is the whole point. The only two
+   * things in the product that could clear a REJECT were `addTagLabelIds`
+   * (which also asserts the tag, as CONFIRMED/MANUAL) and clearing the
+   * category (which deletes *every* category override on the resource
+   * regardless of decision). Both live inside the manual assign surface
+   * that is being removed, and neither is label-scoped. Withdrawing one
+   * veto must not withdraw the others.
+   *
+   * Not `allowSuggestionsFor`: that is field-scoped and deletes PIN rows
+   * only — a different override with a different meaning. Widening it
+   * would make one gesture do two unrelated things.
+   */
+  allowSuggestionsForLabelIds?: string[];
 }
 
 export type MetadataEditStatus =
@@ -156,6 +177,9 @@ export async function updateFileMetadata(input: {
       ...(input.request.addTagLabelIds ?? []),
       ...(input.request.removeTagLabelIds ?? []),
       ...(input.request.categoryLabelId ? [input.request.categoryLabelId] : []),
+      // Needed to derive each label's `field` from its kind, and to reject
+      // an id that is not in this workspace's vocabulary at all.
+      ...(input.request.allowSuggestionsForLabelIds ?? []),
     ],
   });
 
@@ -195,6 +219,12 @@ export async function updateFileMetadata(input: {
         actor: input.actor,
       });
       await applyAllowSuggestions({ tx, resource, request: input.request });
+      await applyLabelVetoWithdrawals({
+        tx,
+        resource,
+        request: input.request,
+        vocabulary,
+      });
     });
   } catch (error) {
     if (error instanceof HTTPException && error.status === 409) {
@@ -543,6 +573,54 @@ async function applyAllowSuggestions(input: {
       decision: FileFieldOverrideDecision.PIN,
     },
   });
+}
+
+/**
+ * Withdraw the veto on named labels: delete their REJECT tombstone, nothing else.
+ *
+ * Covers both kinds. A tag's tombstone is written by `removeTagLabelIds`
+ * (`field: "tags"`) and a category's by dismissing a suggestion
+ * (`field: "category"`), so a tags-only clear would leave a wrong category
+ * permanent while a wrong tag was recoverable.
+ *
+ * `field` is derived from the label's own kind rather than taken from the
+ * caller, so a caller cannot ask to forgive a tag under the category field
+ * and silently match nothing.
+ *
+ * Scoped to `decision: REJECT`. A PIN on the same label is a different
+ * statement — "this field is set by hand" — and is not this gesture's to
+ * remove. That is the mistake the blunt category clear makes, and it is not
+ * copied here.
+ */
+async function applyLabelVetoWithdrawals(input: {
+  tx: Prisma.TransactionClient;
+  resource: AuthorizedResource;
+  request: MetadataEditRequest;
+  vocabulary: Map<string, VocabularyEntry>;
+}): Promise<void> {
+  const labelIds = input.request.allowSuggestionsForLabelIds ?? [];
+  if (labelIds.length === 0) return;
+
+  for (const labelId of labelIds) {
+    const entry = input.vocabulary.get(labelId);
+    if (!entry) throw unprocessableEntity("Unknown label");
+    // Archived is allowed: a label can be vetoed on a file and archived
+    // afterwards, and the veto is still the thing being withdrawn. Whether
+    // the model may then use it is the archive's decision, made elsewhere.
+    const target = entry.mergedIntoId ?? entry.id;
+    const field =
+      entry.kind === FileLabelKind.CATEGORY ? "category" : ("tags" as const);
+
+    await input.tx.fileFieldOverride.deleteMany({
+      where: {
+        resourceId: input.resource.id,
+        evidenceScopeId: input.resource.evidenceScopeId,
+        field,
+        labelId: target,
+        decision: FileFieldOverrideDecision.REJECT,
+      },
+    });
+  }
 }
 
 /**
