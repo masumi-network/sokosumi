@@ -145,7 +145,7 @@ describe("activity variant structures", () => {
     ]);
   });
 
-  it("digest shrinks older plain comments and keeps asks in full", () => {
+  it("digest shrinks older comments, answered asks included", () => {
     expect(
       describeItems(
         buildDigestItems(EVENTS, {
@@ -156,23 +156,53 @@ describe("activity variant structures", () => {
     ).toEqual([
       "fold(01,02)",
       "~03",
-      "04",
+      "~04",
       "~05",
       "fold(06,07)",
       "~08",
       "fold(09,10)",
       "~11",
-      "12",
+      "~12",
       "~13",
       "fold(14,15)",
       "16",
       "~17",
-      "18",
+      "~18",
       "19",
       "20",
       "21",
       "22",
       "23",
     ]);
+  });
+
+  it("digest keeps the open ask and results in full outside the window", () => {
+    const openAskThenChatter = eventsFrom([
+      ...SEEDS.slice(0, 12),
+      [null, "Looking into access"],
+      [null, "Still checking"],
+      [null, "Any update?"],
+      [null, "Tomorrow"],
+      [null, "Thanks"],
+      [null, "Ping"],
+    ]);
+    const items = describeItems(
+      buildDigestItems(openAskThenChatter, { openedFolds: NONE }),
+    );
+    expect(items).toContain("12");
+    expect(items).toContain("~04");
+
+    const resultThenChatter = eventsFrom([
+      [TaskStatus.RUNNING, null],
+      [TaskStatus.COMPLETED, "Result"],
+      [null, "a"],
+      [null, "b"],
+      [null, "c"],
+      [null, "d"],
+      [null, "e"],
+    ]);
+    expect(
+      describeItems(buildDigestItems(resultThenChatter, { openedFolds: NONE })),
+    ).toEqual(["01", "02", "03", "04", "05", "06", "07"]);
   });
 });

@@ -49,10 +49,6 @@ function isFoldableStatusChange(event: TaskEvent): boolean {
   );
 }
 
-function isPlainComment(event: TaskEvent): boolean {
-  return event.comment != null && !isKeystoneEvent(event);
-}
-
 export type ActivityVariantItem =
   | { type: "event"; event: TaskEvent; compact: boolean }
   | { type: "fold"; id: string; events: TaskEvent[] };
@@ -146,9 +142,33 @@ export function buildRecentWindowItems(
   return items;
 }
 
+const OUTCOME_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+]);
+
+/**
+ * The ask the task is waiting on right now: the newest status event, when it
+ * asks the reader for something. Once the status moves on, that ask is
+ * history like any other event.
+ */
+export function findOpenAskId(events: readonly TaskEvent[]): string | null {
+  const ordered = sortTaskEventsAscending(events);
+  const latestStatusEvent = ordered.findLast((event) => event.status != null);
+  if (
+    latestStatusEvent?.status == null ||
+    OUTCOME_STATUSES.has(latestStatusEvent.status) ||
+    !KEYSTONE_STATUSES.has(latestStatusEvent.status)
+  ) {
+    return null;
+  }
+  return latestStatusEvent.id;
+}
+
 /**
  * Nothing leaves the page. Status changes fold as in Linear, and comments
- * older than the newest five shrink to one line until opened.
+ * older than the newest five shrink to one line until opened, asks included.
+ * Only results and the open ask always stay in full.
  */
 export function buildDigestItems(
   events: readonly TaskEvent[],
@@ -160,17 +180,39 @@ export function buildDigestItems(
   }
 
   const windowStart = ordered.length - ACTIVITY_RECENT_WINDOW;
-  const recentIds = new Set(ordered.slice(windowStart).map(({ id }) => id));
+  const openAskId = findOpenAskId(ordered);
   const openedComments = options.openedComments ?? new Set<string>();
+  const isPinned = (event: TaskEvent) =>
+    event.id === openAskId ||
+    (event.status != null && OUTCOME_STATUSES.has(event.status));
 
-  return buildStatusFoldItems(ordered, options).map((item) =>
-    item.type === "event" &&
-    !recentIds.has(item.event.id) &&
-    isPlainComment(item.event) &&
-    !openedComments.has(item.event.id)
-      ? { ...item, compact: true }
-      : item,
-  );
+  const items: ActivityVariantItem[] = [];
+  let run: TaskEvent[] = [];
+  ordered.forEach((event, index) => {
+    const isRecent = index >= windowStart;
+    if (
+      !isRecent &&
+      event.comment == null &&
+      event.status != null &&
+      !isPinned(event)
+    ) {
+      run.push(event);
+      return;
+    }
+    pushRun(items, run, options.openedFolds);
+    run = [];
+    items.push({
+      type: "event",
+      event,
+      compact:
+        !isRecent &&
+        event.comment != null &&
+        !isPinned(event) &&
+        !openedComments.has(event.id),
+    });
+  });
+  pushRun(items, run, options.openedFolds);
+  return items;
 }
 
 export function buildActivityVariantItems(

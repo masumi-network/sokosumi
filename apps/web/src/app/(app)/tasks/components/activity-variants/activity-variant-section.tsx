@@ -41,6 +41,7 @@ import { ActivityChatComposer } from "./activity-chat-composer";
 import {
   ACTIVITY_COLLAPSE_THRESHOLD,
   type ActivityVariant,
+  type ActivityVariantItem,
   buildActivityVariantItems,
 } from "./activity-variant-feed";
 
@@ -73,7 +74,7 @@ function FoldRow({
       type="button"
       aria-expanded={false}
       onClick={onOpen}
-      className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring flex w-full items-center gap-4 rounded-lg px-3 py-1 text-left text-xs transition-colors outline-none focus-visible:ring-2"
+      className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring flex min-h-8 w-full items-center gap-4 rounded-lg px-3 py-1 text-left text-xs transition-colors outline-none focus-visible:ring-2"
     >
       <span className="flex size-6 shrink-0 items-center justify-center">
         <ChevronsUpDown className="size-3.5" aria-hidden />
@@ -117,6 +118,7 @@ function CompactCommentRow({
   context: TaskActivityRowContext;
   onOpen: () => void;
 }) {
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
   const { actorName, actorInfo } = useTaskActivityActorName(event, context);
   const preview = (event.comment ?? "")
     .replace(MARKDOWN_NOISE, "")
@@ -130,25 +132,77 @@ function CompactCommentRow({
       aria-label={`Show comment from ${actorName}`}
       data-message-id={event.id}
       onClick={onOpen}
-      className="hover:bg-accent focus-visible:ring-ring flex w-full items-center gap-4 rounded-lg px-3 py-1.5 text-left transition-colors outline-none focus-visible:ring-2"
+      className="hover:bg-accent focus-visible:ring-ring flex min-h-8 w-full items-start gap-4 rounded-lg px-3 py-1 text-left transition-colors outline-none focus-visible:ring-2 sm:items-center"
     >
       <TaskActivityActorAvatar
         event={event}
         actorName={actorName}
         actorInfo={actorInfo}
       />
-      <span className="flex min-w-0 flex-1 items-baseline gap-2">
-        <span className="shrink-0 text-sm font-medium">{actorName}</span>
+      {/* Narrow screens give the preview its own line; it had no room beside the status. */}
+      <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-2">
+        <span className="flex items-baseline justify-between gap-2 sm:shrink-0">
+          <span className="flex items-baseline gap-2">
+            <span className="text-sm font-medium">{actorName}</span>
+            {event.status ? (
+              <TaskStatusInline
+                status={event.status}
+                label={tStatus(event.status)}
+              />
+            ) : null}
+          </span>
+          <TimeAgo
+            date={event.createdAt}
+            className="text-muted-foreground text-xs whitespace-nowrap sm:hidden"
+          />
+        </span>
         <span className="text-muted-foreground min-w-0 truncate text-sm">
           {preview}
         </span>
       </span>
       <TimeAgo
         date={event.createdAt}
-        className="text-muted-foreground shrink-0 text-xs whitespace-nowrap"
+        className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:block"
       />
     </button>
   );
+}
+
+function itemKey(item: ActivityVariantItem): string {
+  return item.type === "fold" ? `fold-${item.id}` : item.event.id;
+}
+
+interface FeedSegment {
+  light: boolean;
+  items: ActivityVariantItem[];
+}
+
+/**
+ * One-liners, folds and bare status changes sit in tight runs so the cards
+ * between them read as the page's weight. `null` keeps every item its own
+ * segment at the list's spacing.
+ */
+function groupLightItems(
+  items: ActivityVariantItem[],
+  latestEventId: string | null,
+): FeedSegment[] {
+  if (latestEventId == null) {
+    return items.map((item) => ({ light: false, items: [item] }));
+  }
+  const segments: FeedSegment[] = [];
+  for (const item of items) {
+    const light =
+      item.type === "fold" ||
+      item.compact ||
+      (item.event.comment == null && item.event.id !== latestEventId);
+    const previous = segments.at(-1);
+    if (light && previous?.light) {
+      previous.items.push(item);
+    } else {
+      segments.push({ light, items: [item] });
+    }
+  }
+  return segments;
 }
 
 function jumpToEvent(eventId: string | null) {
@@ -312,7 +366,42 @@ export function TaskActivityVariantSection({
     openedFolds,
     openedComments,
   });
+  const segments = groupLightItems(
+    items,
+    variant === "digest" ? latestEventId : null,
+  );
   const isCollapsible = localEvents.length > ACTIVITY_COLLAPSE_THRESHOLD;
+
+  function renderItem(item: ActivityVariantItem) {
+    if (item.type === "fold") {
+      return (
+        <FoldRow
+          key={itemKey(item)}
+          events={item.events}
+          onOpen={() => setOpenedFolds((prev) => new Set(prev).add(item.id))}
+        />
+      );
+    }
+    if (item.compact) {
+      return (
+        <CompactCommentRow
+          key={itemKey(item)}
+          event={item.event}
+          context={rowContext}
+          onOpen={() =>
+            setOpenedComments((prev) => new Set(prev).add(item.event.id))
+          }
+        />
+      );
+    }
+    return (
+      <TaskActivityEventRow
+        key={itemKey(item)}
+        event={item.event}
+        context={rowContext}
+      />
+    );
+  }
   const jumpInHeader = variant !== "status-folds" && isCollapsible;
 
   function handleSend(markdown: string) {
@@ -411,38 +500,26 @@ export function TaskActivityVariantSection({
           className="space-y-3"
           {...{ [CHAT_MESSAGE_LIST_ATTRIBUTE]: TASK_ACTIVITY_MESSAGE_LIST }}
         >
-          {items.map((item) => {
-            if (item.type === "fold") {
-              return (
-                <FoldRow
-                  key={`fold-${item.id}`}
-                  events={item.events}
-                  onOpen={() =>
-                    setOpenedFolds((prev) => new Set(prev).add(item.id))
-                  }
-                />
-              );
-            }
-            if (item.compact) {
-              return (
-                <CompactCommentRow
-                  key={item.event.id}
-                  event={item.event}
-                  context={rowContext}
-                  onOpen={() =>
-                    setOpenedComments((prev) =>
-                      new Set(prev).add(item.event.id),
-                    )
-                  }
-                />
-              );
+          {segments.map((segment) => {
+            const first = segment.items[0];
+            if (!segment.light || !first) {
+              return first ? renderItem(first) : null;
             }
             return (
-              <TaskActivityEventRow
-                key={item.event.id}
-                event={item.event}
-                context={rowContext}
-              />
+              <div key={`group-${itemKey(first)}`} className="space-y-1">
+                {segment.items.map((item) =>
+                  item.type === "event" && !item.compact ? (
+                    <div
+                      key={item.event.id}
+                      className="flex min-h-8 flex-col justify-center"
+                    >
+                      {renderItem(item)}
+                    </div>
+                  ) : (
+                    renderItem(item)
+                  ),
+                )}
+              </div>
             );
           })}
         </div>
