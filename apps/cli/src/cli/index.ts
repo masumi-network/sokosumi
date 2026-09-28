@@ -251,9 +251,12 @@ Developer setup on Preprod:
 
 Organizer setup on Preprod (platform admin):
   Select an organization Workspace and invite the intended developers in Sokosumi Web.
-  Ask each developer for their Vendor ID and final Coworker name, then run:
+  Ask each developer for their Vendor ID and final Coworker name.
+  Verify your account: sokosumi --preprod auth whoami
+  Provision checks the live platform role. Core still authorizes creation.
   sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
-  Give the returned Coworker ID to that developer.
+  Give the returned Coworker ID and Vendor ID to that developer.
+  Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
 `;
 }
 

@@ -4,6 +4,12 @@ export interface UserIdentity {
   platformRole: string;
 }
 
+export function hasPlatformAdminRole(user: UserIdentity): boolean {
+  return user.platformRole
+    .split(",")
+    .some((role) => role.trim().toLowerCase() === "admin");
+}
+
 function requiredIdentityField(value: unknown, field: string): string {
   if (
     typeof value !== "string" ||
