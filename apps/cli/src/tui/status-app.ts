@@ -377,6 +377,28 @@ function messageLine(
   );
 }
 
+export function vendorMembershipCaption(loading: boolean): string {
+  return loading
+    ? "Loading vendor memberships…"
+    : "Vendor memberships from Core. Review only.";
+}
+
+export function workspaceMembershipCaption(loading: boolean): string {
+  return loading
+    ? "Loading organization workspaces…"
+    : "Organization workspaces from Core. Review only.";
+}
+
+export function formatVendorReviewLine(vendor: Vendor): string {
+  return `${vendor.name || "Unnamed vendor"} · ${vendor.role || "unknown"} · ${vendor.id}`;
+}
+
+export function formatWorkspaceReviewLine(
+  workspace: OrganizationWorkspace,
+): string {
+  return `${workspace.name || "Unnamed workspace"} · ${workspace.role || workspace.slug || "unknown"} · ${workspace.organizationId}`;
+}
+
 function resourceReviewScreen({
   title,
   caption,
@@ -1175,14 +1197,12 @@ function StatusApp({
   if (screen === "vendors") {
     signedInContent = resourceReviewScreen({
       title: "Vendors",
-      caption: resourceLoading
-        ? "Loading vendor memberships…"
-        : "Vendor memberships from Core. Review only.",
+      caption: vendorMembershipCaption(resourceLoading),
       emptyLabel: "No vendors found.",
       loading: resourceLoading,
       rows: vendors.map((vendor) => ({
         key: vendor.id,
-        label: `${vendor.name || "Unnamed vendor"} · ${vendor.role || "unknown"} · ${vendor.id}`,
+        label: formatVendorReviewLine(vendor),
       })),
       message,
       phase,
@@ -1190,14 +1210,12 @@ function StatusApp({
   } else if (screen === "workspaces") {
     signedInContent = resourceReviewScreen({
       title: "Organization workspaces",
-      caption: resourceLoading
-        ? "Loading organization workspaces…"
-        : "Organization workspaces from Core. Review only.",
+      caption: workspaceMembershipCaption(resourceLoading),
       emptyLabel: "No organization workspaces found.",
       loading: resourceLoading,
       rows: workspaces.map((workspace) => ({
         key: workspace.organizationId,
-        label: `${workspace.name || "Unnamed workspace"} · ${workspace.role || workspace.slug || "unknown"} · ${workspace.organizationId}`,
+        label: formatWorkspaceReviewLine(workspace),
       })),
       message,
       phase,

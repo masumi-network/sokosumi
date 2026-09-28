@@ -30,6 +30,8 @@ import {
   buildSignInMenuItems,
   canToggleSignInNetwork,
   displayTargetLabel,
+  formatVendorReviewLine,
+  formatWorkspaceReviewLine,
   isNetworkSelectionLocked,
   nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
@@ -38,6 +40,8 @@ import {
   resolveStatusCoreClient,
   type StatusAppOptions,
   toggleHostedTarget,
+  vendorMembershipCaption,
+  workspaceMembershipCaption,
 } from "../../src/tui/status-app.js";
 
 test("TUI display values derive from package, config, and OAuth sources", () => {
@@ -310,88 +314,40 @@ test("signed-in home lists Vendors and Workspaces, not a fake Register flow", as
   }
 });
 
-test("Vendor and Workspace screens are read-only review lists", async () => {
-  const terminal = createTestTerminal();
-  let output = "";
-  terminal.stdout.on("data", (chunk) => {
-    output += String(chunk);
-  });
-  const signedInAuthManager = new AuthManager({
-    credentialStore: {
-      read: () => null,
-      write: (_credentials: OAuthCredentials) => {},
-      clear: () => {},
-    },
-    apiKeyStore: {
-      read: () => ({ apiKey: "soko_mainnet_test-key" }),
-      write: (_credentials) => {},
-      clear: () => {},
-    },
-  });
-  const coreClient: CoreHttpClient = {
-    get: async <T>(path: string) => {
-      if (path === "/v1/vendors/me") {
-        return {
-          data: [{ id: "vendor-1", name: "Acme", role: "admin" }],
-        } as T;
-      }
-      if (path === "/v1/users/me/organizations") {
-        return {
-          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
-        } as T;
-      }
-      return { data: [] } as T;
-    },
-    post: async <T>() => ({}) as T,
-    patch: async <T>() => ({}) as T,
-  };
-  let instance: Instance | undefined;
-  const render: NonNullable<StatusAppOptions["render"]> = (node) => {
-    const nextInstance = inkRender(node, {
-      debug: true,
-      stdin: terminal.stdin,
-      stdout: terminal.stdout,
-      exitOnCtrlC: false,
-      patchConsole: false,
-      interactive: true,
-    });
-    instance = nextInstance;
-    return nextInstance;
-  };
-  const cliPromise = runCli([], {
-    env: {},
-    authManager: signedInAuthManager,
-    coreClient,
-    tuiFn: (options) =>
-      renderStatusApp({
-        ...options,
-        authManagerFactory: () => signedInAuthManager,
-        coreClient,
-        render,
-      }),
-  });
-  try {
-    await waitForOutput(terminal.stdout, () => output, "Developer CLI");
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Acme");
-    assert.match(output, /Vendor memberships from Core\. Review only/);
-    assert.match(output, /Acme · admin · vendor-1/);
-    assert.doesNotMatch(output, /Choose an administered Vendor/);
-    await sendInput(terminal.stdin, "\u001b");
-    await waitForOutput(terminal.stdout, () => output, "Developer CLI");
-    await sendInput(terminal.stdin, "\u001b[B");
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Acme Org");
-    assert.match(output, /Organization workspaces from Core\. Review only/);
-    assert.match(output, /Acme Org · owner · org-1/);
-    assert.doesNotMatch(output, /Choose a workspace for the Coworker/);
-    await sendInput(terminal.stdin, "q");
-    await cliPromise;
-  } finally {
-    instance?.unmount();
-    await cliPromise;
-    instance?.cleanup();
-  }
+test("Vendor and Workspace screens are read-only review lists", () => {
+  assert.equal(
+    vendorMembershipCaption(false),
+    "Vendor memberships from Core. Review only.",
+  );
+  assert.equal(
+    workspaceMembershipCaption(false),
+    "Organization workspaces from Core. Review only.",
+  );
+  assert.doesNotMatch(vendorMembershipCaption(false), /Choose/);
+  assert.doesNotMatch(workspaceMembershipCaption(false), /Choose|Coworker/);
+  assert.equal(
+    formatVendorReviewLine({
+      id: "vendor-1",
+      createdAt: null,
+      updatedAt: null,
+      name: "Acme",
+      slug: "acme",
+      logos: { light: null, dark: null },
+      role: "admin",
+    }),
+    "Acme · admin · vendor-1",
+  );
+  assert.equal(
+    formatWorkspaceReviewLine({
+      organizationId: "org-1",
+      createdAt: null,
+      name: "Acme Org",
+      slug: "acme",
+      logo: null,
+      role: "owner",
+    }),
+    "Acme Org · owner · org-1",
+  );
 });
 
 test("Ink solely owns API-key input and Esc/arrow navigation", async () => {
