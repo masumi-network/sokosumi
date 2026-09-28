@@ -51,6 +51,22 @@ export interface ImagePriceFigures {
 export interface ImageFrame {
   aspectRatio: string;
   resolution: string;
+  /**
+   * True when the provider decides the output size and the studio only asks for a
+   * ratio.
+   *
+   * It matters because the area below is then a *guess*, and an area-priced model
+   * bills the area it actually produced. Measured live on `fal-ai/nucleus-image`
+   * at 16:9 1K: the studio assumed 1024x576 (0.590 MP) and charged 1 credit, the
+   * provider returned 1344x768 (1.032 MP) and fal billed 2 cents. At 1:1 the
+   * provider happened to return 1024x1024 and the two agreed, which is precisely
+   * why it hid.
+   *
+   * So with this set, an area-priced unit is *not derivable* and returns null. A
+   * caller that omits it is asserting the studio told the provider the exact
+   * pixel dimensions.
+   */
+  providerChoosesSize?: boolean;
 }
 
 /** Longest edge in pixels for each studio resolution tier. */
@@ -113,6 +129,10 @@ export function creditsPerImageCents(
     return Math.ceil(price.unitPriceUsd * 100);
   }
   if (PER_MEGAPIXEL_UNITS.includes(price.unit)) {
+    // Priced on an area nobody here chose. Guessing it undercharges or
+    // overcharges by whatever the provider felt like returning, and the studio
+    // does not bill a number it cannot stand behind.
+    if (frame.providerChoosesSize) return null;
     const megapixels = imageOutputMegapixels(
       frame.aspectRatio,
       frame.resolution,
@@ -128,4 +148,9 @@ export function creditsPerImageCents(
 /** True when this unit alone yields a per-image figure for any frame. */
 export function isPerImageDerivableUnit(unit: string): boolean {
   return PER_IMAGE_UNITS.includes(unit) || PER_MEGAPIXEL_UNITS.includes(unit);
+}
+
+/** True when this unit bills the output area rather than the image. */
+export function isAreaPricedUnit(unit: string): boolean {
+  return PER_MEGAPIXEL_UNITS.includes(unit);
 }

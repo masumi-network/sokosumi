@@ -220,8 +220,13 @@ export {
   type ImagePriceUnit,
   imageOutputDimensions,
   imageOutputMegapixels,
+  isAreaPricedUnit,
   isPerImageDerivableUnit,
 } from "./image-credits.js";
+export {
+  type ImagePixelSize,
+  readImageDimensionsFromBytes,
+} from "./image-dimensions.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,

@@ -99,7 +99,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 import { imageModel } from "@/lib/image-studio/catalog";
 import {
   createImageJob,
-  readPngDimensions,
+  readProviderSize,
   sweepStalledSubmissions,
 } from "@/services/image-studio-jobs.service";
 
@@ -491,16 +491,22 @@ describe("stalled submission sweep", () => {
   });
 });
 
-describe("readPngDimensions", () => {
-  it("reads width and height from a PNG header", () => {
-    const bytes = new Uint8Array(24);
-    bytes.set([137, 80, 78, 71, 13, 10, 26, 10], 0);
-    new DataView(bytes.buffer).setUint32(16, 1024);
-    new DataView(bytes.buffer).setUint32(20, 768);
-    expect(readPngDimensions(bytes)).toEqual({ width: 1024, height: 768 });
+describe("readProviderSize", () => {
+  it("takes the provider's figures when it reports them", () => {
+    expect(readProviderSize({ width: 1344, height: 768 })).toEqual({
+      width: 1344,
+      height: 768,
+    });
   });
 
-  it("returns null for anything that is not a PNG", () => {
-    expect(readPngDimensions(new Uint8Array([1, 2, 3]))).toBeNull();
+  it("refuses a size the provider did not really give", () => {
+    // fal sends nulls for endpoints that report nothing, and the shape allows
+    // anything. A half-reported size must not be stored as `1024x0`.
+    expect(readProviderSize(undefined)).toBeNull();
+    expect(readProviderSize({ width: null, height: null })).toBeNull();
+    expect(readProviderSize({ width: 1024, height: null })).toBeNull();
+    expect(readProviderSize({ width: 0, height: 0 })).toBeNull();
+    expect(readProviderSize({ width: -1, height: 10 })).toBeNull();
+    expect(readProviderSize({ width: 10.5, height: 10 })).toBeNull();
   });
 });

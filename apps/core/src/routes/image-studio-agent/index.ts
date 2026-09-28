@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import { describeImageStudioRefusal } from "@/lib/image-studio/request-validation";
 
 import {
   assetContentPath,
@@ -142,12 +143,12 @@ app.post("/generations", async (c) => {
     },
   });
   if (!parsed.success) {
+    // The studio's own wording, not Zod's. This one lands in a tool result the
+    // model reads back to a person, so "Too big: expected string to have <=4000
+    // characters" would be repeated to them verbatim.
+    const refusal = describeImageStudioRefusal(parsed.error);
     return c.json(
-      {
-        ok: false,
-        error: "invalid_input",
-        detail: parsed.error.issues[0]?.message,
-      },
+      { ok: false, error: refusal.kind, detail: refusal.message },
       400,
     );
   }

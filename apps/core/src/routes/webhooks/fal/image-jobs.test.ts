@@ -113,12 +113,23 @@ describe("fal completion callback", () => {
     await deliver({
       request_id: REQUEST_ID,
       status: "OK",
-      payload: { images: [{ url: "https://v3b.fal.media/files/a.png" }] },
+      payload: {
+        images: [
+          {
+            url: "https://v3b.fal.media/files/a.png",
+            width: 1344,
+            height: 768,
+          },
+        ],
+      },
     });
 
+    // The provider's dimensions go with the URL. Dropping them here is half of why
+    // stored assets read 0x0 in the lightbox.
     expect(settleWithImageMock).toHaveBeenCalledExactlyOnceWith(
       JOB_ID,
       "https://v3b.fal.media/files/a.png",
+      { width: 1344, height: 768 },
     );
     expect(failImageJobMock).not.toHaveBeenCalled();
   });

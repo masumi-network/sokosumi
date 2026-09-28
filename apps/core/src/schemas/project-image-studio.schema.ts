@@ -9,6 +9,7 @@ import {
   IMAGE_PROVIDER_FIELDS,
   IMAGE_RESOLUTIONS,
 } from "@/lib/image-studio/image-model";
+import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -202,7 +203,7 @@ export const createImageJobRequestSchema = z
         (id) => getImageCatalog().models.some((model) => model.id === id),
         { message: "Unknown image model. Choose one from the studio catalog." },
       ),
-    prompt: z.string().trim().min(1).max(4_000),
+    prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     parentAssetId: z.string().uuid().nullable().default(null),

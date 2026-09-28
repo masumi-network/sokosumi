@@ -378,13 +378,14 @@ describe("normaliseFalCatalog", () => {
 });
 
 describe("excludeUnpriceableModels", () => {
-  function normalise(unit: string) {
+  /** `schema` decides who picks the output size, which is half the question. */
+  function normalise(unit: string, schema: unknown = aspectRatioInputSchema()) {
     return normaliseFalCatalog(
       sources([
         {
           row: modelRow("fal-ai/example-slow", "Example Slow"),
           price: price("fal-ai/example-slow", unit, 0.002),
-          schema: aspectRatioInputSchema(),
+          schema,
         },
       ]),
     ).models;
@@ -399,12 +400,54 @@ describe("excludeUnpriceableModels", () => {
     },
   );
 
-  it.each(["images", "generations", "megapixels", "processed megapixels"])(
-    "keeps a model priced by %s",
+  it.each(["images", "generations"])(
+    "keeps a model priced by %s, whoever picks the size",
     (unit) => {
       expect(excludeUnpriceableModels(normalise(unit)).models).toHaveLength(1);
+      expect(
+        excludeUnpriceableModels(normalise(unit, imageSizeInputSchema()))
+          .models,
+      ).toHaveLength(1);
     },
   );
+
+  it.each(["megapixels", "processed megapixels"])(
+    "keeps a model priced by %s only when the studio sets the dimensions",
+    (unit) => {
+      // The studio tells an `image_size` model exactly what to produce, so the
+      // area it bills is the area that was asked for.
+      expect(
+        excludeUnpriceableModels(normalise(unit, imageSizeInputSchema()))
+          .models,
+      ).toHaveLength(1);
+
+      // An `aspect_ratio` model returns whatever size it likes. Pricing the
+      // studio's guess undercharged `fal-ai/nucleus-image` by half on preview.
+      const { models, exclusions } = excludeUnpriceableModels(normalise(unit));
+      expect(models).toHaveLength(0);
+      expect(exclusions[0]!.reason).toMatch(/provider picks the output size/);
+    },
+  );
+
+  it("lets hand-verified per-tier figures rescue such a model", () => {
+    const [model] = normalise("megapixels");
+    expect(model!.resolutions).toEqual(["1K", "2K"]);
+    // Every tier the model offers needs a figure. A table covering only 1K leaves
+    // 2K unpriceable, and the model stays out — half a price is not a price.
+    expect(
+      excludeUnpriceableModels([
+        { ...model!, price: { ...model!.price, perImageUsd: { "1K": 0.02 } } },
+      ]).models,
+    ).toHaveLength(0);
+    expect(
+      excludeUnpriceableModels([
+        {
+          ...model!,
+          price: { ...model!.price, perImageUsd: { "1K": 0.02, "2K": 0.05 } },
+        },
+      ]).models,
+    ).toHaveLength(1);
+  });
 });
 
 describe("applyCatalogOverrides", () => {

@@ -5,7 +5,10 @@ import {
   ProjectImageJobKind,
   ProjectImageJobStatus,
 } from "@sokosumi/database";
-import { convertCreditsToCents } from "@sokosumi/utils";
+import {
+  convertCreditsToCents,
+  readImageDimensionsFromBytes,
+} from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
 import { HTTPException } from "hono/http-exception";
@@ -745,7 +748,11 @@ export async function reconcileJob(jobId: string): Promise<void> {
   //
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
-  await settleWithImage(job.id, result.images[0]!.url);
+  const produced = result.images[0]!;
+  await settleWithImage(job.id, produced.url, {
+    width: produced.width,
+    height: produced.height,
+  });
 }
 
 /**
@@ -965,6 +972,14 @@ export async function failImageJob(
 export async function settleWithImage(
   jobId: string,
   sourceUrl: string,
+  /**
+   * What the provider said the image measures, when it said anything.
+   *
+   * fal reports `width`/`height` for some endpoints and not others, and settlement
+   * used to take only the URL and throw these away — so even the endpoints that
+   * *did* report a size had it discarded, and every non-PNG stored 0x0.
+   */
+  providerSize?: { width: number | null; height: number | null },
 ): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
@@ -1084,7 +1099,23 @@ export async function settleWithImage(
     .createHash("sha256")
     .update(downloaded.bytes)
     .digest("hex");
-  const dimensions = readPngDimensions(downloaded.bytes);
+  // The provider first, because it knows without us guessing; then the image's own
+  // header, which is what covers the endpoints that report nothing. `recraft/v3`
+  // returns WebP with no dimensions and `luma-photon` reports none at all, and both
+  // stored 0x0 until this read the bytes.
+  const dimensions =
+    readProviderSize(providerSize) ??
+    readImageDimensionsFromBytes(downloaded.bytes);
+  if (!dimensions) {
+    // Not a failure: the column holds 0 and the client falls back to the rendered
+    // image's intrinsic size. Logged because a format nothing can read is worth
+    // knowing about.
+    console.warn("[image-studio] stored an image with no readable dimensions", {
+      jobId: job.id,
+      contentType: downloaded.contentType,
+      bytes: downloaded.bytes.byteLength,
+    });
+  }
 
   // Private, and into the studio's own store — `studioBlobToken`, never
   // `BLOB_READ_WRITE_TOKEN`. Vercel fixes public-or-private per store, and the
@@ -1750,20 +1781,21 @@ const PENDING_RECOVERY_AFTER_MS = 60_000;
 const PENDING_ABANDON_AFTER_MS = 30 * 60_000;
 
 /**
- * Minimal PNG header read, so a stored version knows its own size without
- * pulling in an image library. Returns null for anything else; the column then
- * holds 0 and the UI falls back to the intrinsic size of the rendered image.
+ * The provider's own figures, when they are usable.
+ *
+ * fal sends `null` for endpoints that do not report a size, and the shape allows
+ * anything, so this is where a half-reported size (a width with no height) is
+ * rejected rather than stored as `1024x0`.
  */
-export function readPngDimensions(
-  bytes: Uint8Array,
+function readProviderSize(
+  size: { width: number | null; height: number | null } | undefined,
 ): { width: number; height: number } | null {
-  if (bytes.byteLength < 24) return null;
-  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  for (let index = 0; index < signature.length; index += 1) {
-    if (bytes[index] !== signature[index]) return null;
-  }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return { width: view.getUint32(16), height: view.getUint32(20) };
+  if (!size) return null;
+  const { width, height } = size;
+  if (typeof width !== "number" || typeof height !== "number") return null;
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return null;
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
 }
 
-export { readSettings };
+export { readProviderSize, readSettings };
