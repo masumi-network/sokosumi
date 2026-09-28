@@ -125,11 +125,17 @@ kbd { padding: 1px 5px; border-radius: 4px; background: var(--quinary); border: 
       }
     }
     const h1 = document.querySelector(".pitch h1");
-    if (h1 && h1.getClientRects().length && h1.offsetHeight > 38 * 1.07 * 2 + 2) flagged.push(h1);
+    if (h1 && (h1.scrollWidth > h1.clientWidth + 1 || h1.offsetHeight > 38 * 1.07 * 2 + 2)) flagged.push(h1);
     const pitch = document.querySelector(".pitch");
     if (pitch && pitch.getBoundingClientRect().bottom > 576 - 32) flagged.push(pitch);
     for (const el of flagged) el.classList.add("overflowing");
-    document.title = `overflow:${flagged.length}`;
+    const ctx = document.createElement("canvas").getContext("2d");
+    const width = (family) => {
+      ctx.font = `700 40px ${family}`;
+      return ctx.measureText("mmmmmmmmmmlliWQ@").width;
+    };
+    const inter = width("Inter, monospace") !== width("monospace");
+    document.title = `overflow:${flagged.length} inter:${inter}`;
   });
 </script>
 </body>

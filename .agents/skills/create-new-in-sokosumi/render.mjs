@@ -2,6 +2,7 @@
 // Renders a "New in Sokosumi" content fragment into a 2048x1152 PNG.
 // Usage: node .agents/skills/create-new-in-sokosumi/render.mjs <content.html> <out.png>
 // Exit 2 means the image rendered but something overflows (outlined in red).
+// Exit 3 means the image rendered but could not be verified.
 
 import { spawn, spawnSync } from "node:child_process";
 import {
@@ -169,7 +170,7 @@ try {
     ["--dump-dom", url],
     (out) => out.includes("</html>"),
   );
-  const overflowing = Number(/<title>overflow:(\d+)<\/title>/.exec(dom)?.[1]);
+  const check = /<title>overflow:(\d+) inter:(true|false)<\/title>/.exec(dom);
 
   const log = await runChrome(
     chrome,
@@ -182,11 +183,17 @@ try {
   }
 
   console.log(`Rendered ${outPath}`);
-  if (Number.isNaN(overflowing)) {
-    console.error("Layout check did not run; review the image by eye.");
-  } else if (overflowing > 0) {
+  if (!check) {
+    console.error("The layout check did not run, so the image is unverified.");
+    process.exitCode = 3;
+  } else if (check[2] === "false") {
     console.error(
-      `${overflowing} element(s) overflow and are outlined in red. Shorten the copy or the mock, then render again.`,
+      "Inter did not load. Install Inter or allow fonts.googleapis.com, then render again.",
+    );
+    process.exitCode = 3;
+  } else if (Number(check[1]) > 0) {
+    console.error(
+      `${check[1]} element(s) overflow and are outlined in red. Shorten the copy or the mock, then render again.`,
     );
     process.exitCode = 2;
   }
