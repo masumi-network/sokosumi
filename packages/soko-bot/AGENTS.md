@@ -22,7 +22,7 @@ The live tree is `src/`. One main export in `package.json`. `prepare` compiles `
 | `versions/` | Version ids, skills, system-prompt composition |
 | `memory.ts`, `persona.ts`, `proactive.ts`, `judge.ts`, `scenarios.ts`, `integrations.ts` | Shared policy and admin-lab contracts |
 
-The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`, served by Core over `/v1/soko-bot-runtime`), or in Core for evaluation runs (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
+The loop runs in each bot's Vercel Sandbox (`apps/core/src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`apps/core/src/routes/v1/soko-bot-runtime`). Evaluation runs stay in-process (`apps/core/src/lib/soko-bot/in-process-runtime.ts`). There is no `apps/soko-bot`.
 
 ## Entry Points
 
