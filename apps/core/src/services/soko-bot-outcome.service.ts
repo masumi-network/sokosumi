@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import type { Prisma, SokoBotFulfillmentState } from "@sokosumi/database";
+import type {
+  Prisma,
+  SokoBotFulfillmentState,
+  SokoBotTurnRoute,
+} from "@sokosumi/database";
 import { z } from "zod";
 import {
   buildSokoBotAudienceTaskVisibilityWhere,
@@ -8,6 +12,7 @@ import {
 } from "@/helpers/task-visibility";
 
 import {
+  ACTION_CAPABILITIES,
   actionInputHash,
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
@@ -95,6 +100,7 @@ const criteriaSchema = z
 
 interface ReceiptEvidence {
   id: string;
+  turnId?: string;
   capability: string;
   targetId: string | null;
   inputHash?: string;
@@ -153,6 +159,102 @@ export function criteriaForConfirmedSokoBotAction(
   return criteriaSchema.parse(criteria);
 }
 
+/** A receipt only a committed local effect can produce; reads never qualify. */
+function provenActionReceipt(
+  receipt: ReceiptEvidence,
+  invalidatedAt?: Date,
+): boolean {
+  return (
+    receipt.status === "COMPLETED" &&
+    (receipt.disposition === "APPLIED" ||
+      receipt.disposition === "ALREADY_SATISFIED") &&
+    receipt.verification !== "NONE" &&
+    receipt.committedAt !== null &&
+    receipt.targetId !== null &&
+    (!invalidatedAt || receipt.committedAt > invalidatedAt)
+  );
+}
+
+/**
+ * Delegation hands the work to somebody else, so its receipt cannot prove the
+ * change a `MANAGE_WORK` turn was supposed to make itself; that work still
+ * needs independent verification.
+ */
+const DELEGATED_CAPABILITIES = new Set([
+  "create_task",
+  "hire_agent",
+  "provide_job_input",
+]);
+
+/**
+ * The action a `MANAGE_WORK` turn committed for the request it ran.
+ *
+ * Every action capability the turn attempted must end on a committed receipt:
+ * a preparatory write followed by the requested action failing does not prove
+ * the request happened, so nothing is returned. Retried attempts are fine
+ * because only each capability's last call counts. Receipts at or before the
+ * latest invalidation are ignored, so a replacement action has to commit after
+ * new evidence changed the outcome.
+ */
+function committedDirectAction(
+  turnId: string,
+  receipts: readonly ReceiptEvidence[],
+  invalidatedAt: Date | undefined,
+): ReceiptEvidence | null {
+  const attempts = receipts.filter(
+    (receipt) =>
+      receipt.turnId === turnId &&
+      ACTION_CAPABILITIES.has(receipt.capability) &&
+      !DELEGATED_CAPABILITIES.has(receipt.capability),
+  );
+  if (attempts.length === 0) return null;
+  const committed = (receipt: ReceiptEvidence) =>
+    provenActionReceipt(receipt, invalidatedAt);
+  const lastByCapability = new Map<string, ReceiptEvidence>();
+  for (const attempt of attempts)
+    lastByCapability.set(attempt.capability, attempt);
+  if (![...lastByCapability.values()].every(committed)) return null;
+  // The latest committed change is the closest thing to the requested one.
+  return [...attempts].reverse().find(committed) ?? null;
+}
+
+/**
+ * Rewrite the classifier's `requested-outcome` criterion into the action a
+ * `MANAGE_WORK` turn committed itself.
+ *
+ * The classifier builds the intent before the model picks a capability, so
+ * that criterion is an OUTCOME: on a delegation it stays open until the work
+ * is independently verified. `MANAGE_WORK` is different — the assistant makes
+ * the change, and its committed receipt is the proof. Without this rewrite the
+ * criterion can never be satisfied by a social post, chat message, file, or
+ * reminder, and settlement reports a completed action as blocked.
+ */
+function criteriaWithDirectActionProof(
+  route: SokoBotTurnRoute | null,
+  turnId: string,
+  criteria: Prisma.JsonValue,
+  receipts: readonly ReceiptEvidence[],
+  invalidatedAt: Date | undefined,
+) {
+  if (route !== "MANAGE_WORK") return criteria;
+  const parsed = criteriaSchema.safeParse(criteria);
+  const proof = committedDirectAction(turnId, receipts, invalidatedAt);
+  if (!parsed.success || !proof?.targetId) return criteria;
+  return criteriaSchema.parse(
+    parsed.data.map((criterion) =>
+      criterion.kind === "OUTCOME" && criterion.id === "requested-outcome"
+        ? {
+            kind: "ACTION",
+            id: criterion.id,
+            capability: proof.capability,
+            targetId: proof.targetId,
+            ...(proof.inputHash ? { inputHash: proof.inputHash } : {}),
+          }
+        : criterion,
+    ),
+  );
+}
+
 export function evaluateSokoBotOutcome(input: {
   criteria: unknown;
   receipts: readonly ReceiptEvidence[];
@@ -174,12 +276,7 @@ export function evaluateSokoBotOutcome(input: {
                 : item.targetId === criterion.targetId) &&
               (!criterion.inputHash ||
                 item.inputHash === criterion.inputHash) &&
-              item.status === "COMPLETED" &&
-              (item.disposition === "APPLIED" ||
-                item.disposition === "ALREADY_SATISFIED") &&
-              item.verification !== "NONE" &&
-              item.committedAt !== null &&
-              (!input.invalidatedAt || item.committedAt > input.invalidatedAt),
+              provenActionReceipt(item, input.invalidatedAt),
           )
         : undefined;
     return {
@@ -258,8 +355,56 @@ export async function assessSokoBotIntentOutcome(
   if (!turn?.intent || turn.intentRevision !== turn.intent.revision)
     return null;
   const intent = turn.intent;
-  const criteria = criteriaSchema.safeParse(intent.acceptanceCriteria);
   const targetIds = z.array(z.string()).safeParse(intent.targetIds);
+  const receipts = await tx.sokoBotToolCall.findMany({
+    where: {
+      actorBotId: turn.sokoBotId,
+      turn: {
+        intentId: intent.id,
+        intentRevision: intent.revision,
+        workspaceId: turn.workspaceId,
+        sokoBotId: turn.sokoBotId,
+      },
+    },
+    orderBy: { id: "asc" },
+    select: {
+      id: true,
+      turnId: true,
+      capability: true,
+      targetId: true,
+      inputHash: true,
+      status: true,
+      disposition: true,
+      verification: true,
+      committedAt: true,
+      effectEventId: true,
+    },
+  });
+  const invalidation = await tx.sokoBotIntentOutcome.findFirst({
+    where: {
+      intentId: intent.id,
+      intentRevision: intent.revision,
+      blockerKind: "EVIDENCE_CHANGED",
+      verifierVersion: "event-invalidation-v1",
+    },
+    orderBy: { assessedAt: "desc" },
+  });
+  const currentReceipts = [];
+  for (const receipt of receipts) {
+    if (
+      receipt.capability !== "archive_task" ||
+      (await verifyTaskArchiveReceipt(tx, receipt.id))
+    )
+      currentReceipts.push(receipt);
+  }
+  const assessmentCriteria = criteriaWithDirectActionProof(
+    turn.route,
+    turn.id,
+    intent.acceptanceCriteria,
+    currentReceipts,
+    invalidation?.assessedAt,
+  );
+  const criteria = criteriaSchema.safeParse(assessmentCriteria);
   const taskEvidence: TaskOutcomeEvidence[] = [];
   if (
     criteria.success &&
@@ -330,48 +475,8 @@ export async function assessSokoBotIntentOutcome(
       });
     }
   }
-  const receipts = await tx.sokoBotToolCall.findMany({
-    where: {
-      actorBotId: turn.sokoBotId,
-      turn: {
-        intentId: intent.id,
-        intentRevision: intent.revision,
-        workspaceId: turn.workspaceId,
-        sokoBotId: turn.sokoBotId,
-      },
-    },
-    orderBy: { id: "asc" },
-    select: {
-      id: true,
-      capability: true,
-      targetId: true,
-      inputHash: true,
-      status: true,
-      disposition: true,
-      verification: true,
-      committedAt: true,
-      effectEventId: true,
-    },
-  });
-  const invalidation = await tx.sokoBotIntentOutcome.findFirst({
-    where: {
-      intentId: intent.id,
-      intentRevision: intent.revision,
-      blockerKind: "EVIDENCE_CHANGED",
-      verifierVersion: "event-invalidation-v1",
-    },
-    orderBy: { assessedAt: "desc" },
-  });
-  const currentReceipts = [];
-  for (const receipt of receipts) {
-    if (
-      receipt.capability !== "archive_task" ||
-      (await verifyTaskArchiveReceipt(tx, receipt.id))
-    )
-      currentReceipts.push(receipt);
-  }
   const assessment = evaluateSokoBotOutcome({
-    criteria: intent.acceptanceCriteria,
+    criteria: assessmentCriteria,
     receipts: currentReceipts,
     intentState: intent.state,
     executionStatus: turn.status,
