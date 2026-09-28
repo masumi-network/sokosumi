@@ -7,7 +7,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
-import { enqueueFileIndexJob } from "@/lib/files/index-jobs";
+import { requeueFileIndexJob } from "@/lib/files/index-jobs";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { driveFileScopeSchema } from "@/schemas/drive-file.schema";
 import {
@@ -28,7 +28,17 @@ const querySchema = z.object({
 });
 
 const responseSchema = z.object({
+  /** True when this request made work runnable that was not already. */
   queued: z.boolean(),
+  /**
+   * Which of the two happened, so a caller is not left inferring it from
+   * a boolean.
+   *
+   * This route used to answer `{ queued: true }` unconditionally, and for
+   * a document whose extraction and labelling had both succeeded it had
+   * queued nothing at all — the case its own description names.
+   */
+  outcome: z.enum(["queued", "already-pending"]),
 });
 
 /** One manual retry per document per minute is plenty and bounds the cost. */
@@ -85,7 +95,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw tooManyRequests("This file was queued for processing a moment ago");
     }
 
-    await enqueueFileIndexJob({
+    /**
+     * A retry, not an enqueue.
+     *
+     * `enqueueFileIndexJob` computes its dedupe key from the resource,
+     * pipeline, content revision, scope version and generation. This
+     * route passed none of the last two, so it asked for the key the
+     * original job already had: the upsert matched it, changed nothing,
+     * and the requeue branch does not cover SUCCEEDED. A document with
+     * EXTRACT and SUGGEST both succeeded — exactly the document this
+     * route exists for — got a 200 and no work.
+     *
+     * `requeueFileIndexJob` mints a new generation instead, and leaves
+     * already-pending work alone rather than paying for it twice.
+     */
+    const requeued = await requeueFileIndexJob({
       resourceId: resource.id,
       pipeline: FileIndexJobPipeline.EXTRACT,
       contentRevision: resource.contentRevision,
@@ -105,8 +129,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
      * metered. Moving it earlier would turn one button into an unmetered
      * way to spend the provider budget.
      */
+    /**
+     * Unconditional, including when nothing new was queued.
+     *
+     * I had this behind `if (requeued.queued)` on the reasoning that
+     * nudging for already-pending work wasted a request. That was wrong
+     * twice over. A duplicate runner is a no-op by construction — the
+     * job lease sees to it, which `in-process-indexer.ts` says in as
+     * many words — so the guard bought nothing. And it broke the case
+     * this button exists for.
+     *
+     * The nudge is capped at five extraction jobs and twenty seconds,
+     * three and fifteen for suggestion, so it routinely returns with
+     * work still QUEUED. On a preview, where no cron runs, the only two
+     * drains in the repository are upload finalize and this route. So:
+     * upload ten files, the finalize nudges hit their caps, several jobs
+     * are left queued with nothing draining them, and a reader presses
+     * reindex on one of those documents. The guard would find it already
+     * QUEUED, skip the drain, and leave it stuck — the recovery button
+     * failing in exactly the state it is for, which is the sentence
+     * written about the bug this commit fixes.
+     *
+     * The cooldown above is the spend control, and it still is: one
+     * press per document per minute.
+     */
     nudgeFileIndexing();
 
-    return ok(c, responseSchema.parse({ queued: true }));
+    return ok(
+      c,
+      responseSchema.parse({
+        queued: requeued.queued,
+        outcome: requeued.queued ? "queued" : "already-pending",
+      }),
+    );
   });
 }

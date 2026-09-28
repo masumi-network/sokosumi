@@ -15,13 +15,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
-  enqueueFileIndexJobMock,
+  requeueFileIndexJobMock,
   nudgeFileIndexingMock,
   findFirstMock,
   loadEditableResourceMock,
   resolveFileRequestContextMock,
 } = vi.hoisted(() => ({
-  enqueueFileIndexJobMock: vi.fn(),
+  requeueFileIndexJobMock: vi.fn(),
   nudgeFileIndexingMock: vi.fn(),
   findFirstMock: vi.fn(),
   loadEditableResourceMock: vi.fn(),
@@ -29,7 +29,7 @@ const {
 }));
 
 vi.mock("@/lib/files/index-jobs", () => ({
-  enqueueFileIndexJob: enqueueFileIndexJobMock,
+  requeueFileIndexJob: requeueFileIndexJobMock,
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: nudgeFileIndexingMock,
@@ -75,7 +75,9 @@ async function reindex() {
 }
 
 beforeEach(() => {
-  enqueueFileIndexJobMock.mockReset().mockResolvedValue(undefined);
+  requeueFileIndexJobMock
+    .mockReset()
+    .mockResolvedValue({ jobId: "job_1", queued: true, generation: 2 });
   nudgeFileIndexingMock.mockReset();
   findFirstMock.mockReset().mockResolvedValue(null);
   loadEditableResourceMock.mockReset().mockResolvedValue({
@@ -111,7 +113,7 @@ describe("POST /{id}/reindex", () => {
     const response = await reindex();
 
     expect(response.status).toBe(200);
-    expect(enqueueFileIndexJobMock).toHaveBeenCalledTimes(1);
+    expect(requeueFileIndexJobMock).toHaveBeenCalledTimes(1);
     expect(nudgeFileIndexingMock).toHaveBeenCalledTimes(1);
   });
 
@@ -119,8 +121,9 @@ describe("POST /{id}/reindex", () => {
     // Nudging first would race the job it is meant to pick up: the
     // drain could lease nothing and return before the row exists.
     const order: string[] = [];
-    enqueueFileIndexJobMock.mockImplementation(async () => {
-      order.push("enqueue");
+    requeueFileIndexJobMock.mockImplementation(async () => {
+      order.push("requeue");
+      return { jobId: "job_1", queued: true, generation: 2 };
     });
     nudgeFileIndexingMock.mockImplementation(() => {
       order.push("nudge");
@@ -128,7 +131,52 @@ describe("POST /{id}/reindex", () => {
 
     await reindex();
 
-    expect(order).toEqual(["enqueue", "nudge"]);
+    expect(order).toEqual(["requeue", "nudge"]);
+  });
+
+  it("says it queued, and says so only when it did", async () => {
+    /**
+     * The route answered `{ queued: true }` unconditionally. For a
+     * document whose extraction and labelling had both succeeded — the
+     * case this route exists for — it had queued nothing at all.
+     */
+    const response = await reindex();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { queued: true, outcome: "queued" },
+    });
+  });
+
+  it("reports already-pending without claiming it queued anything", async () => {
+    // Pressing the button twice must not read as two pieces of queued
+    // work, and must not spend a second drain on a queue another runner
+    // already holds.
+    requeueFileIndexJobMock.mockResolvedValue({
+      jobId: "job_1",
+      queued: false,
+      generation: 2,
+    });
+
+    const response = await reindex();
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: { queued: false, outcome: "already-pending" },
+    });
+    /**
+     * Drained anyway, and this is the assertion that matters.
+     *
+     * Skipping the nudge here looks like a saving and is a
+     * regression. The nudge is capped, so it routinely leaves work
+     * QUEUED, and on a preview there is no cron — upload finalize
+     * and this route are the only drains that exist. A document left
+     * queued by a capped upload nudge is exactly what someone
+     * presses reindex for, and a guard on `queued` would decline to
+     * drain it. A duplicate runner is a no-op by construction, so
+     * there was nothing to save.
+     */
+    expect(nudgeFileIndexingMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not drain when the cooldown refuses the request", async () => {
@@ -142,7 +190,7 @@ describe("POST /{id}/reindex", () => {
     const response = await reindex();
 
     expect(response.status).toBe(429);
-    expect(enqueueFileIndexJobMock).not.toHaveBeenCalled();
+    expect(requeueFileIndexJobMock).not.toHaveBeenCalled();
     expect(nudgeFileIndexingMock).not.toHaveBeenCalled();
   });
 

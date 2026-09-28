@@ -25145,6 +25145,7 @@ export type PostDriveResourcesByIdReindexResponses = {
     200: {
         data: {
             queued: boolean;
+            outcome: 'queued' | 'already-pending';
         };
         meta: {
             timestamp: Date;

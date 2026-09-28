@@ -315,6 +315,18 @@ export async function runExtractionJob(
       resourceId: resource.id,
       pipeline: FileIndexJobPipeline.SUGGEST,
       contentRevision: job.contentRevision,
+      /**
+       * Carried from the extraction job, not defaulted.
+       *
+       * Without this a retry died halfway. `requeueFileIndexJob` mints a
+       * new generation so the EXTRACT job has a fresh identity, but this
+       * enqueue passed none and so asked for generation 1 — the key the
+       * original SUGGEST already holds at SUCCEEDED, which the upsert
+       * matches and leaves untouched. The document would be re-extracted
+       * and never re-labelled, which is most of what "the labels came
+       * out wrong" means.
+       */
+      desiredGeneration: job.desiredGeneration,
     });
   }
 

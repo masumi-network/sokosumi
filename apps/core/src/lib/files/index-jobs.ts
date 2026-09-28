@@ -74,8 +74,22 @@ export async function enqueueFileIndexJob(
       desiredGeneration,
       runAfter: input.runAfter ?? new Date(),
     },
-    // Re-enqueueing a settled job is an explicit retry: same identity, new
-    // attempt. An in-flight job is left alone so a lease is never stolen.
+    /**
+     * Nothing. Deliberately, and the comment that used to sit here said
+     * the opposite: "re-enqueueing a settled job is an explicit retry:
+     * same identity, new attempt". It is not, and SUCCEEDED is settled.
+     *
+     * An identical key finds the existing row and changes nothing; only
+     * the FAILED and CANCELLED branch below moves a row back to QUEUED.
+     * A SUCCEEDED job falls through untouched, which is correct here —
+     * upload and the cron both enqueue through this function, and
+     * automatically re-running finished work is provider spend nobody
+     * asked for.
+     *
+     * An explicit retry needs a new identity, not a new attempt at the
+     * old one. That is `requeueFileIndexJob` below, and it is the only
+     * caller that should bump a generation.
+     */
     update: {},
     select: { id: true, state: true },
   });
@@ -95,6 +109,96 @@ export async function enqueueFileIndexJob(
   }
 
   return job.id;
+}
+
+export interface RequeueOutcome {
+  jobId: string;
+  /**
+   * True when this call made work runnable that was not runnable before.
+   *
+   * The caller has to be able to tell the difference. `POST .../reindex`
+   * returned 200 `{ queued: true }` for a document whose EXTRACT and
+   * SUGGEST had both SUCCEEDED, having queued nothing at all — the same
+   * quiet lie this feature has produced repeatedly, in the one place
+   * whose whole purpose is recovery.
+   */
+  queued: boolean;
+  generation: number;
+}
+
+/**
+ * Queue a fresh attempt at work that has already finished.
+ *
+ * `enqueueFileIndexJob` cannot do this and should not learn how. Its
+ * dedupe key is built from the resource, pipeline, content revision,
+ * scope version and generation, and the route passed none of the last
+ * two — so an explicit retry computed the key the original job already
+ * had, the upsert matched it, `update: {}` changed nothing, and the
+ * FAILED/CANCELLED requeue did not apply to a SUCCEEDED row. Reproduced
+ * against a real database: two job rows before, two after, neither
+ * leasable.
+ *
+ * Making `enqueueFileIndexJob` requeue SUCCEEDED for everyone would fix
+ * it in the wrong place. Upload and the cron enqueue through the same
+ * function, and re-running settled work automatically is provider spend
+ * nobody asked for. So the new identity is minted here, on the side
+ * where a person pressed a button.
+ *
+ * Already-pending work is left alone rather than duplicated. A QUEUED or
+ * LEASED job at any generation means the thing the caller wants is
+ * going to happen, and a second row would be a second paid evaluation
+ * for one request.
+ */
+export async function requeueFileIndexJob(
+  input: {
+    resourceId: string;
+    pipeline: FileIndexJobPipeline;
+    contentRevision: number;
+    requiredScopeVersion?: number;
+    runAfter?: Date;
+  },
+  client: Prisma.TransactionClient = prisma,
+): Promise<RequeueOutcome> {
+  const requiredScopeVersion = input.requiredScopeVersion ?? 1;
+
+  const existing = await client.fileIndexJob.findMany({
+    where: {
+      resourceId: input.resourceId,
+      pipeline: input.pipeline,
+      contentRevision: input.contentRevision,
+      requiredScopeVersion,
+    },
+    select: { id: true, state: true, desiredGeneration: true },
+    orderBy: { desiredGeneration: "desc" },
+  });
+
+  const pending = existing.find(
+    (job) =>
+      job.state === FileIndexJobState.QUEUED ||
+      job.state === FileIndexJobState.LEASED,
+  );
+  if (pending) {
+    return {
+      jobId: pending.id,
+      queued: false,
+      generation: pending.desiredGeneration,
+    };
+  }
+
+  const generation = (existing[0]?.desiredGeneration ?? 0) + 1;
+  const jobId = await enqueueFileIndexJob(
+    {
+      resourceId: input.resourceId,
+      pipeline: input.pipeline,
+      contentRevision: input.contentRevision,
+      requiredScopeVersion,
+      desiredGeneration: generation,
+      runAfter: input.runAfter,
+    },
+    client,
+  );
+
+  return { jobId, queued: true, generation };
 }
 
 export interface LeasedFileIndexJob {
