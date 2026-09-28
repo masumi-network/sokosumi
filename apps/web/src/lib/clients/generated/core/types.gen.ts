@@ -4045,168 +4045,271 @@ export type ReleaseExportLeaseBody = {
     token: string;
 };
 
-export type HistoryList = Array<HistoryItem>;
+export type TransactionHistoryList = Array<TransactionHistoryItem>;
 
-export type HistoryItem = ({
-    kind: 'task';
-} & HistoryTaskItem) | ({
+export type TransactionHistoryItem = ({
     kind: 'job';
-} & HistoryJobItem) | ({
+} & TransactionHistoryJobItem) | ({
     kind: 'image';
-} & HistoryImageItem);
-
-export type HistoryTaskItem = {
-    /**
-     * Source entity ID for this history row
-     */
-    id: string;
-    /**
-     * Display title for the history row
-     */
-    title: string;
-    /**
-     * Short subtitle or description for the history row
-     */
-    description: string | null;
-    /**
-     * Source entity updatedAt timestamp used for feed ordering
-     */
-    updatedAt: Date;
-    /**
-     * Source entity archivedAt timestamp. Null means the row is navigable.
-     */
-    archivedAt: Date | null;
-    /**
-     * User-facing credits. Null means credits do not apply to this item.
-     */
-    credits: number | null;
-    /**
-     * Owner of the history item. Null when the user is deleted or could not be resolved.
-     */
-    owner: HistoryOwner | null;
+} & TransactionHistoryImageItem) | ({
     kind: 'task';
-    status: TaskStatus;
-    /**
-     * Project ID for the task, when assigned
-     */
-    projectId: string | null;
-    /**
-     * Coworker ID associated with the task, when assigned
-     */
-    coworkerId: string | null;
-    /**
-     * Soko Bot ID associated with the task, when assigned
-     */
-    sokoBotId: string | null;
-};
+} & TransactionHistoryTaskItem) | ({
+    kind: 'coworker';
+} & TransactionHistoryCoworkerItem) | ({
+    kind: 'sokoBot';
+} & TransactionHistorySokoBotItem) | ({
+    kind: 'unattributed';
+} & TransactionHistoryUnattributedItem);
 
-export type HistoryOwner = {
+export type TransactionHistoryJobItem = {
     /**
-     * User ID of the history item owner
-     */
-    userId: string;
-    /**
-     * Display name of the owner
-     */
-    name: string;
-    /**
-     * Profile image URL of the owner. Null when no image is set.
-     */
-    image: string | null;
-};
-
-export type HistoryJobItem = {
-    /**
-     * Source entity ID for this history row
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
      */
     id: string;
     /**
-     * Display title for the history row
+     * Display label for what the credits were spent on
      */
     title: string;
     /**
-     * Short subtitle or description for the history row
+     * Secondary detail about the consumption, when one is known
      */
     description: string | null;
     /**
-     * Source entity updatedAt timestamp used for feed ordering
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
      */
-    updatedAt: Date;
+    credits: number;
     /**
-     * Source entity archivedAt timestamp. Null means the row is navigable.
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
      */
-    archivedAt: Date | null;
+    consumedAt: Date;
     /**
-     * User-facing credits. Null means credits do not apply to this item.
-     */
-    credits: number | null;
-    /**
-     * Owner of the history item. Null when the user is deleted or could not be resolved.
-     */
-    owner: HistoryOwner | null;
-    kind: 'job';
-    status: SokosumiJobStatus & unknown;
-    /**
-     * Project ID for the job, when assigned
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
      */
     projectId: string | null;
     /**
-     * Agent ID for deep-linking to the job
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
      */
-    agentId: string;
+    owner: TransactionHistoryOwner | null;
+    kind: 'job';
     /**
-     * Resolved display name of the job's agent (override name when set). Null when the agent could not be resolved.
+     * Job that consumed the credits
+     */
+    jobId: string;
+    /**
+     * Agent that ran the job, for deep-linking
+     */
+    agentId: string | null;
+    /**
+     * Resolved display name of the agent
      */
     agentName: string | null;
     /**
-     * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
+     * Resolved icon URL for the agent
      */
     agentIcon: string | null;
 };
 
-export type HistoryImageItem = {
+export type TransactionHistoryOwner = {
     /**
-     * Source entity ID for this history row
+     * User the credits were taken from
+     */
+    userId: string;
+    /**
+     * Display name of the user
+     */
+    name: string;
+    /**
+     * Profile image URL. Null when no image is set.
+     */
+    image: string | null;
+};
+
+export type TransactionHistoryImageItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
      */
     id: string;
     /**
-     * Display title for the history row
+     * Display label for what the credits were spent on
      */
     title: string;
     /**
-     * Short subtitle or description for the history row
+     * Secondary detail about the consumption, when one is known
      */
     description: string | null;
     /**
-     * Source entity updatedAt timestamp used for feed ordering
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
      */
-    updatedAt: Date;
+    credits: number;
     /**
-     * Source entity archivedAt timestamp. Null means the row is navigable.
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
      */
-    archivedAt: Date | null;
+    consumedAt: Date;
     /**
-     * User-facing credits. Null means credits do not apply to this item.
-     */
-    credits: number | null;
-    /**
-     * Owner of the history item. Null when the user is deleted or could not be resolved.
-     */
-    owner: HistoryOwner | null;
-    kind: 'image';
-    status: 'active';
-    /**
-     * Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.
-     */
-    assetId: string;
-    /**
-     * Project the image was generated in
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
      */
     projectId: string | null;
     /**
-     * Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'image';
+    /**
+     * Image studio generation that consumed the credits
+     */
+    imageJobId: string;
+    /**
+     * Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
      */
     modelLabel: string;
+};
+
+export type TransactionHistoryTaskItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
+     */
+    id: string;
+    /**
+     * Display label for what the credits were spent on
+     */
+    title: string;
+    /**
+     * Secondary detail about the consumption, when one is known
+     */
+    description: string | null;
+    /**
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
+     */
+    credits: number;
+    /**
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
+     */
+    consumedAt: Date;
+    /**
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
+     */
+    projectId: string | null;
+    /**
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'task';
+    /**
+     * Task whose event consumed the credits
+     */
+    taskId: string;
+    /**
+     * Task event that carries the charge
+     */
+    taskEventId: string;
+};
+
+export type TransactionHistoryCoworkerItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
+     */
+    id: string;
+    /**
+     * Display label for what the credits were spent on
+     */
+    title: string;
+    /**
+     * Secondary detail about the consumption, when one is known
+     */
+    description: string | null;
+    /**
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
+     */
+    credits: number;
+    /**
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
+     */
+    consumedAt: Date;
+    /**
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
+     */
+    projectId: string | null;
+    /**
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'coworker';
+    /**
+     * Coworker whose usage consumed the credits
+     */
+    coworkerId: string;
+};
+
+export type TransactionHistorySokoBotItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
+     */
+    id: string;
+    /**
+     * Display label for what the credits were spent on
+     */
+    title: string;
+    /**
+     * Secondary detail about the consumption, when one is known
+     */
+    description: string | null;
+    /**
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
+     */
+    credits: number;
+    /**
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
+     */
+    consumedAt: Date;
+    /**
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
+     */
+    projectId: string | null;
+    /**
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'sokoBot';
+    /**
+     * Soko Bot whose usage consumed the credits
+     */
+    sokoBotId: string;
+};
+
+export type TransactionHistoryUnattributedItem = {
+    /**
+     * Transaction ID. This is the ledger row's own ID and the pagination cursor.
+     */
+    id: string;
+    /**
+     * Display label for what the credits were spent on
+     */
+    title: string;
+    /**
+     * Secondary detail about the consumption, when one is known
+     */
+    description: string | null;
+    /**
+     * Credits taken from the account, always positive. Derived from the negative ledger amount.
+     */
+    credits: number;
+    /**
+     * When the credits were taken (`Transaction.createdAt`). The list sorts by this field.
+     */
+    consumedAt: Date;
+    /**
+     * Project the consumption belongs to. Null for sources that are not project-scoped.
+     */
+    projectId: string | null;
+    /**
+     * User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.
+     */
+    owner: TransactionHistoryOwner | null;
+    kind: 'unattributed';
+    /**
+     * Credit bucket the spend drew from, when a consumption row records one. Null when nothing about the source is known.
+     */
+    bucketSource: string | null;
 };
 
 export type ProjectImageStudioCatalog = {
@@ -5272,6 +5375,168 @@ export type ProjectNeedsAttention = {
      * Mixed tasks+jobs that need attention, already ranked, length 0..5. Never padded with excluded statuses.
      */
     items: Array<HistoryItem>;
+};
+
+export type HistoryItem = ({
+    kind: 'task';
+} & HistoryTaskItem) | ({
+    kind: 'job';
+} & HistoryJobItem) | ({
+    kind: 'image';
+} & HistoryImageItem);
+
+export type HistoryTaskItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'task';
+    status: TaskStatus;
+    /**
+     * Project ID for the task, when assigned
+     */
+    projectId: string | null;
+    /**
+     * Coworker ID associated with the task, when assigned
+     */
+    coworkerId: string | null;
+    /**
+     * Soko Bot ID associated with the task, when assigned
+     */
+    sokoBotId: string | null;
+};
+
+export type HistoryOwner = {
+    /**
+     * User ID of the history item owner
+     */
+    userId: string;
+    /**
+     * Display name of the owner
+     */
+    name: string;
+    /**
+     * Profile image URL of the owner. Null when no image is set.
+     */
+    image: string | null;
+};
+
+export type HistoryJobItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'job';
+    status: SokosumiJobStatus & unknown;
+    /**
+     * Project ID for the job, when assigned
+     */
+    projectId: string | null;
+    /**
+     * Agent ID for deep-linking to the job
+     */
+    agentId: string;
+    /**
+     * Resolved display name of the job's agent (override name when set). Null when the agent could not be resolved.
+     */
+    agentName: string | null;
+    /**
+     * Resolved icon URL for the job's agent. Null when the agent has no valid icon or could not be resolved.
+     */
+    agentIcon: string | null;
+};
+
+export type HistoryImageItem = {
+    /**
+     * Source entity ID for this history row
+     */
+    id: string;
+    /**
+     * Display title for the history row
+     */
+    title: string;
+    /**
+     * Short subtitle or description for the history row
+     */
+    description: string | null;
+    /**
+     * Source entity updatedAt timestamp used for feed ordering
+     */
+    updatedAt: Date;
+    /**
+     * Source entity archivedAt timestamp. Null means the row is navigable.
+     */
+    archivedAt: Date | null;
+    /**
+     * User-facing credits. Null means credits do not apply to this item.
+     */
+    credits: number | null;
+    /**
+     * Owner of the history item. Null when the user is deleted or could not be resolved.
+     */
+    owner: HistoryOwner | null;
+    kind: 'image';
+    status: 'active';
+    /**
+     * Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.
+     */
+    assetId: string;
+    /**
+     * Project the image was generated in
+     */
+    projectId: string | null;
+    /**
+     * Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.
+     */
+    modelLabel: string;
 };
 
 export type ProjectStar = {
@@ -27819,25 +28084,21 @@ export type GetHistoryData = {
     path?: never;
     query?: {
         /**
-         * Filter task and job history rows by project ID. Use 'null' for unassigned rows.
+         * Filter consumptions by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot and unattributed row.
          */
         projectId?: string | 'null';
         /**
-         * Case-insensitive search across history title and description
+         * Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments and image prompts.
          */
         q?: string;
         /**
-         * Workspace visibility scope for task and job rows.
+         * owned: only consumptions charged to the calling user. workspace: every consumption in the active workspace, including organization-level ones with no user.
          */
         scope?: 'workspace' | 'owned';
         /**
-         * Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.
+         * Comma-separated consumption sources to include: job, image, task, coworker, sokoBot, unattributed. `unattributed` are ledger rows with no entity relation at all.
          */
-        status?: Array<string>;
-        /**
-         * Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.
-         */
-        types?: Array<'task' | 'job' | 'image'>;
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'unattributed'>;
         /**
          * Cursor for pagination (ID of the last item from previous page)
          */
@@ -27917,10 +28178,10 @@ export type GetHistoryError = GetHistoryErrors[keyof GetHistoryErrors];
 
 export type GetHistoryResponses = {
     /**
-     * Retrieve history feed items
+     * Retrieve credit consumptions
      */
     200: {
-        data: HistoryList;
+        data: TransactionHistoryList;
         meta: {
             timestamp: Date;
             requestId: string;

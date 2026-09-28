@@ -25,17 +25,9 @@ vi.mock("@/components/agents/agent-icon", () => ({
   AgentIcon: () => <span data-testid="agent-icon" />,
 }));
 
-vi.mock("@/app/tasks/components/task-status-badge", () => ({
-  TaskStatusBadge: () => <span data-testid="task-status-badge" />,
-}));
-
-vi.mock("@/components/jobs/job-status-badge", () => ({
-  JobStatusBadge: () => <span data-testid="job-status-badge" />,
-}));
-
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
-    formatTimeAgo: (date: string | Date) =>
+    formatDateWithYear: (date: string | Date) =>
       new Date(date).toISOString().split("T")[0],
   }),
 }));
@@ -45,54 +37,50 @@ import {
   HISTORY_SEARCH_DEBOUNCE_MS,
   HISTORY_SEARCH_PAGE_SIZE,
 } from "@/app/components/use-history-search-corpus";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
+import type { TransactionHistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const labels = {
-  dialogTitle: "Search history",
-  dialogDescription: "Search across tasks and jobs",
-  searchPlaceholder: "Search history...",
-  empty: "No history found",
-  loading: "Loading history...",
-  error: "Failed to load history",
-  updated: "Updated",
+  dialogTitle: "Search transactions",
+  dialogDescription: "Search your credit consumptions",
+  searchPlaceholder: "Search transactions...",
+  empty: "No transactions found",
+  loading: "Loading transactions...",
+  error: "Failed to load transactions",
+  consumed: "Consumed",
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
 };
 
-function createTaskItem(id: string, title: string): HistoryItem {
+function createTaskItem(id: string, title: string): TransactionHistoryItem {
   return {
     id,
     kind: "task",
     title,
-    status: "DRAFT",
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    archivedAt: null,
+    consumedAt: new Date("2026-01-01T00:00:00.000Z"),
     description: null,
-    credits: null,
+    credits: 2,
     projectId: null,
-    coworkerId: null,
-    sokoBotId: null,
     owner: null,
+    taskId: `task-for-${id}`,
+    taskEventId: `event-for-${id}`,
   };
 }
 
-function createImageItem(id: string, title: string): HistoryItem {
+function createUnattributedItem(
+  id: string,
+  title: string,
+): TransactionHistoryItem {
   return {
     id,
-    assetId: id,
-    kind: "image",
+    kind: "unattributed",
     title,
-    // The literal Core sends. An image has no lifecycle of its own, and
-    // `JobStatusBadge` has no case for this value.
-    status: "active",
-    updatedAt: new Date("2026-09-27T00:00:00.000Z"),
-    archivedAt: null,
-    description: "fal-ai/flux-2-pro \u00b7 3 credits",
+    consumedAt: new Date("2026-09-27T00:00:00.000Z"),
+    description: null,
     credits: 3,
-    projectId: "project-7",
-    modelLabel: "FLUX.2 Pro",
+    projectId: null,
     owner: null,
+    bucketSource: null,
   };
 }
 
@@ -141,7 +129,7 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job", "image"],
+        types: ["job", "image", "task", "coworker", "sokoBot", "unattributed"],
       });
     });
   });
@@ -161,18 +149,20 @@ describe("HistorySearchDialog", () => {
         q: undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job", "image"],
+        types: ["job", "image", "task", "coworker", "sokoBot", "unattributed"],
       });
     });
   });
 
   it("clears stale results while a new search is loading", async () => {
     let resolveSecondRequest:
-      | ((value: { data: HistoryItem[] }) => void)
+      | ((value: { data: TransactionHistoryItem[] }) => void)
       | undefined;
-    const secondRequest = new Promise<{ data: HistoryItem[] }>((resolve) => {
-      resolveSecondRequest = resolve;
-    });
+    const secondRequest = new Promise<{ data: TransactionHistoryItem[] }>(
+      (resolve) => {
+        resolveSecondRequest = resolve;
+      },
+    );
 
     getHistoryMock
       .mockResolvedValueOnce({
@@ -197,14 +187,17 @@ describe("HistorySearchDialog", () => {
       expect(screen.getByText("Old query result")).toBeInTheDocument();
     });
 
-    await user.type(screen.getByPlaceholderText("Search history..."), "new");
+    await user.type(
+      screen.getByPlaceholderText("Search transactions..."),
+      "new",
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
     });
 
     expect(screen.queryByText("Old query result")).not.toBeInTheDocument();
-    expect(screen.getByText("Loading history...")).toBeInTheDocument();
+    expect(screen.getByText("Loading transactions...")).toBeInTheDocument();
 
     await act(async () => {
       resolveSecondRequest?.({
@@ -218,7 +211,7 @@ describe("HistorySearchDialog", () => {
     });
   });
 
-  it("passes every history kind when searching", async () => {
+  it("passes every consumption source when searching", async () => {
     const user = userEvent.setup({
       advanceTimers: vi.advanceTimersByTime.bind(vi),
     });
@@ -232,7 +225,10 @@ describe("HistorySearchDialog", () => {
       />,
     );
 
-    await user.type(screen.getByPlaceholderText("Search history..."), "new");
+    await user.type(
+      screen.getByPlaceholderText("Search transactions..."),
+      "new",
+    );
 
     await act(async () => {
       vi.advanceTimersByTime(HISTORY_SEARCH_DEBOUNCE_MS);
@@ -243,21 +239,17 @@ describe("HistorySearchDialog", () => {
         q: "new",
         limit: HISTORY_SEARCH_PAGE_SIZE,
         scope: "owned",
-        types: ["task", "job", "image"],
+        types: ["job", "image", "task", "coworker", "sokoBot", "unattributed"],
       });
     });
   });
 
-  /**
-   * The palette had its own copy of the status decision.
-   *
-   * `history-list-item.tsx` got the image branch and this one did not, so every
-   * generated image in the palette rendered a badge reading "Unknown" — the
-   * label `JobStatusBadge` falls back to for a status it has no case for.
-   */
-  it("shows no status badge on an image result", async () => {
+  it("does not navigate for a consumption with no page behind it", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
     getHistoryMock.mockImplementation(async () => ({
-      data: [createImageItem("asset-9", "A calm product shot")],
+      data: [createUnattributedItem("tx-9", "Credit consumption")],
     }));
 
     renderWithQuery(
@@ -269,25 +261,17 @@ describe("HistorySearchDialog", () => {
       />,
     );
 
-    expect(await screen.findByText("A calm product shot")).toBeInTheDocument();
-    expect(screen.queryByTestId("job-status-badge")).toBeNull();
-    expect(screen.queryByTestId("task-status-badge")).toBeNull();
+    await user.click(await screen.findByText("Credit consumption"));
+
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
-  it("still badges a job result", async () => {
-    // The guard for the guard: returning null for everything would also make
-    // the assertion above pass.
+  it("navigates to the page behind a task consumption", async () => {
+    const user = userEvent.setup({
+      advanceTimers: vi.advanceTimersByTime.bind(vi),
+    });
     getHistoryMock.mockImplementation(async () => ({
-      data: [
-        {
-          ...createTaskItem("job-1", "Analyze data"),
-          kind: "job" as const,
-          status: "completed",
-          agentId: "agent-1",
-          agentName: null,
-          agentIcon: null,
-        } as unknown as HistoryItem,
-      ],
+      data: [createTaskItem("tx-10", "Summarise the report")],
     }));
 
     renderWithQuery(
@@ -299,7 +283,8 @@ describe("HistorySearchDialog", () => {
       />,
     );
 
-    expect(await screen.findByText("Analyze data")).toBeInTheDocument();
-    expect(screen.getByTestId("job-status-badge")).toBeInTheDocument();
+    await user.click(await screen.findByText("Summarise the report"));
+
+    expect(pushMock).toHaveBeenCalledWith("/tasks/task-for-tx-10");
   });
 });

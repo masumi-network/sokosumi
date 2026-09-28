@@ -13,16 +13,15 @@ vi.mock("@/lib/clients/core.client", () => ({
 function buildHistoryItem() {
   return {
     kind: "task" as const,
-    id: "task-1",
+    id: "tx-1",
     title: "Test task",
     description: null,
-    status: "READY" as const,
-    updatedAt: new Date("2026-02-19T10:00:00.000Z"),
-    archivedAt: null,
+    consumedAt: new Date("2026-02-19T10:00:00.000Z"),
     credits: 2,
     projectId: null,
-    coworkerId: null,
     owner: null,
+    taskId: "task-1",
+    taskEventId: "event-1",
   };
 }
 
@@ -52,7 +51,6 @@ describe("history.service", () => {
       projectId: "null",
       q: "onboarding",
       scope: "workspace",
-      status: ["READY", "completed"],
       types: ["task", "job"],
     });
 
@@ -62,7 +60,6 @@ describe("history.service", () => {
       projectId: "null",
       q: "onboarding",
       scope: "workspace",
-      status: ["READY", "completed"],
       types: ["task", "job"],
     });
     expect(result).toEqual({
@@ -76,12 +73,12 @@ describe("history.service", () => {
     });
   });
 
-  it("converts ISO string updatedAt values from core into Date objects", async () => {
+  it("converts ISO string consumedAt values from core into Date objects", async () => {
     coreClientMock.getHistory.mockResolvedValue({
       data: [
         {
           ...buildHistoryItem(),
-          updatedAt: "2026-02-19T10:00:00.000Z",
+          consumedAt: "2026-02-19T10:00:00.000Z",
         },
       ],
     });
@@ -89,26 +86,8 @@ describe("history.service", () => {
     const { historyService } = await import("./history.service");
     const result = await historyService.listHistory();
 
-    expect(result.history[0]?.updatedAt).toEqual(
+    expect(result.history[0]?.consumedAt).toEqual(
       new Date("2026-02-19T10:00:00.000Z"),
-    );
-  });
-
-  it("converts ISO string archivedAt values from core into Date objects", async () => {
-    coreClientMock.getHistory.mockResolvedValue({
-      data: [
-        {
-          ...buildHistoryItem(),
-          archivedAt: "2026-02-20T10:00:00.000Z",
-        },
-      ],
-    });
-
-    const { historyService } = await import("./history.service");
-    const result = await historyService.listHistory();
-
-    expect(result.history[0]?.archivedAt).toEqual(
-      new Date("2026-02-20T10:00:00.000Z"),
     );
   });
 
@@ -131,7 +110,6 @@ describe("history.service", () => {
       projectId: undefined,
       q: undefined,
       scope: undefined,
-      status: undefined,
       types: ["task", "job"],
     });
     expect(result).toEqual({

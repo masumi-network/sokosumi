@@ -2,7 +2,6 @@
 
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import {
@@ -21,7 +20,7 @@ import {
 } from "@/components/ui/command";
 import type {
   FileResource,
-  HistoryItem,
+  TransactionHistoryItem,
 } from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -32,7 +31,7 @@ interface HistorySearchDialogLabels {
   empty: string;
   loading: string;
   error: string;
-  updated: string;
+  consumed: string;
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
@@ -52,7 +51,7 @@ export function HistorySearchDialog({
   activeOrganizationId,
 }: HistorySearchDialogProps) {
   const router = useRouter();
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
   const { query, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
@@ -88,12 +87,16 @@ export function HistorySearchDialog({
     );
   }
 
-  function handleSelect(item: HistoryItem) {
+  function handleSelect(item: TransactionHistoryItem) {
     const href = getHistoryItemHref(item);
     // Use the same close path as the dialog itself so we reset state
     // and ignore any in-flight history requests.
     handleOpenChange(false);
-    router.push(href);
+    // Coworker, Soko Bot and unattributed consumptions have no page behind
+    // them, so selecting one just closes the dialog.
+    if (href) {
+      router.push(href);
+    }
   }
 
   return (
@@ -139,9 +142,9 @@ export function HistorySearchDialog({
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{item.title}</span>
                   <HistoryMetaTime
-                    updatedAt={item.updatedAt}
-                    formatTimeAgo={formatTimeAgo}
-                    updatedLabel={labels.updated}
+                    consumedAt={item.consumedAt}
+                    formatShortDate={formatDateWithYear}
+                    consumedLabel={labels.consumed}
                     className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
                   />
                 </div>
@@ -152,7 +155,6 @@ export function HistorySearchDialog({
                       className="hidden sm:inline-flex"
                     />
                   )}
-                  <HistorySearchItemStatus item={item} />
                 </div>
               </CommandItem>
             ))}

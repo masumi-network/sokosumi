@@ -9,11 +9,7 @@ import {
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { HistoryItem } from "@/lib/services/history.service";
-import type { SokosumiJobStatus } from "@/lib/types/core-dto";
+import type { TransactionHistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -21,19 +17,20 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 export interface HistoryListItemLabels {
   credit: string;
   credits: string;
-  creditsUnavailable: string;
   noDescription: string;
-  updated: string;
+  consumed: string;
   kind: {
-    task: string;
     job: string;
     image: string;
+    task: string;
+    coworker: string;
+    sokoBot: string;
+    unattributed: string;
   };
-  taskStatus: Record<TaskStatus, string>;
 }
 
 interface HistoryListItemProps {
-  item: HistoryItem;
+  item: TransactionHistoryItem;
   labels: HistoryListItemLabels;
   activeOrganizationId: string | null;
 }
@@ -43,37 +40,38 @@ export function HistoryListItem({
   labels,
   activeOrganizationId,
 }: HistoryListItemProps) {
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const { formatDateWithYear } = useLocalizedDateTime();
   const formatter = useFormatter();
   const description = getHistoryRowSubtitle(item, labels);
   const credits = formatHistoryCredits(item.credits, labels, formatter.number);
+  const href = getHistoryItemHref(item);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
     "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
-      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
-      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
-    isArchivedHistoryItem(item)
-      ? "cursor-default"
-      : "hover:bg-card-background-hover press content-in",
+      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_80px] sm:items-center sm:gap-4"
+      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_80px] sm:items-center sm:gap-4",
+    href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
   );
   const content = (
     <HistoryListItemContent
       credits={credits}
       description={description}
-      formatTimeAgo={formatTimeAgo}
+      formatShortDate={formatDateWithYear}
       item={item}
       labels={labels}
       activeOrganizationId={activeOrganizationId}
     />
   );
 
-  if (isArchivedHistoryItem(item)) {
+  // Coworker seats, Soko Bot usage and unattributed spends have no page behind
+  // them, so those rows are text rather than a link to nowhere.
+  if (!href) {
     return <div className={rowClassName}>{content}</div>;
   }
 
   return (
-    <Link href={getHistoryItemHref(item)} className={rowClassName}>
+    <Link href={href} className={rowClassName}>
       {content}
     </Link>
   );
@@ -82,15 +80,15 @@ export function HistoryListItem({
 function HistoryListItemContent({
   credits,
   description,
-  formatTimeAgo,
+  formatShortDate,
   item,
   labels,
   activeOrganizationId,
 }: {
   credits: string;
   description: string;
-  formatTimeAgo: (date: string | Date) => string;
-  item: HistoryItem;
+  formatShortDate: (date: string | Date) => string;
+  item: TransactionHistoryItem;
   labels: HistoryListItemLabels;
   activeOrganizationId: string | null;
 }) {
@@ -114,32 +112,22 @@ function HistoryListItemContent({
             <HistoryOwnerAvatar owner={item.owner} />
           </div>
         )}
-        <div
+        <HistoryMetaTime
+          consumedAt={item.consumedAt}
+          formatShortDate={formatShortDate}
+          consumedLabel={labels.consumed}
           className={cn(
-            "flex items-center",
             showOwner
               ? "sm:col-start-4 sm:row-start-1"
               : "sm:col-start-3 sm:row-start-1",
-          )}
-        >
-          <HistoryStatus item={item} labels={labels} />
-        </div>
-        <HistoryMetaTime
-          updatedAt={item.updatedAt}
-          formatTimeAgo={formatTimeAgo}
-          updatedLabel={labels.updated}
-          className={cn(
-            showOwner
-              ? "sm:col-start-5 sm:row-start-1"
-              : "sm:col-start-4 sm:row-start-1",
           )}
         />
         <span
           className={cn(
             "text-muted-foreground tabular-nums sm:text-right",
             showOwner
-              ? "sm:col-start-6 sm:row-start-1"
-              : "sm:col-start-5 sm:row-start-1",
+              ? "sm:col-start-5 sm:row-start-1"
+              : "sm:col-start-4 sm:row-start-1",
           )}
         >
           {credits}
@@ -149,15 +137,11 @@ function HistoryListItemContent({
   );
 }
 
-export function isArchivedHistoryItem(item: HistoryItem): boolean {
-  return item.archivedAt != null;
-}
-
 export function HistoryTypeColumn({
   item,
   labels,
 }: {
-  item: HistoryItem;
+  item: TransactionHistoryItem;
   labels: Pick<HistoryListItemLabels, "kind">;
 }) {
   return (
@@ -175,40 +159,11 @@ export function HistoryTypeColumn({
   );
 }
 
-function HistoryStatus({
-  item,
-  labels,
-}: {
-  item: HistoryItem;
-  labels: HistoryListItemLabels;
-}) {
-  if (item.kind === "task") {
-    const status = item.status as TaskStatus;
-    return (
-      <TaskStatusBadge status={status} label={labels.taskStatus[status]} />
-    );
-  }
-
-  // An image has no lifecycle of its own — Core types its status as the literal
-  // `"active"` for that reason. A badge here would be a job status word
-  // ("Started", "Payment failed") applied to a finished picture.
-  if (item.kind === "image") {
-    return null;
-  }
-
-  return <JobStatusBadge status={item.status as SokosumiJobStatus} />;
-}
-
 function formatHistoryCredits(
-  credits: number | null,
-  labels: Pick<
-    HistoryListItemLabels,
-    "credit" | "credits" | "creditsUnavailable"
-  >,
+  credits: number,
+  labels: Pick<HistoryListItemLabels, "credit" | "credits">,
   formatNumber: (value: number) => string,
 ): string {
-  if (credits === null) return labels.creditsUnavailable;
-
   const formattedCredits = formatCreditsForDisplay(credits);
   const unit = formattedCredits === 1 ? labels.credit : labels.credits;
 

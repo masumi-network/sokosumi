@@ -1,13 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { HistoryKind } from "@sokosumi/database";
 
-import { badRequest } from "@/helpers/error";
 import {
-  buildHistoryWhere,
   loadAgentPreviewsByIds,
-  loadComputedJobStatusByEntityId,
   loadUserPreviewsByIds,
-  mapHistoryRow,
 } from "@/helpers/history";
 import {
   jsonErrorResponse,
@@ -22,6 +17,11 @@ import {
   preprocessMultiValueQueryInput,
 } from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
+import {
+  countTransactionHistory,
+  findTransactionHistoryPage,
+  mapTransactionHistoryRow,
+} from "@/helpers/transaction-history";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -29,22 +29,24 @@ import {
 } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import {
-  historyListResponseExample,
-  historyListSchema,
-} from "@/schemas/history.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
+import {
+  transactionHistoryKinds,
+  transactionHistoryListResponseExample,
+  transactionHistoryListSchema,
+} from "@/schemas/transaction-history.schema";
 
-const historyScopeQuerySchema = z
+const scopeQuerySchema = z
   .enum(["workspace", "owned"])
   .default("owned")
   .openapi({
     param: { name: "scope", in: "query" },
-    description: "Workspace visibility scope for task and job rows.",
+    description:
+      "owned: only consumptions charged to the calling user. workspace: every consumption in the active workspace, including organization-level ones with no user.",
     example: "workspace",
   });
 
-const historySearchQuerySchema = z
+const searchQuerySchema = z
   .string()
   .trim()
   .min(1)
@@ -52,15 +54,16 @@ const historySearchQuerySchema = z
   .optional()
   .openapi({
     param: { name: "q", in: "query" },
-    description: "Case-insensitive search across history title and description",
+    description:
+      "Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments and image prompts.",
     example: "onboarding",
   });
 
-const historyTypesQuerySchema = z
+const typesQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
     z
-      .array(z.enum(["task", "job", "image"]))
+      .array(z.enum(transactionHistoryKinds))
       .min(1)
       .optional()
       .transform(deduplicateQueryValues),
@@ -68,24 +71,8 @@ const historyTypesQuerySchema = z
   .openapi({
     param: { name: "types", in: "query" },
     description:
-      "Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.",
-    example: "task,job,image",
-  });
-
-const historyStatusQuerySchema = z
-  .preprocess(
-    preprocessMultiValueQueryInput,
-    z
-      .array(z.string().trim().min(1))
-      .min(1)
-      .optional()
-      .transform(deduplicateQueryValues),
-  )
-  .openapi({
-    param: { name: "status", in: "query" },
-    description:
-      "Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.",
-    example: "READY,completed",
+      "Comma-separated consumption sources to include: job, image, task, coworker, sokoBot, unattributed. `unattributed` are ledger rows with no entity relation at all.",
+    example: "job,image",
   });
 
 const projectIdQuerySchema = z
@@ -94,42 +81,34 @@ const projectIdQuerySchema = z
   .openapi({
     param: { name: "projectId", in: "query" },
     description:
-      "Filter task and job history rows by project ID. Use 'null' for unassigned rows.",
+      "Filter consumptions by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot and unattributed row.",
     example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   });
 
 const query = z
   .object({
     projectId: projectIdQuerySchema,
-    q: historySearchQuerySchema,
-    scope: historyScopeQuerySchema,
-    status: historyStatusQuerySchema,
-    types: historyTypesQuerySchema,
+    q: searchQuerySchema,
+    scope: scopeQuerySchema,
+    types: typesQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
-
-const historyKindByQueryType = {
-  task: HistoryKind.TASK,
-  job: HistoryKind.JOB,
-  image: HistoryKind.IMAGE,
-} as const;
-
-const allHistoryKinds = [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE];
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
     path: "/",
-    description: "List history feed items from the precomputed history table",
+    description:
+      "List credit consumptions for the active workspace, newest consumption first. One row is one ledger transaction that took credits.",
     tags: ["History"],
     request: {
       query,
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        historyListSchema,
-        "Retrieve history feed items",
-        historyListResponseExample,
+        transactionHistoryListSchema,
+        "Retrieve credit consumptions",
+        transactionHistoryListResponseExample,
       ),
       400: jsonErrorResponse("Bad Request"),
       401: jsonErrorResponse("Unauthorized"),
@@ -144,83 +123,51 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const queryParams = c.req.valid("query");
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
-    const types =
-      queryParams.types?.map((type) => historyKindByQueryType[type]) ??
-      allHistoryKinds;
-    const projectId =
-      queryParams.projectId === "null" ? null : queryParams.projectId;
-    const where = await buildHistoryWhere(
-      {
-        projectId,
-        q: queryParams.q,
-        scope: queryParams.scope,
-        statuses: queryParams.status,
-        types,
-        userContext,
-        workspaceContext,
-      },
-      prisma,
-    );
-    const takePlusOne = take + 1;
-    const cursorHistoryId = cursor
-      ? (
-          await prisma.history.findFirst({
-            where: { AND: [where, { entityId: cursor }] },
-            select: { id: true },
-            orderBy: [{ sortAt: "desc" }, { id: "desc" }],
-          })
-        )?.id
-      : undefined;
+    const { cursor, take } = parseCursorPagination(queryParams);
+    const params = {
+      kinds: queryParams.types,
+      projectId:
+        queryParams.projectId === "null" ? null : queryParams.projectId,
+      q: queryParams.q,
+      scope: queryParams.scope,
+      userContext,
+      workspaceContext,
+    };
 
-    if (cursor && !cursorHistoryId) {
-      throw badRequest("Invalid pagination cursor");
-    }
-
-    const [rows, count] = await prisma.$transaction([
-      prisma.history.findMany({
-        where,
-        take: takePlusOne,
-        skip: cursorHistoryId ? 1 : skip,
-        cursor: cursorHistoryId ? { id: cursorHistoryId } : undefined,
-        orderBy: [{ sortAt: "desc" }, { id: "desc" }],
-      }),
-      prisma.history.count({ where }),
+    const [{ rows, hasMore }, count] = await Promise.all([
+      findTransactionHistoryPage(params, { cursor, take }, prisma),
+      countTransactionHistory(params, prisma),
     ]);
 
-    const hasMore = rows.length === takePlusOne;
-    const pagedRows = rows.slice(0, take);
-    const jobRows = pagedRows.filter((row) => row.kind === HistoryKind.JOB);
-    const jobEntityIds = jobRows.map((row) => row.entityId);
-    const jobAgentIds = [
+    const agentIds = [
       ...new Set(
-        jobRows
+        rows
           .map((row) => row.agentId)
           .filter((agentId): agentId is string => agentId != null),
       ),
     ];
-    const userIds = [...new Set(pagedRows.map((row) => row.userId))];
-    const [jobStatusByEntityId, agentPreviewById, userPreviewById] =
-      await Promise.all([
-        loadComputedJobStatusByEntityId(jobEntityIds, prisma),
-        loadAgentPreviewsByIds(jobAgentIds, prisma),
-        loadUserPreviewsByIds(userIds, prisma),
-      ]);
-    const historyItems = pagedRows.map((row) =>
-      mapHistoryRow(row, {
-        jobStatusByEntityId,
-        agentPreviewById,
-        userPreviewById,
-      }),
+    const userIds = [
+      ...new Set(
+        rows
+          .map((row) => row.userId)
+          .filter((userId): userId is string => userId != null),
+      ),
+    ];
+    const [agentPreviewById, userPreviewById] = await Promise.all([
+      loadAgentPreviewsByIds(agentIds, prisma),
+      loadUserPreviewsByIds(userIds, prisma),
+    ]);
+    const items = rows.map((row) =>
+      mapTransactionHistoryRow(row, { agentPreviewById, userPreviewById }),
     );
     const paginationMeta = createPaginationMeta(
-      historyItems,
+      items,
       count,
       take,
       hasMore,
       cursor,
     );
 
-    return ok(c, historyListSchema.parse(historyItems), paginationMeta);
+    return ok(c, transactionHistoryListSchema.parse(items), paginationMeta);
   });
 }

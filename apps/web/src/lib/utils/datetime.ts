@@ -82,6 +82,34 @@ export function formatShortDate(
   }
 }
 
+/**
+ * A date that stays unambiguous years later.
+ *
+ * `formatShortDate` drops the year, which is fine beside a task that was
+ * created this quarter and wrong in a credit ledger that goes back to 2025:
+ * "Feb 19" alone does not say which February.
+ */
+export function formatDateWithYear(
+  date: string | Date,
+  locale: string,
+  timeZone: string,
+): string {
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return "—";
+    }
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      timeZone,
+    }).format(dateObj);
+  } catch {
+    return "—";
+  }
+}
+
 export function formatTimeAgo(
   date: string | Date,
   locale: string = "en",

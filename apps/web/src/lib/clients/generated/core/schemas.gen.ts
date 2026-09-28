@@ -13936,99 +13936,78 @@ export const ReleaseExportLeaseBodySchema = {
     additionalProperties: false
 } as const;
 
-export const HistoryListSchema = {
+export const TransactionHistoryListSchema = {
     type: 'array',
     items: {
-        $ref: '#/components/schemas/HistoryItem'
+        $ref: '#/components/schemas/TransactionHistoryItem'
     }
 } as const;
 
-export const HistoryItemSchema = {
+export const TransactionHistoryItemSchema = {
     oneOf: [
         {
-            $ref: '#/components/schemas/HistoryTaskItem'
+            $ref: '#/components/schemas/TransactionHistoryJobItem'
         },
         {
-            $ref: '#/components/schemas/HistoryJobItem'
+            $ref: '#/components/schemas/TransactionHistoryImageItem'
         },
         {
-            $ref: '#/components/schemas/HistoryImageItem'
+            $ref: '#/components/schemas/TransactionHistoryTaskItem'
+        },
+        {
+            $ref: '#/components/schemas/TransactionHistoryCoworkerItem'
+        },
+        {
+            $ref: '#/components/schemas/TransactionHistorySokoBotItem'
+        },
+        {
+            $ref: '#/components/schemas/TransactionHistoryUnattributedItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
-            task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem',
-            image: '#/components/schemas/HistoryImageItem'
+            job: '#/components/schemas/TransactionHistoryJobItem',
+            image: '#/components/schemas/TransactionHistoryImageItem',
+            task: '#/components/schemas/TransactionHistoryTaskItem',
+            coworker: '#/components/schemas/TransactionHistoryCoworkerItem',
+            sokoBot: '#/components/schemas/TransactionHistorySokoBotItem',
+            unattributed: '#/components/schemas/TransactionHistoryUnattributedItem'
         }
     }
 } as const;
 
-export const HistoryTaskItemSchema = {
+export const TransactionHistoryJobItemSchema = {
     type: 'object',
     properties: {
         id: {
             type: 'string',
-            description: 'Source entity ID for this history row',
-            example: 'cmi4gmksz000104l8wps8p7fp'
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
         },
         title: {
             type: 'string',
-            description: 'Display title for the history row',
-            example: 'Review onboarding flow'
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
         },
         description: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Short subtitle or description for the history row',
-            example: 'Audit copy and empty states'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
         },
         credits: {
-            type: [
-                'number',
-                'null'
-            ],
-            description: 'User-facing credits. Null means credits do not apply to this item.',
-            example: 2.5
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
         },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/HistoryOwner'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
-            example: null
-        },
-        kind: {
+        consumedAt: {
             type: 'string',
-            enum: [
-                'task'
-            ]
-        },
-        status: {
-            $ref: '#/components/schemas/TaskStatus'
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
         },
         projectId: {
             type: [
@@ -14036,54 +14015,84 @@ export const HistoryTaskItemSchema = {
                 'null'
             ],
             format: 'uuid',
-            description: 'Project ID for the task, when assigned',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
-        coworkerId: {
-            type: [
-                'string',
-                'null'
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
             ],
-            description: 'Coworker ID associated with the task, when assigned',
-            example: 'cow_123'
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
         },
-        sokoBotId: {
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        jobId: {
+            type: 'string',
+            description: 'Job that consumed the credits',
+            example: 'job_123'
+        },
+        agentId: {
             type: [
                 'string',
                 'null'
             ],
-            format: 'uuid',
-            description: 'Soko Bot ID associated with the task, when assigned',
-            example: '01960001-0001-7001-8001-000000000099'
+            description: 'Agent that ran the job, for deep-linking',
+            example: 'agent_123'
+        },
+        agentName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved display name of the agent',
+            example: 'Research Agent'
+        },
+        agentIcon: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved icon URL for the agent',
+            example: 'https://example.com/research.svg'
         }
     },
     required: [
         'id',
         'title',
         'description',
-        'updatedAt',
-        'archivedAt',
         'credits',
+        'consumedAt',
+        'projectId',
         'owner',
         'kind',
-        'status',
-        'projectId',
-        'coworkerId',
-        'sokoBotId'
+        'jobId',
+        'agentId',
+        'agentName',
+        'agentIcon'
     ]
 } as const;
 
-export const HistoryOwnerSchema = {
+export const TransactionHistoryOwnerSchema = {
     type: 'object',
     properties: {
         userId: {
             type: 'string',
-            description: 'User ID of the history item owner',
+            description: 'User the credits were taken from',
             example: '550e8400-e29b-41d4-a716-446655440000'
         },
         name: {
             type: 'string',
-            description: 'Display name of the owner',
+            description: 'Display name of the user',
             example: 'Alice Johnson'
         },
         image: {
@@ -14091,7 +14100,7 @@ export const HistoryOwnerSchema = {
                 'string',
                 'null'
             ],
-            description: 'Profile image URL of the owner. Null when no image is set.',
+            description: 'Profile image URL. Null when no image is set.',
             example: 'https://example.com/avatar.jpg'
         }
     },
@@ -14102,77 +14111,37 @@ export const HistoryOwnerSchema = {
     ]
 } as const;
 
-export const HistoryJobItemSchema = {
+export const TransactionHistoryImageItemSchema = {
     type: 'object',
     properties: {
         id: {
             type: 'string',
-            description: 'Source entity ID for this history row',
-            example: 'cmi4gmksz000104l8wps8p7fp'
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
         },
         title: {
             type: 'string',
-            description: 'Display title for the history row',
-            example: 'Review onboarding flow'
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
         },
         description: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Short subtitle or description for the history row',
-            example: 'Audit copy and empty states'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
         },
         credits: {
-            type: [
-                'number',
-                'null'
-            ],
-            description: 'User-facing credits. Null means credits do not apply to this item.',
-            example: 2.5
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
         },
-        owner: {
-            anyOf: [
-                {
-                    $ref: '#/components/schemas/HistoryOwner'
-                },
-                {
-                    type: 'null'
-                }
-            ],
-            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
-            example: null
-        },
-        kind: {
+        consumedAt: {
             type: 'string',
-            enum: [
-                'job'
-            ]
-        },
-        status: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/SokosumiJobStatus'
-                },
-                {
-                    example: 'completed'
-                }
-            ]
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
         },
         projectId: {
             type: [
@@ -14180,102 +14149,19 @@ export const HistoryJobItemSchema = {
                 'null'
             ],
             format: 'uuid',
-            description: 'Project ID for the job, when assigned',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
             example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
-        },
-        agentId: {
-            type: 'string',
-            description: 'Agent ID for deep-linking to the job',
-            example: 'agent_123'
-        },
-        agentName: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Resolved display name of the job\'s agent (override name when set). Null when the agent could not be resolved.',
-            example: 'Research Agent'
-        },
-        agentIcon: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Resolved icon URL for the job\'s agent. Null when the agent has no valid icon or could not be resolved.',
-            example: 'https://example.com/research.svg'
-        }
-    },
-    required: [
-        'id',
-        'title',
-        'description',
-        'updatedAt',
-        'archivedAt',
-        'credits',
-        'owner',
-        'kind',
-        'status',
-        'projectId',
-        'agentId',
-        'agentName',
-        'agentIcon'
-    ]
-} as const;
-
-export const HistoryImageItemSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            description: 'Source entity ID for this history row',
-            example: 'cmi4gmksz000104l8wps8p7fp'
-        },
-        title: {
-            type: 'string',
-            description: 'Display title for the history row',
-            example: 'Review onboarding flow'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Short subtitle or description for the history row',
-            example: 'Audit copy and empty states'
-        },
-        updatedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
-        },
-        archivedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
-        },
-        credits: {
-            type: [
-                'number',
-                'null'
-            ],
-            description: 'User-facing credits. Null means credits do not apply to this item.',
-            example: 2.5
         },
         owner: {
             anyOf: [
                 {
-                    $ref: '#/components/schemas/HistoryOwner'
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
                 },
                 {
                     type: 'null'
                 }
             ],
-            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
             example: null
         },
         kind: {
@@ -14284,30 +14170,15 @@ export const HistoryImageItemSchema = {
                 'image'
             ]
         },
-        status: {
-            type: 'string',
-            enum: [
-                'active'
-            ]
-        },
-        assetId: {
+        imageJobId: {
             type: 'string',
             format: 'uuid',
-            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            description: 'Image studio generation that consumed the credits',
             example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
-        },
-        projectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid',
-            description: 'Project the image was generated in',
-            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
         },
         modelLabel: {
             type: 'string',
-            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            description: 'Display name of the model, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
             example: 'Gemini 3.1 Flash Image'
         }
     },
@@ -14315,15 +14186,335 @@ export const HistoryImageItemSchema = {
         'id',
         'title',
         'description',
-        'updatedAt',
-        'archivedAt',
         'credits',
+        'consumedAt',
+        'projectId',
         'owner',
         'kind',
-        'status',
-        'assetId',
-        'projectId',
+        'imageJobId',
         'modelLabel'
+    ]
+} as const;
+
+export const TransactionHistoryTaskItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        taskId: {
+            type: 'string',
+            description: 'Task whose event consumed the credits',
+            example: 'tsk_123'
+        },
+        taskEventId: {
+            type: 'string',
+            description: 'Task event that carries the charge',
+            example: 'evt_123'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind',
+        'taskId',
+        'taskEventId'
+    ]
+} as const;
+
+export const TransactionHistoryCoworkerItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'coworker'
+            ]
+        },
+        coworkerId: {
+            type: 'string',
+            description: 'Coworker whose usage consumed the credits',
+            example: 'cow_123'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind',
+        'coworkerId'
+    ]
+} as const;
+
+export const TransactionHistorySokoBotItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'sokoBot'
+            ]
+        },
+        sokoBotId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Soko Bot whose usage consumed the credits',
+            example: '01960001-0001-7001-8001-000000000099'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind',
+        'sokoBotId'
+    ]
+} as const;
+
+export const TransactionHistoryUnattributedItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Transaction ID. This is the ledger row\'s own ID and the pagination cursor.',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        title: {
+            type: 'string',
+            description: 'Display label for what the credits were spent on',
+            example: 'Research competitors'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Secondary detail about the consumption, when one is known',
+            example: 'Research Agent'
+        },
+        credits: {
+            type: 'number',
+            description: 'Credits taken from the account, always positive. Derived from the negative ledger amount.',
+            example: 5
+        },
+        consumedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the credits were taken (`Transaction.createdAt`). The list sorts by this field.'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the consumption belongs to. Null for sources that are not project-scoped.',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TransactionHistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'User the credits were taken from. Null for organization-level consumptions with no user, or when the user was deleted.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'unattributed'
+            ]
+        },
+        bucketSource: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Credit bucket the spend drew from, when a consumption row records one. Null when nothing about the source is known.',
+            example: 'STRIPE_SUBSCRIPTION_PERIOD'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'credits',
+        'consumedAt',
+        'projectId',
+        'owner',
+        'kind',
+        'bucketSource'
     ]
 } as const;
 
@@ -17723,6 +17914,390 @@ export const ProjectNeedsAttentionSchema = {
         'taskCount',
         'jobCount',
         'items'
+    ]
+} as const;
+
+export const HistoryItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/HistoryTaskItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryImageItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            task: '#/components/schemas/HistoryTaskItem',
+            job: '#/components/schemas/HistoryJobItem',
+            image: '#/components/schemas/HistoryImageItem'
+        }
+    }
+} as const;
+
+export const HistoryTaskItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task'
+            ]
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project ID for the task, when assigned',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker ID associated with the task, when assigned',
+            example: 'cow_123'
+        },
+        sokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Soko Bot ID associated with the task, when assigned',
+            example: '01960001-0001-7001-8001-000000000099'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'projectId',
+        'coworkerId',
+        'sokoBotId'
+    ]
+} as const;
+
+export const HistoryOwnerSchema = {
+    type: 'object',
+    properties: {
+        userId: {
+            type: 'string',
+            description: 'User ID of the history item owner',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        name: {
+            type: 'string',
+            description: 'Display name of the owner',
+            example: 'Alice Johnson'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Profile image URL of the owner. Null when no image is set.',
+            example: 'https://example.com/avatar.jpg'
+        }
+    },
+    required: [
+        'userId',
+        'name',
+        'image'
+    ]
+} as const;
+
+export const HistoryJobItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'job'
+            ]
+        },
+        status: {
+            allOf: [
+                {
+                    $ref: '#/components/schemas/SokosumiJobStatus'
+                },
+                {
+                    example: 'completed'
+                }
+            ]
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project ID for the job, when assigned',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        agentId: {
+            type: 'string',
+            description: 'Agent ID for deep-linking to the job',
+            example: 'agent_123'
+        },
+        agentName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved display name of the job\'s agent (override name when set). Null when the agent could not be resolved.',
+            example: 'Research Agent'
+        },
+        agentIcon: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Resolved icon URL for the job\'s agent. Null when the agent has no valid icon or could not be resolved.',
+            example: 'https://example.com/research.svg'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'projectId',
+        'agentId',
+        'agentName',
+        'agentIcon'
+    ]
+} as const;
+
+export const HistoryImageItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active'
+            ]
+        },
+        assetId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the image was generated in',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        modelLabel: {
+            type: 'string',
+            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            example: 'Gemini 3.1 Flash Image'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'assetId',
+        'projectId',
+        'modelLabel'
     ]
 } as const;
 

@@ -3,7 +3,7 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetHistoryData,
-  HistoryItem,
+  TransactionHistoryItem,
 } from "@/lib/clients/generated/core/types.gen";
 
 type HistoryQuery = NonNullable<GetHistoryData["query"]>;
@@ -14,27 +14,25 @@ export interface ListHistoryParams {
   projectId?: HistoryQuery["projectId"];
   q?: HistoryQuery["q"];
   scope?: HistoryQuery["scope"];
-  status?: HistoryQuery["status"];
   types?: HistoryQuery["types"];
 }
 
-export type { HistoryItem };
+export type { TransactionHistoryItem };
 
 function toHistoryDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-function mapHistoryItem(item: HistoryItem): HistoryItem {
+function mapHistoryItem(item: TransactionHistoryItem): TransactionHistoryItem {
   return {
     ...item,
-    updatedAt: toHistoryDate(item.updatedAt),
-    archivedAt: item.archivedAt ? toHistoryDate(item.archivedAt) : null,
+    consumedAt: toHistoryDate(item.consumedAt),
   };
 }
 
 export const historyService = (() => {
   async function listHistory(params: ListHistoryParams = {}): Promise<{
-    history: HistoryItem[];
+    history: TransactionHistoryItem[];
     pagination: {
       cursor: string | null;
       limit: number;
@@ -48,7 +46,6 @@ export const historyService = (() => {
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
-      status: params.status,
       types: params.types,
     });
 

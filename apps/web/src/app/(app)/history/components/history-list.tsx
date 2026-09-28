@@ -13,7 +13,7 @@ import {
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
-import type { HistoryItem } from "@/lib/services/history.service";
+import type { TransactionHistoryItem } from "@/lib/services/history.service";
 
 export interface HistoryListLabels {
   empty: {
@@ -27,7 +27,7 @@ export interface HistoryListLabels {
 }
 
 interface HistoryListProps {
-  history: HistoryItem[];
+  history: TransactionHistoryItem[];
   nextCursor: string | null;
   filterResetKey: string;
   filters: HistoryFilters;
@@ -121,9 +121,9 @@ function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
 }
 
 function appendUniqueHistoryItems(
-  prev: HistoryItem[],
-  next: HistoryItem[],
-): HistoryItem[] {
+  prev: TransactionHistoryItem[],
+  next: TransactionHistoryItem[],
+): TransactionHistoryItem[] {
   const existingKeys = new Set(prev.map((item) => `${item.kind}:${item.id}`));
   const uniqueItems = next.filter(
     (item) => !existingKeys.has(`${item.kind}:${item.id}`),

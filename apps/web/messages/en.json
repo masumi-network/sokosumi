@@ -301,7 +301,7 @@
       "connections": "Connections",
       "developer": "Developer",
       "personal-assistant": "Personal Assistant",
-      "history": "History",
+      "history": "Transaction History",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
@@ -1328,13 +1328,13 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
-    "History": {
+    "TransactionHistory": {
       "Metadata": {
-        "title": "History",
-        "description": "Review tasks, jobs, and conversations in one timeline."
+        "title": "Transaction History",
+        "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
-        "placeholder": "Search history...",
+        "placeholder": "Search transactions...",
         "clear": "Clear search"
       },
       "ResultsCount": {
@@ -1346,53 +1346,40 @@
         "emptyResults": "No results found.",
         "all": "All",
         "scopeLabel": "Scope",
-        "scopeOwned": "My history",
+        "scopeOwned": "My transactions",
         "scopeWorkspace": "Workspace",
-        "typeLabel": "Type",
-        "statusLabel": "Status",
+        "typeLabel": "Source",
         "projectLabel": "Project",
         "typeOptions": {
+          "job": "Agent job",
+          "image": "Image",
           "task": "Task",
-          "job": "Job",
-          "image": "Image"
-        },
-        "statusOptions": {
-          "archived": "Archived",
-          "DRAFT": "Draft",
-          "QUEUED": "Scheduled",
-          "READY": "Ready",
-          "GRANT_PENDING": "Grant pending",
-          "INPUT_REQUIRED": "Input required",
-          "APPROVAL_REQUIRED": "Approval required",
-          "AUTHENTICATION_REQUIRED": "Authentication required",
-          "OUT_OF_CREDITS": "Paused: credits needed",
-          "CREDITS_TOPPED_UP": "Credits topped up",
-          "RUNNING": "Running",
-          "AWAITING_EXTERNAL": "Awaiting external",
-          "COMPLETED": "Completed",
-          "FAILED": "Failed",
-          "CANCELED": "Canceled"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "unattributed": "Unattributed"
         }
       },
       "Empty": {
-        "title": "No history yet",
-        "description": "Your tasks, jobs, and conversations will appear here once there is activity."
+        "title": "No transactions yet",
+        "description": "Every job run, image generation and other credit consumption will appear here."
       },
       "List": {
         "loadMore": "Load more",
-        "loading": "Loading history...",
-        "loadMoreError": "Failed to load more history"
+        "loading": "Loading transactions...",
+        "loadMoreError": "Failed to load more transactions"
       },
       "Row": {
         "credit": "credit",
         "credits": "credits",
-        "creditsUnavailable": "—",
         "noDescription": "No description",
-        "updated": "Updated",
+        "consumed": "Consumed",
         "kind": {
+          "job": "Agent job",
+          "image": "Image",
           "task": "Task",
-          "job": "Job",
-          "image": "Image"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "unattributed": "Unattributed"
         }
       }
     },
@@ -2785,7 +2772,7 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "history": "History",
+          "history": "Transaction History",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",

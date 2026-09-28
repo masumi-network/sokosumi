@@ -1,72 +1,27 @@
-import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
-
+/**
+ * Filters for Transaction History. Every row is a credit consumption, so there
+ * is no status axis: a spend has an amount and a date, not a lifecycle. The
+ * type axis names the source that consumed the credits.
+ */
 export const HISTORY_SEARCH_MAX_LENGTH = 200;
 export const HISTORY_SCOPE_VALUES = ["owned", "workspace"] as const;
-export const HISTORY_TYPE_VALUES = ["task", "job", "image"] as const;
+export const HISTORY_TYPE_VALUES = [
+  "job",
+  "image",
+  "task",
+  "coworker",
+  "sokoBot",
+  "unattributed",
+] as const;
 export const HISTORY_DEFAULT_API_TYPES = HISTORY_TYPE_VALUES;
-/** Non-task statuses shared across history kinds. `active` was conversation-only and was removed with SOK-671. */
-export const HISTORY_NON_TASK_STATUS_VALUES = ["archived"] as const;
-export const HISTORY_JOB_ONLY_STATUS_VALUES = [
-  SokosumiJobStatus.STARTED,
-  SokosumiJobStatus.RESULT_PENDING,
-  SokosumiJobStatus.PAYMENT_PENDING,
-  SokosumiJobStatus.PAYMENT_FAILED,
-  SokosumiJobStatus.REFUND_PENDING,
-  SokosumiJobStatus.REFUND_RESOLVED,
-  SokosumiJobStatus.DISPUTE_PENDING,
-  SokosumiJobStatus.DISPUTE_RESOLVED,
-] as const;
-export const HISTORY_STATUS_VALUES = [
-  ...HISTORY_NON_TASK_STATUS_VALUES,
-  ...Object.values(TaskStatus),
-  ...HISTORY_JOB_ONLY_STATUS_VALUES,
-] as const;
-export const HISTORY_STATUS_OPTIONS = [
-  ...HISTORY_NON_TASK_STATUS_VALUES,
-  ...Object.values(TaskStatus),
-  ...HISTORY_JOB_ONLY_STATUS_VALUES,
-] as const;
-
-/** Task statuses that map to computed job statuses in the history API. */
-export const HISTORY_TASK_STATUS_VALUES_FOR_JOB_FILTER = [
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.INPUT_REQUIRED,
-  TaskStatus.RUNNING,
-] as const;
-
-const HISTORY_TASK_STATUS_VALUES = [
-  "archived",
-  ...Object.values(TaskStatus),
-] as const satisfies readonly HistoryStatus[];
-
-const HISTORY_JOB_STATUS_VALUES = [
-  ...HISTORY_TASK_STATUS_VALUES_FOR_JOB_FILTER,
-  ...HISTORY_JOB_ONLY_STATUS_VALUES,
-] as const satisfies readonly HistoryStatus[];
-
-/**
- * No status narrows an image.
- *
- * Core types an image row's status as the literal `"active"`: an image has no
- * lifecycle, so every status in this list belongs to a task or a job and naming
- * one would return an empty feed. Empty here also means
- * `sanitizeHistoryStatusForType` clears whatever status was set when somebody
- * switches the type to Image, rather than leaving a filter on that can only
- * match nothing.
- */
-const HISTORY_IMAGE_STATUS_VALUES =
-  [] as const satisfies readonly HistoryStatus[];
 
 export type HistoryScope = (typeof HISTORY_SCOPE_VALUES)[number];
 export type HistoryType = (typeof HISTORY_TYPE_VALUES)[number];
-export type HistoryStatus = (typeof HISTORY_STATUS_VALUES)[number];
 
 export interface HistoryFilters {
   q: string | null;
   scope: HistoryScope;
   type: HistoryType | null;
-  status: HistoryStatus | null;
   projectId: string | null;
 }
 
@@ -82,7 +37,6 @@ export interface HistoryFiltersSearchParams {
   q?: HistoryFilterQueryParam;
   scope?: HistoryFilterQueryParam;
   type?: HistoryFilterQueryParam;
-  status?: HistoryFilterQueryParam;
   projectId?: HistoryFilterQueryParam;
 }
 
@@ -90,7 +44,6 @@ export const HISTORY_FILTER_PARAM_KEYS = {
   q: "q",
   scope: "scope",
   type: "type",
-  status: "status",
   projectId: "projectId",
 } as const;
 
@@ -122,27 +75,6 @@ function isHistoryTypeValue(value: string | null): value is HistoryType {
   return value !== null && HISTORY_TYPE_VALUES.includes(value as HistoryType);
 }
 
-function isHistoryStatusValue(value: string | null): value is HistoryStatus {
-  return (
-    value !== null && HISTORY_STATUS_VALUES.includes(value as HistoryStatus)
-  );
-}
-
-export function getHistoryStatusOptionsForType(
-  type: HistoryType | null,
-): readonly HistoryStatus[] {
-  switch (type) {
-    case "task":
-      return HISTORY_TASK_STATUS_VALUES;
-    case "job":
-      return HISTORY_JOB_STATUS_VALUES;
-    case "image":
-      return HISTORY_IMAGE_STATUS_VALUES;
-    default:
-      return HISTORY_STATUS_OPTIONS;
-  }
-}
-
 export function resolveHistoryApiTypes(
   type: HistoryType | null,
 ): HistoryType[] {
@@ -150,21 +82,6 @@ export function resolveHistoryApiTypes(
     return [type];
   }
   return [...HISTORY_DEFAULT_API_TYPES];
-}
-
-export function isHistoryStatusAllowedForType(
-  status: HistoryStatus,
-  type: HistoryType | null,
-): boolean {
-  return getHistoryStatusOptionsForType(type).includes(status);
-}
-
-export function sanitizeHistoryStatusForType(
-  status: HistoryStatus | null,
-  type: HistoryType | null,
-): HistoryStatus | null {
-  if (!status) return null;
-  return isHistoryStatusAllowedForType(status, type) ? status : null;
 }
 
 export function applyHistoryProjectAllowlist(
@@ -187,15 +104,8 @@ export function applyHistoryProjectAllowlist(
   };
 }
 
-function finalizeHistoryFilters(filters: HistoryFilters): HistoryFilters {
-  return {
-    ...filters,
-    status: sanitizeHistoryStatusForType(filters.status, filters.type),
-  };
-}
-
 export function getDefaultHistoryScope(
-  activeOrganizationId: string | null,
+  _activeOrganizationId: string | null,
 ): HistoryScope {
   return "owned";
 }
@@ -235,13 +145,6 @@ export function sanitizeHistoryTypeInput(raw: unknown): HistoryType | null {
   return isHistoryTypeValue(normalized) ? normalized : null;
 }
 
-export function sanitizeHistoryStatusInput(raw: unknown): HistoryStatus | null {
-  if (typeof raw !== "string") return null;
-
-  const normalized = raw.trim();
-  return isHistoryStatusValue(normalized) ? normalized : null;
-}
-
 export function sanitizeHistoryProjectIdInput(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
 
@@ -253,24 +156,17 @@ export function parseHistoryFilters(
   searchParams: HistoryFiltersSearchParams,
   activeOrganizationId: string | null,
 ): HistoryFilters {
-  const type = sanitizeHistoryTypeInput(
-    normalizeOptionalString(searchParams.type),
-  );
-
-  return finalizeHistoryFilters({
+  return {
     q: sanitizeHistorySearchInput(normalizeOptionalString(searchParams.q)),
     scope: sanitizeHistoryScopeInput(
       firstHistoryQueryString(searchParams.scope),
       activeOrganizationId,
     ),
-    type,
-    status: sanitizeHistoryStatusInput(
-      normalizeOptionalString(searchParams.status),
-    ),
+    type: sanitizeHistoryTypeInput(normalizeOptionalString(searchParams.type)),
     projectId: sanitizeHistoryProjectIdInput(
       normalizeOptionalString(searchParams.projectId),
     ),
-  });
+  };
 }
 
 export function getHistoryFiltersFromSearchParams(
@@ -283,7 +179,6 @@ export function getHistoryFiltersFromSearchParams(
       q: searchParams.get(HISTORY_FILTER_PARAM_KEYS.q) ?? undefined,
       scope: searchParams.get(HISTORY_FILTER_PARAM_KEYS.scope) ?? undefined,
       type: searchParams.get(HISTORY_FILTER_PARAM_KEYS.type) ?? undefined,
-      status: searchParams.get(HISTORY_FILTER_PARAM_KEYS.status) ?? undefined,
       projectId:
         searchParams.get(HISTORY_FILTER_PARAM_KEYS.projectId) ?? undefined,
     },
@@ -319,12 +214,6 @@ export function buildHistoryFiltersSearchParams(
     nextSearchParams.delete(HISTORY_FILTER_PARAM_KEYS.type);
   }
 
-  if (filters.status) {
-    nextSearchParams.set(HISTORY_FILTER_PARAM_KEYS.status, filters.status);
-  } else {
-    nextSearchParams.delete(HISTORY_FILTER_PARAM_KEYS.status);
-  }
-
   if (filters.projectId) {
     nextSearchParams.set(
       HISTORY_FILTER_PARAM_KEYS.projectId,
@@ -341,5 +230,5 @@ export function getHistoryFiltersResetKey(
   filters: HistoryFilters,
   activeOrganizationId: string | null,
 ): string {
-  return `${activeOrganizationId ?? "personal"}:${filters.q ?? "all"}:${filters.scope}:${filters.type ?? "all"}:${filters.status ?? "all"}:${filters.projectId ?? "all"}`;
+  return `${activeOrganizationId ?? "personal"}:${filters.q ?? "all"}:${filters.scope}:${filters.type ?? "all"}:${filters.projectId ?? "all"}`;
 }

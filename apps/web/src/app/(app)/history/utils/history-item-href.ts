@@ -1,29 +1,44 @@
 import {
-  type HistoryItem,
   NotificationKind,
+  type TransactionHistoryItem,
 } from "@/lib/clients/generated/core";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**
- * Destination for a History / needs-attention row.
- * Keep this module free of the client directive so Server Components can call it.
+ * Destination for a Transaction History row, or null when the consumption has
+ * nothing to open.
+ *
+ * Keep this module free of the client directive so Server Components can call
+ * it.
  */
-export function getHistoryItemHref(item: HistoryItem): string {
-  // Content Studio, not a notification destination. `NotificationKind` has no
-  // IMAGE, and the useful landing place is the studio scoped to that project
-  // with that version already open — which is `?projectId=` plus `?v=`, the two
-  // params the studio page reads. Without a project there is no gallery to open
-  // the version in, so the studio's own project picker is the honest fallback.
-  if (item.kind === "image") {
-    const version = `v=${encodeURIComponent(item.assetId)}`;
-    return item.projectId
-      ? `/studio?projectId=${encodeURIComponent(item.projectId)}&${version}`
-      : "/studio";
+export function getHistoryItemHref(
+  item: TransactionHistoryItem,
+): string | null {
+  switch (item.kind) {
+    case "job":
+      return getNotificationHref({
+        kind: NotificationKind.JOB,
+        referenceId: item.jobId,
+        metadata: { agentId: item.agentId },
+      });
+    case "task":
+      return getNotificationHref({
+        kind: NotificationKind.TASK,
+        referenceId: item.taskId,
+        metadata: null,
+      });
+    // Content Studio, not a notification destination. The ledger row is about
+    // the generation that was charged, not one version of it, so this opens the
+    // studio scoped to that project rather than deep-linking a single image.
+    // Without a project there is no gallery to open, so the studio's own
+    // project picker is the honest fallback.
+    case "image":
+      return item.projectId
+        ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
+        : "/studio";
+    // Coworker seats, Soko Bot usage and unattributed spends are ledger entries
+    // with no page behind them. A link to nowhere is worse than no link.
+    default:
+      return null;
   }
-
-  return getNotificationHref({
-    kind: item.kind.toUpperCase() as NotificationKind,
-    referenceId: item.id,
-    metadata: item.kind === "job" ? { agentId: item.agentId } : null,
-  });
 }

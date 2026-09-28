@@ -21,8 +21,6 @@ vi.mock("./history-view-filters", () => ({
   ),
 }));
 
-import type { HistoryStatus } from "@/app/history/utils/history-filters";
-
 import { HistoryToolbar } from "./history-toolbar";
 
 const filterLabels = {
@@ -33,17 +31,16 @@ const filterLabels = {
   scopeLabel: "Scope",
   scopeOwned: "Owned",
   scopeWorkspace: "Workspace",
-  typeLabel: "Type",
-  statusLabel: "Status",
+  typeLabel: "Source",
   projectLabel: "Project",
   typeOptions: {
-    task: "Task",
-    job: "Job",
+    job: "Agent job",
     image: "Image",
+    task: "Task",
+    coworker: "Coworker",
+    sokoBot: "Soko Bot",
+    unattributed: "Unattributed",
   },
-  statusOptions: {
-    archived: "Archived",
-  } as Record<HistoryStatus, string>,
 };
 
 describe("HistoryToolbar", () => {
@@ -55,7 +52,7 @@ describe("HistoryToolbar", () => {
         resultsCountLabel="3 results found"
         labels={{
           search: {
-            placeholder: "Search history",
+            placeholder: "Search transactions",
             clear: "Clear",
           },
           filters: filterLabels,
@@ -66,7 +63,7 @@ describe("HistoryToolbar", () => {
     const searchSlot = container.querySelector(".hidden.md\\:block");
     expect(searchSlot).not.toBeNull();
     expect(
-      screen.getByPlaceholderText("Search history").closest(".hidden"),
+      screen.getByPlaceholderText("Search transactions").closest(".hidden"),
     ).toBeTruthy();
     expect(screen.getByTestId("history-view-filters")).toBeInTheDocument();
   });
@@ -79,7 +76,7 @@ describe("HistoryToolbar", () => {
         resultsCountLabel="3 results found"
         labels={{
           search: {
-            placeholder: "Search history",
+            placeholder: "Search transactions",
             clear: "Clear",
           },
           filters: filterLabels,

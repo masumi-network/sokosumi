@@ -1,7 +1,6 @@
 "use client";
 
 import type {
-  HistoryStatus,
   HistoryType,
   ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
@@ -27,10 +26,8 @@ interface HistoryToolbarProps {
       scopeOwned: string;
       scopeWorkspace: string;
       typeLabel: string;
-      statusLabel: string;
       projectLabel: string;
       typeOptions: Record<HistoryType, string>;
-      statusOptions: Record<HistoryStatus, string>;
     };
   };
 }

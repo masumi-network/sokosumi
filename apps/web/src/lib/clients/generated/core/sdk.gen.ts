@@ -1981,7 +1981,7 @@ export const acquireExportLease = <ThrowOnError extends boolean = false>(options
 });
 
 /**
- * List history feed items from the precomputed history table
+ * List credit consumptions for the active workspace, newest consumption first. One row is one ledger transaction that took credits.
  */
 export const getHistory = <ThrowOnError extends boolean = false>(options?: Options<GetHistoryData, ThrowOnError>): RequestResult<GetHistoryResponses, GetHistoryErrors, ThrowOnError> => (options?.client ?? client).get<GetHistoryResponses, GetHistoryErrors, ThrowOnError>({
     responseTransformer: getHistoryResponseTransformer,
