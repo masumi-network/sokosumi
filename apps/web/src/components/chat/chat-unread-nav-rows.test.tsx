@@ -58,21 +58,25 @@ vi.mock("@/components/ui/sidebar", async () => ({
     "@/components/ui/sidebar",
   )),
   // The primitive's `cn` merge, reduced to the part these rows rely on: the
-  // row's own classes land on the element it renders.
+  // row's own classes land on the element it renders. Its rail tooltip
+  // lands there as data-tooltip.
   SidebarMenuButton: ({
     children,
     asChild,
     className,
+    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
     className?: string;
+    tooltip?: string;
   }) =>
     asChild === true && isValidElement<{ className?: string }>(children) ? (
       cloneElement(children, {
         className: [children.props.className, className]
           .filter(Boolean)
           .join(" "),
+        ...(tooltip ? { "data-tooltip": tooltip } : {}),
       })
     ) : (
       <>{children}</>
@@ -431,11 +435,15 @@ describe("ChatUnreadNavRows", () => {
     });
 
     it("leaves the shortcut to the rail's tooltip when collapsed", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
       sidebarMock.state = "collapsed";
       renderRows([]);
 
       const toggle = screen.getByRole("button", { name: /^Unreads/ });
       expect(toggle).toHaveAttribute("aria-keyshortcuts");
+      expect(toggle).toHaveAttribute("data-tooltip", "Unreads (⌘⇧U)");
       expect(toggle).not.toHaveAttribute("title");
     });
 
