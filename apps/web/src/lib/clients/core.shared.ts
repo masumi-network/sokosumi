@@ -47,6 +47,7 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
+  GetTasksByIdEventsData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
   GetTasksSchedulesData,
@@ -268,6 +269,7 @@ import {
   getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getTasksByIdEvents as coreGetTasksByIdEvents,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSchedules as coreGetTasksSchedules,
@@ -1421,6 +1423,23 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to fetch task",
+    );
+  }
+
+  async function getTaskEvents(
+    id: string,
+    query?: GetTasksByIdEventsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdEvents({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task events",
     );
   }
 
@@ -5808,6 +5827,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     requestJobRefund,
     revokeMyOauthConsent,
     getTaskById,
+    getTaskEvents,
     getTaskLinks,
     getTaskWorkspace,
     getTasks,
