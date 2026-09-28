@@ -15,6 +15,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -43,7 +44,11 @@ import {
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import {
   type ClassificationResult,
-  ExternalTurnClassifier,
+  JevTurnClassifier,
+  type PresetRoute,
+  presetClassificationResult,
+  storedWriteScope,
+  type TurnClassifier,
 } from "@/lib/soko-bot/classifier";
 import { ContextPacketBuilder } from "@/lib/soko-bot/context-packet";
 import {
@@ -59,6 +64,7 @@ import {
   shouldPersistSokoBotRuntimeEvent,
 } from "@/lib/soko-bot/runtime-stream";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
@@ -176,6 +182,11 @@ export interface StartSokoBotTurnInput {
   }[];
   /** Version override for this turn (lab); otherwise the bot's version. */
   versionId?: string;
+  /**
+   * Route for a turn whose prompt Core wrote itself (sync workers, system
+   * rhythms, admin replays). Never set from a request body: it skips Jev.
+   */
+  presetRoute?: PresetRoute;
   /** Set when a chat-room mention started the turn; the reply lands there. */
   chat?: {
     mentionId: string;
@@ -583,13 +594,19 @@ function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
   );
 }
 
+/** How Jev read a stored turn's relation to its pending proposal, if at all. */
+function storedContinuation(classification: unknown): string | null {
+  if (!classification || typeof classification !== "object") return null;
+  const continuation = (classification as { continuation?: unknown })
+    .continuation;
+  return typeof continuation === "string" ? continuation : null;
+}
+
 export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
     private readonly contextBuilder: ContextPacketBuilder = new ContextPacketBuilder(),
-    private readonly classifier: ExternalTurnClassifier = new ExternalTurnClassifier(
-      getEnv().SOKO_BOT_CLASSIFIER_MODE === "model",
-    ),
+    private readonly classifier: TurnClassifier = new JevTurnClassifier(),
   ) {}
 
   private async startRuntimeWithAcceptanceRetry(
@@ -805,9 +822,7 @@ export class SokoBotControlPlane {
       turn.source !== "CHAT" ||
       turn.chainDepth !== 0 ||
       (turn.requestedByUserId && turn.requestedByUserId !== turn.userId) ||
-      !/^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
-        turn.userMessage.trim(),
-      ) ||
+      storedContinuation(turn.classification) !== "CONTINUE" ||
       !turn.intent ||
       turn.intent.requesterId !== turn.userId ||
       turn.intent.workspaceId !== turn.workspaceId ||
@@ -914,9 +929,7 @@ export class SokoBotControlPlane {
     }
     if (
       turn.intentId &&
-      /^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
-        turn.userMessage.trim(),
-      ) &&
+      storedContinuation(turn.classification) === "CONTINUE" &&
       (await this.settleOwnerConfirmation(turn.id, turn.leaseToken))
     ) {
       const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
@@ -2104,8 +2117,9 @@ export class SokoBotControlPlane {
       : input.chat
         ? null
         : await prisma.chatRoom.findFirst({
+            // Rooms carry no workspace; the bot's membership scopes this to
+            // the workspace the bot lives in (one bot per user and workspace).
             where: {
-              workspaceId: input.workspaceId,
               kind: "direct",
               archivedAt: null,
               sokoBotMembers: { some: { sokoBotId: bot.id } },
@@ -2161,27 +2175,29 @@ export class SokoBotControlPlane {
         ),
       ].join(" "),
     );
-    const classification: ClassificationResult = await withEvaluationActor(
-      { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
-      () =>
-        this.classifier.classify(message, {
-          ...classifierContext,
-          pendingIntents: pendingIntents.map((intent) => ({
-            id: intent.id,
-            desiredOutcome: intent.desiredOutcome,
-            targetIds: Array.isArray(intent.targetIds)
-              ? intent.targetIds.filter(
-                  (id): id is string =>
-                    typeof id === "string" &&
-                    classifierContext.taskIds.includes(id),
-                )
-              : [],
-            expiresAt: intent.expiresAt.toISOString(),
-            route: intent.originatingTurn.route ?? "CLARIFY",
-            requiresApproval: intent.decisions.length > 0,
-          })),
-        }),
-    );
+    const classification: ClassificationResult = input.presetRoute
+      ? presetClassificationResult(message, input.presetRoute)
+      : await withEvaluationActor(
+          { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
+          () =>
+            this.classifier.classify(message, {
+              ...classifierContext,
+              pendingIntents: pendingIntents.map((intent) => ({
+                id: intent.id,
+                desiredOutcome: intent.desiredOutcome,
+                targetIds: Array.isArray(intent.targetIds)
+                  ? intent.targetIds.filter(
+                      (id): id is string =>
+                        typeof id === "string" &&
+                        classifierContext.taskIds.includes(id),
+                    )
+                  : [],
+                expiresAt: intent.expiresAt.toISOString(),
+                route: intent.originatingTurn.route ?? "CLARIFY",
+                requiresApproval: intent.decisions.length > 0,
+              })),
+            }),
+        );
     if (
       classification.classification.route === "MANAGE_WORK" &&
       classifierContext.namedTaskIds.length
@@ -2249,6 +2265,13 @@ export class SokoBotControlPlane {
     }
     const routeCapabilities = capabilitiesForClassification(
       classification.classification,
+    ).filter(
+      (capability) =>
+        !input.presetRoute ||
+        input.presetRoute.sandbox === true ||
+        !(SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(
+          capability,
+        ),
     );
     const capabilities = applyVersionCapabilities(
       version,
@@ -2421,10 +2444,7 @@ export class SokoBotControlPlane {
               ? input.chat?.requestedByUserId
               : null,
             chainDepth: input.chat?.chainDepth ?? 0,
-            classification: jsonInput({
-              ...classification.classification,
-              inference: classification.usage?.inference ?? null,
-            }),
+            classification: jsonInput(classification.classification),
             classifierModel: classification.model,
             classifierVersion: classification.version,
             classifierLatencyMs: classification.latencyMs,
@@ -2541,21 +2561,18 @@ export class SokoBotControlPlane {
             data: { intentId: selected.id, intentRevision: selected.revision },
           });
         } else {
-          // Only an explicit owner withdrawal or replacement affects an existing offer.
-          const cancelsOffer =
-            /^(?:cancel that|stop that|no[.! ]*$|don't do that|do not do that)/i.test(
-              message.trim(),
-            );
-          const replacesOffer =
-            /^(?:instead[, ]|replace (?:that|the (?:pending )?(?:request|proposal|offer))\b|forget (?:that|the (?:pending )?(?:request|proposal|offer))\b)/i.test(
-              message.trim(),
-            );
+          // Only an explicit owner withdrawal or replacement, as Jev read the
+          // message, affects an existing offer.
           const withdrawsUniqueOffer =
             source === "CHAT" &&
             !requestedByTeammate &&
             (input.chat?.chainDepth ?? 0) === 0 &&
             pendingIntents.length === 1 &&
-            (cancelsOffer || replacesOffer);
+            classification.classification.continuation === "CANCEL";
+          // A bare "cancel that" routes to CLARIFY; "instead, do X" carries X's
+          // route and supersedes the offer rather than just cancelling it.
+          const cancelsOffer =
+            classification.classification.route === "CLARIFY";
           if (withdrawsUniqueOffer) {
             await tx.sokoBotPendingDecision.updateMany({
               where: {
@@ -4224,6 +4241,7 @@ export class SokoBotControlPlane {
           clientTurnId: retryClientTurnId,
           message: occurrencePrompt,
           source: "ADMIN_RETRY",
+          presetRoute: systemScheduleRoute(scheduleRun.schedule.systemKey),
           adminScheduleReservation: boundReplayTurnId
             ? {
                 kind: "BOUND_REPLAY",
@@ -4303,6 +4321,15 @@ export class SokoBotControlPlane {
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
+          // Replays on the route the failed turn had, never a wider one.
+          presetRoute: failed.route
+            ? {
+                route: failed.route,
+                writeScope: storedWriteScope(failed.classification),
+                reason: "Operator retry on the failed turn's route.",
+                sandbox: failed.capabilityNames.includes("bash"),
+              }
+            : undefined,
           // A retry replays untrusted text, so it must not replay it with a
           // wider grant than the turn that failed. Dropping these turned a
           // failed depth-1 turn another assistant asked for — read-only, and

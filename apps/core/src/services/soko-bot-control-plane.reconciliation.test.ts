@@ -5,6 +5,7 @@ import type {
   SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { jevRoute } from "@/test/jev-routes";
 
 const {
   botUpdateManyMock,
@@ -28,8 +29,13 @@ const {
   turnUpdateManyMock: vi.fn(),
 }));
 
+const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: jevEvaluate,
+}));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ SOKO_BOT_CLASSIFIER_MODE: "rules" }),
+  getEnv: () => ({ SOKO_BOT_PROACTIVE_PAUSED: false }),
 }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: async () => ({
@@ -137,6 +143,11 @@ function runtimeFor(
     inspectSession: vi.fn(),
   };
 }
+
+// Jev answers every classification; tests that need another route script it.
+beforeEach(() => {
+  jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+});
 
 describe("SokoBotControlPlane reconciliation", () => {
   beforeEach(() => {

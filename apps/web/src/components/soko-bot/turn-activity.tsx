@@ -30,6 +30,24 @@ interface TurnActivityProps {
   className?: string;
 }
 
+/**
+ * Lifecycle steps every successful turn emits, and tool events the tool-call
+ * list already shows. Listing them buried the events that say something:
+ * failures, cancellations, and anything unusual.
+ */
+const ROUTINE_EVENT_TYPES = new Set([
+  "session.started",
+  "session.waiting",
+  "turn.started",
+  "turn.completed",
+  "message.received",
+  "message.completed",
+  "step.started",
+  "step.completed",
+  "actions.requested",
+  "action.result",
+]);
+
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
@@ -55,9 +73,12 @@ export async function TurnActivity({
     getFormatter(),
   ]);
   const time = (date: Date) => format.dateTime(date, "timeWithSeconds");
+  const notableEvents = events.filter(
+    (event) => !ROUTINE_EVENT_TYPES.has(event.type),
+  );
 
   const isEmpty =
-    events.length === 0 &&
+    notableEvents.length === 0 &&
     delegations.length === 0 &&
     decisions.length === 0 &&
     (toolCalls?.length ?? 0) === 0;
@@ -72,11 +93,13 @@ export async function TurnActivity({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {events.length > 0 ? (
+      {notableEvents.length > 0 ? (
         <div className="space-y-2">
-          <SectionLabel>{t("events", { count: events.length })}</SectionLabel>
+          <SectionLabel>
+            {t("events", { count: notableEvents.length })}
+          </SectionLabel>
           <ol className="divide-y rounded border">
-            {events.map((event) => (
+            {notableEvents.map((event) => (
               <li
                 key={event.id}
                 className="grid grid-cols-[auto_1fr_auto] items-baseline gap-x-3 px-3 py-1.5 text-sm"

@@ -1,3 +1,4 @@
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
@@ -28,22 +29,14 @@ export async function AdminSokoBotHeader({
 
   return (
     <>
-      <div className="bg-card-background flex flex-wrap items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm">
-        <div className="min-w-0">
-          <span className="font-medium">{bot.owner.name ?? "—"}</span>
-          <span className="text-muted-foreground"> · {bot.owner.email}</span>
-          <span className="text-muted-foreground font-mono text-xs">
-            {" · "}
-            {bot.owner.id}
-          </span>
-        </div>
-        <Button variant="outline" size="sm" asChild>
-          <Link href={ADMIN_SOKO_BOTS_ROUTE}>{t("backToList")}</Link>
-        </Button>
-      </div>
-
-      <header className="flex flex-wrap items-start justify-between gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="min-w-0 space-y-1">
+          <Button asChild variant="ghost" size="sm" className="-ms-2">
+            <Link href={ADMIN_SOKO_BOTS_ROUTE}>
+              <ArrowLeft aria-hidden className="size-4" />
+              {t("backToList")}
+            </Link>
+          </Button>
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-2xl font-semibold tracking-tight">
               {bot.name ?? t("unnamed")}
@@ -53,7 +46,11 @@ export async function AdminSokoBotHeader({
               <StatusBadge tone="neutral">{t("archived")}</StatusBadge>
             ) : null}
           </div>
-          <p className="text-muted-foreground font-mono text-xs">{bot.id}</p>
+          <p className="text-muted-foreground truncate text-sm">
+            {bot.owner.name
+              ? `${bot.owner.name} · ${bot.owner.email}`
+              : bot.owner.email}
+          </p>
         </div>
         <AdminSokoBotActions
           sokoBotId={bot.id}

@@ -21,6 +21,10 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 - [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
 
+## Features
+
+- [`features/task-tags.md`](./features/task-tags.md) — Core task-tag vocabulary, `/sync/task-tags` worker (50 queued + 200 historical), spend bounds, and production-log caution
+
 ## Native tables
 
 - [`native-tables.md`](./native-tables.md) — Files tables storage, Core API, bounds, and isolated `native_tables` verification

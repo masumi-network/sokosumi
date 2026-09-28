@@ -3,10 +3,6 @@ import type { Vendor } from "../api/models/vendor.js";
 
 export const WEB_DEVELOPER_DEFAULT_ROUTE = "/developer/oauth-clients";
 
-export function administeredVendors(vendors: readonly Vendor[]): Vendor[] {
-  return vendors.filter((vendor) => vendor.role === "admin");
-}
-
 function trimWebBase(webUrl: string | undefined): string {
   return String(webUrl ?? "")
     .trim()

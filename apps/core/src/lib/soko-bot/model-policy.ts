@@ -4,7 +4,8 @@ import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 
 /** Public Gateway catalog checked 2026-09-26. Add exact IDs only after review.
  * Virtual aliases and direct-provider objects cannot bypass regional routing.
- * Jev has no regional support and is intentionally absent.
+ * Jev has no regional support and is intentionally absent: route selection
+ * uses it under a separate, owner-approved exception (see `classifier.ts`).
  */
 const EU_MODELS: Readonly<
   Record<string, { structured: boolean; providers: readonly string[] }>
@@ -25,9 +26,8 @@ const EU_MODELS: Readonly<
   },
 };
 
-export type SokoBotModelRole = "selector" | "agent" | "judge";
+export type SokoBotModelRole = "agent" | "judge";
 export const SOKO_BOT_MODEL_POLICY_VERSION = "eu-2026-09-26";
-export const SOKO_BOT_SELECTOR_MODEL = "google/gemini-3.6-flash";
 
 export class SokoBotModelPolicyError extends Error {
   constructor() {
