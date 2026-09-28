@@ -113,6 +113,7 @@ export const socialPostLastAttemptSchema = z
         "failed_permanent",
         "missed",
         "connection_inactive",
+        "authorization_revoked",
       ])
       .nullable(),
     errorKind: z.string().nullable().openapi({ example: "rate_limited" }),
@@ -138,6 +139,10 @@ export const socialPostSchema = z
     socialConnection: socialPostSocialConnectionSchema.nullable(),
     creator: socialPostCreatorSchema,
     scheduledByUserId: z.string().nullable(),
+    scheduledByCoworkerId: z.string().nullable().optional().openapi({
+      description:
+        "Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.",
+    }),
     canceledAt: dateTimeSchema.nullable(),
     publishedAt: dateTimeSchema.nullable(),
     publishedExternalId: z.string().nullable(),
