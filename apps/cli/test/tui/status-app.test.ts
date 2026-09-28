@@ -295,9 +295,96 @@ test("signed-in home lists Vendors and Workspaces, not a fake Register flow", as
     assert.match(output, /Vendors/);
     assert.match(output, /Workspaces/);
     assert.match(output, /Sign out/);
-    assert.match(output, /coworkers register/);
+    assert.match(output, /coworkers list/);
+    assert.match(output, /coworkers connect/);
+    assert.match(output, /coworkers api-key/);
+    assert.doesNotMatch(output, /coworkers register/);
     assert.doesNotMatch(output, /Register a Coworker/);
     assert.doesNotMatch(output, /pi-sokosumi|OpenClaw|Hermes/);
+    await sendInput(terminal.stdin, "q");
+    await cliPromise;
+  } finally {
+    instance?.unmount();
+    await cliPromise;
+    instance?.cleanup();
+  }
+});
+
+test("Vendor and Workspace screens are read-only review lists", async () => {
+  const terminal = createTestTerminal();
+  let output = "";
+  terminal.stdout.on("data", (chunk) => {
+    output += String(chunk);
+  });
+  const signedInAuthManager = new AuthManager({
+    credentialStore: {
+      read: () => null,
+      write: (_credentials: OAuthCredentials) => {},
+      clear: () => {},
+    },
+    apiKeyStore: {
+      read: () => ({ apiKey: "soko_mainnet_test-key" }),
+      write: (_credentials) => {},
+      clear: () => {},
+    },
+  });
+  const coreClient: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      if (path === "/v1/vendors/me") {
+        return {
+          data: [{ id: "vendor-1", name: "Acme", role: "admin" }],
+        } as T;
+      }
+      if (path === "/v1/users/me/organizations") {
+        return {
+          data: [{ id: "org-1", name: "Acme Org", role: "owner" }],
+        } as T;
+      }
+      return { data: [] } as T;
+    },
+    post: async <T>() => ({}) as T,
+    patch: async <T>() => ({}) as T,
+  };
+  let instance: Instance | undefined;
+  const render: NonNullable<StatusAppOptions["render"]> = (node) => {
+    const nextInstance = inkRender(node, {
+      debug: true,
+      stdin: terminal.stdin,
+      stdout: terminal.stdout,
+      exitOnCtrlC: false,
+      patchConsole: false,
+      interactive: true,
+    });
+    instance = nextInstance;
+    return nextInstance;
+  };
+  const cliPromise = runCli([], {
+    env: {},
+    authManager: signedInAuthManager,
+    coreClient,
+    tuiFn: (options) =>
+      renderStatusApp({
+        ...options,
+        authManagerFactory: () => signedInAuthManager,
+        coreClient,
+        render,
+      }),
+  });
+  try {
+    await waitForOutput(terminal.stdout, () => output, "Developer CLI");
+    await sendInput(terminal.stdin, "\r");
+    await waitForOutput(terminal.stdout, () => output, "Acme");
+    assert.match(output, /Vendor memberships from Core\. Review only/);
+    assert.match(output, /Acme · admin · vendor-1/);
+    assert.doesNotMatch(output, /Choose an administered Vendor/);
+    await sendInput(terminal.stdin, "\u001b");
+    await waitForOutput(terminal.stdout, () => output, "Developer CLI");
+    await sendInput(terminal.stdin, "\u001b[B");
+    await sendInput(terminal.stdin, "\r");
+    await waitForOutput(terminal.stdout, () => output, "Acme Org");
+    assert.match(output, /Organization workspaces from Core\. Review only/);
+    assert.match(output, /Acme Org · owner · org-1/);
+    assert.doesNotMatch(output, /Choose a workspace for the Coworker/);
     await sendInput(terminal.stdin, "q");
     await cliPromise;
   } finally {

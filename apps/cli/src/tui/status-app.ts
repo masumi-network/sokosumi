@@ -247,11 +247,14 @@ function createTargetConfig(
 function navigationHint({
   back = false,
   showNetworkToggle = false,
+  selectable = true,
 }: {
   back?: boolean;
   showNetworkToggle?: boolean;
+  selectable?: boolean;
 } = {}) {
-  const parts = ["Use arrows, then Enter"];
+  const parts: string[] = [];
+  if (selectable) parts.push("Use arrows, then Enter");
   if (showNetworkToggle) parts.push("Tab switch network");
   if (back) parts.push("Esc back");
   parts.push("q quit");
@@ -278,6 +281,7 @@ function quietFrame({
   showBackHint = false,
   showNavigationHint = true,
   showNetworkToggle = false,
+  showSelectionHint = true,
 }: {
   route: "boot" | "auth" | "signed-in";
   target: string | null;
@@ -286,6 +290,7 @@ function quietFrame({
   showBackHint?: boolean;
   showNavigationHint?: boolean;
   showNetworkToggle?: boolean;
+  showSelectionHint?: boolean;
 }): React.ReactElement {
   return React.createElement(
     Box,
@@ -322,7 +327,11 @@ function quietFrame({
       ? signedInIdentityLine(target, authMethod)
       : null,
     showNavigationHint
-      ? navigationHint({ back: showBackHint, showNetworkToggle })
+      ? navigationHint({
+          back: showBackHint,
+          showNetworkToggle,
+          selectable: showSelectionHint,
+        })
       : null,
   );
 }
@@ -365,6 +374,46 @@ function messageLine(
             : undefined,
     },
     message,
+  );
+}
+
+function resourceReviewScreen({
+  title,
+  caption,
+  emptyLabel,
+  loading,
+  rows,
+  message,
+  phase,
+}: {
+  title: string;
+  caption: string;
+  emptyLabel: string;
+  loading: boolean;
+  rows: readonly { key: string; label: string }[];
+  message: string;
+  phase: AuthPhase;
+}): React.ReactElement {
+  const body = loading
+    ? []
+    : rows.length > 0
+      ? rows.map((row) =>
+          React.createElement(Text, { key: row.key }, row.label),
+        )
+      : [
+          React.createElement(
+            Text,
+            { key: "empty", dimColor: true },
+            emptyLabel,
+          ),
+        ];
+  return React.createElement(
+    Box,
+    { flexDirection: "column", width: "100%" },
+    React.createElement(Text, { bold: true }, title),
+    React.createElement(Text, { dimColor: true }, caption),
+    ...body,
+    messageLine(message, phase),
   );
 }
 
@@ -1121,86 +1170,38 @@ function StatusApp({
     });
   }
 
+  const reviewingResources = screen === "vendors" || screen === "workspaces";
   let signedInContent: React.ReactNode;
   if (screen === "vendors") {
-    const vendorItems: SelectorItem<string>[] = vendors.length
-      ? vendors.map((vendor) => ({
-          value: vendor.id,
-          label: vendor.name || "Unnamed vendor",
-          hint:
-            vendor.role === "admin"
-              ? "admin · Vendor access"
-              : vendor.role || undefined,
-        }))
-      : [{ value: "empty", label: "No vendors found", hint: "empty" }];
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Vendors"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        resourceLoading
-          ? "Loading vendor memberships…"
-          : "Choose an administered Vendor. Core also checks who can create Coworkers.",
-      ),
-      React.createElement(SelectInput, {
-        items: vendorItems,
-        onSelect: adaptSelectHandler<string>((vendorId) => {
-          if (vendorId === "empty") return;
-          const vendor = vendors.find((candidate) => candidate.id === vendorId);
-          if (!vendor) return;
-          setPhase("idle");
-          setMessage(
-            `${vendor.name || vendor.id} · role ${vendor.role || "unknown"} · id ${vendor.id}`,
-          );
-        }),
-        listen: !resourceLoading,
-      }),
-      messageLine(message, phase),
-    );
+    signedInContent = resourceReviewScreen({
+      title: "Vendors",
+      caption: resourceLoading
+        ? "Loading vendor memberships…"
+        : "Vendor memberships from Core. Review only.",
+      emptyLabel: "No vendors found.",
+      loading: resourceLoading,
+      rows: vendors.map((vendor) => ({
+        key: vendor.id,
+        label: `${vendor.name || "Unnamed vendor"} · ${vendor.role || "unknown"} · ${vendor.id}`,
+      })),
+      message,
+      phase,
+    });
   } else if (screen === "workspaces") {
-    const workspaceItems: SelectorItem<string>[] = workspaces.length
-      ? workspaces.map((workspace) => ({
-          value: workspace.organizationId,
-          label: workspace.name || "Unnamed workspace",
-          hint: workspace.role || workspace.slug || undefined,
-        }))
-      : [
-          {
-            value: "empty",
-            label: "No organization workspaces found",
-            hint: "empty",
-          },
-        ];
-    signedInContent = React.createElement(
-      Box,
-      { flexDirection: "column", width: "100%" },
-      React.createElement(Text, { bold: true }, "Organization workspaces"),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        resourceLoading
-          ? "Loading organization workspaces…"
-          : "Choose a workspace for the Coworker.",
-      ),
-      React.createElement(SelectInput, {
-        items: workspaceItems,
-        onSelect: adaptSelectHandler<string>((organizationId) => {
-          if (organizationId === "empty") return;
-          const workspace = workspaces.find(
-            (candidate) => candidate.organizationId === organizationId,
-          );
-          if (!workspace) return;
-          setPhase("idle");
-          setMessage(
-            `${workspace.name || workspace.organizationId} · organization ${workspace.organizationId}${workspace.role ? ` · role ${workspace.role}` : ""}`,
-          );
-        }),
-        listen: !resourceLoading,
-      }),
-      messageLine(message, phase),
-    );
+    signedInContent = resourceReviewScreen({
+      title: "Organization workspaces",
+      caption: resourceLoading
+        ? "Loading organization workspaces…"
+        : "Organization workspaces from Core. Review only.",
+      emptyLabel: "No organization workspaces found.",
+      loading: resourceLoading,
+      rows: workspaces.map((workspace) => ({
+        key: workspace.organizationId,
+        label: `${workspace.name || "Unnamed workspace"} · ${workspace.role || workspace.slug || "unknown"} · ${workspace.organizationId}`,
+      })),
+      message,
+      phase,
+    });
   } else {
     signedInContent = centeredScreen(
       React.createElement(Text, { color: TUI_THEME.accent }, LOGO),
@@ -1214,17 +1215,12 @@ function StatusApp({
       React.createElement(
         Text,
         { dimColor: true },
-        "sokosumi coworkers register --vendor-id <id>",
+        "sokosumi coworkers connect <id>",
       ),
       React.createElement(
         Text,
         { dimColor: true },
-        "sokosumi coworkers update --id <id> --name <name>",
-      ),
-      React.createElement(
-        Text,
-        { dimColor: true },
-        "sokosumi coworkers api-key --id <id>",
+        "sokosumi coworkers api-key <id>",
       ),
       React.createElement(SelectInput, {
         items: homeItems,
@@ -1239,7 +1235,8 @@ function StatusApp({
     route: "signed-in",
     target: targetLabel,
     authMethod: authState.authMethod,
-    showBackHint: screen === "vendors" || screen === "workspaces",
+    showBackHint: reviewingResources,
+    showSelectionHint: !reviewingResources,
     children: signedInContent,
   });
 }
