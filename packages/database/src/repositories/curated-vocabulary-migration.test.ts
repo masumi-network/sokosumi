@@ -30,15 +30,14 @@ import { curatedFileVocabularyRows } from "../../../utils/src/file-curated-vocab
 const MIGRATIONS = [
   "20260928140000_seed_curated_file_vocabulary",
   "20260928210000_widen_curated_file_vocabulary",
-]
-  .map((name) =>
-    readFileSync(
-      fileURLToPath(
-        new URL(`../../prisma/migrations/${name}/migration.sql`, import.meta.url),
-      ),
-      "utf8",
+].map((name) =>
+  readFileSync(
+    fileURLToPath(
+      new URL(`../../prisma/migrations/${name}/migration.sql`, import.meta.url),
     ),
-  );
+    "utf8",
+  ),
+);
 
 /**
  * The `VALUES` tuples, as (kind, displayName, normalizedName, description).
@@ -61,7 +60,12 @@ function migrationRows(migration: string): {
   expect(end, "the migration no longer has the v() alias").toBeGreaterThan(-1);
 
   const body = migration.slice(start, end);
-  const rows: { kind: string; displayName: string; normalizedName: string; description: string }[] = [];
+  const rows: {
+    kind: string;
+    displayName: string;
+    normalizedName: string;
+    description: string;
+  }[] = [];
 
   // One tuple per line, four single-quoted fields, '' as an escaped quote.
   const tuple = /\(\s*((?:'(?:[^']|'')*'\s*,\s*){3}'(?:[^']|'')*')\s*\)/g;
@@ -96,33 +100,33 @@ describe("the curated vocabulary backfill", () => {
   });
 
   describe.each(MIGRATIONS)("statement %#", (migration) => {
-  it("is idempotent and does not overwrite", () => {
-    // The two properties that make it safe to run twice against production,
-    // asserted here so a later edit cannot quietly drop either one. Behaviour
-    // is proven in file-curated-vocabulary.postgres.test.ts; this is the
-    // statement-level guard.
-    expect(migration).toContain(
-      'ON CONFLICT ("workspaceId", "kind", "normalizedName") DO NOTHING',
-    );
-    expect(
-      migration.includes("DO UPDATE"),
-      "an upsert would rewrite a rubric that existing suggestions were " +
-        "scored against, and would claim product authorship of a human's label",
-    ).toBe(false);
-  });
+    it("is idempotent and does not overwrite", () => {
+      // The two properties that make it safe to run twice against production,
+      // asserted here so a later edit cannot quietly drop either one. Behaviour
+      // is proven in file-curated-vocabulary.postgres.test.ts; this is the
+      // statement-level guard.
+      expect(migration).toContain(
+        'ON CONFLICT ("workspaceId", "kind", "normalizedName") DO NOTHING',
+      );
+      expect(
+        migration.includes("DO UPDATE"),
+        "an upsert would rewrite a rubric that existing suggestions were " +
+          "scored against, and would claim product authorship of a human's label",
+      ).toBe(false);
+    });
 
-  it("is one set-based statement over the workspace table", () => {
-    // Not 20xN rows shipped from application code: at this shape the cost is
-    // one sequential scan and the behaviour is the same at ten thousand
-    // workspaces as at a million, so no row count gates the deploy.
-    expect(migration).toContain('FROM "workspace" w');
-    expect(migration).toContain("CROSS JOIN");
-    expect(migration.match(/INSERT INTO/g) ?? []).toHaveLength(1);
-  });
+    it("is one set-based statement over the workspace table", () => {
+      // Not 20xN rows shipped from application code: at this shape the cost is
+      // one sequential scan and the behaviour is the same at ten thousand
+      // workspaces as at a million, so no row count gates the deploy.
+      expect(migration).toContain('FROM "workspace" w');
+      expect(migration).toContain("CROSS JOIN");
+      expect(migration.match(/INSERT INTO/g) ?? []).toHaveLength(1);
+    });
 
-  it("leaves createdByUserId null, which is the provenance marker", () => {
-    expect(migration).toContain('"createdByUserId"');
-    expect(migration).toMatch(/NULL\s*\n\s*FROM "workspace" w/);
-  });
+    it("leaves createdByUserId null, which is the provenance marker", () => {
+      expect(migration).toContain('"createdByUserId"');
+      expect(migration).toMatch(/NULL\s*\n\s*FROM "workspace" w/);
+    });
   });
 });

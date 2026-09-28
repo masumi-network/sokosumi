@@ -7,8 +7,8 @@ import {
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
 import { processFileIndexJobs } from "@/services/file-index.service";
-import { summarizeMissingFiles } from "@/services/file-summary.service";
 import { processFileSuggestionJobs } from "@/services/file-suggestions.service";
+import { summarizeMissingFiles } from "@/services/file-summary.service";
 import { processStaleTableIndexes } from "@/services/file-table-index.service";
 
 import { handleSyncRequest } from "../handler.js";

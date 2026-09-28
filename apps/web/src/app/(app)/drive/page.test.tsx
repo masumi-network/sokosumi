@@ -246,10 +246,12 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     initialQuery,
     initialFolder,
     onFolderChange,
+    folderActions,
   }: {
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
+    folderActions?: React.ReactNode;
   }) => (
     <div
       data-testid="drive-all-files"
@@ -265,6 +267,9 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       >
         facet
       </button>
+      {/* The page's own folder controls, which the real panel seats beside
+          the folder trail. */}
+      {folderActions}
     </div>
   ),
 }));
@@ -1058,7 +1063,7 @@ describe("DrivePage files view mode", () => {
     );
   });
 
-  it("workspace mobile actions menu exposes create folder and task outputs", async () => {
+  it("workspace mobile header shows create folder and task outputs as buttons", async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams("view=workspace");
     listDriveItemsMock.mockResolvedValue([]);
@@ -1069,13 +1074,13 @@ describe("DrivePage files view mode", () => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    // No "..." menu: both are out in the open.
+    expect(screen.queryByTestId("files-mobile-actions")).toBeNull();
     // Desktop create-folder control remains in the header for wide containers.
     expect(
       screen.getAllByRole("button", { name: "createFolder" }).length,
     ).toBeGreaterThan(0);
 
-    await user.click(screen.getByTestId("files-mobile-actions"));
     expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
       "createFolder",
     );
@@ -1126,9 +1131,9 @@ describe("DrivePage files view mode", () => {
     });
 
     const header = screen.getByTestId("files-desktop-header");
-    expect(screen.getByTestId("files-mobile-actions")).toBeVisible();
+    expect(screen.getByTestId("files-mobile-create-folder")).toBeVisible();
     expect(
-      within(header).queryByTestId("files-mobile-actions"),
+      within(header).queryByTestId("files-mobile-create-folder"),
     ).not.toBeInTheDocument();
   });
 });

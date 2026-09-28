@@ -7,11 +7,14 @@ import {
   Copy,
   Download,
   Folder,
+  FolderInput,
   FolderPlus,
   Folders,
   ListFilter,
   MoreHorizontal,
+  Pencil,
   Search,
+  Trash2,
   Upload,
 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -1492,78 +1495,77 @@ function DrivePageWorkspace({
     descending: t("sortDescending"),
   };
   /**
-   * Everything the folder grid used to carry, in one menu.
+   * Everything the folder grid used to carry, out in the open.
    *
-   * Rename, move and delete lived on the folder cards and nowhere else, so
-   * deleting the grid would have deleted folder management with it. They act on
-   * the folder currently narrowing the catalog, and are absent when none is —
-   * there is nothing to rename then.
+   * Rename, move and delete lived on the folder cards and nowhere else, and
+   * then in a "..." menu that hid them along with the way to the task outputs.
+   * They act on the folder the reader is standing in, so they sit beside the
+   * folder trail as labelled buttons and are absent at the root, where there is
+   * no folder to act on.
    *
-   * `Task outputs` is here for the same reason: the Tasks view was reachable
-   * only through a "Tasks" card in that grid, and removing the grid would have
-   * orphaned a whole view behind a URL.
+   * `Task outputs` is its own button for the same reason: the Tasks view was
+   * reachable only through a "Tasks" card in the grid this page replaced.
    */
   const facetFolderItem: DriveItem | null = facetFolder
     ? { type: "folder", name: facetFolder, path: facetFolder }
     : null;
-  const workspaceActionsMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button
-          type="button"
-          size="icon"
-          variant="outline"
-          aria-label={t("moreActions")}
-          data-testid="files-actions"
-        >
-          <MoreHorizontal className="size-4" aria-hidden />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem
-          onSelect={navigateToTasksRoot}
-          data-testid="files-tasks-outputs"
-        >
-          <Folders className="size-4" aria-hidden />
-          {t("tasksFolder")}
-        </DropdownMenuItem>
-        {facetFolderItem ? (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              data-testid="files-rename-folder"
-              onSelect={() => {
-                const next = window
-                  .prompt(
-                    t("folderName"),
-                    facetFolder.split("/").at(-1) ?? facetFolder,
-                  )
-                  ?.trim();
-                if (next) void handleRename(facetFolderItem, next);
-              }}
-            >
-              {t("renameFolderAction", {
-                name: facetFolder.split("/").at(-1) ?? facetFolder,
-              })}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              data-testid="files-move-folder"
-              onSelect={() => openMoveDialog(facetFolderItem)}
-            >
-              {t("moveFolderAction")}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              data-testid="files-delete-folder"
-              onSelect={() => openDeleteDialog(facetFolderItem)}
-            >
-              {t("deleteFolderAction")}
-            </DropdownMenuItem>
-          </>
-        ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+  const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
+  const tasksOutputsButton = (testId: string) => (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="gap-1.5"
+      onClick={navigateToTasksRoot}
+      data-testid={testId}
+    >
+      <Folders className="size-4" aria-hidden />
+      {t("tasksFolder")}
+    </Button>
   );
+  const folderActions = facetFolderItem ? (
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
+        data-testid="files-rename-folder"
+        aria-label={t("renameFolderAction", { name: folderName })}
+        onClick={() => {
+          const next = window.prompt(t("folderName"), folderName)?.trim();
+          if (next) void handleRename(facetFolderItem, next);
+        }}
+      >
+        <Pencil className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("renameFolderButton")}</span>
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="gap-1.5"
+        data-testid="files-move-folder"
+        aria-label={t("moveFolderAction")}
+        onClick={() => openMoveDialog(facetFolderItem)}
+      >
+        <FolderInput className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("moveFolderAction")}</span>
+      </Button>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="text-semantic-destructive-solid gap-1.5"
+        data-testid="files-delete-folder"
+        aria-label={t("deleteFolderAction")}
+        onClick={() => openDeleteDialog(facetFolderItem)}
+      >
+        <Trash2 className="size-4" aria-hidden />
+        <span className="hidden @lg:inline">{t("deleteFolderAction")}</span>
+      </Button>
+    </>
+  ) : null;
 
   const filesSortControl = (
     <DriveSortControl
@@ -1626,7 +1628,7 @@ function DrivePageWorkspace({
                     on the page, directly under the tabs, and two search boxes
                     over one list is the duplication this tab was merged to
                     remove. */}
-                {workspaceActionsMenu}
+                {tasksOutputsButton("files-tasks-outputs")}
                 <Button
                   type="button"
                   size="sm"
@@ -1800,55 +1802,19 @@ function DrivePageWorkspace({
       {!isTasksView && isWorkspaceView && (
         <div className="mb-6 flex items-center justify-end gap-2 @2xl:hidden">
           {/* Same rule as the desktop header: the search on this tab is the
-              catalog's own, at the top of its own panel. New folder and the
-              folder actions live in the menu. */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                aria-label={t("moreActions")}
-                data-testid="files-mobile-actions"
-              >
-                <MoreHorizontal className="size-4" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={openCreateFolderDialog}
-                data-testid="files-mobile-create-folder"
-              >
-                <FolderPlus className="size-4" aria-hidden />
-                {t("createFolder")}
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={navigateToTasksRoot}
-                data-testid="files-mobile-tasks-outputs"
-              >
-                <Folders className="size-4" aria-hidden />
-                {t("tasksFolder")}
-              </DropdownMenuItem>
-              {facetFolderItem ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    data-testid="files-mobile-move-folder"
-                    onSelect={() => openMoveDialog(facetFolderItem)}
-                  >
-                    {t("moveFolderAction")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    data-testid="files-mobile-delete-folder"
-                    onSelect={() => openDeleteDialog(facetFolderItem)}
-                  >
-                    {t("deleteFolderAction")}
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+              catalog's own, at the top of its own panel. Upload is the FAB. */}
+          {tasksOutputsButton("files-mobile-tasks-outputs")}
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={openCreateFolderDialog}
+            data-testid="files-mobile-create-folder"
+          >
+            <FolderPlus className="size-4" aria-hidden />
+            {t("createFolder")}
+          </Button>
         </div>
       )}
 
@@ -2221,6 +2187,7 @@ function DrivePageWorkspace({
           initialQuery={searchParams.get("q") ?? ""}
           initialFolder={folderParam}
           onFolderChange={applyFolderFacet}
+          folderActions={folderActions}
           reloadToken={catalogReloadToken}
         />
       ) : null}

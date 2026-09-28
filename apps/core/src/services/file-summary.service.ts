@@ -1,7 +1,7 @@
-import prisma from "@/lib/db/prisma";
-import { labelExcerptFromChunks } from "@/lib/files/jev-request";
 import { openrouterClient } from "@/clients/openrouter.client";
 import { getEnv } from "@/config/env";
+import prisma from "@/lib/db/prisma";
+import { labelExcerptFromChunks } from "@/lib/files/jev-request";
 
 /** A tick does at most this many, so summaries never starve extraction. */
 const SUMMARY_BATCH = 5;

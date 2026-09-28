@@ -60,6 +60,7 @@ function resource(overrides: Partial<FileResource> = {}): FileResource {
     suggestions: [],
     rejected: [],
     projects: [],
+    summary: null,
     snippet: null,
     relatedReason: null,
     filenameMatch: false,
@@ -407,5 +408,55 @@ describe("opening a file", () => {
       .dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("the line under the name", () => {
+  const opening = {
+    text: "Copyright 2026 Acme. All rights reserved. Table of contents",
+    highlights: [],
+    truncatedStart: false,
+    truncatedEnd: true,
+  };
+
+  it("is the summary, not the document's opening", () => {
+    renderRow(
+      resource({
+        summary: "Q3 revenue report for the sales team, with forecasts",
+        // What the API sends when nothing was searched: the first chunk, with
+        // nothing highlighted. It used to be the whole description of the file.
+        snippet: opening,
+      }),
+    );
+
+    expect(screen.getByTestId("drive-file-summary")).toHaveTextContent(
+      "Q3 revenue report for the sales team, with forecasts",
+    );
+    expect(screen.queryByText(/Copyright 2026/)).toBeNull();
+  });
+
+  it("is the matching passage when the reader searched", () => {
+    renderRow(
+      resource({
+        summary: "Q3 revenue report",
+        snippet: {
+          text: "revenue grew in the third quarter",
+          highlights: [{ start: 0, end: 7 }],
+          truncatedStart: false,
+          truncatedEnd: false,
+        },
+      }),
+    );
+
+    expect(screen.getByText("revenue")).toBeVisible();
+    expect(screen.queryByTestId("drive-file-summary")).toBeNull();
+  });
+
+  it("falls back to the type and size for a file with no summary", () => {
+    renderRow(resource({ summary: null, snippet: null, sizeBytes: 2048 }));
+
+    expect(screen.getByTestId("drive-file-summary")).toHaveTextContent(
+      "PDF · 2.0 KB",
+    );
   });
 });

@@ -11,6 +11,7 @@ import { FileTypeIcon } from "@/components/ui/file-icon";
 import type { FileResource } from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
+import { formatBytes } from "@/lib/utils/format-bytes";
 
 /**
  * One file in the catalog: what it is called, what it is about, where it is
@@ -82,6 +83,13 @@ export function DriveFileRow({
 
   const tags = item.tags.slice(0, VISIBLE_TAGS);
   const hiddenTagCount = item.tags.length - tags.length;
+  const matchedSnippet =
+    item.snippet && item.snippet.highlights.length > 0 ? item.snippet : null;
+  const extension = fileExtension(item.displayName);
+  const fallbackDescription =
+    [extension.toUpperCase(), formatBytes(item.sizeBytes)]
+      .filter(Boolean)
+      .join(" · ") || t("unknownType");
   const confirmedProjects = item.projects.filter(
     (link) => link.state === "CONFIRMED",
   );
@@ -201,9 +209,25 @@ export function DriveFileRow({
           <span className="text-muted-foreground text-xs">
             {t("filenameMatch")}
           </span>
-        ) : item.snippet ? (
-          <DriveFileSnippet snippet={item.snippet} />
-        ) : null}
+        ) : matchedSnippet ? (
+          <DriveFileSnippet snippet={matchedSnippet} />
+        ) : (
+          /**
+           * What the file is, in one line.
+           *
+           * This was the document's opening whenever there was no query, which
+           * is a title page and a copyright line as often as it is a summary.
+           * A passage is shown only when it matched something the reader
+           * typed; otherwise the model's summary, and for a file with no text
+           * to summarise the plain facts of its type and size.
+           */
+          <span
+            className="text-muted-foreground line-clamp-1 text-xs"
+            data-testid="drive-file-summary"
+          >
+            {item.summary ?? fallbackDescription}
+          </span>
+        )}
 
         {/**
          * Where the file is filed, which project it belongs to, and when it
