@@ -162,6 +162,11 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);
+    const preview = workflow.split(/^  preview-teardown:/m)[1] ?? "";
+    assert.match(preview, /environment: preview-database/);
+    assert.match(preview, /github\.event_name == 'workflow_run'/);
+    assert.match(preview, /workflow_run\.head_repository\.full_name/);
+    assert.match(preview, /node scripts\/ci\/preview-branch-teardown\.mjs/);
   });
 
   it("path-gated jobs skip at job level and fail open", async () => {
