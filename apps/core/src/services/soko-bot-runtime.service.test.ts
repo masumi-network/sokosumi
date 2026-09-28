@@ -184,9 +184,44 @@ vi.mock("@/helpers/data-table", () => ({
   mutateDataTable: vi.fn(),
 }));
 
+const social = vi.hoisted(() => ({
+  listAccounts: vi.fn(),
+  list: vi.fn(),
+  get: vi.fn(),
+  create: vi.fn(),
+  update: vi.fn(),
+  schedule: vi.fn(),
+  cancel: vi.fn(),
+  publish: vi.fn(),
+  beta: vi.fn(),
+  seat: vi.fn(),
+  owner: vi.fn(),
+}));
+vi.mock("@/services/project-social-connections.service", () => ({
+  listProjectSocialConnections: social.listAccounts,
+}));
+vi.mock("@/services/social-posts.service", () => ({
+  listSocialPosts: social.list,
+  getSocialPost: social.get,
+  createSocialPost: social.create,
+  updateSocialPost: social.update,
+  scheduleSocialPost: social.schedule,
+  cancelSocialPost: social.cancel,
+}));
+vi.mock("@/services/social-post-publisher.service", () => ({
+  publishSocialPostNow: social.publish,
+}));
+vi.mock("@/helpers/social-beta-access", () => ({
+  requireSocialBetaAccess: social.beta,
+}));
+vi.mock("@/helpers/organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: social.seat,
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: transactionMock,
+    user: { findUnique: social.owner },
     sokoBot: {
       findFirst: botFindFirstMock,
       findUnique: botFindUniqueMock,
@@ -4021,5 +4056,483 @@ describe("external effect receipt finalization", () => {
       }),
     ).rejects.toThrow("reconciliation");
     expect(dispatch).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("Soko Bot project social tools", () => {
+  const projectId = "01960001-0001-7001-8001-000000000011";
+  const postId = "01960001-0001-7001-8001-000000000012";
+  const accountId = "01960001-0001-7001-8001-000000000013";
+  const capabilities = [
+    "list_project_social_accounts",
+    "list_social_posts",
+    "get_social_post",
+    "create_social_post",
+    "update_social_post",
+    "schedule_social_post",
+    "cancel_social_post",
+    "publish_social_post",
+  ];
+  const post = {
+    id: postId,
+    projectId,
+    provider: "x",
+    text: "Launch",
+    media: [],
+    status: "DRAFT",
+    scheduledAt: null,
+    timezone: null,
+    socialConnection: {
+      id: accountId,
+      externalHandle: "launch",
+      status: "active",
+    },
+    creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
+    scheduledByUserId: null,
+    scheduledByCoworkerId: null,
+    canceledAt: null,
+    publishedAt: null,
+    publishedExternalId: null,
+    publishedUrl: null,
+    lastError: null,
+    attemptCount: 0,
+    nextAttemptAt: null,
+    lastAttemptAt: null,
+    lastAttempt: null,
+    revision: 2,
+    createdAt: "2026-09-28T12:00:00Z",
+    updatedAt: "2026-09-28T12:00:00Z",
+    canEdit: true,
+    canSchedule: true,
+    canCancel: true,
+    canPublishNow: true,
+    connectionNeedsReconnect: false,
+  };
+  const tx = {
+    $queryRaw: transactionTurnLockMock,
+    user: { findUnique: social.owner },
+    workspace: { findFirst: transactionWorkspaceFindFirstMock },
+    sokoBotTurn: {
+      findFirst: transactionTurnFindFirstMock,
+      findUnique: vi.fn().mockResolvedValue(null),
+    },
+    sokoBotToolCall: {
+      findUnique: transactionToolCallFindUniqueMock,
+      count: transactionToolCallCountMock,
+      create: transactionToolCallCreateMock,
+      update: transactionToolCallUpdateMock,
+      updateMany: toolCallUpdateManyMock,
+    },
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    for (const mock of Object.values(social)) mock.mockReset();
+    availabilityMock.mockResolvedValue({ disabled: false });
+    getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
+    social.owner.mockResolvedValue({ banned: false, banExpires: null });
+    social.beta.mockResolvedValue(undefined);
+    social.seat.mockResolvedValue(undefined);
+    social.listAccounts.mockResolvedValue([
+      {
+        id: accountId,
+        provider: "youtube",
+        externalHandle: "Launch channel",
+        status: "active",
+        connectedAt: "2026-09-28T12:00:00Z",
+        disconnectedAt: null,
+      },
+    ]);
+    social.list.mockResolvedValue({
+      posts: [post],
+      pagination: { hasMore: false },
+    });
+    for (const mock of [
+      social.get,
+      social.create,
+      social.update,
+      social.schedule,
+      social.cancel,
+    ])
+      mock.mockResolvedValue(post);
+    social.publish.mockResolvedValue({
+      ...post,
+      status: "PUBLISHED",
+      publishedExternalId: "x-post-1",
+      publishedUrl: "https://x.com/launch/status/1",
+    });
+    workspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "organization-one",
+    });
+    transactionWorkspaceFindFirstMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "organization-one",
+    });
+    transactionTurnFindFirstMock.mockResolvedValue({ id: SCOPE.turnId });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    transactionToolCallUpdateMock.mockResolvedValue({});
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation(tx),
+    );
+    turnFindUniqueMock.mockResolvedValue({
+      ...SCOPE,
+      id: SCOPE.turnId,
+      eveSessionId: SCOPE.sessionId,
+      source: "CHAT",
+      chainDepth: 0,
+      capabilityNames: capabilities,
+      contextSnapshot: {
+        id: "snapshot",
+        packet: {
+          memory: { version: 1 },
+          trigger: { askedBy: { kind: "OWNER" } },
+        },
+      },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, adminPausedAt: null, status: "RUNNING" },
+    });
+  });
+
+  it("lists actual account metadata scoped to the authorized workspace", async () => {
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_project_social_accounts",
+      toolCallId: "accounts",
+      input: { projectId },
+    });
+    expect(social.listAccounts).toHaveBeenCalledWith({
+      projectId,
+      workspaceId: SCOPE.workspaceId,
+    });
+    expect(result).toEqual([
+      expect.objectContaining({
+        provider: "youtube",
+        externalHandle: "Launch channel",
+      }),
+    ]);
+    expect(social.beta).toHaveBeenCalledWith(SCOPE.userId, expect.anything());
+    expect(social.seat).toHaveBeenCalledWith(
+      SCOPE.userId,
+      "organization-one",
+      expect.anything(),
+    );
+  });
+
+  it("forwards status filters, cursor, and page size without changing workspace", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_social_posts",
+      toolCallId: "list",
+      input: {
+        projectId,
+        statuses: ["SCHEDULED", "FAILED"],
+        cursor: postId,
+        limit: 5,
+      },
+    });
+    expect(social.list).toHaveBeenCalledWith({
+      projectId,
+      workspaceId: SCOPE.workspaceId,
+      statuses: ["SCHEDULED", "FAILED"],
+      cursor: postId,
+      limit: 5,
+    });
+  });
+
+  it("gets a post in the named project and current workspace", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_social_post",
+      toolCallId: "get",
+      input: { projectId, postId },
+    });
+    expect(social.get).toHaveBeenCalledWith({
+      projectId,
+      postId,
+      workspaceId: SCOPE.workspaceId,
+    });
+  });
+
+  it.each(["beta", "seat"] as const)(
+    "rejects reads when %s access is revoked",
+    async (guard) => {
+      social[guard].mockRejectedValue(new Error("Access revoked"));
+      await expect(
+        new SokoBotRuntimeService().executeTool({
+          ...SCOPE,
+          capability: "list_project_social_accounts",
+          toolCallId: "denied",
+          input: { projectId },
+        }),
+      ).rejects.toThrow("Access revoked");
+      expect(social.listAccounts).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects banned owners before reading accounts", async () => {
+    social.owner.mockResolvedValue({ banned: true, banExpires: null });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "banned",
+        input: { projectId },
+      }),
+    ).rejects.toThrow("no longer active");
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
+
+  it("does not allow model input to override the workspace", async () => {
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "override",
+        input: { projectId, workspaceId: "another-workspace" },
+      }),
+    ).rejects.toThrow();
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
+
+  it("records bot authorship and the receipt in the mutation transaction", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "create_social_post",
+      toolCallId: "create",
+      input: {
+        projectId,
+        text: "Launch",
+        socialConnectionId: accountId,
+        scheduledAt: "2026-10-01T14:00:00+02:00",
+        timezone: "Europe/Prague",
+      },
+    });
+    expect(social.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+        workspaceId: SCOPE.workspaceId,
+        userId: SCOPE.userId,
+        sokoBotId: SCOPE.sokoBotId,
+        organizationId: "organization-one",
+        scheduledAt: new Date("2026-10-01T12:00:00Z"),
+        timezone: "Europe/Prague",
+      }),
+      tx,
+    );
+    expect(transactionToolCallUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          verification: "LOCAL_TRANSACTION",
+          targetId: postId,
+          actorBotId: SCOPE.sokoBotId,
+          observedVersion: "2",
+        }),
+      }),
+    );
+  });
+
+  it.each([
+    [
+      "update_social_post",
+      "update",
+      { projectId, postId, text: "Changed", revision: 2 },
+    ],
+    [
+      "schedule_social_post",
+      "schedule",
+      { projectId, postId, scheduledAt: "2026-10-01T12:00:00Z", revision: 2 },
+    ],
+    ["cancel_social_post", "cancel", { projectId, postId, revision: 2 }],
+  ] as const)(
+    "%s delegates validation and revision checks to the existing service",
+    async (capability, mock, input) => {
+      await new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability,
+        toolCallId: capability,
+        input,
+      });
+      expect(social[mock]).toHaveBeenCalledWith(
+        expect.objectContaining({
+          projectId,
+          postId,
+          revision: 2,
+          workspaceId: SCOPE.workspaceId,
+          userId: SCOPE.userId,
+        }),
+        tx,
+      );
+    },
+  );
+
+  it("does not report success when the observed revision is stale", async () => {
+    social.update.mockRejectedValue(new Error("Revision conflict"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "update_social_post",
+        toolCallId: "conflict",
+        input: { projectId, postId, revision: 1, text: "Changed" },
+      }),
+    ).rejects.toThrow("Revision conflict");
+    expect(transactionToolCallUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("rechecks cancellation before committing a social mutation", async () => {
+    transactionTurnFindFirstMock.mockResolvedValue(null);
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "cancel_social_post",
+        toolCallId: "revoked",
+        input: { projectId, postId, revision: 2 },
+      }),
+    ).rejects.toThrow("no longer writable");
+    expect(social.cancel).not.toHaveBeenCalled();
+  });
+
+  it("replays a completed create without creating a duplicate", async () => {
+    const input = { projectId, text: "Launch" };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "create_social_post",
+      status: "COMPLETED",
+      disposition: "APPLIED",
+      result: post,
+      toolCallId: "created",
+      turnId: SCOPE.turnId,
+    });
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "create_social_post",
+      toolCallId: "created",
+      input,
+    });
+    expect(result).toEqual(post);
+    expect(social.create).not.toHaveBeenCalled();
+  });
+
+  it("rechecks social access instead of replaying stale account data", async () => {
+    const input = { projectId };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "list_project_social_accounts",
+      status: "COMPLETED",
+      result: [{ provider: "youtube", externalHandle: "Old channel" }],
+    });
+    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "list_project_social_accounts",
+        toolCallId: "accounts-replay",
+        input,
+      }),
+    ).rejects.toThrow("Social access revoked");
+    expect(social.listAccounts).not.toHaveBeenCalled();
+  });
+
+  it("persists refreshed read evidence when replaying a social lookup", async () => {
+    const input = { projectId, postId };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "get_social_post",
+      status: "COMPLETED",
+      result: { ...post, revision: 1 },
+    });
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "get_social_post",
+      toolCallId: "refreshed-read",
+      input,
+    });
+    expect(result).toMatchObject({ revision: 2 });
+    expect(toolCallUpdateManyMock).toHaveBeenCalledWith({
+      where: {
+        turnId: SCOPE.turnId,
+        toolCallId: "refreshed-read",
+        status: "COMPLETED",
+      },
+      data: { result },
+    });
+  });
+
+  it("does not expose a completed mutation's result after social access is revoked", async () => {
+    const input = { projectId, text: "Launch" };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "create_social_post",
+      status: "COMPLETED",
+      disposition: "APPLIED",
+      result: post,
+    });
+    social.beta.mockRejectedValue(new Error("Social access revoked"));
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "create_social_post",
+        toolCallId: "created",
+        input,
+      }),
+    ).rejects.toThrow("Social access revoked");
+    expect(social.create).not.toHaveBeenCalled();
+  });
+
+  it("fences publish retries and records only provider-confirmed publication", async () => {
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "publish_social_post",
+      toolCallId: "publish",
+      input: { projectId, postId, revision: 2 },
+    });
+    expect(social.publish).toHaveBeenCalledWith({
+      projectId,
+      postId,
+      revision: 2,
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+    });
+    expect(toolCallUpdateManyMock.mock.calls[0][0].data).toMatchObject({
+      disposition: "UNKNOWN",
+    });
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      disposition: "APPLIED",
+      verification: "PROVIDER_ACK",
+      targetId: postId,
+    });
+  });
+
+  it("will not retry an uncertain publish", async () => {
+    const input = { projectId, postId, revision: 2 };
+    toolCallFindUniqueMock.mockResolvedValue({
+      inputHash: createHash("sha256")
+        .update(canonicalJson(input))
+        .digest("hex"),
+      capability: "publish_social_post",
+      disposition: "UNKNOWN",
+    });
+    await expect(
+      new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "publish_social_post",
+        toolCallId: "publish",
+        input,
+      }),
+    ).rejects.toThrow("reconciliation");
+    expect(social.publish).not.toHaveBeenCalled();
   });
 });

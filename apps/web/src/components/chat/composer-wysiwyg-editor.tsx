@@ -133,11 +133,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   onBlur?: () => void;
   disabled?: boolean;
   ariaLabel?: string;
-  /**
-   * Inline edit mode: Ctrl/Cmd+Enter submits instead of inserting a newline,
-   * and plain Enter submits even on touch devices (no Save button exists).
-   */
-  modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
@@ -235,7 +230,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   onBlur,
   disabled = false,
   ariaLabel,
-  modifierEnterSubmits = false,
   onLinkShortcut,
   onActiveFormatsChange,
   onSelectedKeysChange,
@@ -1236,11 +1230,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
           shiftKey: event.shiftKey,
-          metaKey: modifierEnterSubmits ? false : event.metaKey,
-          ctrlKey: modifierEnterSubmits ? false : event.ctrlKey,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
           isSuggestionKeyboardActive: isDropdownVisible,
-          // Inline edit has no Save button, so Enter must still commit there.
-          isTouchDevice: modifierEnterSubmits ? false : !devicePrefersHover(),
+          isTouchDevice: !devicePrefersHover(),
         });
 
         if (action === "ignore") return;
@@ -1279,7 +1272,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertEmojiShortcode,
       insertMention,
       isOpen,
-      modifierEnterSubmits,
       onEscape,
       onLinkShortcut,
       onSubmitShortcut,
@@ -1428,7 +1420,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning
-        enterKeyHint={modifierEnterSubmits ? "send" : undefined}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
         onInput={handleInput}

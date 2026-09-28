@@ -55,7 +55,8 @@ export default async function ProjectSocialPage({
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
   const activeConnections = connections.filter(
-    (socialConnection) => socialConnection.status === "active",
+    (socialConnection) =>
+      socialConnection.status === "active" && socialConnection.provider === "x",
   );
 
   return (

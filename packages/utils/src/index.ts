@@ -208,6 +208,19 @@ export {
   sanitizeFileName,
 } from "./file-url.js";
 export {
+  checkFileLabelName,
+  countGraphemes,
+  displayFileLabelName,
+  FILE_LABEL_DESCRIPTION_MAX_LENGTH,
+  FILE_LABEL_NAME_MAX_GRAPHEMES,
+  FILE_SUGGESTIONS_VISIBLE_MAX,
+  FILE_TAGS_PER_RESOURCE_MAX,
+  type FileLabelNameCheck,
+  type FileLabelNameProblem,
+  normalizeFileLabelName,
+  normalizeFileResourceName,
+} from "./file-vocabulary.js";
+export {
   githubBlobDownloadUrl,
   isHtmlContentType,
   isUnexpectedHtmlImport,

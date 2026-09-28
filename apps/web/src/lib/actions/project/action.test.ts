@@ -391,31 +391,52 @@ describe("project actions", () => {
     expect(toCoreApiActionErrorMock).toHaveBeenCalledWith(expect.any(Error));
   });
 
-  it("initiates a social connection with a Flight-safe redirect handoff", async () => {
-    projectServiceMock.initiateSocialConnection.mockResolvedValue({
-      connectionId: "ca_123",
-      redirectUrl: "https://connect.composio.dev/link-token",
-    });
-
+  it("rejects a new connection without a provider", async () => {
     const { initiateProjectSocialConnection } = await import("./action");
     const result = await initiateProjectSocialConnection({
-      projectId: " project-1 ",
+      projectId: "project-1",
       action: "connect",
     });
+    expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+    expect(projectServiceMock.initiateSocialConnection).not.toHaveBeenCalled();
+  });
 
-    expect(projectServiceMock.initiateSocialConnection).toHaveBeenCalledWith(
-      "project-1",
-      { action: "connect", provider: "x" },
-    );
-    expect(result).toEqual({
-      ok: true,
-      value: {
+  it.each([
+    "x",
+    "tiktok",
+    "instagram",
+    "linkedin",
+    "facebook",
+    "youtube",
+  ] as const)(
+    "initiates a %s connection with a Flight-safe redirect handoff",
+    async (provider) => {
+      projectServiceMock.initiateSocialConnection.mockResolvedValue({
         connectionId: "ca_123",
         redirectUrl: "https://connect.composio.dev/link-token",
-      },
-    });
-    expect(JSON.parse(JSON.stringify(result))).toEqual(result);
-  });
+      });
+
+      const { initiateProjectSocialConnection } = await import("./action");
+      const result = await initiateProjectSocialConnection({
+        projectId: " project-1 ",
+        action: "connect",
+        provider,
+      });
+
+      expect(projectServiceMock.initiateSocialConnection).toHaveBeenCalledWith(
+        "project-1",
+        { action: "connect", provider },
+      );
+      expect(result).toEqual({
+        ok: true,
+        value: {
+          connectionId: "ca_123",
+          redirectUrl: "https://connect.composio.dev/link-token",
+        },
+      });
+      expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+    },
+  );
 
   it("finalizes a social connection and revalidates Project pages", async () => {
     const connection = {
