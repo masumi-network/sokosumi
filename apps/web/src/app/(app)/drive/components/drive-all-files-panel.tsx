@@ -8,16 +8,14 @@ import {
   Search,
   SlidersHorizontal,
 } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
-import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
+import { DriveFileRow } from "@/app/drive/components/drive-file-row";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -26,7 +24,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
 import type {
   FileCollection,
@@ -69,12 +66,6 @@ import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
  */
 
 const SEARCH_DEBOUNCE_MS = 250;
-
-/** Last dotted segment, lowercased. Empty for a name with no extension. */
-function fileExtension(name: string): string {
-  const parts = name.split(".");
-  return parts.length > 1 ? (parts.pop() ?? "").toLowerCase() : "";
-}
 
 export interface DriveAllFilesPanelProps {
   store: FileStore;
@@ -801,75 +792,13 @@ export function DriveAllFilesPanel({
             )}
           >
             {state.items.map((item, index) => (
-              <li
+              <DriveFileRow
                 key={item.id}
-                className={cn(
-                  "flex items-start gap-3 p-3",
-                  viewMode === "grid" && "bg-card-background rounded-lg border",
-                )}
-              >
-                <Checkbox
-                  checked={selectedIds.includes(item.id)}
-                  aria-label={t("selectFile", { name: item.displayName })}
-                  onClick={(event) => toggleRow(index, item.id, event.shiftKey)}
-                  onCheckedChange={() => undefined}
-                  className="mt-1"
-                />
-                <span className="mt-0.5 size-5 shrink-0">
-                  <FileTypeIcon extension={fileExtension(item.displayName)} />
-                </span>
-                <div className="min-w-0 flex-1">
-                  <Link
-                    href={`/drive/files/${item.id}`}
-                    className="focus-visible:ring-ring block truncate text-sm font-medium focus-visible:outline-none focus-visible:ring-2"
-                  >
-                    {item.displayName}
-                  </Link>
-                  {item.filenameMatch ? (
-                    <span className="text-muted-foreground text-xs">
-                      {t("filenameMatch")}
-                    </span>
-                  ) : item.snippet ? (
-                    <DriveFileSnippet snippet={item.snippet} />
-                  ) : null}
-                  <div className="mt-1 flex flex-wrap items-center gap-1">
-                    {item.category ? (
-                      <Badge variant="secondary">
-                        {item.category.displayName}
-                      </Badge>
-                    ) : null}
-                    {item.tags.slice(0, 2).map((tag) => (
-                      <Badge key={tag.id} variant="outline">
-                        {tag.displayName}
-                      </Badge>
-                    ))}
-                    {item.tags.length > 2 ? (
-                      <span className="text-muted-foreground text-xs">
-                        +{item.tags.length - 2}
-                      </span>
-                    ) : null}
-                    {item.suggestions.length > 0 ? (
-                      <Badge
-                        variant="outline"
-                        className="border-dashed"
-                        title={item.suggestions[0].evidenceSnippet ?? undefined}
-                      >
-                        {t("suggestedChip", {
-                          name: item.suggestions[0].displayName,
-                        })}
-                      </Badge>
-                    ) : null}
-                    {item.extractionState === "PENDING" ||
-                    item.extractionState === "RUNNING" ? (
-                      <Badge variant="outline">{t("badgeProcessing")}</Badge>
-                    ) : item.extractionState === "UNSUPPORTED" ? (
-                      <Badge variant="outline">{t("badgeFilenameOnly")}</Badge>
-                    ) : item.extractionState === "PARTIAL" ? (
-                      <Badge variant="outline">{t("badgePartial")}</Badge>
-                    ) : null}
-                  </div>
-                </div>
-              </li>
+                item={item}
+                viewMode={viewMode}
+                selected={selectedIds.includes(item.id)}
+                onToggle={(shiftKey) => toggleRow(index, item.id, shiftKey)}
+              />
             ))}
           </ul>
 
