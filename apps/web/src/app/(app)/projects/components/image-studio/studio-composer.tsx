@@ -485,99 +485,6 @@ export function StudioComposer({
               : labels.generateOne}
           </Button>
         }
-        toolbarEnd={
-          totalJobs > 0 ? (
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button
-                  className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
-                  size="sm"
-                  variant="ghost"
-                >
-                  <span className="min-w-0 truncate tabular-nums">
-                    {batchCredits === null
-                      ? t("runPlan", {
-                          copies: plan.copies,
-                          models: plan.models.length,
-                        })
-                      : t("runPlanCredits", {
-                          copies: plan.copies,
-                          models: plan.models.length,
-                          credits: batchCredits,
-                        })}
-                  </span>
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
-              >
-                <div>
-                  <p className="text-sm font-medium">{labels.creditsTitle}</p>
-                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
-                    {labels.creditsCharged}
-                  </p>
-                </div>
-
-                {batchCredits === null ? (
-                  <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                    {labels.creditsUnderivable}
-                  </p>
-                ) : null}
-
-                <ul className="space-y-2">
-                  {plan.models.map((model) => {
-                    const credits = creditsForImage(
-                      model,
-                      clampToModel(model, settings),
-                    );
-                    return (
-                      <li key={model.id}>
-                        <div className="flex min-w-0 items-baseline gap-2">
-                          <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                            {model.label}
-                          </span>
-                          <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                            {credits === null
-                              ? labels.creditsNoFigure
-                              : t("creditsEach", {
-                                  credits,
-                                  count: plan.copies,
-                                })}
-                          </span>
-                        </div>
-                        {/* Composed here rather than rendered from Core's
-                          `price.basis`. That string is built as "fal lists
-                          $0.03 per images for this endpoint" — fal's pricing
-                          API answers in plurals because it is describing a
-                          rate, and a sentence about one image then reads "per
-                          images". Web holds the same two figures separately,
-                          so it can say it once, correctly, and in the reader's
-                          language. */}
-                        <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                          {t("priceBasis", {
-                            price: `$${model.price.unitPriceUsd}`,
-                            unit: priceUnitLabel(model.price.unit),
-                          })}
-                        </p>
-                        <a
-                          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
-                          href={model.price.sourceUrl}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {t("creditsCheckedOn", {
-                            date: model.price.verifiedAt,
-                          })}
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </PopoverContent>
-            </Popover>
-          ) : null
-        }
         toolbarStart={
           <>
             <Popover>
@@ -838,6 +745,98 @@ export function StudioComposer({
                 </p>
               </PopoverContent>
             </Popover>
+
+            {totalJobs > 0 ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <span className="min-w-0 truncate tabular-nums">
+                      {batchCredits === null
+                        ? t("runPlan", {
+                            copies: plan.copies,
+                            models: plan.models.length,
+                          })
+                        : t("runPlanCredits", {
+                            copies: plan.copies,
+                            models: plan.models.length,
+                            credits: batchCredits,
+                          })}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{labels.creditsTitle}</p>
+                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
+                      {labels.creditsCharged}
+                    </p>
+                  </div>
+
+                  {batchCredits === null ? (
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {labels.creditsUnderivable}
+                    </p>
+                  ) : null}
+
+                  <ul className="space-y-2">
+                    {plan.models.map((model) => {
+                      const credits = creditsForImage(
+                        model,
+                        clampToModel(model, settings),
+                      );
+                      return (
+                        <li key={model.id}>
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                              {model.label}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                              {credits === null
+                                ? labels.creditsNoFigure
+                                : t("creditsEach", {
+                                    credits,
+                                    count: plan.copies,
+                                  })}
+                            </span>
+                          </div>
+                          {/* Composed here rather than rendered from Core's
+                          `price.basis`. That string is built as "fal lists
+                          $0.03 per images for this endpoint" — fal's pricing
+                          API answers in plurals because it is describing a
+                          rate, and a sentence about one image then reads "per
+                          images". Web holds the same two figures separately,
+                          so it can say it once, correctly, and in the reader's
+                          language. */}
+                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                            {t("priceBasis", {
+                              price: `$${model.price.unitPriceUsd}`,
+                              unit: priceUnitLabel(model.price.unit),
+                            })}
+                          </p>
+                          <a
+                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                            href={model.price.sourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {t("creditsCheckedOn", {
+                              date: model.price.verifiedAt,
+                            })}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            ) : null}
           </>
         }
         withOuterPadding={false}
