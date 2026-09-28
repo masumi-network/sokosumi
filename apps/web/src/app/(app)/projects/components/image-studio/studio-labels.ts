@@ -93,6 +93,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     creditsUnderivable: t("creditsUnderivable"),
     creditsNoFigure: t("creditsNoFigure"),
     failedRefunded: t("failedRefunded"),
+    failedBody: t("failedBody"),
+    failedDetails: t("failedDetails"),
   };
 }
 

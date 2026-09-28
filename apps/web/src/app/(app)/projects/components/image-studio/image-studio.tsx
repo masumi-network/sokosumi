@@ -575,8 +575,18 @@ export function ImageStudio({
           role="alert"
         >
           <h3 className="text-sm font-medium">{labels.failed}</h3>
-          <p className="text-muted-foreground mt-1 text-sm break-words">
-            {settledProblemJob.error ?? ""}
+          {/* A sentence, not the transport. This used to print `job.error`
+              verbatim, which on the preview read "Unexpected status code: 422"
+              — an HTTP detail shown to somebody who asked for a picture, in
+              English on a translated page.
+
+              One sentence for every failure, because Core sends no reason code
+              yet and matching on free text would break the first time fal
+              reworded something. When a stable reason arrives this is where it
+              branches, and an unrecognised one keeps this line rather than
+              falling back to the raw string. */}
+          <p className="text-muted-foreground mt-1 text-sm leading-relaxed text-pretty">
+            {labels.failedBody}
           </p>
           {/* Said on the failure itself, because "did that cost me anything?"
               is the first thing a charged product makes a person ask. Core
@@ -586,6 +596,20 @@ export function ImageStudio({
             <p className="text-muted-foreground mt-1 text-sm">
               {labels.failedRefunded}
             </p>
+          ) : null}
+          {/* Kept, not hidden. Whoever has to explain this to fal needs the
+              provider's own words, and a reader who does not care never opens
+              it. Native `details` so it is keyboard-operable without any of
+              this being our problem. */}
+          {settledProblemJob.error ? (
+            <details className="mt-2">
+              <summary className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo cursor-pointer rounded text-xs font-medium outline-none select-none focus-visible:ring-[3px]">
+                {labels.failedDetails}
+              </summary>
+              <p className="text-muted-foreground mt-1 font-mono text-xs break-words">
+                {settledProblemJob.error}
+              </p>
+            </details>
           ) : null}
           <Button
             className="mt-3"

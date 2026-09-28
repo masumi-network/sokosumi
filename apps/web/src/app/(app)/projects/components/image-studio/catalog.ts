@@ -140,6 +140,35 @@ export function clampToModel(
 }
 
 /**
+ * fal's pricing unit, as one thing rather than as a plural.
+ *
+ * fal's pricing API answers in plurals — `images`, `megapixels` — because it is
+ * describing a rate, and Core passes that through verbatim in `price.basis`.
+ * Dropped into a sentence about *one* of them it reads "per images", which is
+ * the sentence the preview showed for every per-image model.
+ *
+ * Returns the label key for the units a catalog model can actually carry, and
+ * `null` for anything else so the caller falls back to fal's own word. Only
+ * per-image and per-megapixel units reach the catalog — Core excludes the rest,
+ * because they cannot be priced per image — so the other four are the fallback
+ * by design rather than by omission.
+ */
+export function priceUnitLabelKey(unit: string): string | null {
+  switch (unit) {
+    case "images":
+      return "images";
+    case "generations":
+      return "generations";
+    case "megapixels":
+      return "megapixels";
+    case "processed megapixels":
+      return "processedMegapixels";
+    default:
+      return null;
+  }
+}
+
+/**
  * What one image from this model, at this frame, will be debited.
  *
  * `creditsPerImageCents` comes from `@sokosumi/utils` and is **the same

@@ -240,4 +240,13 @@ export interface StudioLabels {
   creditsNoFigure: string;
   /** Said on a failed generation, because a failure is refunded in full. */
   failedRefunded: string;
+  /**
+   * What a failed generation says instead of the provider's transport error.
+   *
+   * One sentence for every reason: Core sends no stable reason code yet, and
+   * `job.error` is English free text from fal or the runner.
+   */
+  failedBody: string;
+  /** Opens the provider's own words, for whoever has to chase them. */
+  failedDetails: string;
 }

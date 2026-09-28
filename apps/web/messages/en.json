@@ -2647,9 +2647,18 @@
       "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
       "creditsNoFigure": "No figure",
       "failedRefunded": "It was refunded in full, so it cost nothing.",
+      "failedBody": "The model did not return an image. Trying again usually works; if it keeps failing, another model probably will.",
+      "failedDetails": "What the provider said",
       "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
       "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
       "creditsCount": "{count, plural, one {# credit} other {# credits}}",
+      "priceBasis": "fal lists {price} per {unit} for this endpoint.",
+      "PriceUnits": {
+        "images": "image",
+        "generations": "generation",
+        "megapixels": "megapixel",
+        "processedMegapixels": "processed megapixel"
+      },
       "creditsCheckedOn": "Price checked {date}"
     },
     "Error": {

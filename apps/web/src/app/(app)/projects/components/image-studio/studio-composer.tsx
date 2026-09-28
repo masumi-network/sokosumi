@@ -19,7 +19,12 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { clampToModel, creditsForBatch, creditsForImage } from "./catalog";
+import {
+  clampToModel,
+  creditsForBatch,
+  creditsForImage,
+  priceUnitLabelKey,
+} from "./catalog";
 import { STUDIO_PILL_CLASS } from "./studio-classes";
 import {
   assetContentUrl,
@@ -189,6 +194,17 @@ export function StudioComposer({
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
+
+  /**
+   * fal's pricing unit, singular and translated where we have a word for it.
+   *
+   * Falls back to fal's own plural for a unit the catalog is not supposed to
+   * carry: a wrong-sounding real unit beats a confidently invented singular.
+   */
+  function priceUnitLabel(unit: string): string {
+    const key = priceUnitLabelKey(unit);
+    return key ? t(`PriceUnits.${key}`) : unit;
+  }
   const { modelIds: selectedModelIds, settings } = target;
 
   const selectedModels = useMemo(
@@ -643,10 +659,19 @@ export function StudioComposer({
                               })}
                         </span>
                       </div>
-                      {/* The provider's own wording for how the figure is
-                          arrived at, rather than our paraphrase of it. */}
+                      {/* Composed here rather than rendered from Core's
+                          `price.basis`. That string is built as "fal lists
+                          $0.03 per images for this endpoint" — fal's pricing
+                          API answers in plurals because it is describing a
+                          rate, and a sentence about one image then reads "per
+                          images". Web holds the same two figures separately,
+                          so it can say it once, correctly, and in the reader's
+                          language. */}
                       <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                        {model.price.basis}
+                        {t("priceBasis", {
+                          price: `$${model.price.unitPriceUsd}`,
+                          unit: priceUnitLabel(model.price.unit),
+                        })}
                       </p>
                       <a
                         className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"

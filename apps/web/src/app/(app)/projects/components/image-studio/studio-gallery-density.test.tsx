@@ -275,10 +275,39 @@ describe("a gallery with work in it", () => {
         within(tile as HTMLElement).getByRole("button", { name: "cancel" }),
       ).toBeInTheDocument();
     }
-    // A settled failure is stated above the gallery, with its reason.
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The provider refused it.",
+    // A settled failure is stated above the gallery.
+    expect(screen.getByRole("alert")).toHaveTextContent("failedBody");
+  });
+
+  /**
+   * What a failure says, and what it does not say.
+   *
+   * It used to print `job.error` verbatim, which on the preview read
+   * "Unexpected status code: 422" — an HTTP detail, in English, shown to
+   * somebody who asked for a picture. The provider's words are kept, one
+   * disclosure away, for whoever has to chase fal about them.
+   */
+  it("states a failure in a sentence, with the provider's words behind a toggle", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Unexpected status code: 422"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedBody");
+    // Present in the DOM — a `details` only hides its own body visually — but
+    // never in the sentence a reader gets handed.
+    const summary = screen.getByText("failedDetails");
+    expect(summary.closest("details")).toHaveTextContent(
+      "Unexpected status code: 422",
     );
+    expect(alert.querySelector("p")?.textContent).not.toContain("422");
+  });
+
+  it("offers no disclosure when the provider said nothing", () => {
+    mount(manyAssets(2), [job("failed", "FAILED")]);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("failedBody");
+    expect(screen.queryByText("failedDetails")).toBeNull();
   });
 
   /**
