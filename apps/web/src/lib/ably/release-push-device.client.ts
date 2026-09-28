@@ -46,6 +46,32 @@ const PUSH_DEVICE_OWNER_KEY = "sokosumi.push.deviceOwner";
  */
 const ABLY_DEVICE_ID_KEY = "ably.push.deviceId";
 
+/** Read an existing ID only. Constructing an Ably client can create a new device. */
+export function readAblyPushDeviceId(userId: string): string | null {
+  if (readPushDeviceOwner() !== userId) return null;
+  try {
+    // Ably Webstorage wraps persisted values in a value/expiry envelope.
+    const stored: unknown = JSON.parse(
+      localStorage.getItem(ABLY_DEVICE_ID_KEY) ?? "null",
+    );
+    if (
+      typeof stored !== "object" ||
+      stored === null ||
+      !("value" in stored) ||
+      typeof stored.value !== "string"
+    )
+      return null;
+    if (
+      "expires" in stored &&
+      (typeof stored.expires !== "number" || stored.expires < Date.now())
+    )
+      return null;
+    return stored.value;
+  } catch {
+    return null;
+  }
+}
+
 /** Whether this browser has ever been given a device id. */
 export function hasAblyPushDeviceId(): boolean {
   try {

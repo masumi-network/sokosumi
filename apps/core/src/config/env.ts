@@ -25,6 +25,12 @@ const baseEnvSchema = z.object({
   // Database
   DATABASE_URL: z.url(),
 
+  // Task tags use global Jev routing with enforced retention/no-training options.
+  TASK_TAG_CLASSIFICATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+
   // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
   REDIS_URL: z.string().optional(),
   KV_URL: z.string().optional(),
@@ -120,13 +126,26 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  /** Immutable operator-issued preview partition; never accepted from API input. */
+  SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  /**
+   * fal.ai key for Soko Bot avatar generation and the Project image studio.
+   * Neither feature can reach the provider without it; both degrade to a
+   * read-only view rather than failing a page render.
+   */
   FAL_KEY: z.string().min(1).optional(),
+  /**
+   * Shared secret the image-studio agent signs its grants with. The agent runs
+   * outside Core, so a grant is how it names the acting user; Core still
+   * re-checks that user's project access on every call. Without it the agent
+   * cannot reach Core at all, which is the safe default.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")
@@ -154,12 +173,26 @@ const baseEnvSchema = z.object({
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
   COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /**
+   * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
+   * the web, a shell and a persistent workspace. `in-process`: inside Core,
+   * Sokosumi tools only (preview evaluation runs always use it).
+   */
   SOKO_BOT_RUNTIME_ADAPTER: z
-    .enum(["in-memory", "in-process"])
-    .default("in-process"),
-  SOKO_BOT_CLASSIFIER_MODE: z
-    .enum(["deterministic", "model"])
-    .default("deterministic"),
+    .enum(["in-memory", "in-process", "sandbox"])
+    .default("sandbox"),
+  /**
+   * Public base URL sandboxes call Core on. Defaults to the deployment's own
+   * URL; set it locally to a tunnel, since a sandbox cannot reach localhost.
+   */
+  SOKO_BOT_RUNTIME_PUBLIC_URL: z.url().optional(),
+  /**
+   * Explicit Vercel credentials for creating sandboxes. On Vercel the
+   * function's OIDC token is used instead; locally all three are needed.
+   */
+  VERCEL_SANDBOX_TOKEN: z.string().min(1).optional(),
+  VERCEL_SANDBOX_TEAM_ID: z.string().min(1).optional(),
+  VERCEL_SANDBOX_PROJECT_ID: z.string().min(1).optional(),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
   /** Most credits one hire may commit on a turn no owner asked for. */
@@ -210,6 +243,23 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Read-write token for the image studio's **own, private-access** Blob
+   * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
+   *
+   * `BLOB_READ_WRITE_TOKEN` names the shared store that project files,
+   * DESIGN.md, avatars and user uploads write to, and that store is created
+   * with `access: "public"` — every object in it is retrievable by anyone who
+   * has its URL, with no credential. Generated images are project assets and
+   * must not be in it. Vercel fixes public-or-private per *store*, not per
+   * object, so the only way to store them privately is a second store created
+   * with `--access private`, which is what this token addresses.
+   *
+   * Absent, the studio refuses to generate rather than falling back to the
+   * shared public store: see `requireStudioBlobToken` in
+   * `services/image-studio-jobs.service.ts`.
+   */
+  IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls
@@ -238,6 +288,7 @@ const baseEnvSchema = z.object({
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
   /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_PUSH_ADMIN_KEY: z.string().min(1).optional(),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
@@ -291,15 +342,14 @@ function isProductionEnvironment(
 
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
-  // The agent runs inside Core, so enabling it needs no runtime deployment,
-  // signing key, or allowlist — only a real adapter in a deployed environment.
+  // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
-  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
+  if (value.SOKO_BOT_RUNTIME_ADAPTER === "in-memory") {
     context.addIssue({
       code: "custom",
       path: ["SOKO_BOT_RUNTIME_ADAPTER"],
       message:
-        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+        "SOKO_BOT_RUNTIME_ADAPTER must be sandbox or in-process when Soko Bot is enabled in a deployed environment",
     });
   }
 });

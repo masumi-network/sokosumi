@@ -1045,6 +1045,8 @@ export function TaskDetailActions({
             }
             onCreateTask={async ({
               description,
+              name,
+              tagSuggestionReceipt,
               assigneeId,
               assigneeSokoBotId,
               assigneeUserId,
@@ -1057,6 +1059,8 @@ export function TaskDetailActions({
               const result = await createTaskAndLink({
                 taskId,
                 description,
+                name,
+                tagSuggestionReceipt,
                 assigneeId,
                 assigneeSokoBotId,
                 assigneeUserId: assigneeUserId ?? null,

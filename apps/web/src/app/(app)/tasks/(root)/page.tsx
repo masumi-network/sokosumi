@@ -445,18 +445,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
             untitled: t("Jobs.untitled"),
             unknownAgent: t("Jobs.unknownAgent"),
           },
-          emptyState: {
-            title: t("EmptyState.title"),
-            description: t("EmptyState.description"),
-            getStartedTitle: t("EmptyState.getStartedTitle"),
-            getStartedDescription: t("EmptyState.getStartedDescription"),
-            getStartedButton: t("EmptyState.getStartedButton"),
-            next: t("EmptyState.next"),
-            back: t("EmptyState.back"),
-            addTaskHint: t("EmptyState.addTaskHint"),
-            elenaAvatarAlt: t("EmptyState.elenaAvatarAlt"),
-          },
-          showGuideAriaLabel: t("Actions.showGuide"),
           loadMore: t("Actions.loadMore"),
           loading: t("Actions.loading"),
         }}

@@ -929,6 +929,34 @@ export const AdminSokoBotOwnerSchema = {
 export const AdminSokoBotQualitySchema = {
     type: 'object',
     properties: {
+        reliability: {
+            type: 'object',
+            properties: {
+                fulfillment: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                delivery: {
+                    type: 'object',
+                    additionalProperties: {
+                        type: 'integer',
+                        minimum: 0
+                    }
+                },
+                invalidActionClaims: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'fulfillment',
+                'delivery',
+                'invalidActionClaims'
+            ]
+        },
         overall: {
             type: 'object',
             properties: {
@@ -1041,6 +1069,7 @@ export const AdminSokoBotQualitySchema = {
         }
     },
     required: [
+        'reliability',
         'overall',
         'proactive',
         'daily',
@@ -2558,6 +2587,13 @@ export const SokoBotTurnSchema = {
             items: {
                 $ref: '#/components/schemas/SokoBotToolCall'
             }
+        },
+        evaluation: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
         },
         contextSummary: {
             $ref: '#/components/schemas/SokoBotContextSummary'
@@ -4585,6 +4621,9 @@ export const TaskSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -5087,6 +5126,51 @@ export const TaskCreatorSokoBotSchema = {
         'type',
         'id',
         'sokoBot'
+    ]
+} as const;
+
+export const TaskTagsSchema = {
+    type: 'object',
+    properties: {
+        automatic: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        manual: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        },
+        rejected: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            }
+        }
+    },
+    required: [
+        'automatic',
+        'manual',
+        'rejected'
+    ]
+} as const;
+
+export const TaskTagIdSchema = {
+    type: 'string',
+    enum: [
+        'research',
+        'strategy',
+        'writing',
+        'design',
+        'analysis',
+        'development',
+        'marketing',
+        'social',
+        'seo',
+        'operations'
     ]
 } as const;
 
@@ -10693,7 +10777,8 @@ export const CheckoutSessionAnalyticsSchema = {
                 'number',
                 'null'
             ],
-            example: 12000
+            description: 'Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.',
+            example: 120
         },
         items: {
             type: 'array',
@@ -11076,6 +11161,447 @@ export const DeveloperTaskDetailSchema = {
         'task',
         'owner',
         'organization'
+    ]
+} as const;
+
+export const DataTableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        workspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        title: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        createdBy: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        columns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableColumn'
+            }
+        },
+        views: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableView'
+            }
+        }
+    },
+    required: [
+        'id',
+        'workspaceId',
+        'projectId',
+        'title',
+        'description',
+        'createdBy',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt',
+        'columns',
+        'views'
+    ]
+} as const;
+
+export const TableColumnSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 100
+        },
+        description: {
+            type: 'string',
+            maxLength: 2000,
+            default: ''
+        },
+        type: {
+            type: 'string',
+            enum: [
+                'text',
+                'long_text',
+                'number',
+                'date',
+                'checkbox',
+                'url',
+                'email',
+                'single_select',
+                'multiple_select'
+            ]
+        },
+        options: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 200
+            },
+            maxItems: 100,
+            default: []
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        position: {
+            type: 'integer'
+        },
+        version: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'type',
+        'tableId',
+        'position',
+        'version'
+    ]
+} as const;
+
+export const TableViewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        name: {
+            type: 'string'
+        },
+        version: {
+            type: 'integer'
+        },
+        definition: {
+            type: 'object',
+            properties: {
+                filters: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            columnId: {
+                                type: 'string',
+                                format: 'uuid'
+                            },
+                            operator: {
+                                type: 'string',
+                                enum: [
+                                    'equals',
+                                    'contains',
+                                    'empty'
+                                ]
+                            },
+                            value: {
+                                anyOf: [
+                                    {
+                                        type: 'string',
+                                        maxLength: 20000
+                                    },
+                                    {
+                                        type: 'number'
+                                    },
+                                    {
+                                        type: 'boolean'
+                                    },
+                                    {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            maxLength: 200
+                                        },
+                                        maxItems: 100
+                                    },
+                                    {
+                                        type: 'null'
+                                    }
+                                ]
+                            }
+                        },
+                        required: [
+                            'columnId',
+                            'operator'
+                        ]
+                    },
+                    maxItems: 10,
+                    default: []
+                },
+                sort: {
+                    type: [
+                        'object',
+                        'null'
+                    ],
+                    properties: {
+                        columnId: {
+                            type: 'string',
+                            format: 'uuid'
+                        },
+                        direction: {
+                            type: 'string',
+                            enum: [
+                                'asc',
+                                'desc'
+                            ]
+                        }
+                    },
+                    default: null,
+                    required: [
+                        'columnId',
+                        'direction'
+                    ]
+                },
+                visibleColumnIds: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        format: 'uuid'
+                    },
+                    maxItems: 100,
+                    default: []
+                }
+            }
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'name',
+        'version',
+        'definition'
+    ]
+} as const;
+
+export const TableRowSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        values: {
+            type: 'object',
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string',
+                        maxLength: 20000
+                    },
+                    {
+                        type: 'number'
+                    },
+                    {
+                        type: 'boolean'
+                    },
+                    {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        maxItems: 100
+                    },
+                    {
+                        type: 'null'
+                    }
+                ]
+            }
+        },
+        evidence: {
+            type: 'object',
+            additionalProperties: {
+                type: 'array',
+                items: {
+                    type: 'object',
+                    properties: {
+                        url: {
+                            type: 'string',
+                            maxLength: 2000,
+                            format: 'uri'
+                        },
+                        note: {
+                            type: 'string',
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'url'
+                    ]
+                },
+                maxItems: 20
+            }
+        },
+        version: {
+            type: 'integer'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'values',
+        'evidence',
+        'version',
+        'archivedAt',
+        'createdAt',
+        'updatedAt'
+    ]
+} as const;
+
+export const TableBatchResultSchema = {
+    type: 'object',
+    properties: {
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        rows: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TableRow'
+            }
+        }
+    },
+    required: [
+        'batchId',
+        'rows'
+    ]
+} as const;
+
+export const TableChangeSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        tableId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        batchId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        actorId: {
+            type: 'string'
+        },
+        actorKind: {
+            type: 'string'
+        },
+        actorName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        taskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        rowId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        columnId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        before: {},
+        after: {},
+        evidence: {},
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'tableId',
+        'batchId',
+        'actorId',
+        'actorKind',
+        'taskId',
+        'rowId',
+        'columnId',
+        'createdAt'
     ]
 } as const;
 
@@ -12464,6 +12990,50 @@ export const ActivateEnterpriseContractRequestSchema = {
             description: 'Non-empty payment reference'
         }
     }
+} as const;
+
+export const ExportLeaseSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        },
+        durationMs: {
+            type: 'integer',
+            exclusiveMinimum: 0
+        }
+    },
+    required: [
+        'token',
+        'durationMs'
+    ]
+} as const;
+
+export const ReleaseExportLeaseResponseSchema = {
+    type: 'object',
+    properties: {
+        released: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'released'
+    ]
+} as const;
+
+export const ReleaseExportLeaseBodySchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'token'
+    ],
+    additionalProperties: false
 } as const;
 
 export const HistoryListSchema = {
@@ -16316,6 +16886,655 @@ export const CancelSocialPostRequestSchema = {
     ]
 } as const;
 
+export const ProjectImageStudioStateSchema = {
+    type: 'object',
+    properties: {
+        catalog: {
+            $ref: '#/components/schemas/ProjectImageStudioCatalog'
+        },
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        sessions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageSession'
+            }
+        },
+        nextCursor: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'createdAt',
+                'id'
+            ]
+        }
+    },
+    required: [
+        'catalog',
+        'assets',
+        'jobs',
+        'sessions',
+        'nextCursor'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    description: {
+                        type: 'string'
+                    },
+                    generateEndpoint: {
+                        type: 'string'
+                    },
+                    editEndpoint: {
+                        type: 'string'
+                    },
+                    aspectRatios: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    resolutions: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    outputFormats: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    supportsSeed: {
+                        type: 'boolean'
+                    },
+                    maxReferences: {
+                        type: 'integer'
+                    },
+                    dimensionMode: {
+                        type: 'string',
+                        enum: [
+                            'aspect-ratio',
+                            'image-size'
+                        ]
+                    },
+                    notes: {
+                        type: 'string'
+                    },
+                    price: {
+                        type: 'object',
+                        properties: {
+                            perImageUsd: {
+                                type: 'object',
+                                properties: {
+                                    '0.5K': {
+                                        type: 'number'
+                                    },
+                                    '1K': {
+                                        type: 'number'
+                                    },
+                                    '2K': {
+                                        type: 'number'
+                                    }
+                                }
+                            },
+                            basis: {
+                                type: 'string'
+                            },
+                            sourceUrl: {
+                                type: 'string'
+                            },
+                            verifiedAt: {
+                                type: 'string'
+                            }
+                        },
+                        required: [
+                            'perImageUsd',
+                            'basis',
+                            'sourceUrl',
+                            'verifiedAt'
+                        ]
+                    },
+                    sourceUrls: {
+                        type: 'array',
+                        items: {
+                            type: 'string'
+                        }
+                    },
+                    verifiedAt: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'label',
+                    'description',
+                    'generateEndpoint',
+                    'editEndpoint',
+                    'aspectRatios',
+                    'resolutions',
+                    'outputFormats',
+                    'supportsSeed',
+                    'maxReferences',
+                    'dimensionMode',
+                    'notes',
+                    'price',
+                    'sourceUrls',
+                    'verifiedAt'
+                ]
+            }
+        },
+        placements: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    platform: {
+                        type: 'string'
+                    },
+                    label: {
+                        type: 'string'
+                    },
+                    aspectRatio: {
+                        type: 'string'
+                    },
+                    width: {
+                        type: 'integer'
+                    },
+                    height: {
+                        type: 'integer'
+                    },
+                    notes: {
+                        type: 'string'
+                    },
+                    sourceUrl: {
+                        type: 'string'
+                    },
+                    verifiedAt: {
+                        type: 'string'
+                    }
+                },
+                required: [
+                    'id',
+                    'platform',
+                    'label',
+                    'aspectRatio',
+                    'width',
+                    'height',
+                    'notes',
+                    'sourceUrl',
+                    'verifiedAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'placements'
+    ]
+} as const;
+
+export const ProjectImageAssetSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        rootId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer',
+            minimum: 1
+        },
+        prompt: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        width: {
+            type: 'integer',
+            minimum: 0
+        },
+        height: {
+            type: 'integer',
+            minimum: 0
+        },
+        bytes: {
+            type: 'integer',
+            minimum: 0
+        },
+        contentType: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        contentPath: {
+            type: 'string'
+        },
+        review: {
+            $ref: '#/components/schemas/ProjectImageReview'
+        }
+    },
+    required: [
+        'id',
+        'rootId',
+        'parentId',
+        'version',
+        'prompt',
+        'model',
+        'width',
+        'height',
+        'bytes',
+        'contentType',
+        'createdAt',
+        'jobId',
+        'settings',
+        'contentPath'
+    ]
+} as const;
+
+export const ProjectImageSettingsSchema = {
+    type: 'object',
+    properties: {
+        placementId: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3',
+                '4:5',
+                '5:4'
+            ],
+            default: '1:1'
+        },
+        resolution: {
+            type: 'string',
+            enum: [
+                '0.5K',
+                '1K',
+                '2K'
+            ],
+            default: '1K'
+        },
+        outputFormat: {
+            type: 'string',
+            enum: [
+                'png',
+                'jpeg',
+                'webp'
+            ],
+            default: 'png'
+        },
+        seed: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 2147483647,
+            default: null
+        }
+    }
+} as const;
+
+export const ProjectImageReviewSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'APPROVED',
+                'REJECTED'
+            ]
+        },
+        feedback: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        decidedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        decidedByUserId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'decision',
+        'feedback',
+        'decidedAt',
+        'decidedByUserId'
+    ]
+} as const;
+
+export const ProjectImageJobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'SUBMITTING',
+                'QUEUED',
+                'RUNNING',
+                'SUCCEEDED',
+                'FAILED',
+                'CANCELED',
+                'SUBMISSION_UNCERTAIN',
+                'ORPHANED'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'GENERATE',
+                'EDIT'
+            ]
+        },
+        model: {
+            type: 'string'
+        },
+        prompt: {
+            type: 'string'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submittedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        settledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancelRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        retryMayDuplicateCharge: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'status',
+        'kind',
+        'model',
+        'prompt',
+        'settings',
+        'referenceAssetIds',
+        'error',
+        'parentAssetId',
+        'assetId',
+        'createdAt',
+        'submittedAt',
+        'settledAt',
+        'cancelRequestedAt',
+        'retryMayDuplicateCharge'
+    ]
+} as const;
+
+export const ProjectImageSessionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        eveSessionId: {
+            type: 'string'
+        },
+        title: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        createdByUserId: {
+            type: 'string'
+        },
+        lastActivityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'eveSessionId',
+        'title',
+        'createdByUserId',
+        'lastActivityAt',
+        'createdAt'
+    ]
+} as const;
+
+export const CreateProjectImageJobRequestSchema = {
+    type: 'object',
+    properties: {
+        modelId: {
+            type: 'string',
+            enum: [
+                'gemini-flash',
+                'gemini-pro',
+                'flux-2-pro'
+            ],
+            default: 'gemini-flash'
+        },
+        prompt: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4000
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 4,
+            default: []
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        sessionId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            default: null
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        }
+    },
+    required: [
+        'prompt',
+        'idempotencyKey'
+    ]
+} as const;
+
+export const CancelProjectImageJobResponseSchema = {
+    type: 'object',
+    properties: {
+        accepted: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'accepted'
+    ]
+} as const;
+
+export const ReviewProjectImageAssetRequestSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'APPROVED',
+                'REJECTED'
+            ]
+        },
+        feedback: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            default: null
+        }
+    },
+    required: [
+        'decision'
+    ]
+} as const;
+
 export const PatchProjectRequestSchema = {
     type: 'object',
     properties: {
@@ -17237,6 +18456,195 @@ export const NotificationCountsSchema = {
     ]
 } as const;
 
+export const PushDeviceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        browserDetails: {
+            $ref: '#/components/schemas/PushDeviceBrowserDetails'
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        },
+        platform: {
+            type: 'string',
+            enum: [
+                'browser',
+                'ios',
+                'android',
+                'unknown'
+            ]
+        },
+        formFactor: {
+            type: 'string',
+            enum: [
+                'phone',
+                'tablet',
+                'desktop',
+                'tv',
+                'watch',
+                'car',
+                'embedded',
+                'other'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'active',
+                'failing',
+                'failed',
+                'unknown'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'platform',
+        'formFactor',
+        'state'
+    ]
+} as const;
+
+export const PushDeviceBrowserDetailsSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        }
+    },
+    required: [
+        'browser',
+        'operatingSystem'
+    ]
+} as const;
+
+export const PushDeviceActivationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0
+        },
+        revoked: {
+            type: 'boolean'
+        },
+        replaceDevice: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'revision',
+        'revoked',
+        'replaceDevice'
+    ]
+} as const;
+
+export const PushDeviceActivationRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        deviceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 256
+        },
+        readerInitiated: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'deviceId',
+        'readerInitiated'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceSubscriptionRequestSchema = {
+    type: 'object',
+    properties: {
+        consentId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 2147483647
+        }
+    },
+    required: [
+        'consentId',
+        'revision'
+    ],
+    additionalProperties: false
+} as const;
+
+export const PushDeviceBrowserUpdateSchema = {
+    type: 'object',
+    properties: {
+        browser: {
+            type: 'string',
+            enum: [
+                'Chrome',
+                'Edge',
+                'Firefox',
+                'Safari',
+                'Opera',
+                'Samsung Internet'
+            ]
+        },
+        operatingSystem: {
+            type: 'string',
+            enum: [
+                'macOS',
+                'Windows',
+                'Windows Phone',
+                'Android',
+                'iOS',
+                'Linux',
+                'ChromeOS'
+            ]
+        },
+        registeredAt: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    additionalProperties: false
+} as const;
+
 export const MarkAllReadResponseSchema = {
     type: 'object',
     properties: {
@@ -17939,6 +19347,43 @@ export const CreateSokoBotApiKeyResponseSchema = {
         'token',
         'name',
         'expiresAt'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DISCONNECTED',
+                'PENDING',
+                'ACTIVE',
+                'FAILED',
+                'REVOKED'
+            ]
+        }
+    },
+    required: [
+        'provider',
+        'status'
+    ]
+} as const;
+
+export const CompleteSokoBotIntegrationAuthRequestSchema = {
+    type: 'object',
+    properties: {
+        sessionUri: {
+            type: 'string',
+            minLength: 1,
+            description: 'The single-use session URI Composio hands to the verifier'
+        }
+    },
+    required: [
+        'sessionUri'
     ]
 } as const;
 
@@ -20141,6 +21586,9 @@ export const TaskListItemSchema = {
             deprecated: true,
             description: 'Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.'
         },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -20316,6 +21764,26 @@ export const TaskActivitySummarySchema = {
         'lastVisitAt',
         'basis',
         'workedMinutes'
+    ]
+} as const;
+
+export const TaskTagSuggestionSchema = {
+    type: 'object',
+    properties: {
+        tags: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/TaskTagId'
+            },
+            maxItems: 5
+        },
+        receipt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'tags',
+        'receipt'
     ]
 } as const;
 

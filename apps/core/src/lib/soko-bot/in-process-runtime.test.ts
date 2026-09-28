@@ -28,7 +28,8 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
-vi.mock("ai", () => ({
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
   generateText: generateTextMock,
   stepCountIs: (count: number) => count,
   tool: (definition: unknown) => definition,
@@ -41,7 +42,8 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: findManyMock,
       deleteMany: vi.fn(),
     },
-    sokoBotTurn: { findFirst: vi.fn() },
+    sokoBotTurn: { findFirst: vi.fn(), update: vi.fn().mockResolvedValue({}) },
+    sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -118,7 +120,9 @@ describe("InProcessSokoBotRuntime", () => {
     const completed = recordedEvents().find(
       (event) => event.type === "message.completed",
     );
-    expect(completed?.data.message).toBe("Delegated to a Coworker.");
+    expect(completed?.data.message).toBe(
+      "No action was verified. Please specify the target and change you want.",
+    );
   });
 
   it("reports the model and metered usage the drain bills on", async () => {
@@ -143,6 +147,66 @@ describe("InProcessSokoBotRuntime", () => {
       cacheWriteTokens: 0,
       costUsd: 0.0136,
     });
+  });
+
+  it.each([
+    "create_schedule",
+    "post_chat",
+    "update_memory",
+    "run_integration_tool",
+    "upload_file",
+  ])(
+    "suppresses unsupported success prose for an unused %s grant",
+    async (capability) => {
+      authorizeMock.mockResolvedValueOnce({
+        turn: { id: TURN_ID, versionId: "v11" },
+        grant: { capabilities: [capability] },
+      });
+      generateTextMock.mockResolvedValueOnce({
+        text: "Everything was saved and sent successfully.",
+        finishReason: "stop",
+      });
+      await new InProcessSokoBotRuntime().createSession({
+        sessionId: null,
+        turnId: TURN_ID,
+        message: "Perform the synthetic action",
+        userId: "user_1",
+        sokoBotId: "bot_1",
+        workspaceId: "workspace_1",
+      });
+      await Promise.all(pendingTurns);
+      expect(
+        recordedEvents().find((event) => event.type === "message.completed")
+          ?.data.message,
+      ).toBe(
+        "No action was verified. Please specify the target and change you want.",
+      );
+      expect(executeToolMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("preserves conversational prose for genuinely read-only grants", async () => {
+    authorizeMock.mockResolvedValueOnce({
+      turn: { id: TURN_ID, versionId: "v11" },
+      grant: { capabilities: ["get_task_status", "read_memory"] },
+    });
+    generateTextMock.mockResolvedValueOnce({
+      text: "What part of the plan would you like to discuss?",
+      finishReason: "stop",
+    });
+    await new InProcessSokoBotRuntime().createSession({
+      sessionId: null,
+      turnId: TURN_ID,
+      message: "Can we discuss the plan?",
+      userId: "user_1",
+      sokoBotId: "bot_1",
+      workspaceId: "workspace_1",
+    });
+    await Promise.all(pendingTurns);
+    expect(
+      recordedEvents().find((event) => event.type === "message.completed")?.data
+        .message,
+    ).toBe("What part of the plan would you like to discuss?");
   });
 
   it("settles the turn itself, since crons do not run on previews", async () => {
@@ -242,6 +306,9 @@ describe("InProcessSokoBotRuntime", () => {
     expect(
       generateTextMock.mock.calls[0][0].providerOptions.gateway.inferenceRegion,
     ).toEqual({ scope: "zone", geoRegion: "eu" });
+    expect(generateTextMock.mock.calls[0][0].prepareStep).toBe(
+      (await import("./evaluation-dispatch")).prepareEvaluationStep,
+    );
   });
 
   it("records a failed turn instead of throwing into the caller", async () => {

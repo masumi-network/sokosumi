@@ -209,6 +209,56 @@ describe("GET /chats/rooms/{id}/messages", () => {
     ]);
   });
 
+  it("keeps staged mentions private until activation without widening the public enum", async () => {
+    const mention = {
+      id: "550e8400-e29b-41d4-a716-446655440031",
+      coworkerId: null,
+      sokoBotId: "550e8400-e29b-41d4-a716-446655440032",
+      responseMessageId: null,
+      status: "staged",
+    };
+    const stagedMessage = {
+      ...message(),
+      content: "",
+      deletedAt: new Date("2026-01-04T00:00:00.000Z"),
+      metadata: { private_delivery_instruction: "Do not publish yet" },
+      mentionsAsSource: [mention],
+    };
+    messageFindManyMock.mockResolvedValue([stagedMessage]);
+    const app = createApp(userAuthContext);
+    const hiddenResponse = await app.request(`/${ROOM_ID}/messages`);
+    expect(hiddenResponse.status).toBe(200);
+    const hidden = await hiddenResponse.json();
+    // Main's history contract keeps deletion tombstones, never their payload.
+    expect(hidden.data[0]).toMatchObject({
+      id: MESSAGE_ID,
+      content: "",
+      metadata: null,
+      mentions: [],
+      deletedAt: "2026-01-04T00:00:00.000Z",
+    });
+    expect(JSON.stringify(hidden)).not.toContain("staged");
+    expect(JSON.stringify(hidden)).not.toContain("Do not publish yet");
+
+    messageFindManyMock.mockResolvedValue([
+      {
+        ...stagedMessage,
+        content: "Synthetic activated reply",
+        deletedAt: null,
+        metadata: null,
+        mentionsAsSource: [{ ...mention, status: "pending" }],
+      },
+    ]);
+    const activatedResponse = await app.request(`/${ROOM_ID}/messages`);
+    expect(activatedResponse.status).toBe(200);
+    const activated = await activatedResponse.json();
+    expect(activated.data[0]).toMatchObject({
+      content: "Synthetic activated reply",
+      deletedAt: null,
+      mentions: [{ ...mention, status: "pending" }],
+    });
+  });
+
   it("marks pinned messages with pinnedAt and leaves the rest null", async () => {
     const pinned = {
       ...message(),

@@ -1,24 +1,26 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const loadJobDetailsMock = vi.fn();
-const getMyMembersWithOrganizationsMock = vi.fn();
-const getTranslationsMock = vi.fn();
-const autoContextSwitchMock = vi.fn();
+const jobDetailsViewMock = vi.fn();
 const jobDetailsModalMock = vi.fn();
 
-vi.mock("@tanstack/react-query", () => ({
-  HydrationBoundary: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="hydration-boundary">{children}</div>
-  ),
-}));
-
-vi.mock("next-intl/server", () => ({
-  getTranslations: (...args: unknown[]) => getTranslationsMock(...args),
-}));
-
-vi.mock("@/app/agents/[agentId]/jobs/_lib/load-job-details", () => ({
-  loadJobDetails: (...args: unknown[]) => loadJobDetailsMock(...args),
+vi.mock("@/app/agents/[agentId]/jobs/_lib/job-details-view", () => ({
+  JobDetailsView: ({
+    agentId,
+    jobId,
+    children,
+  }: {
+    agentId: string;
+    jobId: string;
+    children: (props: { job: { id: string } }) => React.ReactNode;
+  }) => {
+    jobDetailsViewMock({ agentId, jobId });
+    return (
+      <div data-testid="job-details-view">
+        {children({ job: { id: "job-1" } })}
+      </div>
+    );
+  },
 }));
 
 vi.mock("@/app/agents/[agentId]/jobs/components/job-details-modal", () => ({
@@ -28,55 +30,12 @@ vi.mock("@/app/agents/[agentId]/jobs/components/job-details-modal", () => ({
   },
 }));
 
-vi.mock("@/app/components/auto-context-switch", () => ({
-  AutoContextSwitch: (props: unknown) => {
-    autoContextSwitchMock(props);
-    return <div data-testid="auto-context-switch" />;
-  },
-}));
-
-vi.mock("@/lib/services/user.service", () => ({
-  userService: {
-    getMyMembersWithOrganizations: (...args: unknown[]) =>
-      getMyMembersWithOrganizationsMock(...args),
-  },
-}));
-
 describe("JobDetailsModalPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getMyMembersWithOrganizationsMock.mockResolvedValue([
-      {
-        organizationId: "org-workspace",
-        organization: { id: "org-workspace", name: "Workspace Org" },
-      },
-    ]);
-    getTranslationsMock.mockImplementation(async (namespace: string) => {
-      if (namespace === "Components.OrganizationSwitcher") {
-        return (key: string) =>
-          key === "personalAccount" ? "Personal Account" : key;
-      }
-
-      return (key: string, values?: Record<string, unknown>) =>
-        values ? `${key}:${JSON.stringify(values)}` : key;
-    });
   });
 
-  it("switches the modal flow to the workspace organization", async () => {
-    loadJobDetailsMock.mockResolvedValue({
-      activeOrganizationId: null,
-      dehydratedState: "dehydrated",
-      job: {
-        id: "job-1",
-        organizationId: "org-billing",
-        workspace: {
-          organizationId: "org-workspace",
-        },
-      },
-      personalWorkspaceLabel: "Ada Lovelace",
-      readOnly: false,
-    });
-
+  it("renders the shared job details view as a modal", async () => {
     const { default: JobDetailsModalPage } = await import("./page");
 
     render(
@@ -88,16 +47,15 @@ describe("JobDetailsModalPage", () => {
       }),
     );
 
-    expect(autoContextSwitchMock).toHaveBeenCalledWith({
-      activeOrganizationId: null,
-      targetOrganizationId: "org-workspace",
-      successMessage: 'switchedWorkspace:{"account":"Workspace Org"}',
+    expect(jobDetailsViewMock).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      jobId: "job-1",
     });
-    expect(jobDetailsModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        personalWorkspaceLabel: "Ada Lovelace",
-      }),
-    );
-    expect(screen.getByTestId("hydration-boundary")).toBeInTheDocument();
+    expect(jobDetailsModalMock).toHaveBeenCalledWith({
+      agentId: "agent-1",
+      job: { id: "job-1" },
+    });
+    expect(screen.getByTestId("job-details-view")).toBeInTheDocument();
+    expect(screen.getByTestId("job-details-modal")).toBeInTheDocument();
   });
 });

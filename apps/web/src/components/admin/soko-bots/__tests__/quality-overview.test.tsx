@@ -39,6 +39,7 @@ import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 
 function qualityFixture(): AdminSokoBotQuality {
   return {
+    reliability: { fulfillment: {}, delivery: {}, invalidActionClaims: 0 },
     overall: { turns: 30, judged: 30, avgScore: 4 },
     proactive: { sent: 8, actedOn: 3, thumbsUp: 4, thumbsDown: 2 },
     daily: Array.from({ length: 30 }, (_, index) => ({
@@ -66,6 +67,31 @@ function qualityFixture(): AdminSokoBotQuality {
 }
 
 describe("QualityOverview", () => {
+  it("hides versions nobody ran and the thumbs series when there is no feedback", async () => {
+    const quiet: AdminSokoBotQuality = {
+      ...qualityFixture(),
+      proactive: { sent: 0, actedOn: 0, thumbsUp: 0, thumbsDown: 0 },
+      daily: qualityFixture().daily.map((day) => ({
+        ...day,
+        thumbsUp: 0,
+        thumbsDown: 0,
+      })),
+      versions: [
+        ...qualityFixture().versions,
+        { versionId: "test-v3", name: "Never run", turns: 0, avgScore: null },
+      ],
+    };
+    const { container } = render(await QualityOverview({ quality: quiet }));
+
+    expect(screen.getByText("test-v1")).toBeInTheDocument();
+    expect(screen.queryByText("test-v3")).not.toBeInTheDocument();
+    expect(screen.queryByText("Thumbs up (count)")).not.toBeInTheDocument();
+    expect(
+      container.querySelector('[data-series="thumbs-up"]'),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/Proactive/)).not.toBeInTheDocument();
+  });
+
   it("renders localized date ticks and distinct score, thumbs-up, and thumbs-down series", async () => {
     const { container } = render(
       await QualityOverview({ quality: qualityFixture() }),

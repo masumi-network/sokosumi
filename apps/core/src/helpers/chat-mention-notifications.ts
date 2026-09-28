@@ -7,6 +7,7 @@ import { fanOutChatNotifications } from "./chat-notification-fanout";
 export type ChatMentionRoomShape = "channel" | "group" | "pair";
 
 export interface EmitChatMentionNotificationsParams {
+  throwOnError?: boolean;
   roomId: string;
   roomName: string;
   /**
@@ -41,6 +42,7 @@ export async function emitChatMentionNotifications(
   try {
     await emit(params);
   } catch (error) {
+    if (params.throwOnError) throw error;
     Sentry.captureException(error, {
       tags: { context: "chat_mention_notifications" },
       extra: {
@@ -54,6 +56,7 @@ export async function emitChatMentionNotifications(
 
 async function emit(params: EmitChatMentionNotificationsParams): Promise<void> {
   await fanOutChatNotifications({
+    ...(params.throwOnError ? { throwOnError: true } : {}),
     roomId: params.roomId,
     roomName: params.roomName,
     nameRoomPerReader: params.roomShape === "group",

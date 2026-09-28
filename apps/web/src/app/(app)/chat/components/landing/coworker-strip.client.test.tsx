@@ -58,6 +58,10 @@ describe("CoworkerStrip", () => {
     expect(scroll.className).toMatch(/min-w-0/);
     expect(scroll.className).toMatch(/max-w-full/);
     expect(scroll.className).toMatch(/overflow-x-auto/);
+    // A chip strip you swipe: it keeps its scrollbar hidden and opts out of
+    // the app-wide `app-scrollbar` treatment.
+    expect(scroll.className).toMatch(/\[&::-webkit-scrollbar\]:hidden/);
+    expect(scroll.className).not.toMatch(/\bapp-scrollbar\b/);
     // Scrollport itself must not add page inset — landing pads elsewhere.
     expect(scroll.className).not.toMatch(/px-\d/);
 

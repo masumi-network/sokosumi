@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { chatRouteErrorBoundaryKey } from "../chat-route-error-boundary.client";
+import {
+  chatRouteErrorBoundaryKey,
+  chatRouteRoomId,
+} from "../chat-route-error-boundary.client";
 
 describe("chatRouteErrorBoundaryKey", () => {
   it("preserves the room when a notification message is consumed or changed", () => {
@@ -56,5 +59,20 @@ describe("chatRouteErrorBoundaryKey", () => {
     );
 
     expect(home).not.toBe(notice);
+  });
+});
+
+describe("chatRouteRoomId", () => {
+  it("names the room a room page renders, so its report carries the room id", () => {
+    expect(
+      chatRouteRoomId("/chat/rooms/01a0016b-68b2-71cb-b1c5-f7406d573625"),
+    ).toBe("01a0016b-68b2-71cb-b1c5-f7406d573625");
+    expect(chatRouteRoomId("/chat/rooms/room-1/")).toBe("room-1");
+  });
+
+  it("reports no room outside a room page", () => {
+    expect(chatRouteRoomId("/chat")).toBeNull();
+    expect(chatRouteRoomId("/")).toBeNull();
+    expect(chatRouteRoomId("/chat/rooms/room-1/threads")).toBeNull();
   });
 });

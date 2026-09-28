@@ -26,6 +26,24 @@ describe("ably rest client", () => {
     });
   });
 
+  it("uses a separate admin key with JSON and reuses the client", async () => {
+    getEnvMock.mockReturnValue({ ABLY_PUSH_ADMIN_KEY: "admin-key" });
+    const { getPushAdminRestClient } = await import("./client");
+    expect(getPushAdminRestClient()).toBe(getPushAdminRestClient());
+    expect(RestMock).toHaveBeenCalledExactlyOnceWith({
+      key: "admin-key",
+      useBinaryProtocol: false,
+    });
+  });
+
+  it("returns unavailable without falling back to a browser signing key", async () => {
+    const { getPushAdminRestClient } = await import("./client");
+    expect(() => getPushAdminRestClient()).toThrow(
+      "Push device listing is not configured",
+    );
+    expect(RestMock).not.toHaveBeenCalled();
+  });
+
   it("disables msgpack so JSON REST bodies cannot throw trailing-bytes", async () => {
     const { getRestClient, getSubscribeRestClient } = await import("./client");
 

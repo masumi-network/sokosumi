@@ -151,6 +151,20 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  createDataTableSchema,
+  tableBatchSchema,
+  tableColumnInputSchema,
+  tableColumnTypeSchema,
+  tableEvidenceSchema,
+  tableFilterSchema,
+  tableInsertRowSchema,
+  tableMutationSchema,
+  tableQuerySchema,
+  tableValueSchema,
+  tableValuesSchema,
+  tableViewDefinitionSchema,
+} from "./data-table.js";
 export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
@@ -192,6 +206,12 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  githubBlobDownloadUrl,
+  isHtmlContentType,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -328,6 +348,8 @@ export {
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,

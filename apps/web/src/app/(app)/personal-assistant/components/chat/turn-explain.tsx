@@ -169,7 +169,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
         <span className="text-muted-foreground tabular-nums">· {size}</span>
       </button>
       {open ? (
-        <pre className="bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+        <pre className="app-scrollbar bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
           {text}
         </pre>
       ) : null}
@@ -304,7 +304,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                     {toolLabel(item.toolName)}
                   </span>
                   {item.input ? (
-                    <pre className="text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs">
+                    <pre className="app-scrollbar text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs">
                       {prettyInput(item.input)}
                     </pre>
                   ) : null}

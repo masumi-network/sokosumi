@@ -24,6 +24,7 @@ import {
   resetUnwantedPersonalWorkspace,
   throwIfZeroWorkspaceResetFailed,
 } from "../seed-auth-fixtures.mjs";
+import { parseArgs, sameRepoPullRequestBodies } from "../teardown.mjs";
 
 describe("names", () => {
   it("builds agent branch names with stable prefix", () => {
@@ -627,5 +628,101 @@ describe("waitForOperations", () => {
         { message: `Neon operation op-1 did not finish (${last})` },
       );
     }
+  });
+});
+
+describe("teardown args", () => {
+  it("reads AGENT_ID from the environment", () => {
+    const opts = parseArgs(["--from-agent-id-env"], {
+      AGENT_ID: "bc-11111111-1111-1111-1111-111111111111",
+    });
+    assert.deepEqual(opts.agentIds, [
+      "bc-11111111-1111-1111-1111-111111111111",
+    ]);
+    assert.equal(opts.fromWorkflowRun, false);
+  });
+
+  it("flags a workflow_run lookup without taking a shell argument", () => {
+    const opts = parseArgs(["--from-workflow-run"]);
+    assert.equal(opts.fromWorkflowRun, true);
+    assert.equal(opts.fromText, null);
+  });
+});
+
+describe("sameRepoPullRequestBodies", () => {
+  const agentId = "bc-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const repo = "masumi-network/sokosumi";
+
+  it("keeps same-repo bodies and skips forks", async () => {
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      if (url.endsWith("/actions/runs/99")) {
+        return {
+          ok: true,
+          json: async () => ({ pull_requests: [{ number: 1 }, { number: 2 }] }),
+        };
+      }
+      if (url.endsWith("/pulls/1")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { repo: { full_name: repo } },
+          }),
+        };
+      }
+      if (url.endsWith("/pulls/2")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/bc-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`,
+            head: { repo: { full_name: "evil/fork" } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "99",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [`https://cursor.com/agents/${agentId}`]);
+    assert.equal(calls.length, 3);
+  });
+
+  it("falls back to commit-associated pulls when the run lists none", async () => {
+    const fetchImpl = async (url) => {
+      if (url.endsWith("/actions/runs/7")) {
+        return { ok: true, json: async () => ({ pull_requests: [] }) };
+      }
+      if (url.endsWith("/commits/abc123/pulls")) {
+        return { ok: true, json: async () => [{ number: 3 }] };
+      }
+      if (url.endsWith("/pulls/3")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
+            head: { repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [
+      "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
+    ]);
   });
 });

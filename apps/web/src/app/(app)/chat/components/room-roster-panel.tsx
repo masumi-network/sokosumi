@@ -363,7 +363,7 @@ export function RoomRosterPanel({
           <X className="size-4" aria-hidden />
         </Button>
       </header>
-      <div className="min-h-0 flex-1 overflow-y-auto p-1">
+      <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-1">
         {participants.length === 0 ? (
           <p className="text-muted-foreground px-2 py-6 text-center text-sm">
             {labels.empty}

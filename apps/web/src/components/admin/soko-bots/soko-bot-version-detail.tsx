@@ -186,7 +186,7 @@ export async function SokoBotVersionDetail({
             {t("Detail.promptHint")}
           </p>
         </div>
-        <pre className="bg-card-background max-h-[48rem] overflow-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
+        <pre className="app-scrollbar bg-card-background max-h-[48rem] overflow-auto rounded-lg border p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap break-words">
           {version.systemPrompt}
         </pre>
       </section>

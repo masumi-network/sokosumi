@@ -16,7 +16,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject, updateProject } from "@/lib/actions/project/action";
 
-export type ProjectCreationSource = "projects_page" | "task_form";
+export type ProjectCreationSource =
+  | "projects_page"
+  | "task_form"
+  | "project_switcher";
 
 export interface ProjectFormLabels {
   details: string;
@@ -158,7 +161,7 @@ export function ProjectForm({
         <div
           className={
             isModal
-              ? "flex min-h-0 flex-1 flex-col overflow-y-auto space-y-4 px-6 py-5"
+              ? "app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto space-y-4 px-6 py-5"
               : "space-y-4 border-t px-6 py-6"
           }
         >
