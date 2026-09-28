@@ -269,7 +269,7 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
           {t("unavailableDescription")}
         </p>
         <Button asChild className="mt-4" variant="outline">
-          <Link href="/drive?view=all">{t("backToFiles")}</Link>
+          <Link href="/drive?view=workspace">{t("backToFiles")}</Link>
         </Button>
       </div>
     );
@@ -288,7 +288,7 @@ export function FileDetailClient({ resourceId }: { resourceId: string }) {
           size="icon"
           aria-label={t("backToFiles")}
         >
-          <Link href="/drive?view=all">
+          <Link href="/drive?view=workspace">
             <ArrowLeft className="size-4" />
           </Link>
         </Button>

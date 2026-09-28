@@ -6305,11 +6305,10 @@
       "sortAscending": "Ascendente",
       "sortDescending": "Descendente",
       "tablesTab": "Tablas",
-      "workspaceTab": "Tu espacio de trabajo",
+      "workspaceTab": "Espacio de trabajo",
       "filterStatusLabel": "Estado",
       "filterStatusActive": "Activas",
       "filterStatusArchived": "Archivadas",
-      "allFilesTab": "Todos los archivos",
       "Files": {
         "searchPlaceholder": "Buscar archivos",
         "searchLabel": "Buscar archivos en este espacio de trabajo",

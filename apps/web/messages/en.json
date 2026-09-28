@@ -6305,11 +6305,10 @@
       "sortAscending": "Ascending",
       "sortDescending": "Descending",
       "tablesTab": "Tables",
-      "workspaceTab": "Your Workspace",
+      "workspaceTab": "Workspace",
       "filterStatusLabel": "Status",
       "filterStatusActive": "Active",
       "filterStatusArchived": "Archived",
-      "allFilesTab": "All files",
       "Files": {
         "searchPlaceholder": "Search files",
         "searchLabel": "Search files in this workspace",

@@ -84,7 +84,7 @@ export function HistorySearchDialog({
   function handleSeeAllFiles() {
     handleOpenChange(false);
     router.push(
-      `/drive?view=all${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
+      `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
     );
   }
 

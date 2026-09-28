@@ -230,6 +230,25 @@ vi.mock("@/app/drive/components/drive-tables-filters", () => ({
   ),
 }));
 
+/**
+ * The catalog panel, stubbed.
+ *
+ * It renders at the Workspace root now, and these cases are about the page
+ * shell — which tab is selected, which controls sit in the header row, what the
+ * folder listing does. The real panel fetches through the generated client and
+ * imports enough of the app that the worker aborts before it mounts
+ * (`drive-all-files-panel.a11y.test.ts` documents the same measurement), so a
+ * marker is what the shell needs to assert against.
+ */
+vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
+  DriveAllFilesPanel: ({ initialQuery }: { initialQuery?: string }) => (
+    <div
+      data-testid="drive-all-files"
+      data-initial-query={initialQuery ?? ""}
+    />
+  ),
+}));
+
 vi.mock("@/components/ui/image-viewer", () => ({
   ImageViewer: ({
     images,
@@ -1005,7 +1024,10 @@ describe("DrivePage files view mode", () => {
 
   it("opens a file preview when the card is clicked", async () => {
     const user = userEvent.setup();
-    searchParams = new URLSearchParams("view=browse");
+    // Inside a folder: that is where the listing carries files. At the
+    // Workspace root the listing carries folders and the catalog carries the
+    // files, so a root file row no longer exists to click.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     listDriveItemsMock.mockResolvedValue([
       {
         type: "file" as const,
@@ -1083,8 +1105,10 @@ describe("DrivePage files view mode", () => {
     ).toBeVisible();
   });
 
-  it("puts desktop tabs and browse actions on one header row", async () => {
-    searchParams = new URLSearchParams("view=browse");
+  it("puts desktop tabs and folder actions on one header row", async () => {
+    // Inside a folder, because the page's search field is the folder
+    // listing's. At the root the catalog owns search and this header has none.
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
     listDriveItemsMock.mockResolvedValue([]);
 
     renderDrive();
@@ -1396,7 +1420,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
 
     await userEvent.setup().click(root);
     expect(pushMock).toHaveBeenCalledWith(
-      expect.stringContaining("view=browse"),
+      expect.stringContaining("view=workspace"),
     );
     expect(pushMock.mock.calls.at(-1)?.[0]).not.toContain("folder=");
   });
@@ -1509,7 +1533,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
     expect(within(nav).queryByRole("button", { name: "Org A" })).toBeNull();
 
     await userEvent.setup().click(root);
-    expect(pushMock.mock.calls.at(-1)?.[0]).toContain("view=browse");
+    expect(pushMock.mock.calls.at(-1)?.[0]).toContain("view=workspace");
   });
 
   it("drops the tables-only archived param when navigating away", async () => {
@@ -1531,7 +1555,7 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
       .click(within(nav).getByRole("button", { name: "workspaceTab" }));
 
     const pushed = pushMock.mock.calls.at(-1)?.[0] as string;
-    expect(pushed).toContain("view=browse");
+    expect(pushed).toContain("view=workspace");
     expect(pushed).not.toContain("archived");
   });
 
@@ -1565,5 +1589,175 @@ describe("DrivePage workspace tab and breadcrumb root", () => {
         "tables-archived-filter",
       ),
     ).toHaveAttribute("data-archived", "true");
+  });
+});
+
+describe("one catalog, not two", () => {
+  beforeEach(() => {
+    queryClient = createDriveQueryClient();
+    searchParams = new URLSearchParams("view=workspace");
+    replaceMock.mockReset();
+    pushMock.mockReset();
+    useSessionMock.mockReset();
+    listDriveItemsMock.mockReset();
+    getUsersByIdOrganizationsMock.mockReset();
+    fetchDriveTasksPageMock.mockReset();
+    fetchDriveRecentsPageMock.mockReset();
+    listDataTablesMock.mockReset();
+    useIsMobileMock.mockReset();
+    useIsMobileMock.mockReturnValue(false);
+
+    fetchDriveTasksPageMock.mockResolvedValue({ items: [], nextCursor: null });
+    fetchDriveRecentsPageMock.mockResolvedValue({
+      items: [],
+      nextCursor: null,
+    });
+    listDataTablesMock.mockResolvedValue([]);
+    getUsersByIdOrganizationsMock.mockResolvedValue({
+      data: { data: [{ id: "org_a", name: "Org A" }] },
+    });
+    useSessionMock.mockReturnValue(sessionFor("org_a"));
+  });
+
+  it("offers three tabs, and no All files tab", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("tab", { name: "recentsTab" })).toBeVisible();
+    });
+
+    // Two tabs listing the same files was the defect. Workspace is the
+    // catalog now, so there is nothing for a fourth tab to hold.
+    expect(screen.getAllByRole("tab")).toHaveLength(3);
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toBeVisible();
+    expect(screen.getByRole("tab", { name: "tablesTab" })).toBeVisible();
+    expect(screen.queryByRole("tab", { name: "allFilesTab" })).toBeNull();
+  });
+
+  it("renders the catalog at the Workspace root, with the Workspace tab selected", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("keeps folders on the Workspace root so they can still be navigated", async () => {
+    // The catalog lists files and has no folder rows, so without these the
+    // merge would have removed the only way into a folder — and with it
+    // folder create, rename, move and delete, which live in this listing.
+    listDriveItemsMock.mockResolvedValue([
+      reportsFolder(),
+      {
+        type: "file" as const,
+        name: "root-file.png",
+        pathname: "root-file.png",
+        fileUrl: "https://example.com/root-file.png",
+        size: 10,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Reports" })).toBeVisible();
+    });
+    expect(
+      screen.getByRole("button", { name: /renameAction/i }),
+    ).toBeInTheDocument();
+
+    // And the root file is NOT duplicated into the folder listing: the
+    // catalog below is the one place every file is listed.
+    expect(screen.queryByRole("button", { name: "root-file.png" })).toBeNull();
+  });
+
+  it("narrows to the folder listing inside a folder, and drops the catalog", async () => {
+    searchParams = new URLSearchParams("view=workspace&folder=Reports");
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "file" as const,
+        name: "inside.png",
+        pathname: "Reports/inside.png",
+        fileUrl: "https://example.com/inside.png",
+        size: 10,
+        uploadedAt: "2026-08-28T09:00:00.000Z",
+      },
+    ]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "inside.png" })).toBeVisible();
+    });
+    // A folder is a scope on the same tab, not a second list beside it.
+    expect(screen.queryByTestId("drive-all-files")).toBeNull();
+    expect(
+      screen.getByRole("navigation", { name: "breadcrumbNavLabel" }),
+    ).toBeVisible();
+  });
+
+  it("opens the Workspace tab for a legacy view=all link, carrying its query", async () => {
+    // Global search's "See all files" and the file detail page's back link
+    // both shipped pointing at view=all.
+    searchParams = new URLSearchParams("view=all&q=invoice");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(screen.getByTestId("drive-all-files")).toHaveAttribute(
+      "data-initial-query",
+      "invoice",
+    );
+  });
+
+  it("opens the Workspace tab for a legacy view=browse link", async () => {
+    searchParams = new URLSearchParams("view=browse");
+    listDriveItemsMock.mockResolvedValue([]);
+
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    expect(screen.getByRole("tab", { name: "workspaceTab" })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+  });
+
+  it("shows one search field at the root, and it belongs to the catalog", async () => {
+    listDriveItemsMock.mockResolvedValue([]);
+    renderDrive();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
+    });
+    // The page's own field would be a second search box over one list, which
+    // is the duplication the tab merge removed one level down.
+    expect(screen.queryByPlaceholderText("searchPlaceholder")).toBeNull();
+    // Folder management stays reachable at the root. Scoped to the header,
+    // because the mobile actions menu carries its own copy and the stubbed
+    // dropdown renders its content at every width.
+    const header = screen.getByTestId("files-desktop-header");
+    expect(
+      within(header).getByRole("button", { name: "createFolder" }),
+    ).toBeVisible();
+    expect(
+      within(header).queryByPlaceholderText("searchPlaceholder"),
+    ).toBeNull();
   });
 });
