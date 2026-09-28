@@ -2378,7 +2378,24 @@
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
           "failed": "Algo salió mal. Inténtalo de nuevo.",
           "unauthenticated": "Inicia sesión para continuar.",
-          "unauthenticatedAction": "Iniciar sesión"
+          "unauthenticatedAction": "Iniciar sesión",
+          "published": "Publicación publicada.",
+          "publishFailed": "Error al publicar: {error}"
+        },
+        "needsReconnect": "Hay que volver a conectar la cuenta",
+        "needsReconnectLink": "Volver a conectar la cuenta",
+        "viewOnX": "Ver en X",
+        "publishedAt": "Publicada {date}",
+        "failedAt": "Falló {date}",
+        "attempts": "{count, plural, one {# intento} other {# intentos}}",
+        "actions": {
+          "publishNow": "Publicar ahora",
+          "retry": "Reintentar"
+        },
+        "publishDialog": {
+          "title": "¿Publicar esta publicación ahora?",
+          "description": "La publicación saldrá en X de inmediato en lugar de esperar a la hora programada.",
+          "confirm": "Publicar ahora"
         }
       },
       "Detail": {

@@ -71,6 +71,25 @@ export const socialPostCreatorSchema = z
   })
   .openapi("SocialPostCreator");
 
+export const socialPostLastAttemptSchema = z
+  .object({
+    attempt: z.number().int().min(1).openapi({ example: 1 }),
+    trigger: z.enum(["scheduler", "publish_now"]),
+    outcome: z
+      .enum([
+        "succeeded",
+        "failed_transient",
+        "failed_permanent",
+        "missed",
+        "connection_inactive",
+      ])
+      .nullable(),
+    errorKind: z.string().nullable().openapi({ example: "rate_limited" }),
+    providerOutcome: z.string().nullable(),
+    finishedAt: dateTimeSchema.nullable(),
+  })
+  .openapi("SocialPostLastAttempt");
+
 export const socialPostSchema = z
   .object({
     id: z.string().uuid().openapi({
@@ -92,12 +111,22 @@ export const socialPostSchema = z
     publishedExternalId: z.string().nullable(),
     publishedUrl: z.string().nullable(),
     lastError: z.string().nullable(),
+    attemptCount: z.number().int().min(0).openapi({ example: 0 }),
+    nextAttemptAt: dateTimeSchema.nullable(),
+    lastAttemptAt: dateTimeSchema.nullable(),
+    // Keep the named component non-null so generated date transformers guard it.
+    lastAttempt: z.union([socialPostLastAttemptSchema, z.null()]),
     revision: z.number().int().min(0).openapi({ example: 2 }),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     canEdit: z.boolean(),
     canSchedule: z.boolean(),
     canCancel: z.boolean(),
+    canPublishNow: z.boolean(),
+    connectionNeedsReconnect: z.boolean().openapi({
+      description:
+        "The linked connection exists but is not active, so the post cannot go out until someone reconnects",
+    }),
   })
   .openapi("SocialPost");
 
@@ -132,6 +161,12 @@ export const cancelSocialPostRequestSchema = z
     revision: socialPostRevisionSchema,
   })
   .openapi("CancelSocialPostRequest");
+
+export const publishSocialPostRequestSchema = z
+  .object({
+    revision: socialPostRevisionSchema,
+  })
+  .openapi("PublishSocialPostRequest");
 
 function isSocialPostStatus(
   value: string,
