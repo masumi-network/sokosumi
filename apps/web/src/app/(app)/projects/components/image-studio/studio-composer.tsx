@@ -125,7 +125,7 @@ function TriggerLabel({
  * `ghost` and Generate is `primary`.
  */
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground border-border h-8 max-w-[16rem] min-w-0 gap-1.5 rounded-full border px-3 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
@@ -376,7 +376,7 @@ export function StudioComposer({
       // Docked: once there are results the studio renders the composer below
       // them, and it rides the bottom of the viewport so the next generation
       // is always one keystroke away from the last one.
-      className="border-border bg-background focus-within:border-primary-tertiary sticky bottom-3 z-10 rounded-2xl border shadow-lg transition-colors"
+      className="border-border bg-background focus-within:border-primary-tertiary sticky bottom-3 z-10 rounded-lg border transition-colors"
     >
       <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea
@@ -667,7 +667,7 @@ export function StudioComposer({
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                className="text-muted-foreground hover:text-foreground h-8 min-w-0 rounded-full px-3 text-sm font-medium"
+                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
                 size="sm"
                 variant="ghost"
               >
@@ -756,9 +756,9 @@ export function StudioComposer({
         ) : null}
 
         <Button
-          className="rounded-full"
           disabled={!canGenerate}
           onClick={submit}
+          title="⌘↵"
           size="sm"
           variant="primary"
         >
@@ -770,12 +770,6 @@ export function StudioComposer({
           {totalJobs > 1
             ? t("generateMany", { count: totalJobs })
             : labels.generateOne}
-          <kbd
-            aria-hidden
-            className="ml-1 hidden font-sans text-xs opacity-70 sm:inline"
-          >
-            ⌘↵
-          </kbd>
         </Button>
       </div>
     </section>

@@ -1,25 +1,6 @@
 "use client";
 
-import {
-  AlertTriangle,
-  AppWindow,
-  Columns2,
-  FileText,
-  Frame,
-  Image as ImageIcon,
-  LayoutTemplate,
-  type LucideIcon,
-  Megaphone,
-  MonitorSmartphone,
-  Newspaper,
-  Palette,
-  PieChart,
-  Play,
-  Shapes,
-  Share2,
-  UserRound,
-  X,
-} from "lucide-react";
+import { AlertTriangle, Columns2, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -45,11 +26,7 @@ import { STUDIO_PILL_CLASS } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
-import {
-  STUDIO_TEMPLATES,
-  type StudioTemplate,
-  type StudioTemplateId,
-} from "./studio-templates";
+import { STUDIO_TEMPLATES, type StudioTemplate } from "./studio-templates";
 import {
   creditsByAssetId,
   elapsedByAssetId,
@@ -556,7 +533,7 @@ export function ImageStudio({
   );
 
   const templateTiles = (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
       {STUDIO_TEMPLATES.map((template) => (
         <TemplateTile
           key={template.id}
@@ -908,27 +885,10 @@ function Notice({
   );
 }
 
-const TEMPLATE_ICONS: Record<StudioTemplateId, LucideIcon> = {
-  poster: Newspaper,
-  headshot: UserRound,
-  "product-announcement": Megaphone,
-  flyer: FileText,
-  infographic: PieChart,
-  illustration: Palette,
-  icon: AppWindow,
-  ad: Share2,
-  "social-post": MonitorSmartphone,
-  banner: LayoutTemplate,
-  "logo-mark": Shapes,
-  background: ImageIcon,
-  thumbnail: Play,
-  mockup: Frame,
-};
-
 /**
- * A template as a thing to look at: the frame it is composed for drawn to
- * scale, with its subject inside. The tile carries no text but its name, so
- * it reads as that name to assistive tech.
+ * A template as a picture: a real image made from its own brief, so the tile
+ * shows what the press will get. The image is a static asset generated once
+ * from `template.prompt`; the tile's accessible name is the label alone.
  */
 function TemplateTile({
   label,
@@ -939,27 +899,19 @@ function TemplateTile({
   onClick: () => void;
   template: StudioTemplate;
 }) {
-  const Icon = TEMPLATE_ICONS[template.id];
-  const [w, h] = template.aspectRatio.split(":").map(Number);
   return (
     <button
-      className="border-border bg-background hover:border-primary-tertiary focus-visible:ring-ring-halo group flex cursor-pointer flex-col gap-3 rounded-xl border p-3 text-left transition-colors outline-none focus-visible:ring-[3px]"
+      className="border-border bg-card-background hover:border-primary-tertiary focus-visible:ring-ring-halo flex cursor-pointer flex-col gap-2 rounded-xl border p-2 text-left transition-colors outline-none focus-visible:ring-[3px]"
       onClick={onClick}
       type="button"
     >
-      <span className="bg-muted flex h-24 items-center justify-center rounded-lg">
-        <span
-          className="bg-card-background border-border text-muted-foreground group-hover:text-foreground flex max-h-16 max-w-full items-center justify-center rounded-md border shadow-sm transition-colors"
-          style={{
-            aspectRatio: `${w} / ${h}`,
-            height: h > w ? "4rem" : undefined,
-            width: h > w ? undefined : "5rem",
-          }}
-        >
-          <Icon aria-hidden className="size-5" />
-        </span>
-      </span>
-      <span className="text-sm font-medium">{label}</span>
+      <img
+        alt=""
+        className="bg-muted aspect-4/3 w-full rounded-lg object-cover"
+        loading="lazy"
+        src={`/studio/templates/${template.id}.jpg`}
+      />
+      <span className="px-1 pb-1 text-sm font-medium">{label}</span>
     </button>
   );
 }
