@@ -5062,6 +5062,7 @@ export type SocialPost = {
     projectId: string;
     provider: 'x';
     text: string;
+    media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
     scheduledAt: Date | null;
     timezone: string | null;
@@ -5088,6 +5089,21 @@ export type SocialPost = {
      * The linked connection exists but is not active, so the post cannot go out until someone reconnects
      */
     connectionNeedsReconnect: boolean;
+};
+
+export type SocialPostMediaRef = {
+    /**
+     * Drive blob pathname; must belong to the active workspace
+     */
+    pathname: string;
+    /**
+     * Public Blob URL of the Drive file
+     */
+    fileUrl: string;
+    name: string;
+    size: number;
+    mimeType: string;
+    kind: 'image' | 'gif' | 'video';
 };
 
 export const SocialPostStatus = {
@@ -5132,6 +5148,10 @@ export type PublishSocialPostRequest = {
 
 export type CreateSocialPostRequest = {
     text: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
     scheduledAt?: Date;
     timezone?: string;
@@ -5139,6 +5159,10 @@ export type CreateSocialPostRequest = {
 
 export type UpdateSocialPostRequest = {
     text?: string;
+    /**
+     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     */
+    media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;
     /**
      * Revision the client last observed; mismatches return 409

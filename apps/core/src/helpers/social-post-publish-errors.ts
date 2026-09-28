@@ -3,6 +3,7 @@ import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
 } from "@/clients/composio.client";
+import { SocialPostMediaError } from "@/helpers/social-post-media";
 
 const SUMMARY_LIMIT = 300;
 const UNKNOWN_SUMMARY = "Unexpected error while publishing";
@@ -76,6 +77,9 @@ export function classifyPublishError(
   }
   if (error instanceof ComposioApiError) return classifyApiError(error);
   if (error instanceof ComposioToolError) return classifyToolError(error);
+  if (error instanceof SocialPostMediaError) {
+    return { kind: error.kind, transient: false, summary: error.message };
+  }
   return {
     kind: "unknown",
     transient: true,
