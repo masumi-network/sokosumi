@@ -37,6 +37,7 @@ import { runSkillsCommand } from "./commands/skills.js";
 import { runTasksCommand } from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
+import { buildJsonError, CliError } from "./errors.js";
 import { CLI_VERSION } from "./metadata.js";
 import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
@@ -413,17 +414,20 @@ export function parseArgv(argv: string[]): ParsedArgv {
       equalsIndex === -1 ? undefined : optionToken.slice(equalsIndex + 1);
     if (BOOLEAN_OPTIONS.has(name)) {
       if (inlineValue !== undefined) {
-        throw new Error(`Option --${name} does not accept a value`);
+        throw new CliError(
+          "VALIDATION",
+          `Option --${name} does not accept a value`,
+        );
       }
       options[name] = true;
       continue;
     }
     if (!VALUE_OPTIONS.has(name as ValueOptionName)) {
-      throw new Error(`Unknown option: --${name}`);
+      throw new CliError("VALIDATION", `Unknown option: --${name}`);
     }
     const value = inlineValue === undefined ? argv[index + 1] : inlineValue;
     if (value === undefined || value === "" || value.startsWith("--")) {
-      throw new Error(`Option --${name} requires a value`);
+      throw new CliError("VALIDATION", `Option --${name} requires a value`);
     }
     const optionName = name as ValueOptionName;
     const optionMap = options as Record<
@@ -476,7 +480,7 @@ function writeJsonError(
     environment?.SOKOSUMI_OAUTH_CLIENT_SECRET,
   ].filter((secret): secret is string => Boolean(secret));
   const message = redactErrorMessage(error, knownSecrets);
-  stdout.write(`${JSON.stringify({ error: message })}\n`);
+  stdout.write(`${JSON.stringify(buildJsonError(message, error))}\n`);
 }
 export async function runCli(
   argv: string[] = process.argv.slice(2),
