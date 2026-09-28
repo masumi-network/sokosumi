@@ -23,6 +23,7 @@ import { writeVersionChunks } from "@/services/file-index.service";
 import {
   processFileSuggestionJobs,
   runSuggestionJob,
+  SUGGESTION_VOCABULARY_MAX,
 } from "@/services/file-suggestions.service";
 
 /**
@@ -468,6 +469,88 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     );
     expect(scheduler.isBreakerOpen()).toBe(false);
   }, 60_000);
+  it("asks about a category in a workspace already full of tags", async () => {
+    /**
+     * The starvation, end to end against a real database, because the
+     * cause is Postgres enum ordering and no unit test can see it.
+     *
+     * The shortlist was one query, `ORDER BY kind ASC, normalizedName
+     * ASC` with `take: 30`. Postgres orders an enum by *declaration*
+     * order, and `FileLabelKind` declares `TAG` before `CATEGORY` — so
+     * tags filled the window, and a workspace with 30 or more tags sent
+     * zero categories to the evaluator. It could never receive a category
+     * suggestion again, and the reader saw "Uncategorized", which is also
+     * what a document the model considered and declined looks like.
+     *
+     * Nothing caps label creation, so a workspace reaches this by doing
+     * what the product invites.
+     *
+     * Thirty tags is exactly the window, so before the fix the category
+     * below was not merely outranked — there was no room for it at all.
+     */
+    for (let index = 0; index < 30; index += 1) {
+      await prisma.workspaceLabel.create({
+        data: {
+          workspaceId,
+          kind: FileLabelKind.TAG,
+          // Named so they sort before the category would have, had the
+          // ordering been alphabetical rather than by declaration.
+          displayName: `Aaa tag ${index}`,
+          normalizedName: `aaa-tag-${String(index).padStart(3, "0")}`,
+          description: null,
+        },
+      });
+    }
+    const category = await prisma.workspaceLabel.create({
+      data: {
+        workspaceId,
+        kind: FileLabelKind.CATEGORY,
+        displayName: "Zzz travel reports",
+        normalizedName: "zzz-travel-reports",
+        description: "Reports about travel",
+      },
+      select: { id: true },
+    });
+
+    await queueSuggestionJob(1);
+    const leased = await leaseNextFileIndexJob({
+      pipeline: FileIndexJobPipeline.SUGGEST,
+    });
+    expect(leased).not.toBeNull();
+    if (!leased) return;
+
+    const asked: string[] = [];
+    const evaluator = {
+      async evaluateLabels(input: {
+        labels: readonly { id: string; name: string }[];
+      }) {
+        asked.push(...input.labels.map((label) => label.id));
+        return {
+          ok: true as const,
+          chosen: [],
+          reason: null,
+          latencyMs: 1,
+          inputTokens: 10,
+          outputTokens: 2,
+          costUsd: "0.0001",
+        };
+      },
+    } as unknown as JevLabelEvaluator;
+
+    const outcome = await runSuggestionJob(leased, {
+      evaluator,
+      configured: () => true,
+    });
+
+    // The assertion that was false before today.
+    expect(asked).toContain(category.id);
+    // And the window is still respected, so this cannot be passing by
+    // asking about everything.
+    expect(asked.length).toBeLessThanOrEqual(SUGGESTION_VOCABULARY_MAX);
+    // Tags were cut to make room, and that is now said rather than
+    // inferred from a count nobody compares.
+    expect(outcome.vocabularyTruncated).toBe("tags");
+  });
 });
 
 /**
