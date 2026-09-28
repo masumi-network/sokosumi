@@ -111,38 +111,48 @@ function findChrome() {
 }
 
 // Headless Chrome can linger after it finishes, so stop it once `done` matches.
+// Its helper processes outlive the launcher, so the whole group is killed.
 function runChrome(chrome, profile, args, done) {
   return new Promise((resolvePromise, reject) => {
-    const child = spawn(chrome, [
-      "--headless=new",
-      "--disable-gpu",
-      "--hide-scrollbars",
-      "--no-first-run",
-      "--no-default-browser-check",
-      ...(process.platform === "linux" ? ["--no-sandbox"] : []),
-      `--user-data-dir=${profile}`,
-      "--window-size=1024,576",
-      "--virtual-time-budget=5000",
-      ...args,
-    ]);
-    let output = "";
-    const timer = setTimeout(() => {
-      child.kill("SIGKILL");
-      reject(new Error("Chrome timed out after 120s"));
-    }, 120_000);
-    const finish = () => {
-      clearTimeout(timer);
-      child.kill("SIGKILL");
-      resolvePromise(output);
+    const child = spawn(
+      chrome,
+      [
+        "--headless=new",
+        "--disable-gpu",
+        "--hide-scrollbars",
+        "--no-first-run",
+        "--no-default-browser-check",
+        ...(process.platform === "linux" ? ["--no-sandbox"] : []),
+        `--user-data-dir=${profile}`,
+        "--window-size=1024,576",
+        "--virtual-time-budget=5000",
+        ...args,
+      ],
+      { detached: true },
+    );
+    const stop = () => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {}
     };
+    let output = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      stop();
+    }, 120_000);
     const onData = (chunk) => {
       output += chunk;
-      if (done(output)) finish();
+      if (done(output)) stop();
     };
     child.stdout.on("data", onData);
     child.stderr.on("data", onData);
     child.on("error", reject);
-    child.on("exit", finish);
+    child.on("exit", () => {
+      clearTimeout(timer);
+      if (timedOut) reject(new Error("Chrome timed out after 120s"));
+      else resolvePromise(output);
+    });
   });
 }
 
@@ -181,5 +191,5 @@ try {
     process.exitCode = 2;
   }
 } finally {
-  rmSync(work, { recursive: true, force: true });
+  rmSync(work, { recursive: true, force: true, maxRetries: 5 });
 }
