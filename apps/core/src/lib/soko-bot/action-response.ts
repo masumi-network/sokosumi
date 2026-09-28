@@ -153,13 +153,11 @@ function describeRead(capability: string, value: unknown): string[] {
     const parsed = z.array(socialAccountObservationSchema).safeParse(value);
     if (!parsed.success) return [];
     return [
-      `Showing ${Math.min(parsed.data.length, 6)} of ${parsed.data.length} returned social accounts.`,
-      ...parsed.data
-        .slice(0, 6)
-        .map(
-          (read) =>
-            `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.`,
-        ),
+      `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
+      ...parsed.data.map(
+        (read) =>
+          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.`,
+      ),
     ];
   }
   if (capability === "list_social_posts") {

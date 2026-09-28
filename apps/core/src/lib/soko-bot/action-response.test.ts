@@ -398,7 +398,7 @@ describe("authoritative action responses", () => {
     expect(response.answerText).not.toContain("job");
   });
 
-  it("includes all six supported social providers in account evidence", async () => {
+  it("includes every connected account when providers have multiple accounts", async () => {
     const providers = [
       "x",
       "tiktok",
@@ -406,16 +406,17 @@ describe("authoritative action responses", () => {
       "linkedin",
       "facebook",
       "youtube",
+      "x",
     ];
     db.sokoBotToolCall.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([
         receipt({
           capability: "list_project_social_accounts",
-          result: providers.map((provider) => ({
-            id: provider,
+          result: providers.map((provider, index) => ({
+            id: `account-${index}`,
             provider,
-            externalHandle: provider,
+            externalHandle: `handle-${index}`,
             status: "active",
             connectedAt: "2026-09-28T10:00:00Z",
             disconnectedAt: null,
@@ -434,10 +435,12 @@ describe("authoritative action responses", () => {
       },
     );
     expect(response.answerText).toContain(
-      "Showing 6 of 6 returned social accounts",
+      "Showing 7 of 7 returned social accounts",
     );
-    for (const provider of providers)
+    for (const [index, provider] of providers.entries()) {
       expect(response.answerText).toContain(`platform "${provider}"`);
+      expect(response.answerText).toContain(`handle "handle-${index}"`);
+    }
   });
 
   it.each(["get_social_post", "list_social_posts"])(
