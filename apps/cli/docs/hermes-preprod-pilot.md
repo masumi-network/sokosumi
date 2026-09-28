@@ -32,7 +32,7 @@
 [VERIFIED: `apps/cli/package.json`, `apps/cli/src/cli/index.ts`] Run these commands from the repository root. They build local CLI output and show its help.
 
 ```sh
-pnpm build --filter=@sokosumi/cli --cache=local:w
+pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js runtime --help
 ```
 
