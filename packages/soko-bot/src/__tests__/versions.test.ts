@@ -58,6 +58,20 @@ describe("versions", () => {
     expect(prompt).toMatch(/ask me to create the post and I will/i);
   });
 
+  it("tell the default version what the behaviour lab kept catching", () => {
+    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
+    expect(version.model).toBe("openai/gpt-6-luna");
+    // Coworker questions went back to the owner instead of being answered.
+    expect(version.systemPrompt).toMatch(
+      /answer it on the Task with reply_to_task/,
+    );
+    // Links to pages the bot never opened.
+    expect(version.systemPrompt).toMatch(/Cite only pages you opened/);
+    // "Start a turn with chat posting available" instead of a question.
+    expect(version.systemPrompt).toMatch(/"Want me to post this\?"/);
+    expect(version.systemPrompt).toMatch(/list_tasks/);
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);

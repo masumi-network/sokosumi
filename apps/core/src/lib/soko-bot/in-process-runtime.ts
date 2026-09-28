@@ -108,7 +108,7 @@ async function runTurn(
         stopWhen: stepCountIs(SOKO_BOT_MAX_STEPS),
         abortSignal,
         async onStepFinish(step) {
-          assertSokoBotInferenceRegion(step.providerMetadata);
+          assertSokoBotInferenceRegion(step.providerMetadata, turn.model);
           await log.append(
             runtimeEvent("step.completed", {
               modelId: turn.model,
@@ -128,7 +128,7 @@ async function runTurn(
       }),
     );
 
-    assertSokoBotInferenceRegion(result.providerMetadata);
+    assertSokoBotInferenceRegion(result.providerMetadata, turn.model);
     await finishTurn({
       log,
       turnId: input.turnId,

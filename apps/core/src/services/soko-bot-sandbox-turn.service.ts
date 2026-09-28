@@ -314,7 +314,7 @@ export async function proxySandboxModelCall(
     }),
   );
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata);
+    assertSokoBotInferenceRegion(result.providerMetadata, version.model);
   } catch (error) {
     throw badGateway(
       error instanceof Error ? error.message : "Inference region rejected",

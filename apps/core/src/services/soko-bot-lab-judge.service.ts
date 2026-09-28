@@ -235,7 +235,7 @@ export async function generateSokoBotJudgeText(options: {
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
   });
-  assertSokoBotInferenceRegion(result.providerMetadata);
+  assertSokoBotInferenceRegion(result.providerMetadata, options.model);
   return result;
 }
 

@@ -3,6 +3,8 @@ import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
+  assertSokoBotInferenceRegion,
+  assertSokoBotModelPolicy,
   sokoBotInferenceEvidence,
   sokoBotLabGlobalModels,
   sokoBotModelRequest,
@@ -52,7 +54,7 @@ describe("Soko Bot EU model policy", () => {
           },
         },
       }),
-      middleware: sokoBotRegionMiddleware,
+      middleware: sokoBotRegionMiddleware("google/gemini-3.6-flash"),
     });
     await expect(
       generateText({
@@ -140,7 +142,7 @@ describe("local lab global models", () => {
     vi.stubEnv("VERCEL", "1");
     expect(sokoBotLabGlobalModels()).toBe(false);
     expect(() =>
-      sokoBotModelRequest({ role: "agent", model: "openai/gpt-6-luna" }),
+      sokoBotModelRequest({ role: "agent", model: "openai/gpt-6-sol" }),
     ).toThrow();
     vi.unstubAllEnvs();
   });
@@ -150,12 +152,59 @@ describe("local lab global models", () => {
     vi.stubEnv("VERCEL", "");
     const request = sokoBotModelRequest({
       role: "agent",
-      model: "openai/gpt-6-luna",
+      model: "openai/gpt-6-sol",
     });
     expect(request.providerOptions.gateway).toEqual({});
     expect(() =>
-      sokoBotModelRequest({ role: "judge", model: "openai/gpt-6-luna" }),
+      sokoBotModelRequest({ role: "judge", model: "openai/gpt-6-sol" }),
     ).toThrow();
     vi.unstubAllEnvs();
+  });
+});
+
+describe("owner-approved global agent models", () => {
+  it("runs GPT-6 Luna as the agent without EU pinning", () => {
+    vi.stubEnv("VERCEL", "1");
+    const request = sokoBotModelRequest({
+      role: "agent",
+      model: "openai/gpt-6-luna",
+    });
+    expect(request.providerOptions.gateway).toEqual({});
+    vi.unstubAllEnvs();
+  });
+
+  it("never lets it judge, and never pins it to another region", () => {
+    expect(() =>
+      sokoBotModelRequest({ role: "judge", model: "openai/gpt-6-luna" }),
+    ).toThrow("not approved");
+    expect(() =>
+      assertSokoBotModelPolicy({
+        role: "agent",
+        model: "openai/gpt-6-luna",
+        inferenceRegion: "us",
+      }),
+    ).toThrow("not approved");
+  });
+
+  it("accepts its non-EU routing but still rejects it for EU models", () => {
+    const usRouting = {
+      gateway: {
+        routing: {
+          modelAttempts: [
+            {
+              providerAttempts: [
+                { provider: "openai", inferenceEndpoint: { geoRegion: "us" } },
+              ],
+            },
+          ],
+        },
+      },
+    };
+    expect(() =>
+      assertSokoBotInferenceRegion(usRouting, "openai/gpt-6-luna"),
+    ).not.toThrow();
+    expect(() =>
+      assertSokoBotInferenceRegion(usRouting, "google/gemini-3.8-flash"),
+    ).toThrow("not approved");
   });
 });

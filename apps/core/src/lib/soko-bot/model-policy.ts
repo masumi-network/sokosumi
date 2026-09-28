@@ -26,8 +26,21 @@ const EU_MODELS: Readonly<
   },
 };
 
+/**
+ * Agent models the owner approved to run outside the EU (2026-09-29): OpenAI
+ * has no EU region on the Gateway, and GPT-6 Luna led the behaviour lab on
+ * cost and speed. Owner prompts, tasks and mail reach OpenAI for these; the
+ * judge stays EU-only and Jev keeps its own exception in `classifier.ts`.
+ */
+const GLOBAL_AGENT_MODELS: ReadonlySet<string> = new Set(["openai/gpt-6-luna"]);
+
+/** Whether the agent may run on `model` without EU pinning. */
+export function isSokoBotGlobalAgentModel(model: string): boolean {
+  return GLOBAL_AGENT_MODELS.has(model) || sokoBotLabGlobalModels();
+}
+
 export type SokoBotModelRole = "agent" | "judge";
-export const SOKO_BOT_MODEL_POLICY_VERSION = "eu-2026-09-26";
+export const SOKO_BOT_MODEL_POLICY_VERSION = "eu-2026-09-29";
 
 export class SokoBotModelPolicyError extends Error {
   constructor() {
@@ -37,18 +50,22 @@ export class SokoBotModelPolicyError extends Error {
 }
 
 /** Check the provider response before the SDK can execute returned tool calls. */
-export const sokoBotRegionMiddleware: LanguageModelMiddleware = {
-  async wrapGenerate({ doGenerate }) {
-    const result = await doGenerate();
-    assertSokoBotInferenceRegion(result.providerMetadata);
-    return result;
-  },
-  async wrapStream() {
-    // All Soko Bot inference uses generateText. Do not allow streamed tool
-    // calls to escape before their routing metadata has been inspected.
-    throw new SokoBotModelPolicyError();
-  },
-};
+export function sokoBotRegionMiddleware(
+  model: string,
+): LanguageModelMiddleware {
+  return {
+    async wrapGenerate({ doGenerate }) {
+      const result = await doGenerate();
+      assertSokoBotInferenceRegion(result.providerMetadata, model);
+      return result;
+    },
+    async wrapStream() {
+      // All Soko Bot inference uses generateText. Do not allow streamed tool
+      // calls to escape before their routing metadata has been inspected.
+      throw new SokoBotModelPolicyError();
+    },
+  };
+}
 
 /**
  * Local behaviour-lab comparisons only: any Gateway model may run the agent,
@@ -67,7 +84,12 @@ export function assertSokoBotModelPolicy(options: {
   model: string;
   inferenceRegion?: string | null;
 }): void {
-  if (options.role === "agent" && sokoBotLabGlobalModels()) return;
+  if (
+    options.role === "agent" &&
+    isSokoBotGlobalAgentModel(options.model) &&
+    options.inferenceRegion == null
+  )
+    return;
   const policy = Object.hasOwn(EU_MODELS, options.model)
     ? EU_MODELS[options.model]
     : undefined;
@@ -98,10 +120,10 @@ export function sokoBotModelRequest(options: {
       model: gateway.languageModel(options.model),
       middleware: evaluation
         ? [
-            sokoBotRegionMiddleware,
+            sokoBotRegionMiddleware(options.model),
             evaluationMiddleware(options.model, options.role),
           ]
-        : sokoBotRegionMiddleware,
+        : sokoBotRegionMiddleware(options.model),
     }),
     maxRetries: 0,
     providerOptions: {
@@ -172,8 +194,11 @@ export function sokoBotInferenceEvidence(metadata: unknown) {
 }
 
 /** Missing metadata is not routing proof; explicit contrary evidence is fatal. */
-export function assertSokoBotInferenceRegion(metadata: unknown): void {
-  if (sokoBotLabGlobalModels()) return;
+export function assertSokoBotInferenceRegion(
+  metadata: unknown,
+  model: string,
+): void {
+  if (isSokoBotGlobalAgentModel(model)) return;
   if (sokoBotInferenceEvidence(metadata).regionStatus === "MISMATCH") {
     throw new SokoBotModelPolicyError();
   }
