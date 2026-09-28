@@ -380,11 +380,21 @@ describe.skipIf(!enabled)(
         } as unknown as JevLabelEvaluator;
       }
 
-      /** One real suggestion job, through the real dispatch recorder. */
+      /**
+       * One real suggestion job, through the real dispatch recorder.
+       *
+       * The wait is the scheduler's per-second bucket: it is a module-level
+       * singleton whose burst for background work is three, and the ranking
+       * cases above spend it. Without this a job is refused before it reaches
+       * the admission, which records no cost — so the cap assertions would fail
+       * for a reason that has nothing to do with the cap.
+       */
       async function suggest(
         costUsd: string | null,
         generation: number,
       ): Promise<void> {
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
         await enqueueFileIndexJob({
           resourceId: labelResourceId,
           pipeline: FileIndexJobPipeline.SUGGEST,
@@ -397,10 +407,17 @@ describe.skipIf(!enabled)(
         });
         expect(leased, "no SUGGEST job was leasable").not.toBeNull();
         if (!leased) return;
-        await runSuggestionJob(leased, {
+        const outcome = await runSuggestionJob(leased, {
           evaluator: labelEvaluatorCosting(costUsd),
           configured: () => true,
         });
+        // A refused job records no cost, and "no cost recorded" is precisely
+        // what the defect under test looks like. Saying which happened is the
+        // difference between a failing cap and a starved scheduler.
+        expect(
+          outcome.skipped,
+          `the label job never dispatched: ${outcome.skipped}`,
+        ).toBeNull();
       }
 
       it("writes a non-null cost on the admission a label job dispatched", async () => {

@@ -725,8 +725,30 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       await prisma.user.deleteMany({ where: { id: vetoOwnerId } });
     });
 
-    /** Run one suggestion job to completion and report what it wrote. */
+    /**
+     * Run one suggestion job to completion and report what it wrote.
+     *
+     * **It asserts that the job actually ran.** Returning `[]` is what a
+     * refused, skipped or never-dispatched job looks like, and it is also what
+     * "the model suggested nothing" looks like — so a bare array assertion
+     * cannot tell the two apart, and a harness that cannot tell them apart
+     * reports infrastructure trouble as a product claim. That is the same quiet
+     * lie this branch keeps finding in product code, sitting in the test
+     * harness. `outcome.skipped` carries the reason, so a failure names itself.
+     *
+     * **It waits for the per-second bucket first.** `JevScheduler` is a
+     * module-level singleton and its leaky bucket gives background work a burst
+     * of three, so a fourth job inside one second is refused by `tryAdmit`
+     * before it reaches the admission. Earlier cases in this file spend that
+     * burst too, and one case here runs three jobs. Without the wait these
+     * passed on a slow database, where the jobs spread across seconds by
+     * accident, and failed on a fast one — which is how they failed in CI twice
+     * while passing locally. The sibling breaker case documents the same hazard
+     * and already waits for the same reason.
+     */
     async function runOneJob(generation: number): Promise<string[]> {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
       await enqueueFileIndexJob({
         resourceId: vetoResourceId,
         pipeline: FileIndexJobPipeline.SUGGEST,
@@ -737,12 +759,21 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       const leased = await leaseNextFileIndexJob({
         pipeline: FileIndexJobPipeline.SUGGEST,
       });
-      expect(leased).not.toBeNull();
+      expect(leased, "no SUGGEST job was leasable").not.toBeNull();
       if (!leased) return [];
-      await runSuggestionJob(leased, {
+      const outcome = await runSuggestionJob(leased, {
         evaluator: evaluatorChoosing("all"),
         configured: () => true,
       });
+
+      // Named, not inferred. "admission-denied", "capacity", "no-vocabulary"
+      // and "no-text" all produce an empty list, and none of them is a verdict
+      // about this document.
+      expect(
+        outcome.skipped,
+        `generation ${generation} never reached the model: ${outcome.skipped}`,
+      ).toBeNull();
+
       const rows = await prisma.fileLabel.findMany({
         where: {
           resourceId: vetoResourceId,
