@@ -6423,7 +6423,12 @@
         "collectionActions": "Acciones para {name}",
         "collectionResave": "Guardar los filtros actuales aquí",
         "collectionRename": "Cambiar el nombre",
-        "collectionDelete": "Eliminar"
+        "collectionDelete": "Eliminar",
+        "addTag": "Añadir etiqueta",
+        "addTagSearch": "Buscar etiquetas",
+        "addTagEmpty": "No hay etiquetas para añadir",
+        "addTagUnavailable": "No se pudieron cargar las etiquetas",
+        "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior."
       }
     },
     "SokoBot": {

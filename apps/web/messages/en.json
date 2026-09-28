@@ -6423,7 +6423,12 @@
         "collectionActions": "Actions for {name}",
         "collectionResave": "Save current filters here",
         "collectionRename": "Rename",
-        "collectionDelete": "Delete"
+        "collectionDelete": "Delete",
+        "addTag": "Add tag",
+        "addTagSearch": "Search tags",
+        "addTagEmpty": "No tags to add",
+        "addTagUnavailable": "Tags could not be loaded",
+        "tagAdded": "Tag added. An earlier removal of it no longer applies."
       }
     },
     "SokoBot": {

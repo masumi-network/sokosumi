@@ -118,11 +118,23 @@ export async function fetchFileSearchPage(input: {
 
 export async function fetchWorkspaceLabels(input: {
   store: FileStore;
+  /**
+   * One kind, when the caller only has a use for one. The tag picker on
+   * the file detail page asks for TAG; leaving it off returns both, which
+   * is what the filter panel and the bulk bar want.
+   *
+   * Archived entries are never returned — they keep historical
+   * assignments readable but take no new ones — and a merged entry is
+   * omitted in favour of the label it redirects to. Both are decided by
+   * the endpoint, so a picker built on this cannot offer something the
+   * edit would then refuse.
+   */
+  kind?: "TAG" | "CATEGORY";
   signal?: AbortSignal;
 }): Promise<WorkspaceLabel[]> {
   const response = await getDriveLabels({
     client: getBrowserCoreClient(),
-    query: storeQuery(input.store),
+    query: { ...storeQuery(input.store), kind: input.kind },
     signal: input.signal,
     throwOnError: true,
   });
