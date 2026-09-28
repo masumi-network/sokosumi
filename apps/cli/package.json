@@ -1,7 +1,6 @@
 {
-  "name": "@sokosumi/cli",
-  "version": "2.1.4",
-  "private": true,
+  "name": "@masumi_network/sokosumi",
+  "version": "1.0.1",
   "description": "Developer CLI for Sokosumi Coworker builders",
   "type": "module",
   "license": "MIT",
@@ -11,6 +10,12 @@
     "url": "git+https://github.com/masumi-network/sokosumi.git"
   },
   "homepage": "https://github.com/masumi-network/sokosumi/tree/main/apps/cli",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "sokosumi": "dist/bin/sokosumi.js"
   },
