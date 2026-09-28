@@ -416,6 +416,28 @@ describe("a gallery with work in it", () => {
     expect(tile?.textContent).toContain('creditsCount:{"count":4}');
   });
 
+  /**
+   * Zero is a fact, and absent is not zero.
+   *
+   * Core's charge-on-success build has a deliberate zero case: if the balance no
+   * longer covers the quote at delivery, the image is stored anyway and the job
+   * succeeds with nothing charged — the image is given away rather than lost. So
+   * a delivered image can legitimately carry 0, and printing nothing for it
+   * would turn "this was free" into "we do not know what this cost".
+   */
+  it("shows zero credits as zero, not as silence", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      [settledJob("j1", "v1", 3_200, "iso", 0)],
+    );
+
+    const tile = document.querySelector("figure[data-asset-id]");
+    expect(tile?.textContent).toContain('creditsCount:{"count":0}');
+    // Nullish coalescing is what makes this work — `0 ?? null` is 0 — so this
+    // guards against somebody reaching for a falsy check.
+    expect(tile?.textContent).toContain("3.2s");
+  });
+
   it("says nothing about credits for a version whose job carries none", () => {
     mount(
       [{ ...ASSET, id: "v1" } as unknown as StudioAsset],

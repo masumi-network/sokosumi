@@ -2560,7 +2560,7 @@
       "queued": "En cola en el proveedor",
       "failed": "Esa generación falló",
       "uncertainTitle": "No pudimos confirmar esta solicitud",
-      "uncertainBody": "El proveedor no respondió, así que no sabemos si recibió la solicitud. Puede que ya se haya cobrado. Comprueba de nuevo antes de decidir y envía otra solicitud solo si aceptas que podría cobrarse una segunda vez.",
+      "uncertainBody": "El proveedor no respondió, así que no sabemos si recibió la solicitud. Si la recibió y llega una imagen, esa imagen se cobrará. Comprueba de nuevo antes de decidir y envía otra solicitud solo si aceptas que podría cobrarse una segunda vez.",
       "checkAgain": "Comprobar de nuevo",
       "submitAnyway": "Enviar otra solicitud de todos modos",
       "tryAgain": "Intentar de nuevo",

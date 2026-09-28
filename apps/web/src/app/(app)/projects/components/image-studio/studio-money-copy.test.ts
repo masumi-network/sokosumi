@@ -33,6 +33,25 @@ const REFUND_WORDS =
 /** Reservation vocabulary: there is no hold on credits either. */
 const RESERVE_WORDS = /reserv/i;
 
+/**
+ * "You have already been charged", per language.
+ *
+ * Only the uncertain notice is checked against these, and deliberately so: the
+ * rest of `App.Studio` *denies* a charge ("Nothing was charged for it", "nothing
+ * was charged"), and a pattern loose enough to catch a past-tense claim would
+ * flag the denials too.
+ *
+ * Each is scoped to one sentence with `[^.]*`, so a claim in one sentence cannot
+ * be manufactured out of two neighbours. The true statement the notice does make
+ * — that an image, if one comes back, *will* be charged — is future tense and
+ * carries none of these markers.
+ */
+const ALREADY_CHARGED: Record<string, RegExp> = {
+  en: /\balready\b[^.]*charg|\bhas been charged\b|\bwas charged\b/i,
+  de: /\b(bereits|schon)\b[^.]*berechnet|\bwurde[^.]*berechnet\b/i,
+  es: /\bya\b[^.]*cobr|\bse ha cobrado\b|\bse cobró\b/i,
+};
+
 function studioStrings(locale: string): [string, string][] {
   const catalog = JSON.parse(
     readFileSync(path.join(MESSAGES, `${locale}.json`), "utf8"),
@@ -81,5 +100,39 @@ describe("the studio's money copy", () => {
     const keys = new Map(studioStrings(locale));
     expect(keys.get("App.Studio.failedNoCharge")?.trim()).toBeTruthy();
     expect(keys.get("App.Studio.creditsCharged")?.trim()).toBeTruthy();
+  });
+});
+
+/**
+ * What the "we could not confirm this request" notice may say.
+ *
+ * It used to say "It may already have been charged", which under charge-on-success
+ * is false at the exact moment it is shown: nothing is taken at submit, so the
+ * person has been charged nothing at all. What is true is conditional and in the
+ * future — if the provider did receive it and an image comes back, that image
+ * will be charged — and that is what makes submitting again a risk of paying for
+ * two images instead of one.
+ */
+describe("the uncertain-submission notice", () => {
+  it.each(LOCALES)("claims no charge has happened yet in %s", (locale) => {
+    const keys = new Map(studioStrings(locale));
+    const notice = [
+      keys.get("App.Studio.uncertainTitle") ?? "",
+      keys.get("App.Studio.uncertainBody") ?? "",
+    ].join(" ");
+
+    expect(notice.trim()).toBeTruthy();
+    expect(
+      ALREADY_CHARGED[locale].test(notice),
+      `${locale}: the uncertain notice claims a charge has already happened — ${notice}`,
+    ).toBe(false);
+  });
+
+  it.each(LOCALES)("still warns about paying twice in %s", (locale) => {
+    // The guard above is satisfied by deleting the money warning altogether,
+    // which would leave somebody pressing "Submit a new request anyway" with no
+    // idea that it can cost them two images.
+    const body = new Map(studioStrings(locale)).get("App.Studio.uncertainBody");
+    expect(body).toMatch(/charg|berechn|cobr/i);
   });
 });

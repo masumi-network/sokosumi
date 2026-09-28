@@ -2560,7 +2560,7 @@
       "queued": "Beim Anbieter in der Warteschlange",
       "failed": "Diese Erzeugung ist fehlgeschlagen",
       "uncertainTitle": "Diese Anfrage konnte nicht bestätigt werden",
-      "uncertainBody": "Der Anbieter hat nicht geantwortet, daher wissen wir nicht, ob die Anfrage angekommen ist. Sie wurde möglicherweise bereits berechnet. Prüfe zuerst erneut und sende nur dann eine neue Anfrage, wenn du eine zweite Berechnung in Kauf nimmst.",
+      "uncertainBody": "Der Anbieter hat nicht geantwortet, daher wissen wir nicht, ob die Anfrage angekommen ist. Wenn ja und ein Bild zurückkommt, wird dieses Bild berechnet. Prüfe zuerst erneut und sende nur dann eine neue Anfrage, wenn du eine zweite Berechnung in Kauf nimmst.",
       "checkAgain": "Erneut prüfen",
       "submitAnyway": "Trotzdem neue Anfrage senden",
       "tryAgain": "Erneut versuchen",

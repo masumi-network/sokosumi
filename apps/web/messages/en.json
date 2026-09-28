@@ -2560,7 +2560,7 @@
       "queued": "Queued at the provider",
       "failed": "That generation failed",
       "uncertainTitle": "We could not confirm this request",
-      "uncertainBody": "The provider never answered, so we do not know whether it received the request. It may already have been charged. Check again before deciding, and only submit a new request if you accept that it may be charged a second time.",
+      "uncertainBody": "The provider never answered, so we do not know whether it received the request. If it did, and an image comes back, that image will be charged. Check again before deciding, and only submit a new request if you accept that it may be charged a second time.",
       "checkAgain": "Check again",
       "submitAnyway": "Submit a new request anyway",
       "tryAgain": "Try again",

@@ -99,9 +99,16 @@ export function elapsedByAssetId(jobs: StudioJob[]): Record<string, number> {
  * what somebody already paid. A version whose job has fallen off the most recent
  * page has no entry and its tile simply says nothing about credits.
  *
- * Every job in here produced an asset, so every job in here was charged. There
- * is deliberately no zero case: images are charged on success, so a generation
- * that did not produce one is not in this map to begin with.
+ * **Absent and zero are different claims, and both are reachable.** A job that
+ * has fallen off the most recent page has no entry, and that means "we do not
+ * know what this cost". A delivered image can legitimately carry `0`: Core
+ * charges on success, and if the balance no longer covers the quote at delivery
+ * it stores the image anyway and logs the shortfall rather than losing it — so
+ * that image was free, which is a fact about it and not an absence of one.
+ *
+ * Hence `job.credits === null` to skip, never a falsy check, and `?? null` at
+ * the read in `studio-gallery.tsx`. `0 || null` would turn a free image into an
+ * unknown one, which is the one substitution this map exists to prevent.
  */
 export function creditsByAssetId(jobs: StudioJob[]): Record<string, number> {
   const byAsset: Record<string, number> = {};
