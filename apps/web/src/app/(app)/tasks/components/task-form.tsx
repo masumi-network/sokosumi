@@ -1174,11 +1174,11 @@ export function TaskForm({
                   multiple
                 >
                   <FileUploadDropzone
+                    noClick
                     className={cn(
                       "data-dragging:bg-card-background w-full items-stretch justify-start border-0 p-0 hover:bg-transparent",
                       useModalFieldFill && "min-h-0 flex-1",
                     )}
-                    onClick={(event) => event.preventDefault()}
                   >
                     <MarkdownEditor
                       ref={markdownEditorRef}

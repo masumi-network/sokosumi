@@ -57,10 +57,6 @@ interface TaskActivityComposerProps {
   onSend: (markdown: string) => Promise<boolean>;
 }
 
-/**
- * The chat room composer, fed by task comments: same card, toolbar, editor
- * and keys. Attachments ride as chips and become markdown links on send.
- */
 export function TaskActivityComposer({
   taskId,
   placeholder,
@@ -299,11 +295,10 @@ export function TaskActivityComposer({
           }}
           multiple
         >
-          {/* Drop and paste target only: the editor inside owns clicks and focus. */}
           <FileUploadDropzone
+            noClick
             tabIndex={-1}
             className="data-dragging:bg-card-background w-full items-stretch justify-start gap-0 rounded-none border-0 p-0 select-auto hover:bg-transparent"
-            onClick={(event) => event.preventDefault()}
           >
             <ComposerWysiwygEditor
               ref={editorRef}

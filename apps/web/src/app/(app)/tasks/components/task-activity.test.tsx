@@ -633,8 +633,6 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    // Markdown keeps the inline link; SourcesGrid also lists the extracted
-    // file via FileChipWithMetadata (mocked above as the URL/name text).
     expect(screen.getAllByText(/report\.pdf/i).length).toBeGreaterThanOrEqual(
       1,
     );
@@ -799,8 +797,6 @@ describe("TaskActivitySection", () => {
     render(<TaskActivitySection {...baseProps} events={events} />);
 
     expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
-    // `avatarSeed` is null for every bot, so passing it through showed a
-    // different face here than the sidebar and the Soko Bots page show.
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
       defaultOrbSeed("user-1"),
@@ -832,7 +828,6 @@ describe("TaskActivitySection", () => {
             },
           },
         },
-        // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
         userId: "user-2",
         user: {
           id: "user-2",
