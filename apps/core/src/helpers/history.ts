@@ -577,7 +577,7 @@ export function mapHistoryRow(
     title: row.title,
     description: row.description,
     status,
-    updatedAt: row.sortAt.toISOString(),
+    createdAt: row.sortAt.toISOString(),
     archivedAt: row.archivedAt?.toISOString() ?? null,
     owner,
   };

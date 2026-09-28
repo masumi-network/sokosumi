@@ -13986,11 +13986,11 @@ export const HistoryTaskItemSchema = {
             description: 'Short subtitle or description for the history row',
             example: 'Audit copy and empty states'
         },
-        updatedAt: {
+        createdAt: {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
+            description: 'When the source entity was created. The feed orders by this and renders it, and it is the date the entity\'s own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.'
         },
         archivedAt: {
             type: [
@@ -14061,7 +14061,7 @@ export const HistoryTaskItemSchema = {
         'id',
         'title',
         'description',
-        'updatedAt',
+        'createdAt',
         'archivedAt',
         'credits',
         'owner',
@@ -14123,11 +14123,11 @@ export const HistoryJobItemSchema = {
             description: 'Short subtitle or description for the history row',
             example: 'Audit copy and empty states'
         },
-        updatedAt: {
+        createdAt: {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
+            description: 'When the source entity was created. The feed orders by this and renders it, and it is the date the entity\'s own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.'
         },
         archivedAt: {
             type: [
@@ -14209,7 +14209,7 @@ export const HistoryJobItemSchema = {
         'id',
         'title',
         'description',
-        'updatedAt',
+        'createdAt',
         'archivedAt',
         'credits',
         'owner',
@@ -14243,11 +14243,11 @@ export const HistoryImageItemSchema = {
             description: 'Short subtitle or description for the history row',
             example: 'Audit copy and empty states'
         },
-        updatedAt: {
+        createdAt: {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z',
-            description: 'Source entity updatedAt timestamp used for feed ordering'
+            description: 'When the source entity was created. The feed orders by this and renders it, and it is the date the entity\'s own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.'
         },
         archivedAt: {
             type: [
@@ -14315,7 +14315,7 @@ export const HistoryImageItemSchema = {
         'id',
         'title',
         'description',
-        'updatedAt',
+        'createdAt',
         'archivedAt',
         'credits',
         'owner',

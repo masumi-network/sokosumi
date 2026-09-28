@@ -98,7 +98,7 @@ export function HistorySearchDialogProvider({
           empty: tSearch("empty"),
           loading: tSearch("loading"),
           error: tSearch("error"),
-          updated: tSearch("updated"),
+          created: tSearch("created"),
           filesGroup: tSearch("filesGroup"),
           filesSeeAll: tSearch("filesSeeAll"),
           filesFilenameMatch: tSearch("filesFilenameMatch"),

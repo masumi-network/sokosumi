@@ -2806,7 +2806,7 @@
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
       "error": "Ergebnisse konnten nicht geladen werden",
-      "updated": "Aktualisiert",
+      "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
       "filesFilenameMatch": "Treffer im Dateinamen"

@@ -4069,9 +4069,9 @@ export type HistoryTaskItem = {
      */
     description: string | null;
     /**
-     * Source entity updatedAt timestamp used for feed ordering
+     * When the source entity was created. The feed orders by this and renders it, and it is the date the entity's own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.
      */
-    updatedAt: Date;
+    createdAt: Date;
     /**
      * Source entity archivedAt timestamp. Null means the row is navigable.
      */
@@ -4129,9 +4129,9 @@ export type HistoryJobItem = {
      */
     description: string | null;
     /**
-     * Source entity updatedAt timestamp used for feed ordering
+     * When the source entity was created. The feed orders by this and renders it, and it is the date the entity's own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.
      */
-    updatedAt: Date;
+    createdAt: Date;
     /**
      * Source entity archivedAt timestamp. Null means the row is navigable.
      */
@@ -4178,9 +4178,9 @@ export type HistoryImageItem = {
      */
     description: string | null;
     /**
-     * Source entity updatedAt timestamp used for feed ordering
+     * When the source entity was created. The feed orders by this and renders it, and it is the date the entity's own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.
      */
-    updatedAt: Date;
+    createdAt: Date;
     /**
      * Source entity archivedAt timestamp. Null means the row is navigable.
      */

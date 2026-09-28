@@ -32,7 +32,7 @@ interface HistorySearchDialogLabels {
   empty: string;
   loading: string;
   error: string;
-  updated: string;
+  created: string;
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
@@ -52,7 +52,7 @@ export function HistorySearchDialog({
   activeOrganizationId,
 }: HistorySearchDialogProps) {
   const router = useRouter();
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
   const { query, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
@@ -139,9 +139,9 @@ export function HistorySearchDialog({
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{item.title}</span>
                   <HistorySearchItemTime
-                    updatedAt={item.updatedAt}
-                    formatTimeAgo={formatTimeAgo}
-                    updatedLabel={labels.updated}
+                    createdAt={item.createdAt}
+                    formatShortDate={formatDateWithYear}
+                    createdLabel={labels.created}
                     className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
                   />
                 </div>

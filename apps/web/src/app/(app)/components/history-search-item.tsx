@@ -44,30 +44,39 @@ export function HistorySearchItemIcon({
   );
 }
 
+/**
+ * When the result was created, as a date.
+ *
+ * Absolute rather than "2 days ago", and creation rather than last update, for
+ * the same reason the Transaction History list is: `history.sortAt` used to
+ * come from the source row's `updatedAt`, so a backfill on an unrelated column
+ * made a year of results read "Yesterday". A relative label is what hid it.
+ * This is the date the entity's own card shows, so the two can be compared.
+ */
 export function HistorySearchItemTime({
-  updatedAt,
-  formatTimeAgo,
-  updatedLabel,
+  createdAt,
+  formatShortDate,
+  createdLabel,
   className,
 }: {
-  updatedAt: string | Date;
-  formatTimeAgo: (date: string | Date) => string;
-  updatedLabel: string;
+  createdAt: string | Date;
+  formatShortDate: (date: string | Date) => string;
+  createdLabel: string;
   className?: string;
 }) {
   const dateTime =
-    updatedAt instanceof Date ? updatedAt.toISOString() : updatedAt;
+    createdAt instanceof Date ? createdAt.toISOString() : createdAt;
 
   return (
     <time
       dateTime={dateTime}
       className={cn(
-        "text-muted-foreground text-xs whitespace-nowrap capitalize",
+        "text-muted-foreground text-xs whitespace-nowrap",
         className,
       )}
-      title={updatedLabel}
+      title={createdLabel}
     >
-      {formatTimeAgo(updatedAt)}
+      {formatShortDate(createdAt)}
     </time>
   );
 }

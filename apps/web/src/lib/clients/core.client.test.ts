@@ -718,7 +718,7 @@ describe("core.client", () => {
     expect(response.task.events[0]?.channel).toBe("SOKOSUMI");
   });
 
-  it("normalizes history updatedAt and archivedAt strings through the server transport", async () => {
+  it("normalizes history createdAt and archivedAt strings through the server transport", async () => {
     getHistoryMock.mockImplementation(
       async (options: {
         responseTransformer?: (data: unknown) => Promise<unknown>;
@@ -731,7 +731,7 @@ describe("core.client", () => {
               title: "Review onboarding",
               description: null,
               status: "READY",
-              updatedAt: "2026-02-19T10:00:00.000Z",
+              createdAt: "2026-02-19T10:00:00.000Z",
               archivedAt: "2026-02-20T10:00:00.000Z",
               credits: 2,
               projectId: null,
@@ -768,7 +768,7 @@ describe("core.client", () => {
       query: { limit: 20 },
       responseTransformer: expect.any(Function),
     });
-    expect(response.data[0]?.updatedAt).toEqual(
+    expect(response.data[0]?.createdAt).toEqual(
       new Date("2026-02-19T10:00:00.000Z"),
     );
     expect(response.data[0]?.archivedAt).toEqual(

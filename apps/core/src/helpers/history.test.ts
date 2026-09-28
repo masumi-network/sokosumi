@@ -131,7 +131,7 @@ describe("mapHistoryRow", () => {
       title: "A bold event poster",
       description: "fal-ai/gemini-3.1-flash-image-preview · 8 credits",
       status: "active",
-      updatedAt: row.sortAt.toISOString(),
+      createdAt: row.sortAt.toISOString(),
       archivedAt: null,
       credits: 8,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",

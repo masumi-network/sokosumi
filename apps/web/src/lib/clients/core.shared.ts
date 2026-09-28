@@ -496,7 +496,7 @@ function toDate(value: Date | string): Date {
 function transformHistoryResponseEnvelope(data: any) {
   data.data = data.data.map((item: any) => ({
     ...item,
-    updatedAt: toDate(item.updatedAt),
+    createdAt: toDate(item.createdAt),
     archivedAt: item.archivedAt ? toDate(item.archivedAt) : null,
   }));
   if (data.meta?.timestamp) {

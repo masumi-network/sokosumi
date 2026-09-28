@@ -2806,7 +2806,7 @@
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
       "error": "Error al cargar los resultados",
-      "updated": "Actualizado",
+      "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre"
