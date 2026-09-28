@@ -43,6 +43,21 @@ describe("versions", () => {
     expect(prompt).toMatch(/Nothing to add\./);
   });
 
+  it("tell the default version it can manage Social posts", () => {
+    // The social write tools shipped without prompt coverage: a bot asked
+    // "can you post this?" on a read-only turn answered that its social tools
+    // were read-only, then created the post when asked directly.
+    const prompt = composeSystemPrompt(
+      getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+    );
+    expect(prompt).toContain("# Social posts");
+    expect(prompt).toMatch(/create_social_post/);
+    expect(prompt).toMatch(
+      /Reads alone do not mean the capability is read-only/,
+    );
+    expect(prompt).toMatch(/ask me to create the post and I will/i);
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);

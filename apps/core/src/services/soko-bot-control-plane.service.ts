@@ -1637,6 +1637,7 @@ export class SokoBotControlPlane {
           finalAnswer: true,
           responseContract: true,
           capabilityNames: true,
+          route: true,
           leaseToken: true,
           cancellationRequestedAt: true,
           scheduleRun: {
@@ -1727,16 +1728,26 @@ export class SokoBotControlPlane {
       if (settled.count === 0) return false;
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
+      const blockerKind = outcome?.blockerKind ?? "";
+      // Refined unverified outcomes describe a delegated result that cannot
+      // exist yet at settlement, so they are not worth prefixing onto a
+      // successful turn's answer. A direct MANAGE_WORK action gets no such
+      // pass: its answer must not claim a change that no receipt proves.
+      const suppressBlockerPrefix =
+        turn.route !== "MANAGE_WORK" &&
+        [
+          "UNVERIFIED_OUTCOME",
+          "OUTCOME_SCOPE_REQUIRES_REVIEW",
+          "ARTIFACT_READABILITY_UNVERIFIED",
+          "RESULT_EVIDENCE_UNAVAILABLE",
+        ].includes(blockerKind);
       if (
         responseContract &&
         outcomeSummary &&
         outcome &&
         ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
         !isSokoBotSilentAnswer(responseContract.answerText) &&
-        (outcome.state !== "BLOCKED" ||
-          !["UNVERIFIED_OUTCOME", "OUTCOME_SCOPE_REQUIRES_REVIEW"].includes(
-            outcome.blockerKind ?? "",
-          ))
+        (outcome.state !== "BLOCKED" || !suppressBlockerPrefix)
       ) {
         const answerText = `${outcomeSummary}\n\n${responseContract.answerText}`;
         await tx.sokoBotTurn.update({
