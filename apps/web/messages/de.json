@@ -6436,7 +6436,11 @@
         "relatedNoText": "Keine ähnlichen Dateien. Dieses Dokument enthält keinen lesbaren Text.",
         "processingPartialCoverage": "Nur ein Teil dieser Datei ist indexiert. Etwa {percent}% des Textes wurden gelesen.",
         "sheetOpenAsPage": "Als Seite öffnen",
-        "sheetDescription": "Details zu dieser Datei"
+        "sheetDescription": "Details zu dieser Datei",
+        "detailRejected": "Entfernte Labels",
+        "rejectedExplainer": "Du hast diese entfernt, daher werden sie nicht erneut vorgeschlagen. Lass das Modell eines erneut prüfen, falls das ein Versehen war.",
+        "allowAgain": "{name} erneut prüfen lassen",
+        "labelReopened": "Erneut geöffnet. Das Modell darf es wieder vorschlagen; angewendet wird es nicht."
       }
     },
     "SokoBot": {

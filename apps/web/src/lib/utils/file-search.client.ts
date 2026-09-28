@@ -266,6 +266,15 @@ export async function updateFileMetadata(input: {
   confirmProjectIds?: string[];
   removeProjectIds?: string[];
   allowSuggestionsFor?: ("category" | "tags")[];
+  /**
+   * Withdraw the veto on these labels: delete each one's rejection so the model
+   * may propose it again.
+   *
+   * It does not re-apply the label, and that is the point — a person vetoes a
+   * label or withdraws a veto, and the model still decides. Distinct from
+   * `allowSuggestionsFor`, which is field-scoped and clears a manual pin.
+   */
+  allowSuggestionsForLabelIds?: string[];
 }): Promise<FileResource> {
   const response = await patchDriveResourcesByIdMetadata({
     client: getBrowserCoreClient(),
@@ -279,6 +288,7 @@ export async function updateFileMetadata(input: {
       confirmProjectIds: input.confirmProjectIds,
       removeProjectIds: input.removeProjectIds,
       allowSuggestionsFor: input.allowSuggestionsFor,
+      allowSuggestionsForLabelIds: input.allowSuggestionsForLabelIds,
     },
     throwOnError: true,
   });

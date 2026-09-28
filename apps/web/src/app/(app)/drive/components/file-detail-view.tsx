@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, Plus, X } from "lucide-react";
+import { Check, Loader2, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -16,32 +16,15 @@ import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { FileTypeIcon } from "@/components/ui/file-icon";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { useSession } from "@/lib/auth/auth.client";
-import type {
-  FileResource,
-  WorkspaceLabel,
-} from "@/lib/clients/generated/core";
+import type { FileResource } from "@/lib/clients/generated/core";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   decideSuggestion,
   type FileStore,
   fetchFileResource,
   fetchRelatedFiles,
-  fetchWorkspaceLabels,
   updateFileMetadata,
 } from "@/lib/utils/file-search.client";
 
@@ -127,18 +110,6 @@ export function FileDetailView({
   const [busy, setBusy] = useState(false);
 
   /**
-   * The tag vocabulary for the picker, fetched the first time it opens.
-   *
-   * `null` is "not fetched yet", which is also what it goes back to when a
-   * fetch fails so that reopening retries. An empty array is a real
-   * answer — a workspace with no tags in it — and the two must not be the
-   * same value, or a failed load would read as an empty vocabulary.
-   */
-  const [tagOptions, setTagOptions] = useState<WorkspaceLabel[] | null>(null);
-  const [tagOptionsFailed, setTagOptionsFailed] = useState(false);
-  const [addTagOpen, setAddTagOpen] = useState(false);
-
-  /**
    * Which load is current.
    *
    * Two loads can be in flight at once, because the store changes the moment
@@ -215,6 +186,41 @@ export function FileDetailView({
     }
   }
 
+  /**
+   * Withdraw the veto on one label, and nothing else.
+   *
+   * It re-opens the question; it does not answer it. No label row is written, no
+   * state is changed and no provenance is set — the model has to decide again,
+   * which is the whole difference between this and the manual add control that
+   * used to sit here.
+   *
+   * Removing that control closed the only path that could clear a rejection, so
+   * without this a wrong Remove would have been permanent with nothing able to
+   * undo it. The two belong together or neither belongs.
+   */
+  async function allowAgain(labelId: string) {
+    if (!resource) return;
+    setBusy(true);
+    try {
+      const next = await updateFileMetadata({
+        store,
+        resourceId,
+        expectedMetadataRevision: resource.metadataRevision,
+        allowSuggestionsForLabelIds: [labelId],
+      });
+      setResource(next);
+      toast.success(t("labelReopened"));
+    } catch {
+      // The revision this view holds is from whenever it last loaded, so a
+      // conflict means somebody else edited the file and the only honest thing
+      // to show is the current state.
+      toast.error(t("saveConflict"));
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function removeTag(labelId: string) {
     if (!resource) return;
     setBusy(true);
@@ -232,54 +238,6 @@ export function FileDetailView({
       await load();
     } finally {
       setBusy(false);
-    }
-  }
-
-  /**
-   * The other half of the same edit, and the reason this control exists.
-   *
-   * Removing a tag writes a durable rejection, so the model stops
-   * suggesting it — correctly: a person said no. But with nothing in the
-   * web app passing `addTagLabelIds`, removal was a one-way door. There
-   * was no undo, no add control here, nothing in the row menu or the bulk
-   * bar, and reindex is deliberately not the way back. The endpoint has
-   * always handled this and clears the rejection with it; only the client
-   * was one-directional.
-   */
-  async function addTag(labelId: string) {
-    if (!resource) return;
-    setAddTagOpen(false);
-    setBusy(true);
-    try {
-      const next = await updateFileMetadata({
-        store,
-        resourceId,
-        expectedMetadataRevision: resource.metadataRevision,
-        addTagLabelIds: [labelId],
-      });
-      setResource(next);
-      toast.success(t("tagAdded"));
-    } catch {
-      // Identical to `removeTag`: the revision this page holds is from
-      // whenever it last loaded, so a conflict means somebody else edited
-      // the file and the only honest thing to show is the current state.
-      toast.error(t("saveConflict"));
-      await load();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function openTagPicker(open: boolean) {
-    setAddTagOpen(open);
-    if (!open || tagOptions) return;
-    setTagOptionsFailed(false);
-    try {
-      // TAG only: the same endpoint serves categories, and a category in
-      // a tag picker would be refused by the edit as the wrong kind.
-      setTagOptions(await fetchWorkspaceLabels({ store, kind: "TAG" }));
-    } catch {
-      setTagOptionsFailed(true);
     }
   }
 
@@ -409,72 +367,40 @@ export function FileDetailView({
                 </Badge>
               ))
             )}
-
-            <Popover open={addTagOpen} onOpenChange={openTagPicker}>
-              <PopoverTrigger asChild>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  disabled={busy}
-                  className="h-6 gap-1 px-2 text-xs"
-                  data-testid="add-tag"
-                >
-                  <Plus className="size-3" />
-                  {t("addTag")}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent align="start" className="w-64 p-0">
-                {tagOptionsFailed ? (
-                  <div className="flex flex-col items-start gap-2 p-3">
-                    <p className="text-muted-foreground text-sm">
-                      {t("addTagUnavailable")}
-                    </p>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => void openTagPicker(true)}
-                    >
-                      {t("retry")}
-                    </Button>
-                  </div>
-                ) : tagOptions === null ? (
-                  <div className="text-muted-foreground flex items-center gap-2 p-3 text-sm">
-                    <Loader2 className="size-4 animate-spin" />
-                    {t("detailLoading")}
-                  </div>
-                ) : (
-                  <Command>
-                    <CommandInput placeholder={t("addTagSearch")} />
-                    <CommandList>
-                      <CommandEmpty>{t("addTagEmpty")}</CommandEmpty>
-                      <CommandGroup>
-                        {/* Already on the file, so offering it again would
-                            be a no-op the person cannot tell apart from a
-                            failure. */}
-                        {tagOptions
-                          .filter(
-                            (option) =>
-                              !resource.tags.some(
-                                (tag) => tag.labelId === option.id,
-                              ),
-                          )
-                          .map((option) => (
-                            <CommandItem
-                              key={option.id}
-                              value={option.displayName}
-                              onSelect={() => void addTag(option.id)}
-                            >
-                              {option.displayName}
-                            </CommandItem>
-                          ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                )}
-              </PopoverContent>
-            </Popover>
           </div>
         </div>
+
+        {resource.rejected.length > 0 ? (
+          <div>
+            <h2 className="text-sm font-medium">{t("detailRejected")}</h2>
+            <p className="text-muted-foreground mt-1 text-xs">
+              {t("rejectedExplainer")}
+            </p>
+            <div
+              className="mt-1 flex flex-wrap items-center gap-1"
+              data-testid="file-detail-rejected"
+            >
+              {resource.rejected.map((entry) => (
+                <Badge
+                  key={entry.id}
+                  variant="outline"
+                  className="text-muted-foreground gap-1 border-dashed"
+                >
+                  {entry.displayName}
+                  <button
+                    type="button"
+                    disabled={busy}
+                    aria-label={t("allowAgain", { name: entry.displayName })}
+                    data-testid="file-detail-allow-again"
+                    onClick={() => void allowAgain(entry.labelId)}
+                  >
+                    <RotateCcw className="size-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {resource.suggestions.length > 0 ? (
           <div>

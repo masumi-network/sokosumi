@@ -3544,6 +3544,19 @@ export type FileResource = {
          */
         stale: boolean;
     }>;
+    rejected: Array<{
+        id: string;
+        labelId: string;
+        kind: 'TAG' | 'CATEGORY';
+        displayName: string;
+        state: 'SUGGESTED' | 'CONFIRMED' | 'REJECTED';
+        provenance: 'MANUAL' | 'MODEL' | 'RULE';
+        evidenceSnippet: string | null;
+        /**
+         * The suggestion was computed against an older content or vocabulary version.
+         */
+        stale: boolean;
+    }>;
     projects: Array<{
         id: string;
         projectId: string;
@@ -3587,6 +3600,7 @@ export type UpdateFileMetadataRequest = {
     confirmProjectIds?: Array<string>;
     removeProjectIds?: Array<string>;
     allowSuggestionsFor?: Array<'category' | 'tags'>;
+    allowSuggestionsForLabelIds?: Array<string>;
 };
 
 export type FileSuggestionDecisionRequest = {
