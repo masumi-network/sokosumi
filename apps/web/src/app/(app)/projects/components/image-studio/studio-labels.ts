@@ -94,7 +94,7 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     creditsCharged: t("creditsCharged"),
     creditsUnderivable: t("creditsUnderivable"),
     creditsNoFigure: t("creditsNoFigure"),
-    failedRefunded: t("failedRefunded"),
+    failedNoCharge: t("failedNoCharge"),
     failedBody: failureBodies(t),
     failedBodyUnreported: t("failedBodyUnreported"),
     failedDetails: t("failedDetails"),

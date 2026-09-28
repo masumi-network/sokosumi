@@ -2646,10 +2646,10 @@
       "errorInsufficientCredits": "Nicht genügend Credits. Es wurde nichts generiert und nichts berechnet. Lade Credits auf und versuche es erneut.",
       "credits": "Credits",
       "creditsTitle": "Credits für diesen Stapel",
-      "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Reservierung der Anfrage genommen. Eine fehlgeschlagene Generierung wird vollständig zurückerstattet.",
+      "creditsCharged": "Summiert aus dem veröffentlichten Preis jedes Modells, 1 Credit pro Cent und ohne Aufschlag. Das ist die Abbuchung, keine Schätzung: derselbe Betrag wird bei der Lieferung des Bildes genommen. Eine fehlgeschlagene Generierung kostet nichts.",
       "creditsUnderivable": "Mindestens eines dieser Modelle lässt sich für das gewählte Format nicht pro Bild bepreisen, deshalb kann dieser Stapel nicht summiert werden.",
       "creditsNoFigure": "Kein Betrag",
-      "failedRefunded": "Sie wurde vollständig zurückerstattet und hat damit nichts gekostet.",
+      "failedNoCharge": "Dafür wurde nichts berechnet.",
       "failedBodyUnreported": "Das Modell hat kein Bild zurückgegeben, und diese Generierung ist zu alt, um den Grund zu nennen.",
       "FailureReasons": {
         "provider_rejected": "Der Bildanbieter hat diese Anfrage abgelehnt.",

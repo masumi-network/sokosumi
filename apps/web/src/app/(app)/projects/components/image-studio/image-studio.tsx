@@ -591,14 +591,15 @@ export function ImageStudio({
               : labels.failedBody[settledProblemJob.failureReason]}
           </p>
           {/* Said on the failure itself, because "did that cost me anything?"
-              is the first thing a charged product makes a person ask. Core
-              refunds every terminal failure and stamps the job, so this is a
-              fact read off the row rather than a reassurance. */}
-          {settledProblemJob.refunded ? (
-            <p className="text-muted-foreground mt-1 text-sm">
-              {labels.failedRefunded}
-            </p>
-          ) : null}
+              is the first thing a charged product makes a person ask.
+
+              Unconditional, and not gated on any per-job flag: images are
+              charged on success, so a generation that produced none was never
+              charged. Nothing was taken, which is why there is nothing here
+              about anything coming back. */}
+          <p className="text-muted-foreground mt-1 text-sm">
+            {labels.failedNoCharge}
+          </p>
           {/* Kept, not hidden. Whoever has to explain this to fal needs the
               provider's own words, and a reader who does not care never opens
               it. Native `details` so it is keyboard-operable without any of

@@ -95,16 +95,19 @@ export function elapsedByAssetId(jobs: StudioJob[]): Record<string, number> {
  * What each finished version was actually debited, keyed by the version.
  *
  * Read off the job rows rather than derived from the catalog. This is the charge
- * the ledger took, not an estimate of one — and a refunded job reads as zero,
- * because a generation that failed cost the person nothing and the tile must not
- * claim otherwise. A version whose job has fallen off the most recent page has
- * no entry and its tile simply says nothing about credits.
+ * the ledger took, not an estimate of one: a catalog refresh must not restate
+ * what somebody already paid. A version whose job has fallen off the most recent
+ * page has no entry and its tile simply says nothing about credits.
+ *
+ * Every job in here produced an asset, so every job in here was charged. There
+ * is deliberately no zero case: images are charged on success, so a generation
+ * that did not produce one is not in this map to begin with.
  */
 export function creditsByAssetId(jobs: StudioJob[]): Record<string, number> {
   const byAsset: Record<string, number> = {};
   for (const job of jobs) {
     if (!job.assetId || job.credits === null) continue;
-    byAsset[job.assetId] = job.refunded ? 0 : job.credits;
+    byAsset[job.assetId] = job.credits;
   }
   return byAsset;
 }
@@ -257,8 +260,14 @@ export interface StudioLabels {
   creditsCharged: string;
   creditsUnderivable: string;
   creditsNoFigure: string;
-  /** Said on a failed generation, because a failure is refunded in full. */
-  failedRefunded: string;
+  /**
+   * Said on a failed generation: it cost nothing.
+   *
+   * Because nothing was taken, not because something was given back — images
+   * are charged on success, so a generation that produced none was never
+   * charged. Unconditional for that reason: there is no per-job flag to read.
+   */
+  failedNoCharge: string;
   /**
    * What a failed generation says, per reason Core reports.
    *

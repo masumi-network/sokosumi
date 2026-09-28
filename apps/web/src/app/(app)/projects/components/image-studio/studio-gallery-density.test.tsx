@@ -207,7 +207,6 @@ function settledJob(
     submittedAt: as(submittedAt),
     settledAt: as(settledAt),
     credits,
-    refunded: false,
   } as unknown as StudioJob;
 }
 
@@ -318,6 +317,28 @@ describe("a gallery with work in it", () => {
     const alert = screen.getByRole("alert");
     expect(alert).toHaveTextContent("cancelled");
     expect(alert).not.toHaveTextContent("provider_error");
+  });
+
+  /**
+   * The money sentence, and what it must not say.
+   *
+   * Images are charged on success, so a generation that produced none was never
+   * charged — there is nothing to give back and nothing that says otherwise. It
+   * is unconditional for that reason: no per-job flag decides it.
+   */
+  it("says a failed generation cost nothing, without a refund in sight", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 500 from upstream", "provider_error"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedNoCharge");
+    // No wording about money coming back, in any of the three languages this
+    // ships in. The strings are keys here, so this guards the shape rather than
+    // the prose — the locale files are where the prose is checked.
+    expect(alert.textContent ?? "").not.toMatch(
+      /refund|erstatt|reembols|devuelt/i,
+    );
   });
 
   it("has a sentence for a row from before Core recorded reasons", () => {

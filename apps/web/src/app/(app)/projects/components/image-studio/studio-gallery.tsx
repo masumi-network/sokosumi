@@ -52,7 +52,7 @@ export function StudioGallery({
    *
    * The charge off the job row, not a figure recomputed from the catalog: a
    * price that moved since the image was made must not silently restate what
-   * the person paid. A refunded job reads as zero.
+   * the person paid.
    */
   creditsByAssetId: Record<string, number>;
   /**

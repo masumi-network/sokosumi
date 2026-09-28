@@ -2646,10 +2646,10 @@
       "errorInsufficientCredits": "No hay créditos suficientes. No se generó nada ni se cobró nada. Recarga tus créditos y vuelve a intentarlo.",
       "credits": "Créditos",
       "creditsTitle": "Créditos de este lote",
-      "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra al reservar la solicitud. Una generación que falla se reembolsa por completo.",
+      "creditsCharged": "Sumado a partir del precio publicado de cada modelo, a 1 crédito por céntimo y sin recargo. Es el cobro, no una aproximación: se toma la misma cifra cuando se entrega la imagen. Una generación que falla no cuesta nada.",
       "creditsUnderivable": "Al menos uno de estos modelos no puede tasarse por imagen para el encuadre elegido, así que este lote no se puede sumar.",
       "creditsNoFigure": "Sin cifra",
-      "failedRefunded": "Se reembolsó por completo, así que no costó nada.",
+      "failedNoCharge": "No se cobró nada por ella.",
       "failedBodyUnreported": "El modelo no devolvió ninguna imagen, y esta generación es demasiado antigua para decir por qué.",
       "FailureReasons": {
         "provider_rejected": "El proveedor de imágenes rechazó esta solicitud.",
