@@ -2623,6 +2623,8 @@
       "compareHint": "El mismo encargo, en paralelo. Cada panel indica el modelo que lo creó.",
       "compareNeedsTwo": "Selecciona al menos dos imágenes para comparar.",
       "bytesUnavailable": "El archivo de esta versión ya no está en el almacenamiento. Su prompt y ajustes siguen aquí.",
+      "imageUnreadable": "No se pudo cargar esta imagen.",
+      "imageRetry": "Volver a intentarlo",
       "previousVersion": "Versión anterior",
       "nextVersion": "Versión siguiente",
       "moreOptions": "Opciones",

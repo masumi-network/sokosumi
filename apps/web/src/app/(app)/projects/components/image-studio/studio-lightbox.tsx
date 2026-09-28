@@ -277,7 +277,7 @@ function ImagePane({
       <StudioImage
         asset={asset}
         fit="contain"
-        label={labels.bytesUnavailable}
+        labels={labels}
         projectId={projectId}
       />
       <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">

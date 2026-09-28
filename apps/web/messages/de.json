@@ -2623,6 +2623,8 @@
       "compareHint": "Derselbe Auftrag, nebeneinander. Jedes Feld nennt das Modell, das es erzeugt hat.",
       "compareNeedsTwo": "Wähle mindestens zwei Bilder zum Vergleichen aus.",
       "bytesUnavailable": "Die Datei dieser Version liegt nicht mehr im Speicher. Prompt und Einstellungen sind weiterhin vorhanden.",
+      "imageUnreadable": "Dieses Bild konnte nicht geladen werden.",
+      "imageRetry": "Erneut versuchen",
       "previousVersion": "Vorherige Version",
       "nextVersion": "Nächste Version",
       "moreOptions": "Optionen",

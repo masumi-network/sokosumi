@@ -84,6 +84,8 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     compareHint: t("compareHint"),
     compareNeedsTwo: t("compareNeedsTwo"),
     bytesUnavailable: t("bytesUnavailable"),
+    imageUnreadable: t("imageUnreadable"),
+    imageRetry: t("imageRetry"),
     previousVersion: t("previousVersion"),
     nextVersion: t("nextVersion"),
     generationTime: t("generationTime"),

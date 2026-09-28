@@ -225,7 +225,17 @@ export interface StudioLabels {
   parentVersion: string;
   compareHint: string;
   compareNeedsTwo: string;
+  /** Only for a confirmed 404: this version's object really is gone. */
   bytesUnavailable: string;
+  /**
+   * For a load that failed without proving anything.
+   *
+   * An `img` error says nothing about why, and most of them are contention
+   * rather than deletion — so this is what a reader gets unless the route
+   * answers 404. See `StudioImage`.
+   */
+  imageUnreadable: string;
+  imageRetry: string;
   previousVersion: string;
   nextVersion: string;
 

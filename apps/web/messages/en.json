@@ -2623,6 +2623,8 @@
       "compareHint": "The same brief, side by side. Each pane names the model that made it.",
       "compareNeedsTwo": "Select at least two images to compare.",
       "bytesUnavailable": "This version's file is no longer in storage. Its prompt and settings are still here.",
+      "imageUnreadable": "This image could not be loaded.",
+      "imageRetry": "Try again",
       "previousVersion": "Previous version",
       "nextVersion": "Next version",
       "moreOptions": "Options",
