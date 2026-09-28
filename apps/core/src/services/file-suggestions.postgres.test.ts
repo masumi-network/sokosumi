@@ -906,6 +906,56 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
       ).toBe(0);
     }, 60_000);
 
+    it("leaves a pin on the named label alone", async () => {
+      /**
+       * The `decision: REJECT` filter, isolated.
+       *
+       * `@@unique([resourceId, field, labelId, evidenceScopeId])` does not
+       * include `decision`, so for one resource, field and label there is
+       * exactly one override row and it is either a PIN or a REJECT. Without
+       * the filter, withdrawing the veto on X deletes a PIN on X — a person's
+       * "I set this field by hand" destroyed by a gesture that means "the
+       * model may propose this again".
+       *
+       * The sibling case below puts the PIN and the REJECT on two *different*
+       * labels, so `labelId: target` alone already saves it and the filter is
+       * never exercised. Here the PIN is on the label being named and there is
+       * no REJECT anywhere, so deleting the filter deletes the pin. Found by
+       * mutation, not by reading.
+       */
+      await prisma.fileFieldOverride.create({
+        data: {
+          resourceId: vetoResourceId,
+          field: "category",
+          labelId: categoryA,
+          decision: "PIN",
+          evidenceScopeId: vetoScopeId,
+          contentRevision: 1,
+          vocabularyVersion: 1,
+          decidedByUserId: vetoOwnerId,
+        },
+      });
+
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [categoryA],
+        },
+      });
+
+      const rows = await prisma.fileFieldOverride.findMany({
+        where: { resourceId: vetoResourceId, labelId: categoryA },
+        select: { decision: true },
+      });
+      expect(
+        rows,
+        "withdrawing a veto must not delete a pin on the same label",
+      ).toEqual([{ decision: "PIN" }]);
+    }, 60_000);
+
     it("forgives one category rejection without touching a pin on the same field", async () => {
       /**
        * PIN says "this field is set by hand"; REJECT says "this label may not
