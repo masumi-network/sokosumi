@@ -426,7 +426,7 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="py-6">
+            <div className="pb-2">
               <h3 className="text-sm font-medium">{labels.emptyTitle}</h3>
               <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
                 {labels.emptyBody}
