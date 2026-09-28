@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
 import {
+  type FileExtractionState,
   FileLabelKind,
   FileMetadataProvenance,
   FileMetadataState,
@@ -17,7 +18,7 @@ import { chunkExtractedText } from "@/lib/files/extraction";
 import { retrieveFileCandidates } from "@/lib/files/retrieval";
 import { writeVersionChunks } from "@/services/file-index.service";
 import { updateFileMetadata } from "@/services/file-metadata.service";
-import { searchFiles } from "@/services/file-search.service";
+import { coverageOf, searchFiles } from "@/services/file-search.service";
 
 /**
  * The retrieval layer against a real PostgreSQL.
@@ -51,38 +52,55 @@ function actorFor(userId: string): FileActor {
 async function seedResource(input: {
   displayName: string;
   text: string;
+  /**
+   * Defaults to INDEXED, which is what every pre-existing case here
+   * assumes. The coverage cases below need documents that are still
+   * being read, and the header's whole job is to count those.
+   */
+  extractionState?: FileExtractionState;
+  /** Skips the version row entirely, so the current revision has none. */
+  withoutVersion?: boolean;
+  /** Seeds under another user, for the authorization case. */
+  ownerUserId?: string;
 }): Promise<string> {
+  const owner = input.ownerUserId ?? ownerId;
   const resource = await prisma.fileResource.create({
     data: {
       workspaceId,
       sourceKind: FileSourceKind.DRIVE_UPLOAD,
       sourceScope: FileSourceScope.USER,
-      sourceId: `drive/users/${ownerId}/${input.displayName}`,
-      ownerUserId: ownerId,
+      sourceId: `drive/users/${owner}/${input.displayName}`,
+      ownerUserId: owner,
       displayName: input.displayName,
       normalizedName: input.displayName.toLowerCase(),
       mimeType: "text/plain",
       sizeBytes: input.text.length,
       lifecycle: FileResourceLifecycle.ACTIVE,
-      versions: {
-        create: {
-          revision: 1,
-          objectKey: `drive/users/${ownerId}/${input.displayName}`,
-          mimeType: "text/plain",
-          extractionState: "INDEXED",
-          extractionCoverage: 1,
-        },
-      },
+      ...(input.withoutVersion
+        ? {}
+        : {
+            versions: {
+              create: {
+                revision: 1,
+                objectKey: `drive/users/${owner}/${input.displayName}`,
+                mimeType: "text/plain",
+                extractionState: input.extractionState ?? "INDEXED",
+                extractionCoverage: 1,
+              },
+            },
+          }),
     },
     select: { id: true, versions: { select: { id: true } } },
   });
 
-  await writeVersionChunks({
-    versionId: resource.versions[0].id,
-    evidenceScopeId: scopeId,
-    scopeVersion: 1,
-    chunks: chunkExtractedText(input.text),
-  });
+  if (resource.versions[0]) {
+    await writeVersionChunks({
+      versionId: resource.versions[0].id,
+      evidenceScopeId: scopeId,
+      scopeVersion: 1,
+      chunks: chunkExtractedText(input.text),
+    });
+  }
 
   resourceIds.push(resource.id);
   return resource.id;
@@ -207,6 +225,204 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
 
     expect(result.candidates).toHaveLength(3);
     expect(result.recall.browse).toBe(3);
+  });
+
+  /**
+   * "3 still processing" over forty-three Processing badges.
+   *
+   * Not a rendering race: the two numbers were computed over different
+   * sets. `indexCoverage` was `coverageOf(items)`, the hydrated current
+   * page, while `windowCount` two lines above it was `entries.length`,
+   * the whole window — and the client accumulates items across
+   * load-more while replacing `meta` outright. So one sentence carried
+   * an accumulated numerator, a window-wide denominator and a
+   * last-page-only processing count, and read as though all three
+   * shared a scope.
+   *
+   * The badges were never wrong. The classification rule is identical on
+   * both sides and is not what changed; the scope of the count is.
+   */
+  describe("the header's processing count", () => {
+    let coverageWorkspaceIds: string[] = [];
+
+    beforeAll(async () => {
+      coverageWorkspaceIds = [
+        await seedResource({
+          displayName: "pending-alpha.txt",
+          text: "Commuters waiting in line alpha.",
+          extractionState: "PENDING",
+        }),
+        await seedResource({
+          displayName: "pending-beta.txt",
+          text: "Commuters waiting in line beta.",
+          extractionState: "RUNNING",
+        }),
+      ];
+    });
+
+    afterAll(async () => {
+      if (!enabled) return;
+      await prisma.fileResource.deleteMany({
+        where: { id: { in: coverageWorkspaceIds } },
+      });
+    });
+
+    it("1. counts the whole window, not the page it returned", async () => {
+      const page = await searchFiles({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: "waiting",
+        filters: {},
+        sortBy: "relevance",
+        sortOrder: "desc",
+        cursor: null,
+        limit: 1,
+      });
+
+      expect(page.items).toHaveLength(1);
+      expect(page.search.windowCount).toBe(2);
+      expect(
+        page.search.indexCoverage.processing,
+        "the count is over the returned page while windowCount beside it " +
+          "is over the window, so the header reports a share of the " +
+          "documents and presents it as the whole",
+      ).toBe(2);
+    }, 60_000);
+
+    it("2. agrees with the page when the window fits in one page", async () => {
+      /**
+       * The invariant that stops the two from drifting apart again. When
+       * every entry is returned, a count over the window and a count
+       * over the items are counts over the same set, so they have to be
+       * the same object — and `coverageOf` is the page-path classifier,
+       * so this is the two paths being compared rather than one path
+       * being compared with itself.
+       */
+      const page = await searchFiles({
+        workspaceId,
+        actor: actorFor(ownerId),
+        query: "waiting",
+        filters: {},
+        sortBy: "relevance",
+        sortOrder: "desc",
+        cursor: null,
+        limit: 20,
+      });
+
+      expect(page.items).toHaveLength(page.search.windowCount);
+      expect(page.search.indexCoverage).toEqual(coverageOf(page.items));
+    }, 60_000);
+
+    it("3. counts a resource with no version row exactly as hydration does", async () => {
+      /**
+       * Hydration LEFT JOINs `file_version`, so a resource whose current
+       * revision has no version row still comes back, with a null state
+       * that `classifyExtractionStates` buckets as filenameOnly. An
+       * INNER JOIN in the aggregate would drop it instead, and the two
+       * numbers would disagree again in a quieter way.
+       */
+      const orphan = await seedResource({
+        displayName: "waiting-no-version.txt",
+        text: "Commuters waiting with no version row.",
+        withoutVersion: true,
+      });
+
+      try {
+        const page = await searchFiles({
+          workspaceId,
+          actor: actorFor(ownerId),
+          query: "waiting",
+          filters: {},
+          sortBy: "relevance",
+          sortOrder: "desc",
+          cursor: null,
+          limit: 20,
+        });
+
+        const total =
+          page.search.indexCoverage.indexed +
+          page.search.indexCoverage.processing +
+          page.search.indexCoverage.filenameOnly;
+
+        expect(
+          total,
+          "the aggregate dropped a resource hydration keeps, so the " +
+            "buckets no longer add up to the window",
+        ).toBe(page.search.windowCount);
+        expect(page.search.indexCoverage).toEqual(coverageOf(page.items));
+      } finally {
+        await prisma.fileResource.deleteMany({ where: { id: orphan } });
+      }
+    }, 60_000);
+
+    it("4. does not count a resource the reader has lost access to", async () => {
+      /**
+       * The aggregate runs its own query, so it needs its own
+       * `WHERE ${authorized}` — and showing that takes some care,
+       * because a first page cannot show it at all. The window's ids
+       * come from retrieval, which is already authorized, so on the
+       * first page the aggregate is handed nothing it should refuse and
+       * dropping the predicate changes no number. I wrote that version
+       * first and it passed with the predicate deleted, which made it
+       * evidence of nothing.
+       *
+       * The exposure is the one `loadLiveResources` is documented
+       * against: "a cache hit is never authorization". A window is
+       * stored and replayed by cursor, so access can change between the
+       * page that built it and the page that follows it. Hydration
+       * re-checks every page and drops the row. The aggregate has to
+       * drop it too, or the header keeps counting a document the reader
+       * can no longer open.
+       */
+      const revoked = await seedResource({
+        displayName: "waiting-revoked.txt",
+        text: "Commuters waiting, access about to change.",
+        extractionState: "PENDING",
+      });
+
+      try {
+        const first = await searchFiles({
+          workspaceId,
+          actor: actorFor(ownerId),
+          query: "waiting",
+          filters: {},
+          sortBy: "relevance",
+          sortOrder: "desc",
+          cursor: null,
+          limit: 1,
+        });
+
+        // The premise: it is in the window this cursor points at.
+        expect(first.search.windowCount).toBe(3);
+        expect(first.search.indexCoverage.processing).toBe(3);
+
+        // Access changes while the window is still live.
+        await prisma.fileResource.update({
+          where: { id: revoked },
+          data: { ownerUserId: outsiderId },
+        });
+
+        const second = await searchFiles({
+          workspaceId,
+          actor: actorFor(ownerId),
+          query: "waiting",
+          filters: {},
+          sortBy: "relevance",
+          sortOrder: "desc",
+          cursor: first.search.nextCursor,
+          limit: 20,
+        });
+
+        expect(second.items.map((item) => item.id)).not.toContain(revoked);
+        expect(
+          second.search.indexCoverage.processing,
+          "the reader can no longer open that document and the header is " +
+            "still counting it",
+        ).toBe(2);
+      } finally {
+        await prisma.fileResource.deleteMany({ where: { id: revoked } });
+      }
+    }, 60_000);
   });
 
   it("pages a ranked window and reports a cursor, not a corpus total", async () => {

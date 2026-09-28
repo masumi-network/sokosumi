@@ -265,6 +265,23 @@ export async function searchFiles(
 
   const remaining = Math.max(0, entries.length - page.nextPosition);
 
+  /**
+   * Over the window, not over this page.
+   *
+   * `windowCount` two lines below is the whole window and this used to be
+   * `coverageOf(items)`, the current page — so one sentence rendered an
+   * accumulated numerator, a window-wide denominator and a last-page-only
+   * processing count, and read as though all three shared a scope. The
+   * header said "3 still processing" over forty-three Processing badges.
+   */
+  const indexCoverage = classifyExtractionStates(
+    await loadWindowExtractionStates({
+      workspaceId: input.workspaceId,
+      actor: input.actor,
+      resourceIds: entries.map((entry) => entry.r),
+    }),
+  );
+
   return {
     items,
     search: {
@@ -292,22 +309,41 @@ export async function searchFiles(
           )
         : null,
       restarted,
-      indexCoverage: coverageOf(items),
+      indexCoverage,
     },
   };
 }
 
-function coverageOf(items: FileResourceDto[]): {
+export interface FileIndexCoverage {
   indexed: number;
   processing: number;
   filenameOnly: number;
-} {
+}
+
+/**
+ * The one place an extraction state becomes a coverage bucket.
+ *
+ * It is exported and it is the only switch of its kind on purpose. This
+ * count was computed in two places over two different sets — the header
+ * said "3 still processing" while forty-three rows wore a Processing
+ * badge — and the way that happened was one classification rule written
+ * twice. A second copy is how it comes back.
+ *
+ * `null` lands in `filenameOnly` through `default:`, and that is
+ * load-bearing rather than incidental: hydration LEFT JOINs
+ * `file_version`, so a resource whose current revision has no version row
+ * yields a null state, and the aggregate has to agree with hydration
+ * about what that means.
+ */
+export function classifyExtractionStates(
+  states: (FileExtractionState | null)[],
+): FileIndexCoverage {
   let indexed = 0;
   let processing = 0;
   let filenameOnly = 0;
 
-  for (const item of items) {
-    switch (item.extractionState) {
+  for (const state of states) {
+    switch (state) {
       case "INDEXED":
         indexed += 1;
         break;
@@ -321,6 +357,62 @@ function coverageOf(items: FileResourceDto[]): {
   }
 
   return { indexed, processing, filenameOnly };
+}
+
+/**
+ * The page path: coverage over the rows that were actually hydrated.
+ *
+ * Kept so the two paths demonstrably share a classifier rather than
+ * agreeing by inspection — when a window fits in one page, this and the
+ * window-wide count must return the same object, and that is asserted.
+ */
+export function coverageOf(items: FileResourceDto[]): FileIndexCoverage {
+  return classifyExtractionStates(items.map((item) => item.extractionState));
+}
+
+/**
+ * The extraction state of every entry in the window, read the way
+ * hydration reads it.
+ *
+ * Three things here have to match `loadLiveResources` exactly, and each
+ * of them is a different bug if it does not:
+ *
+ * - the LEFT JOIN, because an INNER JOIN silently drops resources whose
+ *   current revision has no version row, and hydration keeps them;
+ * - the null it can therefore produce, which `classifyExtractionStates`
+ *   counts as filenameOnly;
+ * - `WHERE ${authorized}`, without which the header reports a count over
+ *   files the reader may not see. That is a disclosure, not a cosmetic
+ *   discrepancy.
+ *
+ * What is deliberately absent is the correlated `bestChunkText`
+ * subquery. Nothing here needs a snippet, and the window is at most
+ * `RESULT_WINDOW_LIMIT` ids.
+ */
+export async function loadWindowExtractionStates(input: {
+  workspaceId: string;
+  actor: FileActor;
+  resourceIds: string[];
+}): Promise<(FileExtractionState | null)[]> {
+  if (input.resourceIds.length === 0) return [];
+
+  const authorized = buildAuthorizedResourceSql({
+    workspaceId: input.workspaceId,
+    actor: input.actor,
+  });
+
+  const rows = await prisma.$queryRaw<
+    { extractionState: FileExtractionState | null }[]
+  >(PrismaRaw.sql`
+    SELECT fv."extractionState"
+    FROM unnest(${input.resourceIds}::text[]) AS wanted(resource_id)
+    JOIN file_resource fr ON fr.id::text = wanted.resource_id
+    LEFT JOIN file_version fv
+      ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
+    WHERE ${authorized}
+  `);
+
+  return rows.map((row) => row.extractionState);
 }
 
 export interface LiveResource {
