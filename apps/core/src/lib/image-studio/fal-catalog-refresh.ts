@@ -15,16 +15,30 @@ import type { ImageModel } from "./image-model";
  *
  * - **The committed snapshot** (in `catalog.ts`) means a cold instance already
  *   has every model. Nothing here has to succeed for the studio to work.
- * - **An in-process TTL** means one instance asks fal at most once every six
- *   hours, whatever the request rate.
- * - **A shared Redis entry** means the instances do not each ask. Twenty
- *   instances rolling at once is twenty full catalog crawls of fal's API, which
- *   is how a deploy earns a rate limit.
+ * - **A shared Redis entry** means the instances do not each crawl fal. Twenty
+ *   instances rolling at once is twenty full catalog crawls, which is how a
+ *   deploy earns a rate limit.
+ * - **An in-process TTL** means one instance reads that entry at most once every
+ *   six hours, whatever the request rate.
  *
- * The one rule: a refresh failure logs and keeps serving the last good catalog.
- * There is no path here that empties the studio, and no path that makes a user
- * request wait on fal — the fal crawl is hundreds of reads and is always
- * detached from whoever triggered it.
+ * **Nothing here crawls fal from a request path, and that is the point.** It used
+ * to: `ensureImageCatalogFresh` started a detached crawl on a cache miss, on the
+ * theory that the snapshot answers the request anyway. On preview that produced
+ * `[image-studio] catalog refresh failed { error: 'The operation was aborted due
+ * to timeout' }` on every cold start and never once populated Redis — a crawl is
+ * ~210 provider reads, paced, with a backoff ladder up to a minute, and a
+ * serverless invocation ends when its request does. So every attempt was
+ * guaranteed waste that logged like an incident, and the layer it was supposed to
+ * fill stayed empty.
+ *
+ * The crawl now has exactly two callers, both of which own a whole process:
+ * `scripts/refresh-fal-catalog.mts` (which rewrites the committed snapshot) and
+ * `GET /sync/image-catalog` (cron, which fills Redis). Vercel runs crons on
+ * production only, so a preview serves the committed snapshot for its whole life.
+ * That is the intended behaviour, not a degraded mode.
+ *
+ * The one rule is unchanged: a refresh failure logs and keeps serving the last
+ * good catalog. No path here empties the studio.
  */
 
 /** fal's catalog moves on the scale of days; six hours is ample. */
@@ -48,34 +62,38 @@ function markFresh(): void {
 }
 
 /**
- * Bring the resolved catalog up to date, cheaply, and return immediately.
+ * Adopt a catalog a scheduled refresh has shared, if there is one.
  *
- * Awaiting this is safe from a request handler: the only thing it ever waits for
- * is a Redis read. The provider crawl, when one is needed, is started and left
- * to finish on its own, because the snapshot already answers the question the
- * caller is asking and waiting several seconds to answer it better is not a
- * trade any page load should make.
+ * Safe to await from a request handler, and cheap by construction: one Redis read
+ * at most once every six hours per instance, and nothing else. It will not crawl
+ * fal — see the note at the top of this file — so a miss is not a failure, it just
+ * means this instance keeps serving what it already has.
  */
 export async function ensureImageCatalogFresh(): Promise<void> {
   if (Date.now() < freshUntil) return;
+  // Marked first: a miss must not make the next request read Redis again, and an
+  // unreachable Redis must not turn every page load into a failed connection.
+  markFresh();
 
   const shared = await readSharedCatalog();
-  if (shared && setResolvedImageCatalog(shared.models, shared.fetchedAt)) {
-    markFresh();
-    return;
-  }
-
-  void refreshImageCatalog();
+  if (shared) setResolvedImageCatalog(shared.models, shared.fetchedAt);
 }
 
 /**
- * Crawl fal, adopt the result, and share it.
+ * Crawl fal, adopt the result, and share it through Redis.
  *
- * Exported for the refresh script and for tests. Resolves either way — the
+ * Minutes of wall clock, so only a caller that owns a whole process may call it:
+ * the refresh script, the cron sync route, or a test. Resolves either way — the
  * boolean says whether the catalog moved, and a false is a logged non-event, not
  * an error the caller has to handle.
+ *
+ * `shouldContinue` lets the cron stop a crawl inside its own budget. A crawl cut
+ * short throws rather than returning what it has: a partial catalog is a catalog
+ * missing models, and adopting one would take working models out of the composer.
  */
-export async function refreshImageCatalog(): Promise<boolean> {
+export async function refreshImageCatalog(options?: {
+  shouldContinue?: () => boolean;
+}): Promise<boolean> {
   if (inFlight) {
     await inFlight;
     return false;
@@ -93,6 +111,7 @@ export async function refreshImageCatalog(): Promise<boolean> {
       const sources = await fetchFalCatalogSources({
         fetchImpl: fetch,
         apiKey,
+        shouldContinue: options?.shouldContinue,
       });
       const { models, exclusions } = normaliseFalCatalog(sources);
       if (!setResolvedImageCatalog(models, sources.fetchedAt)) {

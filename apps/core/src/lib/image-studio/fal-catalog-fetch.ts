@@ -124,6 +124,20 @@ interface FetchOptions {
   /** Awaited between calls and between retries. Injected so tests do not wait. */
   sleep?: (ms: number) => Promise<void>;
   onProgress?: (message: string) => void;
+  /**
+   * Checked between calls. False stops the crawl by throwing.
+   *
+   * A throw and not a partial return: a catalog missing models is worse than no
+   * refresh at all, because adopting one would take working models out of the
+   * composer until the next successful crawl.
+   */
+  shouldContinue?: () => boolean;
+}
+
+function requireBudget(options: FetchOptions): void {
+  if (options.shouldContinue && !options.shouldContinue()) {
+    throw new Error("the catalog crawl ran out of time before it finished");
+  }
 }
 
 function defaultSleep(ms: number): Promise<void> {
@@ -144,6 +158,7 @@ async function readJson(
   const sleep = options.sleep ?? defaultSleep;
   let lastError = "unknown";
   for (let attempt = 0; attempt <= RETRY_BACKOFF_MS.length; attempt += 1) {
+    requireBudget(options);
     if (attempt > 0) await sleep(RETRY_BACKOFF_MS[attempt - 1]!);
     let response: Response;
     try {
