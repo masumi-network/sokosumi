@@ -7,6 +7,7 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { readImageJobFailureReason } from "@/lib/image-studio/failure-reason";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -85,6 +86,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         settings: job.settings,
         referenceAssetIds: job.referenceAssetIds,
         error: job.error,
+        failureReason: readImageJobFailureReason(job.failureReason),
         parentAssetId: job.parentAssetId,
         assetId: null,
         createdAt: job.createdAt,

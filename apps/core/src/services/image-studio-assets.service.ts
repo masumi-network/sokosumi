@@ -9,6 +9,10 @@ import { internalServerError, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { requireStudioBlobToken } from "@/lib/image-studio/blob-store";
+import {
+  type ImageJobFailureReason,
+  readImageJobFailureReason,
+} from "@/lib/image-studio/failure-reason";
 
 /**
  * Versions, lineage, review decisions, and the bytes behind them.
@@ -317,7 +321,14 @@ export interface JobView {
   settings: unknown;
   /** The versions this job referenced, so a retry keeps all of them. */
   referenceAssetIds: string[];
+  /** One sentence a person can read. Never the provider's own words. */
   error: string | null;
+  /**
+   * The stable code a client localises. Null for a job that failed before the
+   * studio recorded one, and for the one outage case whose own wording is better
+   * than any code — a client falls back to `error` for those.
+   */
+  failureReason: ImageJobFailureReason | null;
   parentAssetId: string | null;
   assetId: string | null;
   createdAt: Date;
@@ -363,6 +374,7 @@ export async function getJob(options: {
       settings: true,
       referenceAssetIds: true,
       error: true,
+      failureReason: true,
       parentAssetId: true,
       createdAt: true,
       submittedAt: true,
@@ -396,6 +408,7 @@ export async function listJobs(options: {
       settings: true,
       referenceAssetIds: true,
       error: true,
+      failureReason: true,
       parentAssetId: true,
       createdAt: true,
       submittedAt: true,
@@ -418,6 +431,7 @@ function toJobView(job: {
   settings: unknown;
   referenceAssetIds: string[];
   error: string | null;
+  failureReason: string | null;
   parentAssetId: string | null;
   createdAt: Date;
   submittedAt: Date | null;
@@ -436,6 +450,7 @@ function toJobView(job: {
     settings: job.settings,
     referenceAssetIds: job.referenceAssetIds,
     error: job.error,
+    failureReason: readImageJobFailureReason(job.failureReason),
     parentAssetId: job.parentAssetId,
     assetId: job.asset?.id ?? null,
     createdAt: job.createdAt,

@@ -17436,6 +17436,27 @@ export const ProjectImageJobSchema = {
                 'null'
             ]
         },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
         parentAssetId: {
             type: [
                 'string',
@@ -17501,6 +17522,7 @@ export const ProjectImageJobSchema = {
         'settings',
         'referenceAssetIds',
         'error',
+        'failureReason',
         'parentAssetId',
         'assetId',
         'createdAt',

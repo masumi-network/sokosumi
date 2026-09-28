@@ -31,6 +31,10 @@ import {
 } from "@/lib/image-studio/blob-store";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
 import {
+  type ImageJobFailureReason,
+  imageJobFailureMessage,
+} from "@/lib/image-studio/failure-reason";
+import {
   buildFalInput,
   cancelQueued,
   downloadImage,
@@ -489,32 +493,27 @@ async function sendClaimedJob(jobId: string) {
     where: { id: jobId },
   });
 
-  let imageUrls: string[];
+  // Everything that has to happen before the paid call, in one try, because
+  // everything that can fail in here is provably unsent: `submitToQueue` has not
+  // been reached, so nothing was bought and the reservation's debit comes
+  // straight back.
+  //
+  // `buildFalInput` used to sit outside this — an oversight that became a real
+  // money bug the moment the catalog went live. It resolves `job.model` against
+  // the *current* catalog, so a model fal withdraws between reservation and
+  // submission made it throw, the exception escaped `createImageJob` as a 500,
+  // and the row was left SUBMITTING with the charge taken. The sweeper then
+  // called that SUBMISSION_UNCERTAIN, which is deliberately never refunded
+  // automatically — so the person paid for a request that was never sent.
+  let input: Record<string, unknown>;
+  // Which half failed, so the person is told the right thing. Set before each
+  // step rather than guessed from the message afterwards.
+  let preflightReason: ImageJobFailureReason = "reference_not_sendable";
   try {
-    imageUrls = await buildReferenceUrls(job);
-  } catch (error) {
-    // Nothing reached the generation queue, so this is a plain failure and the
-    // user may retry without risk of a second charge.
-    const failed = await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        status: ProjectImageJobStatus.FAILED,
-        error:
-          error instanceof Error ? error.message : "reference upload failed",
-        settledAt: new Date(),
-        submitLeaseAt: null,
-      },
-    });
-    // The submission never left this process, so nothing was bought and the
-    // reservation's debit has to come straight back.
-    await refundImageJobCharge(job.id);
-    return failed;
-  }
-
-  const settings = readSettings(job.settings);
-  const outcome = await submitToQueue({
-    model: job.model,
-    input: buildFalInput(
+    const imageUrls = await buildReferenceUrls(job);
+    const settings = readSettings(job.settings);
+    preflightReason = "request_not_supported";
+    input = buildFalInput(
       {
         prompt: job.prompt,
         aspectRatio: settings.aspectRatio,
@@ -524,7 +523,30 @@ async function sendClaimedJob(jobId: string) {
         imageUrls,
       },
       job.model,
-    ),
+    );
+  } catch (error) {
+    console.warn("[image-studio] a generation could not be prepared", {
+      jobId: job.id,
+      reason: preflightReason,
+      detail: error instanceof Error ? error.message : "unknown",
+    });
+    const failed = await prisma.projectImageJob.update({
+      where: { id: job.id },
+      data: {
+        status: ProjectImageJobStatus.FAILED,
+        error: imageJobFailureMessage(preflightReason),
+        failureReason: preflightReason,
+        settledAt: new Date(),
+        submitLeaseAt: null,
+      },
+    });
+    await refundImageJobCharge(job.id);
+    return failed;
+  }
+
+  const outcome = await submitToQueue({
+    model: job.model,
+    input,
     webhookUrl: webhookUrl(),
   });
 
@@ -541,11 +563,17 @@ async function sendClaimedJob(jobId: string) {
       });
     case "rejected": {
       // fal answered and refused, so it enqueued nothing and charged nothing.
+      console.warn("[image-studio] provider refused a submission", {
+        jobId: job.id,
+        status: outcome.status,
+        providerDetail: outcome.message.slice(0, 500),
+      });
       const rejected = await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
           status: ProjectImageJobStatus.FAILED,
-          error: outcome.message,
+          error: imageJobFailureMessage("provider_rejected"),
+          failureReason: "provider_rejected",
           settledAt: new Date(),
           submitLeaseAt: null,
         },
@@ -554,11 +582,16 @@ async function sendClaimedJob(jobId: string) {
       return rejected;
     }
     case "uncertain":
+      console.warn("[image-studio] submission outcome unknown", {
+        jobId: job.id,
+        providerDetail: outcome.message.slice(0, 500),
+      });
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
           status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-          error: outcome.message,
+          error: imageJobFailureMessage("submission_uncertain"),
+          failureReason: "submission_uncertain",
           submitLeaseAt: null,
         },
       });
@@ -584,7 +617,8 @@ export async function sweepStalledSubmissions(
     },
     data: {
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error: "The submitting process stopped before fal answered.",
+      error: imageJobFailureMessage("submission_uncertain"),
+      failureReason: "submission_uncertain",
       submitLeaseAt: null,
     },
   });
@@ -670,7 +704,8 @@ export async function reconcileJob(jobId: string): Promise<void> {
           data: {
             status: ProjectImageJobStatus.CANCELED,
             settledAt: new Date(),
-            error: "Cancelled before the provider produced an image.",
+            error: imageJobFailureMessage("cancelled"),
+            failureReason: "cancelled",
           },
         });
         // fal says the request is gone and no image came of it, so the charge
@@ -678,10 +713,10 @@ export async function reconcileJob(jobId: string): Promise<void> {
         await refundImageJobCharge(job.id);
         return;
       }
-      await failJob(job.id, "fal no longer has this request");
+      await failImageJob(job.id, "provider_lost_request");
       return;
     case "error":
-      await failJob(job.id, status.message);
+      await failImageJob(job.id, "provider_error", status.message);
       return;
     case "completed":
       break;
@@ -699,7 +734,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   if (result.kind === "error") {
     // A verdict, so the dependency answered and there are no bytes to come.
     await noteReachable(job.id, "result");
-    await failJob(job.id, result.message);
+    await failImageJob(job.id, "provider_error", result.message);
     return;
   }
   // Deliberately *not* cleared here. Getting the image's address is half of
@@ -771,6 +806,22 @@ const OUTAGE_WORDING: Record<UnreachableSource, (hours: number) => string> = {
 };
 
 /**
+ * The stable code a client localises, per dependency.
+ *
+ * `authorization` maps to no code on purpose. The other three are things a person
+ * can be told in one clause; "we could not confirm who this image belongs to" is
+ * not one of them, and the wording above already says it better than any code
+ * would. Such a row keeps its sentence and leaves `failureReason` null, which a
+ * client already has to handle for every job written before this existed.
+ */
+const OUTAGE_REASON: Record<UnreachableSource, ImageJobFailureReason | null> = {
+  status: "provider_unreachable",
+  result: "provider_unreachable",
+  authorization: null,
+  storage: "storage_unavailable",
+};
+
+/**
  * Record a read that never arrived, against the dependency that failed.
  *
  * Never settles the job on its own, and never touches the settlement lease —
@@ -816,6 +867,7 @@ async function noteUnreachable(
   if (outageMs < UNREACHABLE_GRACE_MS) return;
 
   const hours = Math.round(outageMs / 3_600_000);
+  const reason = OUTAGE_REASON[source];
   await prisma.projectImageJob.updateMany({
     where: { id: jobId, status: { in: [...LIVE_STATUSES] } },
     data: {
@@ -823,7 +875,12 @@ async function noteUnreachable(
       // offering a retry that looks free would be a lie. Not terminal either —
       // this status stays pollable, so the image is still recoverable.
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error: `${OUTAGE_WORDING[source](hours)} (${message.slice(0, 200)}).`,
+      // The raw dependency message stays out of it: the wording above already
+      // says which dependency failed and for how long, which is the part a
+      // person can act on. The detail is in `lastPollError` for whoever is
+      // debugging the row.
+      error: `${OUTAGE_WORDING[source](hours)}.`,
+      ...(reason ? { failureReason: reason } : {}),
       settledAt: now,
     },
   });
@@ -852,13 +909,34 @@ async function noteReachable(
 }
 
 /**
- * Settle a job on a definite answer from the provider.
+ * Settle a job on a definite answer from the provider, and pay it back.
  *
- * Only for verdicts: a runner error, a refused request, a request fal says it
- * no longer has. Never for a read that did not arrive — that is
+ * Only for verdicts: a runner error, a refused request, a request fal says it no
+ * longer has. Never for a read that did not arrive — that is
  * {@link noteUnreachable}.
+ *
+ * Exported because it is the *only* place allowed to write a terminal failure on
+ * an image job. fal's completion webhook used to write FAILED itself, with its
+ * own `updateMany`, and so never refunded: a failed generation on preview took
+ * eight credits and kept them. One owner is the fix — a second writer is a second
+ * place that has to remember about money, and it did not.
  */
-async function failJob(jobId: string, message: string): Promise<void> {
+export async function failImageJob(
+  jobId: string,
+  reason: ImageJobFailureReason,
+  /** The provider's own words. Logged, never shown. */
+  providerDetail?: string,
+): Promise<void> {
+  if (providerDetail) {
+    // Where a raw transport string belongs. "Unexpected status code: 422" is
+    // useful to whoever is debugging the job and useless to whoever was waiting
+    // for the image.
+    console.warn("[image-studio] provider failed a generation", {
+      jobId,
+      reason,
+      providerDetail: providerDetail.slice(0, 500),
+    });
+  }
   await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
@@ -866,7 +944,8 @@ async function failJob(jobId: string, message: string): Promise<void> {
     },
     data: {
       status: ProjectImageJobStatus.FAILED,
-      error: message.slice(0, 500),
+      error: imageJobFailureMessage(reason),
+      failureReason: reason,
       settledAt: new Date(),
     },
   });
@@ -943,8 +1022,8 @@ export async function settleWithImage(
       where: { id: job.id },
       data: {
         status: ProjectImageJobStatus.ORPHANED,
-        error:
-          "The image was discarded: the project or the requester's access to it is gone.",
+        error: imageJobFailureMessage("access_revoked"),
+        failureReason: "access_revoked",
         settledAt: new Date(),
       },
     });
@@ -968,7 +1047,7 @@ export async function settleWithImage(
       { jobId: job.id },
     );
     await releaseSettlementLease(job.id, lease);
-    // An outage, not a verdict. `failJob` was wrong here: fal has already
+    // An outage, not a verdict. `failImageJob` was wrong here: fal has already
     // produced and charged for this image, and `FAILED` is outside
     // `LIVE_STATUSES`, so the row would drop out of `recoverableSelection()`
     // and neither polling nor the webhook could ever pick it up again —
@@ -1494,7 +1573,8 @@ async function finaliseCancellations(limit: number): Promise<number> {
         data: {
           status: ProjectImageJobStatus.CANCELED,
           settledAt: new Date(),
-          error: "Cancelled before the provider produced an image.",
+          error: imageJobFailureMessage("cancelled"),
+          failureReason: "cancelled",
         },
       });
       await refundImageJobCharge(job.id);
@@ -1556,8 +1636,8 @@ export async function recoverUnclaimedReservations(
         },
         data: {
           status: ProjectImageJobStatus.FAILED,
-          error:
-            "Abandoned before it was sent to the provider. Nothing was charged.",
+          error: imageJobFailureMessage("abandoned_before_send"),
+          failureReason: "abandoned_before_send",
           settledAt: new Date(),
         },
       });
@@ -1602,8 +1682,8 @@ export async function recoverUnclaimedReservations(
         },
         data: {
           status: ProjectImageJobStatus.ORPHANED,
-          error:
-            "Not sent: the project or the requester's access to it is gone. Nothing was charged.",
+          error: imageJobFailureMessage("access_revoked"),
+          failureReason: "access_revoked",
           settledAt: new Date(),
         },
       });

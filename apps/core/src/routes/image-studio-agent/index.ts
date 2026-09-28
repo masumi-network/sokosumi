@@ -205,6 +205,7 @@ app.get("/generations/:jobId", async (c) => {
       model: job.model,
       settings: job.settings,
       error: job.error,
+      failureReason: job.failureReason,
       retryMayDuplicateCharge: job.retryMayDuplicateCharge,
     },
     version: asset
