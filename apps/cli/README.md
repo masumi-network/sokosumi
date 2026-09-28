@@ -1,6 +1,6 @@
 # Sokosumi CLI
 
-Private workspace package `@sokosumi/cli`; package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+Published npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi); package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 
 ## Product direction
 
@@ -37,10 +37,10 @@ Use the selected Workspace's slug. Organization admin alone does not satisfy the
 Core authorizes each request.
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod admin members WORKSPACE_SLUG --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod admin add-member WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod admin assign-seat WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod auth whoami --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod admin members WORKSPACE_SLUG --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod admin add-member WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod admin assign-seat WORKSPACE_SLUG --email DEVELOPER_EMAIL --json
 ```
 
 [VERIFIED: `src/cli/commands/admin.ts`, `src/api/services/admin-workspace-service.ts`]
@@ -57,9 +57,9 @@ A platform admin uses the chosen Vendor ID and final name. A user without that r
 Confirm the intended account before provisioning:
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --preprod auth login
-pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Workspace Coworker" --capability tasks --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod auth login
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod auth whoami --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod coworkers provision --vendor-id VENDOR_ID --name "Workspace Coworker" --capability tasks --json
 ```
 
 [VERIFIED: `src/api/models/user-identity.ts`, `src/cli/commands/coworkers.ts`]
@@ -98,7 +98,7 @@ Install the framework-neutral Skill from the repository:
 npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi
 ```
 
-This installs Skill files only. It does not install the CLI executable. The CLI package remains private, so its public release path is still open.
+This installs Skill files only. It does not install the CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`, or run without installing via `npx @masumi_network/sokosumi`).
 
 ## Run
 
@@ -111,7 +111,7 @@ pnpm sokosumi
 Or:
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi
+pnpm --filter @masumi_network/sokosumi sokosumi
 ```
 
 That opens the Ink screen. Choose a sign-in method with Up and Down, then press Enter. Use Esc to go back and q to quit. Choose browser OAuth or a user API key. Signed-in home lists Vendors, Workspaces, and Sign out. Use the headless commands below to register or connect a Coworker. OAuth opens Core `/signin`. Stored OAuth credentials and user API keys use the OS vault. Linux persistent auth needs Secret Service. If no vault is available, use `SOKOSUMI_API_KEY` or stdin for the current run.
@@ -119,31 +119,31 @@ That opens the Ink screen. Choose a sign-in method with Up and Down, then press 
 Headless:
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- discover --json
-pnpm --filter @sokosumi/cli sokosumi -- agents list --json
-pnpm --filter @sokosumi/cli sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
-pnpm --filter @sokosumi/cli sokosumi -- coworkers list --json
-pnpm --filter @sokosumi/cli sokosumi -- tasks list --json
-pnpm --filter @sokosumi/cli sokosumi -- jobs list --json
-pnpm --filter @sokosumi/cli sokosumi -- jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"yes"}' --json
-pnpm --filter @sokosumi/cli sokosumi -- auth login --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod auth whoami --json
-printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter @sokosumi/cli sokosumi -- auth login --api-key-stdin --json
-SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @sokosumi/cli sokosumi -- auth status --json
-pnpm --filter @sokosumi/cli sokosumi -- auth logout
+pnpm --filter @masumi_network/sokosumi sokosumi -- discover --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- agents list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- agents hire AGENT_ID --input-json '{"query":"hello"}' --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- coworkers list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- tasks list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- jobs list --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- jobs input JOB_ID --event-id EVENT_ID --input-json '{"answer":"yes"}' --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- auth login --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod auth whoami --json
+printf '%s\\n' "$SOKOSUMI_API_KEY" | pnpm --filter @masumi_network/sokosumi sokosumi -- auth login --api-key-stdin --json
+SOKOSUMI_API_KEY=soko_preprod_... pnpm --filter @masumi_network/sokosumi sokosumi -- auth status --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- auth logout
 ```
 
 Connect the selected existing or newly provisioned Coworker with the required Vendor and organization memberships:
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/workspaces.ts`, `src/api/services/organization-workspace-service.ts`]
 Before organization Task creation, check the account's Seat eligibility:
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --preprod workspaces check ORGANIZATION_ID --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod workspaces check ORGANIZATION_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/workspaces.ts`]
@@ -158,9 +158,9 @@ The flag preserves the selected API target. Without it, Core uses the credential
 OAuth defaults to the personal Workspace. Selecting a Workspace in the browser does not change the CLI OAuth context.
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id COWORKER_ID --name "Pilot Task" --description "Approved Task brief" --status READY --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
-pnpm --filter @sokosumi/cli sokosumi -- --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id COWORKER_ID --name "Pilot Task" --description "Approved Task brief" --status READY --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
+pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
 [VERIFIED: `src/cli/index.ts`]
@@ -242,7 +242,7 @@ npm publication is disabled for this workspace package. Use the source commands 
 To run the built binary directly:
 
 ```bash
-pnpm --filter @sokosumi/cli build
+pnpm --filter @masumi_network/sokosumi build
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 
@@ -250,5 +250,5 @@ node apps/cli/dist/bin/sokosumi.js --help
 Local Core (with a registered local OAuth client, if using OAuth):
 
 ```bash
-pnpm --filter @sokosumi/cli sokosumi -- --api-url http://localhost:8787
+pnpm --filter @masumi_network/sokosumi sokosumi -- --api-url http://localhost:8787
 ```

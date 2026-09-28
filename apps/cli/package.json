@@ -1,6 +1,6 @@
 {
   "name": "@masumi_network/sokosumi",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Developer CLI for Sokosumi Coworker builders",
   "type": "module",
   "license": "MIT",

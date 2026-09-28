@@ -26,7 +26,7 @@ npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill j
 
 [CORRECTION, VERIFIED: local Skills CLI `1.7.0` discovery] The earlier repository-root examples omitted `--full-depth`. On this checkout, default discovery found three root Skills and missed the CLI Skills. Full-depth discovery found 51 Skills, including the six CLI Skills. These counts describe this checkout and installer version. Use `--full-depth` to search the monorepo.
 
-These commands install Skill files only. They do not install the `sokosumi` CLI executable. The CLI package is private, and its public release path is open.
+These commands install Skill files only. They do not install the `sokosumi` CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`).
 
 Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's source of truth. References are optional and additive. Do not add platform-specific metadata unless the installer requires it.
 
@@ -37,7 +37,7 @@ Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's
 Build the CLI from the repository root with Node.js 24 and the checkout's dependencies:
 
 ```bash
-pnpm build --filter=@sokosumi/cli --cache=local:w
+pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js --help
 ```
 
