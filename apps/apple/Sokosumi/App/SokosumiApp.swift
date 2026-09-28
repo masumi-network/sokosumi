@@ -41,6 +41,22 @@ struct SokosumiApp: App {
         .keyboardShortcut("q", modifiers: [.command, .shift])
         .disabled(!auth.isSignedIn)
       }
+      // Row 24f2 / SOK-1201: the sidebar's Unreads filter had no keyboard path, because the List's selection
+      // never reaches the toggle row. These View-menu commands are it: ⌘⇧U toggles the filter (the same
+      // shortcut as web), and Mark all as read is offered under the rule that shows the sidebar row's button.
+      // A bulk action carries no shortcut of its own.
+      CommandGroup(after: .sidebar) {
+        Toggle("Unreads", isOn: Binding(
+          get: { workspaces.sidebar.unreadsFilterOn },
+          set: { workspaces.sidebar.setUnreadsFilter($0) }
+        ))
+        .keyboardShortcut("u", modifiers: [.command, .shift])
+
+        Button("Mark All as Read") {
+          Task { @MainActor in await workspaces.markAllUnreadRead(auth: auth) }
+        }
+        .disabled(workspaces.unreadsFilter?.showsMarkAll != true || workspaces.sidebar.isMarkingAllUnreadRead)
+      }
     }
   }
 }
