@@ -13,7 +13,7 @@ public struct MessageAttachment: Hashable, Sendable {
   public let filename: String
   public let kind: Kind
 
-  public var documentPreviewExtension: String? {
+  var documentPreviewExtension: String? {
     guard kind == .file else { return nil }
     let supported = ["pdf", "txt", "md", "markdown", "doc", "docx", "ppt", "pptx", "xls", "xlsx"]
     return [url.pathExtension.lowercased(), (filename as NSString).pathExtension.lowercased()]

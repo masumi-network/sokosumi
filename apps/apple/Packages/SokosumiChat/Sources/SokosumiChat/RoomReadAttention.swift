@@ -112,7 +112,7 @@ public final class RoomReadAttention: ObservableObject {
     rooms.map { room in overlays[room.id]?.fields.applying(to: room) ?? room }
   }
 
-  public func beginRefresh() -> Int {
+  func beginRefresh() -> Int {
     expirePending()
     revision += 1
     return revision

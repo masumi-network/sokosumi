@@ -160,7 +160,7 @@ public final class WorkspaceState: ObservableObject {
 
   /// Latest-page refetch in flight (ADR 0014 envelope). Not the older-page
   /// spinner: live refetch must not flash `transcriptLoadingOlder`.
-  public var transcriptRefreshing: Bool {
+  var transcriptRefreshing: Bool {
     timeline.isRefreshing
   }
 
