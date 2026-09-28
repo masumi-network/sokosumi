@@ -66,7 +66,11 @@ export function DriveFileSheet({
 
         {resourceId === null ? null : (
           <div className="px-4 pb-6">
-            <div className="flex justify-end pb-2">
+            {/* `pr-10` clears the sheet's own close button, which Radix pins
+                to the top right corner. Without it the permalink sits under
+                the X and is partly unclickable — visible in the browser and
+                in no test. */}
+            <div className="flex justify-end pb-2 pr-10">
               {/* The deep link, from inside the sheet. Somebody who wants to
                   send this document to a colleague needs the URL, and a sheet
                   has none of its own. */}
