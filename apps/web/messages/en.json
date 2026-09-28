@@ -5945,9 +5945,11 @@
       },
       "Edit": {
         "action": "Edit",
-        "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
+        "cancel": "Cancel",
+        "composerAria": "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape cancels, and Shift+Enter adds a new line.",
         "edited": "Edited",
-        "editedAt": "Edited {when}"
+        "editedAt": "Edited {when}",
+        "save": "Save"
       },
       "Copy": {
         "action": "Copy text",
