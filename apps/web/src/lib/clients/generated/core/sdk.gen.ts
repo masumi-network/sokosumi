@@ -4286,7 +4286,7 @@ export const putTasksByIdWorkspace = <ThrowOnError extends boolean = false>(opti
 });
 
 /**
- * List task events (paginated, oldest first)
+ * List task events (oldest first). Paginate with limit/cursor; omit both for the full list.
  */
 export const getTasksByIdEvents = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdEventsData, ThrowOnError>): RequestResult<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdEventsResponses, GetTasksByIdEventsErrors, ThrowOnError>({
     responseTransformer: getTasksByIdEventsResponseTransformer,

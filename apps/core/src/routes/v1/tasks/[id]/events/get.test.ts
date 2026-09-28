@@ -239,6 +239,39 @@ describe("GET /tasks/{id}/events", () => {
     });
   });
 
+  it("returns the full event list when limit and cursor are omitted", async () => {
+    const events = Array.from({ length: 25 }, (_, i) =>
+      makeEvent({
+        id: `evt_${i}`,
+        createdAt: `2026-01-01T00:00:${String(i).padStart(2, "0")}.000Z`,
+      }),
+    );
+    taskEventFindManyMock.mockResolvedValue(events);
+    taskEventCountMock.mockResolvedValueOnce(25).mockResolvedValueOnce(0);
+    taskEventFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/tsk_123/events");
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(taskEventFindManyMock).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123" },
+      take: undefined,
+      skip: undefined,
+      cursor: undefined,
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      include: expect.any(Object),
+    });
+    expect(body.data).toHaveLength(25);
+    expect(body.meta.pagination).toMatchObject({
+      cursor: null,
+      limit: 25,
+      total: 25,
+      nextCursor: null,
+    });
+  });
+
   it("returns null latestCommentId when there are no comments", async () => {
     taskEventFindManyMock.mockResolvedValue([
       makeEvent({ id: "evt_1", createdAt: "2026-01-01T00:00:00.000Z" }),
@@ -264,6 +297,16 @@ describe("GET /tasks/{id}/events", () => {
     );
 
     expect(response.status).toBe(400);
+    expect(taskEventFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an explicitly empty cursor", async () => {
+    const app = createApp();
+    const response = await app.request(
+      "http://localhost/tsk_123/events?cursor=",
+    );
+
+    expect(response.status).toBe(422);
     expect(taskEventFindManyMock).not.toHaveBeenCalled();
   });
 

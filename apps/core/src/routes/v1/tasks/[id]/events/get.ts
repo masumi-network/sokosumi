@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { LIMITS } from "@/config/constants";
 import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import {
@@ -17,7 +18,6 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   type CursorPaginationMeta,
   cursorPaginationMetaSchema,
-  cursorPaginationQuerySchema,
 } from "@/schemas/pagination.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { taskEventApiInclude } from "@/types/task";
@@ -28,6 +28,36 @@ const paramsSchema = z.object({
     example: "tsk_123",
   }),
 });
+
+/**
+ * Pagination is opt-in. Omitting both `limit` and `cursor` keeps the pre-pagination
+ * contract (full event list). An empty `cursor` is rejected at the query boundary.
+ */
+const taskEventsQuerySchema = z
+  .object({
+    cursor: z
+      .string()
+      .min(1)
+      .optional()
+      .openapi({
+        param: { name: "cursor", in: "query" },
+        description:
+          "Cursor for pagination (ID of the last item from previous page)",
+        example: "evt_124",
+      }),
+    limit: z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(LIMITS.MAX_PAGINATION_LIMIT)
+      .optional()
+      .openapi({
+        param: { name: "limit", in: "query" },
+        description: `Number of items to return (max ${LIMITS.MAX_PAGINATION_LIMIT}). Omit with no cursor to return the full event list.`,
+        example: LIMITS.DEFAULT_PAGINATION_LIMIT,
+      }),
+  })
+  .openapi("TaskEventsPaginationQuery");
 
 const taskEventsPaginationMetaSchema = cursorPaginationMetaSchema
   .extend({
@@ -48,11 +78,12 @@ type TaskEventsPaginationMeta = z.infer<typeof taskEventsPaginationMetaSchema>;
 const route = createRoute({
   method: "get",
   path: "/{id}/events",
-  description: "List task events (paginated, oldest first)",
+  description:
+    "List task events (oldest first). Paginate with limit/cursor; omit both for the full list.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
-    query: cursorPaginationQuerySchema,
+    query: taskEventsQuerySchema,
   },
   responses: {
     200: jsonPaginatedSuccessResponse(
@@ -104,9 +135,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireTaskReadForRouteVars(c.var, id, prisma);
 
-    const { cursor, take, skip } = parseCursorPagination(queryParams);
     const where = { taskId: id };
     const commentWhere = { taskId: id, comment: { not: null } };
+    const paginate =
+      queryParams.cursor !== undefined || queryParams.limit !== undefined;
+    const { cursor, take, skip } = paginate
+      ? parseCursorPagination(queryParams)
+      : { cursor: undefined, take: 0, skip: undefined };
 
     if (cursor) {
       const cursorEvent = await prisma.taskEvent.findFirst({
@@ -118,7 +153,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    const takePlusOne = take + 1;
+    const takePlusOne = paginate ? take + 1 : undefined;
 
     const [events, count, commentCount, latestComment] =
       await prisma.$transaction([
@@ -139,10 +174,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         }),
       ]);
 
-    const hasMore = events.length === takePlusOne;
-    const pagedEvents = events.slice(0, take);
+    const hasMore = paginate && events.length === takePlusOne;
+    const pagedEvents = paginate ? events.slice(0, take) : events;
+    const pageLimit = paginate ? take : pagedEvents.length;
     const paginationMeta: TaskEventsPaginationMeta = {
-      ...createPaginationMeta(pagedEvents, count, take, hasMore, cursor),
+      ...createPaginationMeta(pagedEvents, count, pageLimit, hasMore, cursor),
       commentCount,
       latestCommentId: latestComment?.id ?? null,
     };
