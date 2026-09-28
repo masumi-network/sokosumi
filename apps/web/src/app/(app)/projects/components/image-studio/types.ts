@@ -47,7 +47,9 @@ export function isActive(job: StudioJob): boolean {
  * deployment. The rest of this folder already casts these to `string` for the
  * same reason; this accepts either and says so.
  */
-function epochMs(value: Date | string | null | undefined): number | null {
+export function epochMs(
+  value: Date | string | null | undefined,
+): number | null {
   if (!value) return null;
   const ms = value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isFinite(ms) ? ms : null;
@@ -170,6 +172,8 @@ export interface StudioLabels {
   generate: string;
   refine: string;
   regenerate: string;
+  reroll: string;
+  reusePrompt: string;
   download: string;
   compare: string;
   approve: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, Loader2, Sparkles, X } from "lucide-react";
+import { ChevronDown, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
@@ -373,7 +373,10 @@ export function StudioComposer({
       // card already paints that, and a panel the same colour as the surface
       // under it is either invisible or a seam. As an input well it wants to
       // read slightly recessed anyway.
-      className="border-border bg-background focus-within:border-primary-tertiary rounded-lg border transition-colors"
+      // Docked: once there are results the studio renders the composer below
+      // them, and it rides the bottom of the viewport so the next generation
+      // is always one keystroke away from the last one.
+      className="border-border bg-background focus-within:border-primary-tertiary sticky bottom-3 z-10 rounded-lg border transition-colors"
     >
       <div className="px-3 pt-3 sm:px-4 sm:pt-4">
         <Textarea
@@ -383,7 +386,7 @@ export function StudioComposer({
           // a different utility group, so it survives the class merge. In
           // dark mode the prompt read as an inset panel inside the card
           // rather than as the card.
-          className="max-h-48 min-h-20 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm dark:bg-transparent"
+          className="max-h-48 min-h-16 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm dark:bg-transparent"
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -758,11 +761,7 @@ export function StudioComposer({
           size="sm"
           variant="primary"
         >
-          {busy ? (
-            <Loader2 aria-hidden className="animate-spin" />
-          ) : (
-            <Sparkles aria-hidden />
-          )}
+          {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
           {totalJobs > 1
             ? t("generateMany", { count: totalJobs })
             : labels.generateOne}

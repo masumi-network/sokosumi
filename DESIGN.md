@@ -43,7 +43,6 @@ typography:
     fontWeight: 400
     fontSize: 12px
     lineHeight: 16px
-    textColor: muted-foreground
 rounded:
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
@@ -100,7 +99,6 @@ components:
     padding: 2px 8px
     typography: "{typography.caption}"
   focusRing:
-    ring: ring-ring-halo
     width: 3px
 ---
 
@@ -315,6 +313,9 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.
+- **Release announcements** ("New in Sokosumi" images) share one template, whose colours come
+  from `globals.css`. Run `/create-new-in-sokosumi` with a PR or any context to get one;
+  see [the skill](.agents/skills/create-new-in-sokosumi/SKILL.md).
 
 ## Accessibility
 
