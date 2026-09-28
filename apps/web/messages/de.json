@@ -2319,6 +2319,9 @@
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
+        "outcomes": {
+          "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
+        },
         "sections": {
           "upcoming": "Anstehend",
           "drafts": "Entwürfe",

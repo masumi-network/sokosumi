@@ -17050,6 +17050,13 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        scheduledByCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.'
+        },
         canceledAt: {
             type: [
                 'string',
@@ -17335,6 +17342,7 @@ export const SocialPostLastAttemptSchema = {
                 'failed_permanent',
                 'missed',
                 'connection_inactive',
+                'authorization_revoked',
                 null
             ]
         },

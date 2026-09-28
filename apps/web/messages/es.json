@@ -2319,6 +2319,9 @@
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
+        "outcomes": {
+          "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
+        },
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
