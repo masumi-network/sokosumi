@@ -13,7 +13,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-
+import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
@@ -117,6 +117,7 @@ export function DriveAllFilesPanel({
     ...EMPTY_FILE_FILTERS,
   });
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
+  const categories = labels.filter((label) => label.kind === "CATEGORY");
   const [labelsState, setLabelsState] = useState<
     "loading" | "ready" | "failed"
   >("loading");
@@ -711,20 +712,11 @@ export function DriveAllFilesPanel({
               })}
             </Button>
           ) : null}
-          {labels
-            .filter((label) => label.kind === "CATEGORY")
-            .slice(0, 4)
-            .map((label) => (
-              <Button
-                key={label.id}
-                size="sm"
-                variant="outline"
-                disabled={bulkBusy}
-                onClick={() => void applyBulk({ categoryLabelId: label.id })}
-              >
-                {t("bulkSetCategory", { name: label.displayName })}
-              </Button>
-            ))}
+          <DriveBulkCategoryPicker
+            categories={categories}
+            disabled={bulkBusy}
+            onPick={(categoryLabelId) => void applyBulk({ categoryLabelId })}
+          />
           <Button
             size="sm"
             variant="ghost"

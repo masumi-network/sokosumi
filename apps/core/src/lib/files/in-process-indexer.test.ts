@@ -337,6 +337,7 @@ describe("neither half can take down the request that triggered it", () => {
       // vocabulary, and the zero-value has to carry every counter or the
       // caller sees `undefined` where it expects a number.
       noVocabulary: 0,
+      vocabularyTruncated: { tags: 0, categories: 0 },
     });
   });
 

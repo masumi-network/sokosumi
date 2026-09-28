@@ -274,6 +274,16 @@ export async function searchFiles(
       windowCount: entries.length,
       remainingWindowCount: remaining,
       truncated,
+      /**
+       * False here and set by the route.
+       *
+       * The search itself has no opinion: adoption of pre-existing blobs
+       * is a read-path convenience the route owns, and it is the route
+       * that knows whether it failed. Defaulted rather than optional so
+       * every response carries the field and a caller never has to tell
+       * "not degraded" apart from "nobody said".
+       */
+      catalogIncomplete: false,
       hasMore: page.hasMore,
       nextCursor: page.hasMore
         ? encodeSearchCursor(

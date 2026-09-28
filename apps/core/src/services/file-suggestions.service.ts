@@ -189,6 +189,17 @@ export interface SuggestionRunOutcome {
    * nothing at all while the wave reported success. A closed vocabulary,
    * deliberately: which kinds were cut, and not how many, which ones, or
    * anything about the request.
+   *
+   * Returned on every path that reaches the allocation, not only on
+   * success. The cap fires when the shortlist is built, which is before
+   * the model is asked, so a document that was then deferred or failed
+   * had its vocabulary cut just the same — and reporting it only when
+   * everything else went well is the same cap-that-tells-nobody one step
+   * along.
+   *
+   * `processFileSuggestionJobs` counts it. A field the caller does not
+   * read is a log line with extra steps, and this one was added with a
+   * docstring about exactly that.
    */
   vocabularyTruncated?: VocabularyTruncation;
   /**
@@ -400,12 +411,21 @@ export async function runSuggestionJob(
           "Nothing was asked and nothing was suggested. This document is " +
           "not re-examined on its own when a first label is created.",
       });
-      return { suggested: 0, skipped: "no-vocabulary", noVocabulary: true };
+      return {
+        suggested: 0,
+        skipped: "no-vocabulary",
+        noVocabulary: true,
+        vocabularyTruncated: allocation.truncated,
+      };
     }
 
     // A vocabulary exists and this document's reader has pinned all of
     // it. That is a decision, not an empty workspace.
-    return { suggested: 0, skipped: "vocabulary-pinned" };
+    return {
+      suggested: 0,
+      skipped: "vocabulary-pinned",
+      vocabularyTruncated: allocation.truncated,
+    };
   }
 
   // Only as much of the document as the excerpt budget can carry. See
@@ -499,7 +519,11 @@ export async function runSuggestionJob(
   });
   if (isJevRequestRejection(request)) {
     await completeFileIndexJob({ jobId: job.id, leaseOwner });
-    return { suggested: 0, skipped: "request-too-large" };
+    return {
+      suggested: 0,
+      skipped: "request-too-large",
+      vocabularyTruncated: allocation.truncated,
+    };
   }
 
   const decision = scheduler.tryAdmit({
@@ -516,6 +540,7 @@ export async function runSuggestionJob(
       suggested: 0,
       skipped: `quota:${decision.reason}`,
       deferred: true,
+      vocabularyTruncated: allocation.truncated,
     };
   }
 
@@ -538,7 +563,12 @@ export async function runSuggestionJob(
     // turned into a permanent result, invisible in a tick that reported
     // one processed and nothing failed.
     await deferFileIndexJob({ jobId: job.id, leaseOwner });
-    return { suggested: 0, skipped: "admission-denied", deferred: true };
+    return {
+      suggested: 0,
+      skipped: "admission-denied",
+      deferred: true,
+      vocabularyTruncated: allocation.truncated,
+    };
   }
 
   const verdict = await evaluator.evaluateLabels({
@@ -582,6 +612,7 @@ export async function runSuggestionJob(
       suggested: 0,
       skipped: verdict.reason ?? "evaluation-failed",
       failed: true,
+      vocabularyTruncated: allocation.truncated,
     };
   }
 
@@ -647,6 +678,17 @@ export interface SuggestionSyncResult {
    * state every workspace starts in.
    */
   noVocabulary: number;
+  /**
+   * Documents whose workspace vocabulary did not fit the shortlist
+   * window, by kind.
+   *
+   * `runSuggestionJob` has computed this all along and nothing read it.
+   * A workspace that has outgrown the window gets suggestions drawn from
+   * part of its vocabulary and is told nothing, which is the same defect
+   * as the cap that fires silently — the signal existed and stopped one
+   * frame short of anybody who could act on it.
+   */
+  vocabularyTruncated: { tags: number; categories: number };
 }
 
 export async function processFileSuggestionJobs(input: {
@@ -665,6 +707,7 @@ export async function processFileSuggestionJobs(input: {
     failed: 0,
     deferred: 0,
     noVocabulary: 0,
+    vocabularyTruncated: { tags: 0, categories: 0 },
   };
 
   // Bounded by jobs *looked at*, not jobs processed: a deferral does not
@@ -705,6 +748,20 @@ export async function processFileSuggestionJobs(input: {
         // really is done. What it was not is a document the model had an
         // opinion about.
         result.noVocabulary += 1;
+      }
+      // "both" is both, which is why these are two counters and not one
+      // flag: a workspace can outgrow the window on one side only.
+      if (
+        outcome.vocabularyTruncated === "tags" ||
+        outcome.vocabularyTruncated === "both"
+      ) {
+        result.vocabularyTruncated.tags += 1;
+      }
+      if (
+        outcome.vocabularyTruncated === "categories" ||
+        outcome.vocabularyTruncated === "both"
+      ) {
+        result.vocabularyTruncated.categories += 1;
       }
     } catch (error) {
       result.failed += 1;

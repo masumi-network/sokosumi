@@ -5378,11 +5378,22 @@ model FileIndexJob {
   lastError   String?
   completedAt DateTime?
 
+  /// How many times a sweep has brought this job back from FAILED.
+  ///
+  /// Separate from `attempt`, which a revival resets. Bounded on its own so
+  /// a document that fails for its own reasons cannot be retried forever,
+  /// while a backlog that failed because a provider was down for hours can
+  /// still be picked up once the incident is over.
+  revivals Int @default(0)
+
   artifacts FileIndexArtifact[]
 
   @@unique([dedupeKey], map: "file_index_job_dedupe_key")
   @@index([state, runAfter])
   @@index([resourceId, pipeline])
+  /// The revival sweep's predicate. Without it the sweep is a sequential
+  /// scan of the whole table on every tick that finds nothing to lease.
+  @@index([state, pipeline, updatedAt])
   @@map("file_index_job")
 }
 

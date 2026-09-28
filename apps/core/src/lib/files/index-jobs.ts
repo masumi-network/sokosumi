@@ -2,7 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   type FileIndexJob,
-  type FileIndexJobPipeline,
+  FileIndexJobPipeline,
   FileIndexJobState,
   type Prisma,
 } from "@sokosumi/database";
@@ -21,6 +21,37 @@ import prisma from "@/lib/db/prisma";
 export const FILE_INDEX_JOB_MAX_ATTEMPTS = 5;
 export const FILE_INDEX_JOB_LEASE_MS = 60_000;
 const RETRY_BACKOFF_MS = [60_000, 300_000, 1_800_000];
+
+/**
+ * How many times a sweep may bring one job back from FAILED.
+ *
+ * Bounded, and counted separately from `attempt` because a revival resets
+ * that. Three revivals half a day apart covers a day and a half of
+ * incident and then stops, so a document that fails for its own reasons —
+ * a file the parser cannot read, a resource that no longer exists — is
+ * retried a few times and then left alone rather than forever.
+ */
+export const FILE_INDEX_JOB_MAX_REVIVALS = 3;
+
+/**
+ * How long a FAILED job waits before a sweep will touch it.
+ *
+ * Not tuned against the retry backoff, which it obviously has to clear —
+ * five attempts span about 36 minutes, and the longest single backoff is
+ * 30. Tuned against the *incident*. A sweep that runs while the provider
+ * is still down spends the whole revival budget on the same outage and
+ * leaves nothing for the recovery, which is the only moment a revival is
+ * worth anything. So this is deliberately longer than a plausible
+ * provider incident rather than slightly longer than a backoff.
+ *
+ * The cost of being wrong in this direction is a document labelled half a
+ * day late. The cost of being wrong in the other is a document never
+ * labelled at all, which is the defect being fixed.
+ */
+export const FILE_INDEX_JOB_REVIVE_AFTER_MS = 12 * 3_600_000;
+
+/** One sweep moves at most this many rows, so a tick stays bounded. */
+const REVIVE_BATCH = 50;
 
 export function fileIndexJobDedupeKey(input: {
   resourceId: string;
@@ -211,6 +242,79 @@ export interface LeasedFileIndexJob {
  * it was read in is the compare-and-set: two runners racing for the same row
  * produce one winner and one zero-count loser.
  */
+/**
+ * Bring long-FAILED suggestion jobs back, a bounded number of times.
+ *
+ * `leaseNextFileIndexJob` leases QUEUED and expired-LEASED rows only.
+ * `enqueueFileIndexJob` does move a FAILED row back to QUEUED, but its
+ * only automatic caller is the extraction chain, which runs when a
+ * document is re-extracted and on no timer; `requeueFileIndexJob`'s only
+ * caller is the reindex route. So once `FILE_INDEX_JOB_MAX_ATTEMPTS` was
+ * spent, nothing would look at that document again unless a person asked,
+ * one document at a time.
+ *
+ * That made a long provider outage terminal. The circuit breaker means a
+ * short one costs nothing, so the damage was a function of how long the
+ * incident lasted rather than of how big the backlog was: measured, a
+ * backlog was entirely FAILED by simulated hour six, and a healthy
+ * provider afterwards never touched it again.
+ *
+ * ## SUGGEST only, deliberately
+ *
+ * A suggestion failure is usually about the provider, which comes back. An
+ * extraction failure is usually about the document — a file the parser
+ * cannot read is still unreadable tomorrow — and that already has its own
+ * terminal states and its own route back through reindex. Reviving it on a
+ * timer would retry a broken file forever for nothing.
+ *
+ * ## What a revival is, and what it is not
+ *
+ * It is not `deferFileIndexJob`, which decrements `attempt` and is an
+ * unbounded-retry primitive. A revival spends one of
+ * `FILE_INDEX_JOB_MAX_REVIVALS`, and when those are gone the job stays
+ * FAILED for good. `lastError` is left in place: it is why this job failed
+ * last time and it stays true until something else happens.
+ */
+export async function reviveFailedSuggestionJobs(input?: {
+  now?: Date;
+  limit?: number;
+}): Promise<number> {
+  const now = input?.now ?? new Date();
+  const cutoff = new Date(now.getTime() - FILE_INDEX_JOB_REVIVE_AFTER_MS);
+
+  // Selected first so the batch is bounded: `updateMany` has no limit.
+  const due = await prisma.fileIndexJob.findMany({
+    where: {
+      pipeline: FileIndexJobPipeline.SUGGEST,
+      state: FileIndexJobState.FAILED,
+      revivals: { lt: FILE_INDEX_JOB_MAX_REVIVALS },
+      updatedAt: { lt: cutoff },
+    },
+    orderBy: { updatedAt: "asc" },
+    take: input?.limit ?? REVIVE_BATCH,
+    select: { id: true },
+  });
+  if (due.length === 0) return 0;
+
+  const { count } = await prisma.fileIndexJob.updateMany({
+    where: {
+      id: { in: due.map((job) => job.id) },
+      // Re-checked in the write, because the read above is not a lock.
+      state: FileIndexJobState.FAILED,
+      revivals: { lt: FILE_INDEX_JOB_MAX_REVIVALS },
+    },
+    data: {
+      state: FileIndexJobState.QUEUED,
+      attempt: 0,
+      revivals: { increment: 1 },
+      runAfter: now,
+      leaseOwner: null,
+      leaseExpiresAt: null,
+    },
+  });
+  return count;
+}
+
 export async function leaseNextFileIndexJob(input: {
   pipeline?: FileIndexJobPipeline;
   now?: Date;
@@ -218,20 +322,40 @@ export async function leaseNextFileIndexJob(input: {
   const now = input.now ?? new Date();
   const leaseOwner = randomUUID();
 
-  const candidate = await prisma.fileIndexJob.findFirst({
-    where: {
-      pipeline: input.pipeline,
-      runAfter: { lte: now },
-      OR: [
-        { state: FileIndexJobState.QUEUED },
-        {
-          state: FileIndexJobState.LEASED,
-          leaseExpiresAt: { lt: now },
-        },
-      ],
-    },
+  const runnable = {
+    pipeline: input.pipeline,
+    runAfter: { lte: now },
+    OR: [
+      { state: FileIndexJobState.QUEUED },
+      {
+        state: FileIndexJobState.LEASED,
+        leaseExpiresAt: { lt: now },
+      },
+    ],
+  };
+
+  let candidate = await prisma.fileIndexJob.findFirst({
+    where: runnable,
     orderBy: { runAfter: "asc" },
   });
+
+  if (!candidate && input.pipeline === FileIndexJobPipeline.SUGGEST) {
+    /**
+     * Nothing to lease is the only moment worth asking whether anything
+     * is due for revival: it is when a backlog of FAILED rows actually
+     * matters, and it keeps the sweep off the hot path entirely. The
+     * drive-index cycle also calls the sweep directly, so the count is
+     * visible in the cycle log; this is the second door, for a drain
+     * that is not the cycle.
+     */
+    if ((await reviveFailedSuggestionJobs({ now })) > 0) {
+      candidate = await prisma.fileIndexJob.findFirst({
+        where: runnable,
+        orderBy: { runAfter: "asc" },
+      });
+    }
+  }
+
   if (!candidate) return null;
 
   const claimed = await prisma.fileIndexJob.updateMany({

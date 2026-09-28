@@ -144,6 +144,22 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       limit: query.limit ?? SEARCH_PAGE_MAX,
     });
 
-    return ok(c, fileSearchResponseSchema.parse(result));
+    return ok(
+      c,
+      fileSearchResponseSchema.parse({
+        ...result,
+        search: {
+          ...result.search,
+          /**
+           * Said, not only logged. This branch is entered only when the
+           * pending check has already answered yes, so a failed adoption
+           * means the catalog behind these results is known to be missing
+           * files — and without this the reader gets a bare 200 and reads
+           * a short result list as the whole truth.
+           */
+          catalogIncomplete: adoption.ran && "failed" in adoption,
+        },
+      }),
+    );
   });
 }

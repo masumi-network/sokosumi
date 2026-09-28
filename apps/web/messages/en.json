@@ -6428,7 +6428,10 @@
         "addTagEmpty": "No tags to add",
         "addTagUnavailable": "Tags could not be loaded",
         "tagAdded": "Tag added. An earlier removal of it no longer applies.",
-        "suggestionExcerpt": "From this document"
+        "suggestionExcerpt": "From this document",
+        "bulkMoreCategories": "{count} more…",
+        "bulkCategorySearch": "Search categories",
+        "bulkCategoryEmpty": "No categories match"
       }
     },
     "SokoBot": {

@@ -163,6 +163,7 @@ const NO_SUGGESTIONS: SuggestionSyncResult = {
   failed: 0,
   deferred: 0,
   noVocabulary: 0,
+  vocabularyTruncated: { tags: 0, categories: 0 },
 };
 
 export async function runIndexingNudge(): Promise<IndexingNudgeResult> {

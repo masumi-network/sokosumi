@@ -362,8 +362,31 @@ export async function retrieveFileCandidates(input: {
     WITH q AS (SELECT websearch_to_tsquery('simple', ${normalizedQuery}) AS tsq),
     ranked AS (
       -- Every matching chunk, with its rank within its own document.
+      --
       -- Deliberately unbounded: the reduction to one row per document
-      -- happens below, before the cut, which is the whole fix.
+      -- happens below, before the cut, which is the whole fix. A bound
+      -- here cuts the chunk stream, and cutting the chunk stream is what
+      -- dropped whole documents.
+      --
+      -- What that costs, measured on PostgreSQL 18.6, five runs each,
+      -- median:
+      --
+      --   matching chunks   this CTE   whole retrieval leg
+      --   150,000             126 ms     402 ms
+      --   600,000             492 ms   1,306 ms
+      --
+      -- EXPLAIN (ANALYZE, BUFFERS) shows the WindowAgg spilling to disk
+      -- at the top of that range: temp read=625 written=627. 600,000
+      -- chunks is roughly 1,500 large PDFs at FILE_CHUNK_MAX_PER_VERSION,
+      -- so it is a real corpus rather than a hypothetical one.
+      --
+      -- It grows with the corpus and nothing stops it. RANK_DEADLINE_MS
+      -- does not: it lives in jev-scheduler.ts, is consumed in
+      -- jev-ranking.ts, and bounds the model ranking wave only. So the
+      -- cheap, controllable half of ranking is bounded at 600 ms and the
+      -- half that scales with how much a workspace has uploaded is not.
+      -- A statement timeout is the right answer and is filed; do not
+      -- assume the deadline protects this.
       SELECT
         fr.id AS resource_id,
         fc.id AS chunk_id,
@@ -389,9 +412,30 @@ export async function retrieveFileCandidates(input: {
       -- so the budget was spent on extra chunks of documents it had
       -- already seen while later documents never entered the result at
       -- all.
+      --
+      -- The tiebreak is recency, and it is not decoration: for most
+      -- queries it decides the entire cut. ts_rank is called without a
+      -- normalization flag, so it does not divide by document length, and
+      -- a one-occurrence single-term match scores the same constant in
+      -- every document. Measured on 130 documents of deliberately varied
+      -- prose: one distinct rank value across all of them. Ordering by
+      -- rank then sorts nothing and the tiebreak sorts everything.
+      --
+      -- It used to be resource_id ASC. FileResource.id is uuid(7), which
+      -- is time-ordered, so that is oldest-first and the documents the
+      -- cut dropped were always the newest — "I uploaded it this morning
+      -- and search cannot find it", silently, with truncated saying only
+      -- that something was cut.
+      --
+      -- The id and not updatedAt, although updatedAt is the other
+      -- candidate and the browse leg uses it. Two reasons. It is mutable:
+      -- accepting a tag suggestion touches it, so a metadata edit would
+      -- quietly move a document across the cut of an unrelated search.
+      -- And uuid(7) is monotonic creation time, which is exactly the
+      -- thing the reader means by the file they uploaded this morning.
       SELECT * FROM ranked
       WHERE chunk_rank = 1
-      ORDER BY rank DESC, resource_id ASC
+      ORDER BY rank DESC, resource_id DESC
       LIMIT ${CANDIDATE_BUDGET_FTS_DOCUMENTS + 1}
     )
     SELECT ${RESOURCE_COLUMNS},
@@ -402,7 +446,14 @@ export async function retrieveFileCandidates(input: {
     FROM best
     JOIN file_resource fr ON fr.id = best.resource_id
     ${CURRENT_VERSION_JOIN}
-    ORDER BY best.rank DESC, best.resource_id ASC
+    -- The same clause as the cut above, because this order is the one the
+    -- fusion below consumes. RRF scores by position, so every candidate
+    -- gets a distinct fused score and the recency tiebreak in
+    -- orderFusedCandidates can never fire — which makes the fused order
+    -- this order, and the page the reader sees this order. It was the
+    -- oldest twenty matching documents in ascending upload order, under a
+    -- heading that said relevance.
+    ORDER BY best.rank DESC, best.resource_id DESC
   `);
 
   /**

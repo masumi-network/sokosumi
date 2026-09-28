@@ -6428,7 +6428,10 @@
         "addTagEmpty": "No hay etiquetas para añadir",
         "addTagUnavailable": "No se pudieron cargar las etiquetas",
         "tagAdded": "Etiqueta añadida. Ya no se aplica su eliminación anterior.",
-        "suggestionExcerpt": "De este documento"
+        "suggestionExcerpt": "De este documento",
+        "bulkMoreCategories": "{count} más…",
+        "bulkCategorySearch": "Buscar categorías",
+        "bulkCategoryEmpty": "No hay categorías que coincidan"
       }
     },
     "SokoBot": {

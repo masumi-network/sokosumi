@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 
+import { reviveFailedSuggestionJobs } from "@/lib/files/index-jobs";
 import { pruneExpiredAdmissions } from "@/lib/files/jev-admission";
 import { pruneExpiredResultWindows } from "@/lib/files/search-session";
 import { processFileIndexJobs } from "@/services/file-index.service";
@@ -16,6 +17,24 @@ export default function mount(app: Hono) {
       c,
       DRIVE_INDEX_SYNC_LOCK_KEY,
       async (context) => {
+        /**
+         * Before anything is leased: bring back suggestion jobs a long
+         * outage left FAILED.
+         *
+         * Nothing else does. The lease takes QUEUED and expired-LEASED
+         * rows, `enqueueFileIndexJob`'s only automatic caller is the
+         * extraction chain, and `requeueFileIndexJob`'s only caller is the
+         * reindex route — so a document whose attempts were spent against
+         * a provider that was down stayed unlabelled through the recovery
+         * and through a restart, recoverable only by a person asking, one
+         * document at a time.
+         *
+         * Bounded by `FILE_INDEX_JOB_MAX_REVIVALS` and held off for
+         * `FILE_INDEX_JOB_REVIVE_AFTER_MS`, so this cannot become a
+         * every-minute retry of a document that is simply broken.
+         */
+        const revived = await reviveFailedSuggestionJobs();
+
         // Extraction first: a document has to have text before anything can
         // have an opinion about its category.
         const extraction = await processFileIndexJobs({
@@ -49,6 +68,7 @@ export default function mount(app: Hono) {
         // the sweep did.
         const prunedResultWindows = await pruneExpiredResultWindows();
         console.info("[sync/drive-index] Completed sync", {
+          revived,
           extraction,
           suggestions,
           tables,

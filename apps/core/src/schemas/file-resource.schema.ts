@@ -169,6 +169,24 @@ export const fileSearchMetaSchema = z
       description:
         "The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.",
     }),
+    /**
+     * The catalog this page was served from is known to be missing files.
+     *
+     * Adoption gives pre-existing blobs a catalog identity, and it is
+     * contained on this read path so that a Blob API failure cannot 500 a
+     * search that works perfectly well from Postgres without it. That
+     * containment was right and is unchanged. What it did not do was say
+     * anything: the branch is only reached when the pending check has
+     * already answered yes, so the catalog served is *known* incomplete
+     * and the reader got a bare 200.
+     *
+     * "Some of your files are not searchable yet" is a different sentence
+     * from "no results", and only one of them is true here.
+     */
+    catalogIncomplete: z.boolean().openapi({
+      description:
+        "Adoption of pre-existing files did not finish, so this workspace's catalog is known to be missing files. Results are correct for what is catalogued.",
+    }),
     indexCoverage: z
       .object({
         indexed: z.number().int(),
