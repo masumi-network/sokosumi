@@ -5580,8 +5580,8 @@
         "replyBadge": "Respuesta del hilo"
       },
       "Toolbar": {
-        "mention": "Mention coworker",
-        "attach": "Attach file",
+        "mention": "Mencionar coworker",
+        "attach": "Adjuntar archivo",
         "dropToAttach": "Suelta archivos para adjuntar",
         "emoji": "Emoji",
         "format": "Formato",
@@ -5600,7 +5600,7 @@
         "uploadingFiles": "Subiendo {count} archivos",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
-        "removeAttachment": "Remove {name}",
+        "removeAttachment": "Eliminar {name}",
         "attachmentFallback": "file",
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato"

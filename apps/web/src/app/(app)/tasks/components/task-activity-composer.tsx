@@ -77,6 +77,7 @@ export function TaskActivityComposer({
   const editorRef = useRef<ComposerWysiwygEditorHandle | null>(null);
   const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
   const activeUploadControllersRef = useRef(new Set<AbortController>());
+  const isUnmountingRef = useRef(false);
   const [value, setValue] = useState("");
   const [attachments, setAttachments] = useState<
     RoomMessageComposerAttachment[]
@@ -92,8 +93,10 @@ export function TaskActivityComposer({
   const [drivePickerOpen, setDrivePickerOpen] = useState(false);
 
   useMountEffect(() => {
+    isUnmountingRef.current = false;
     const controllers = activeUploadControllersRef.current;
     return () => {
+      isUnmountingRef.current = true;
       for (const controller of controllers) {
         controller.abort();
       }
@@ -118,8 +121,16 @@ export function TaskActivityComposer({
     setAttachments([]);
     void onSend(content).then((sent) => {
       if (!sent) {
-        setValue(draft.value);
-        setAttachments(draft.attachments);
+        setValue((current) => {
+          if (current.length === 0) return draft.value;
+          if (draft.value.length === 0) return current;
+          return `${draft.value}\n${current}`;
+        });
+        setAttachments((current) =>
+          current.length === 0
+            ? draft.attachments
+            : [...draft.attachments, ...current],
+        );
       }
     });
   }
@@ -159,9 +170,11 @@ export function TaskActivityComposer({
       router.refresh();
     } catch (error) {
       uploadToast.dismiss();
-      toast.error(
-        getUserFileUploadErrorMessage(error, t("uploadFileErrorRetry")),
-      );
+      if (!(isUnmountingRef.current && controller.signal.aborted)) {
+        toast.error(
+          getUserFileUploadErrorMessage(error, t("uploadFileErrorRetry")),
+        );
+      }
     } finally {
       activeUploadControllersRef.current.delete(controller);
       setPendingUploadFiles([]);

@@ -1078,7 +1078,7 @@ describe("TaskActivitySection", () => {
     );
   });
 
-  it("shows the custom cancel toast when in-progress comment uploads abort on unmount", async () => {
+  it("does not toast when in-progress comment uploads abort on unmount", async () => {
     const user = userEvent.setup();
     const file = new File(["report"], "report.pdf", {
       type: "application/pdf",
@@ -1134,8 +1134,8 @@ describe("TaskActivitySection", () => {
     await waitFor(() => {
       expect(abortSignal?.aborted).toBe(true);
       expect(toastDismissMock).toHaveBeenCalledTimes(1);
-      expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
     });
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   describe("workspace member mentions", () => {
@@ -1594,5 +1594,38 @@ describe("TaskActivitySection", () => {
     expect(
       container.querySelector('[data-message-id^="optimistic:"]'),
     ).toBeNull();
+  });
+
+  it("merges text typed during a failed send with the restored draft", async () => {
+    let rejectSend!: (error: Error) => void;
+    createTaskCommentMock.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    );
+    render(<TaskActivitySection {...baseProps} />);
+
+    act(() => {
+      editorProps.current?.onChange("Original");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(createTaskCommentMock).toHaveBeenCalled();
+      expect(editorProps.current?.value).toBe("");
+    });
+
+    act(() => {
+      editorProps.current?.onChange("Typed while pending");
+    });
+
+    await act(async () => {
+      rejectSend(new Error("offline"));
+    });
+
+    await waitFor(() => {
+      expect(editorProps.current?.value).toBe("Original\nTyped while pending");
+    });
   });
 });

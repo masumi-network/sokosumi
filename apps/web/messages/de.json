@@ -5580,8 +5580,8 @@
         "replyBadge": "Thread-Antwort"
       },
       "Toolbar": {
-        "mention": "Mention coworker",
-        "attach": "Attach file",
+        "mention": "Coworker erwähnen",
+        "attach": "Datei anhängen",
         "dropToAttach": "Dateien zum Anhängen ablegen",
         "emoji": "Emoji",
         "format": "Formatierung",
@@ -5600,7 +5600,7 @@
         "uploadingFiles": "Hochladen von {count} Dateien",
         "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
-        "removeAttachment": "Remove {name}",
+        "removeAttachment": "{name} entfernen",
         "attachmentFallback": "file",
         "showFormatting": "Formatierung anzeigen",
         "hideFormatting": "Formatierung ausblenden"
