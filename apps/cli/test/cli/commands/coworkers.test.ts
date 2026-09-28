@@ -10,6 +10,9 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => response as T,
   };
 }
@@ -62,6 +65,9 @@ test("coworkers register creates and connects the coworker to the selected works
       return {
         data: { id: "cw-1", name: "Ops Agent", capabilities: ["tasks"] },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -118,6 +124,9 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
         message: "Admin access required",
       });
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 
@@ -171,6 +180,9 @@ test("API key failure keeps the created Coworker ID for recovery", async () => {
         throw new Error("Key service unavailable");
       throw new Error(`Unexpected POST ${path}`);
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 
@@ -208,6 +220,9 @@ test("coworkers register rejects Mainnet before any Core request", async () => {
       requestCount += 1;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -235,6 +250,9 @@ test("coworkers connect rejects Mainnet before any Core request", async () => {
     post: async <T>() => {
       requestCount += 1;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -267,6 +285,9 @@ test("coworkers register requires a selected member Workspace", async () => {
     post: async <T>(path: string) => {
       if (path === "/v1/coworkers") createCalled = true;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -314,6 +335,9 @@ test("pending workspace access reports the created Coworker and retry command", 
       }
       return { data: { id: "cw-1", name: "Ops Agent" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -341,8 +365,10 @@ test("pending workspace access reports the created Coworker and retry command", 
 
 test("coworkers connect grants access to an existing Coworker", async () => {
   const calls: { path: string; body: unknown }[] = [];
+  const reads: string[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
+      reads.push(path);
       if (path === "/v1/coworkers/cw-1") {
         return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
       }
@@ -363,6 +389,9 @@ test("coworkers connect grants access to an existing Coworker", async () => {
           status: "GRANTED",
         },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -385,6 +414,40 @@ test("coworkers connect grants access to an existing Coworker", async () => {
     },
   ]);
   assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
+  assert.deepEqual(Object.keys(JSON.parse(output.join(""))).sort(), [
+    "coworkerId",
+    "workspaceAccess",
+  ]);
+  assert.deepEqual(reads, [
+    "/v1/users/me/organizations",
+    "/v1/vendors/me",
+    "/v1/coworkers/cw-1",
+  ]);
+  output.length = 0;
+  calls.length = 0;
+  reads.length = 0;
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "connect",
+    positionalId: "cw-1",
+    target: "preprod",
+    options: { "vendor-id": "vendor-1", "workspace-id": "org-1" },
+  });
+  assert.match(
+    output.join(""),
+    /Next: sokosumi --preprod workspaces check org-1/,
+  );
+  assert.match(
+    output.join(""),
+    /operator.*runtime key-import --coworker-id cw-1 --api-key-stdin/,
+  );
+  assert.equal(calls.length, 1);
+  assert.deepEqual(reads, [
+    "/v1/users/me/organizations",
+    "/v1/vendors/me",
+    "/v1/coworkers/cw-1",
+  ]);
 });
 
 // V42, V47, V63: retain Core diagnostics and redact credentials in creation errors.
@@ -423,6 +486,9 @@ for (const subcommand of ["provision", "register"] as const) {
         post: async () => {
           writes++;
           throw failure;
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
         },
         patch: async () => {
           throw new Error("Unexpected PATCH");
@@ -504,6 +570,9 @@ for (const [label, vendor, message] of [
           },
         } as T;
       },
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async () => {
         throw new Error("Unexpected PATCH");
       },
@@ -541,6 +610,9 @@ test("coworkers register rejects a missing vendor ID before Core request", async
       postCalled = true;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -571,6 +643,9 @@ test("coworkers register blocks when no organization workspace exists", async ()
     post: async <T>() => {
       postCalled = true;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -613,6 +688,9 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
       postCalled = true;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -648,6 +726,9 @@ test("coworkers register requires --vendor-id and does not create a Vendor", asy
     post: async <T>(path: string, body?: unknown) => {
       posts.push({ path, body });
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -697,6 +778,9 @@ test("coworkers update patches the coworker and returns it", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
       body = requestBody;
@@ -779,6 +863,9 @@ test("coworkers api-key mints a key and returns the full token", async () => {
         data: { id: "key-1", name: "ci", token: "soko_secret_value" },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -804,6 +891,9 @@ test("coworkers update sends the mapped multi-field payload", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
       body = requestBody;
@@ -843,6 +933,9 @@ test("coworkers update omits an empty name", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(_path: string, requestBody: unknown) => {
       body = requestBody as Record<string, unknown>;
       return { data: { id: "cw-1" } } as T;
@@ -909,6 +1002,9 @@ test("coworkers register --create-api-key mints and returns the key", async () =
       return {
         data: { id: "cw-1", name: "Ops", capabilities: ["tasks"] },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };

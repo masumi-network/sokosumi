@@ -288,10 +288,11 @@ export async function runCoworkersCommand({
         "Admin step complete.",
         `Provisioned ${coworker.name} [${coworker.id}] under Vendor ${vendorId}.`,
         `Give Coworker ID ${coworker.id} and Vendor ID ${vendorId} to the developer.`,
-        "Developer: confirm your account, select a Workspace, then connect:",
+        "Developer: confirm your account, select a Workspace, then connect and check Seat eligibility:",
         "  sokosumi --preprod auth whoami --json",
         "  sokosumi --preprod workspaces list",
         `  sokosumi --preprod coworkers connect ${coworker.id} --vendor-id ${vendorId} --workspace-id ORGANIZATION_ID`,
+        "  sokosumi --preprod workspaces check ORGANIZATION_ID",
         "Operator: create the runtime key in a trusted terminal:",
         `  sokosumi --preprod coworkers api-key ${coworker.id} --json`,
         "Send the key to the agent host through secure stdin.",
@@ -430,6 +431,9 @@ export async function runCoworkersCommand({
     else
       writeText(stdout, [
         `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+        `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+        `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,
+        "The operator supplies the Coworker key through secure stdin.",
       ]);
     return;
   }
