@@ -5,6 +5,7 @@ import {
   findBranchByName,
   getBranchConnectionUrls,
   listBranches,
+  neonErrorReason,
   refreshBranchExpiration,
   waitForOperations,
 } from "../cloud-agent-db/neon-api.mjs";
@@ -130,7 +131,33 @@ async function projectEnvs(options: PreviewOptions, projectId: string) {
   return result.envs;
 }
 
+// Neon errors name the project and branch. Callers paste this onto a public PR.
+function publicError(error: unknown) {
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    typeof error.status === "number" &&
+    "detail" in error
+  ) {
+    return Object.assign(new Error(neonErrorReason(error)), {
+      status: error.status,
+    });
+  }
+  return error;
+}
+
 export async function preparePreviewResources(
+  options: PreviewOptions,
+  targets: Target[],
+) {
+  try {
+    await provisionPreviewResources(options, targets);
+  } catch (error) {
+    throw publicError(error);
+  }
+}
+
+async function provisionPreviewResources(
   options: PreviewOptions,
   targets: Target[],
 ) {
@@ -178,6 +205,12 @@ export async function preparePreviewResources(
       parent.name.startsWith("cloud-agent-")
     ) {
       throw new Error(`No production parent in the ${network} Neon project`);
+    }
+    // Child branches copy the parent's role passwords unless the parent is protected.
+    if (parent.protected !== true) {
+      throw new Error(
+        `The ${network} Neon parent "${parent.name}" must be protected so preview branches do not reuse its role passwords`,
+      );
     }
     const expiresAt = new Date(Date.now() + PREVIEW_TTL_MS).toISOString();
     let branch = await findBranchByName(config, name);
@@ -291,8 +324,8 @@ export async function cleanupPreviewResources(
   }
   for (const target of targets.filter((target) => target.app === "core")) {
     for (const env of await projectEnvs(options, target.projectId)) {
+      // Comment is the ownership mark. gitBranch is not: a rename leaves the old name.
       if (
-        env.gitBranch === options.ref &&
         env.comment === envComment(options) &&
         env.target?.length === 1 &&
         env.target[0] === "preview" &&

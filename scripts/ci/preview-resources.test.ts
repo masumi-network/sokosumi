@@ -284,6 +284,39 @@ test("closed PRs cannot recreate previews, and unprivileged commenters cannot pr
   }
 });
 
+test("provision refuses an unprotected default parent before creating a branch", async () => {
+  const { options, calls, branches } = setup();
+  branches[0].protected = false;
+  await assert.rejects(
+    preparePreviewResources(options, deployTargets(["preprod"])),
+    /must be protected/,
+  );
+  assert.equal(branches.length, 1);
+  assert.ok(calls.every((call) => call.method === "GET"));
+});
+
+test("a Neon failure does not include the project path", async () => {
+  const { options } = setup();
+  const neonFetchImpl: typeof fetch = (input, init) => {
+    const url = new URL(String(input));
+    if (url.pathname.endsWith("/branches") && (init?.method ?? "GET") === "GET")
+      return options.neonFetchImpl(input, init);
+    return Promise.resolve(Response.json({ message: "nope" }, { status: 500 }));
+  };
+  await assert.rejects(
+    preparePreviewResources(
+      { ...options, neonFetchImpl },
+      deployTargets(["preprod"]),
+    ),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /Neon answered 500: nope/);
+      assert.doesNotMatch(error.message, /neon-preprod|\/branches/);
+      return true;
+    },
+  );
+});
+
 test("integration-owned preview credentials block provisioning before any Neon mutation", async () => {
   const { options, calls, envs } = setup();
   envs.push({
@@ -380,6 +413,34 @@ test("close cleanup deletes only owned previews, keeps production and legacy bra
   );
   // Expired DBs are still found through their Vercel environment ownership marker.
   assert.deepEqual(await previewCleanupInventory(options), [7]);
+});
+
+test("cleanup deletes owned credentials after the git branch is renamed", async () => {
+  const { options, calls, envs, pull } = setup();
+  pull.state = "closed";
+  pull.head.ref = "feat/new";
+  envs.push(
+    {
+      id: "env-old",
+      key: "DATABASE_URL",
+      target: ["preview"],
+      gitBranch: "feat/old",
+      comment: "GitHub-managed preview/gh-99-pr-7",
+    },
+    {
+      id: "env-prod",
+      key: "DATABASE_URL",
+      target: ["production"],
+      gitBranch: "feat/old",
+      comment: "GitHub-managed preview/gh-99-pr-7",
+    },
+  );
+  await cleanupClosedPreview(options);
+  const removed = calls
+    .filter((call) => call.method === "DELETE")
+    .map((call) => call.url.pathname);
+  assert.ok(removed.some((path) => path.endsWith("/env/env-old")));
+  assert.ok(!removed.some((path) => path.endsWith("/env/env-prod")));
 });
 
 test("cleanup refuses a protected branch before deleting anything", async () => {
