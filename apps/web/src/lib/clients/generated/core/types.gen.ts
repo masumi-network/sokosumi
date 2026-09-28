@@ -5474,7 +5474,6 @@ export type ProjectImageAsset = {
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
-    review?: ProjectImageReview;
 };
 
 export type ProjectImageSettings = {
@@ -5482,13 +5481,6 @@ export type ProjectImageSettings = {
     resolution?: '0.5K' | '1K' | '2K';
     outputFormat?: 'png' | 'jpeg' | 'webp';
     seed?: number | null;
-};
-
-export type ProjectImageReview = {
-    decision: 'APPROVED' | 'REJECTED';
-    feedback: string | null;
-    decidedAt: Date;
-    decidedByUserId: string;
 };
 
 export type ProjectImageJob = {
@@ -5533,11 +5525,6 @@ export type CreateProjectImageJobRequest = {
 
 export type CancelProjectImageJobResponse = {
     accepted: boolean;
-};
-
-export type ReviewProjectImageAssetRequest = {
-    decision: 'APPROVED' | 'REJECTED';
-    feedback?: string | null;
 };
 
 export type PatchProjectRequest = {
@@ -39376,170 +39363,6 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-        assetId: string;
-    };
-    query?: never;
-    url: '/projects/{id}/image-studio/assets/{assetId}/review';
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewError = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
-    /**
-     * Undecided version
-     */
-    200: {
-        data: ProjectImageAsset;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponse = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewData = {
-    body: ReviewProjectImageAssetRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-        assetId: string;
-    };
-    query?: never;
-    url: '/projects/{id}/image-studio/assets/{assetId}/review';
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewError = PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
-    /**
-     * Reviewed version
-     */
-    200: {
-        data: ProjectImageAsset;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponse = PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

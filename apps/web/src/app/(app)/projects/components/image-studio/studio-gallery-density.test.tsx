@@ -10,16 +10,14 @@ import { isActive, type StudioAsset, type StudioJob } from "./types";
  *
  * Every capture of this studio on the preview is of an empty project, because
  * generating costs money — so the dense states are pinned here instead: a full
- * grid, the review badges, the running and queued tiles, the failed-generation
+ * grid, the running and queued tiles, the failed-generation
  * notice, and selecting two versions to compare. These are the states whose
  * surface treatment changed when the project became one card, and they are the
  * part of that change a screenshot has never shown.
  */
 
 const mocks = vi.hoisted(() => ({
-  review: vi.fn(),
   cancel: vi.fn(),
-  clear: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -38,8 +36,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: mocks.review,
-  clearImageVersionReview: mocks.clear,
   requestImageJobCancel: mocks.cancel,
 }));
 
@@ -56,7 +52,6 @@ vi.mock("./use-studio-state", () => ({
     // every job made a settled failure render as a pending tile as well as in
     // its notice.
     activeJobs: initialState.jobs.filter((job) => isActive(job)),
-    applyAsset: vi.fn(),
     refresh: mocks.refresh,
     loadOlder: vi.fn(),
     hasOlder: false,
@@ -89,7 +84,6 @@ const ASSET = {
   jobId: "j",
   settings: {},
   contentPath: "/a",
-  review: null,
 } as unknown as StudioAsset;
 
 function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
@@ -107,10 +101,6 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
-  mocks.review.mockResolvedValue({
-    ...ASSET,
-    review: { decision: "APPROVED" },
-  });
   mocks.cancel.mockResolvedValue({ accepted: true });
 });
 
@@ -135,23 +125,6 @@ function manyAssets(count: number): StudioAsset[] {
       outputFormat: "png",
       seed: null,
     },
-    ...(i % 5 === 0
-      ? {
-          review: {
-            decision: "APPROVED",
-            feedback: "Use this one.",
-            createdAt: "2026-09-26T00:00:00Z",
-          },
-        }
-      : i % 5 === 2
-        ? {
-            review: {
-              decision: "REJECTED",
-              feedback: "Too warm.",
-              createdAt: "2026-09-26T00:00:00Z",
-            },
-          }
-        : {}),
   })) as unknown as StudioAsset[];
 }
 
@@ -211,38 +184,31 @@ function settledJob(
 }
 
 describe("a gallery with work in it", () => {
-  it("renders a full grid of versions with their provenance", () => {
+  it("renders a bare wall of pictures, each with its selection box drawn", () => {
     mount(manyAssets(14));
 
-    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(14);
-    // The model is on every tile, which is the provenance requirement, and
-    // the filters appear because there is now something to filter.
-    for (const name of [
-      "filterAll",
-      "filterApproved",
-      "filterRejected",
-      "filterUndecided",
-    ]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    const tiles = document.querySelectorAll("figure[data-asset-id]");
+    expect(tiles).toHaveLength(14);
+    // No caption under the picture: the prompt, model, time and credits live
+    // in the viewer, not on the tile.
+    expect(document.querySelectorAll("figcaption")).toHaveLength(0);
+    // The selection box is always in the DOM and never gated on hover.
+    for (const tile of tiles) {
+      const box = tile.querySelector("button[aria-pressed]");
+      expect(box).not.toBeNull();
+      expect(box?.className).not.toContain("opacity-0");
     }
-    // Decisions are carried by an icon *and* a word, never colour alone.
-    expect(screen.getAllByText("approved").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("rejected").length).toBeGreaterThan(0);
+    // Decisions are gone entirely.
+    expect(screen.queryByRole("button", { name: "filterApproved" })).toBeNull();
   });
 
-  it("narrows to a decision and back", () => {
-    mount(manyAssets(14));
-    const all = document.querySelectorAll("figure[data-asset-id]").length;
+  it("gives each tile its own aspect ratio, so mixed frames pack cleanly", () => {
+    mount(manyAssets(3));
 
-    fireEvent.click(screen.getByRole("button", { name: "filterApproved" }));
-    const approved = document.querySelectorAll("figure[data-asset-id]").length;
-    expect(approved).toBeGreaterThan(0);
-    expect(approved).toBeLessThan(all);
-
-    fireEvent.click(screen.getByRole("button", { name: "filterAll" }));
-    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(
-      all,
-    );
+    const ratios = [
+      ...document.querySelectorAll("figure[data-asset-id] button > span"),
+    ].map((node) => (node as HTMLElement).style.aspectRatio.replace(/\s/g, ""));
+    expect(new Set(ratios)).toEqual(new Set(["1536/1024", "1024/1536"]));
   });
 
   it("shows running and queued work as tiles, and a failure as a notice", () => {
@@ -355,44 +321,7 @@ describe("a gallery with work in it", () => {
     );
   });
 
-  /**
-   * The active filter used to be `bg-secondary text-foreground`.
-   *
-   * Both tokens follow the page in the same direction and `--secondary` is its
-   * inverse, so the pair rendered near-black on near-black in light mode and
-   * near-white on white in dark: the one chip saying what the gallery was
-   * narrowed to was the one chip nobody could read, in both themes. This pins
-   * the pairing rather than the colour, because the pairing is the bug.
-   */
-  it("pairs the active filter's fill with its own foreground token", () => {
-    mount(manyAssets(6));
-
-    const active = screen.getByRole("button", { name: "filterAll" });
-    expect(active.className).toContain("bg-secondary");
-    expect(active.className).toContain("text-secondary-foreground");
-    expect(active.className).not.toMatch(/(^|\s)text-foreground(\s|$)/);
-  });
-
-  it("pairs the rejected badge the same way", () => {
-    mount(manyAssets(6));
-
-    const badge = screen
-      .getAllByText("rejected")
-      .map((node) => node.closest("span"))
-      .find((node) => node?.className.includes("bg-secondary"));
-    expect(badge?.className).toContain("text-secondary-foreground");
-    expect(badge?.className).not.toContain("text-muted-foreground");
-  });
-
-  /**
-   * What a batch across several models is actually read for.
-   *
-   * Both figures are measured off the job row: the provider's own
-   * submit-to-settle interval, and the credits the ledger debited. Neither is
-   * recomputed from the catalog, because a price that moved since the image was
-   * made must not restate what somebody paid.
-   */
-  it("shows each version's generation time and the credits it cost", () => {
+  it("keeps generation time and credits off the tile", () => {
     mount(
       [
         {
@@ -411,80 +340,8 @@ describe("a gallery with work in it", () => {
 
     const tile = document.querySelector("figure[data-asset-id]");
     expect(tile).not.toBeNull();
-    expect(tile?.textContent).toContain("3.2s");
-    // The job's own `credits`, not the catalog's price for these settings.
-    expect(tile?.textContent).toContain('creditsCount:{"count":4}');
-  });
-
-  /**
-   * Zero is a fact, and absent is not zero.
-   *
-   * Core's charge-on-success build has a deliberate zero case: if the balance no
-   * longer covers the quote at delivery, the image is stored anyway and the job
-   * succeeds with nothing charged — the image is given away rather than lost. So
-   * a delivered image can legitimately carry 0, and printing nothing for it
-   * would turn "this was free" into "we do not know what this cost".
-   */
-  it("shows zero credits as zero, not as silence", () => {
-    mount(
-      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
-      [settledJob("j1", "v1", 3_200, "iso", 0)],
-    );
-
-    const tile = document.querySelector("figure[data-asset-id]");
-    expect(tile?.textContent).toContain('creditsCount:{"count":0}');
-    // Nullish coalescing is what makes this work — `0 ?? null` is 0 — so this
-    // guards against somebody reaching for a falsy check.
-    expect(tile?.textContent).toContain("3.2s");
-  });
-
-  it("says nothing about credits for a version whose job carries none", () => {
-    mount(
-      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
-      // Every asset that predates charging looks like this. Absent is not zero:
-      // "we do not know what this cost" and "this was free" are different
-      // claims, and only one of them is true here.
-      [settledJob("j1", "v1", 3_200, "iso", null)],
-    );
-
-    const text = document.querySelector("figure[data-asset-id]")?.textContent;
-    expect(text).toContain("3.2s");
-    expect(text).not.toContain("creditsCount");
-  });
-
-  it("reads the same timing when the dates arrive as Date objects", () => {
-    mount(
-      [
-        {
-          ...ASSET,
-          id: "v1",
-          settings: {
-            aspectRatio: "1:1",
-            resolution: "1K",
-            outputFormat: "png",
-            seed: null,
-          },
-        } as unknown as StudioAsset,
-      ],
-      [settledJob("j1", "v1", 3_200, "date")],
-    );
-
-    expect(
-      document.querySelector("figure[data-asset-id]")?.textContent,
-    ).toContain("3.2s");
-  });
-
-  it("says nothing about time for a version whose job is off the page", () => {
-    mount(
-      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
-      // No job carries this version, which is what an older version looks like
-      // once its job has fallen out of the most recent page of them.
-      [settledJob("j1", "somebody-else", 3_200)],
-    );
-
-    const text = document.querySelector("figure[data-asset-id]")?.textContent;
-    // No invented duration, and no zero either: absent is not "took no time".
-    expect(text).not.toMatch(/\d+(\.\d+)?s/);
+    // Time and credits are not on the tile any more; they are in the viewer.
+    expect(tile?.textContent).toBe("");
   });
 
   /**
@@ -536,6 +393,6 @@ describe("a gallery with work in it", () => {
 
     fireEvent.click(compare());
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getAllByRole("textbox")).toHaveLength(2);
+    expect(dialog.querySelectorAll("figure")).toHaveLength(2);
   });
 });

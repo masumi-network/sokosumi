@@ -38,6 +38,9 @@ const {
 // `BLOB_READ_WRITE_TOKEN` is present on purpose. It is the shared *public*
 // store, the studio must never reach for it, and leaving it set is what lets
 // the fail-closed tests below prove the studio refuses rather than falls back.
+vi.mock("@/services/image-studio-files.service", () => ({
+  publishImageToFiles: vi.fn(),
+}));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
   getBetterAuthPublicBaseUrl: () => "https://core.example.com",

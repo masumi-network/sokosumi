@@ -31,8 +31,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: vi.fn(),
-  clearImageVersionReview: vi.fn(),
   requestImageJobCancel: vi.fn(),
 }));
 
@@ -42,7 +40,6 @@ vi.mock("./use-studio-state", () => ({
     selectedAsset: null,
     selectAsset: vi.fn(),
     activeJobs: [],
-    applyAsset: vi.fn(),
     refresh: vi.fn().mockResolvedValue(undefined),
     loadOlder: vi.fn(),
     hasOlder: false,

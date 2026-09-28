@@ -1,7 +1,7 @@
 "use client";
 
-import { Check, X } from "lucide-react";
-import { useFormatter } from "next-intl";
+import { X } from "lucide-react";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,13 +11,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ImageViewer } from "@/components/ui/image-viewer";
-import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
 import { resolveModel } from "./catalog";
 import { StudioImage } from "./studio-image";
 import {
   assetContentUrl,
+  formatElapsed,
   type StudioAsset,
   type StudioCatalog,
   type StudioLabels,
@@ -28,49 +28,36 @@ import {
  *
  * The same surface does both on purpose. Comparing is not a separate mode with
  * its own rules — it is the detail view with more than one thing in it, so the
- * metadata, the review buttons and the download are in the same place whether
+ * metadata and the download are in the same place whether
  * you are looking at one image or four. Each pane is labelled with the model
  * that made it, because comparing two images without knowing which model is
  * which is not a comparison.
  */
 export function StudioLightbox({
   assets,
-  busy,
   catalog,
-  drafts,
+  creditsByAssetId,
+  elapsedByAssetId,
   labels,
-  onApprove,
-  onClearReview,
   onClose,
-  onDraftChange,
   onRegenerate,
   onSelect,
   onUseAsReference,
-  onReject,
   projectId,
   siblings,
 }: {
   assets: StudioAsset[];
-  busy: boolean;
   catalog: StudioCatalog;
-  /**
-   * Unsaved notes by version, owned by the studio.
-   *
-   * Local state here did not survive the component being unmounted, which is
-   * what closing the lightbox does — so a note vanished on the way to look at
-   * anything else.
-   */
-  drafts: Record<string, string>;
+  /** What each version was debited, in credits; absent when unknown. */
+  creditsByAssetId: Record<string, number>;
+  /** How long the provider took per version, in milliseconds. */
+  elapsedByAssetId: Record<string, number>;
   labels: StudioLabels;
-  onApprove: (assetId: string, feedback: string) => void;
-  onClearReview: (assetId: string) => void;
   onClose: () => void;
-  onDraftChange: (assetId: string, value: string) => void;
   onRegenerate: (asset: StudioAsset) => void;
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
-  onReject: (assetId: string, feedback: string) => void;
   projectId: string;
   /** Every image the viewer can step through, in gallery order. */
   siblings: StudioAsset[];
@@ -96,18 +83,10 @@ export function StudioLightbox({
             <Metadata
               asset={single}
               catalog={catalog}
+              credits={creditsByAssetId[single.id] ?? null}
+              elapsed={elapsedByAssetId[single.id] ?? null}
               formatDate={formatDate}
               labels={labels}
-            />
-            <Review
-              asset={single}
-              busy={busy}
-              draft={drafts[single.id] ?? single.review?.feedback ?? ""}
-              labels={labels}
-              onApprove={onApprove}
-              onClearReview={onClearReview}
-              onDraftChange={(value) => onDraftChange(single.id, value)}
-              onReject={onReject}
             />
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
@@ -191,19 +170,10 @@ export function StudioLightbox({
                   asset={asset}
                   catalog={catalog}
                   compact
+                  credits={creditsByAssetId[asset.id] ?? null}
+                  elapsed={elapsedByAssetId[asset.id] ?? null}
                   formatDate={formatDate}
                   labels={labels}
-                />
-                <Review
-                  asset={asset}
-                  busy={busy}
-                  compact
-                  draft={drafts[asset.id] ?? asset.review?.feedback ?? ""}
-                  labels={labels}
-                  onApprove={onApprove}
-                  onClearReview={onClearReview}
-                  onDraftChange={(value) => onDraftChange(asset.id, value)}
-                  onReject={onReject}
                 />
               </div>
             </div>
@@ -243,15 +213,21 @@ function Metadata({
   asset,
   catalog,
   compact,
+  credits,
+  elapsed,
   formatDate,
   labels,
 }: {
   asset: StudioAsset;
   catalog: StudioCatalog;
   compact?: boolean;
+  /** `null` is unknown, `0` is free: never collapse the two. */
+  credits: number | null;
+  elapsed: number | null;
   formatDate: (value: string) => string;
   labels: StudioLabels;
 }) {
+  const t = useTranslations("App.Studio");
   const model = resolveModel(catalog, asset.model);
 
   return (
@@ -277,6 +253,18 @@ function Metadata({
           {asset.settings?.seed ?? labels.noSeed}
         </span>
       </Field>
+      {elapsed === null ? null : (
+        <Field label={labels.generationTime}>
+          <span className="tabular-nums">{formatElapsed(elapsed)}</span>
+        </Field>
+      )}
+      {credits === null ? null : (
+        <Field label={labels.credits}>
+          <span className="tabular-nums">
+            {t("creditsCount", { count: credits })}
+          </span>
+        </Field>
+      )}
       <Field label={labels.created}>
         <span>{formatDate(asset.createdAt as unknown as string)}</span>
       </Field>
@@ -305,76 +293,6 @@ function Field({
     <div className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-2">
       <dt className="text-muted-foreground">{label}</dt>
       <dd className="min-w-0">{children}</dd>
-    </div>
-  );
-}
-
-function Review({
-  asset,
-  busy,
-  compact,
-  draft,
-  labels,
-  onApprove,
-  onClearReview,
-  onDraftChange,
-  onReject,
-}: {
-  asset: StudioAsset;
-  busy: boolean;
-  compact?: boolean;
-  draft: string;
-  labels: StudioLabels;
-  onApprove: (assetId: string, feedback: string) => void;
-  onClearReview: (assetId: string) => void;
-  onDraftChange: (value: string) => void;
-  onReject: (assetId: string, feedback: string) => void;
-}) {
-  const decision = asset.review?.decision ?? null;
-
-  return (
-    <div className={cn("space-y-2", compact ? "mt-2" : "mt-4")}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <Button
-          aria-pressed={decision === "APPROVED"}
-          disabled={busy}
-          onClick={() => onApprove(asset.id, draft)}
-          size="sm"
-          variant={decision === "APPROVED" ? "default" : "secondary"}
-        >
-          <Check aria-hidden />
-          {labels.approve}
-        </Button>
-        <Button
-          aria-pressed={decision === "REJECTED"}
-          disabled={busy}
-          onClick={() => onReject(asset.id, draft)}
-          size="sm"
-          variant={decision === "REJECTED" ? "default" : "secondary"}
-        >
-          <X aria-hidden />
-          {labels.reject}
-        </Button>
-        {decision ? (
-          <Button
-            disabled={busy}
-            onClick={() => onClearReview(asset.id)}
-            size="sm"
-            variant="ghost"
-          >
-            {labels.clearReview}
-          </Button>
-        ) : null}
-      </div>
-      <Textarea
-        aria-label={labels.feedbackPlaceholder}
-        // `text-sm`, not `text-xs`: this is something a person writes in, and
-        // the app types every input at the body scale.
-        className="min-h-14 text-sm"
-        onChange={(event) => onDraftChange(event.currentTarget.value)}
-        placeholder={labels.feedbackPlaceholder}
-        value={draft}
-      />
     </div>
   );
 }

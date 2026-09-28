@@ -28,7 +28,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: assetFindManyMock,
       findFirst: assetFindFirstMock,
     },
-    projectImageReview: { upsert: vi.fn(), deleteMany: vi.fn() },
     projectImageJob: { findMany: vi.fn(), findFirst: vi.fn() },
   },
 }));
@@ -56,7 +55,6 @@ function asset(index: number, createdAt: Date) {
     bytes: 1,
     contentType: "image/png",
     jobId: `job-${index}`,
-    review: null,
   };
 }
 

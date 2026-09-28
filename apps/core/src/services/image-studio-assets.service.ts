@@ -1,7 +1,4 @@
-import {
-  ProjectImageJobStatus,
-  type ProjectImageReviewDecision,
-} from "@sokosumi/database";
+import { ProjectImageJobStatus } from "@sokosumi/database";
 import { convertCentsToCredits } from "@sokosumi/utils";
 import { get } from "@vercel/blob";
 
@@ -15,7 +12,7 @@ import {
 } from "@/lib/image-studio/failure-reason";
 
 /**
- * Versions, lineage, review decisions, and the bytes behind them.
+ * Versions, lineage, and the bytes behind them.
  *
  * Nothing in this module returns a URL that anyone could fetch without coming
  * back through Core. `blobPathname` is a storage coordinate, not a handle, and
@@ -42,12 +39,6 @@ export interface AssetView {
   contentType: string;
   createdAt: Date;
   jobId: string;
-  review: {
-    decision: ProjectImageReviewDecision;
-    feedback: string | null;
-    decidedAt: Date;
-    decidedByUserId: string;
-  } | null;
 }
 
 const assetSelect = {
@@ -64,14 +55,6 @@ const assetSelect = {
   contentType: true,
   createdAt: true,
   jobId: true,
-  review: {
-    select: {
-      decision: true,
-      feedback: true,
-      decidedAt: true,
-      decidedByUserId: true,
-    },
-  },
 } as const;
 
 /**
@@ -160,65 +143,6 @@ export async function getAsset(options: {
   });
   if (!asset) throw notFound("Image not found");
   return asset;
-}
-
-/**
- * Record a decision about one immutable version.
- *
- * The row is keyed on the asset, so re-deciding replaces this version's own
- * decision and reaches nothing else. A refinement of an approved version has
- * no review row at all until somebody makes one — approval is never inherited
- * because there is no field to inherit it through.
- */
-export async function reviewAsset(options: {
-  assetId: string;
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-  decision: ProjectImageReviewDecision;
-  feedback: string | null;
-}): Promise<AssetView> {
-  await requireProjectAccess(options);
-  const asset = await prisma.projectImageAsset.findFirst({
-    where: { id: options.assetId, projectId: options.projectId },
-    select: { id: true },
-  });
-  if (!asset) throw notFound("Image not found");
-
-  await prisma.projectImageReview.upsert({
-    where: { assetId: options.assetId },
-    create: {
-      assetId: options.assetId,
-      decision: options.decision,
-      feedback: options.feedback,
-      decidedByUserId: options.userId,
-    },
-    update: {
-      decision: options.decision,
-      feedback: options.feedback,
-      decidedByUserId: options.userId,
-      decidedAt: new Date(),
-    },
-  });
-
-  return await getAsset(options);
-}
-
-/** Clears this version's decision, returning it to undecided. */
-export async function clearAssetReview(options: {
-  assetId: string;
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-}): Promise<AssetView> {
-  await requireProjectAccess(options);
-  await prisma.projectImageReview.deleteMany({
-    where: {
-      assetId: options.assetId,
-      asset: { projectId: options.projectId },
-    },
-  });
-  return await getAsset(options);
 }
 
 /**

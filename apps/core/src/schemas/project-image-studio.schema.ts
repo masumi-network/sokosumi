@@ -65,15 +65,6 @@ export const imageStudioSettingsSchema = z
   })
   .openapi("ProjectImageSettings");
 
-export const imageStudioReviewSchema = z
-  .object({
-    decision: z.enum(["APPROVED", "REJECTED"]),
-    feedback: z.string().nullable(),
-    decidedAt: dateTimeSchema,
-    decidedByUserId: z.string(),
-  })
-  .openapi("ProjectImageReview");
-
 export const imageStudioAssetSchema = z
   .object({
     id: z.string().uuid(),
@@ -99,13 +90,6 @@ export const imageStudioAssetSchema = z
      * is private and has no URL a client could fetch directly.
      */
     contentPath: z.string(),
-    /**
-     * Absent until somebody decides. Optional rather than nullable on purpose:
-     * the OpenAPI client generator emits an unguarded date transform for a
-     * nullable object, which crashes on `null`, but guards an optional one. A
-     * new version has no review, so that path is the common case, not an edge.
-     */
-    review: imageStudioReviewSchema.optional(),
   })
   .openapi("ProjectImageAsset");
 
@@ -218,13 +202,6 @@ export const createImageJobRequestSchema = z
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectImageJobRequest");
-
-export const reviewImageAssetRequestSchema = z
-  .object({
-    decision: z.enum(["APPROVED", "REJECTED"]),
-    feedback: z.string().trim().max(2_000).nullable().default(null),
-  })
-  .openapi("ReviewProjectImageAssetRequest");
 
 export const bindImageSessionRequestSchema = z
   .object({
