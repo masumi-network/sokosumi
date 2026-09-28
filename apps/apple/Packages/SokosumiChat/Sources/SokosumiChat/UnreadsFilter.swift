@@ -85,6 +85,12 @@ public struct UnreadsFilterList: Equatable, Sendable {
     self.dimmedRoomIds = dimmedRoomIds
   }
 
+  /// Mark all as read is offered, to the sidebar row's button and its View-menu command (SOK-1201) alike,
+  /// while any room a read would still change stands (web's `showMarkAll`).
+  public var showsMarkAll: Bool {
+    !markAllTargets.isEmpty
+  }
+
   /// A listed room with nothing unread, read in this pass or pinned, draws dimmed; the open room never does.
   public func isDimmed(_ roomId: String) -> Bool {
     dimmedRoomIds.contains(roomId)

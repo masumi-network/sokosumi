@@ -5852,6 +5852,7 @@
         "label": "Sin leer",
         "threads": "Hilos",
         "allUnreads": "No leídos",
+        "allUnreadsShortcut": "No leídos ({shortcut})",
         "unreadThreads": "{count, plural, one {# hilo sin leer} other {# hilos sin leer}}",
         "unreadThreadsCapped": "Más de {max} hilos sin leer",
         "mentions": "{count, plural, one {# mención} other {# menciones}}",

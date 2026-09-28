@@ -103,7 +103,7 @@ Use the returned Task ID. Require the intended Coworker, organization, and `READ
 [VERIFIED: `apps/cli/package.json`] The CLI package is private. Build this checkout from the repository root:
 
 ```sh
-pnpm build --filter=@sokosumi/cli --cache=local:w
+pnpm build --filter=@masumi_network/sokosumi --cache=local:w
 node apps/cli/dist/bin/sokosumi.js runtime --help
 ```
 

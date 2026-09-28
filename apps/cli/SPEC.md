@@ -6,7 +6,7 @@
 ## §C CONSTRAINTS
 - live in monorepo `apps/cli`. ⊥ second CLI. ⊥ sibling `sokosumi-cli` edits. [VISION.md constraints](VISION.md#constraints)
 - talk Core HTTP only. ⊥ Prisma, ⊥ `@sokosumi/database`, ⊥ Postgres from CLI. [VISION.md constraints](VISION.md#constraints)
-- package identity ∈ {private workspace name: `@sokosumi/cli`, package path: `apps/cli`, bin: `sokosumi`}; npm publication ⊥ current slice.
+- package identity ∈ {published npm name: `@masumi_network/sokosumi`, package path: `apps/cli`, bin: `sokosumi`}; published public to npm (live `1.0.0`, repo `1.0.1`) via `files:[dist]` + `publishConfig.access:public`. [PR #5325]
 - [REPORTED: user decision, 2026-09-24] Coworker registration → Sokosumi Preprod only; Mainnet registration → “Preprod only”; unrelated CLI commands remain network-configurable.
 - [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`] Coworker create → current Core route requires platform admin; this CLI work does not change that permission. A platform-admin-provisioned Coworker can then be managed by its Vendor admin through existing Core routes.
 - [REPORTED: user decision, 2026-09-24] Registration selects an existing Workspace and uses existing access control; report workspace availability only after `GRANTED`. A private Coworker stays unavailable outside granted workspaces until platform approval.
@@ -48,7 +48,7 @@
 - design: external `I-Want-You-Desing-Tui-Sokosumi` bundle primary file `sokosumi-tui-v1.html`; companions `DESIGN-HANDOFF.md`, `DESIGN-MANIFEST.json`, `brand-spec.md`; visual source only, ⊥ runtime asset.
 - file: `~/.sokosumi/config.json` → non-secret preferences only
 - headless JSON fields: `authenticated`, `authMethod`, `apiKeyAvailable`, `target`, `apiUrl`, `expiresAt`
-- pkg: private workspace `@sokosumi/cli` @ `apps/cli` → source build emits bin `sokosumi`; npm publication ⊥ current slice
+- pkg: published npm package `@masumi_network/sokosumi` @ `apps/cli` → build emits bin `sokosumi`; public via `files:[dist]` + `publishConfig.access:public`
 
 [VERIFIED: ADR 0005, 2026-09-21] Runtime identity/invocation contract approved: runtime bearer ∈ `coworker_*` only; developer OAuth/user API keys ⊥ runtime Core calls; session grant ⊥ identity; no short-lived developer-delegation JWT. Chat transport, general x402 purchase, and seller settlement interfaces still need their own approved contracts before implementation.
 
@@ -79,7 +79,7 @@ V22: CLI `test` and `test:ci` scripts pass the quoted recursive test glob to `ts
 V23: hosted OAuth authorization and token URLs use the Core API auth base; legacy web `/api/auth` proxy preferences resolve to `<api>/auth`.
 V24: hosted target OAuth auth base = selected API URL + `/auth`; auth URL overrides apply only to custom targets.
 V25: successful loopback OAuth callbacks return no-store HTML that removes code and state from the browser address bar.
-V26: workspace package marked private; source build → bin `sokosumi`; npm publication ⊥ until separate official release work.
+V26: package published public to npm as `@masumi_network/sokosumi`; build → bin `sokosumi` with `#!/usr/bin/env node` shebang; published tarball ⊆ {`dist/**`, `package.json`, `README.md`}; ⊥ src/tests/secrets; deps ⊥ `workspace:*`. [was: private, npm ⊥ until release work; changed by PR #5325]
 V27: browser launch failure → OAuth login rejects immediately & clears callback timer.
 V28: custom API URL → injective vault scope encoding; distinct canonical URLs → distinct vault entries
 V29: custom vault scope alphabet ∈ lowercase hex; case-insensitive vault names → distinct canonical URLs stay distinct
@@ -106,8 +106,8 @@ V49: unsupported inline option values are rejected without echoing the supplied 
 V50: leaving API-key input/target selection by Ctrl+C/Esc clears the pending full key before any later TUI action; ⊥ stale key reuse.
 V51: explicit custom `--api-url` target rejects target-coded mainnet/preprod environment or stored API keys before bootstrap proceeds.
 V52: OAuth completion observing an aborted/canceled login cannot save credentials or transition the TUI to authenticated/success.
-V53: every Ink/React TUI layout prop ∈ the installed Ink/React type surface; `pnpm --filter @sokosumi/cli build` passes without unsupported props such as `marginRight` or `maxWidth`.
-V54: every React/Ink TUI test callback passed to a component prop is assignable to the installed component prop type; `pnpm --filter @sokosumi/cli typecheck` passes without strict-function-variance failures.
+V53: every Ink/React TUI layout prop ∈ the installed Ink/React type surface; `pnpm --filter @masumi_network/sokosumi build` passes without unsupported props such as `marginRight` or `maxWidth`.
+V54: every React/Ink TUI test callback passed to a component prop is assignable to the installed component prop type; `pnpm --filter @masumi_network/sokosumi typecheck` passes without strict-function-variance failures.
 V55: every user-visible `apiUrl` in auth login/status, discover, and TUI output passes the canonical `sanitizeApiUrl`; userinfo, fragments, and credential-shaped query keys never appear.
 V57: custom vault scope material = lowercase-hex encoding of `sanitizeApiUrl(apiUrl)`; userinfo, fragments, and credential-shaped query values never enter keyring account names while distinct sanitized URLs remain distinct.
 V58: reserved `coworker_*` API keys are rejected before any auth-manager/Core call and never accepted or saved by CLI login.
@@ -159,7 +159,7 @@ V98: [VERIFIED: `apps/core/src/routes/v1/coworkers/post.ts:77-80`, `apps/core/sr
 ## §T TASKS
 
 id|status|task|cites
-T1|x|package spec; private workspace package `@sokosumi/cli`, path `apps/cli`, binary `sokosumi`|V7,I
+T1|x|package spec; published npm package `@masumi_network/sokosumi`, path `apps/cli`, binary `sokosumi`|V7,I
 T2|x|scaffold `apps/cli` package (ESM, Ink, pinned deps)|V7,I
 T3|x|OAuth PKCE + loopback + keychain|V1,V4,V8
 T4|x|`auth login` / `auth logout` + `--json`|I,V1
