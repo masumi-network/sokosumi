@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { WORKSPACE, workspacePath } from "../local-tools";
+import { WORKSPACE, workspacePath } from "./local-tools";
 
 describe("workspace paths", () => {
   it("resolves paths inside the workspace", () => {

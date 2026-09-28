@@ -1,20 +1,19 @@
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
-import path from "node:path";
-import type {
-  IndexedRuntimeEvent,
-  RuntimeCancelInput,
-  RuntimeEventStreamInput,
-  RuntimeHealth,
-  RuntimeInspectInput,
-  RuntimeResetInput,
-  RuntimeTurnInput,
-  RuntimeTurnRef,
-  SokoBotRuntime,
+import {
+  type IndexedRuntimeEvent,
+  type RuntimeCancelInput,
+  type RuntimeEventStreamInput,
+  type RuntimeHealth,
+  type RuntimeInspectInput,
+  type RuntimeResetInput,
+  type RuntimeTurnInput,
+  type RuntimeTurnRef,
+  SOKO_BOT_TURN_TOKEN_HEADER,
+  type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { waitUntil } from "@vercel/functions";
-import type { NetworkPolicy } from "@vercel/sandbox";
-import { Sandbox } from "@vercel/sandbox";
+import { Drive, type NetworkPolicy, Sandbox } from "@vercel/sandbox";
 import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import {
@@ -25,20 +24,21 @@ import {
 } from "@/lib/soko-bot/in-process-runtime";
 import { SANDBOX_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
 import {
+  announceTurn,
   closeTurn,
   failTurn,
   RuntimeEventLog,
-  runtimeEvent,
 } from "@/lib/soko-bot/turn-loop";
-import { issueTurnToken, TURN_TOKEN_HEADER } from "./turn-token";
+import { issueTurnToken } from "./turn-token";
 
-/** Where the runner lives in the sandbox, outside the bot's workspace. */
-const RUNNER_DIR = "/vercel/sandbox/.soko-bot";
-const RUNNER_PATH = `${RUNNER_DIR}/runner.mjs`;
+/** The runner lives on the VM's own disk, outside the bot's workspace. */
+const RUNNER_PATH = "/vercel/sandbox/.soko-bot/runner.mjs";
+/** Mount point of the bot's Drive: the only thing that outlives a turn. */
 export const SANDBOX_WORKSPACE = "/vercel/sandbox/workspace";
-
-/** How long a sandbox session stays up without a turn before it parks. */
-const SESSION_TIMEOUT_MS = 20 * 60 * 1_000;
+const SANDBOX_IMAGE = "vercel/sandbox/universal";
+/** EU: workspaces and VMs stay in Frankfurt, like the model routing. */
+const SANDBOX_REGION = "fra1";
+const SANDBOX_VCPUS = 2;
 
 /**
  * Private and link-local ranges: nothing inside our infrastructure. The
@@ -52,14 +52,26 @@ const DENIED_SUBNETS = [
   "100.64.0.0/10",
 ];
 
-export function sandboxName(sokoBotId: string): string {
+export function turnSandboxName(turnId: string): string {
+  return `soko-bot-turn-${turnId}`;
+}
+
+function workspaceDriveName(sokoBotId: string): string {
   return `soko-bot-${sokoBotId}`;
 }
 
-function credentials(): Record<string, string> {
+interface SandboxCredentials {
+  token: string;
+  teamId: string;
+  projectId: string;
+}
+
+/**
+ * On Vercel the function's OIDC token authorizes sandbox calls; outside it
+ * (local development) all three must be supplied explicitly.
+ */
+function credentials(): SandboxCredentials | Record<never, never> {
   const env = getEnv();
-  // On Vercel the function's OIDC token authorizes sandbox creation; outside
-  // it (local development) all three must be supplied explicitly.
   return env.VERCEL_SANDBOX_TOKEN &&
     env.VERCEL_SANDBOX_TEAM_ID &&
     env.VERCEL_SANDBOX_PROJECT_ID
@@ -78,42 +90,28 @@ export function runtimePublicUrl(): string {
   ).replace(/\/$/, "");
 }
 
-let runnerSource: Promise<{ content: Buffer; sha256: string }> | null = null;
+let runnerSource: Promise<Buffer> | null = null;
 
-/**
- * The bundled runner, built beside Core (`dist/soko-bot-runner.mjs`). Read
- * once per instance; its hash is how a launch notices a tampered copy.
- */
-function loadRunner(): Promise<{ content: Buffer; sha256: string }> {
-  runnerSource ??= (async () => {
-    const candidates = [
-      new URL("./soko-bot-runner.mjs", import.meta.url),
-      path.join(process.cwd(), "dist/soko-bot-runner.mjs"),
-      path.join(process.cwd(), "apps/core/dist/soko-bot-runner.mjs"),
-    ];
-    for (const candidate of candidates) {
-      try {
-        const content = await readFile(candidate);
-        return {
-          content,
-          sha256: createHash("sha256").update(content).digest("hex"),
-        };
-      } catch {
-        // Try the next location.
-      }
-    }
-    runnerSource = null;
-    throw new Error(
-      "Soko Bot runner bundle not found; run `pnpm --filter @sokosumi/core build`",
+/** The bundled runner, built beside Core as `dist/soko-bot-runner.mjs`. */
+function loadRunner(): Promise<Buffer> {
+  runnerSource ??= readFile(
+    new URL("./soko-bot-runner.mjs", import.meta.url),
+  ).catch(() => {
+    // Development: Core runs from source; the runner is built into dist/.
+    return readFile(
+      new URL("../../../../dist/soko-bot-runner.mjs", import.meta.url),
     );
-  })();
-  return runnerSource;
+  });
+  return runnerSource.catch((error) => {
+    runnerSource = null;
+    throw error;
+  });
 }
 
 /**
  * Open internet for research, nothing inside our network, and requests to this
  * turn's Core endpoints carry its token — added by the proxy, so no process in
- * the sandbox ever holds it.
+ * the VM ever holds it. The VM lives for this turn only.
  */
 function networkPolicy(turnId: string, token: string): NetworkPolicy {
   const core = new URL(runtimePublicUrl());
@@ -124,7 +122,7 @@ function networkPolicy(turnId: string, token: string): NetworkPolicy {
           match: {
             path: { startsWith: `/v1/soko-bot-runtime/turns/${turnId}/` },
           },
-          transform: [{ headers: { [TURN_TOKEN_HEADER]: token } }],
+          transform: [{ headers: { [SOKO_BOT_TURN_TOKEN_HEADER]: token } }],
         },
       ],
       "*": [],
@@ -133,34 +131,39 @@ function networkPolicy(turnId: string, token: string): NetworkPolicy {
   };
 }
 
-async function openBotSandbox(sokoBotId: string): Promise<Sandbox> {
-  const env = getEnv();
-  return Sandbox.getOrCreate({
-    ...credentials(),
-    name: sandboxName(sokoBotId),
-    persistent: true,
-    region: env.SOKO_BOT_SANDBOX_REGION,
-    resources: { vcpus: env.SOKO_BOT_SANDBOX_VCPUS },
-    timeout: SESSION_TIMEOUT_MS,
-    tags: { app: "soko-bot" },
-    // Deny until the first turn sets its own policy.
-    networkPolicy: "deny-all",
-  } as Parameters<typeof Sandbox.getOrCreate>[0]);
+/** Stops a turn's VM. A failed stop only costs the VM's remaining timeout. */
+export async function stopTurnSandbox(turnId: string): Promise<void> {
+  try {
+    const sandbox = await Sandbox.get({
+      ...credentials(),
+      name: turnSandboxName(turnId),
+    });
+    await sandbox.stop();
+  } catch (error) {
+    console.warn("Soko Bot sandbox stop failed", {
+      turnId,
+      error: error instanceof Error ? error.message : "unknown",
+    });
+  }
 }
 
-/** Rewrites the runner unless the sandbox copy is byte-for-byte ours. */
-async function ensureRunner(sandbox: Sandbox): Promise<void> {
-  const runner = await loadRunner();
-  const current = await sandbox
-    .readFileToBuffer({ path: RUNNER_PATH })
-    .catch(() => null);
-  if (
-    current &&
-    createHash("sha256").update(current).digest("hex") === runner.sha256
-  )
-    return;
-  await sandbox.runCommand("mkdir", ["-p", RUNNER_DIR, SANDBOX_WORKSPACE]);
-  await sandbox.writeFiles([{ path: RUNNER_PATH, content: runner.content }]);
+/**
+ * The bot's persistent workspace. A Drive attaches to one VM at a time, so a
+ * VM an earlier turn left running — crashed, cancelled, never stopped — is
+ * stopped first; nothing a previous turn started survives into this one.
+ */
+async function workspaceDrive(sokoBotId: string): Promise<Drive> {
+  const drive = await Drive.getOrCreate({
+    ...credentials(),
+    name: workspaceDriveName(sokoBotId),
+    region: SANDBOX_REGION,
+  });
+  const holder = drive.currentSandboxName;
+  if (holder) {
+    const sandbox = await Sandbox.get({ ...credentials(), name: holder });
+    await sandbox.stop();
+  }
+  return drive;
 }
 
 async function launch(sessionId: string, input: RuntimeTurnInput) {
@@ -175,14 +178,24 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       sessionId,
       expiresAt: turn.deadlineAt.getTime() + 60_000,
     });
-    const sandbox = await openBotSandbox(input.sokoBotId);
-    await sandbox.updateNetworkPolicy(networkPolicy(input.turnId, token));
-    await sandbox
-      .extendTimeout(
-        Math.max(60_000, turn.deadlineAt.getTime() - Date.now() + 60_000),
-      )
-      .catch(() => undefined);
-    await ensureRunner(sandbox);
+    const drive = await workspaceDrive(input.sokoBotId);
+    const sandbox = await Sandbox.create({
+      ...credentials(),
+      name: turnSandboxName(input.turnId),
+      image: SANDBOX_IMAGE,
+      region: SANDBOX_REGION,
+      resources: { vcpus: SANDBOX_VCPUS },
+      timeout: Math.max(
+        60_000,
+        turn.deadlineAt.getTime() - Date.now() + 60_000,
+      ),
+      networkPolicy: networkPolicy(input.turnId, token),
+      mounts: { [SANDBOX_WORKSPACE]: drive },
+      tags: { app: "soko-bot", bot: input.sokoBotId },
+    });
+    await sandbox.writeFiles([
+      { path: RUNNER_PATH, content: await loadRunner() },
+    ]);
     await sandbox.runCommand({
       cmd: "node",
       args: [RUNNER_PATH],
@@ -201,54 +214,27 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
     // The drain binds a turn on `turn.started` + `message.received` and skips
     // anything before them, so a turn that failed before the runner started
     // has to announce itself first or it sits RUNNING until the watchdog.
-    await log
-      .append(runtimeEvent("session.started", { sessionId }))
-      .then(() =>
-        log.append(runtimeEvent("turn.started", { turnId: input.turnId })),
-      )
-      .then(() =>
-        log.append(
-          runtimeEvent("message.received", { message: input.message }),
-        ),
-      )
-      .catch(() => undefined);
+    await announceTurn(log, input.message).catch(() => undefined);
     await failTurn(log, {
       code: "sandbox_launch_failed",
       message:
         error instanceof Error ? error.message : "Could not start the sandbox",
     });
     await closeTurn(log, input.turnId);
-  }
-}
-
-/** Parks the bot's sandbox after a turn; its workspace persists. */
-export async function stopBotSandbox(sokoBotId: string): Promise<void> {
-  try {
-    const sandbox = await Sandbox.get({
-      ...credentials(),
-      name: sandboxName(sokoBotId),
-    } as Parameters<typeof Sandbox.get>[0]);
-    await sandbox.updateNetworkPolicy("deny-all").catch(() => undefined);
-    await sandbox.stop();
-  } catch (error) {
-    // The session times out on its own; a failed stop only costs idle minutes.
-    console.warn("Soko Bot sandbox stop failed", {
-      sokoBotId,
-      error: error instanceof Error ? error.message : "unknown",
-    });
+    await stopTurnSandbox(input.turnId);
   }
 }
 
 /**
- * Each bot's agent loop runs in its own persistent Vercel Sandbox: a Linux VM
- * with the web, a shell and a workspace that survives between turns. Core
- * starts the runner and serves it over `/v1/soko-bot-runtime`; turn state,
- * events and settlement are the same as for the in-process runtime.
+ * Each turn runs in a fresh Vercel Sandbox VM with the bot's Drive mounted as
+ * its workspace: the web, a shell and files that persist, and nothing else
+ * that does. Core starts the runner and serves it over `/v1/soko-bot-runtime`;
+ * turn state, events and settlement are shared with the in-process runtime.
  */
 export class SandboxSokoBotRuntime implements SokoBotRuntime {
   async createSession(input: RuntimeTurnInput): Promise<RuntimeTurnRef> {
     const sessionId = input.sessionId ?? `sess_${randomUUID()}`;
-    // The caller is answering a user; the sandbox starts in the background.
+    // The caller is answering a user; the VM starts in the background.
     waitUntil(launch(sessionId, input));
     return {
       sessionId,
@@ -263,9 +249,15 @@ export class SandboxSokoBotRuntime implements SokoBotRuntime {
     return streamStoredEvents(input);
   }
 
-  // The runner sees the cancellation on its next call to Core and stops.
-  cancelTurn(input: RuntimeCancelInput): Promise<void> {
-    return cancelStoredTurn(input);
+  async cancelTurn(input: RuntimeCancelInput): Promise<void> {
+    await cancelStoredTurn(input);
+    // A cancelled runner exits on its next call to Core; stopping the VM also
+    // ends anything it started.
+    const turn = await prisma.sokoBotTurn.findFirst({
+      where: { eveSessionId: input.sessionId },
+      select: { id: true },
+    });
+    if (turn) waitUntil(stopTurnSandbox(turn.id));
   }
 
   resetSession(input: RuntimeResetInput): Promise<void> {

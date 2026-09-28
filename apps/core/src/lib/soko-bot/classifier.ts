@@ -70,6 +70,8 @@ const WRITE_SCOPE_INSTRUCTIONS =
   "If the message asks the assistant to change something itself, what does the change touch? Pick the closest option.";
 const CONFIRMATION_INSTRUCTIONS =
   "Does the latest message simply agree to one of the pending proposals the assistant made earlier (yes, go ahead, do it), without adding a new request?";
+const WITHDRAWAL_INSTRUCTIONS =
+  "Does the latest message call off or replace the pending proposal the assistant made earlier (cancel that, no, don't do that, instead do …, forget that)?";
 
 export function routeQuestions(hasPendingProposals: boolean) {
   return {
@@ -88,6 +90,10 @@ export function routeQuestions(hasPendingProposals: boolean) {
           confirmsPending: {
             type: "boolean" as const,
             instructions: CONFIRMATION_INSTRUCTIONS,
+          },
+          withdrawsPending: {
+            type: "boolean" as const,
+            instructions: WITHDRAWAL_INSTRUCTIONS,
           },
         }
       : {}),
@@ -183,6 +189,7 @@ const routeAnswersSchema = z.object({
   route: choiceAnswer,
   writeScope: choiceAnswer,
   confirmsPending: z.object({ probability }).optional(),
+  withdrawsPending: z.object({ probability }).optional(),
 });
 export type RouteAnswers = z.infer<typeof routeAnswersSchema>;
 
@@ -308,6 +315,20 @@ export function classificationFromAnswers(
     }
   }
 
+  const routed = routeFromAnswers(message, answers);
+  // Jev's reading of "cancel that" / "instead, …" against the one pending
+  // proposal; the control plane only withdraws on this.
+  return pendingIntents.length > 0 &&
+    (answers.withdrawsPending?.probability ?? 0) >= MIN_CONFIRMATION_CONFIDENCE
+    ? { ...routed, continuation: "CANCEL" }
+    : routed;
+}
+
+/** The route and write scope Jev chose for the message itself. */
+function routeFromAnswers(
+  message: string,
+  answers: RouteAnswers,
+): TurnClassification {
   const route = answers.route.choice;
   const confidence = answers.route.probabilities?.[route] ?? 0;
   // DIRECT_RESPONSE grants no more than CLARIFY (reads and the sandbox), so

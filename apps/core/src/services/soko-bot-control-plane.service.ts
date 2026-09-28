@@ -594,6 +594,14 @@ function unpromptedTurn(turn: { source: string; chainDepth: number }): boolean {
   );
 }
 
+/** How Jev read a stored turn's relation to its pending proposal, if at all. */
+function storedContinuation(classification: unknown): string | null {
+  if (!classification || typeof classification !== "object") return null;
+  const continuation = (classification as { continuation?: unknown })
+    .continuation;
+  return typeof continuation === "string" ? continuation : null;
+}
+
 export class SokoBotControlPlane {
   constructor(
     private readonly runtime: SokoBotRuntime = getSokoBotRuntime(),
@@ -814,9 +822,7 @@ export class SokoBotControlPlane {
       turn.source !== "CHAT" ||
       turn.chainDepth !== 0 ||
       (turn.requestedByUserId && turn.requestedByUserId !== turn.userId) ||
-      !/^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
-        turn.userMessage.trim(),
-      ) ||
+      storedContinuation(turn.classification) !== "CONTINUE" ||
       !turn.intent ||
       turn.intent.requesterId !== turn.userId ||
       turn.intent.workspaceId !== turn.workspaceId ||
@@ -923,9 +929,7 @@ export class SokoBotControlPlane {
     }
     if (
       turn.intentId &&
-      /^(?:yes|yep|yeah|okay|ok|sure|go ahead|do that|please do|proceed)[.! ]*$/i.test(
-        turn.userMessage.trim(),
-      ) &&
+      storedContinuation(turn.classification) === "CONTINUE" &&
       (await this.settleOwnerConfirmation(turn.id, turn.leaseToken))
     ) {
       const completed = await prisma.sokoBotTurn.findUniqueOrThrow({
@@ -2557,21 +2561,18 @@ export class SokoBotControlPlane {
             data: { intentId: selected.id, intentRevision: selected.revision },
           });
         } else {
-          // Only an explicit owner withdrawal or replacement affects an existing offer.
-          const cancelsOffer =
-            /^(?:cancel that|stop that|no[.! ]*$|don't do that|do not do that)/i.test(
-              message.trim(),
-            );
-          const replacesOffer =
-            /^(?:instead[, ]|replace (?:that|the (?:pending )?(?:request|proposal|offer))\b|forget (?:that|the (?:pending )?(?:request|proposal|offer))\b)/i.test(
-              message.trim(),
-            );
+          // Only an explicit owner withdrawal or replacement, as Jev read the
+          // message, affects an existing offer.
           const withdrawsUniqueOffer =
             source === "CHAT" &&
             !requestedByTeammate &&
             (input.chat?.chainDepth ?? 0) === 0 &&
             pendingIntents.length === 1 &&
-            (cancelsOffer || replacesOffer);
+            classification.classification.continuation === "CANCEL";
+          // A bare "cancel that" routes to CLARIFY; "instead, do X" carries X's
+          // route and supersedes the offer rather than just cancelling it.
+          const cancelsOffer =
+            classification.classification.route === "CLARIFY";
           if (withdrawsUniqueOffer) {
             await tx.sokoBotPendingDecision.updateMany({
               where: {

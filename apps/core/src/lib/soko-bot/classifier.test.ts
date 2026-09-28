@@ -174,6 +174,22 @@ describe("pending proposals", () => {
     expect(result.classification.selectedIntentId).toBeUndefined();
   });
 
+  it("marks a withdrawal of the pending proposal and keeps the new route", async () => {
+    const result = await new JevTurnClassifier(
+      answering(
+        jevRoute("DELEGATE_TASK", {
+          confirmsPending: 0.02,
+          withdrawsPending: 0.96,
+        }),
+      ),
+    ).classify("Instead, research Y", {
+      ...EMPTY_CONTEXT,
+      pendingIntents: [intent],
+    });
+    expect(result.classification.continuation).toBe("CANCEL");
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+  });
+
   it("routes a new request normally when it is not a confirmation", async () => {
     const result = await new JevTurnClassifier(
       answering(jevRoute("HIRE_AGENT", { confirmsPending: 0.1 })),

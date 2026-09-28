@@ -10,6 +10,7 @@
 import {
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
+  SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import {
@@ -73,10 +74,11 @@ function isInactive(error: unknown): boolean {
  */
 const localToken = process.env.SOKO_BOT_TURN_TOKEN;
 const authHeaders: Record<string, string> = localToken
-  ? { "x-soko-bot-turn-token": localToken }
+  ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
 
-async function core<T>(route: string, body: unknown): Promise<T> {
+/** POSTs to this turn's Core endpoint; 409 means the turn is over. */
+async function callCore<T>(route: string, body: unknown): Promise<T> {
   const response = await fetch(`${base}${route}`, {
     method: "POST",
     headers: { "content-type": "application/json", ...authHeaders },
@@ -84,12 +86,12 @@ async function core<T>(route: string, body: unknown): Promise<T> {
     signal: AbortSignal.timeout(120_000),
   });
   const payload = (await response.json().catch(() => ({}))) as {
-    error?: string;
+    message?: string;
   } & T;
   if (response.status === 409) stopped.abort();
   if (!response.ok)
     throw new CoreRejected(
-      payload.error ?? `Core answered ${response.status}`,
+      payload.message ?? `Core answered ${response.status}`,
       response.status,
     );
   return payload;
@@ -102,11 +104,13 @@ async function sandboxTool<T>(
   input: unknown,
   run: () => Promise<T>,
 ): Promise<T> {
-  await core("/actions", { name, toolCallId, input });
+  await callCore("/actions", { name, toolCallId, input });
   try {
     return await run();
   } finally {
-    await core("/actions/result", { name, toolCallId }).catch(() => undefined);
+    await callCore("/actions/result", { name, toolCallId }).catch(
+      () => undefined,
+    );
   }
 }
 
@@ -157,7 +161,7 @@ function buildTools(
             runLocal(input as never),
           );
         try {
-          const { result } = await core<{ result: unknown }>(
+          const { result } = await callCore<{ result: unknown }>(
             `/tools/${capability}`,
             { toolCallId: callOptions.toolCallId, input },
           );
@@ -221,7 +225,7 @@ async function runSubagent(
 async function main(): Promise<void> {
   let start: TurnStart;
   try {
-    start = await core<TurnStart>("/start", {});
+    start = await callCore<TurnStart>("/start", {});
   } catch (error) {
     console.error("Turn could not start:", (error as Error).message);
     process.exit(1);
@@ -251,7 +255,7 @@ async function main(): Promise<void> {
       ]),
       maxRetries: 1,
     });
-    await core("/complete", {
+    await callCore("/complete", {
       text: result.text,
       finishReason: result.finishReason,
     });
@@ -260,7 +264,7 @@ async function main(): Promise<void> {
       // Cancelled, paused or expired: Core settles it; nothing to report.
       process.exit(0);
     }
-    await core("/fail", {
+    await callCore("/fail", {
       code: error instanceof Error ? error.name : "runner_failed",
       message: (error instanceof Error ? error.message : "Turn failed").slice(
         0,

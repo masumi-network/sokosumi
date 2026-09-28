@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import {
+  isSokoBotSandboxCapability,
   type RuntimeEvent,
   type RuntimeJsonValue,
-  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
@@ -74,8 +74,8 @@ export class RuntimeEventLog {
   private tail: Promise<unknown> = Promise.resolve();
 
   constructor(
-    private readonly turnId: string,
-    private readonly sessionId: string,
+    readonly turnId: string,
+    readonly sessionId: string,
   ) {}
 
   private async nextIndex(): Promise<number> {
@@ -212,17 +212,12 @@ export async function prepareTurn(
   const capabilities = options.sandbox
     ? authorized.grant.capabilities
     : authorized.grant.capabilities.filter(
-        (capability) =>
-          !(SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(
-            capability,
-          ),
+        (capability) => !isSokoBotSandboxCapability(capability),
       );
   const requiresActionProof = capabilities.some((capability) =>
     ACTION_CAPABILITIES.has(capability),
   );
-  const hasSandbox = capabilities.some((capability) =>
-    (SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(capability),
-  );
+  const hasSandbox = capabilities.some(isSokoBotSandboxCapability);
   const system = [
     "# Identity",
     "",
@@ -273,18 +268,16 @@ export class SokoBotTaintedActionError extends Error {
 /** Runs one Sokosumi tool with its audit events, as the model sees it. */
 export async function runTurnTool(input: {
   log: RuntimeEventLog;
-  sessionId: string;
-  turnId: string;
   capability: SokoBotCapability;
   toolCallId: string;
   toolInput: unknown;
 }): Promise<unknown> {
   const { log, capability, toolCallId: callId } = input;
   if (
-    (SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly string[]).includes(
-      capability,
-    ) &&
-    (await isTainted(input.turnId))
+    (
+      SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES as readonly SokoBotCapability[]
+    ).includes(capability) &&
+    (await isTainted(log.turnId))
   ) {
     throw new SokoBotTaintedActionError(capability);
   }
@@ -304,8 +297,8 @@ export async function runTurnTool(input: {
   const service = await runtimeService();
   const result = await withTimeout(
     service.executeTool({
-      sessionId: input.sessionId,
-      turnId: input.turnId,
+      sessionId: log.sessionId,
+      turnId: log.turnId,
       capability,
       toolCallId: callId,
       input: input.toolInput,
@@ -344,6 +337,21 @@ export async function finishTurn(input: {
     }),
   );
   await input.log.append(runtimeEvent("turn.completed", {}));
+}
+
+/**
+ * The events that open a turn. The drain binds a turn on `turn.started` +
+ * `message.received` and skips anything before them.
+ */
+export async function announceTurn(
+  log: RuntimeEventLog,
+  message: string,
+): Promise<void> {
+  await log.append(
+    runtimeEvent("session.started", { sessionId: log.sessionId }),
+  );
+  await log.append(runtimeEvent("turn.started", { turnId: log.turnId }));
+  await log.append(runtimeEvent("message.received", { message }));
 }
 
 /** Best effort: if the log itself failed, the watchdog settles the turn. */

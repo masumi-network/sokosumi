@@ -1,7 +1,9 @@
 import { OpenAPIHono, z } from "@hono/zod-openapi";
+import { SOKO_BOT_TURN_TOKEN_HEADER } from "@sokosumi/soko-bot";
 import type { Context } from "hono";
+import { HTTPException } from "hono/http-exception";
+import { badRequest, unauthorized, unprocessableEntity } from "@/helpers/error";
 import {
-  TURN_TOKEN_HEADER,
   type TurnTokenClaims,
   verifyTurnToken,
 } from "@/lib/soko-bot/sandbox/turn-token";
@@ -12,14 +14,14 @@ import {
   recordSandboxAction,
   recordSandboxActionResult,
   runSandboxTool,
-  SokoBotSandboxRequestError,
   startSandboxTurn,
 } from "@/services/soko-bot-sandbox-turn.service";
 
 /**
- * The surface a bot's sandbox runner calls. Not a session API and not part of
- * the web client: every request carries a per-turn token the sandbox network
- * proxy adds, scoped to the turn named in the path and expiring with it.
+ * The surface a sandbox runner calls: machine-to-machine and not part of the
+ * web client, so it stays out of the OpenAPI document. Every request carries a
+ * per-turn token the sandbox network proxy adds, scoped to the turn in the
+ * path and expiring with it. Errors use the standard envelope.
  */
 const app = new OpenAPIHono<{ Variables: { turn: TurnTokenClaims } }>();
 
@@ -43,28 +45,18 @@ const failSchema = z.object({
 
 app.use("/turns/:turnId/*", async (c, next) => {
   const claims = verifyTurnToken(
-    c.req.header(TURN_TOKEN_HEADER),
+    c.req.header(SOKO_BOT_TURN_TOKEN_HEADER),
     c.req.param("turnId"),
   );
-  if (!claims) return c.json({ error: "Unauthorized" }, 401);
+  if (!claims) throw unauthorized();
   c.set("turn", claims);
   await next();
 });
 
-app.onError((error, c) => {
-  if (error instanceof SokoBotSandboxRequestError)
-    return c.json({ error: error.message }, error.status);
-  if (error instanceof z.ZodError)
-    return c.json({ error: "Invalid request" }, 400);
-  console.error("Soko Bot runtime request failed", {
-    path: c.req.path,
-    error: error instanceof Error ? error.message : "unknown",
-  });
-  return c.json({ error: "Internal error" }, 500);
-});
-
-async function body<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
-  return schema.parse(await c.req.json());
+async function parseJsonBody<T>(c: Context, schema: z.ZodType<T>): Promise<T> {
+  const parsed = schema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) throw badRequest("Invalid request body");
+  return parsed.data;
 }
 
 app.post("/turns/:turnId/start", async (c) =>
@@ -72,7 +64,7 @@ app.post("/turns/:turnId/start", async (c) =>
 );
 
 app.post("/turns/:turnId/tools/:capability", async (c) => {
-  const call = await body(c, toolCallSchema);
+  const call = await parseJsonBody(c, toolCallSchema);
   try {
     const result = await runSandboxTool(c.get("turn"), {
       capability: c.req.param("capability"),
@@ -81,17 +73,16 @@ app.post("/turns/:turnId/tools/:capability", async (c) => {
     });
     return c.json({ result: result ?? null });
   } catch (error) {
-    if (error instanceof SokoBotSandboxRequestError) throw error;
+    if (error instanceof HTTPException) throw error;
     // A refused or failed tool is the model's to read, not a transport error.
-    return c.json(
-      { error: error instanceof Error ? error.message : "Tool failed" },
-      422,
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Tool failed",
     );
   }
 });
 
 app.post("/turns/:turnId/actions", async (c) => {
-  const action = await body(c, actionSchema);
+  const action = await parseJsonBody(c, actionSchema);
   await recordSandboxAction(c.get("turn"), {
     name: action.name,
     toolCallId: action.toolCallId,
@@ -101,7 +92,7 @@ app.post("/turns/:turnId/actions", async (c) => {
 });
 
 app.post("/turns/:turnId/actions/result", async (c) => {
-  const action = await body(c, actionSchema);
+  const action = await parseJsonBody(c, actionSchema);
   await recordSandboxActionResult(c.get("turn"), action);
   return c.json({ ok: true });
 });
@@ -118,12 +109,15 @@ app.post("/turns/:turnId/gateway/language-model", async (c) => {
 });
 
 app.post("/turns/:turnId/complete", async (c) => {
-  await completeSandboxTurn(c.get("turn"), await body(c, completeSchema));
+  await completeSandboxTurn(
+    c.get("turn"),
+    await parseJsonBody(c, completeSchema),
+  );
   return c.json({ ok: true });
 });
 
 app.post("/turns/:turnId/fail", async (c) => {
-  await failSandboxTurn(c.get("turn"), await body(c, failSchema));
+  await failSandboxTurn(c.get("turn"), await parseJsonBody(c, failSchema));
   return c.json({ ok: true });
 });
 

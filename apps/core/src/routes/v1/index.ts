@@ -46,7 +46,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
   description:
-    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot runtime routes use their documented Vercel OIDC plus scoped turn-grant authentication.",
+    "Authentication required for all endpoints. Supports Better Auth user credentials and dedicated agent bearer API keys (`coworker_` or `sokoBot_`). Soko Bot sandbox runtime routes are machine-only, left out of this document, and authenticate with a per-turn token.",
 });
 
 app.openAPIRegistry.registerComponent("parameters", "OrganizationSlug", {

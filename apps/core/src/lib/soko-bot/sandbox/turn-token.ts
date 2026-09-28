@@ -1,4 +1,5 @@
 import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
+import { z } from "@hono/zod-openapi";
 import { getEnv } from "@/config/env";
 
 /**
@@ -14,7 +15,11 @@ export interface TurnTokenClaims {
   expiresAt: number;
 }
 
-export const TURN_TOKEN_HEADER = "x-soko-bot-turn-token";
+const claimsSchema = z.object({
+  turnId: z.string().min(1),
+  sessionId: z.string().min(1),
+  expiresAt: z.number().int(),
+});
 
 function signingKey(): Buffer {
   // Derived rather than reused: a token forged from this key opens nothing
@@ -51,23 +56,17 @@ export function verifyTurnToken(
   const actual = Buffer.from(signature);
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual))
     return null;
+  let claims: TurnTokenClaims;
   try {
-    const claims = JSON.parse(
-      Buffer.from(payload, "base64url").toString("utf8"),
-    ) as Partial<TurnTokenClaims>;
-    if (
-      claims.turnId !== turnId ||
-      typeof claims.sessionId !== "string" ||
-      typeof claims.expiresAt !== "number" ||
-      claims.expiresAt <= Date.now()
-    )
-      return null;
-    return {
-      turnId: claims.turnId,
-      sessionId: claims.sessionId,
-      expiresAt: claims.expiresAt,
-    };
+    const parsed = claimsSchema.safeParse(
+      JSON.parse(Buffer.from(payload, "base64url").toString("utf8")),
+    );
+    if (!parsed.success) return null;
+    claims = parsed.data;
   } catch {
     return null;
   }
+  return claims.turnId === turnId && claims.expiresAt > Date.now()
+    ? claims
+    : null;
 }

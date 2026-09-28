@@ -39,7 +39,7 @@ vi.mock("@/services/soko-bot-version.service", () => ({
   }),
 }));
 vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
-  stopBotSandbox: vi.fn(),
+  stopTurnSandbox: vi.fn(),
 }));
 
 import {
@@ -122,14 +122,19 @@ describe("sandbox turn service", () => {
 
   it("forwards with Core's key and EU routing, and meters the step itself", async () => {
     fetchMock.mockResolvedValue(gatewayAnswer());
-    const result = await proxySandboxModelCall(claims, modelRequest());
+    const result = await proxySandboxModelCall(
+      claims,
+      modelRequest({ "ai-o11y-sneaky": "x" }),
+    );
 
     expect(result.status).toBe(200);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(new Headers(init.headers).get("authorization")).toBe(
-      "Bearer gateway-key",
-    );
+    const sentHeaders = new Headers(init.headers);
+    expect(sentHeaders.get("authorization")).toBe("Bearer gateway-key");
+    expect(sentHeaders.get("ai-o11y-sneaky")).toBeNull();
     const sent = JSON.parse(String(init.body));
+    // Core's provider options replace the runner's entirely.
+    expect(Object.keys(sent.providerOptions)).toEqual(["gateway"]);
     expect(sent.providerOptions.gateway.only).not.toContain("openai");
     expect(sent.providerOptions.gateway.inferenceRegion).toBeDefined();
     expect(events().map((event) => event.type)).toEqual([
@@ -144,6 +149,38 @@ describe("sandbox turn service", () => {
         costUsd: 0.004,
       },
     });
+  });
+
+  it("still meters a call whose region is rejected", async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          usage: { inputTokens: 10, outputTokens: 1 },
+          providerMetadata: {
+            gateway: {
+              cost: "0.001",
+              routing: {
+                modelAttempts: [
+                  {
+                    providerAttempts: [
+                      {
+                        provider: "openai",
+                        inferenceEndpoint: { geoRegion: "us" },
+                      },
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+    await expect(
+      proxySandboxModelCall(claims, modelRequest()),
+    ).rejects.toThrow();
+    expect(events().map((event) => event.type)).toContain("step.completed");
   });
 
   it("marks the turn once the Gateway ran a web search", async () => {

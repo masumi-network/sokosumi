@@ -27,6 +27,7 @@ export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
+  isSokoBotSandboxCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -62,6 +63,7 @@ export type {
   SokoBotSourceCoverage,
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
+export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export {
   evaluateScenario,
   type ScenarioCheck,

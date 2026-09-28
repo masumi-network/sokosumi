@@ -181,9 +181,6 @@ const baseEnvSchema = z.object({
   SOKO_BOT_RUNTIME_ADAPTER: z
     .enum(["in-memory", "in-process", "sandbox"])
     .default("sandbox"),
-  /** Region for bot sandboxes; `fra1` keeps workspaces in the EU. */
-  SOKO_BOT_SANDBOX_REGION: z.string().min(1).default("fra1"),
-  SOKO_BOT_SANDBOX_VCPUS: z.coerce.number().int().min(1).max(8).default(2),
   /**
    * Public base URL sandboxes call Core on. Defaults to the deployment's own
    * URL; set it locally to a tunnel, since a sandbox cannot reach localhost.

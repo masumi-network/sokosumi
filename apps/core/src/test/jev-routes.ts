@@ -8,6 +8,7 @@ export function jevRoute(
   options: {
     writeScope?: NonNullable<TurnClassification["writeScope"]>;
     confirmsPending?: number;
+    withdrawsPending?: number;
     probability?: number;
   } = {},
 ): RouteEvaluation {
@@ -25,6 +26,9 @@ export function jevRoute(
       ...(options.confirmsPending === undefined
         ? {}
         : { confirmsPending: { probability: options.confirmsPending } }),
+      ...(options.withdrawsPending === undefined
+        ? {}
+        : { withdrawsPending: { probability: options.withdrawsPending } }),
     },
     usage: { inputTokens: 300, outputTokens: 20 },
     providerMetadata: { gateway: { cost: "0.00001" } },

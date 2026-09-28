@@ -623,12 +623,18 @@ describe("SokoBotControlPlane lifecycle", () => {
   );
 
   it.each([
-    ["Also research Y", false],
-    ["Instead, research Y", true],
-    ["Cancel that", true],
-  ])(
+    ["Also research Y", false, "DELEGATE_TASK"],
+    ["Instead, research Y", true, "DELEGATE_TASK"],
+    ["Cancel that", true, "CLARIFY"],
+  ] as const)(
     "withdraws an existing offer only for explicit owner intent: %s",
-    async (message, withdraws) => {
+    async (message, withdraws, route) => {
+      jevEvaluate.mockResolvedValue(
+        jevRoute(route, {
+          confirmsPending: 0.05,
+          withdrawsPending: withdraws ? 0.95 : 0.05,
+        }),
+      );
       botFindFirstMock.mockResolvedValue(adminBot());
       botFindUniqueMock.mockResolvedValue(adminBot());
       turnFindUniqueMock.mockResolvedValue(null);

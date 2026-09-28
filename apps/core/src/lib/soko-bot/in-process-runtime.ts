@@ -29,6 +29,7 @@ import {
   withEvaluationTurn,
 } from "./evaluation-dispatch";
 import {
+  announceTurn,
   closeTurn,
   failTurn,
   finishTurn,
@@ -55,11 +56,7 @@ async function runTurn(
   const abortSignal = AbortSignal.timeout(TURN_RUNTIME_BUDGET_MS);
 
   try {
-    await log.append(runtimeEvent("session.started", { sessionId }));
-    await log.append(runtimeEvent("turn.started", { turnId: input.turnId }));
-    await log.append(
-      runtimeEvent("message.received", { message: input.message }),
-    );
+    await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
     });
@@ -86,8 +83,6 @@ async function runTurn(
           }
           return runTurnTool({
             log,
-            sessionId,
-            turnId: input.turnId,
             capability,
             toolCallId: options.toolCallId,
             toolInput,

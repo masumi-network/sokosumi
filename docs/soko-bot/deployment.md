@@ -83,9 +83,9 @@ the old prefix after DB URLs are clean:
 
 ## Runtime shape
 
-- `SOKO_BOT_RUNTIME_ADAPTER` defaults to `sandbox`: each bot's loop runs in its
-  own persistent Vercel Sandbox (`SOKO_BOT_SANDBOX_REGION`, default `fra1`)
-  with web search/fetch, a shell and a workspace. See
+- `SOKO_BOT_RUNTIME_ADAPTER` defaults to `sandbox`: each turn runs in a fresh
+  Vercel Sandbox VM in `fra1` with web search/fetch, a shell, and the bot's
+  workspace mounted from a per-bot Vercel Drive. See
   [ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md). `in-process`
   runs the loop inside Core without sandbox tools; preview evaluation runs
   always use it. Tests use `in-memory`, which a deployed environment rejects.

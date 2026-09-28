@@ -4,7 +4,7 @@ vi.mock("@/config/env", () => ({
   getEnv: () => ({ BETTER_AUTH_SECRET: "test-secret-for-turn-tokens" }),
 }));
 
-import { issueTurnToken, verifyTurnToken } from "../turn-token";
+import { issueTurnToken, verifyTurnToken } from "./turn-token";
 
 const TURN = "01960001-0001-7001-8001-000000000001";
 

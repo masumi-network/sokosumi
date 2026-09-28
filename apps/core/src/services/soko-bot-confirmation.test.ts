@@ -82,6 +82,7 @@ function confirmation() {
     workspaceId: "workspace",
     sokoBotId: "bot",
     userMessage: "yes",
+    classification: { continuation: "CONTINUE" },
     status: "STARTING",
     leaseToken: "lease",
     cancellationRequestedAt: null,
@@ -178,7 +179,8 @@ describe("trusted scoped owner confirmation", () => {
       { requestedByUserId: "teammate" },
       { chainDepth: 1 },
       { source: "EVENT" },
-      { userMessage: '"yes"' },
+      // Jev did not read the message as agreeing to the proposal.
+      { classification: { continuation: "NEW" } },
       { chatMention: { message: { roomId: "another-room" } } },
       {
         intent: {

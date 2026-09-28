@@ -1,21 +1,29 @@
+import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
-  SOKO_BOT_SANDBOX_CAPABILITIES,
-  type SokoBotCapability,
+  isSokoBotSandboxCapability,
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
+import {
+  badGateway,
+  badRequest,
+  conflict,
+  forbidden,
+  internalServerError,
+} from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
-import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
-import { stopBotSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
+import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
+  announceTurn,
   closeTurn,
   failTurn,
   finishTurn,
@@ -30,29 +38,30 @@ import {
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
- * Core's half of a turn whose loop runs in the bot's sandbox. The runner
- * holds no credential: every request reaches Core with a per-turn token the
- * sandbox network proxy adds, and everything that decides what the turn may
- * do — grants, receipts, the EU model policy, metering — stays here.
+ * Core's half of a turn whose loop runs in a sandbox VM. The runner holds no
+ * credential: every request reaches Core with a per-turn token the sandbox
+ * network proxy adds, and everything that decides what the turn may do —
+ * grants, receipts, the EU model policy, metering — stays here.
  */
 
 const GATEWAY_LANGUAGE_MODEL_URL =
   "https://ai-gateway.vercel.sh/v4/ai/language-model";
 
-export class SokoBotSandboxRequestError extends Error {
-  constructor(
-    message: string,
-    readonly status: 400 | 403 | 409 | 502,
-  ) {
-    super(message);
-    this.name = "SokoBotSandboxRequestError";
-  }
-}
+const modelRequestSchema = z.record(z.string(), z.unknown());
+
+/** The Gateway protocol headers a model call may carry; nothing else passes. */
+const FORWARDED_MODEL_HEADERS = [
+  "ai-language-model-id",
+  "ai-language-model-specification-version",
+  "ai-language-model-streaming",
+  "ai-gateway-protocol-version",
+] as const;
 
 function logFor(claims: TurnTokenClaims): RuntimeEventLog {
   return new RuntimeEventLog(claims.turnId, claims.sessionId);
 }
 
+/** Cancelled, paused or expired turns answer 409; the runner stops on it. */
 async function authorizeTurn(claims: TurnTokenClaims) {
   const { sokoBotRuntimeService } = await import(
     "@/services/soko-bot-runtime.service"
@@ -63,10 +72,8 @@ async function authorizeTurn(claims: TurnTokenClaims) {
       turnId: claims.turnId,
     });
   } catch (error) {
-    // Cancelled, paused, expired: the runner stops on 409 without settling.
-    throw new SokoBotSandboxRequestError(
+    throw conflict(
       error instanceof Error ? error.message : "Turn is not active",
-      409,
     );
   }
 }
@@ -78,33 +85,30 @@ export interface SandboxTurnStart
   maxSteps: number;
 }
 
-/** What the runner needs to run the loop; records the turn as started. */
+/** What the runner needs to run the loop; records the turn as started once. */
 export async function startSandboxTurn(
   claims: TurnTokenClaims,
 ): Promise<SandboxTurnStart> {
-  const log = logFor(claims);
   let prepared: PreparedTurn;
   try {
     prepared = await prepareTurn(claims.sessionId, claims.turnId, {
       sandbox: true,
     });
   } catch (error) {
-    throw new SokoBotSandboxRequestError(
+    throw conflict(
       error instanceof Error ? error.message : "Turn is not active",
-      409,
     );
   }
-  await log.append(
-    runtimeEvent("session.started", { sessionId: claims.sessionId }),
-  );
-  await log.append(runtimeEvent("turn.started", { turnId: claims.turnId }));
+  const started = await prisma.sokoBotRuntimeEvent.findFirst({
+    where: { turnId: claims.turnId, type: "turn.started" },
+    select: { id: true },
+  });
+  if (started) throw conflict("Turn already started");
   const stored = await prisma.sokoBotTurn.findUniqueOrThrow({
     where: { id: claims.turnId },
     select: { userMessage: true, deadlineAt: true },
   });
-  await log.append(
-    runtimeEvent("message.received", { message: stored.userMessage }),
-  );
+  await announceTurn(logFor(claims), stored.userMessage);
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
@@ -119,19 +123,15 @@ export async function runSandboxTool(
   claims: TurnTokenClaims,
   input: { capability: string; toolCallId: string; toolInput: unknown },
 ): Promise<unknown> {
+  const { capability } = input;
   if (
-    !isSokoBotCapability(input.capability) ||
-    (SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(
-      input.capability,
-    )
-  ) {
-    throw new SokoBotSandboxRequestError("Unknown Sokosumi tool", 400);
-  }
+    !isSokoBotCapability(capability) ||
+    isSokoBotSandboxCapability(capability)
+  )
+    throw badRequest("Unknown Sokosumi tool");
   return runTurnTool({
     log: logFor(claims),
-    sessionId: claims.sessionId,
-    turnId: claims.turnId,
-    capability: input.capability as SokoBotCapability,
+    capability,
     toolCallId: input.toolCallId,
     toolInput: input.toolInput,
   });
@@ -139,11 +139,10 @@ export async function runSandboxTool(
 
 async function markUntrusted(
   log: RuntimeEventLog,
-  turnId: string,
   source: string,
 ): Promise<void> {
   const already = await prisma.sokoBotRuntimeEvent.findFirst({
-    where: { turnId, type: WEB_TAINT_EVENT },
+    where: { turnId: log.turnId, type: WEB_TAINT_EVENT },
     select: { id: true },
   });
   if (!already) await log.append(runtimeEvent(WEB_TAINT_EVENT, { source }));
@@ -152,7 +151,7 @@ async function markUntrusted(
 /**
  * A sandbox tool is about to run. Recorded for the audit trail, and — for
  * anything but the plan — the turn is marked as having read untrusted input
- * before the tool runs, so nothing it returns can reach an external action.
+ * before the tool runs, so nothing it returns can reach an outward action.
  */
 export async function recordSandboxAction(
   claims: TurnTokenClaims,
@@ -160,16 +159,12 @@ export async function recordSandboxAction(
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   if (
-    !(SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(
-      input.name,
-    ) ||
-    !authorized.grant.capabilities.includes(input.name as SokoBotCapability)
-  ) {
-    throw new SokoBotSandboxRequestError("Tool is not granted", 403);
-  }
+    !isSokoBotSandboxCapability(input.name) ||
+    !authorized.grant.capabilities.includes(input.name)
+  )
+    throw forbidden("Tool is not granted");
   const log = logFor(claims);
-  if (input.name !== "update_plan")
-    await markUntrusted(log, claims.turnId, input.name);
+  if (input.name !== "update_plan") await markUntrusted(log, input.name);
   await log.append(
     runtimeEvent("actions.requested", {
       actions: [
@@ -187,6 +182,7 @@ export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
   input: { name: string; toolCallId: string },
 ): Promise<void> {
+  await authorizeTurn(claims);
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,
@@ -195,31 +191,12 @@ export async function recordSandboxActionResult(
   );
 }
 
-function usageNumber(value: unknown): number {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (value && typeof value === "object" && "total" in value)
-    return usageNumber((value as { total: unknown }).total);
-  return 0;
-}
-
-function usedWebSearch(content: unknown): boolean {
-  return (
-    Array.isArray(content) &&
-    content.some(
-      (part) =>
-        part &&
-        typeof part === "object" &&
-        (part as { toolName?: unknown }).toolName === "web_search",
-    )
-  );
-}
-
 /**
  * One model call from the runner. Core owns the Gateway key and the EU
- * routing policy: the model must be the turn's version model, the routing
- * options are Core's whatever the runner sent, and the response is checked
- * for its region and metered here — the runner's own report is never trusted
- * for billing.
+ * routing policy: only the turn's version model, only the Gateway protocol
+ * headers, and Core's provider options in place of whatever the runner sent.
+ * Usage is metered here — the runner's own report is never trusted — and
+ * before the region check, so a rejected call is still billed.
  */
 export async function proxySandboxModelCall(
   claims: TurnTokenClaims,
@@ -229,34 +206,27 @@ export async function proxySandboxModelCall(
   const version = await resolveRunnableSokoBotVersion(
     authorized.turn.versionId ?? null,
   );
-  const modelId = request.headers.get("ai-language-model-id");
   if (request.headers.get("ai-language-model-streaming") !== "false")
-    throw new SokoBotSandboxRequestError("Streaming is not allowed", 400);
-  if (modelId !== version.model)
-    throw new SokoBotSandboxRequestError("Model is not this turn's", 403);
+    throw badRequest("Streaming is not allowed");
+  if (request.headers.get("ai-language-model-id") !== version.model)
+    throw forbidden("Model is not this turn's");
   const apiKey = getEnv().AI_GATEWAY_API_KEY;
-  if (!apiKey)
-    throw new SokoBotSandboxRequestError("Model access is not configured", 502);
+  if (!apiKey) throw internalServerError("Model access is not configured");
 
   let payload: Record<string, unknown>;
   try {
-    payload = JSON.parse(request.body) as Record<string, unknown>;
+    const parsed = modelRequestSchema.safeParse(JSON.parse(request.body));
+    if (!parsed.success) throw new Error("not an object");
+    payload = parsed.data;
   } catch {
-    throw new SokoBotSandboxRequestError("Invalid model request", 400);
+    throw badRequest("Invalid model request");
   }
   const policy = sokoBotModelRequest({
     role: "agent",
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
-  const providerOptions = (payload.providerOptions ?? {}) as Record<
-    string,
-    unknown
-  >;
-  payload.providerOptions = {
-    ...providerOptions,
-    gateway: policy.providerOptions.gateway,
-  };
+  payload.providerOptions = { gateway: policy.providerOptions.gateway };
 
   const log = logFor(claims);
   await log.append(runtimeEvent("step.started", { modelId: version.model }));
@@ -265,9 +235,9 @@ export async function proxySandboxModelCall(
     "content-type": "application/json",
     "ai-gateway-auth-method": "api-key",
   });
-  for (const [key, value] of request.headers) {
-    if (key.startsWith("ai-") && key !== "ai-gateway-auth-method")
-      headers.set(key, value);
+  for (const name of FORWARDED_MODEL_HEADERS) {
+    const value = request.headers.get(name);
+    if (value !== null) headers.set(name, value);
   }
   const upstream = await fetch(GATEWAY_LANGUAGE_MODEL_URL, {
     method: "POST",
@@ -277,53 +247,46 @@ export async function proxySandboxModelCall(
   const text = await upstream.text();
   if (!upstream.ok) return { status: upstream.status, body: text };
 
-  const result = JSON.parse(text) as {
+  let result: {
     usage?: { inputTokens?: unknown; outputTokens?: unknown };
     providerMetadata?: unknown;
     content?: unknown;
   };
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata);
-  } catch (error) {
-    throw new SokoBotSandboxRequestError(
-      error instanceof Error ? error.message : "Inference region rejected",
-      502,
-    );
+    result = JSON.parse(text);
+  } catch {
+    throw badGateway("Unreadable model response");
   }
-  const inputUsage = result.usage?.inputTokens;
   await log.append(
     runtimeEvent("step.completed", {
       modelId: version.model,
       inference: sokoBotInferenceEvidence(result.providerMetadata),
-      usage: {
-        inputTokens: usageNumber(inputUsage),
-        outputTokens: usageNumber(result.usage?.outputTokens),
-        cacheReadTokens:
-          inputUsage && typeof inputUsage === "object"
-            ? usageNumber((inputUsage as { cacheRead?: unknown }).cacheRead)
-            : 0,
-        cacheWriteTokens:
-          inputUsage && typeof inputUsage === "object"
-            ? usageNumber((inputUsage as { cacheWrite?: unknown }).cacheWrite)
-            : 0,
-        costUsd: gatewayCostUsd(result.providerMetadata),
-      },
+      usage: gatewayCallUsage(result),
     }),
   );
-  if (usedWebSearch(result.content))
-    await markUntrusted(log, claims.turnId, "web_search");
+  try {
+    assertSokoBotInferenceRegion(result.providerMetadata);
+  } catch (error) {
+    throw badGateway(
+      error instanceof Error ? error.message : "Inference region rejected",
+    );
+  }
+  if (gatewayRanTool(result.content, "web_search"))
+    await markUntrusted(log, "web_search");
   return { status: 200, body: text };
 }
 
-async function sokoBotIdForTurn(turnId: string): Promise<string | null> {
-  const turn = await prisma.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: { sokoBotId: true },
-  });
-  return turn?.sokoBotId ?? null;
+/**
+ * Settles the turn, then stops its VM. The next turn runs in a new VM and
+ * first stops any VM still holding the bot's workspace, so the order here
+ * cannot race it.
+ */
+async function settleAndStop(log: RuntimeEventLog): Promise<void> {
+  await closeTurn(log, log.turnId);
+  await stopTurnSandbox(log.turnId);
 }
 
-/** The loop finished: build the owner's answer, settle, park the sandbox. */
+/** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
   input: { text: string; finishReason: string },
@@ -348,9 +311,7 @@ export async function completeSandboxTurn(
       message: error instanceof Error ? error.message : "Could not finish",
     });
   }
-  await closeTurn(log, claims.turnId);
-  const botId = await sokoBotIdForTurn(claims.turnId);
-  if (botId) await stopBotSandbox(botId);
+  await settleAndStop(log);
 }
 
 /** The loop failed inside the sandbox. */
@@ -362,7 +323,5 @@ export async function failSandboxTurn(
   await authorizeTurn(claims);
   const log = logFor(claims);
   await failTurn(log, error);
-  await closeTurn(log, claims.turnId);
-  const botId = await sokoBotIdForTurn(claims.turnId);
-  if (botId) await stopBotSandbox(botId);
+  await settleAndStop(log);
 }

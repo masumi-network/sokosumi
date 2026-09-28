@@ -81,10 +81,18 @@ export const SOKO_BOT_SANDBOX_CAPABILITIES = [
   "run_subagent",
 ] as const satisfies readonly SokoBotCapability[];
 
+export function isSokoBotSandboxCapability(
+  value: string,
+): value is (typeof SOKO_BOT_SANDBOX_CAPABILITIES)[number] {
+  return (SOKO_BOT_SANDBOX_CAPABILITIES as readonly string[]).includes(value);
+}
+
 /**
- * Tools whose effect leaves Sokosumi or reaches another person. Once a turn has
- * read the open web or run a shell command, Core refuses these and the bot has
- * to ask the owner first: a fetched page must not be able to send mail.
+ * Tools whose effect leaves Sokosumi, reaches another person, or runs later
+ * without the taint. Once a turn has read the open web or run a shell command,
+ * Core refuses these and the bot has to ask the owner first: a fetched page
+ * must not be able to send mail, brief a Coworker, or queue either for a
+ * later, clean turn.
  */
 export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "hire_agent",
@@ -93,6 +101,12 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "upload_file",
   "post_chat",
   "open_direct_chat",
+  "reply_to_task",
+  "assign_task",
+  "update_assigned_task",
+  "create_schedule",
+  "update_schedule",
+  "manage_reminder",
 ] as const satisfies readonly SokoBotCapability[];
 
 const DIRECT_READ_CAPABILITIES = [
