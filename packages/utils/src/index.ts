@@ -198,6 +198,13 @@ export {
 } from "./drive-file-path.js";
 export { isVercelBlobPublicHost } from "./entity-image-upload.js";
 export {
+  CURATED_FILE_VOCABULARY,
+  CURATED_VOCABULARY_VERSION,
+  type CuratedFileLabel,
+  curatedFileVocabularyProblems,
+  curatedFileVocabularyRows,
+} from "./file-curated-vocabulary.js";
+export {
   getExtensionFromUrl,
   getUrlBasename,
   isFileLikeUrl,

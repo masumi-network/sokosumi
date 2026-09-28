@@ -59,6 +59,35 @@ describe("what the All files panel exposes to assistive technology", () => {
     ).toEqual([]);
   });
 
+  it("renders the file row component for every result", () => {
+    /**
+     * The seam between this panel and the row.
+     *
+     * The row's own suite proves a row shows its labels beside the name, its
+     * origin and its project. None of that proves the catalog *uses* that
+     * component — replacing the whole `<DriveFileRow … />` call with a bare
+     * `<li>{item.displayName}</li>` left every drive suite green, because the
+     * row's tests mount the row directly and the panel cannot be mounted at
+     * all. The claim Patrick made is about what the reader sees in the catalog,
+     * and it lived one seam away from anything that checked it.
+     *
+     * Source, not a render, for the same reason the cases above read source:
+     * mounting this panel hangs the worker rather than rendering.
+     */
+    const rendered = jsxLines().filter(({ text }) =>
+      text.includes("<DriveFileRow"),
+    );
+    expect(
+      rendered.map((entry) => `${entry.line}:${entry.text.trim()}`),
+      "the catalog must render DriveFileRow; without it the row's own tests " +
+        "pass while the reader sees something else",
+    ).not.toEqual([]);
+
+    // And it is handed the whole resource, so no field can be dropped on the
+    // way in without the row's own suite noticing.
+    expect(SOURCE).toContain("item={item}");
+  });
+
   it("is still watching a panel that exists", () => {
     // A guard that reads the wrong file passes by finding nothing.
     expect(SOURCE).toContain("export function DriveAllFilesPanel");

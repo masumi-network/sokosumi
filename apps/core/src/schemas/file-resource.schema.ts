@@ -111,6 +111,16 @@ export const fileResourceSchema = z
     category: fileLabelSchema.nullable(),
     tags: z.array(fileLabelSchema),
     suggestions: z.array(fileLabelSchema),
+    /**
+     * Labels a person vetoed on this document.
+     *
+     * Present so the veto is visible and withdrawable. Without it a removed
+     * label simply vanished from every response, and the tombstone barring
+     * the model from proposing it again was unreachable — a correction with
+     * no way back. Excluded from `tags` and from `suggestions`, so nothing
+     * that reads those sees a rejection as a fact about the document.
+     */
+    rejected: z.array(fileLabelSchema),
     projects: z.array(fileProjectLinkSchema),
     snippet: fileSnippetSchema.nullable(),
     /**
@@ -265,6 +275,15 @@ export const updateFileMetadataRequestSchema = z
     removeProjectIds: z.array(z.string()).max(20).optional(),
     /** Re-open a pinned field so suggestions may apply again. */
     allowSuggestionsFor: z.array(z.enum(["category", "tags"])).optional(),
+    /**
+     * Withdraw the veto on these labels: delete each one's rejection so the
+     * model may propose it again. Applies to tags and categories alike.
+     *
+     * It does not re-apply the label. A person vetoes or withdraws a veto;
+     * the model still decides. Distinct from `allowSuggestionsFor`, which is
+     * field-scoped and clears a manual pin rather than a rejection.
+     */
+    allowSuggestionsForLabelIds: z.array(z.string()).max(20).optional(),
   })
   .openapi("UpdateFileMetadataRequest");
 

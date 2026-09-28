@@ -47,6 +47,56 @@ export const RESULT_WINDOW_LIMIT = 120;
 /** Reciprocal-rank-fusion constant. A tuning default, not a measurement. */
 export const RRF_K = 60;
 
+/**
+ * The label states a reader may find a document *by*.
+ *
+ * The four label clauses below used to be `state = CONFIRMED`. Nothing in the
+ * product promotes a label to CONFIRMED any more — that was the manual assign
+ * surface, and it is gone — so the model's own labels could be seen on a row
+ * and were unreachable by the filter beside them and by the search box above
+ * it. Tagging was decorative rather than absent, which is the harder failure
+ * to notice.
+ *
+ * An explicit list, not `<> 'REJECTED'`. REJECTED must stay excluded at every
+ * one of these sites, and a fourth state added to `FileMetadataState` later
+ * must not leak in by default — it should fail to compile here, or at worst
+ * be invisible, rather than silently become findable.
+ *
+ * Labels only. The two `file_project_link` clauses keep `= CONFIRMED`: a
+ * project association is the one piece of metadata whose promotion the plan
+ * required a person for, and `confirmProjectIds` is still its only promoter.
+ */
+const FINDABLE_LABEL_STATES = [
+  FileMetadataState.CONFIRMED,
+  FileMetadataState.SUGGESTED,
+] as const;
+
+/**
+ * `state IN (…)` over the findable states, for a given aliased column.
+ *
+ * One helper rather than four literals: the previous shape was the same
+ * comparison written four times, and the defect it carried was in all four.
+ */
+function findableLabelState(column: PrismaRaw.Sql): PrismaRaw.Sql {
+  return PrismaRaw.sql`${column} = ANY(${FINDABLE_LABEL_STATES.map(String)}::"FileMetadataState"[])`;
+}
+
+/**
+ * What a metadata match is worth, by who said it.
+ *
+ * Confirmation has to keep buying something, or the state column stops
+ * meaning anything to ranking. A person agreeing with a label ranks the
+ * document at full weight; the model proposing it and nobody having looked
+ * yet ranks at half. Both are findable — that is the point of the change
+ * above — and the difference in confidence is reflected instead of denied.
+ *
+ * This applies to the *fused* metadata leg only. The three label filter
+ * clauses are boolean: a filter on a tag returns suggestion-only matches at
+ * full strength, deliberately, because a weighted filter is an empty filter.
+ */
+export const METADATA_WEIGHT_CONFIRMED = 1;
+export const METADATA_WEIGHT_SUGGESTED = 0.5;
+
 export type FileSortBy = "relevance" | "modified" | "name";
 export type FileSortOrder = "asc" | "desc";
 
@@ -159,7 +209,7 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
     clauses.push(PrismaRaw.sql`EXISTS (
       SELECT 1 FROM file_label fl
       WHERE fl."resourceId" = fr.id
-        AND fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+        AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
         AND fl."labelId"::text = ANY(${filters.categoryLabelIds})
     )`);
   }
@@ -170,14 +220,14 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
       clauses.push(PrismaRaw.sql`(
         SELECT COUNT(DISTINCT fl."labelId") FROM file_label fl
         WHERE fl."resourceId" = fr.id
-          AND fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+          AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
           AND fl."labelId"::text = ANY(${tagIds})
       ) = ${tagIds.length}`);
     } else {
       clauses.push(PrismaRaw.sql`EXISTS (
         SELECT 1 FROM file_label fl
         WHERE fl."resourceId" = fr.id
-          AND fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+          AND ${findableLabelState(PrismaRaw.sql`fl.state`)}
           AND fl."labelId"::text = ANY(${tagIds})
       )`);
     }
@@ -211,6 +261,14 @@ interface RawResourceRow {
   metadataRevision: number;
   extractionState: FileExtractionState | null;
   extractionCoverage: number | null;
+  /**
+   * Selected by the metadata leg only, so it is absent on the other two.
+   *
+   * Optional rather than `boolean`, because the exact-name and full-text
+   * queries do not select it and a non-optional field would be a type
+   * asserting something about rows that never carry it.
+   */
+  metadataConfirmed?: boolean;
 }
 
 const RESOURCE_COLUMNS = PrismaRaw.sql`
@@ -464,26 +522,49 @@ export async function retrieveFileCandidates(input: {
   const ftsTruncated = ftsRows.length > CANDIDATE_BUDGET_FTS_DOCUMENTS;
   const ftsPage = ftsRows.slice(0, CANDIDATE_BUDGET_FTS_DOCUMENTS);
 
+  /**
+   * A label whose name matches, in any state a reader may find a document by.
+   *
+   * Written once and used twice below: as the match predicate, and inside the
+   * `metadataConfirmed` flag that weights it. Two copies of one predicate is
+   * how the flag and the match drift into disagreeing about the same row.
+   */
+  const labelNameMatch = (state: PrismaRaw.Sql) => PrismaRaw.sql`EXISTS (
+    SELECT 1 FROM file_label fl
+    JOIN workspace_label wl ON wl.id = fl."labelId"
+    WHERE fl."resourceId" = fr.id
+      AND ${state}
+      AND wl."normalizedName" LIKE ${likeAnywhere} ESCAPE '\\'
+  )`;
+
+  /**
+   * A project whose name matches.
+   *
+   * CONFIRMED only, and deliberately not widened with the label gates above.
+   * A project association is the one piece of metadata whose promotion the
+   * plan required a person for, and `confirmProjectIds` is still its only
+   * promoter.
+   */
+  const projectNameMatch = PrismaRaw.sql`EXISTS (
+    SELECT 1 FROM file_project_link fpl
+    JOIN project p ON p.id = fpl."projectId"
+    WHERE fpl."resourceId" = fr.id
+      AND fpl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
+      AND lower(p.name) LIKE ${likeAnywhere} ESCAPE '\\'
+  )`;
+
   const metadataRows = await prisma.$queryRaw<RawResourceRow[]>(PrismaRaw.sql`
-    SELECT DISTINCT ${RESOURCE_COLUMNS}
+    SELECT DISTINCT ${RESOURCE_COLUMNS},
+      (
+        ${labelNameMatch(PrismaRaw.sql`fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"`)}
+        OR ${projectNameMatch}
+      ) AS "metadataConfirmed"
     FROM file_resource fr
     ${CURRENT_VERSION_JOIN}
     WHERE ${authorized} AND ${filters}
       AND (
-        EXISTS (
-          SELECT 1 FROM file_label fl
-          JOIN workspace_label wl ON wl.id = fl."labelId"
-          WHERE fl."resourceId" = fr.id
-            AND fl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
-            AND wl."normalizedName" LIKE ${likeAnywhere} ESCAPE '\\'
-        )
-        OR EXISTS (
-          SELECT 1 FROM file_project_link fpl
-          JOIN project p ON p.id = fpl."projectId"
-          WHERE fpl."resourceId" = fr.id
-            AND fpl.state = ${FileMetadataState.CONFIRMED}::"FileMetadataState"
-            AND lower(p.name) LIKE ${likeAnywhere} ESCAPE '\\'
-        )
+        ${labelNameMatch(findableLabelState(PrismaRaw.sql`fl.state`))}
+        OR ${projectNameMatch}
       )
     ORDER BY fr."updatedAt" DESC
     LIMIT ${CANDIDATE_BUDGET_METADATA}
@@ -519,7 +600,18 @@ export async function retrieveFileCandidates(input: {
   metadataRows.forEach((row, index) => {
     const candidate = upsert(row);
     candidate.metadataMatch = true;
-    candidate.fusedScore += 1 / (RRF_K + index + 1);
+    /**
+     * Half weight when only a suggestion matched.
+     *
+     * `metadataMatch` stays true either way — the document *did* match on
+     * its metadata, and a reader filtering by that tag must still see it.
+     * What differs is how hard the match pushes on relevance ordering.
+     */
+    const weight =
+      row.metadataConfirmed === true
+        ? METADATA_WEIGHT_CONFIRMED
+        : METADATA_WEIGHT_SUGGESTED;
+    candidate.fusedScore += weight / (RRF_K + index + 1);
   });
 
   const fused = orderFusedCandidates([...byId.values()], input);

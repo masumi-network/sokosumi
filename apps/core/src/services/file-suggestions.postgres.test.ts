@@ -20,6 +20,7 @@ import {
 import type { JevLabelEvaluator } from "@/lib/files/jev-client";
 import { getJevScheduler } from "@/lib/files/jev-scheduler";
 import { writeVersionChunks } from "@/services/file-index.service";
+import { updateFileMetadata } from "@/services/file-metadata.service";
 import {
   processFileSuggestionJobs,
   runSuggestionJob,
@@ -180,6 +181,10 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
 
   afterEach(async () => {
     await prisma.fileLabel.deleteMany({ where: { resourceId } });
+    // Tombstones outlive label rows by design — that is what makes a veto
+    // durable — so they have to be swept here or one test's veto silently
+    // bars the next test's suggestion.
+    await prisma.fileFieldOverride.deleteMany({ where: { resourceId } });
     await prisma.fileIndexJob.deleteMany({ where: { resourceId } });
     await prisma.fileAuthorizationAdmission.deleteMany({
       where: { workspaceId },
@@ -567,6 +572,509 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
     // Tags were cut to make room, and that is now said rather than
     // inferred from a count nobody compares.
     expect(outcome.vocabularyTruncated).toBe("tags");
+  });
+
+  /**
+   * The veto and the way back out of it.
+   *
+   * Removing a tag writes a durable `fileFieldOverride` tombstone, and
+   * `runSuggestionJob` reads those overrides and drops the label from the
+   * shortlist. That half already worked. What did not exist was any way to
+   * undo it: the only two things in the product that deleted a REJECT row were
+   * `addTagLabelIds` — which also asserts the tag as CONFIRMED/MANUAL, so it
+   * is an assignment and not a withdrawal — and clearing the category, which
+   * deletes every category override on the resource regardless of decision.
+   * Both live in the manual assign surface being removed, so removing it made
+   * a wrong Remove permanent.
+   *
+   * **Its own workspace, deliberately.** A sibling case in this file fills the
+   * shared workspace with thirty tags to prove the shortlist allocation, and
+   * the shortlist window is thirty. Sharing the fixture meant these cases ran
+   * against a starved vocabulary and their own label never reached the model —
+   * and because `-t` skips the sibling, they passed alone and failed in the
+   * suite. Isolated, the only labels here are the four these cases create.
+   */
+  describe("withdrawing a veto", () => {
+    let vetoOwnerId = "";
+    let vetoWorkspaceId = "";
+    let vetoScopeId = "";
+    let vetoResourceId = "";
+    let tagA = "";
+    let tagB = "";
+    let categoryA = "";
+    let categoryB = "";
+
+    const actor = () => ({
+      userId: vetoOwnerId,
+      organizationId: null,
+      kind: "interactive" as const,
+    });
+
+    beforeAll(async () => {
+      const owner = await prisma.user.create({
+        data: {
+          name: "Veto owner",
+          email: `veto-owner-${suffix}@example.test`,
+          emailVerified: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      });
+      vetoOwnerId = owner.id;
+
+      const workspace = await prisma.workspace.create({
+        data: { userId: vetoOwnerId },
+        select: { id: true },
+      });
+      vetoWorkspaceId = workspace.id;
+
+      const scope = await ensureEvidenceScope({
+        workspaceId: vetoWorkspaceId,
+        sourceKind: FileSourceKind.DRIVE_UPLOAD,
+        sourceScope: FileSourceScope.USER,
+        sourceId: vetoOwnerId,
+      });
+      vetoScopeId = scope.id;
+
+      const labels = await Promise.all(
+        [
+          { kind: FileLabelKind.TAG, name: "Commuting" },
+          { kind: FileLabelKind.TAG, name: "Cycling" },
+          { kind: FileLabelKind.CATEGORY, name: "Report or analysis" },
+          { kind: FileLabelKind.CATEGORY, name: "Meeting notes" },
+        ].map((entry) =>
+          prisma.workspaceLabel.create({
+            data: {
+              workspaceId: vetoWorkspaceId,
+              kind: entry.kind,
+              displayName: entry.name,
+              normalizedName: entry.name.toLowerCase(),
+              description: `Documents about ${entry.name.toLowerCase()}`,
+            },
+            select: { id: true },
+          }),
+        ),
+      );
+      [tagA, tagB, categoryA, categoryB] = labels.map((label) => label.id);
+
+      const resource = await prisma.fileResource.create({
+        data: {
+          workspaceId: vetoWorkspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope: FileSourceScope.USER,
+          sourceId: `drive/users/${vetoOwnerId}/veto.txt`,
+          ownerUserId: vetoOwnerId,
+          displayName: "veto.txt",
+          normalizedName: "veto.txt",
+          mimeType: "text/plain",
+          lifecycle: FileResourceLifecycle.ACTIVE,
+          versions: {
+            create: {
+              revision: 1,
+              objectKey: `drive/users/${vetoOwnerId}/veto.txt`,
+              mimeType: "text/plain",
+              extractionState: "INDEXED",
+              extractionCoverage: 1,
+            },
+          },
+        },
+        select: { id: true, versions: { select: { id: true } } },
+      });
+      vetoResourceId = resource.id;
+
+      await writeVersionChunks({
+        versionId: resource.versions[0].id,
+        evidenceScopeId: vetoScopeId,
+        scopeVersion: 1,
+        chunks: chunkExtractedText(
+          "Findings about bicycle commuters and their travel patterns.",
+        ),
+      });
+    }, 60_000);
+
+    afterEach(async () => {
+      await prisma.fileLabel.deleteMany({
+        where: { resourceId: vetoResourceId },
+      });
+      // Tombstones outlive label rows by design — that is what makes a veto
+      // durable — so they have to be swept or one case's veto silently bars
+      // the next case's suggestion.
+      await prisma.fileFieldOverride.deleteMany({
+        where: { resourceId: vetoResourceId },
+      });
+      await prisma.fileIndexJob.deleteMany({
+        where: { resourceId: vetoResourceId },
+      });
+      await prisma.fileAuthorizationAdmission.deleteMany({
+        where: { workspaceId: vetoWorkspaceId },
+      });
+    });
+
+    afterAll(async () => {
+      if (!enabled) return;
+      await prisma.fileResource.deleteMany({
+        where: { workspaceId: vetoWorkspaceId },
+      });
+      await prisma.fileEvidenceScope.deleteMany({
+        where: { workspaceId: vetoWorkspaceId },
+      });
+      await prisma.workspaceLabel.deleteMany({
+        where: { workspaceId: vetoWorkspaceId },
+      });
+      await prisma.workspace.deleteMany({ where: { id: vetoWorkspaceId } });
+      await prisma.user.deleteMany({ where: { id: vetoOwnerId } });
+    });
+
+    /**
+     * Run one suggestion job to completion and report what it wrote.
+     *
+     * **It asserts that the job actually ran.** Returning `[]` is what a
+     * refused, skipped or never-dispatched job looks like, and it is also what
+     * "the model suggested nothing" looks like — so a bare array assertion
+     * cannot tell the two apart, and a harness that cannot tell them apart
+     * reports infrastructure trouble as a product claim. That is the same quiet
+     * lie this branch keeps finding in product code, sitting in the test
+     * harness. `outcome.skipped` carries the reason, so a failure names itself.
+     *
+     * **It waits for the per-second bucket first.** `JevScheduler` is a
+     * module-level singleton and its leaky bucket gives background work a burst
+     * of three, so a fourth job inside one second is refused by `tryAdmit`
+     * before it reaches the admission. Earlier cases in this file spend that
+     * burst too, and one case here runs three jobs. Without the wait these
+     * passed on a slow database, where the jobs spread across seconds by
+     * accident, and failed on a fast one — which is how they failed in CI twice
+     * while passing locally. The sibling breaker case documents the same hazard
+     * and already waits for the same reason.
+     */
+    async function runOneJob(generation: number): Promise<string[]> {
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      await enqueueFileIndexJob({
+        resourceId: vetoResourceId,
+        pipeline: FileIndexJobPipeline.SUGGEST,
+        contentRevision: 1,
+        desiredGeneration: generation,
+        runAfter: new Date(Date.now() - 1_000),
+      });
+      const leased = await leaseNextFileIndexJob({
+        pipeline: FileIndexJobPipeline.SUGGEST,
+      });
+      expect(leased, "no SUGGEST job was leasable").not.toBeNull();
+      if (!leased) return [];
+      const outcome = await runSuggestionJob(leased, {
+        evaluator: evaluatorChoosing("all"),
+        configured: () => true,
+      });
+
+      // Named, not inferred. "admission-denied", "capacity", "no-vocabulary"
+      // and "no-text" all produce an empty list, and none of them is a verdict
+      // about this document.
+      expect(
+        outcome.skipped,
+        `generation ${generation} never reached the model: ${outcome.skipped}`,
+      ).toBeNull();
+
+      const rows = await prisma.fileLabel.findMany({
+        where: {
+          resourceId: vetoResourceId,
+          state: FileMetadataState.SUGGESTED,
+        },
+        select: { labelId: true },
+      });
+      return rows.map((row) => row.labelId);
+    }
+
+    async function currentRevision(): Promise<number> {
+      const row = await prisma.fileResource.findUniqueOrThrow({
+        where: { id: vetoResourceId },
+        select: { metadataRevision: true },
+      });
+      return row.metadataRevision;
+    }
+
+    it("bars a removed tag from coming back, and lets a withdrawal re-open it", async () => {
+      // The model proposes it once.
+      expect(await runOneJob(200)).toContain(tagA);
+
+      // A person removes it. That is a veto: state REJECTED plus a tombstone.
+      const removal = await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          removeTagLabelIds: [tagA],
+        },
+      });
+      expect(removal.status).toBe("applied");
+      expect(
+        await prisma.fileFieldOverride.count({
+          where: {
+            resourceId: vetoResourceId,
+            labelId: tagA,
+            decision: "REJECT",
+          },
+        }),
+      ).toBe(1);
+
+      // A re-run must not overrule the person. Nothing cleared by hand: the
+      // rejected row stays exactly where the removal left it, which is the
+      // state the withdrawal below has to deal with.
+      expect(await runOneJob(201)).not.toContain(tagA);
+      expect(
+        await prisma.fileLabel.count({
+          where: {
+            resourceId: vetoResourceId,
+            labelId: tagA,
+            state: FileMetadataState.REJECTED,
+          },
+        }),
+        "the re-run must leave the person's rejection standing",
+      ).toBe(1);
+
+      // Withdrawing the veto re-opens the question.
+      const withdrawal = await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [tagA],
+        },
+      });
+      expect(withdrawal.status).toBe("applied");
+      expect(
+        await prisma.fileFieldOverride.count({
+          where: { resourceId: vetoResourceId, labelId: tagA },
+        }),
+      ).toBe(0);
+
+      // It does NOT assert the label. A withdrawal writes no row at all: the
+      // model still has to decide, which is the whole point.
+      expect(
+        await prisma.fileLabel.count({
+          where: {
+            resourceId: vetoResourceId,
+            labelId: tagA,
+            state: FileMetadataState.CONFIRMED,
+          },
+        }),
+      ).toBe(0);
+
+      /**
+       * And it leaves no rejected row either.
+       *
+       * The tombstone alone is not enough. `runSuggestionJob` upserts with
+       * `update: {}` — an existing rejected row is a decision and it stands —
+       * so a surviving REJECTED row swallows the model's next suggestion in
+       * silence. The label would be allowed back into the shortlist and still
+       * never appear: the control would report success and change nothing,
+       * which is what it did on a preview before this assertion existed.
+       */
+      expect(
+        await prisma.fileLabel.count({
+          where: { resourceId: vetoResourceId, labelId: tagA },
+        }),
+        "a surviving rejected row swallows the next suggestion",
+      ).toBe(0);
+
+      /**
+       * And now the model may answer again — with nothing cleared by hand.
+       *
+       * This used to delete the label rows here before re-running, which is the
+       * test doing the product's job: the tombstone is what bars the shortlist,
+       * but `runSuggestionJob` upserts with `update: {}`, so the model's new
+       * suggestion lands on the still-REJECTED row and is swallowed. Clearing
+       * the rows here hid that completely, and the control shipped to a preview
+       * reporting success while changing nothing. The withdrawal clears the
+       * rejected assignment itself now, so this asserts the real path.
+       */
+      expect(await runOneJob(202)).toContain(tagA);
+    }, 60_000);
+
+    it("withdraws one veto without withdrawing the others", async () => {
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          removeTagLabelIds: [tagA, tagB],
+        },
+      });
+      expect(
+        await prisma.fileFieldOverride.count({
+          where: { resourceId: vetoResourceId, decision: "REJECT" },
+        }),
+      ).toBe(2);
+
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [tagA],
+        },
+      });
+
+      const remaining = await prisma.fileFieldOverride.findMany({
+        where: { resourceId: vetoResourceId, decision: "REJECT" },
+        select: { labelId: true },
+      });
+      expect(remaining.map((row) => row.labelId)).toEqual([tagB]);
+
+      // The one still vetoed stays out of the shortlist; the forgiven one
+      // comes back. Both halves, so a clear that deleted everything fails on
+      // the second assertion and one that deleted nothing fails on the first.
+      // Nothing is cleared by hand here: see the note in the case above.
+      const suggested = await runOneJob(210);
+      expect(suggested).toContain(tagA);
+      expect(suggested).not.toContain(tagB);
+    }, 60_000);
+
+    it("withdraws a category veto, not only a tag one", async () => {
+      // A category's tombstone is written by dismissing a suggestion, never by
+      // `removeTagLabelIds` — there is no `removeCategoryLabelIds` — so the
+      // category arm is reachable by a different gesture and would stay
+      // permanent under a tags-only clear.
+      await prisma.fileFieldOverride.create({
+        data: {
+          resourceId: vetoResourceId,
+          field: "category",
+          labelId: categoryA,
+          decision: "REJECT",
+          evidenceScopeId: vetoScopeId,
+          contentRevision: 1,
+          vocabularyVersion: 1,
+          decidedByUserId: vetoOwnerId,
+        },
+      });
+
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [categoryA],
+        },
+      });
+
+      expect(
+        await prisma.fileFieldOverride.count({
+          where: { resourceId: vetoResourceId, labelId: categoryA },
+        }),
+      ).toBe(0);
+    }, 60_000);
+
+    it("leaves a pin on the named label alone", async () => {
+      /**
+       * The `decision: REJECT` filter, isolated.
+       *
+       * `@@unique([resourceId, field, labelId, evidenceScopeId])` does not
+       * include `decision`, so for one resource, field and label there is
+       * exactly one override row and it is either a PIN or a REJECT. Without
+       * the filter, withdrawing the veto on X deletes a PIN on X — a person's
+       * "I set this field by hand" destroyed by a gesture that means "the
+       * model may propose this again".
+       *
+       * The sibling case below puts the PIN and the REJECT on two *different*
+       * labels, so `labelId: target` alone already saves it and the filter is
+       * never exercised. Here the PIN is on the label being named and there is
+       * no REJECT anywhere, so deleting the filter deletes the pin. Found by
+       * mutation, not by reading.
+       */
+      await prisma.fileFieldOverride.create({
+        data: {
+          resourceId: vetoResourceId,
+          field: "category",
+          labelId: categoryA,
+          decision: "PIN",
+          evidenceScopeId: vetoScopeId,
+          contentRevision: 1,
+          vocabularyVersion: 1,
+          decidedByUserId: vetoOwnerId,
+        },
+      });
+
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [categoryA],
+        },
+      });
+
+      const rows = await prisma.fileFieldOverride.findMany({
+        where: { resourceId: vetoResourceId, labelId: categoryA },
+        select: { decision: true },
+      });
+      expect(
+        rows,
+        "withdrawing a veto must not delete a pin on the same label",
+      ).toEqual([{ decision: "PIN" }]);
+    }, 60_000);
+
+    it("forgives one category rejection without touching a pin on the same field", async () => {
+      /**
+       * PIN says "this field is set by hand"; REJECT says "this label may not
+       * come back". Different statements about different things, and the
+       * existing category clear conflates them — it deletes every override on
+       * `field: "category"` regardless of decision and regardless of label.
+       *
+       * Both rows live on `field: "category"` and differ only by label, which
+       * is the exact shape that blunt delete destroys. Asserted in both
+       * directions: an earlier version checked only that the PIN survived,
+       * which is also what happens when the withdrawal does nothing at all, so
+       * it passed with and without the change.
+       */
+      await prisma.fileFieldOverride.createMany({
+        data: [
+          {
+            resourceId: vetoResourceId,
+            field: "category",
+            labelId: categoryA,
+            decision: "PIN",
+            evidenceScopeId: vetoScopeId,
+            contentRevision: 1,
+            vocabularyVersion: 1,
+            decidedByUserId: vetoOwnerId,
+          },
+          {
+            resourceId: vetoResourceId,
+            field: "category",
+            labelId: categoryB,
+            decision: "REJECT",
+            evidenceScopeId: vetoScopeId,
+            contentRevision: 1,
+            vocabularyVersion: 1,
+            decidedByUserId: vetoOwnerId,
+          },
+        ],
+      });
+
+      await updateFileMetadata({
+        workspaceId: vetoWorkspaceId,
+        actor: actor(),
+        resourceId: vetoResourceId,
+        request: {
+          expectedMetadataRevision: await currentRevision(),
+          allowSuggestionsForLabelIds: [categoryB],
+        },
+      });
+
+      const rows = await prisma.fileFieldOverride.findMany({
+        where: { resourceId: vetoResourceId, field: "category" },
+        select: { labelId: true, decision: true },
+      });
+
+      // The rejection is gone: fails if the withdrawal never ran.
+      // The pin remains: fails if the withdrawal copied the blunt shape.
+      expect(rows).toEqual([{ labelId: categoryA, decision: "PIN" }]);
+    }, 60_000);
   });
 });
 
