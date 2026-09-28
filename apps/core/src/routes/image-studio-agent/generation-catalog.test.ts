@@ -29,8 +29,14 @@ vi.mock("@/services/image-studio-assets.service", () => ({
 vi.mock("@/services/image-studio-sessions.service", () => ({
   authorizeAgentSession: vi.fn(),
 }));
+// The route asks for a fresh catalog before answering. That reaches Redis and the
+// environment, neither of which this test is about; the committed snapshot is
+// what it asserts against either way.
+vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
+  ensureImageCatalogFresh: vi.fn().mockResolvedValue(undefined),
+}));
 
-import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
+import { getImageCatalog } from "@/lib/image-studio/catalog";
 import app from "./index";
 
 beforeEach(() => {
@@ -43,14 +49,14 @@ beforeEach(() => {
 });
 
 describe("agent catalog and generation HTTP contract", () => {
-  it("returns the same non-empty catalog as browser state after authorization", async () => {
+  it("returns the same non-empty catalog the browser reads, after authorization", async () => {
     const response = await app.request("/options");
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
-      catalog: IMAGE_STUDIO_CATALOG,
+      catalog: JSON.parse(JSON.stringify(getImageCatalog())),
     });
-    expect(IMAGE_STUDIO_CATALOG.models.length).toBeGreaterThan(0);
+    expect(getImageCatalog().models.length).toBeGreaterThan(0);
     expect(authorize).toHaveBeenCalledOnce();
     expect(createJob).not.toHaveBeenCalled();
   });
@@ -60,13 +66,12 @@ describe("agent catalog and generation HTTP contract", () => {
     expect((await app.request("/options")).status).toBe(401);
   });
 
-  it("forwards all user settings and returns persisted model/placement metadata", async () => {
+  it("forwards all user settings and returns the persisted model metadata", async () => {
     const settings = {
       aspectRatio: "2:3",
       resolution: "2K",
       outputFormat: "jpeg",
       seed: 7,
-      placementId: "pinterest-pin",
     };
     createJob.mockResolvedValue({
       id: "job",
@@ -119,8 +124,8 @@ describe("agent catalog and generation HTTP contract", () => {
     },
   );
 
-  it("includes model and placement metadata for completed jobs and their versions", async () => {
-    const settings = { aspectRatio: "1:1", placementId: "x-square" };
+  it("includes model metadata for completed jobs and their versions", async () => {
+    const settings = { aspectRatio: "1:1" };
     getJob.mockResolvedValue({
       id: "job",
       status: "SUCCEEDED",
@@ -146,7 +151,7 @@ describe("agent catalog and generation HTTP contract", () => {
   });
 
   it("returns version model/settings so refinements can preserve them", async () => {
-    const settings = { aspectRatio: "9:16", placementId: "instagram-reels" };
+    const settings = { aspectRatio: "9:16" };
     listAssets.mockResolvedValue({
       assets: [
         {

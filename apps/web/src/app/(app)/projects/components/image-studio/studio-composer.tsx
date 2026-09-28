@@ -10,9 +10,6 @@ import {
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -22,17 +19,13 @@ import {
 } from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-
 import {
-  applyPlacement,
   clampToModel,
-  estimateBatchUsd,
-  formatUsd,
-  modelSupportsPlacement,
-  placementById,
-  placementName,
-  priceForImage,
+  creditsForBatch,
+  creditsForImage,
+  priceUnitLabelKey,
 } from "./catalog";
+import { STUDIO_PILL_CLASS } from "./studio-classes";
 import {
   assetContentUrl,
   type StudioAsset,
@@ -47,14 +40,17 @@ import type { QueuedGeneration } from "./use-generation-queue";
 /**
  * The most a single press of Generate may buy.
  *
- * Twelve, and the number is picked against three separate limits rather than
+ * Twelve, and the number is picked against Core's own limits rather than
  * chosen for feel.
  *
- * It is the whole catalog at the highest copy count: three models times four
- * copies. The point of this composer is one brief across every model at once,
- * so the ceiling has to be at least the cross-product, or the top copy counts
- * are permanently greyed out the moment a second model is selected — which is
- * what a ceiling of four did.
+ * It used to be justified as "the whole catalog at the highest copy count:
+ * three models times four copies". That reading is gone — the catalog is 152
+ * models now and the studio opens on the curated five — so the ceiling is no
+ * longer a cross-product of anything. What it still is, is comfortably more
+ * than one run of the shortlist, which is the batch this composer exists to
+ * make. The visible cost is that five models cap out at two copies each; the
+ * copy chips disable themselves and `plan` brings the count down, so the line
+ * above the button stays true about it.
  *
  * It is four times Core's in-flight limit of three per project
  * (`IMAGE_STUDIO_CONCURRENT_JOBS_PER_PROJECT`), which is the safe direction.
@@ -74,19 +70,19 @@ export const MAX_BATCH = 12;
 /**
  * Runs per model offered.
  *
- * Four is the top because four times the three-model catalog is the ceiling.
- * The chips disable themselves against the ceiling, so this list can grow with
- * the catalog without becoming a way to ask for more than a batch may hold.
+ * Four is reachable only with one, two or three models selected; past that the
+ * batch ceiling takes it down and the chips grey themselves out against it. So
+ * this list is what may be *asked* for, never what may be bought, and it stays
+ * correct however many models the catalog grows to.
  */
 const COPY_CHOICES = [1, 2, 3, 4] as const;
 
 function chipClass(active: boolean, disabled = false): string {
   return cn(
-    "rounded-md border px-2.5 py-1 text-xs font-medium transition-colors",
-    "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
-    // Selected wins over disabled. A locked row still has to say which value
-    // is in force: a placement that sets the frame to 2:3 and then greys the
-    // whole row out leaves nothing on screen saying 2:3 was chosen.
+    STUDIO_PILL_CLASS,
+    "border",
+    // Selected wins over disabled: a row that is locked by the batch ceiling
+    // still has to say which value is in force.
     active
       ? "border-primary bg-primary text-primary-foreground"
       : "border-border text-muted-foreground hover:text-foreground hover:border-primary-tertiary",
@@ -95,7 +91,7 @@ function chipClass(active: boolean, disabled = false): string {
 }
 
 /**
- * One of the composer's three quiet disclosures.
+ * One of the composer's two quiet disclosures.
  *
  * Each says what is currently chosen and opens to let it be changed. They are
  * deliberately the same shape and the same weight, so the eye lands on the
@@ -117,14 +113,25 @@ function TriggerLabel({
   );
 }
 
+/**
+ * The composer's disclosure triggers.
+ *
+ * `h-8` and `text-sm` are what `size="sm"` on this app's Button already means,
+ * so a summary is the same height and the same type size as any other small
+ * control in the product; the override is only the muted colour and the width
+ * cap. They used to be `text-xs`, which made the row that describes the
+ * purchase a step smaller than every other control on the page for no reason
+ * anyone could name. Emphasis is still carried where it belongs — these are
+ * `ghost` and Generate is `primary`.
+ */
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-xs font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
  *
- * The prompt is the surface; everything that qualifies it is one of three
- * summaries that open on demand — which models, which placement, and the
+ * The prompt is the surface; everything that qualifies it is one of two
+ * summaries that open on demand — which models, and the
  * frame/resolution/format the request will carry. They read as a sentence
  * about the work rather than as a form, and the only emphatic control on the
  * page is the one that spends money.
@@ -142,6 +149,7 @@ export function StudioComposer({
   onTargetChange,
   projectId,
   prompt,
+  promptRef,
   referenceAssets,
   onClearReferences,
   target,
@@ -170,6 +178,14 @@ export function StudioComposer({
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
   projectId: string;
   prompt: string;
+  /**
+   * The prompt box itself, so the studio can put the caret in it.
+   *
+   * Pressing a template writes the composer's text from outside the composer,
+   * and a brief that lands in a box nobody is typing in reads as a submission
+   * rather than as a draft to edit.
+   */
+  promptRef?: React.Ref<HTMLTextAreaElement>;
   /** Images the person picked in the gallery to generate *from*. */
   referenceAssets: StudioAsset[];
   onClearReferences: () => void;
@@ -178,14 +194,23 @@ export function StudioComposer({
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
   const [copies, setCopies] = useState(1);
-  const { modelIds: selectedModelIds, placementId, settings } = target;
+
+  /**
+   * fal's pricing unit, singular and translated where we have a word for it.
+   *
+   * Falls back to fal's own plural for a unit the catalog is not supposed to
+   * carry: a wrong-sounding real unit beats a confidently invented singular.
+   */
+  function priceUnitLabel(unit: string): string {
+    const key = priceUnitLabelKey(unit);
+    return key ? t(`PriceUnits.${key}`) : unit;
+  }
+  const { modelIds: selectedModelIds, settings } = target;
 
   const selectedModels = useMemo(
     () => catalog.models.filter((model) => selectedModelIds.includes(model.id)),
     [catalog.models, selectedModelIds],
   );
-
-  const placement = placementById(catalog, placementId);
 
   const setSettings = (update: (current: StudioSettings) => StudioSettings) =>
     onTargetChange((current) => ({
@@ -222,34 +247,6 @@ export function StudioComposer({
   const references = referenceAssets.slice(0, referenceLimit);
 
   /**
-   * The chosen models that can actually serve the active placement.
-   *
-   * A model's menu entry is already disabled while a placement it cannot frame
-   * is chosen, but one selected beforehand stays selected — so this is what
-   * both the plan and the submission are built from.
-   */
-  const eligibleModels = useMemo(
-    () =>
-      placement
-        ? selectedModels.filter((model) =>
-            modelSupportsPlacement(model, placement),
-          )
-        : selectedModels,
-    [placement, selectedModels],
-  );
-
-  /** Every catalog model that can frame the active placement. */
-  const selectableModels = useMemo(
-    () =>
-      placement
-        ? catalog.models.filter((model) =>
-            modelSupportsPlacement(model, placement),
-          )
-        : catalog.models,
-    [catalog.models, placement],
-  );
-
-  /**
    * Exactly what one press of Generate would buy.
    *
    * Computed once and used three times — the sentence above the button, the
@@ -267,7 +264,7 @@ export function StudioComposer({
   const plan = useMemo(() => {
     // Only reachable if the catalog ever grows past the ceiling. One run each
     // of as many models as will fit beats several runs of an arbitrary few.
-    const models = eligibleModels.slice(0, MAX_BATCH);
+    const models = selectedModels.slice(0, MAX_BATCH);
     const each = models.length
       ? Math.max(1, Math.min(copies, Math.floor(MAX_BATCH / models.length)))
       : 0;
@@ -282,86 +279,45 @@ export function StudioComposer({
       }
     }
     return { copies: each, legs, models };
-  }, [copies, eligibleModels, settings]);
+  }, [copies, selectedModels, settings]);
 
   /**
-   * What the batch costs at the providers' published list prices.
+   * What this batch will be debited, in credits.
    *
-   * `null` when any model in it has no published figure for the resolution it
-   * would run at, in which case the line says how much work is being bought
-   * and stays silent about money.
+   * The same function Core charges with, over the same catalog row — see
+   * `creditsForImage`. `null` when any leg cannot be priced, in which case the
+   * line says how much work is being bought and stays silent about credits
+   * rather than printing a total that is missing a leg.
    */
-  const estimateUsd = useMemo(() => estimateBatchUsd(plan.legs), [plan.legs]);
+  const batchCredits = useMemo(() => creditsForBatch(plan.legs), [plan.legs]);
 
   const totalJobs = plan.legs.length;
   const canGenerate =
-    !busy && prompt.trim().length > 0 && eligibleModels.length > 0;
+    !busy && prompt.trim().length > 0 && selectedModels.length > 0;
 
   function toggleModel(model: StudioModel) {
     onTargetChange((current) => {
       const adding = !current.modelIds.includes(model.id);
-      const placed = placementById(catalog, current.placementId);
-      // A model that cannot frame the active placement must not join the
-      // selection. Its menu entry is already disabled, so this is the guard
-      // for every other route in — keyboard, a stale render, a future caller.
-      if (adding && placed && !modelSupportsPlacement(model, placed)) {
-        return current;
-      }
       const next = adding
         ? [...current.modelIds, model.id]
         : current.modelIds.filter((id) => id !== model.id);
-      // Never leave nothing selected: the composer would have no capabilities
-      // to read and every option would empty out.
-      if (next.length === 0) return current;
+      // Emptying the selection is allowed. It used to be refused, on the
+      // grounds that the option rows would have no capabilities to read — but
+      // that made the last remaining model unclearable, and with five selected
+      // on open that is a control that visibly stops working. Generate is
+      // disabled and the rows say what to do instead.
       return {
         ...current,
         modelIds: next,
-        // A newly selected model may not offer what is currently chosen.
-        settings: clampToModel(model, current.settings),
-      };
-    });
-  }
-
-  /**
-   * Choose a placement, and drop any selected model that cannot frame it.
-   *
-   * Setting the placement alone was not enough. Disabling a model's entry
-   * stops it being *added*, but a model selected beforehand stayed selected,
-   * and `submit` still built a request for it — where `clampToModel` quietly
-   * moved 9:16 to that model's first ratio. The result was a square image
-   * carrying a Reels `placementId`: exactly the unsupported combination the
-   * catalog exists to prevent, recorded as though it had been honoured.
-   *
-   * If nothing selected can frame the placement, the first model in the
-   * catalog that can is selected instead, so the choice always does something
-   * legible rather than silently refusing.
-   */
-  function choosePlacement(id: string | null) {
-    const next = placementById(catalog, id);
-    onTargetChange((current) => {
-      if (!next) {
-        return {
-          ...current,
-          placementId: null,
-          settings: applyPlacement(current.settings, null),
-        };
-      }
-      const kept = current.modelIds.filter((modelId) => {
-        const model = catalog.models.find((m) => m.id === modelId);
-        return model ? modelSupportsPlacement(model, next) : false;
-      });
-      const fallback = catalog.models.find((m) =>
-        modelSupportsPlacement(m, next),
-      );
-      const modelIds = kept.length > 0 ? kept : fallback ? [fallback.id] : [];
-      // No model in the catalog can frame it: leave the target untouched
-      // rather than produce a placement nothing can serve.
-      if (modelIds.length === 0) return current;
-      return {
-        ...current,
-        modelIds,
-        placementId: next.id,
-        settings: applyPlacement(current.settings, next),
+        // Only when adding, which is the only direction that can need it: a
+        // newly selected model may not offer what is currently chosen, while
+        // removing one can only widen the intersection. Clamping on the way out
+        // is a no-op today — every selected model already supports the current
+        // frame — so this is not a bug fix, it is refusing to run a rule in the
+        // direction where it could only ever be wrong.
+        settings: adding
+          ? clampToModel(model, current.settings)
+          : current.settings,
       };
     });
   }
@@ -395,10 +351,16 @@ export function StudioComposer({
       ? selectedModels[0].label
       : t("modelCount", { count: selectedModels.length });
 
+  /** True when every chosen model picks its own output format. */
+  const modelChoosesFormat = shared.outputFormats.length === 0;
+
   const optionSummary = [
     settings.aspectRatio,
     settings.resolution,
-    settings.outputFormat,
+    // Omitted when the models choose: naming a format the request will not
+    // carry is the summary describing a different generation from the one the
+    // button buys.
+    modelChoosesFormat ? null : settings.outputFormat,
     plan.copies > 1 ? t("copyCount", { count: plan.copies }) : null,
   ]
     .filter(Boolean)
@@ -430,6 +392,7 @@ export function StudioComposer({
             }
           }}
           placeholder={labels.promptPlaceholder}
+          ref={promptRef}
           value={prompt}
         />
 
@@ -467,7 +430,7 @@ export function StudioComposer({
       {/* One row, three summaries and the one action. No dividers: the card is
           a single object, and a rule between the prompt and the thing that
           qualifies it made two. */}
-      <div className="flex flex-wrap items-center gap-1.5 p-2 sm:px-3 sm:pb-3">
+      <div className="flex flex-wrap items-center gap-2 p-2 sm:px-3 sm:pb-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
@@ -478,18 +441,16 @@ export function StudioComposer({
             <div className="flex items-center justify-between gap-2 pr-1">
               <DropdownMenuLabel>{labels.model}</DropdownMenuLabel>
               {/* One brief on every model is the thing this composer is for,
-                  so it is one click rather than one click per model. Only the
-                  models that can frame the active placement are taken, which
-                  is the same rule that greys the entries out below. */}
+                  so it is one click rather than one click per model. */}
               <Button
                 className="h-7 px-2 text-xs"
-                disabled={selectableModels.every((model) =>
+                disabled={catalog.models.every((model) =>
                   selectedModelIds.includes(model.id),
                 )}
                 onClick={() =>
                   onTargetChange((current) => ({
                     ...current,
-                    modelIds: selectableModels.map((model) => model.id),
+                    modelIds: catalog.models.map((model) => model.id),
                   }))
                 }
                 size="sm"
@@ -499,14 +460,24 @@ export function StudioComposer({
               </Button>
             </div>
             {catalog.models.map((model) => {
-              const blocked = Boolean(
-                placement && !modelSupportsPlacement(model, placement),
+              /**
+               * What one image from this model costs, on the row where the
+               * model is chosen.
+               *
+               * 152 models, and the only figure anywhere used to be the
+               * aggregate after selection — so picking between a 3-credit model
+               * and a 15-credit one was guesswork. At the frame currently
+               * chosen, clamped to what this model can run, which is the same
+               * arithmetic the batch total and the reservation use.
+               */
+              const credits = creditsForImage(
+                model,
+                clampToModel(model, settings),
               );
               return (
                 <DropdownMenuCheckboxItem
                   checked={selectedModelIds.includes(model.id)}
                   className="items-start"
-                  disabled={blocked}
                   key={model.id}
                   // Choosing several models is the reason this is a menu and
                   // not a select, so it must survive its own click.
@@ -515,79 +486,27 @@ export function StudioComposer({
                     toggleModel(model);
                   }}
                 >
-                  <span className="min-w-0">
-                    <span className="block truncate font-medium">
-                      {model.label}
+                  <span className="min-w-0 flex-1">
+                    <span className="flex min-w-0 items-baseline gap-2">
+                      <span className="min-w-0 flex-1 truncate font-medium">
+                        {model.label}
+                      </span>
+                      {/* Quiet on purpose: a secondary number, in the meta
+                          role and the meta size, so the row still reads as a
+                          model with a price rather than as a price list. */}
+                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                        {credits === null
+                          ? labels.creditsNoFigure
+                          : t("creditsCount", { count: credits })}
+                      </span>
                     </span>
                     <span className="text-muted-foreground block text-xs text-pretty">
-                      {blocked
-                        ? labels.modelUnsupportedForPlacement
-                        : model.description}
+                      {model.description}
                     </span>
                   </span>
                 </DropdownMenuCheckboxItem>
               );
             })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
-              <TriggerLabel label={labels.placement}>
-                {placement ? placementName(placement) : labels.placementNone}
-              </TriggerLabel>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            className="w-88 max-w-[calc(100vw-2rem)]"
-          >
-            <DropdownMenuLabel>{labels.placement}</DropdownMenuLabel>
-            <DropdownMenuRadioGroup
-              onValueChange={(value) =>
-                choosePlacement(value === "" ? null : value)
-              }
-              value={placementId ?? ""}
-            >
-              <DropdownMenuRadioItem className="items-start" value="">
-                {labels.placementNone}
-              </DropdownMenuRadioItem>
-              {catalog.placements.map((option) => (
-                <DropdownMenuRadioItem
-                  className="items-start"
-                  key={option.id}
-                  value={option.id}
-                >
-                  <span className="min-w-0">
-                    <span className="flex min-w-0 items-baseline gap-2">
-                      {/* The name is what is being chosen, so it wraps.
-                          Truncating it turned "Instagram · Reels image
-                          concept" into "Instagram · Reels image c…", which
-                          loses exactly the part that tells two placements
-                          apart. */}
-                      <span className="min-w-0 flex-1 font-medium text-pretty">
-                        {placementName(option)}
-                      </span>
-                      <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                        {option.aspectRatio} · {option.width}×{option.height}
-                      </span>
-                    </span>
-                    {/* Core's own sourced note, on the option it belongs to
-                        rather than as a paragraph under the whole row. */}
-                    <span className="text-muted-foreground block text-xs text-pretty">
-                      {option.notes}
-                    </span>
-                  </span>
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-            <DropdownMenuSeparator />
-            {/* The standing caveat, said once, where the pixel numbers are —
-                instead of permanently under the composer. */}
-            <p className="text-muted-foreground px-2 py-1.5 text-xs leading-relaxed text-pretty">
-              {labels.placementNotOutput}
-            </p>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -600,17 +519,20 @@ export function StudioComposer({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80 space-y-3">
+            {/* Every row below reads its options from the chosen models, so
+                with none chosen they are all empty. Saying so beats three
+                labelled rows with nothing in them. */}
+            {selectedModels.length === 0 ? (
+              <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                {labels.noModelSelected}
+              </p>
+            ) : null}
+
             <Row label={labels.aspectRatio}>
               {shared.aspectRatios.map((ratio) => (
                 <button
                   aria-pressed={settings.aspectRatio === ratio}
-                  className={chipClass(
-                    settings.aspectRatio === ratio,
-                    placement !== null,
-                  )}
-                  // Placement owns the frame while one is chosen; changing it
-                  // here would leave the summary and the request disagreeing.
-                  disabled={placement !== null}
+                  className={chipClass(settings.aspectRatio === ratio)}
                   key={ratio}
                   onClick={() =>
                     setSettings((current) => ({
@@ -624,11 +546,6 @@ export function StudioComposer({
                 </button>
               ))}
             </Row>
-            {placement ? (
-              <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                {labels.frameSetByPlacement}
-              </p>
-            ) : null}
 
             <Row label={labels.resolution}>
               {shared.resolutions.map((resolution) => (
@@ -649,24 +566,30 @@ export function StudioComposer({
               ))}
             </Row>
 
-            <Row label={labels.outputFormat}>
-              {shared.outputFormats.map((format) => (
-                <button
-                  aria-pressed={settings.outputFormat === format}
-                  className={chipClass(settings.outputFormat === format)}
-                  key={format}
-                  onClick={() =>
-                    setSettings((current) => ({
-                      ...current,
-                      outputFormat: format as StudioSettings["outputFormat"],
-                    }))
-                  }
-                  type="button"
-                >
-                  {format}
-                </button>
-              ))}
-            </Row>
+            {/* Hidden rather than empty when every chosen model picks its own
+                format — an `outputFormats: []` row in Core's catalog means the
+                model decides, and a labelled row with no chips in it reads as
+                a control that is broken. */}
+            {modelChoosesFormat ? null : (
+              <Row label={labels.outputFormat}>
+                {shared.outputFormats.map((format) => (
+                  <button
+                    aria-pressed={settings.outputFormat === format}
+                    className={chipClass(settings.outputFormat === format)}
+                    key={format}
+                    onClick={() =>
+                      setSettings((current) => ({
+                        ...current,
+                        outputFormat: format as StudioSettings["outputFormat"],
+                      }))
+                    }
+                    type="button"
+                  >
+                    {format}
+                  </button>
+                ))}
+              </Row>
+            )}
 
             <Row label={labels.copies}>
               {COPY_CHOICES.map((count) => {
@@ -674,17 +597,52 @@ export function StudioComposer({
                 // plan rather than the raw choice: this is where the ceiling
                 // becomes visible, so `plan.copies` is what reads as pressed.
                 const overCeiling =
-                  eligibleModels.length * count > MAX_BATCH && count > 1;
+                  selectedModels.length * count > MAX_BATCH && count > 1;
+                /**
+                 * Why this one is unavailable, in its own arithmetic.
+                 *
+                 * The ceiling is unchanged; only the explaining is new. A
+                 * dimmed "3" beside a footnote about a limit left a sighted
+                 * reader to do the multiplication and a screen-reader user with
+                 * "3, dimmed" and nothing at all.
+                 */
+                const reason = overCeiling
+                  ? t("copiesOverCeiling", {
+                      models: selectedModels.length,
+                      copies: count,
+                      images: selectedModels.length * count,
+                      limit: MAX_BATCH,
+                    })
+                  : undefined;
                 return (
                   <button
+                    // `aria-disabled`, not `disabled`: a natively disabled
+                    // control is not focusable, so the reason could never be
+                    // read out — which is the whole point of having one. The
+                    // press is blocked below instead.
+                    aria-describedby={
+                      reason ? `studio-copies-${count}-reason` : undefined
+                    }
+                    aria-disabled={overCeiling || undefined}
                     aria-pressed={plan.copies === count}
                     className={chipClass(plan.copies === count, overCeiling)}
-                    disabled={overCeiling}
                     key={count}
-                    onClick={() => setCopies(count)}
+                    onClick={() => {
+                      if (overCeiling) return;
+                      setCopies(count);
+                    }}
+                    title={reason}
                     type="button"
                   >
                     {count}
+                    {reason ? (
+                      <span
+                        className="sr-only"
+                        id={`studio-copies-${count}-reason`}
+                      >
+                        {reason}
+                      </span>
+                    ) : null}
                   </button>
                 );
               })}
@@ -697,29 +655,29 @@ export function StudioComposer({
 
         <span className="grow" />
 
-        {/* What the press will buy, said before the press, in fal Sandbox's
-            shape: how many runs, across how many models, and what that is
-            worth. A button rather than a caption because the money in it is an
-            estimate, and an estimate nobody can interrogate is the wrong way
-            to talk about a charge — so it opens and shows its working. */}
+        {/* What the press will spend, said before the press: how many runs,
+            across how many models, and how many credits that is. A button
+            rather than a caption because this is a charge, and a charge nobody
+            can interrogate is the wrong way to talk about money — so it opens
+            and shows its working, model by model. */}
         {totalJobs > 0 ? (
           <Popover>
             <PopoverTrigger asChild>
               <Button
-                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-xs font-medium"
+                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
                 size="sm"
                 variant="ghost"
               >
                 <span className="min-w-0 truncate tabular-nums">
-                  {estimateUsd === null
+                  {batchCredits === null
                     ? t("runPlan", {
                         copies: plan.copies,
                         models: plan.models.length,
                       })
-                    : t("runPlanEstimated", {
+                    : t("runPlanCredits", {
                         copies: plan.copies,
                         models: plan.models.length,
-                        cost: formatUsd(estimateUsd),
+                        credits: batchCredits,
                       })}
                 </span>
               </Button>
@@ -729,22 +687,24 @@ export function StudioComposer({
               className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
             >
               <div>
-                <p className="text-sm font-medium">{labels.estimateTitle}</p>
+                <p className="text-sm font-medium">{labels.creditsTitle}</p>
                 <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
-                  {labels.estimateNotCharge}
+                  {labels.creditsCharged}
                 </p>
               </div>
 
-              {estimateUsd === null ? (
+              {batchCredits === null ? (
                 <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                  {labels.estimateUnpriced}
+                  {labels.creditsUnderivable}
                 </p>
               ) : null}
 
               <ul className="space-y-2">
                 {plan.models.map((model) => {
-                  const resolution = clampToModel(model, settings).resolution;
-                  const price = priceForImage(model, resolution);
+                  const credits = creditsForImage(
+                    model,
+                    clampToModel(model, settings),
+                  );
                   return (
                     <li key={model.id}>
                       <div className="flex min-w-0 items-baseline gap-2">
@@ -752,18 +712,27 @@ export function StudioComposer({
                           {model.label}
                         </span>
                         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                          {price === null
-                            ? labels.estimateNoPrice
-                            : t("estimateEach", {
-                                cost: formatUsd(price),
+                          {credits === null
+                            ? labels.creditsNoFigure
+                            : t("creditsEach", {
+                                credits,
                                 count: plan.copies,
                               })}
                         </span>
                       </div>
-                      {/* The provider's own wording for how the figure is
-                          arrived at, rather than our paraphrase of it. */}
+                      {/* Composed here rather than rendered from Core's
+                          `price.basis`. That string is built as "fal lists
+                          $0.03 per images for this endpoint" — fal's pricing
+                          API answers in plurals because it is describing a
+                          rate, and a sentence about one image then reads "per
+                          images". Web holds the same two figures separately,
+                          so it can say it once, correctly, and in the reader's
+                          language. */}
                       <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                        {model.price.basis}
+                        {t("priceBasis", {
+                          price: `$${model.price.unitPriceUsd}`,
+                          unit: priceUnitLabel(model.price.unit),
+                        })}
                       </p>
                       <a
                         className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
@@ -771,7 +740,7 @@ export function StudioComposer({
                         rel="noreferrer"
                         target="_blank"
                       >
-                        {t("estimateCheckedOn", {
+                        {t("creditsCheckedOn", {
                           date: model.price.verifiedAt,
                         })}
                       </a>
@@ -811,7 +780,7 @@ function Row({
   label: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
       <span className="text-muted-foreground w-20 shrink-0 text-xs font-medium">
         {label}
       </span>

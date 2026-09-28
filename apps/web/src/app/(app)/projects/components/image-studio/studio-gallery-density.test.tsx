@@ -1,14 +1,9 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
-import {
-  isActive,
-  type StudioAsset,
-  type StudioJob,
-  type StudioLabels,
-} from "./types";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import { isActive, type StudioAsset, type StudioJob } from "./types";
 
 /**
  * The gallery with work in it.
@@ -35,7 +30,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // Values included, because the credits figure interpolates a count and a
+  // bare key would hide whether the right number reached the tile.
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
 
@@ -76,11 +74,6 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-const LABELS = new Proxy(
-  { examplePrompts: ["Example one", "Example two"] } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 const ASSET = {
   id: "a",
   rootId: "a",
@@ -102,11 +95,10 @@ const ASSET = {
 function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
   return render(
     <ImageStudio
+      catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
-      initialState={
-        { catalog: TEST_CATALOG, assets, jobs, sessions: [] } as never
-      }
-      labels={LABELS}
+      initialState={{ assets, jobs, sessions: [] } as never}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );
@@ -142,7 +134,6 @@ function manyAssets(count: number): StudioAsset[] {
       resolution: i % 2 ? "2K" : "1K",
       outputFormat: "png",
       seed: null,
-      placementId: i % 4 === 1 ? "reels" : null,
     },
     ...(i % 5 === 0
       ? {
@@ -164,7 +155,12 @@ function manyAssets(count: number): StudioAsset[] {
   })) as unknown as StudioAsset[];
 }
 
-function job(id: string, status: string, error?: string) {
+function job(
+  id: string,
+  status: string,
+  error?: string,
+  failureReason: string | null = "provider_error",
+) {
   return {
     id,
     status,
@@ -174,6 +170,7 @@ function job(id: string, status: string, error?: string) {
     settings: {},
     referenceAssetIds: [],
     error: error ?? null,
+    failureReason,
     parentAssetId: null,
     assetId: null,
     createdAt: "2026-09-26T00:00:00Z",
@@ -198,6 +195,7 @@ function settledJob(
   assetId: string,
   elapsedMs: number,
   shape: "date" | "iso" = "iso",
+  credits: number | null = 4,
 ) {
   const submittedAt = new Date("2026-09-26T00:00:00Z");
   const settledAt = new Date(submittedAt.getTime() + elapsedMs);
@@ -208,6 +206,7 @@ function settledJob(
     createdAt: as(submittedAt),
     submittedAt: as(submittedAt),
     settledAt: as(settledAt),
+    credits,
   } as unknown as StudioJob;
 }
 
@@ -268,9 +267,91 @@ describe("a gallery with work in it", () => {
         within(tile as HTMLElement).getByRole("button", { name: "cancel" }),
       ).toBeInTheDocument();
     }
-    // A settled failure is stated above the gallery, with its reason.
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The provider refused it.",
+    // A settled failure is stated above the gallery.
+    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
+  });
+
+  /**
+   * What a failure says, and what it does not say.
+   *
+   * It used to print `job.error` verbatim, which on the preview read
+   * "Unexpected status code: 422" — an HTTP detail, in English, shown to
+   * somebody who asked for a picture. The provider's words are kept, one
+   * disclosure away, for whoever has to chase fal about them.
+   */
+  it("states a failure in a sentence, with the provider's words behind a toggle", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Unexpected status code: 422"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("provider_error");
+    // Present in the DOM — a `details` only hides its own body visually — but
+    // never in the sentence a reader gets handed.
+    const summary = screen.getByText("failedDetails");
+    expect(summary.closest("details")).toHaveTextContent(
+      "Unexpected status code: 422",
+    );
+    expect(alert.querySelector("p")?.textContent).not.toContain("422");
+  });
+
+  it("offers no disclosure when the provider said nothing", () => {
+    mount(manyAssets(2), [job("failed", "FAILED")]);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("provider_error");
+    expect(screen.queryByText("failedDetails")).toBeNull();
+  });
+
+  /**
+   * Core reports a stable code now, and the sentence is chosen by it.
+   *
+   * The point is that the reader gets *their* language: the code is what Web
+   * branches on, and Core's English `error` string — itself a real sentence
+   * since the last Core pass — never becomes the headline.
+   */
+  it("says why, per the reason Core reported", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 409 from upstream", "cancelled"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("cancelled");
+    expect(alert).not.toHaveTextContent("provider_error");
+  });
+
+  /**
+   * The money sentence, and what it must not say.
+   *
+   * Images are charged on success, so a generation that produced none was never
+   * charged — there is nothing to give back and nothing that says otherwise. It
+   * is unconditional for that reason: no per-job flag decides it.
+   */
+  it("says a failed generation cost nothing, without a refund in sight", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 500 from upstream", "provider_error"),
+    ]);
+
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedNoCharge");
+    // No wording about money coming back, in any of the three languages this
+    // ships in. The strings are keys here, so this guards the shape rather than
+    // the prose — the locale files are where the prose is checked.
+    expect(alert.textContent ?? "").not.toMatch(
+      /refund|erstatt|reembols|devuelt/i,
+    );
+  });
+
+  it("has a sentence for a row from before Core recorded reasons", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Something went wrong", null),
+    ]);
+
+    // Not a blank line and not the raw string: `failureReason` is null on every
+    // job that settled before the column existed.
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("failedBodyUnreported");
+    expect(alert.querySelector("p")?.textContent).not.toContain(
+      "Something went wrong",
     );
   });
 
@@ -306,12 +387,12 @@ describe("a gallery with work in it", () => {
   /**
    * What a batch across several models is actually read for.
    *
-   * The time is measured — the provider's own submit-to-settle interval, off
-   * the job row. The money is not: nothing in this studio records what fal
-   * billed, so the tile shows the published list price for these settings and
-   * marks it as an approximation.
+   * Both figures are measured off the job row: the provider's own
+   * submit-to-settle interval, and the credits the ledger debited. Neither is
+   * recomputed from the catalog, because a price that moved since the image was
+   * made must not restate what somebody paid.
    */
-  it("shows each version's generation time and estimated cost", () => {
+  it("shows each version's generation time and the credits it cost", () => {
     mount(
       [
         {
@@ -322,7 +403,6 @@ describe("a gallery with work in it", () => {
             resolution: "1K",
             outputFormat: "png",
             seed: null,
-            placementId: null,
           },
         } as unknown as StudioAsset,
       ],
@@ -332,9 +412,44 @@ describe("a gallery with work in it", () => {
     const tile = document.querySelector("figure[data-asset-id]");
     expect(tile).not.toBeNull();
     expect(tile?.textContent).toContain("3.2s");
-    // Model A is $0.04 an image at 1K in TEST_CATALOG, and the tilde is what
-    // says this is a list price rather than a charge.
-    expect(tile?.textContent).toContain("~$0.04");
+    // The job's own `credits`, not the catalog's price for these settings.
+    expect(tile?.textContent).toContain('creditsCount:{"count":4}');
+  });
+
+  /**
+   * Zero is a fact, and absent is not zero.
+   *
+   * Core's charge-on-success build has a deliberate zero case: if the balance no
+   * longer covers the quote at delivery, the image is stored anyway and the job
+   * succeeds with nothing charged — the image is given away rather than lost. So
+   * a delivered image can legitimately carry 0, and printing nothing for it
+   * would turn "this was free" into "we do not know what this cost".
+   */
+  it("shows zero credits as zero, not as silence", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      [settledJob("j1", "v1", 3_200, "iso", 0)],
+    );
+
+    const tile = document.querySelector("figure[data-asset-id]");
+    expect(tile?.textContent).toContain('creditsCount:{"count":0}');
+    // Nullish coalescing is what makes this work — `0 ?? null` is 0 — so this
+    // guards against somebody reaching for a falsy check.
+    expect(tile?.textContent).toContain("3.2s");
+  });
+
+  it("says nothing about credits for a version whose job carries none", () => {
+    mount(
+      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
+      // Every asset that predates charging looks like this. Absent is not zero:
+      // "we do not know what this cost" and "this was free" are different
+      // claims, and only one of them is true here.
+      [settledJob("j1", "v1", 3_200, "iso", null)],
+    );
+
+    const text = document.querySelector("figure[data-asset-id]")?.textContent;
+    expect(text).toContain("3.2s");
+    expect(text).not.toContain("creditsCount");
   });
 
   it("reads the same timing when the dates arrive as Date objects", () => {
@@ -348,7 +463,6 @@ describe("a gallery with work in it", () => {
             resolution: "1K",
             outputFormat: "png",
             seed: null,
-            placementId: null,
           },
         } as unknown as StudioAsset,
       ],
@@ -371,6 +485,36 @@ describe("a gallery with work in it", () => {
     const text = document.querySelector("figure[data-asset-id]")?.textContent;
     // No invented duration, and no zero either: absent is not "took no time".
     expect(text).not.toMatch(/\d+(\.\d+)?s/);
+  });
+
+  /**
+   * The gallery wraps each tile in a button that opens the lightbox, and the
+   * recovery control from a broken thumbnail sits inside it. Without
+   * `stopPropagation` the click reached both, so recovering a thumbnail threw
+   * the reader into the full-screen viewer — which is not what they asked for.
+   */
+  it("recovers a broken thumbnail without opening the lightbox", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
+    );
+    mount([{ ...ASSET, id: "v1" } as unknown as StudioAsset]);
+
+    // Two failures and a 503 probe: the neutral placeholder with its button.
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /imageRetry/ }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // And it did retry: the image is back, asking for a fresh URL.
+    expect(screen.getByRole("img").getAttribute("src")).toContain("reload=1-");
   });
 
   it("offers comparison once two versions are selected", () => {

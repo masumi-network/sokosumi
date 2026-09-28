@@ -222,6 +222,7 @@ import {
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
+  getImageStudioCatalog as coreGetImageStudioCatalog,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -3043,6 +3044,27 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * The studio's model catalog, which is global rather than project-scoped.
+   *
+   * Its own route because it is ~158KB and the studio polls its *state* every
+   * three seconds; the catalog used to ride along on that payload. Core sets
+   * `private, max-age=300`, and the read is authenticated, so this stays on the
+   * session client rather than moving to `coreCatalogClient` — a cookie-free
+   * call would be refused.
+   */
+  async function getImageStudioCatalog() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch the image studio catalog",
+    );
+  }
+
   async function getProjectsByIdImageStudio(
     id: string,
     query?: GetProjectsByIdImageStudioData["query"],
@@ -5734,6 +5756,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getImageStudioCatalog,
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,

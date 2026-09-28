@@ -99,7 +99,7 @@ vi.mock("@/services/image-studio-assets.service", () => ({
   readAssetBytes: vi.fn(),
 }));
 
-import { IMAGE_MODEL_GENERATE } from "@/lib/image-studio/fal-client";
+import { imageModel } from "@/lib/image-studio/catalog";
 import {
   reconcileJob,
   recoverUnclaimedReservations,
@@ -107,13 +107,16 @@ import {
   settleWithImage,
 } from "@/services/image-studio-jobs.service";
 
+/** The default model's generate endpoint, from the catalog. */
+const DEFAULT_IMAGE_ENDPOINT_GENERATE = imageModel().generateEndpoint;
+
 function queuedJob(overrides: Record<string, unknown> = {}) {
   return {
     id: "job-1",
     projectId: "project-1",
     workspaceId: "workspace-1",
     requestedByUserId: "user-1",
-    model: IMAGE_MODEL_GENERATE,
+    model: DEFAULT_IMAGE_ENDPOINT_GENERATE,
     kind: "GENERATE",
     prompt: "a cup",
     settings: {},

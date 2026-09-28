@@ -360,6 +360,9 @@ model CoworkerWorkspaceAccess {
 enum HistoryKind {
   TASK
   JOB
+  /// One generated image version. entityId is the ProjectImageAsset id, so the
+  /// row deep-links straight to the image rather than to its job.
+  IMAGE
 }
 
 model History {
@@ -1107,6 +1110,9 @@ model Transaction {
   refundedTaskX402Payment  TaskX402Payment?  @relation("RefundedTransactionTaskX402Payment")
   coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
   sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
+
+  projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
+  refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -4542,6 +4548,35 @@ model ProjectImageJob {
 
   status ProjectImageJobStatus @default(PENDING)
 
+  /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
+  /// always positive.
+  ///
+  /// Two meanings, in order. Written at submit it is the **quote**: the price the
+  /// person was shown, kept on the row so the figure taken later is the one they
+  /// agreed to even if the catalog refreshes in between. Rewritten when the image
+  /// is delivered, it is what was **actually taken** — which is the quote, unless
+  /// the balance had fallen by then, in which case it becomes 0 and the image is
+  /// given away. The History trigger reads this column, so it has to be the second
+  /// thing, not the first.
+  ///
+  /// Null for jobs created before the studio charged for generation at all.
+  chargedCents BigInt?
+
+  /// The spend, taken when the image was delivered. One per job, null until then.
+  transactionId String?      @unique
+  transaction   Transaction? @relation("TransactionProjectImageJob", fields: [transactionId], references: [id])
+
+  /// Dead. Never written any more.
+  ///
+  /// The studio briefly reserved credits at submit and refunded a failure; it now
+  /// charges on delivery, so a generation that fails moves no money and there is
+  /// nothing to give back. The column is kept rather than dropped because dropping
+  /// one is destructive and these rows exist on preprod: it stays nullable and
+  /// unused, `history_image_amount()` subtracts NULL and is unaffected, and nothing
+  /// reads the relation.
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionProjectImageJob", fields: [refundTransactionId], references: [id])
+
   /// Caller-supplied replay guard. Unique per project, so a retried HTTP
   /// request returns the same job instead of buying a second image.
   idempotencyKey String
@@ -4566,8 +4601,20 @@ model ProjectImageJob {
   submitAttempts   Int       @default(0)
 
   falRequestId String?
-  /// Provider-facing error text, already stripped of anything secret.
+  /// One sentence a person can read, written by the studio and never by the
+  /// provider. A raw transport string — "Unexpected status code: 422" reached a
+  /// person's screen once — is not a thing anybody can act on, so it goes to the
+  /// server log instead and this column carries the studio's own words.
   error        String?
+  /// The stable code a client localises, from `IMAGE_JOB_FAILURE_REASONS`.
+  ///
+  /// A string rather than a Prisma enum so a new reason is a deploy and not a
+  /// migration — the same reasoning as `NotificationPreference.category`. Core
+  /// validates it on the way out and maps an unrecognised value to `unknown`, so
+  /// a row written by a newer build can never break an older reader. Null for
+  /// every job that failed before this column existed, and for the one outage
+  /// case whose own wording says it better than a code could.
+  failureReason String?
 
   /// When somebody asked the provider to stop, and it accepted.
   ///
