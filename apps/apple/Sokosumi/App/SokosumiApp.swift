@@ -56,7 +56,7 @@ struct SokosumiApp: App {
         Button("Mark All as Read") {
           Task { @MainActor in await workspaces.markAllUnreadRead(auth: auth) }
         }
-        .disabled(!auth.isSignedIn || workspaces.unreadsFilter?.showsMarkAll != true || workspaces.sidebar.isMarkingAllUnreadRead)
+        .disabled(!workspaces.offersMarkAllUnreadRead(isSignedIn: auth.isSignedIn))
       }
     }
   }

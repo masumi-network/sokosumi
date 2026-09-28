@@ -29,18 +29,38 @@
 
       @Test func markAllIsOfferedUnderTheSidebarRowsRule() {
         let state = WorkspaceState()
-        // Off, the Toggle reads false and Mark all stands disabled even with unread rooms in the list.
-        #expect(!state.sidebar.unreadsFilterOn && state.unreadsFilter?.showsMarkAll != true)
-
-        // The Toggle's action. Unread rooms stand, so Mark all is offered as the row's button is.
         state.rooms = [Self.room("launch", channel: 2), Self.room("general")]
+        // Off, the Toggle reads false and Mark all stands disabled even with an unread room in the list.
+        #expect(!state.sidebar.unreadsFilterOn && !state.offersMarkAllUnreadRead(isSignedIn: true))
+
+        // The Toggle's action. An unread room stands, so Mark all is offered as the row's button is.
         state.sidebar.setUnreadsFilter(true)
         #expect(state.sidebar.unreadsFilterOn)
-        #expect(state.unreadsFilter?.showsMarkAll == true)
+        #expect(state.offersMarkAllUnreadRead(isSignedIn: true))
+        #expect(!state.offersMarkAllUnreadRead(isSignedIn: false), "Signed out, the command stands down.")
 
         // Read rooms only: the same rule that withdraws the row's button.
         state.rooms = [Self.room("general")]
-        #expect(state.unreadsFilter?.showsMarkAll != true)
+        #expect(!state.offersMarkAllUnreadRead(isSignedIn: true))
+      }
+
+      @Test func markAllIsNotOfferedWhileOneRuns() async throws {
+        let transport = ReadsTransport(holdsReads: true)
+        let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
+        let state = WorkspaceState(clientProvider: { _ in client })
+        state.rooms = [Self.room("launch", channel: 2)]
+        state.sidebar.readAttention.setVisible(true, window: UUID())
+        state.sidebar.setUnreadsFilter(true)
+        #expect(state.offersMarkAllUnreadRead(isSignedIn: true))
+
+        let marking = Task { await state.markAllUnreadRead(auth: AuthState()) }
+        while await transport.operationIDs.isEmpty {
+          await Task.yield()
+        }
+        #expect(!state.offersMarkAllUnreadRead(isSignedIn: true), "A second Mark all waits for the first.")
+
+        await transport.releaseReads()
+        await marking.value
       }
 
       @Test func markAllRunsTheCommandAction() async throws {
@@ -67,6 +87,18 @@
   private actor ReadsTransport: ClientTransport {
     private(set) var operationIDs: [String] = []
     private(set) var paths: [String] = []
+    /// Holds each read open until `releaseReads()`, so a test can look at a Mark all in flight.
+    private let holdsReads: Bool
+    private var heldReads: [CheckedContinuation<Void, Never>] = []
+
+    init(holdsReads: Bool = false) {
+      self.holdsReads = holdsReads
+    }
+
+    func releaseReads() {
+      heldReads.forEach { $0.resume() }
+      heldReads = []
+    }
 
     func send(
       _ request: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID: String
@@ -76,6 +108,9 @@
       }
       operationIDs.append(operationID)
       paths.append(request.path ?? "")
+      if holdsReads {
+        await withCheckedContinuation { heldReads.append($0) }
+      }
       // "/chats/rooms/<roomId>/read": the room is the fourth part.
       let parts = (request.path ?? "").split(separator: "/").map(String.init)
       let roomId = parts.count >= 4 ? parts[3] : ""
