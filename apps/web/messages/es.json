@@ -2266,6 +2266,8 @@
         "description": "Conecta cuentas de redes sociales a este proyecto. Actualmente se puede publicar en X.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
+        "connectHeading": "Conectar una cuenta",
+        "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
