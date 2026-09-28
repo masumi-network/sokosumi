@@ -13,6 +13,8 @@ import {
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   sokoBotDecisionInputSchema as decisionInputSchema,
   exceedsUnattendedHireBudget,
+  sokoBotGenerateImageInputSchema as generateImageInputSchema,
+  sokoBotGetImageInputSchema as getImageInputSchema,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
@@ -61,6 +63,7 @@ import {
   tableQuerySchema,
 } from "@sokosumi/utils";
 import { list, put } from "@vercel/blob";
+import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { getEnv } from "@/config/env";
@@ -99,6 +102,9 @@ import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
+import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
@@ -147,6 +153,13 @@ import {
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
 import { loadLiveResources, searchFiles } from "@/services/file-search.service";
+import { getJob } from "@/services/image-studio-assets.service";
+import {
+  createImageJob,
+  DEFAULT_SETTINGS,
+  type ImageJobSettings,
+  reconcileProjectJobs,
+} from "@/services/image-studio-jobs.service";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
@@ -1463,6 +1476,108 @@ export class SokoBotRuntimeService {
           persist,
           "Another assistant posted into this room at the same moment",
         );
+  }
+
+  /**
+   * Starts an image in a Project's Content Studio. Owner chat turns only, and
+   * priced before it runs: the studio charges on delivery, so this is the
+   * last point where the bot can decline a price it was not given.
+   */
+  private async generateImage(
+    authorized: AuthorizedSokoBotRuntime,
+    raw: unknown,
+    toolCallId: string,
+  ) {
+    const input = generateImageInputSchema.parse(raw);
+    if (
+      authorized.turn.source !== "CHAT" ||
+      authorized.turn.chainDepth > 0 ||
+      authorized.askedByKind !== "OWNER"
+    )
+      throw new SokoBotRuntimeAuthorizationError(
+        "Images are generated only when your owner asks in chat. Describe the image you would make instead.",
+      );
+    await ensureImageCatalogFresh();
+    const settings = {
+      ...DEFAULT_SETTINGS,
+      ...(input.aspectRatio ? { aspectRatio: input.aspectRatio } : {}),
+    } as ImageJobSettings;
+    const model = imageModel();
+    let credits: number;
+    try {
+      credits = creditsPerImage(
+        model,
+        resolveImageSettings(model.id, settings, 0),
+      );
+    } catch (error) {
+      throw new SokoBotRuntimeValidationError(
+        error instanceof Error ? error.message : "Invalid image settings",
+      );
+    }
+    if (credits > input.maxCredits)
+      throw new SokoBotRuntimeValidationError(
+        `This image costs ${credits} credits, more than the ${input.maxCredits} allowed. Ask your owner before spending more.`,
+      );
+    let job: Awaited<ReturnType<typeof createImageJob>>;
+    try {
+      job = await createImageJob({
+        projectId: input.projectId,
+        workspaceId: authorized.turn.workspaceId,
+        userId: authorized.turn.userId,
+        sessionId: null,
+        prompt: input.prompt,
+        modelId: model.id,
+        settings,
+        referenceAssetIds: [],
+        parentAssetId: null,
+        idempotencyKey: `soko-bot:${authorized.turn.id}:${toolCallId}`,
+      });
+    } catch (error) {
+      // The studio's refusals (no access, no balance, too many at once) are
+      // the model's to read, not a transport failure.
+      if (error instanceof HTTPException)
+        throw new SokoBotRuntimeValidationError(error.message);
+      throw error;
+    }
+    return {
+      jobId: job.id,
+      projectId: input.projectId,
+      status: job.status,
+      credits,
+      studioUrl: `/studio?projectId=${encodeURIComponent(input.projectId)}`,
+      note:
+        job.status === "SUBMISSION_UNCERTAIN"
+          ? "The provider did not confirm this request. Do not start it again; tell the owner."
+          : "Started. An image takes about a minute; check it with get_image.",
+    };
+  }
+
+  /** Where an image started with `generate_image` has got to. */
+  private async getImage(authorized: AuthorizedSokoBotRuntime, raw: unknown) {
+    const input = getImageInputSchema.parse(raw);
+    const scope = {
+      projectId: input.projectId,
+      workspaceId: authorized.turn.workspaceId,
+      userId: authorized.turn.userId,
+    };
+    try {
+      await reconcileProjectJobs(input.projectId);
+      const job = await getJob({ ...scope, jobId: input.jobId });
+      if (!job) return null;
+      const studioUrl = `/studio?projectId=${encodeURIComponent(input.projectId)}`;
+      return {
+        jobId: job.id,
+        status: job.status,
+        failureReason: job.failureReason ?? null,
+        studioUrl: job.assetId
+          ? `${studioUrl}&v=${encodeURIComponent(job.assetId)}`
+          : studioUrl,
+      };
+    } catch (error) {
+      if (error instanceof HTTPException)
+        throw new SokoBotRuntimeValidationError(error.message);
+      throw error;
+    }
   }
 
   /** The owner's personal Drive as the Files catalog knows it. */
@@ -4204,6 +4319,10 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotUploadFileInputSchema.parse(input.input);
         return this.uploadFile(authorized, parsed);
       }
+      case "generate_image":
+        return this.generateImage(authorized, input.input, input.toolCallId);
+      case "get_image":
+        return this.getImage(authorized, input.input);
       case "read_file":
         return this.readFile(
           authorized,

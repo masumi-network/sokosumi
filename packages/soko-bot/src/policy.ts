@@ -43,6 +43,8 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_tables",
   "read_table",
   "upload_file",
+  "generate_image",
+  "get_image",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -109,6 +111,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  // Spends credits, and its prompt is the kind of thing a page can inject.
+  "generate_image",
   "post_chat",
   "open_direct_chat",
   "reply_to_task",
@@ -135,6 +139,7 @@ const DIRECT_READ_CAPABILITIES = [
   "read_chat",
   "list_files",
   "read_file",
+  "get_image",
   "list_tables",
   "read_table",
   "list_integrations",
@@ -175,6 +180,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
   "upload_file",
+  "generate_image",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -326,7 +332,7 @@ export function capabilitiesForClassification(
     MEMORY: ["update_memory"],
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat"],
-    FILE: ["upload_file"],
+    FILE: ["upload_file", "generate_image"],
     INTEGRATION: ["run_integration_tool", "request_user_decision"],
     SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };

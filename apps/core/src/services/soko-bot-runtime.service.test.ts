@@ -38,6 +38,7 @@ const {
   taskFindManyMock,
   taskCountMock,
   files,
+  images,
   jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -122,6 +123,12 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskCountMock: vi.fn(),
+  images: {
+    create: vi.fn(),
+    getJob: vi.fn(),
+    reconcile: vi.fn(),
+    credits: vi.fn(),
+  },
   files: {
     list: vi.fn(),
     put: vi.fn(),
@@ -236,6 +243,29 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 }));
 
 vi.mock("@vercel/blob", () => ({ list: files.list, put: files.put }));
+vi.mock("@/lib/image-studio/catalog", () => ({
+  imageModel: () => ({ id: "gemini-flash" }),
+  resolveImageSettings: (_id: string, settings: unknown) => settings,
+}));
+vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
+  ensureImageCatalogFresh: vi.fn(),
+}));
+vi.mock("@/lib/image-studio/image-model", () => ({
+  creditsPerImage: images.credits,
+}));
+vi.mock("@/services/image-studio-assets.service", () => ({
+  getJob: images.getJob,
+}));
+vi.mock("@/services/image-studio-jobs.service", () => ({
+  createImageJob: images.create,
+  reconcileProjectJobs: images.reconcile,
+  DEFAULT_SETTINGS: {
+    aspectRatio: "1:1",
+    resolution: "1K",
+    outputFormat: "png",
+    seed: null,
+  },
+}));
 vi.mock("@/services/file-search.service", () => ({
   searchFiles: files.search,
   loadLiveResources: files.loadLive,
@@ -4846,5 +4876,99 @@ describe("Drive file tools", () => {
       id: "file-9",
       url: "https://blob.example/notes.md",
     });
+  });
+});
+
+describe("Content Studio image tools", () => {
+  const ownerChat = {
+    askedByKind: "OWNER",
+    turn: {
+      id: SCOPE.turnId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+  };
+  const service = new SokoBotRuntimeService() as unknown as Record<
+    string,
+    (
+      authorized: unknown,
+      input: unknown,
+      toolCallId?: string,
+    ) => Promise<unknown>
+  >;
+  const request = {
+    projectId: "project-1",
+    prompt: "A calm launch banner",
+    maxCredits: 10,
+  };
+  beforeEach(() => images.credits.mockReturnValue(4));
+
+  it("starts an image within the price and links to the studio", async () => {
+    images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
+    const result = await service.generateImage(ownerChat, request, "call-1");
+    expect(images.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        workspaceId: SCOPE.workspaceId,
+        userId: SCOPE.userId,
+        prompt: "A calm launch banner",
+        idempotencyKey: `soko-bot:${SCOPE.turnId}:call-1`,
+      }),
+    );
+    expect(result).toMatchObject({
+      jobId: "job-1",
+      status: "QUEUED",
+      credits: 4,
+      studioUrl: "/studio?projectId=project-1",
+    });
+  });
+
+  it("declines an image that costs more than it may spend", async () => {
+    images.credits.mockReturnValue(25);
+    await expect(
+      service.generateImage(ownerChat, request, "call-2"),
+    ).rejects.toThrow("costs 25 credits, more than the 10 allowed");
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a scheduled turn", { turn: { ...ownerChat.turn, source: "SCHEDULE" } }],
+    ["a teammate", { askedByKind: "TEAMMATE" }],
+    ["another bot", { turn: { ...ownerChat.turn, chainDepth: 1 } }],
+  ])("refuses to spend for %s", async (_label, override) => {
+    await expect(
+      service.generateImage({ ...ownerChat, ...override }, request, "call-3"),
+    ).rejects.toThrow("only when your owner asks in chat");
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("passes the studio's refusal to the model in its own words", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.create.mockRejectedValue(
+      new HTTPException(422, { message: "Not enough credits for this image." }),
+    );
+    await expect(
+      service.generateImage(ownerChat, request, "call-4"),
+    ).rejects.toThrow("Not enough credits for this image.");
+  });
+
+  it("reports a finished image with a link to that version", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-1",
+      status: "SUCCEEDED",
+      assetId: "asset-7",
+      failureReason: null,
+    });
+    await expect(
+      service.getImage(ownerChat, { projectId: "project-1", jobId: "job-1" }),
+    ).resolves.toEqual({
+      jobId: "job-1",
+      status: "SUCCEEDED",
+      failureReason: null,
+      studioUrl: "/studio?projectId=project-1&v=asset-7",
+    });
+    expect(images.reconcile).toHaveBeenCalledWith("project-1");
   });
 });

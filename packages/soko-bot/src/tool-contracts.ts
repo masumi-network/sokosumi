@@ -230,6 +230,22 @@ export const sokoBotUploadFileInputSchema = z.object({
   contentType: z.string().max(120).optional(),
 });
 
+export const sokoBotGenerateImageInputSchema = z
+  .object({
+    /** Project whose Content Studio receives the image. */
+    projectId: z.string().min(1),
+    prompt: z.string().trim().min(1).max(4_000),
+    /** 1:1, 4:3, 3:4, 16:9, 9:16, 3:2, 2:3 or 4:5; defaults to 1:1. */
+    aspectRatio: z.string().max(10).optional(),
+    /** Most credits this image may cost; the price is checked first. */
+    maxCredits: z.number().positive().max(10_000),
+  })
+  .strict();
+
+export const sokoBotGetImageInputSchema = z
+  .object({ projectId: z.string().min(1), jobId: z.string().min(1) })
+  .strict();
+
 export const sokoBotOpenDirectChatInputSchema = z.object({
   /** Who to reach: their name or email address, as your owner said it. Must be someone in your owner's organization. */
   person: z.string().min(1).max(200),
@@ -476,6 +492,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   post_chat: sokoBotPostChatInputSchema,
   list_files: sokoBotListFilesInputSchema,
   read_file: sokoBotReadFileInputSchema,
+  generate_image: sokoBotGenerateImageInputSchema,
+  get_image: sokoBotGetImageInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
@@ -567,6 +585,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. Include taskId for task-driven work. Follow-up requests reuse the same table.",
   list_files:
     "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
+  generate_image:
+    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. Generation takes a minute; check it with get_image.",
+  get_image:
+    "Check an image started with generate_image: its status, and a link to it in Content Studio once it is ready.",
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:

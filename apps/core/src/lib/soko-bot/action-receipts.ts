@@ -11,6 +11,8 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "run_integration_tool",
   "upload_file",
   "publish_social_post",
+  // A paid provider call: never repeated after an unclear failure.
+  "generate_image",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -224,6 +226,21 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
+  } else if (capability === "generate_image") {
+    // Only a job the provider took; an uncertain submission stays UNKNOWN.
+    const acknowledged = z
+      .object({
+        jobId: z.string().min(1).max(2048),
+        status: z.enum([
+          "PENDING",
+          "SUBMITTING",
+          "QUEUED",
+          "RUNNING",
+          "SUCCEEDED",
+        ]),
+      })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.jobId;
   } else if (capability === "upload_file") {
     const acknowledged = z
       .object({

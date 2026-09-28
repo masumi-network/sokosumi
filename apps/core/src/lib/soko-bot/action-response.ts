@@ -31,6 +31,7 @@ const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  generate_image: "Started image",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
@@ -88,12 +89,19 @@ function linkText(value: string): string {
 }
 
 function actionTarget(
-  call: { capability: string; targetId: string | null },
+  call: { capability: string; targetId: string | null; result?: unknown },
   tasks: Map<string, TaskLabel>,
 ): string {
   const id = call.targetId ?? "";
   if (call.capability === "create_table")
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (call.capability === "generate_image") {
+    const studio = z
+      .object({ studioUrl: z.string().startsWith("/studio?") })
+      .safeParse(call.result);
+    if (studio.success)
+      return `([Open in Content Studio](${studio.data.studioUrl}))`;
+  }
   const task = tasks.get(id);
   if (!task) return `(${id})`;
   const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;

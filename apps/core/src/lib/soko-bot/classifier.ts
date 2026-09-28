@@ -51,7 +51,7 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   HIRE_AGENT:
     "Explicitly asks to hire, book or run a marketplace Agent. This spends the owner's credits, so choose it only when the owner plainly asks for an Agent.",
   MANAGE_WORK:
-    "Asks for a concrete change the assistant makes itself: create or edit a Project social post, schedule or reschedule it, cancel it or publish it now; update, move, reassign, archive or cancel existing Tasks or Jobs; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; save or write a file; create or change calendar events or email through a connected account; remember something or forget something it was told.",
+    "Asks for a concrete change the assistant makes itself: create or edit a Project social post, schedule or reschedule it, cancel it or publish it now; update, move, reassign, archive or cancel existing Tasks or Jobs; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; save or write a file, or generate an image; create or change calendar events or email through a connected account; remember something or forget something it was told.",
   MIXED:
     "Asks for two or more independent actions that belong to different routes above in one message, for example hiring an Agent and also creating a Task.",
 };
@@ -63,7 +63,7 @@ const WRITE_SCOPE_CRITERIA = {
   SOCIAL:
     "creating, editing, scheduling, rescheduling, canceling or publishing a Project social media post",
   CHAT: "posting a message in a chat room or channel, or messaging or asking a person in chat (not by email)",
-  FILE: "saving or writing a file or document",
+  FILE: "saving or writing a file or document, or generating an image",
   INTEGRATION:
     "writing or sending an email, creating or changing calendar events, or acting in another connected account such as Slack or Notion",
   MEMORY: "remembering or forgetting something",
