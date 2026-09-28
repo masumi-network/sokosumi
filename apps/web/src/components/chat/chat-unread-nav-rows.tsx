@@ -4,7 +4,13 @@ import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useTransition } from "react";
+import {
+  type ReactNode,
+  useEffect,
+  useEffectEvent,
+  useId,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
@@ -37,9 +43,11 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSidebarFlyout } from "@/hooks/use-sidebar-flyout";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
+import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 
 /** A row at rest, as the room rows draw theirs. */
 const THREADS_ROW_CLASS =
@@ -84,7 +92,46 @@ export function ChatUnreadNavRows({
   const t = useTranslations("App.Channels.UnreadNav");
   const tChannels = useTranslations("App.Channels");
   const pathname = usePathname();
-  const { isMobile } = useSidebar();
+  const { isMobile, state: sidebarState } = useSidebar();
+  // The filter's keyboard path (SOK-1201), split by platform as every web
+  // hotkey here is: ⌘⇧U on Apple, Ctrl+Shift+U elsewhere. Below the mobile
+  // breakpoint there is no physical keyboard to press it.
+  const isApplePlatform = useIsApplePlatform();
+  const showsShortcut = !isMobile;
+  const shortcutLabel = isApplePlatform ? "⌘⇧U" : "Ctrl+Shift+U";
+  const shortcutKeys = isApplePlatform ? "Meta+Shift+U" : "Control+Shift+U";
+  const shortcutHint = t("allUnreadsShortcut", { shortcut: shortcutLabel });
+  const toggleFromKeyboard = useEffectEvent(() => {
+    onUnreadOnlyChange(!unreadOnly);
+  });
+
+  // The same toggle the button runs, from the keyboard: ⌘⇧U / Ctrl+Shift+U is
+  // no browser default (checked against Chrome, Safari, Firefox and Edge).
+  // Editable targets keep their "u" for text and, on Linux, their Ctrl+Shift+U
+  // Unicode input, so the shortcut stands down there.
+  useEffect(() => {
+    if (!showsShortcut) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key?.toLowerCase() !== "u" || event.repeat) {
+        return;
+      }
+      const hostModifier = isApplePlatform ? event.metaKey : event.ctrlKey;
+      if (!hostModifier || !event.shiftKey || event.altKey) {
+        return;
+      }
+      if (isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+      event.preventDefault();
+      toggleFromKeyboard();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showsShortcut, isApplePlatform]);
+
   const { threadCount, mentionCount, rail } =
     resolveUnreadThreadsAttention(rooms);
   const wrapLink = (link: ReactNode) =>
@@ -258,7 +305,7 @@ export function ChatUnreadNavRows({
             flip from off to on as the page hydrates. */}
         <SidebarMenuButton
           asChild
-          tooltip={t("allUnreads")}
+          tooltip={showsShortcut ? shortcutHint : t("allUnreads")}
           className={cn(
             unreadOnly
               ? [
@@ -279,6 +326,14 @@ export function ChatUnreadNavRows({
           <button
             type="button"
             aria-pressed={unreadOnly}
+            aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
+            // The rail's tooltip names the shortcut; the expanded sidebar
+            // hides that tooltip, so the row names it on hover instead.
+            title={
+              showsShortcut && sidebarState !== "collapsed"
+                ? shortcutHint
+                : undefined
+            }
             data-filter-on={unreadOnly ? "true" : undefined}
             onClick={() => onUnreadOnlyChange(!unreadOnly)}
           >

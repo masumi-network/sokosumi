@@ -7,7 +7,7 @@ import {
   isValidElement,
   type ReactNode,
 } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
@@ -58,21 +58,25 @@ vi.mock("@/components/ui/sidebar", async () => ({
     "@/components/ui/sidebar",
   )),
   // The primitive's `cn` merge, reduced to the part these rows rely on: the
-  // row's own classes land on the element it renders.
+  // row's own classes land on the element it renders. Its rail tooltip
+  // lands there as data-tooltip.
   SidebarMenuButton: ({
     children,
     asChild,
     className,
+    tooltip,
   }: {
     children: ReactNode;
     asChild?: boolean;
     className?: string;
+    tooltip?: string;
   }) =>
     asChild === true && isValidElement<{ className?: string }>(children) ? (
       cloneElement(children, {
         className: [children.props.className, className]
           .filter(Boolean)
           .join(" "),
+        ...(tooltip ? { "data-tooltip": tooltip } : {}),
       })
     ) : (
       <>{children}</>
@@ -312,5 +316,152 @@ describe("ChatUnreadNavRows", () => {
     renderRows([]);
 
     expect(threadsRow()).toHaveAttribute("aria-current", "page");
+  });
+
+  describe("keyboard shortcut (SOK-1201)", () => {
+    const originalNavigator = global.navigator;
+
+    function mockUserAgent(userAgent: string) {
+      Object.defineProperty(global, "navigator", {
+        value: { userAgent },
+        configurable: true,
+      });
+    }
+
+    afterEach(() => {
+      Object.defineProperty(global, "navigator", {
+        value: originalNavigator,
+        configurable: true,
+      });
+    });
+
+    function pressUnreadsShortcut(modifiers: {
+      metaKey?: boolean;
+      ctrlKey?: boolean;
+      shiftKey?: boolean;
+      altKey?: boolean;
+      repeat?: boolean;
+    }) {
+      const event = new KeyboardEvent("keydown", {
+        key: "U",
+        bubbles: true,
+        cancelable: true,
+        ...modifiers,
+      });
+      const preventDefault = vi.spyOn(event, "preventDefault");
+      window.dispatchEvent(event);
+      return preventDefault;
+    }
+
+    it("toggles the filter with ⌘⇧U on Apple platforms", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { onUnreadOnlyChange });
+
+      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+        "aria-keyshortcuts",
+        "Meta+Shift+U",
+      );
+      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+        "title",
+        "Unreads (⌘⇧U)",
+      );
+      const preventDefault = pressUnreadsShortcut({
+        metaKey: true,
+        shiftKey: true,
+      });
+
+      expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
+      expect(preventDefault).toHaveBeenCalled();
+    });
+
+    it("takes Ctrl+Shift+U, not the ⌘ form, on other platforms", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      );
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { onUnreadOnlyChange });
+
+      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+        "aria-keyshortcuts",
+        "Control+Shift+U",
+      );
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+
+      pressUnreadsShortcut({ ctrlKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).toHaveBeenCalledWith(true);
+    });
+
+    it("turns the filter off from the keyboard too", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { unreadOnly: true, onUnreadOnlyChange });
+
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).toHaveBeenCalledWith(false);
+    });
+
+    it("stands down while typing, without shift, with alt or on repeat", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { onUnreadOnlyChange });
+
+      // ⌘U alone stays the browser's and the composer's.
+      pressUnreadsShortcut({ metaKey: true });
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true, altKey: true });
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true, repeat: true });
+      expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+
+      // The composer's case: the event an editable target received.
+      const input = document.createElement("input");
+      document.body.append(input);
+      input.focus();
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "U",
+          bubbles: true,
+          cancelable: true,
+          metaKey: true,
+          shiftKey: true,
+        }),
+      );
+      input.remove();
+      expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+    });
+
+    it("leaves the shortcut to the rail's tooltip when collapsed", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      sidebarMock.state = "collapsed";
+      renderRows([]);
+
+      const toggle = screen.getByRole("button", { name: /^Unreads/ });
+      expect(toggle).toHaveAttribute("aria-keyshortcuts");
+      expect(toggle).toHaveAttribute("data-tooltip", "Unreads (⌘⇧U)");
+      expect(toggle).not.toHaveAttribute("title");
+    });
+
+    it("stays unbound below the mobile breakpoint", () => {
+      mockUserAgent(
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+      );
+      sidebarMock.isMobile = true;
+      const onUnreadOnlyChange = vi.fn();
+      renderRows([], { onUnreadOnlyChange });
+
+      expect(
+        screen.getByRole("button", { name: /^Unreads/ }),
+      ).not.toHaveAttribute("aria-keyshortcuts");
+      pressUnreadsShortcut({ metaKey: true, shiftKey: true });
+      expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+    });
   });
 });

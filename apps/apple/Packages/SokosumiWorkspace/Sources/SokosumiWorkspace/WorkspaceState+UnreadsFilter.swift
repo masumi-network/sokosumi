@@ -13,6 +13,12 @@ public extension WorkspaceState {
     )
   }
 
+  /// The View menu's Mark All as Read (SOK-1201): offered under the sidebar row's rule, to a signed-in reader, and
+  /// not again while one runs.
+  func offersMarkAllUnreadRead(isSignedIn: Bool) -> Bool {
+    isSignedIn && unreadsFilter?.showsMarkAll == true && !sidebar.isMarkingAllUnreadRead
+  }
+
   /// Web's Mark all as read: every room's reads at once, then the rooms again, whatever the outcome.
   func markAllUnreadRead(auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
