@@ -498,6 +498,10 @@ export function StudioComposer({
           <PopoverContent
             align="start"
             className="w-96 max-w-[calc(100vw-2rem)] p-2"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              searchRef.current?.focus();
+            }}
           >
             <div className="flex items-center justify-between gap-2 pb-2">
               {/* One brief on every model is the thing this composer is for,
@@ -602,14 +606,7 @@ export function StudioComposer({
               </TriggerLabel>
             </Button>
           </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="w-80 space-y-3"
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              searchRef.current?.focus();
-            }}
-          >
+          <PopoverContent align="start" className="w-80 space-y-3">
             {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}
