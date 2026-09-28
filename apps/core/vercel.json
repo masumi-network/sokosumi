@@ -115,6 +115,10 @@
     {
       "path": "/sync/task-tags",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/sync/social-posts-publish",
+      "schedule": "* * * * *"
     }
   ]
 }
