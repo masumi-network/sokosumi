@@ -316,7 +316,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.
 - **Release announcements** ("New in Sokosumi" images) share one template, whose colours come
-  from `globals.css`. Run `/create-new-in-sokosumi` with a PR or any context to render one;
+  from `globals.css`. Run `/create-new-in-sokosumi` with a PR or any context to get one;
   see [the skill](.agents/skills/create-new-in-sokosumi/SKILL.md).
 
 ## Accessibility

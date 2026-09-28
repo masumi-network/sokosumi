@@ -1,13 +1,13 @@
 ---
 name: create-new-in-sokosumi
-description: Render a "New in Sokosumi" announcement image from a PR or any context you give, and add it to the PR description when there is one.
+description: Render a "New in Sokosumi" announcement image from a PR or any context you give, and show it in the reply.
 disable-model-invocation: true
 argument-hint: "[PR, description, or screenshots]"
 ---
 
 # New in Sokosumi
 
-One run turns one change into one announcement image. The frame (layout, the "New in Sokosumi" eyebrow, type, and colours read from `apps/web/src/app/globals.css`) lives in `template.html`; each run writes only a content fragment into it. The deliverable is the PNG.
+One run turns one change into one announcement image. The frame (layout, the "New in Sokosumi" eyebrow, type, and colours read from `apps/web/src/app/globals.css`) lives in `template.html`; each run writes only a content fragment into it. The deliverable is the image, shown in your reply; it is never committed or attached to a PR.
 
 **This run's context** is whatever the user sent with the command: a PR, a description, screenshots, or a mix. With nothing sent, it is the open PR for the current branch.
 
@@ -46,17 +46,4 @@ One run turns one change into one announcement image. The frame (layout, the "Ne
 
    Exit 2 means something overflows; it is outlined in red in the PNG. Shorten the copy or simplify the mock and render again. Done when the script exits 0.
 5. **Review the image.** Open the PNG. Done when the headline is two lines, each point and caption sits on one line, nothing is clipped at a panel's bottom edge, each panel's content fills most of its height, and the mocks read as the real UI.
-6. **Deliver.** Show the user the image. When the context is a PR, also add it to the PR description: keep the existing description as it is, and add this section at the end, or replace the section between the markers when a previous run left one:
-
-   ```markdown
-   <!-- new-in-sokosumi:start -->
-   ## New in Sokosumi
-
-   <img alt="New in Sokosumi: <headline>" src="<png path>" />
-   <!-- new-in-sokosumi:end -->
-   ```
-
-   - **Cursor Cloud:** call `ManagePullRequest` `update_pr` with the whole body and the absolute `/opt/cursor/artifacts/…png` path as `src`; the tool uploads it and rewrites the URL. Leave out any `CURSOR_AGENT_PR_BODY_BEGIN/END` markers and the Cursor footer links, which the tool manages.
-   - **Anywhere else:** GitHub has no API for uploading images to a PR. Give the user the PNG path and ask them to drag it into the description.
-
-   Done when the user has the image and, for a PR, `gh pr view <PR> --json body` shows the section with an `https://` image URL or the user has the PNG path.
+6. **Deliver.** Show the image in your reply: in Cursor, `<img alt="New in Sokosumi: <headline>" src="<absolute png path>" />`; elsewhere, attach or link the PNG the way the host shows files. Keep the PNG and fragment out of the repo and leave the PR description untouched. Done when the image appears in your reply.
