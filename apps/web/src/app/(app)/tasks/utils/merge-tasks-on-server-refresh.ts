@@ -3,6 +3,11 @@ import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 interface MergeTasksOnServerRefreshParams {
   prev: TaskWithCoworker[];
   serverTasks: TaskWithCoworker[];
+  /**
+   * Ids the server sent last time. A row that was there and is gone now was
+   * removed server-side (archived, refiltered), not loaded via load-more.
+   */
+  previousServerTaskIds: ReadonlySet<string>;
   pendingMoveTaskIds: ReadonlySet<string>;
   /**
    * Board load-more keeps rows outside the refreshed first page.
@@ -18,6 +23,7 @@ interface MergeTasksOnServerRefreshParams {
 export function mergeTasksOnServerRefresh({
   prev,
   serverTasks,
+  previousServerTaskIds,
   pendingMoveTaskIds,
   keepLocalOnlyTasks,
 }: MergeTasksOnServerRefreshParams): TaskWithCoworker[] {
@@ -36,7 +42,7 @@ export function mergeTasksOnServerRefresh({
 
   const nextIds = new Set(serverTasks.map((task) => task.id));
   for (const task of prev) {
-    if (!nextIds.has(task.id)) {
+    if (!nextIds.has(task.id) && !previousServerTaskIds.has(task.id)) {
       next.push(task);
     }
   }
