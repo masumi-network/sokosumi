@@ -257,7 +257,10 @@ describe("GitHub OIDC remote cache wiring", () => {
     // than checking them, so without these the CLI loses type and lint
     // coverage entirely. Root `pnpm build` is covered by the smoke step.
     for (const [name, command] of [
-      ["Typecheck the CLI", /pnpm --filter @sokosumi\/cli typecheck/],
+      [
+        "Typecheck the CLI",
+        /pnpm --filter @masumi_network\/sokosumi typecheck/,
+      ],
       ["Lint the CLI", /biome check apps\/cli/],
     ]) {
       const step = block.match(
