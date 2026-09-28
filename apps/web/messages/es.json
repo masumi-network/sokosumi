@@ -6799,6 +6799,14 @@
         "upcoming": "A continuación",
         "loading": "Cargando…",
         "loadMore": "Cargar más"
+      },
+      "socialPost": {
+        "mediaOnly": "Publicación multimedia",
+        "project": "Proyecto: {name}",
+        "projectLabel": "Proyecto: ",
+        "scheduledBy": "Programado por {name}",
+        "unknownScheduler": "usuario desconocido",
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
       }
     },
     "You": {

@@ -49,6 +49,7 @@ import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import {
   TASK_SCHEDULES_PATH,
@@ -81,6 +82,7 @@ import { coreClient } from "@/lib/clients/core.browser.client";
 import {
   TaskStatus,
   type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -98,6 +100,7 @@ import {
   useReportRunChangeFailure,
 } from "./run-change";
 import { RunMoveDialog } from "./run-move-dialog";
+import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
@@ -148,10 +151,11 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  includeSocialPosts?: boolean;
   activeOrganizationId?: string | null;
   currentUserId?: string | null;
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate?: string;
   sources?: WorkspaceCalendarSource[];
   pagination?: {
@@ -367,9 +371,17 @@ function CalendarEvent({
             {timeText}
           </span>
         ) : null}
-        <span className="text-muted-foreground min-w-0 truncate">
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">
           {sourceName}
         </span>
+        {item.taskStatus ? (
+          <TaskStatusBadge
+            status={item.taskStatus}
+            label={t(`status.${item.taskStatus}`)}
+            showLabel={false}
+            className="size-5 justify-center p-0"
+          />
+        ) : null}
       </span>
       <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
       <span className="flex w-full min-w-0 items-center gap-1">
@@ -462,7 +474,7 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   sources: WorkspaceCalendarSource[];
@@ -557,17 +569,21 @@ function CalendarView({
             <ul className="flex flex-col gap-2 p-3">
               {dayItems.map((item) => (
                 <li key={item.id}>
-                  <CalendarEvent
-                    item={item}
-                    people={findCalendarPeople(item, coworkers)}
-                    {...runHandlers}
-                    source={sources.find(
-                      ({ sourceId }) => sourceId === item.sourceId,
-                    )}
-                    timeText={formatDate(item.scheduledAt, "time", {
-                      timeZone,
-                    })}
-                  />
+                  {item.kind === "socialPost" ? (
+                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                  ) : (
+                    <CalendarEvent
+                      item={item}
+                      people={findCalendarPeople(item, coworkers)}
+                      {...runHandlers}
+                      source={sources.find(
+                        ({ sourceId }) => sourceId === item.sourceId,
+                      )}
+                      timeText={formatDate(item.scheduledAt, "time", {
+                        timeZone,
+                      })}
+                    />
+                  )}
                 </li>
               ))}
             </ul>
@@ -598,7 +614,7 @@ function CalendarView({
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.taskName,
+            title: item.kind === "socialPost" ? item.text : item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
             // Per-event: a released or unowned Run is visible but not draggable.
             startEditable: isChangeableRun(item),
@@ -628,6 +644,10 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
+            if (item.kind === "socialPost")
+              return (
+                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+              );
             return (
               <CalendarEvent
                 item={item}
@@ -663,6 +683,7 @@ export function WorkspaceCalendar({
   coworkers = [],
   lockedProjectId,
   workspaceId = null,
+  includeSocialPosts = false,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -679,7 +700,7 @@ export function WorkspaceCalendar({
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
     cursor: string;
-    items: WorkspaceCalendarItem[];
+    items: WorkspaceCalendarEntry[];
   } | null>(null);
   const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
@@ -779,8 +800,19 @@ export function WorkspaceCalendar({
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
-    .filter(
-      (item) =>
+    .filter((item) => {
+      if (item.kind === "socialPost")
+        return (
+          (view !== "agenda" ||
+            (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
+              getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+                Temporal.Now.plainDateISO(timeZone).toString())) &&
+          state.assigneeId === null &&
+          state.assigneeUserId === null &&
+          state.status === null &&
+          (selectedSourceId === null || item.sourceId === selectedSourceId)
+        );
+      return (
         (view !== "agenda" ||
           (item.state === "PLANNED" &&
             getCalendarItemDateKey(item.scheduledAt, timeZone) >=
@@ -790,8 +822,9 @@ export function WorkspaceCalendar({
         (state.assigneeUserId === null ||
           item.taskAssigneeUserId === state.assigneeUserId) &&
         (state.status === null || item.taskStatus === state.status) &&
-        (selectedSourceId === null || item.sourceId === selectedSourceId),
-    )
+        (selectedSourceId === null || item.sourceId === selectedSourceId)
+      );
+    })
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
@@ -889,6 +922,8 @@ export function WorkspaceCalendar({
       const query = {
         from: range.from,
         to: range.to,
+        includeSocialPosts: includeSocialPosts ? ("true" as const) : undefined,
+        agendaOnly: view === "agenda" ? ("true" as const) : undefined,
         cursor: nextCursor,
         limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,
