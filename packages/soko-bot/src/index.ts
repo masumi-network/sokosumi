@@ -95,6 +95,7 @@ export {
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotReadFileInputSchema,
   sokoBotReplyToTaskInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotScheduleIdInputSchema,

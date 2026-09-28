@@ -208,10 +208,18 @@ export const sokoBotPostChatInputSchema = z.object({
 });
 
 export const sokoBotListFilesInputSchema = z.object({
-  /** Narrow to names containing this text. */
+  /** Words to find in file names and contents; omit to list the newest. */
   query: z.string().max(200).optional(),
-  limit: z.number().int().min(1).max(100).optional(),
+  limit: z.number().int().min(1).max(20).optional(),
 });
+
+export const sokoBotReadFileInputSchema = z
+  .object({
+    /** File id from `list_files`. */
+    fileId: z.string().min(1),
+    maxChars: z.number().int().min(500).max(40_000).optional(),
+  })
+  .strict();
 
 export const sokoBotUploadFileInputSchema = z.object({
   /** File name including extension, e.g. "launch-brief.md". */
@@ -467,6 +475,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   list_files: sokoBotListFilesInputSchema,
+  read_file: sokoBotReadFileInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
@@ -557,7 +566,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_table_columns:
     "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. Include taskId for task-driven work. Follow-up requests reuse the same table.",
   list_files:
-    "Files in the owner\u2019s Drive: name, size, type and when each was uploaded. Use it to find an existing document before writing a new one.",
+    "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
+  read_file:
+    "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
     "Write a text file into the owner\u2019s Drive (a brief, a summary, notes). Give a filename with an extension; the file appears in their Drive straight away.",
   list_integrations:

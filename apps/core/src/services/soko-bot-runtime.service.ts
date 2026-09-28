@@ -41,6 +41,7 @@ import {
   sokoBotPostChatInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotReadFileInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotSearchInboxInputSchema,
   sokoBotUploadFileInputSchema,
@@ -54,7 +55,6 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   buildUserDriveFilePathname,
-  buildUserDriveFilePrefix,
   createDataTableSchema,
   tableBatchSchema,
   tableMutationSchema,
@@ -82,6 +82,7 @@ import {
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
+import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
@@ -96,6 +97,8 @@ import {
 } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import type { FileActor } from "@/lib/files/actor";
+import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import {
   ACTION_CAPABILITIES,
   actionInputHash,
@@ -138,6 +141,12 @@ import {
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
+import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
+import {
+  activateDriveUploadResource,
+  reserveDriveUploadResource,
+} from "@/services/file-catalog.service";
+import { loadLiveResources, searchFiles } from "@/services/file-search.service";
 import { listProjectSocialConnections } from "@/services/project-social-connections.service";
 import { publishSocialPostNow } from "@/services/social-post-publisher.service";
 import {
@@ -1456,32 +1465,111 @@ export class SokoBotRuntimeService {
         );
   }
 
-  /** Files in the owner's Drive. Blob-backed, listed by the owner's prefix. */
+  /** The owner's personal Drive as the Files catalog knows it. */
+  private async ownerDrive(authorized: AuthorizedSokoBotRuntime) {
+    const userId = authorized.turn.userId;
+    const workspace = await resolveWorkspaceForContextOrNotFound(
+      userId,
+      null,
+      prisma,
+    );
+    return {
+      key: {
+        workspaceId: workspace.id,
+        scope: "user" as const,
+        ownerId: userId,
+      },
+      actor: {
+        userId,
+        organizationId: null,
+        kind: "soko_bot",
+      } satisfies FileActor,
+    };
+  }
+
+  /** Searches the owner's Drive, or lists its newest files. */
   private async listFiles(
     authorized: AuthorizedSokoBotRuntime,
     input: { query?: string; limit?: number },
   ) {
-    const prefix = buildUserDriveFilePrefix(authorized.turn.userId);
-    const { blobs } = await list({ prefix, limit: input.limit ?? 50 });
-    const needle = input.query?.toLowerCase();
+    const drive = await this.ownerDrive(authorized);
+    // Files from before the catalog are adopted on visits, as the Drive
+    // search route does; a failure here must not fail the search.
+    await adoptDriveStoreIfPending(drive.key);
+    const query = input.query?.trim() || null;
+    const { items } = await searchFiles({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      query,
+      filters: {},
+      sortBy: query ? "relevance" : "modified",
+      sortOrder: "desc",
+      cursor: null,
+      limit: input.limit ?? 20,
+    });
     return {
-      files: blobs
-        .map((blob) => ({
-          filename: blob.pathname.slice(prefix.length),
-          size: blob.size,
-          uploadedAt: blob.uploadedAt.toISOString(),
-          url: blob.url,
-        }))
-        .filter(
-          (file) => !needle || file.filename.toLowerCase().includes(needle),
-        ),
+      files: items.map((file) => ({
+        id: file.id,
+        name: file.displayName,
+        type: file.mimeType,
+        size: file.sizeBytes,
+        updatedAt: file.updatedAt,
+        category: file.category?.displayName ?? null,
+        tags: file.tags.map((tag) => tag.displayName),
+        folder: file.folderPath,
+        passage: file.snippet?.text.slice(0, 300) ?? null,
+        text: file.extractionState,
+      })),
+    };
+  }
+
+  /** The text the catalog extracted from one Drive file. */
+  private async readFile(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { fileId: string; maxChars?: number },
+  ) {
+    const drive = await this.ownerDrive(authorized);
+    const [file] = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: [input.fileId],
+    });
+    if (!file)
+      throw new SokoBotRuntimeValidationError(
+        "File not found; use an id from list_files",
+      );
+    const limit = input.maxChars ?? 20_000;
+    const chunks = await prisma.fileChunk.findMany({
+      where: {
+        version: { resourceId: file.id, revision: file.contentRevision },
+      },
+      orderBy: { ordinal: "asc" },
+      select: { text: true },
+    });
+    const text = chunks.map((chunk) => chunk.text).join("\n\n");
+    return {
+      id: file.id,
+      name: file.displayName,
+      type: file.mimeType,
+      text: text.slice(0, limit),
+      truncated: text.length > limit,
+      ...(text
+        ? {}
+        : {
+            note:
+              file.extractionState === "PENDING" ||
+              file.extractionState === "RUNNING"
+                ? "The file is still being processed; its text is not ready yet."
+                : `No text was extracted${file.extractionReason ? ` (${file.extractionReason})` : ""}.`,
+          }),
     };
   }
 
   /**
    * Write a text file into the owner's Drive. Core uploads server-side rather
    * than minting a client grant, because a tool call cannot perform the
-   * browser's second step.
+   * browser's second step; the catalog steps are the same as a human upload,
+   * so the file is searchable, tagged and related like any other.
    */
   private async uploadFile(
     authorized: AuthorizedSokoBotRuntime,
@@ -1509,15 +1597,32 @@ export class SokoBotRuntimeService {
         "Only text files can be written with upload_file",
       );
     }
+    const drive = await this.ownerDrive(authorized);
+    const key = { ...drive.key, pathname };
+    const sizeBytes = Buffer.byteLength(input.content, "utf8");
+    const displayName = pathname.split("/").pop() ?? input.filename;
+    await reserveDriveUploadResource({
+      key,
+      displayName,
+      mimeType: contentType,
+      sizeBytes,
+    });
     const blob = await put(pathname, input.content, {
       access: "public",
       contentType,
       addRandomSuffix: false,
     });
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes,
+      mimeType: contentType,
+    });
+    nudgeFileIndexing();
     return {
-      filename: pathname.split("/").pop() ?? input.filename,
+      id: activated?.resourceId ?? null,
+      filename: displayName,
       url: blob.url,
-      size: input.content.length,
+      size: sizeBytes,
     };
   }
 
@@ -4099,6 +4204,11 @@ export class SokoBotRuntimeService {
         const parsed = sokoBotUploadFileInputSchema.parse(input.input);
         return this.uploadFile(authorized, parsed);
       }
+      case "read_file":
+        return this.readFile(
+          authorized,
+          sokoBotReadFileInputSchema.parse(input.input),
+        );
       case "list_integrations":
         return listSokoBotIntegrations(
           authorized.turn.userId,

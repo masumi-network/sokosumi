@@ -37,6 +37,7 @@ const {
   taskFindFirstMock,
   taskFindManyMock,
   taskCountMock,
+  files,
   jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -121,6 +122,18 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskCountMock: vi.fn(),
+  files: {
+    list: vi.fn(),
+    put: vi.fn(),
+    search: vi.fn(),
+    loadLive: vi.fn(),
+    adopt: vi.fn(),
+    reserve: vi.fn(),
+    activate: vi.fn(),
+    nudge: vi.fn(),
+    workspace: vi.fn(),
+    chunks: vi.fn(),
+  },
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
@@ -222,8 +235,27 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
+vi.mock("@vercel/blob", () => ({ list: files.list, put: files.put }));
+vi.mock("@/services/file-search.service", () => ({
+  searchFiles: files.search,
+  loadLiveResources: files.loadLive,
+}));
+vi.mock("@/services/file-backfill.service", () => ({
+  adoptDriveStoreIfPending: files.adopt,
+}));
+vi.mock("@/services/file-catalog.service", () => ({
+  reserveDriveUploadResource: files.reserve,
+  activateDriveUploadResource: files.activate,
+}));
+vi.mock("@/lib/files/in-process-indexer", () => ({
+  nudgeFileIndexing: files.nudge,
+}));
+vi.mock("@/helpers/personal-workspace-error", () => ({
+  resolveWorkspaceForContextOrNotFound: files.workspace,
+}));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    fileChunk: { findMany: files.chunks },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     sokoBot: {
@@ -4682,5 +4714,137 @@ describe("Soko Bot project social tools", () => {
       }),
     ).rejects.toThrow("reconciliation");
     expect(social.publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("Drive file tools", () => {
+  const authorized = {
+    turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+  };
+  const service = new SokoBotRuntimeService() as unknown as Record<
+    string,
+    (authorized: unknown, input: unknown) => Promise<unknown>
+  >;
+  beforeEach(() => {
+    files.workspace.mockResolvedValue({ id: "personal-workspace" });
+    files.adopt.mockResolvedValue({ ran: false });
+  });
+
+  it("searches the catalog as the owner's bot", async () => {
+    files.search.mockResolvedValue({
+      items: [
+        {
+          id: "file-1",
+          displayName: "launch-notes.md",
+          mimeType: "text/markdown",
+          sizeBytes: 42,
+          updatedAt: "2026-09-28T10:00:00.000Z",
+          category: { displayName: "Planning" },
+          tags: [{ displayName: "Launch" }],
+          folderPath: "Marketing",
+          snippet: { text: "Launch on the 15th" },
+          extractionState: "SUCCEEDED",
+        },
+      ],
+    });
+    const result = await service.listFiles(authorized, { query: "launch" });
+    expect(files.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "personal-workspace",
+        actor: { userId: SCOPE.userId, organizationId: null, kind: "soko_bot" },
+        query: "launch",
+        sortBy: "relevance",
+      }),
+    );
+    expect(result).toEqual({
+      files: [
+        {
+          id: "file-1",
+          name: "launch-notes.md",
+          type: "text/markdown",
+          size: 42,
+          updatedAt: "2026-09-28T10:00:00.000Z",
+          category: "Planning",
+          tags: ["Launch"],
+          folder: "Marketing",
+          passage: "Launch on the 15th",
+          text: "SUCCEEDED",
+        },
+      ],
+    });
+  });
+
+  it("reads a file's extracted text, and explains when there is none", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-1",
+        displayName: "brief.md",
+        mimeType: "text/markdown",
+        contentRevision: 2,
+        extractionState: "SUCCEEDED",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "One" }, { text: "Two" }]);
+    await expect(
+      service.readFile(authorized, { fileId: "file-1" }),
+    ).resolves.toMatchObject({ text: "One\n\nTwo", truncated: false });
+    expect(files.chunks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { version: { resourceId: "file-1", revision: 2 } },
+      }),
+    );
+
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-2",
+        displayName: "scan.png",
+        mimeType: "image/png",
+        contentRevision: 1,
+        extractionState: "PENDING",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    await expect(
+      service.readFile(authorized, { fileId: "file-2" }),
+    ).resolves.toMatchObject({
+      text: "",
+      note: "The file is still being processed; its text is not ready yet.",
+    });
+
+    files.loadLive.mockResolvedValueOnce([]);
+    await expect(
+      service.readFile(authorized, { fileId: "someone-elses" }),
+    ).rejects.toThrow("File not found");
+  });
+
+  it("uploads through the catalog so the file is searchable", async () => {
+    files.list.mockResolvedValue({ blobs: [] });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+    const result = await service.uploadFile(authorized, {
+      filename: "notes.md",
+      content: "Hello",
+    });
+    expect(files.reserve.mock.invocationCallOrder[0]).toBeLessThan(
+      files.put.mock.invocationCallOrder[0],
+    );
+    expect(files.activate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: expect.objectContaining({
+          workspaceId: "personal-workspace",
+          scope: "user",
+          ownerId: SCOPE.userId,
+        }),
+        sizeBytes: 5,
+      }),
+    );
+    expect(files.nudge).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      id: "file-9",
+      url: "https://blob.example/notes.md",
+    });
   });
 });
