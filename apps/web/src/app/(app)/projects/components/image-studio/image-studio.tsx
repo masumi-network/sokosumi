@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   clearImageVersionReview,
   requestImageJobCancel,
@@ -123,7 +124,23 @@ export function ImageStudio({
   const searchParams = useSearchParams();
   const [filter, setFilter] = useState<StudioFilter>("all");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
-  const [viewing, setViewing] = useState<Viewing>(null);
+  /**
+   * Open on the version the URL names.
+   *
+   * `?v=` arrives from a History row or a pasted link, and it is a promise that
+   * the page shows *that* image. Selecting it was not enough: the tile carrying
+   * it looks exactly like its neighbours, so in a project with a hundred
+   * versions the link landed the reader in a grid with no indication of which
+   * one they had asked for.
+   *
+   * The lightbox is what "look at this one" means in this studio, and it is
+   * dismissible — closing it leaves the gallery with that version still
+   * selected and scrolled to, so the deep link costs nothing when it was not
+   * what somebody wanted.
+   */
+  const [viewing, setViewing] = useState<Viewing>(
+    initialSelectedAssetId ? { mode: "single" } : null,
+  );
   const [prompt, setPrompt] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
@@ -188,6 +205,21 @@ export function ImageStudio({
     loadOlder,
     hasOlder,
   } = studio;
+
+  /**
+   * Bring the deep-linked tile onto the screen, once.
+   *
+   * So that dismissing the lightbox leaves the reader looking at the version
+   * they followed a link to rather than at the top of the grid. Mount-only and
+   * DOM-only: there is no React state for "where the gallery is scrolled to",
+   * which is exactly the kind of external system an Effect is for.
+   */
+  useMountEffect(() => {
+    if (!initialSelectedAssetId) return;
+    document
+      .querySelector(`[data-asset-id="${CSS.escape(initialSelectedAssetId)}"]`)
+      ?.scrollIntoView({ block: "center" });
+  });
 
   const setReviewDraft = useCallback((assetId: string, value: string) => {
     setReviewDrafts((current) => ({ ...current, [assetId]: value }));
