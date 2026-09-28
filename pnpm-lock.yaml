@@ -240,8 +240,8 @@ importers:
         specifier: 0.4.2
         version: 0.4.2
       '@composio/core':
-        specifier: 0.20.0
-        version: 0.20.0(ws@8.21.0)(zod@4.6.5)
+        specifier: 0.21.0
+        version: 0.21.0(ws@8.21.0)(zod@4.6.5)
       '@hono/node-server':
         specifier: 2.1.1
         version: 2.1.1(hono@4.13.9)
@@ -1325,8 +1325,8 @@ packages:
     resolution: {integrity: sha512-0C0Flmblx0Y3i6iGUY/MvST4aNXn3xEmPEA4wqZd3acm9x6u61/0i1LXCgBzFTTZEveK8YBFRu8Lpo/SMZwAFQ==}
     engines: {node: '>=22'}
 
-  '@composio/core@0.20.0':
-    resolution: {integrity: sha512-y/8V4qD2JES+Vmx3KstUJFNtVl61+3lSEXCo0u+N58AfhxdUs81mdDTuBp0DAKcoTPPl7PYklUoa0QT4M0A8mQ==}
+  '@composio/core@0.21.0':
+    resolution: {integrity: sha512-fAgbqBdmYUbhIS/HWUtaUCG+QlPktyHXYbZwJ3xH7et5Pyw4YLQbw4UW+L7v4cQus8ijGgvjtmK7ZJL6tmWMmw==}
     engines: {node: '>=22.22.3'}
     peerDependencies:
       zod: '>=3.25.76 <5'
@@ -10637,7 +10637,7 @@ snapshots:
 
   '@composio/client@2.0.0-rc.8': {}
 
-  '@composio/core@0.20.0(ws@8.21.0)(zod@4.6.5)':
+  '@composio/core@0.21.0(ws@8.21.0)(zod@4.6.5)':
     dependencies:
       '@composio/client': 2.0.0-rc.8
       '@composio/json-schema-to-zod': 0.3.3(zod@4.6.5)
