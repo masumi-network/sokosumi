@@ -162,6 +162,15 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(workflow, /pull_request\.head\.sha/);
     assert.doesNotMatch(workflow, /pull_request\.head\.ref/);
     assert.match(workflow, /secrets\.NEON_API_KEY/);
+    const preview = workflow.split(/^  preview-teardown:/m)[1] ?? "";
+    assert.match(preview, /environment: preview-database/);
+    assert.match(preview, /github\.event_name == 'workflow_run'/);
+    // The dispatch input reaches the script through env, never the shell.
+    assert.match(preview, /HEAD_REF: \$\{\{ [^}]*inputs\.head_ref/);
+    // Only the `if:` guard and the HEAD_REF env line may read the input.
+    assert.equal(preview.match(/inputs\.head_ref/g)?.length, 2);
+    assert.match(preview, /workflow_run\.head_repository\.full_name/);
+    assert.match(preview, /node scripts\/ci\/preview-branch-teardown\.mjs/);
   });
 
   it("path-gated jobs skip at job level and fail open", async () => {

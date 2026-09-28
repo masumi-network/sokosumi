@@ -34,9 +34,18 @@ import {
   VERCEL_TEAM_ID,
 } from "./vercel-deploy.mjs";
 
-// Node's fetch can wait 300 seconds for a response. A hung Neon request would
+// Node's fetch can wait 300 seconds for a response. A hung request would
 // then run the job into its timeout, and no reply would post.
-const NEON_REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT_MS = 30_000;
+
+/** `fetchImpl` with a REQUEST_TIMEOUT_MS limit on every request. */
+export function withRequestTimeout(fetchImpl) {
+  return (url, init) =>
+    fetchImpl(url, {
+      ...init,
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+}
 
 export const RESET_DB_FLAG = "--reset-db";
 
@@ -189,11 +198,9 @@ async function runResetCommand(options, command, usage) {
     usage,
     run: async ({ networks, pullRequest, comment, react }) => {
       const branchName = `${PREVIEW_BRANCH_PREFIX}${pullRequest.head.ref}`;
-      const fetchWithTimeout = (url, init) =>
-        (neonFetchImpl ?? globalThis.fetch)(url, {
-          ...init,
-          signal: AbortSignal.timeout(NEON_REQUEST_TIMEOUT_MS),
-        });
+      const fetchWithTimeout = withRequestTimeout(
+        neonFetchImpl ?? globalThis.fetch,
+      );
 
       // Check every network before resetting any, so a failure on the second
       // network cannot leave the first one reset.
