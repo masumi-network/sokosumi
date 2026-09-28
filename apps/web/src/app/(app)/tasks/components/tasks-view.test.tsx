@@ -513,16 +513,28 @@ it("keeps board and list drag overlays in Compact", async () => {
   );
 });
 
-it("drops a task the server no longer returns, such as an archived one", () => {
+it("keeps a task that left the server page when this tab did not archive it", () => {
+  const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
+  const { rerender } = renderBoard([TASK, shifted]);
+  expect(boardCard(shifted.id)).toBeInTheDocument();
+
+  rerender(boardView([TASK]));
+
+  expect(boardCard(shifted.id)).toBeInTheDocument();
+});
+
+it("drops a task this tab archived, including when the refresh still returns it", () => {
   const archived: TaskWithCoworker = { ...TASK, id: "task-archived" };
   const { rerender } = renderBoard([TASK, archived]);
   expect(boardCard(archived.id)).toBeInTheDocument();
 
-  rerender(boardView([TASK]));
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK, archived]));
 
   expect(
     screen.queryByTestId(`board-card-${archived.id}`),
   ).not.toBeInTheDocument();
+  expect(boardCard(TASK.id)).toBeInTheDocument();
 });
 
 it("drops a load-more task once it is archived, and keeps the other load-more rows", async () => {

@@ -420,7 +420,6 @@ export function TasksView({
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  const previousServerTasksRef = useRef(tasks);
   const jobsItemsRef = useRef(jobsItems);
   jobsItemsRef.current = jobsItems;
   /** True after at least one successful jobs "Load more"; cleared when jobs reset from the server. */
@@ -540,23 +539,20 @@ export function TasksView({
 
   useEffect(() => {
     const isListView = defaultViewMode === "list";
+    const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
       prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
-      serverTasks: tasks,
-      previousServerTaskIds: new Set(
-        previousServerTasksRef.current.map((task) => task.id),
-      ),
+      serverTasks,
       pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
       keepLocalOnlyTasks: !isListView,
     });
-    previousServerTasksRef.current = tasks;
 
     setItems(next);
 
     // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= tasks.length) {
+    if (isListView || next.length <= serverTasks.length) {
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );

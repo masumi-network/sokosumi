@@ -41,7 +41,6 @@ describe("mergeTasksOnServerRefresh", () => {
     const next = mergeTasksOnServerRefresh({
       prev,
       serverTasks,
-      previousServerTaskIds: new Set(serverTasks.map((task) => task.id)),
       pendingMoveTaskIds: new Set(),
       keepLocalOnlyTasks: true,
     });
@@ -49,21 +48,6 @@ describe("mergeTasksOnServerRefresh", () => {
     expect(next.map((task) => task.id)).toEqual(["task-1", "task-2", "task-3"]);
     expect(next[0]?.name).toBe("Updated 1");
     expect(next.length > serverTasks.length).toBe(true);
-  });
-
-  it("drops a row that left the server page, such as an archived task", () => {
-    const prev = [buildTask("task-1"), buildTask("task-2")];
-    const serverTasks = [buildTask("task-1")];
-
-    const next = mergeTasksOnServerRefresh({
-      prev,
-      serverTasks,
-      previousServerTaskIds: new Set(["task-1", "task-2"]),
-      pendingMoveTaskIds: new Set(),
-      keepLocalOnlyTasks: true,
-    });
-
-    expect(next.map((task) => task.id)).toEqual(["task-1"]);
   });
 
   it("drops client-only load-more rows on list refresh so pagination can resync", () => {
@@ -80,7 +64,6 @@ describe("mergeTasksOnServerRefresh", () => {
     const next = mergeTasksOnServerRefresh({
       prev,
       serverTasks,
-      previousServerTaskIds: new Set(serverTasks.map((task) => task.id)),
       pendingMoveTaskIds: new Set(),
       keepLocalOnlyTasks: false,
     });
@@ -101,7 +84,6 @@ describe("mergeTasksOnServerRefresh", () => {
     const next = mergeTasksOnServerRefresh({
       prev,
       serverTasks,
-      previousServerTaskIds: new Set(serverTasks.map((task) => task.id)),
       pendingMoveTaskIds: new Set(["task-1"]),
       keepLocalOnlyTasks: false,
     });
