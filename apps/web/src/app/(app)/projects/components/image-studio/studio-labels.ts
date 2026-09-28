@@ -57,6 +57,7 @@ export function buildStudioLabels(t: Translator): StudioLabels {
     outputFormat: t("outputFormat"),
     copies: t("copies"),
     selectAllModels: t("selectAllModels"),
+    noModelSelected: t("noModelSelected"),
     moreOptions: t("moreOptions"),
     generateOne: t("generateOne"),
     modelNotInCatalog: t("modelNotInCatalog"),

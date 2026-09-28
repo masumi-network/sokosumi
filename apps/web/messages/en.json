@@ -2635,6 +2635,7 @@
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
+      "noModelSelected": "Choose at least one model. The frame, resolution and format on offer are whatever every chosen model can honour.",
       "generationTime": "Generation time",
       "runPlan": "Will run {copies}x on {models, plural, one {# model} other {# models}}",
       "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up.",

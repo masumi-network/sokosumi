@@ -77,6 +77,32 @@ export function defaultModel(catalog: StudioCatalog): StudioModel | null {
 }
 
 /**
+ * The models the studio opens with.
+ *
+ * Core's `curatedRank` names a shortlist of five hand-picked for range rather
+ * than for price — a general image model, a stronger one, a photographic one,
+ * one that handles typography, and one for vector and brand work. One brief
+ * across all five is the thing this composer is for, so it is what a person
+ * lands on rather than something they have to assemble first.
+ *
+ * Read off the catalog and sorted by the rank Core gave, never held here: a
+ * shortlist copied into the browser is a second opinion about which models are
+ * good, and it would go stale the moment fal withdrew one of them. `models`
+ * already arrives curated-first, but this does not rely on that either.
+ *
+ * Falls back to the catalog's own default when no row is ranked, so a catalog
+ * without a shortlist still opens on something rather than on nothing.
+ */
+export function curatedModels(catalog: StudioCatalog): StudioModel[] {
+  const ranked = catalog.models
+    .filter((model) => model.curatedRank !== null)
+    .sort((a, b) => (a.curatedRank ?? 0) - (b.curatedRank ?? 0));
+  if (ranked.length > 0) return ranked;
+  const fallback = defaultModel(catalog);
+  return fallback ? [fallback] : [];
+}
+
+/**
  * Settings a model can actually run, given what the person asked for.
  *
  * Switching model is the case this exists for: FLUX has no 0.5K, so moving a

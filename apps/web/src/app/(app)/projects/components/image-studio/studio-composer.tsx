@@ -281,9 +281,11 @@ export function StudioComposer({
       const next = adding
         ? [...current.modelIds, model.id]
         : current.modelIds.filter((id) => id !== model.id);
-      // Never leave nothing selected: the composer would have no capabilities
-      // to read and every option would empty out.
-      if (next.length === 0) return current;
+      // Emptying the selection is allowed. It used to be refused, on the
+      // grounds that the option rows would have no capabilities to read — but
+      // that made the last remaining model unclearable, and with five selected
+      // on open that is a control that visibly stops working. Generate is
+      // disabled and the rows say what to do instead.
       return {
         ...current,
         modelIds: next,
@@ -464,6 +466,15 @@ export function StudioComposer({
             </Button>
           </PopoverTrigger>
           <PopoverContent align="start" className="w-80 space-y-3">
+            {/* Every row below reads its options from the chosen models, so
+                with none chosen they are all empty. Saying so beats three
+                labelled rows with nothing in them. */}
+            {selectedModels.length === 0 ? (
+              <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                {labels.noModelSelected}
+              </p>
+            ) : null}
+
             <Row label={labels.aspectRatio}>
               {shared.aspectRatios.map((ratio) => (
                 <button

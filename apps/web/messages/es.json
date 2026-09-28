@@ -2635,6 +2635,7 @@
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
+      "noModelSelected": "Elige al menos un modelo. El encuadre, la resolución y el formato que se ofrecen son los que todos los modelos elegidos admiten.",
       "generationTime": "Tiempo de generación",
       "runPlan": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}",
       "batchCeiling": "Como máximo {count} imágenes por pulsación. Sokosumi las envía en grupos pequeños, a medida que el proveedor se libera.",

@@ -191,6 +191,7 @@ export interface StudioLabels {
   outputFormat: string;
   copies: string;
   selectAllModels: string;
+  noModelSelected: string;
   generateOne: string;
   moreOptions: string;
   modelNotInCatalog: string;

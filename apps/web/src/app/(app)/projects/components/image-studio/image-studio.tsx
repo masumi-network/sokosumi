@@ -20,7 +20,7 @@ import {
 } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
-import { defaultModel, modelIdForRepeat, settingsOf } from "./catalog";
+import { curatedModels, modelIdForRepeat, settingsOf } from "./catalog";
 import { STUDIO_PILL_CLASS } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
@@ -144,9 +144,12 @@ export function ImageStudio({
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [target, setTarget] = useState<StudioTarget>(() => {
-    const model = defaultModel(catalog);
+    // The curated five, in Core's order. Only the opening selection: every one
+    // of them can be unselected, the rest of the catalog can be added, and
+    // "Select all" still means all 152. Nothing below treats these five as
+    // special after this line.
     return {
-      modelIds: model ? [model.id] : [],
+      modelIds: curatedModels(catalog).map((model) => model.id),
       settings: {
         aspectRatio: "1:1",
         resolution: "1K",
