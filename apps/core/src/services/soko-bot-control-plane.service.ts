@@ -1637,6 +1637,7 @@ export class SokoBotControlPlane {
           finalAnswer: true,
           responseContract: true,
           capabilityNames: true,
+          route: true,
           leaseToken: true,
           cancellationRequestedAt: true,
           scheduleRun: {
@@ -1727,15 +1728,19 @@ export class SokoBotControlPlane {
       if (settled.count === 0) return false;
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
-      // Every UNVERIFIED_OUTCOME refinement describes a delegated result that
-      // cannot exist yet at settlement. Only an uncertain or invalidated
-      // outcome is worth prefixing onto a successful turn's answer.
-      const unverifiedAtSettlement = [
-        "UNVERIFIED_OUTCOME",
-        "OUTCOME_SCOPE_REQUIRES_REVIEW",
-        "ARTIFACT_READABILITY_UNVERIFIED",
-        "RESULT_EVIDENCE_UNAVAILABLE",
-      ].includes(outcome?.blockerKind ?? "");
+      const blockerKind = outcome?.blockerKind ?? "";
+      // Refined unverified outcomes describe a delegated result that cannot
+      // exist yet at settlement, so they are not worth prefixing onto a
+      // successful turn's answer. A direct MANAGE_WORK action gets no such
+      // pass: its answer must not claim a change that no receipt proves.
+      const unverifiedAtSettlement =
+        blockerKind === "RESULT_EVIDENCE_UNAVAILABLE"
+          ? turn.route !== "MANAGE_WORK"
+          : [
+              "UNVERIFIED_OUTCOME",
+              "OUTCOME_SCOPE_REQUIRES_REVIEW",
+              "ARTIFACT_READABILITY_UNVERIFIED",
+            ].includes(blockerKind);
       if (
         responseContract &&
         outcomeSummary &&

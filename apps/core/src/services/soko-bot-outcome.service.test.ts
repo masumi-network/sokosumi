@@ -442,6 +442,7 @@ describe("evidence-backed intent fulfillment", () => {
     dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
       {
         id: "receipt-social",
+        turnId: "turn-one",
         capability: "create_social_post",
         targetId: "post-one",
         inputHash: "a".repeat(64),
@@ -500,6 +501,7 @@ describe("evidence-backed intent fulfillment", () => {
     dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
       {
         id: "read-social",
+        turnId: "turn-one",
         capability: "list_project_social_accounts",
         targetId: null,
         status: "COMPLETED",
@@ -516,6 +518,116 @@ describe("evidence-backed intent fulfillment", () => {
         create: expect.objectContaining({
           state: "BLOCKED",
           blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
+        }),
+      }),
+    );
+  });
+
+  it("does not take a preparatory action as proof when the requested one failed", async () => {
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      route: "MANAGE_WORK",
+      intentRevision: 2,
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        targetIds: ["project-one"],
+        acceptanceCriteria: [
+          {
+            kind: "OUTCOME",
+            id: "requested-outcome",
+            description: "Schedule the post for tomorrow",
+          },
+        ],
+      },
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      {
+        id: "call-update",
+        turnId: "turn-one",
+        capability: "update_social_post",
+        targetId: "post-one",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        verification: "LOCAL_TRANSACTION",
+        committedAt: new Date("2026-09-28T12:00:00Z"),
+        effectEventId: null,
+      },
+      {
+        id: "call-schedule",
+        turnId: "turn-one",
+        capability: "schedule_social_post",
+        targetId: null,
+        status: "FAILED",
+        disposition: null,
+        verification: "NONE",
+        committedAt: null,
+        effectEventId: null,
+      },
+    ]);
+    dbMock.task.findMany.mockResolvedValueOnce([]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    expect(dbMock.sokoBotIntentOutcome.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          state: "BLOCKED",
+          blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
+        }),
+      }),
+    );
+  });
+
+  it("requires a replacement action after the outcome was invalidated", async () => {
+    const invalidatedAt = new Date("2026-09-28T12:30:00Z");
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      route: "MANAGE_WORK",
+      intentRevision: 2,
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        targetIds: ["task-one"],
+        acceptanceCriteria: [
+          {
+            kind: "OUTCOME",
+            id: "requested-outcome",
+            description: "Create a draft X post saying Hello world",
+          },
+        ],
+      },
+    });
+    dbMock.sokoBotIntentOutcome.findFirst.mockResolvedValueOnce({
+      id: "invalidation",
+      assessedAt: invalidatedAt,
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      {
+        id: "receipt-social",
+        turnId: "turn-one",
+        capability: "create_social_post",
+        targetId: "post-one",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        verification: "LOCAL_TRANSACTION",
+        committedAt: new Date("2026-09-28T12:00:00Z"),
+        effectEventId: null,
+      },
+    ]);
+    dbMock.task.findMany.mockResolvedValueOnce([]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    expect(dbMock.sokoBotIntentOutcome.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          state: "UNKNOWN",
+          blockerKind: "EVIDENCE_CHANGED",
         }),
       }),
     );

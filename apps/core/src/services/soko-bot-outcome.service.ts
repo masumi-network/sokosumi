@@ -12,6 +12,7 @@ import {
 } from "@/helpers/task-visibility";
 
 import {
+  ACTION_CAPABILITIES,
   actionInputHash,
   verifyTaskArchiveReceipt,
 } from "@/lib/soko-bot/action-receipts";
@@ -99,6 +100,7 @@ const criteriaSchema = z
 
 interface ReceiptEvidence {
   id: string;
+  turnId?: string;
   capability: string;
   targetId: string | null;
   inputHash?: string;
@@ -170,6 +172,38 @@ function provenActionReceipt(receipt: ReceiptEvidence): boolean {
 }
 
 /**
+ * The action a `MANAGE_WORK` turn committed for the request it ran.
+ *
+ * Every action capability the turn attempted must end on a committed receipt:
+ * a preparatory write followed by the requested action failing does not prove
+ * the request happened, so nothing is returned. Retried attempts are fine
+ * because only each capability's last call counts. Receipts at or before the
+ * latest invalidation are ignored, so a replacement action has to commit after
+ * new evidence changed the outcome.
+ */
+function committedDirectAction(
+  turnId: string,
+  receipts: readonly ReceiptEvidence[],
+  invalidatedAt: Date | undefined,
+): ReceiptEvidence | null {
+  const attempts = receipts.filter(
+    (receipt) =>
+      receipt.turnId === turnId && ACTION_CAPABILITIES.has(receipt.capability),
+  );
+  if (attempts.length === 0) return null;
+  const committed = (receipt: ReceiptEvidence) =>
+    provenActionReceipt(receipt) &&
+    (!invalidatedAt ||
+      (receipt.committedAt !== null && receipt.committedAt > invalidatedAt));
+  const lastByCapability = new Map<string, ReceiptEvidence>();
+  for (const attempt of attempts)
+    lastByCapability.set(attempt.capability, attempt);
+  if (![...lastByCapability.values()].every(committed)) return null;
+  // The latest committed change is the closest thing to the requested one.
+  return [...attempts].reverse().find(committed) ?? null;
+}
+
+/**
  * Rewrite the classifier's `requested-outcome` criterion into the action a
  * `MANAGE_WORK` turn committed itself.
  *
@@ -182,12 +216,14 @@ function provenActionReceipt(receipt: ReceiptEvidence): boolean {
  */
 function criteriaWithDirectActionProof(
   route: SokoBotTurnRoute | null,
+  turnId: string,
   criteria: Prisma.JsonValue,
   receipts: readonly ReceiptEvidence[],
+  invalidatedAt: Date | undefined,
 ) {
   if (route !== "MANAGE_WORK") return criteria;
   const parsed = criteriaSchema.safeParse(criteria);
-  const proof = receipts.find(provenActionReceipt);
+  const proof = committedDirectAction(turnId, receipts, invalidatedAt);
   if (!parsed.success || !proof?.targetId) return criteria;
   return criteriaSchema.parse(
     parsed.data.map((criterion) =>
@@ -323,6 +359,7 @@ export async function assessSokoBotIntentOutcome(
     orderBy: { id: "asc" },
     select: {
       id: true,
+      turnId: true,
       capability: true,
       targetId: true,
       inputHash: true,
@@ -352,8 +389,10 @@ export async function assessSokoBotIntentOutcome(
   }
   const assessmentCriteria = criteriaWithDirectActionProof(
     turn.route,
+    turn.id,
     intent.acceptanceCriteria,
     currentReceipts,
+    invalidation?.assessedAt,
   );
   const criteria = criteriaSchema.safeParse(assessmentCriteria);
   const taskEvidence: TaskOutcomeEvidence[] = [];
