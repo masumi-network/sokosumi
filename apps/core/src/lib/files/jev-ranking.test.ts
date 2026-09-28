@@ -39,6 +39,7 @@ function candidate(
     extractionCoverage: null,
     exactNameMatch: false,
     ftsRank: 0.1,
+    bestChunkId: `${id}-chunk`,
     bestChunkText: `${id} passage`,
     bestChunkAnchor: null,
     metadataMatch: false,

@@ -37,6 +37,19 @@ export interface WindowEntry {
   c: number;
   /** metadataRevision */
   m: number;
+  /**
+   * The chunk that matched, when full-text retrieval found one.
+   *
+   * Stored with the window because the snippet has to survive paging: a
+   * cursor page rebuilds nothing, so without this the passage that
+   * matched is lost and the reader gets the document's opening instead.
+   * Optional because the browse, metadata and exact-name legs match a
+   * document rather than a passage, and because windows written before
+   * this field existed do not have it.
+   *
+   * `FileResultWindow.entries` is Json, so this needs no migration.
+   */
+  k?: string | null;
 }
 
 export interface CursorPayload {

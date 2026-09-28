@@ -23,7 +23,36 @@ import { buildAuthorizedResourceSql } from "@/lib/files/evidence-scope";
  */
 
 export const CANDIDATE_BUDGET_EXACT_NAME = 20;
-export const CANDIDATE_BUDGET_FTS_CHUNKS = 100;
+/**
+ * How many *documents* full-text retrieval may return.
+ *
+ * This was `CANDIDATE_BUDGET_FTS_CHUNKS = 100`, a budget in chunks, and
+ * it was applied to a chunk stream that arrives grouped by document. The
+ * cut therefore consumed whole documents in `fr.id` order, and
+ * `FileResource.id` is `uuid(7)` — time-ordered — so the documents it
+ * dropped were always the most recently uploaded. One eighty-page PDF
+ * could exhaust the budget and every other match disappeared.
+ *
+ * Counting documents is the unit the caller thinks in and the unit
+ * `truncated` is compared against. 120 matches `RESULT_WINDOW_LIMIT`
+ * deliberately: at 100 a text-only query could never fill a window the
+ * product says holds 120, and a reader can neither see that nor do
+ * anything about it.
+ */
+export const CANDIDATE_BUDGET_FTS_DOCUMENTS = 120;
+
+/**
+ * The old name, kept so the reviewer's reproduction compiles unmodified.
+ *
+ * `fts-document-drop.postgres.test.ts` came from a reviewer and imports
+ * this symbol; it was copied in byte-for-byte and none of its assertions
+ * were touched, which meant the name it imports had to keep existing.
+ * The value is the same constant, so case C — which asserts
+ * `recall.fullText` equals the budget — tests the real number.
+ *
+ * Safe to delete once that file is re-pointed at the accurate name.
+ */
+export const CANDIDATE_BUDGET_FTS_CHUNKS = CANDIDATE_BUDGET_FTS_DOCUMENTS;
 export const CANDIDATE_BUDGET_METADATA = 40;
 /** The bounded window everything downstream operates on. */
 export const RESULT_WINDOW_LIMIT = 120;
@@ -65,6 +94,11 @@ export interface FileCandidate {
   /** Exactly the normalized query. Protected: always ordered first. */
   exactNameMatch: boolean;
   ftsRank: number | null;
+  /**
+   * The chunk that matched, so a snippet can quote the passage the reader
+   * searched for rather than the document's opening.
+   */
+  bestChunkId: string | null;
   bestChunkText: string | null;
   bestChunkAnchor: unknown;
   metadataMatch: boolean;
@@ -231,6 +265,7 @@ function toCandidate(row: RawResourceRow): FileCandidate {
     extractionCoverage: row.extractionCoverage,
     exactNameMatch: false,
     ftsRank: null,
+    bestChunkId: null,
     bestChunkText: null,
     bestChunkAnchor: null,
     metadataMatch: false,
@@ -331,12 +366,16 @@ export async function retrieveFileCandidates(input: {
   const ftsRows = await prisma.$queryRaw<
     (RawResourceRow & {
       rank: number;
+      chunkId: string | null;
       chunkText: string | null;
       chunkAnchor: unknown;
     })[]
   >(PrismaRaw.sql`
     WITH q AS (SELECT websearch_to_tsquery('simple', ${normalizedQuery}) AS tsq),
-    hits AS (
+    ranked AS (
+      -- Every matching chunk, with its rank within its own document.
+      -- Deliberately unbounded: the reduction to one row per document
+      -- happens below, before the cut, which is the whole fix.
       SELECT
         fr.id AS resource_id,
         fc.id AS chunk_id,
@@ -355,18 +394,36 @@ export async function retrieveFileCandidates(input: {
       CROSS JOIN q
       WHERE ${authorized} AND ${filters}
         AND fc.search_vector @@ q.tsq
-      LIMIT ${CANDIDATE_BUDGET_FTS_CHUNKS}
+    ),
+    best AS (
+      -- One row per document, ordered by rank, and only then cut. The
+      -- previous shape cut the chunk stream first and reduced afterwards,
+      -- so the budget was spent on extra chunks of documents it had
+      -- already seen while later documents never entered the result at
+      -- all.
+      SELECT * FROM ranked
+      WHERE chunk_rank = 1
+      ORDER BY rank DESC, resource_id ASC
+      LIMIT ${CANDIDATE_BUDGET_FTS_DOCUMENTS + 1}
     )
     SELECT ${RESOURCE_COLUMNS},
-      hits.rank AS "rank",
-      hits.chunk_text AS "chunkText",
-      hits.chunk_anchor AS "chunkAnchor"
-    FROM hits
-    JOIN file_resource fr ON fr.id = hits.resource_id
+      best.rank AS "rank",
+      best.chunk_id AS "chunkId",
+      best.chunk_text AS "chunkText",
+      best.chunk_anchor AS "chunkAnchor"
+    FROM best
+    JOIN file_resource fr ON fr.id = best.resource_id
     ${CURRENT_VERSION_JOIN}
-    WHERE hits.chunk_rank = 1
-    ORDER BY hits.rank DESC
+    ORDER BY best.rank DESC, best.resource_id ASC
   `);
+
+  /**
+   * One over the budget was asked for, so more-exist is observed rather
+   * than inferred from hitting a ceiling. Same shape as the browse leg
+   * above, which is the honest precedent already in this file.
+   */
+  const ftsTruncated = ftsRows.length > CANDIDATE_BUDGET_FTS_DOCUMENTS;
+  const ftsPage = ftsRows.slice(0, CANDIDATE_BUDGET_FTS_DOCUMENTS);
 
   const metadataRows = await prisma.$queryRaw<RawResourceRow[]>(PrismaRaw.sql`
     SELECT DISTINCT ${RESOURCE_COLUMNS}
@@ -409,9 +466,12 @@ export async function retrieveFileCandidates(input: {
     candidate.fusedScore += 1 / (RRF_K + index + 1);
   });
 
-  ftsRows.forEach((row, index) => {
+  ftsPage.forEach((row, index) => {
     const candidate = upsert(row);
     candidate.ftsRank = row.rank;
+    // The chunk that actually matched, carried so the snippet can quote
+    // it instead of the document's opening. See `bestChunkId`.
+    candidate.bestChunkId = row.chunkId;
     candidate.bestChunkText = row.chunkText;
     candidate.bestChunkAnchor = row.chunkAnchor;
     candidate.fusedScore += 1 / (RRF_K + index + 1);
@@ -430,11 +490,14 @@ export async function retrieveFileCandidates(input: {
     truncated:
       fused.length > RESULT_WINDOW_LIMIT ||
       nameRows.length >= CANDIDATE_BUDGET_EXACT_NAME ||
-      ftsRows.length >= CANDIDATE_BUDGET_FTS_CHUNKS ||
+      // Observed, and in the same unit as the budget. This compared a
+      // document count against a chunk budget, which was a unit error
+      // independent of the cut itself.
+      ftsTruncated ||
       metadataRows.length >= CANDIDATE_BUDGET_METADATA,
     recall: {
       exactName: nameRows.length,
-      fullText: ftsRows.length,
+      fullText: ftsPage.length,
       metadata: metadataRows.length,
       browse: 0,
     },

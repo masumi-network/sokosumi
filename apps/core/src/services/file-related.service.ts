@@ -487,6 +487,8 @@ function toCandidate(resource: LiveResource): FileCandidate {
     extractionCoverage: resource.extractionCoverage,
     exactNameMatch: false,
     ftsRank: null,
+    // Related documents match whole-document, not a passage.
+    bestChunkId: null,
     bestChunkText: resource.bestChunkText,
     bestChunkAnchor: null,
     metadataMatch: false,

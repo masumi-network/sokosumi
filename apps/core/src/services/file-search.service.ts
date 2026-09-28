@@ -151,6 +151,7 @@ export async function searchFiles(
       r: candidate.resourceId,
       c: candidate.contentRevision,
       m: candidate.metadataRevision,
+      k: candidate.bestChunkId,
     }));
     truncated = retrieval.truncated;
 
@@ -196,18 +197,19 @@ export async function searchFiles(
     if (collected.length >= pageLimit) break;
     if (cursorPosition >= entries.length) break;
 
-    const batch = entries
-      .slice(
-        cursorPosition,
-        cursorPosition + (pageLimit - collected.length) + 20,
-      )
-      .map((entry) => entry.r);
+    const slice = entries.slice(
+      cursorPosition,
+      cursorPosition + (pageLimit - collected.length) + 20,
+    );
+    const batch = slice.map((entry) => entry.r);
+    const batchChunks = slice.map((entry) => entry.k ?? null);
     if (batch.length === 0) break;
 
     const live = await loadLiveResources({
       workspaceId: input.workspaceId,
       actor: input.actor,
       resourceIds: batch,
+      chunkIds: batchChunks,
     });
     for (const resource of live) {
       byId.set(resource.id, resource);
@@ -322,9 +324,24 @@ export async function loadLiveResources(input: {
   workspaceId: string;
   actor: FileActor;
   resourceIds: string[];
+  /**
+   * The chunk that matched, per resource, aligned with `resourceIds`.
+   *
+   * Without it the snippet under every result is the document's opening,
+   * whatever the reader searched for: the query below took
+   * `ORDER BY fc.ordinal ASC LIMIT 1`, which is the first chunk, always.
+   * Optional and null-tolerant, because the browse, metadata and
+   * exact-name legs match a document rather than a passage, and because
+   * result windows written before this existed carry no chunk id.
+   */
+  chunkIds?: (string | null | undefined)[];
   query?: string | null;
 }): Promise<LiveResource[]> {
   if (input.resourceIds.length === 0) return [];
+
+  const wantedChunks = input.resourceIds.map(
+    (_, index) => input.chunkIds?.[index] ?? null,
+  );
 
   const authorized = buildAuthorizedResourceSql({
     workspaceId: input.workspaceId,
@@ -348,15 +365,22 @@ export async function loadLiveResources(input: {
       fv."extractionCoverage",
       fv."extractionReason",
       (
+        -- The chunk that matched, when one was named; otherwise the
+        -- document's opening, which is what this always returned.
         SELECT fc.text FROM file_chunk fc
         WHERE fc."versionId" = fv.id
-        ORDER BY fc.ordinal ASC
+        ORDER BY (fc.id::text = wanted.chunk_id) DESC NULLS LAST,
+                 fc.ordinal ASC
         LIMIT 1
       ) AS "bestChunkText"
-    FROM file_resource fr
+    FROM unnest(
+      ${input.resourceIds}::text[],
+      ${wantedChunks}::text[]
+    ) AS wanted(resource_id, chunk_id)
+    JOIN file_resource fr ON fr.id::text = wanted.resource_id
     LEFT JOIN file_version fv
       ON fv."resourceId" = fr.id AND fv.revision = fr."contentRevision"
-    WHERE ${authorized} AND fr.id::text = ANY(${input.resourceIds})
+    WHERE ${authorized}
   `);
 }
 
