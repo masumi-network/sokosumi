@@ -373,3 +373,5 @@ Before relying on migrate-on-deploy (and after changing the Neon integration):
 ## Contributing
 
 See the root [AGENTS.md](../../AGENTS.md) for monorepo-wide guidelines.
+
+<!-- SOK-1213 teardown smoke test. Never merge. -->
