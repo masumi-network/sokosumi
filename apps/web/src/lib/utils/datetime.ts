@@ -62,6 +62,19 @@ function getDayDifferenceFromNow(dateObj: Date, now: Date): number {
   return Math.round((targetDate.getTime() - currentDate.getTime()) / DAY_IN_MS);
 }
 
+/** "September 2026", in the reader's locale and time zone. */
+export function formatMonthYear(
+  date: string | Date,
+  locale: string,
+  timeZone: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone,
+  }).format(new Date(date));
+}
+
 export function formatShortDate(
   date: string | Date,
   locale: string,

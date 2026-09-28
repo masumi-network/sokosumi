@@ -123,7 +123,7 @@ describe("core.client", () => {
   /**
    * The ledger is a second endpoint, not the feed in disguise. `getHistory`
    * still carries `updatedAt`/`archivedAt` for the Cmd+K palette, and this one
-   * carries the consumption date the Transaction History page sorts by.
+   * carries the consumption date the Transactions page sorts by.
    */
   it("normalizes transaction consumedAt strings through the server transport", async () => {
     getTransactionsMock.mockImplementation(

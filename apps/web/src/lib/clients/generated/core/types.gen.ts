@@ -7337,6 +7337,17 @@ export type TransactionHistoryUnattributedItem = {
     bucketSource: string | null;
 };
 
+export type TransactionDailySpendList = Array<{
+    /**
+     * UTC day, YYYY-MM-DD
+     */
+    date: string;
+    /**
+     * Credits spent that day. Top ups are not counted.
+     */
+    credits: number;
+}>;
+
 export type CreditPriceOption = {
     id: string;
     amountPerCredit: number;
@@ -52389,6 +52400,237 @@ export type GetTransactionsResponses = {
 };
 
 export type GetTransactionsResponse = GetTransactionsResponses[keyof GetTransactionsResponses];
+
+export type GetTransactionsDailyData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Filter ledger rows by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot, top up and unattributed row.
+         */
+        projectId?: string | 'null';
+        /**
+         * Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments, image prompts and top up bucket notes.
+         */
+        q?: string;
+        /**
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
+         * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
+         */
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'topUp' | 'unattributed'>;
+        /**
+         * First day to include, as YYYY-MM-DD in UTC.
+         */
+        from?: string;
+        /**
+         * Last day to include, as YYYY-MM-DD in UTC.
+         */
+        to?: string;
+    };
+    url: '/transactions/daily';
+};
+
+export type GetTransactionsDailyErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTransactionsDailyError = GetTransactionsDailyErrors[keyof GetTransactionsDailyErrors];
+
+export type GetTransactionsDailyResponses = {
+    /**
+     * Retrieve daily credit spend
+     */
+    200: {
+        data: TransactionDailySpendList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTransactionsDailyResponse = GetTransactionsDailyResponses[keyof GetTransactionsDailyResponses];
+
+export type GetTransactionsExportData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        /**
+         * Filter ledger rows by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot, top up and unattributed row.
+         */
+        projectId?: string | 'null';
+        /**
+         * Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments, image prompts and top up bucket notes.
+         */
+        q?: string;
+        /**
+         * owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.
+         */
+        scope?: 'workspace' | 'owned';
+        /**
+         * Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.
+         */
+        types?: Array<'job' | 'image' | 'task' | 'coworker' | 'sokoBot' | 'topUp' | 'unattributed'>;
+        /**
+         * First day to include, as YYYY-MM-DD in UTC.
+         */
+        from?: string;
+        /**
+         * Last day to include, as YYYY-MM-DD in UTC.
+         */
+        to?: string;
+    };
+    url: '/transactions/export';
+};
+
+export type GetTransactionsExportErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTransactionsExportError = GetTransactionsExportErrors[keyof GetTransactionsExportErrors];
+
+export type GetTransactionsExportResponses = {
+    /**
+     * Ledger rows as CSV
+     */
+    200: string;
+};
+
+export type GetTransactionsExportResponse = GetTransactionsExportResponses[keyof GetTransactionsExportResponses];
 
 export type ListCreditPricesData = {
     body?: never;

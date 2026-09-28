@@ -52,6 +52,7 @@ import type {
   GetTasksSchedulesByIdRunsData,
   GetTasksSchedulesData,
   GetTasksSummaryData,
+  GetTransactionsDailyData,
   GetTransactionsData,
   GetWorkspacesCalendarData,
   JudgeSokoBotLabTurnRequest,
@@ -277,6 +278,7 @@ import {
   getTasksSummary as coreGetTasksSummary,
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getTransactions as coreGetTransactions,
+  getTransactionsDaily as coreGetTransactionsDaily,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -1381,6 +1383,17 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTransactionsResponseEnvelope(data),
         }),
       "Failed to fetch transactions",
+    );
+  }
+
+  async function getTransactionsDaily(
+    query?: GetTransactionsDailyData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTransactionsDaily({ client, query, cache: "no-store" }),
+      "Failed to fetch daily transactions",
     );
   }
 
@@ -5626,6 +5639,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     removeChatRoomMessageReaction,
     getHistory,
     getTransactions,
+    getTransactionsDaily,
     getNotifications,
     getNotificationsCounts,
     updateChatRoom,

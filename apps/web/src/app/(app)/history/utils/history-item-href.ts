@@ -5,7 +5,7 @@ import {
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**
- * Destination for a Transaction History row, or null when the consumption has
+ * Destination for a Transactions row, or null when the consumption has
  * nothing to open.
  *
  * Keep this module free of the client directive so Server Components can call

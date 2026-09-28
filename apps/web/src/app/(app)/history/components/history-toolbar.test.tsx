@@ -21,6 +21,10 @@ vi.mock("./history-view-filters", () => ({
   ),
 }));
 
+vi.mock("./history-export-menu", () => ({
+  HistoryExportMenu: () => <button type="button">Export</button>,
+}));
+
 import { HistoryToolbar } from "./history-toolbar";
 
 const filterLabels = {
@@ -49,6 +53,7 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
@@ -73,6 +78,7 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{

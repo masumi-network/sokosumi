@@ -284,7 +284,7 @@
       "connections": "Conexiones",
       "developer": "Desarrollador",
       "personal-assistant": "Asistente personal",
-      "history": "Historial de transacciones",
+      "history": "Transacciones",
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
@@ -1330,7 +1330,7 @@
     "save": "Guardar",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Historial de transacciones",
+        "title": "Transacciones",
         "description": "Cada consumo de créditos de tu cuenta, del más reciente al más antiguo."
       },
       "Search": {
@@ -1383,6 +1383,23 @@
           "topUp": "Recarga",
           "unattributed": "Otros"
         }
+      },
+      "Export": {
+        "button": "Exportar CSV",
+        "title": "Exportar transacciones",
+        "lastMonth": "Mes pasado",
+        "thisMonth": "Este mes",
+        "last30Days": "Últimos 30 días",
+        "month": "Mes",
+        "from": "Desde",
+        "to": "Hasta",
+        "download": "Descargar CSV",
+        "filtersNote": "Usa los filtros de arriba. Las fechas son UTC."
+      },
+      "Chart": {
+        "label": "Créditos gastados por día, últimos 30 días",
+        "total": "{count} créditos gastados en los últimos 30 días",
+        "day": "{date}: {count} créditos"
       }
     },
     "Chat": {
@@ -2774,7 +2791,7 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "history": "Historial de transacciones",
+          "history": "Transacciones",
           "drive": "Archivos",
           "admin": "Administración",
           "settings": "Configuración",
@@ -2801,7 +2818,7 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos o imágenes",
+      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",

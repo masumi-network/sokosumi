@@ -40,6 +40,10 @@ export interface TransactionHistoryRow {
 }
 
 export interface BuildTransactionHistoryParams {
+  /** Inclusive lower bound on `consumedAt`. */
+  from?: Date;
+  /** Exclusive upper bound on `consumedAt`. */
+  to?: Date;
   kinds?: TransactionHistoryKind[];
   projectId?: string | null;
   q?: string;
@@ -111,6 +115,14 @@ function buildFilterSql(
     filters.push(
       PrismaRaw.sql`ledger."projectId" IS NOT DISTINCT FROM ${params.projectId}::uuid`,
     );
+  }
+
+  if (params.from) {
+    filters.push(PrismaRaw.sql`ledger."consumedAt" >= ${params.from}`);
+  }
+
+  if (params.to) {
+    filters.push(PrismaRaw.sql`ledger."consumedAt" < ${params.to}`);
   }
 
   if (params.q) {
@@ -273,6 +285,32 @@ export async function countTransactionHistory(
   `;
 
   return Number(rows[0]?.count ?? 0n);
+}
+
+/**
+ * Credits spent per UTC day. Top ups are not spend and are left out. Days with
+ * no spend are absent; the caller fills the gaps for the range it asked for.
+ */
+export async function findTransactionDailySpend(
+  params: BuildTransactionHistoryParams,
+  prismaClient: TransactionHistoryPrismaClient,
+): Promise<Array<{ date: string; credits: number }>> {
+  const rows = await prismaClient.$queryRaw<
+    Array<{ day: string; spent: bigint }>
+  >`
+    SELECT
+      TO_CHAR(ledger."consumedAt" AT TIME ZONE 'UTC', 'YYYY-MM-DD') AS "day",
+      SUM(-ledger."amount")::BIGINT AS "spent"
+    FROM (${buildLedgerSql(params)}) AS ledger
+    ${buildWhereSql([...buildFilterSql(params), PrismaRaw.sql`ledger."amount" < 0`])}
+    GROUP BY 1
+    ORDER BY 1
+  `;
+
+  return rows.map((row) => ({
+    date: row.day,
+    credits: convertCentsToCredits(row.spent),
+  }));
 }
 
 export interface MapTransactionHistoryRowOptions {

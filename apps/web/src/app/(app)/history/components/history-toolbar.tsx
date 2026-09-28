@@ -1,15 +1,18 @@
 "use client";
 
 import type {
+  HistoryFilters,
   HistoryType,
   ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
 
+import { HistoryExportMenu } from "./history-export-menu";
 import { HistorySearch } from "./history-search";
 import { HistoryViewFilters } from "./history-view-filters";
 
 interface HistoryToolbarProps {
   activeOrganizationId: string | null;
+  filters: HistoryFilters;
   projectOptions: ProjectFilterOption[];
   resultsCountLabel: string;
   labels: {
@@ -34,6 +37,7 @@ interface HistoryToolbarProps {
 
 export function HistoryToolbar({
   activeOrganizationId,
+  filters,
   projectOptions,
   resultsCountLabel,
   labels,
@@ -53,7 +57,8 @@ export function HistoryToolbar({
       >
         {resultsCountLabel}
       </p>
-      <div className="ml-auto shrink-0 md:ml-0">
+      <div className="ml-auto flex shrink-0 items-center gap-2 md:ml-0">
+        <HistoryExportMenu filters={filters} />
         <HistoryViewFilters
           activeOrganizationId={activeOrganizationId}
           projectOptions={projectOptions}

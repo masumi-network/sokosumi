@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
  * Presentation for one Cmd+K result.
  *
  * The palette reads the `history` feed — every task, job and image, charged or
- * not — while the Transaction History page reads the credit ledger. The two
+ * not — while the Transactions page reads the credit ledger. The two
  * item unions have nothing in common but a title, so the palette carries its
  * own row parts rather than sharing the page's and widening both types until
  * neither is exhaustive.
@@ -48,7 +48,7 @@ export function HistorySearchItemIcon({
  * When the result was created, as a date.
  *
  * Absolute rather than "2 days ago", and creation rather than last update, for
- * the same reason the Transaction History list is: `history.sortAt` used to
+ * the same reason the Transactions list is: `history.sortAt` used to
  * come from the source row's `updatedAt`, so a backfill on an unrelated column
  * made a year of results read "Yesterday". A relative label is what hid it.
  * This is the date the entity's own card shows, so the two can be compared.

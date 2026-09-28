@@ -1,5 +1,5 @@
 /**
- * Real-Postgres proof for the Transaction History ledger query.
+ * Real-Postgres proof for the Transactions ledger query.
  *
  *   RUN_DATABASE_INTEGRATION_TESTS=true DATABASE_URL=postgresql://… \
  *     pnpm --filter core test src/helpers/transaction-history.postgres.test.ts
@@ -216,199 +216,196 @@ async function withSeededLedger(
   }
 }
 
-describe.skipIf(!enabled)(
-  "Transaction History ledger against PostgreSQL",
-  () => {
-    it("lists every ledger row in the workspace, newest first", async () => {
-      await withSeededLedger(async (tx) => {
-        const { rows, hasMore } = await findTransactionHistoryPage(
-          personalScope,
-          { take: 20 },
-          tx,
-        );
+describe.skipIf(!enabled)("Transactions ledger against PostgreSQL", () => {
+  it("lists every ledger row in the workspace, newest first", async () => {
+    await withSeededLedger(async (tx) => {
+      const { rows, hasMore } = await findTransactionHistoryPage(
+        personalScope,
+        { take: 20 },
+        tx,
+      );
 
-        expect(hasMore).toBe(false);
-        expect(rows.map((row) => [row.id, row.kind])).toEqual([
-          ["tx-topup", "topUp"],
-          ["tx-unattr", "unattributed"],
-          ["tx-coworker", "coworker"],
-          ["tx-task", "task"],
-          ["tx-job", "job"],
-          ["tx-image", "image"],
-          ["tx-sokobot", "sokoBot"],
-        ]);
-        expect(await countTransactionHistory(personalScope, tx)).toBe(7);
-      });
+      expect(hasMore).toBe(false);
+      expect(rows.map((row) => [row.id, row.kind])).toEqual([
+        ["tx-topup", "topUp"],
+        ["tx-unattr", "unattributed"],
+        ["tx-coworker", "coworker"],
+        ["tx-task", "task"],
+        ["tx-job", "job"],
+        ["tx-image", "image"],
+        ["tx-sokobot", "sokoBot"],
+      ]);
+      expect(await countTransactionHistory(personalScope, tx)).toBe(7);
     });
+  });
 
-    it("lists a top up with the bucket it created and its positive amount", async () => {
-      await withSeededLedger(async (tx) => {
-        const { rows } = await findTransactionHistoryPage(
-          { ...personalScope, kinds: ["topUp"] },
-          { take: 20 },
-          tx,
-        );
+  it("lists a top up with the bucket it created and its positive amount", async () => {
+    await withSeededLedger(async (tx) => {
+      const { rows } = await findTransactionHistoryPage(
+        { ...personalScope, kinds: ["topUp"] },
+        { take: 20 },
+        tx,
+      );
 
-        expect(rows.map((row) => row.id)).toEqual(["tx-topup"]);
-        expect(rows[0]?.kind).toBe("topUp");
-        expect(rows[0]?.amount).toBe(100n * CREDIT);
-        expect(rows[0]?.topUpSource).toBe("STRIPE_SUBSCRIPTION_PERIOD");
-      });
+      expect(rows.map((row) => row.id)).toEqual(["tx-topup"]);
+      expect(rows[0]?.kind).toBe("topUp");
+      expect(rows[0]?.amount).toBe(100n * CREDIT);
+      expect(rows[0]?.topUpSource).toBe("STRIPE_SUBSCRIPTION_PERIOD");
     });
+  });
 
-    it("excludes non-charging activity and other workspaces", async () => {
-      await withSeededLedger(async (tx) => {
-        const { rows } = await findTransactionHistoryPage(
-          personalScope,
-          { take: 20 },
-          tx,
-        );
-        const ids = rows.map((row) => row.id);
+  it("excludes non-charging activity and other workspaces", async () => {
+    await withSeededLedger(async (tx) => {
+      const { rows } = await findTransactionHistoryPage(
+        personalScope,
+        { take: 20 },
+        tx,
+      );
+      const ids = rows.map((row) => row.id);
 
-        // Another workspace's spend.
-        expect(ids).not.toContain("tx-org");
-        // The free taskEvent charged nothing, so it produced no ledger row at
-        // all: the paid event is the only task row, and it appears once.
-        expect(ids.filter((id) => id === "tx-task")).toHaveLength(1);
-        expect(rows.find((row) => row.id === "tx-task")?.taskEventId).toBe(
-          "txhist-event-paid",
-        );
-      });
+      // Another workspace's spend.
+      expect(ids).not.toContain("tx-org");
+      // The free taskEvent charged nothing, so it produced no ledger row at
+      // all: the paid event is the only task row, and it appears once.
+      expect(ids.filter((id) => id === "tx-task")).toHaveLength(1);
+      expect(rows.find((row) => row.id === "tx-task")?.taskEventId).toBe(
+        "txhist-event-paid",
+      );
     });
+  });
 
-    it("does not move a row when only a source entity's updatedAt is touched", async () => {
-      await withSeededLedger(async (tx) => {
-        const before = await findTransactionHistoryPage(
-          personalScope,
-          { take: 20 },
-          tx,
-        );
+  it("does not move a row when only a source entity's updatedAt is touched", async () => {
+    await withSeededLedger(async (tx) => {
+      const before = await findTransactionHistoryPage(
+        personalScope,
+        { take: 20 },
+        tx,
+      );
 
-        // Exactly what the task tag classification backfill did to every
-        // historical task, plus a bare row touch on the job.
-        await tx.$executeRaw`
+      // Exactly what the task tag classification backfill did to every
+      // historical task, plus a bare row touch on the job.
+      await tx.$executeRaw`
         UPDATE "task"
         SET "automaticTags" = ARRAY['research']::TEXT[],
             "tagClassificationState" = 'complete',
             "updatedAt" = NOW()
         WHERE "id" = 'txhist-task'
       `;
-        await tx.$executeRaw`UPDATE "Job" SET "updatedAt" = NOW() WHERE "id" = 'txhist-job'`;
-        await tx.$executeRaw`UPDATE "project_image_job" SET "updatedAt" = NOW() WHERE "id" = ${IMAGE_JOB_ID}::uuid`;
+      await tx.$executeRaw`UPDATE "Job" SET "updatedAt" = NOW() WHERE "id" = 'txhist-job'`;
+      await tx.$executeRaw`UPDATE "project_image_job" SET "updatedAt" = NOW() WHERE "id" = ${IMAGE_JOB_ID}::uuid`;
 
-        const after = await findTransactionHistoryPage(
+      const after = await findTransactionHistoryPage(
+        personalScope,
+        { take: 20 },
+        tx,
+      );
+
+      expect(after.rows.map((row) => row.id)).toEqual(
+        before.rows.map((row) => row.id),
+      );
+      expect(after.rows.map((row) => row.consumedAt.toISOString())).toEqual([
+        "2026-07-01T10:00:00.000Z",
+        "2026-06-01T10:00:00.000Z",
+        "2026-05-01T10:00:00.000Z",
+        "2026-04-01T10:00:00.000Z",
+        "2026-03-01T10:00:00.000Z",
+        "2026-02-01T10:00:00.000Z",
+        "2026-01-15T10:00:00.000Z",
+      ]);
+    });
+  });
+
+  it("pages without duplicating or skipping a row", async () => {
+    await withSeededLedger(async (tx) => {
+      const seen: string[] = [];
+      let cursor: string | undefined;
+
+      for (let page = 0; page < 6; page += 1) {
+        const { rows, hasMore } = await findTransactionHistoryPage(
           personalScope,
-          { take: 20 },
+          { cursor, take: 2 },
           tx,
         );
+        seen.push(...rows.map((row) => row.id));
+        if (!hasMore) break;
+        cursor = rows.at(-1)?.id;
+      }
 
-        expect(after.rows.map((row) => row.id)).toEqual(
-          before.rows.map((row) => row.id),
-        );
-        expect(after.rows.map((row) => row.consumedAt.toISOString())).toEqual([
-          "2026-07-01T10:00:00.000Z",
-          "2026-06-01T10:00:00.000Z",
-          "2026-05-01T10:00:00.000Z",
-          "2026-04-01T10:00:00.000Z",
-          "2026-03-01T10:00:00.000Z",
-          "2026-02-01T10:00:00.000Z",
-          "2026-01-15T10:00:00.000Z",
-        ]);
-      });
+      expect(seen).toEqual([
+        "tx-topup",
+        "tx-unattr",
+        "tx-coworker",
+        "tx-task",
+        "tx-job",
+        "tx-image",
+        "tx-sokobot",
+      ]);
+      expect(new Set(seen).size).toBe(seen.length);
     });
+  });
 
-    it("pages without duplicating or skipping a row", async () => {
-      await withSeededLedger(async (tx) => {
-        const seen: string[] = [];
-        let cursor: string | undefined;
+  it("filters by source kind, project and search text", async () => {
+    await withSeededLedger(async (tx) => {
+      const unattributed = await findTransactionHistoryPage(
+        { ...personalScope, kinds: ["unattributed"] },
+        { take: 20 },
+        tx,
+      );
+      expect(unattributed.rows.map((row) => row.id)).toEqual(["tx-unattr"]);
+      expect(unattributed.rows[0]?.bucketSource).toBe(
+        "STRIPE_SUBSCRIPTION_PERIOD",
+      );
 
-        for (let page = 0; page < 6; page += 1) {
-          const { rows, hasMore } = await findTransactionHistoryPage(
-            personalScope,
-            { cursor, take: 2 },
-            tx,
-          );
-          seen.push(...rows.map((row) => row.id));
-          if (!hasMore) break;
-          cursor = rows.at(-1)?.id;
-        }
+      const projectRows = await findTransactionHistoryPage(
+        { ...personalScope, projectId: PROJECT_ID },
+        { take: 20 },
+        tx,
+      );
+      expect(projectRows.rows.map((row) => row.id)).toEqual([
+        "tx-task",
+        "tx-job",
+        "tx-image",
+      ]);
 
-        expect(seen).toEqual([
-          "tx-topup",
-          "tx-unattr",
-          "tx-coworker",
-          "tx-task",
-          "tx-job",
-          "tx-image",
-          "tx-sokobot",
-        ]);
-        expect(new Set(seen).size).toBe(seen.length);
-      });
+      const searched = await findTransactionHistoryPage(
+        { ...personalScope, q: "competitors" },
+        { take: 20 },
+        tx,
+      );
+      expect(searched.rows.map((row) => row.id)).toEqual(["tx-job"]);
     });
+  });
 
-    it("filters by source kind, project and search text", async () => {
-      await withSeededLedger(async (tx) => {
-        const unattributed = await findTransactionHistoryPage(
-          { ...personalScope, kinds: ["unattributed"] },
-          { take: 20 },
-          tx,
-        );
-        expect(unattributed.rows.map((row) => row.id)).toEqual(["tx-unattr"]);
-        expect(unattributed.rows[0]?.bucketSource).toBe(
-          "STRIPE_SUBSCRIPTION_PERIOD",
-        );
+  it("scopes an organization workspace to the organization", async () => {
+    await withSeededLedger(async (tx) => {
+      const organizationParams = {
+        scope: "workspace",
+        userContext: {
+          source: "context",
+          userId: USER_ID,
+          organizationId: ORGANIZATION_ID,
+        },
+        workspaceContext: {
+          workspaceId: ORGANIZATION_WORKSPACE_ID,
+          userId: null,
+          organizationId: ORGANIZATION_ID,
+        },
+      } satisfies BuildTransactionHistoryParams;
 
-        const projectRows = await findTransactionHistoryPage(
-          { ...personalScope, projectId: PROJECT_ID },
-          { take: 20 },
-          tx,
-        );
-        expect(projectRows.rows.map((row) => row.id)).toEqual([
-          "tx-task",
-          "tx-job",
-          "tx-image",
-        ]);
+      const workspaceRows = await findTransactionHistoryPage(
+        organizationParams,
+        { take: 20 },
+        tx,
+      );
+      expect(workspaceRows.rows.map((row) => row.id)).toEqual(["tx-org"]);
 
-        const searched = await findTransactionHistoryPage(
-          { ...personalScope, q: "competitors" },
-          { take: 20 },
-          tx,
-        );
-        expect(searched.rows.map((row) => row.id)).toEqual(["tx-job"]);
-      });
+      // `owned` narrows the same workspace to this user, who did not spend it.
+      const ownedRows = await findTransactionHistoryPage(
+        { ...organizationParams, scope: "owned" },
+        { take: 20 },
+        tx,
+      );
+      expect(ownedRows.rows).toHaveLength(0);
     });
-
-    it("scopes an organization workspace to the organization", async () => {
-      await withSeededLedger(async (tx) => {
-        const organizationParams = {
-          scope: "workspace",
-          userContext: {
-            source: "context",
-            userId: USER_ID,
-            organizationId: ORGANIZATION_ID,
-          },
-          workspaceContext: {
-            workspaceId: ORGANIZATION_WORKSPACE_ID,
-            userId: null,
-            organizationId: ORGANIZATION_ID,
-          },
-        } satisfies BuildTransactionHistoryParams;
-
-        const workspaceRows = await findTransactionHistoryPage(
-          organizationParams,
-          { take: 20 },
-          tx,
-        );
-        expect(workspaceRows.rows.map((row) => row.id)).toEqual(["tx-org"]);
-
-        // `owned` narrows the same workspace to this user, who did not spend it.
-        const ownedRows = await findTransactionHistoryPage(
-          { ...organizationParams, scope: "owned" },
-          { take: 20 },
-          tx,
-        );
-        expect(ownedRows.rows).toHaveLength(0);
-      });
-    });
-  },
-);
+  });
+});

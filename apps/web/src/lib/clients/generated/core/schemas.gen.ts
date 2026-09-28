@@ -25053,6 +25053,29 @@ export const TransactionHistoryUnattributedItemSchema = {
     ]
 } as const;
 
+export const TransactionDailySpendListSchema = {
+    type: 'array',
+    items: {
+        type: 'object',
+        properties: {
+            date: {
+                type: 'string',
+                description: 'UTC day, YYYY-MM-DD',
+                example: '2026-09-28'
+            },
+            credits: {
+                type: 'number',
+                description: 'Credits spent that day. Top ups are not counted.',
+                example: 12.5
+            }
+        },
+        required: [
+            'date',
+            'credits'
+        ]
+    }
+} as const;
+
 export const CreditPriceOptionSchema = {
     type: 'object',
     properties: {

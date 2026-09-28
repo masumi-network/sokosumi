@@ -1,5 +1,5 @@
 /**
- * Filters for Transaction History. Every row is a ledger transaction, so there
+ * Filters for Transactions. Every row is a ledger transaction, so there
  * is no status axis: a spend or a top up has an amount and a date, not a
  * lifecycle. The type axis names the source that moved the credits.
  */

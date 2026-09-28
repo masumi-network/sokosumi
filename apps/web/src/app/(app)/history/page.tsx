@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { HistoryList } from "@/app/history/components/history-list";
+import { HistorySpendChart } from "@/app/history/components/history-spend-chart";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
 import {
@@ -33,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Transaction History: every credit consumption on the account, newest first.
+ * Transactions: every credit consumption on the account, newest first.
  *
  * Instant Nav uses `history/loading.tsx` while this page streams after
  * `connection()`.
@@ -52,13 +53,16 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   );
   const projectOptions = await getProjectFilterOptions(parsedFilters.projectId);
   const filters = applyHistoryProjectAllowlist(parsedFilters, projectOptions);
-  const historyPage = await historyService.listHistory({
-    limit: HISTORY_PAGE_LIMIT,
+  const listParams = {
     projectId: filters.projectId ?? undefined,
     q: filters.q ?? undefined,
     scope: filters.scope,
     types: resolveHistoryApiTypes(filters.type),
-  });
+  };
+  const [historyPage, dailySpend] = await Promise.all([
+    historyService.listHistory({ limit: HISTORY_PAGE_LIMIT, ...listParams }),
+    historyService.listDailySpend(listParams),
+  ]);
   const filterResetKey = getHistoryFiltersResetKey(
     filters,
     activeOrganizationId,
@@ -84,6 +88,7 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
       <div className="mx-auto flex w-full flex-col gap-6 pb-6">
         <HistoryToolbar
           activeOrganizationId={activeOrganizationId}
+          filters={filters}
           projectOptions={projectOptions}
           resultsCountLabel={resultsCountLabel}
           labels={{
@@ -105,6 +110,8 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             },
           }}
         />
+
+        <HistorySpendChart days={dailySpend} />
 
         <HistoryList
           key={filterResetKey}

@@ -3,7 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
- * Transaction History is the credit ledger, not an activity feed. One row is
+ * Transactions is the credit ledger, not an activity feed. One row is
  * one `Transaction` — credits taken by a job, an image, a task event, a
  * coworker seat or Soko Bot, or credits added by a top up — labelled by
  * whichever entity links to it. Rows carry the ledger row's own `createdAt`
@@ -266,3 +266,18 @@ export type TransactionHistoryItem = z.infer<
   typeof transactionHistoryItemSchema
 >;
 export type TransactionHistoryKind = (typeof transactionHistoryKinds)[number];
+
+export const transactionDailySpendListSchema = z
+  .array(
+    z.object({
+      date: z.string().openapi({
+        description: "UTC day, YYYY-MM-DD",
+        example: "2026-09-28",
+      }),
+      credits: z.number().openapi({
+        description: "Credits spent that day. Top ups are not counted.",
+        example: 12.5,
+      }),
+    }),
+  )
+  .openapi("TransactionDailySpendList");

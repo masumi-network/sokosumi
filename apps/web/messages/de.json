@@ -284,7 +284,7 @@
       "connections": "Verbindungen",
       "developer": "Entwickler",
       "personal-assistant": "Persönlicher Assistent",
-      "history": "Transaktionsverlauf",
+      "history": "Transaktionen",
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
@@ -1330,7 +1330,7 @@
     "save": "Speichern",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transaktionsverlauf",
+        "title": "Transaktionen",
         "description": "Jeder Credit-Verbrauch deines Kontos, neueste zuerst."
       },
       "Search": {
@@ -1383,6 +1383,23 @@
           "topUp": "Aufladung",
           "unattributed": "Sonstige"
         }
+      },
+      "Export": {
+        "button": "CSV exportieren",
+        "title": "Transaktionen exportieren",
+        "lastMonth": "Letzter Monat",
+        "thisMonth": "Dieser Monat",
+        "last30Days": "Letzte 30 Tage",
+        "month": "Monat",
+        "from": "Von",
+        "to": "Bis",
+        "download": "CSV herunterladen",
+        "filtersNote": "Nutzt die Filter oben. Datumsangaben in UTC."
+      },
+      "Chart": {
+        "label": "Ausgegebene Credits pro Tag, letzte 30 Tage",
+        "total": "{count} Credits in den letzten 30 Tagen ausgegeben",
+        "day": "{date}: {count} Credits"
       }
     },
     "Chat": {
@@ -2774,7 +2791,7 @@
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
-          "history": "Transaktionsverlauf",
+          "history": "Transaktionen",
           "drive": "Dateien",
           "admin": "Administration",
           "settings": "Einstellungen",
@@ -2801,7 +2818,7 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs oder Bildern",
+      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",

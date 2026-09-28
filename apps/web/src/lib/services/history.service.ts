@@ -31,7 +31,7 @@ function mapHistoryItem(item: TransactionHistoryItem): TransactionHistoryItem {
 }
 
 /**
- * The credit ledger behind Transaction History.
+ * The credit ledger behind Transactions.
  *
  * `GET /v1/transactions`, not `GET /v1/history`: the feed endpoint still backs
  * the Cmd+K palette, which has to find a task or a job that never charged.
@@ -61,7 +61,22 @@ export const historyService = (() => {
     };
   }
 
+  /** Credits spent per UTC day over the last 30 days, under the list's filters. */
+  async function listDailySpend(
+    params: Omit<ListHistoryParams, "cursor" | "limit"> = {},
+  ): Promise<Array<{ date: string; credits: number }>> {
+    const result = await coreClient.getTransactionsDaily({
+      projectId: params.projectId,
+      q: params.q,
+      scope: params.scope,
+      types: params.types,
+    });
+
+    return result.data;
+  }
+
   return {
     listHistory,
+    listDailySpend,
   };
 })();

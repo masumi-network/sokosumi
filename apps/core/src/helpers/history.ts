@@ -268,6 +268,36 @@ export async function findJobHistoryEntityIdsMatchingStatuses(
   return rows.map((row) => row.entityId);
 }
 
+/** Most result-matched jobs one search can pull in; the palette shows 50. */
+const RESULT_SEARCH_JOB_LIMIT = 200;
+
+/**
+ * Jobs whose result text contains `q`. The result lives on `jobEvent.result`,
+ * not on the history row, so it is read from the source table rather than
+ * copied into the projection. The caller's visibility filter still applies to
+ * the ids returned here.
+ *
+ * ponytail: ILIKE scan over the workspace's job events, add a pg_trgm GIN
+ * index on `jobEvent.result` if this shows up in query times.
+ */
+async function findJobIdsWithResultMatching(
+  { q, scope, userContext, workspaceContext }: BuildHistoryWhereParams,
+  prismaClient: Pick<HistoryPrismaClient, "job">,
+): Promise<string[]> {
+  const jobs = await prismaClient.job.findMany({
+    where: {
+      workspaceId: workspaceContext.workspaceId,
+      ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+      events: { some: { result: { contains: q, mode: "insensitive" } } },
+    },
+    select: { id: true },
+    orderBy: { createdAt: "desc" },
+    take: RESULT_SEARCH_JOB_LIMIT,
+  });
+
+  return jobs.map((job) => job.id);
+}
+
 async function buildHumanHistoryVisibilityWhere(
   workspaceId: string,
   userId: string,
@@ -381,10 +411,17 @@ export async function buildHistoryWhere(
   }
 
   if (params.q) {
+    const resultJobIds = params.types.includes(HistoryKind.JOB)
+      ? await findJobIdsWithResultMatching(params, prismaClient)
+      : [];
+
     andClauses.push({
       OR: [
         { title: { contains: params.q, mode: "insensitive" } },
         { description: { contains: params.q, mode: "insensitive" } },
+        ...(resultJobIds.length > 0
+          ? [{ kind: HistoryKind.JOB, entityId: { in: resultJobIds } }]
+          : []),
       ],
     });
   }

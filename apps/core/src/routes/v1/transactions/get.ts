@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
 import {
   loadAgentPreviewsByIds,
@@ -12,10 +12,6 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import {
-  deduplicateQueryValues,
-  preprocessMultiValueQueryInput,
-} from "@/helpers/query-params";
 import { ok } from "@/helpers/response";
 import {
   countTransactionHistory,
@@ -31,68 +27,15 @@ import { requireOwnerUserContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import {
-  transactionHistoryKinds,
   transactionHistoryListResponseExample,
   transactionHistoryListSchema,
 } from "@/schemas/transaction-history.schema";
 
-const scopeQuerySchema = z
-  .enum(["workspace", "owned"])
-  .default("owned")
-  .openapi({
-    param: { name: "scope", in: "query" },
-    description:
-      "owned: only ledger rows belonging to the calling user. workspace: every ledger row in the active workspace, including organization-level ones with no user.",
-    example: "workspace",
-  });
+import { transactionFilterQuerySchema } from "./query.js";
 
-const searchQuerySchema = z
-  .string()
-  .trim()
-  .min(1)
-  .max(200)
-  .optional()
-  .openapi({
-    param: { name: "q", in: "query" },
-    description:
-      "Case-insensitive search across the labels a row can carry: job, agent, task, coworker and image model names, task event comments, image prompts and top up bucket notes.",
-    example: "onboarding",
-  });
-
-const typesQuerySchema = z
-  .preprocess(
-    preprocessMultiValueQueryInput,
-    z
-      .array(z.enum(transactionHistoryKinds))
-      .min(1)
-      .optional()
-      .transform(deduplicateQueryValues),
-  )
-  .openapi({
-    param: { name: "types", in: "query" },
-    description:
-      "Comma-separated ledger sources to include: job, image, task, coworker, sokoBot, topUp, unattributed. `topUp` are credits added to the account; every other kind takes credits. `unattributed` are spends with no entity relation at all.",
-    example: "job,image",
-  });
-
-const projectIdQuerySchema = z
-  .union([z.string().uuid(), z.literal("null")])
-  .optional()
-  .openapi({
-    param: { name: "projectId", in: "query" },
-    description:
-      "Filter ledger rows by project. Use 'null' for rows with no project, which includes every coworker, Soko Bot, top up and unattributed row.",
-    example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-  });
-
-const query = z
-  .object({
-    projectId: projectIdQuerySchema,
-    q: searchQuerySchema,
-    scope: scopeQuerySchema,
-    types: typesQuerySchema,
-  })
-  .extend(cursorPaginationQuerySchema.shape);
+const query = transactionFilterQuerySchema.extend(
+  cursorPaginationQuerySchema.shape,
+);
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({

@@ -301,7 +301,7 @@
       "connections": "Connections",
       "developer": "Developer",
       "personal-assistant": "Personal Assistant",
-      "history": "Transaction History",
+      "history": "Transactions",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
@@ -1330,7 +1330,7 @@
     "save": "Save",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transaction History",
+        "title": "Transactions",
         "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
@@ -1383,6 +1383,23 @@
           "topUp": "Top up",
           "unattributed": "Other"
         }
+      },
+      "Export": {
+        "button": "Export CSV",
+        "title": "Export transactions",
+        "lastMonth": "Last month",
+        "thisMonth": "This month",
+        "last30Days": "Last 30 days",
+        "month": "Month",
+        "from": "From",
+        "to": "To",
+        "download": "Download CSV",
+        "filtersNote": "Uses the filters above. Dates are UTC."
+      },
+      "Chart": {
+        "label": "Credits spent per day, last 30 days",
+        "total": "{count} credits spent in the last 30 days",
+        "day": "{date}: {count} credits"
       }
     },
     "Chat": {
@@ -2774,7 +2791,7 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "history": "Transaction History",
+          "history": "Transactions",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
@@ -2801,7 +2818,7 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, or images",
+      "description": "Search for tasks, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
