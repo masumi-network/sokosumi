@@ -21,6 +21,11 @@ export function csvField(value: string): string {
   return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
 }
 
+/** Ledger units are 10^-10 credits; four decimals is more than any bill shows. */
+function formatCredits(credits: number): string {
+  return String(Number(credits.toFixed(4)));
+}
+
 /**
  * A label is user text. One that starts with `= + - @` would run as a formula
  * in a spreadsheet, so it gets a leading apostrophe. Numbers do not go through
@@ -65,7 +70,7 @@ export function streamTransactionCsv(
             "",
             "total",
             label,
-            String(sign * convertCentsToCredits(cents)),
+            formatCredits(sign * convertCentsToCredits(cents)),
           ]);
         controller.enqueue(
           encoder.encode(
@@ -105,7 +110,7 @@ export function streamTransactionCsv(
           row.consumedAt.toISOString(),
           item.kind,
           csvLabel(item.title),
-          String(isTopUp ? item.credits : -item.credits),
+          formatCredits(isTopUp ? item.credits : -item.credits),
         ]);
       }
       controller.enqueue(encoder.encode(chunk));

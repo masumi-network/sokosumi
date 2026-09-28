@@ -112,4 +112,15 @@ describe("streamTransactionCsv", () => {
       csv.split("\r\n").filter((line) => line.startsWith(",total")),
     ).toHaveLength(3);
   });
+
+  it("rounds an amount to four decimals instead of printing float noise", async () => {
+    const queryRaw = vi
+      .fn()
+      .mockResolvedValueOnce([row("t1", -145681017727273n)]);
+    const client = { $queryRaw: queryRaw, agent: { findMany: vi.fn() } };
+
+    const csv = await readAll(streamTransactionCsv(params, client as never));
+
+    expect(csv).toContain(",task,Plain task,-14568.1018\r\n");
+  });
 });
