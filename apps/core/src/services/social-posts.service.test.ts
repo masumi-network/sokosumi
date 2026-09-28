@@ -1,5 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+import prisma from "@/lib/db/prisma";
+
 const {
   projectFindFirstMock,
   socialConnectionFindFirstMock,
@@ -402,6 +404,7 @@ describe("social posts service", () => {
           timezone: null,
           creatorUserId: USER_ID,
           creatorCoworkerId: null,
+          creatorSokoBotId: null,
           scheduledByUserId: null,
           scheduledByCoworkerId: null,
         },
@@ -1116,6 +1119,123 @@ describe("social posts service", () => {
       }),
     );
   });
+  it("records a bot creator while retaining its owner's scheduling authority", async () => {
+    const sokoBotId = "55555555-5555-4555-8555-555555555555";
+    socialPostCreateMock.mockResolvedValue({
+      ...scheduledPost,
+      creatorUserId: null,
+      creatorUser: null,
+      creatorSokoBotId: sokoBotId,
+      creatorSokoBot: { id: sokoBotId, name: "Soko" },
+    });
+    const { createSocialPost } = await loadService();
+
+    const post = await createSocialPost({
+      projectId: PROJECT_ID,
+      workspaceId: WORKSPACE_ID,
+      organizationId: null,
+      userId: USER_ID,
+      sokoBotId,
+      text: "Hello",
+      socialConnectionId: SOCIAL_CONNECTION_ID,
+      scheduledAt: FUTURE,
+    });
+
+    expect(socialPostCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          creatorUserId: null,
+          creatorCoworkerId: null,
+          creatorSokoBotId: sokoBotId,
+          scheduledByUserId: USER_ID,
+          scheduledByCoworkerId: null,
+        }),
+      }),
+    );
+    expect(post.creator).toEqual({
+      kind: "sokoBot",
+      id: sokoBotId,
+      name: "Soko",
+    });
+  });
+
+  it("rejects conflicting bot and coworker authorship before writing", async () => {
+    const { createSocialPost } = await loadService();
+
+    await expect(
+      createSocialPost({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        organizationId: null,
+        userId: USER_ID,
+        coworkerId: "cow_123",
+        sokoBotId: "55555555-5555-4555-8555-555555555555",
+        text: "Hello",
+      }),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(socialPostCreateMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "createSocialPost",
+    "updateSocialPost",
+    "scheduleSocialPost",
+    "cancelSocialPost",
+    "getSocialPost",
+  ] as const)(
+    "keeps every %s query inside the supplied transaction",
+    async (operation) => {
+      const savedPost = { ...scheduledPost, revision: 2 };
+      const tx = {
+        ...prisma,
+        project: {
+          ...prisma.project,
+          findFirst: vi.fn().mockResolvedValue({ id: PROJECT_ID }),
+        },
+        projectSocialConnection: {
+          ...prisma.projectSocialConnection,
+          findFirst: vi.fn().mockResolvedValue(activeConnection),
+        },
+        socialPost: {
+          ...prisma.socialPost,
+          create: vi.fn().mockResolvedValue(savedPost),
+          findFirst: vi.fn().mockResolvedValue(savedPost),
+          updateMany: vi.fn().mockResolvedValue({ count: 1 }),
+        },
+      };
+      if (operation !== "getSocialPost") {
+        tx.socialPost.findFirst.mockResolvedValueOnce(draftPost);
+      }
+      const service = await loadService();
+
+      const post = await service[operation](
+        {
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          organizationId: null,
+          userId: USER_ID,
+          postId: POST_ID,
+          text: "Hello",
+          media: [IMAGE_REF],
+          socialConnectionId: SOCIAL_CONNECTION_ID,
+          scheduledAt: FUTURE,
+          revision: 0,
+        },
+        tx,
+      );
+
+      expect(post.revision).toBe(2);
+      expect(tx.project.findFirst).toHaveBeenCalledWith({
+        where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+        select: { id: true },
+      });
+      expect(projectFindFirstMock).not.toHaveBeenCalled();
+      expect(socialConnectionFindFirstMock).not.toHaveBeenCalled();
+      expect(socialPostFindFirstMock).not.toHaveBeenCalled();
+      expect(socialPostCreateMock).not.toHaveBeenCalled();
+      expect(socialPostUpdateManyMock).not.toHaveBeenCalled();
+    },
+  );
   it("clears delegated scheduler attribution when a human reschedules", async () => {
     const { scheduleSocialPost } = await loadService();
     await scheduleSocialPost({

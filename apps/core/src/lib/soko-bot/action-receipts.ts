@@ -10,6 +10,7 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  "publish_social_post",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -31,6 +32,10 @@ export const ACTION_CAPABILITIES = new Set([
   "delete_schedule",
   "update_memory",
   "manage_reminder",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
 ]);
 
 /** Object key order is not part of an operation's identity. */
@@ -210,6 +215,15 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.resultingEntityId;
+  } else if (capability === "publish_social_post") {
+    const acknowledged = z
+      .object({
+        id: z.string().trim().min(1).max(2048),
+        status: z.literal("PUBLISHED"),
+        publishedExternalId: z.string().trim().min(1).max(2048),
+      })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.id;
   } else if (capability === "upload_file") {
     const acknowledged = z
       .object({

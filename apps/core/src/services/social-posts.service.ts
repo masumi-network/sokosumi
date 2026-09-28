@@ -154,6 +154,7 @@ export interface CreateSocialPostInput
     WorkspaceOwnerScope {
   userId: string;
   coworkerId?: string;
+  sokoBotId?: string;
   text: string;
   media?: SocialPostMediaRef[];
   socialConnectionId?: string;
@@ -240,8 +241,11 @@ export function mapSocialPost(record: SocialPostRecord): SocialPostSummary {
   };
 }
 
-async function requireScopedProject(input: ProjectScope): Promise<void> {
-  const project = await prisma.project.findFirst({
+async function requireScopedProject(
+  input: ProjectScope,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const project = await tx.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
     select: { id: true },
   });
@@ -252,8 +256,9 @@ async function requireScopedProject(input: ProjectScope): Promise<void> {
 
 async function requireScopedPost(
   input: GetSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostRecord> {
-  const post = await prisma.socialPost.findFirst({
+  const post = await tx.socialPost.findFirst({
     where: {
       id: input.postId,
       projectId: input.projectId,
@@ -407,8 +412,9 @@ interface ConnectionCandidate {
 async function requireProjectConnection(
   projectId: string,
   socialConnectionId: string,
+  tx: Prisma.TransactionClient,
 ): Promise<ConnectionCandidate> {
-  const connection = await prisma.projectSocialConnection.findFirst({
+  const connection = await tx.projectSocialConnection.findFirst({
     where: { id: socialConnectionId, projectId },
     select: { id: true, provider: true, status: true },
   });
@@ -425,6 +431,7 @@ async function requireProjectConnection(
 async function requireActiveProjectConnection(
   projectId: string,
   socialConnectionId: string | null | undefined,
+  tx: Prisma.TransactionClient,
 ): Promise<ConnectionCandidate> {
   if (!socialConnectionId) {
     throw badRequest(CONNECTION_REQUIRED_MESSAGE);
@@ -432,6 +439,7 @@ async function requireActiveProjectConnection(
   const connection = await requireProjectConnection(
     projectId,
     socialConnectionId,
+    tx,
   );
   if (connection.status !== "active") {
     throw conflict("Social connection is not active");
@@ -455,8 +463,9 @@ async function writeWithRevision(
   input: GetSocialPostInput,
   revision: number,
   data: Prisma.SocialPostUncheckedUpdateManyInput,
+  tx: Prisma.TransactionClient,
 ): Promise<SocialPostRecord> {
-  const result = await prisma.socialPost.updateMany({
+  const result = await tx.socialPost.updateMany({
     where: { id: input.postId, revision },
     data: { ...data, revision: { increment: 1 } },
   });
@@ -465,7 +474,7 @@ async function writeWithRevision(
       kind: CORE_API_ERROR_KINDS.SOCIAL_POST_REVISION_CONFLICT,
     });
   }
-  return requireScopedPost(input);
+  return requireScopedPost(input, tx);
 }
 
 export async function listSocialPosts(
@@ -508,15 +517,22 @@ export async function listSocialPosts(
 
 export async function getSocialPost(
   input: GetSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input);
-  return mapSocialPost(await requireScopedPost(input));
+  await requireScopedProject(input, tx);
+  return mapSocialPost(await requireScopedPost(input, tx));
 }
 
 export async function createSocialPost(
   input: CreateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input);
+  if (input.coworkerId && input.sokoBotId) {
+    throw badRequest(
+      "A social post cannot have both a Coworker and Soko Bot creator",
+    );
+  }
+  await requireScopedProject(input, tx);
 
   let connection: ConnectionCandidate | null = null;
   if (input.scheduledAt) {
@@ -524,11 +540,13 @@ export async function createSocialPost(
     connection = await requireActiveProjectConnection(
       input.projectId,
       input.socialConnectionId,
+      tx,
     );
   } else if (input.socialConnectionId) {
     connection = await requireProjectConnection(
       input.projectId,
       input.socialConnectionId,
+      tx,
     );
   }
 
@@ -542,7 +560,7 @@ export async function createSocialPost(
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
   const scheduled = input.scheduledAt !== undefined;
 
-  const post = await prisma.socialPost.create({
+  const post = await tx.socialPost.create({
     data: {
       projectId: input.projectId,
       workspaceId: input.workspaceId,
@@ -553,8 +571,9 @@ export async function createSocialPost(
       status: scheduled ? "SCHEDULED" : "DRAFT",
       scheduledAt: input.scheduledAt ?? null,
       timezone: input.timezone ?? null,
-      creatorUserId: input.coworkerId ? null : input.userId,
+      creatorUserId: input.coworkerId || input.sokoBotId ? null : input.userId,
       creatorCoworkerId: input.coworkerId ?? null,
+      creatorSokoBotId: input.sokoBotId ?? null,
       scheduledByUserId: scheduled ? input.userId : null,
       scheduledByCoworkerId: scheduled ? (input.coworkerId ?? null) : null,
     },
@@ -565,9 +584,10 @@ export async function createSocialPost(
 
 export async function updateSocialPost(
   input: UpdateSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input);
-  const post = await requireScopedPost(input);
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
   if (!EDITABLE_STATUSES.includes(post.status)) {
     throw conflict("Only a draft or scheduled post can be edited");
   }
@@ -609,27 +629,33 @@ export async function updateSocialPost(
         ? await requireActiveProjectConnection(
             input.projectId,
             input.socialConnectionId,
+            tx,
           )
         : await requireProjectConnection(
             input.projectId,
             input.socialConnectionId,
+            tx,
           );
     data.socialConnectionId = connection.id;
   } else if (post.status === "SCHEDULED") {
     await requireActiveProjectConnection(
       input.projectId,
       post.socialConnectionId,
+      tx,
     );
   }
 
-  return mapSocialPost(await writeWithRevision(input, input.revision, data));
+  return mapSocialPost(
+    await writeWithRevision(input, input.revision, data, tx),
+  );
 }
 
 export async function scheduleSocialPost(
   input: ScheduleSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input);
-  const post = await requireScopedPost(input);
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
   if (!SCHEDULABLE_STATUSES.includes(post.status)) {
     throw conflict("This post can no longer be scheduled");
   }
@@ -649,28 +675,35 @@ export async function scheduleSocialPost(
   const connection = await requireActiveProjectConnection(
     input.projectId,
     input.socialConnectionId ?? post.socialConnectionId,
+    tx,
   );
 
   return mapSocialPost(
-    await writeWithRevision(input, input.revision, {
-      status: "SCHEDULED",
-      scheduledAt: input.scheduledAt,
-      timezone: input.timezone ?? post.timezone,
-      socialConnectionId: connection.id,
-      scheduledByUserId: input.userId,
-      scheduledByCoworkerId: input.coworkerId ?? null,
-      lastError: null,
-      attemptCount: 0,
-      nextAttemptAt: null,
-    }),
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "SCHEDULED",
+        scheduledAt: input.scheduledAt,
+        timezone: input.timezone ?? post.timezone,
+        socialConnectionId: connection.id,
+        scheduledByUserId: input.userId,
+        scheduledByCoworkerId: input.coworkerId ?? null,
+        lastError: null,
+        attemptCount: 0,
+        nextAttemptAt: null,
+      },
+      tx,
+    ),
   );
 }
 
 export async function cancelSocialPost(
   input: CancelSocialPostInput,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<SocialPostSummary> {
-  await requireScopedProject(input);
-  const post = await requireScopedPost(input);
+  await requireScopedProject(input, tx);
+  const post = await requireScopedPost(input, tx);
   if (post.status === "CANCELED") {
     return mapSocialPost(post);
   }
@@ -680,9 +713,14 @@ export async function cancelSocialPost(
   requireRevision(post, input.revision);
 
   return mapSocialPost(
-    await writeWithRevision(input, input.revision, {
-      status: "CANCELED",
-      canceledAt: new Date(),
-    }),
+    await writeWithRevision(
+      input,
+      input.revision,
+      {
+        status: "CANCELED",
+        canceledAt: new Date(),
+      },
+      tx,
+    ),
   );
 }
