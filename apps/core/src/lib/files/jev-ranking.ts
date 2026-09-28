@@ -58,6 +58,67 @@ export interface RankingOutcome {
 }
 
 /**
+ * The same answer, as something safe to put in an API response.
+ *
+ * `fallbackReason` is an internal string. It carries provider detail —
+ * `evaluation:status-429`, `provider-options-rejected` — and it is open:
+ * new causes appear as new strings. Neither belongs in a payload a caller
+ * parses.
+ *
+ * This is the closed vocabulary that goes out instead. Five values, chosen
+ * so the questions an operator actually asks are answerable and nothing
+ * else is: is the feature off, was there anything to rank, did we run out
+ * of allowance, did we run out of time, or did the provider fail.
+ *
+ * Notably absent: which provider, which status code, how much has been
+ * spent, how much is left. "A cap fired" is the whole of what a caller
+ * needs and the whole of what they get.
+ */
+export type RankingFallback =
+  | "disabled"
+  | "not-applicable"
+  | "capacity"
+  | "timeout"
+  | "provider-error";
+
+/**
+ * Map the internal reason onto the vocabulary above.
+ *
+ * Why this exists at all: a reviewer ran a natural-language search against
+ * a preview and got `rankingMode: "deterministic"` with no way to find out
+ * why. The reason went only to evlog, and getting it back out of the
+ * platform's log stream defeated two attempts. A fallback reason that only
+ * an operator with log access can read is a reason nobody reads, so it
+ * travels with the ordering it explains.
+ *
+ * The default is `provider-error` rather than a fifth "unknown": an
+ * unrecognised reason is a cause that was added upstream without being
+ * mapped here, and every such cause so far has come from the evaluation
+ * path. Guessing "something went wrong with the model" is closer to true
+ * than claiming nothing is known.
+ */
+export function publicRankingFallback(
+  reason: string | null,
+): RankingFallback | null {
+  if (reason === null) return null;
+  if (reason === "model-disabled") return "disabled";
+  // Nothing to order: one candidate, or an exact filename match that
+  // already decides the head. Not a failure, and it should not read as one.
+  if (reason === "single-candidate" || reason === "exact-match-head") {
+    return "not-applicable";
+  }
+  // Every local refusal. Rate ceilings, concurrency, the daily token
+  // budget and the daily spend budget all arrive here as one denial, and
+  // the caller is told a cap fired without being told which resource it
+  // was counted against.
+  if (reason === "admission-denied" || reason === "admission-expired") {
+    return "capacity";
+  }
+  if (reason.startsWith("rank-deadline")) return "timeout";
+  return "provider-error";
+}
+
+/**
  * The authorization step, injectable so a test can exercise the ordering
  * rules without a database. Production always passes the real admission,
  * which is the only thing allowed to authorize a dispatch.

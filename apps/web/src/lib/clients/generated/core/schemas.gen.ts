@@ -12518,6 +12518,21 @@ export const FileSearchMetaSchema = {
             ],
             description: 'Which ordering produced this page. \'deterministic\' means the model stage did not apply.'
         },
+        rankingFallback: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'disabled',
+                'not-applicable',
+                'capacity',
+                'timeout',
+                'provider-error',
+                null
+            ],
+            description: 'Why \'deterministic\' was returned. Null when the model stage applied, or when no ranking was attempted for this page.'
+        },
         resultWindowLimit: {
             type: 'integer'
         },
@@ -12569,6 +12584,7 @@ export const FileSearchMetaSchema = {
     },
     required: [
         'rankingMode',
+        'rankingFallback',
         'resultWindowLimit',
         'windowCount',
         'remainingWindowCount',

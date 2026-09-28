@@ -409,4 +409,69 @@ describe.skipIf(!enabled)("Files retrieval against PostgreSQL", () => {
       await prisma.dataTable.delete({ where: { id: table.id } });
     }
   });
+
+  it("says why the ordering was deterministic, in the same payload", async () => {
+    /**
+     * The gap a reviewer hit on a preview: `rankingMode: "deterministic"`
+     * came back in 340 ms with no way to find out what gated it. The
+     * reason existed — `fallbackReason` is computed on every ranking —
+     * but it went only to evlog, and pulling it back out of the
+     * platform's log stream defeated two attempts because the stream is
+     * unbounded and exhausted the heap.
+     *
+     * A reason only an operator with log access can read is a reason
+     * nobody reads, so it travels with the ordering it explains.
+     *
+     * Jev is not configured in this environment, which is exactly the
+     * case that was indistinguishable from a healthy deterministic
+     * search: the mode alone cannot tell "the feature is off" from "the
+     * model ran and agreed with the deterministic order".
+     */
+    const page = await searchFiles({
+      workspaceId,
+      actor: actorFor(ownerId),
+      query: "commuters",
+      filters: {},
+      sortBy: "relevance",
+      sortOrder: "desc",
+      cursor: null,
+      limit: 10,
+    });
+
+    expect(page.search.rankingMode).toBe("deterministic");
+    expect(page.search.rankingFallback).toBe("disabled");
+  });
+
+  it("reports no reason for a page that ranked nothing", async () => {
+    /**
+     * A cursor page reuses a stored window and runs no ranking at all,
+     * so there is no cause to report. Null here means "not applicable to
+     * this page", and inventing a reason would be as misleading as the
+     * silence this replaces.
+     */
+    const first = await searchFiles({
+      workspaceId,
+      actor: actorFor(ownerId),
+      query: "commuters",
+      filters: {},
+      sortBy: "relevance",
+      sortOrder: "desc",
+      cursor: null,
+      limit: 1,
+    });
+    expect(first.search.nextCursor).toBeTruthy();
+
+    const second = await searchFiles({
+      workspaceId,
+      actor: actorFor(ownerId),
+      query: "commuters",
+      filters: {},
+      sortBy: "relevance",
+      sortOrder: "desc",
+      cursor: first.search.nextCursor,
+      limit: 1,
+    });
+
+    expect(second.search.rankingFallback).toBeNull();
+  });
 });

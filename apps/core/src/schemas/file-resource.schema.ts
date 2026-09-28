@@ -129,6 +129,27 @@ export const fileSearchMetaSchema = z
       description:
         "Which ordering produced this page. 'deterministic' means the model stage did not apply.",
     }),
+    /**
+     * Why the model stage did not apply, next to the ordering it explains.
+     *
+     * A closed vocabulary, deliberately. It answers "is the feature off,
+     * was there anything to rank, did we run out of allowance, did we run
+     * out of time, or did the provider fail" and nothing else: no provider
+     * identity, no status code, no spend figures, no remaining allowance.
+     */
+    rankingFallback: z
+      .enum([
+        "disabled",
+        "not-applicable",
+        "capacity",
+        "timeout",
+        "provider-error",
+      ])
+      .nullable()
+      .openapi({
+        description:
+          "Why 'deterministic' was returned. Null when the model stage applied, or when no ranking was attempted for this page.",
+      }),
     resultWindowLimit: z.number().int(),
     windowCount: z.number().int().openapi({
       description:

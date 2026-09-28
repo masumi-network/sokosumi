@@ -3604,6 +3604,10 @@ export type FileSearchMeta = {
      * Which ordering produced this page. 'deterministic' means the model stage did not apply.
      */
     rankingMode: 'deterministic' | 'model';
+    /**
+     * Why 'deterministic' was returned. Null when the model stage applied, or when no ranking was attempted for this page.
+     */
+    rankingFallback: 'disabled' | 'not-applicable' | 'capacity' | 'timeout' | 'provider-error' | null;
     resultWindowLimit: number;
     /**
      * Authorized entries in this bounded window, not a corpus total.

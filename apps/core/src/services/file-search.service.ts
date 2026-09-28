@@ -14,7 +14,11 @@ import {
   buildAuthorizedResourceSql,
   resolveScopeEpoch,
 } from "@/lib/files/evidence-scope";
-import { rerankFileCandidates } from "@/lib/files/jev-ranking";
+import {
+  publicRankingFallback,
+  type RankingFallback,
+  rerankFileCandidates,
+} from "@/lib/files/jev-ranking";
 import type {
   FileCandidate,
   FileSearchFilters,
@@ -90,6 +94,12 @@ export async function searchFiles(
   let position = 0;
   let restarted = false;
   let rankingMode: "deterministic" | "model" = "deterministic";
+  /**
+   * Null until a ranking is actually attempted, which is not the same as
+   * "the model applied". A cursor page reuses a stored window and ranks
+   * nothing, so it reports null rather than inventing a cause.
+   */
+  let rankingFallback: RankingFallback | null = null;
 
   if (input.cursor) {
     const payload = decodeSearchCursor(input.cursor, secret);
@@ -134,6 +144,7 @@ export async function searchFiles(
       });
       ordered = ranking.candidates;
       rankingMode = ranking.mode;
+      rankingFallback = publicRankingFallback(ranking.fallbackReason);
     }
 
     entries = ordered.slice(0, RESULT_WINDOW_LIMIT).map((candidate) => ({
@@ -240,6 +251,7 @@ export async function searchFiles(
     items,
     search: {
       rankingMode,
+      rankingFallback,
       resultWindowLimit: RESULT_WINDOW_LIMIT,
       windowCount: entries.length,
       remainingWindowCount: remaining,

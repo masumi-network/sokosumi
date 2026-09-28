@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { FileActor } from "./actor";
 import type { JevEvaluator } from "./jev-client";
-import { rerankFileCandidates } from "./jev-ranking";
+import { publicRankingFallback, rerankFileCandidates } from "./jev-ranking";
 import { JevScheduler } from "./jev-scheduler";
 import type { FileCandidate } from "./retrieval";
 
@@ -678,5 +678,113 @@ describe("why a fallback happened", () => {
       expect(sample).toBeGreaterThanOrEqual(MINTED_AGO_MS);
       expect(sample).toBeLessThan(MINTED_AGO_MS + 100);
     }
+  });
+});
+
+describe("the fallback reason a caller is allowed to see", () => {
+  /**
+   * A reviewer ran a natural-language search against a preview, got
+   * `rankingMode: "deterministic"` in 340 ms, and had no way to find out
+   * why. `FILES_JEV_ENABLED` defaults to true, so something else gated
+   * it — and the reason went only to evlog. Getting it back out defeated
+   * two attempts, because the platform's log stream is unbounded and
+   * exhausted the local heap twice.
+   *
+   * A reason only an operator with log access can read is a reason
+   * nobody reads. It travels with the ordering it explains now, and
+   * `publicRankingFallback` is the translation.
+   *
+   * The internal string is not safe to ship: it carries provider detail
+   * (`evaluation:status-429`, `provider-options-rejected`) and it is
+   * open-ended. These pin the closed vocabulary instead.
+   */
+
+  it("tells a disabled gate, a cap and a provider failure apart", () => {
+    // The three the ruling names, and the distinction an operator needs
+    // first: is it us, our allowance, or them.
+    expect(publicRankingFallback("model-disabled")).toBe("disabled");
+    expect(publicRankingFallback("admission-denied")).toBe("capacity");
+    expect(publicRankingFallback("evaluation:status-429")).toBe(
+      "provider-error",
+    );
+
+    const distinct = new Set([
+      publicRankingFallback("model-disabled"),
+      publicRankingFallback("admission-denied"),
+      publicRankingFallback("evaluation:status-429"),
+    ]);
+    expect(distinct.size).toBe(3);
+  });
+
+  it("separates running out of time from running out of allowance", () => {
+    // Both are "we stopped", and the fix for each is different: one is a
+    // budget, the other is a deadline.
+    expect(publicRankingFallback("rank-deadline:aborted")).toBe("timeout");
+    expect(publicRankingFallback("rank-deadline:threw")).toBe("timeout");
+    expect(publicRankingFallback("admission-expired")).toBe("capacity");
+  });
+
+  it("does not call a healthy search a failure", () => {
+    // Fewer than two candidates, or an exact filename match that already
+    // decides the head. Nothing was wrong and nothing should read as if
+    // it were.
+    expect(publicRankingFallback("single-candidate")).toBe("not-applicable");
+    expect(publicRankingFallback("exact-match-head")).toBe("not-applicable");
+    // And the model actually applying reports nothing at all.
+    expect(publicRankingFallback(null)).toBeNull();
+  });
+
+  it("leaks no provider detail, whatever the internal reason says", () => {
+    /**
+     * The property that matters more than the mapping. Internal reasons
+     * embed status codes and provider-specific strings; a caller must
+     * get a value from the vocabulary and never a passthrough.
+     */
+    const internal = [
+      "model-disabled",
+      "single-candidate",
+      "exact-match-head",
+      "admission-denied",
+      "admission-expired",
+      "rank-deadline:pre-wave",
+      "rank-deadline:aborted",
+      "rank-deadline:threw",
+      "incomplete-batch",
+      "evaluation:status-429",
+      "evaluation:status-503",
+      "evaluation:provider-options-rejected",
+      "evaluation:invalid-response",
+      "evaluation:contradictory-answers",
+      "evaluation:threw",
+      "something-added-later-and-never-mapped",
+    ];
+    const allowed = new Set([
+      "disabled",
+      "not-applicable",
+      "capacity",
+      "timeout",
+      "provider-error",
+    ]);
+
+    for (const reason of internal) {
+      const out = publicRankingFallback(reason);
+      expect(allowed.has(out as string), `${reason} -> ${out}`).toBe(true);
+      // No status code, no provider name, no colon-separated internals.
+      expect(out).not.toMatch(/\d/u);
+      expect(out).not.toContain(":");
+    }
+  });
+
+  it("treats an unmapped reason as a provider failure, not as nothing", () => {
+    /**
+     * Deliberately not a sixth "unknown" value. An unrecognised reason is
+     * a cause added upstream without being mapped here, and every such
+     * cause so far has come from the evaluation path. "Something went
+     * wrong with the model" is closer to true than "no information", and
+     * a null would read as "the model applied", which is worse than
+     * either.
+     */
+    expect(publicRankingFallback("brand-new-cause")).toBe("provider-error");
+    expect(publicRankingFallback("brand-new-cause")).not.toBeNull();
   });
 });
