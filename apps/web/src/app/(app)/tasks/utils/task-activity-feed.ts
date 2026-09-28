@@ -1,10 +1,11 @@
 import { TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
-/** Visible comments when the thread is collapsed. More than this → group chrome. */
-export const TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT = 5;
+/** At or under this many events the feed renders every event in full. */
+export const TASK_ACTIVITY_COLLAPSE_THRESHOLD = 5;
 
-export const TASK_ACTIVITY_EVENTS_PAGE_LIMIT = 100;
+/** Newest events that always render in full once the feed collapses. */
+export const TASK_ACTIVITY_RECENT_WINDOW = 5;
 
 /** List name for chat land-and-highlight (`highlightListMessage`). */
 export const TASK_ACTIVITY_MESSAGE_LIST = "task-activity";
@@ -51,97 +52,112 @@ export function isLatestMatchingStatusEvent(
   );
 }
 
-export type TaskActivityFeedItem =
-  | { type: "event"; event: TaskEvent }
-  | {
-      type: "comment-group";
-      hiddenCount: number;
-      hiddenEventIds: string[];
-    };
+const OUTCOME_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+]);
+
+const ASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
+  TaskStatus.INPUT_REQUIRED,
+  TaskStatus.APPROVAL_REQUIRED,
+  TaskStatus.AUTHENTICATION_REQUIRED,
+  TaskStatus.OUT_OF_CREDITS,
+]);
 
 /**
- * Build the ascending feed. When `commentCount` > 5 and comments are collapsed,
- * older comments become one group; status/billing/auth events stay in place.
+ * The ask the task is waiting on right now: the newest status event, when it
+ * asks the reader for something. Once the status moves on, that ask is
+ * history like any other event.
+ */
+export function findOpenAskEventId(
+  events: readonly TaskEvent[],
+): string | null {
+  const latestStatusEvent = sortTaskEventsAscending(events).findLast(
+    (event) => event.status != null,
+  );
+  return latestStatusEvent?.status != null &&
+    ASK_STATUSES.has(latestStatusEvent.status)
+    ? latestStatusEvent.id
+    : null;
+}
+
+export type TaskActivityFeedItem =
+  | { type: "event"; event: TaskEvent; compact: boolean }
+  | { type: "status-fold"; id: string; events: TaskEvent[] };
+
+const MIN_STATUS_FOLD_SIZE = 2;
+
+function pushStatusRun(
+  items: TaskActivityFeedItem[],
+  run: TaskEvent[],
+  openedFolds: ReadonlySet<string>,
+): void {
+  const first = run[0];
+  if (!first) {
+    return;
+  }
+  if (run.length >= MIN_STATUS_FOLD_SIZE && !openedFolds.has(first.id)) {
+    items.push({ type: "status-fold", id: first.id, events: [...run] });
+    return;
+  }
+  for (const event of run) {
+    items.push({ type: "event", event, compact: false });
+  }
+}
+
+/**
+ * Build the ascending digest. Past the threshold, events older than the
+ * newest five collapse without leaving the page: runs of status changes fold
+ * into one row and comments shrink to one line. Results and the open ask
+ * always stay in full; an answered ask collapses like any other comment.
+ *
+ * Folds are keyed by their first event id and comments by their own id, so
+ * the reader's opened set survives refreshes that append newer events.
  */
 export function buildTaskActivityFeedItems(
   events: readonly TaskEvent[],
   options: {
-    commentCount: number;
-    commentsExpanded: boolean;
+    openedFolds: ReadonlySet<string>;
+    openedComments: ReadonlySet<string>;
   },
 ): TaskActivityFeedItem[] {
   const ordered = sortTaskEventsAscending(events);
-  const { commentCount, commentsExpanded } = options;
-
-  if (commentsExpanded || commentCount <= TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT) {
-    return ordered.map((event) => ({ type: "event" as const, event }));
+  if (ordered.length <= TASK_ACTIVITY_COLLAPSE_THRESHOLD) {
+    return ordered.map((event) => ({ type: "event", event, compact: false }));
   }
 
-  const loadedComments = ordered.filter(isTaskActivityComment);
-  const hiddenEventIds: string[] = [];
-  let commentLocalIndex = 0;
+  const windowStart = ordered.length - TASK_ACTIVITY_RECENT_WINDOW;
+  const openAskId = findOpenAskEventId(ordered);
+  const isPinned = (event: TaskEvent) =>
+    event.id === openAskId ||
+    (event.status != null && OUTCOME_STATUSES.has(event.status));
 
-  for (const event of ordered) {
-    if (!isTaskActivityComment(event)) {
-      continue;
-    }
-    const globalIndex =
-      commentCount - loadedComments.length + commentLocalIndex;
-    commentLocalIndex += 1;
-    if (globalIndex < commentCount - TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT) {
-      hiddenEventIds.push(event.id);
-    }
-  }
-
-  const unloadedOlderCommentCount = Math.max(
-    0,
-    commentCount - loadedComments.length,
-  );
-  const visibleLoadedCommentCount =
-    loadedComments.length - hiddenEventIds.length;
-  const totalHidden = commentCount - visibleLoadedCommentCount;
-
-  if (totalHidden <= 0) {
-    return ordered.map((event) => ({ type: "event" as const, event }));
-  }
-
-  const hiddenSet = new Set(hiddenEventIds);
   const items: TaskActivityFeedItem[] = [];
-  let groupInserted = false;
-
-  const insertGroup = () => {
-    if (groupInserted) {
+  let run: TaskEvent[] = [];
+  ordered.forEach((event, index) => {
+    const isRecent = index >= windowStart;
+    if (
+      !isRecent &&
+      event.comment == null &&
+      event.status != null &&
+      !isPinned(event)
+    ) {
+      run.push(event);
       return;
     }
+    pushStatusRun(items, run, options.openedFolds);
+    run = [];
     items.push({
-      type: "comment-group",
-      hiddenCount: totalHidden,
-      hiddenEventIds,
+      type: "event",
+      event,
+      compact:
+        !isRecent &&
+        event.comment != null &&
+        !isPinned(event) &&
+        !options.openedComments.has(event.id),
     });
-    groupInserted = true;
-  };
-
-  // Unloaded older comments sit before the loaded window.
-  if (unloadedOlderCommentCount > 0) {
-    insertGroup();
-  }
-
-  for (const event of ordered) {
-    if (hiddenSet.has(event.id)) {
-      insertGroup();
-      continue;
-    }
-    items.push({ type: "event", event });
-  }
-
-  if (!groupInserted && totalHidden > 0) {
-    items.unshift({
-      type: "comment-group",
-      hiddenCount: totalHidden,
-      hiddenEventIds,
-    });
-  }
-
+  });
+  pushStatusRun(items, run, options.openedFolds);
   return items;
 }
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTaskActivityFeedItems,
+  findOpenAskEventId,
   getLatestTaskEventId,
   isLatestMatchingStatusEvent,
   isTaskActivityComment,
   mergeTaskActivityEvents,
   sortTaskEventsAscending,
-  TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT,
+  type TaskActivityFeedItem,
 } from "@/app/tasks/utils/task-activity-feed";
 import { Channel, TaskStatus } from "@/lib/clients/generated/core";
 import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
@@ -89,87 +90,172 @@ describe("isLatestMatchingStatusEvent", () => {
   });
 });
 
+type Seed = [status: TaskStatus | null, comment: string | null];
+
+// Runs of status changes between comments, three asks and a result.
+const THREAD: Seed[] = [
+  [TaskStatus.READY, null],
+  [TaskStatus.RUNNING, null],
+  [null, "Picked this up"],
+  [TaskStatus.INPUT_REQUIRED, "Which URL?"],
+  [null, "This one"],
+  [TaskStatus.READY, null],
+  [TaskStatus.RUNNING, null],
+  [null, "Resumed"],
+  [TaskStatus.AWAITING_EXTERNAL, null],
+  [TaskStatus.RUNNING, null],
+  [null, "No 404 in logs"],
+  [TaskStatus.INPUT_REQUIRED, "Grant Sentry?"],
+  [null, "Granted"],
+  [TaskStatus.READY, null],
+  [TaskStatus.RUNNING, null],
+  [null, "Found it"],
+  [null, "Fix is up"],
+  [TaskStatus.APPROVAL_REQUIRED, "Approve?"],
+  [null, "Approved"],
+  [TaskStatus.RUNNING, null],
+  [TaskStatus.COMPLETED, "Result"],
+  [null, "Thanks"],
+  [TaskStatus.INPUT_REQUIRED, "Follow-up?"],
+];
+
+function thread(seeds: Seed[]): TaskEvent[] {
+  return seeds.map(([status, comment], index) =>
+    event(
+      `ev-${String(index + 1).padStart(2, "0")}`,
+      new Date(Date.UTC(2026, 0, 1, 0, index)).toISOString(),
+      { status, comment },
+    ),
+  );
+}
+
+function describeItems(items: TaskActivityFeedItem[]): string[] {
+  return items.map((item) => {
+    if (item.type === "status-fold") {
+      return `fold(${item.events.map(({ id }) => id.slice(3)).join(",")})`;
+    }
+    return item.compact ? `~${item.event.id.slice(3)}` : item.event.id.slice(3);
+  });
+}
+
+const NONE: ReadonlySet<string> = new Set();
+
+describe("findOpenAskEventId", () => {
+  it("is the newest status event when it asks for something", () => {
+    expect(
+      findOpenAskEventId([
+        ...thread(THREAD.slice(0, 4)),
+        event("reply", "2026-01-02T00:00:00.000Z", { comment: "Here" }),
+      ]),
+    ).toBe("ev-04");
+  });
+
+  it("is null once the status moves on or ends in a result", () => {
+    expect(findOpenAskEventId(thread(THREAD.slice(0, 6)))).toBeNull();
+    expect(findOpenAskEventId(thread(THREAD.slice(0, 21)))).toBeNull();
+  });
+});
+
 describe("buildTaskActivityFeedItems", () => {
-  it("renders events ascending with no group when comment count <= 5", () => {
-    const events = [
-      event("c1", "2026-01-01T10:00:00.000Z", { comment: "one" }),
-      event("s1", "2026-01-01T11:00:00.000Z", { status: TaskStatus.RUNNING }),
-      event("c2", "2026-01-01T12:00:00.000Z", { comment: "two" }),
-    ];
-
-    const items = buildTaskActivityFeedItems(events, {
-      commentCount: 2,
-      commentsExpanded: false,
-    });
-
+  it("renders five events or fewer in full", () => {
     expect(
-      items.map((item) => ("event" in item ? item.event.id : item.type)),
-    ).toEqual(["c1", "s1", "c2"]);
+      describeItems(
+        buildTaskActivityFeedItems(thread(THREAD.slice(0, 5)), {
+          openedFolds: NONE,
+          openedComments: NONE,
+        }),
+      ),
+    ).toEqual(["01", "02", "03", "04", "05"]);
   });
 
-  it("groups older comments when comment count > 5 and keeps non-comments", () => {
-    const events = [
-      event("c1", "2026-01-01T01:00:00.000Z", { comment: "1" }),
-      event("c2", "2026-01-01T02:00:00.000Z", { comment: "2" }),
-      event("s1", "2026-01-01T02:30:00.000Z", { status: TaskStatus.RUNNING }),
-      event("c3", "2026-01-01T03:00:00.000Z", { comment: "3" }),
-      event("c4", "2026-01-01T04:00:00.000Z", { comment: "4" }),
-      event("c5", "2026-01-01T05:00:00.000Z", { comment: "5" }),
-      event("c6", "2026-01-01T06:00:00.000Z", { comment: "6" }),
-      event("c7", "2026-01-01T07:00:00.000Z", { comment: "7" }),
-    ];
-
-    const items = buildTaskActivityFeedItems(events, {
-      commentCount: 7,
-      commentsExpanded: false,
-    });
-
-    expect(items[0]).toMatchObject({
-      type: "comment-group",
-      hiddenCount: 7 - TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT,
-    });
+  it("folds status runs and shrinks older comments, answered asks included", () => {
     expect(
-      items
-        .filter((item) => item.type === "event")
-        .map((item) => item.event.id),
-    ).toEqual(["s1", "c3", "c4", "c5", "c6", "c7"]);
+      describeItems(
+        buildTaskActivityFeedItems(thread(THREAD), {
+          openedFolds: NONE,
+          openedComments: NONE,
+        }),
+      ),
+    ).toEqual([
+      "fold(01,02)",
+      "~03",
+      "~04",
+      "~05",
+      "fold(06,07)",
+      "~08",
+      "fold(09,10)",
+      "~11",
+      "~12",
+      "~13",
+      "fold(14,15)",
+      "~16",
+      "~17",
+      "~18",
+      "19",
+      "20",
+      "21",
+      "22",
+      "23",
+    ]);
   });
 
-  it("shows no group chrome when expanded", () => {
-    const events = Array.from({ length: 6 }, (_, i) =>
-      event(`c${i}`, `2026-01-01T0${i}:00:00.000Z`, { comment: String(i) }),
+  it("opens one fold and one comment without touching the rest", () => {
+    const items = describeItems(
+      buildTaskActivityFeedItems(thread(THREAD), {
+        openedFolds: new Set(["ev-06"]),
+        openedComments: new Set(["ev-04"]),
+      }),
     );
-
-    const items = buildTaskActivityFeedItems(events, {
-      commentCount: 6,
-      commentsExpanded: true,
-    });
-
-    expect(items.every((item) => item.type === "event")).toBe(true);
-    expect(items).toHaveLength(6);
+    expect(items.slice(0, 8)).toEqual([
+      "fold(01,02)",
+      "~03",
+      "04",
+      "~05",
+      "06",
+      "07",
+      "~08",
+      "fold(09,10)",
+    ]);
   });
 
-  it("counts unloaded older comments in the group", () => {
-    const events = [
-      event("c6", "2026-01-01T06:00:00.000Z", { comment: "6" }),
-      event("c7", "2026-01-01T07:00:00.000Z", { comment: "7" }),
-      event("c8", "2026-01-01T08:00:00.000Z", { comment: "8" }),
-    ];
+  it("keeps the open ask in full outside the recent window", () => {
+    const items = describeItems(
+      buildTaskActivityFeedItems(
+        thread([
+          ...THREAD.slice(0, 12),
+          [null, "Looking into access"],
+          [null, "Still checking"],
+          [null, "Any update?"],
+          [null, "Tomorrow"],
+          [null, "Thanks"],
+          [null, "Ping"],
+        ]),
+        { openedFolds: NONE, openedComments: NONE },
+      ),
+    );
+    expect(items).toContain("12");
+    expect(items).toContain("~04");
+  });
 
-    const items = buildTaskActivityFeedItems(events, {
-      commentCount: 8,
-      commentsExpanded: false,
-    });
-
-    expect(items[0]).toMatchObject({
-      type: "comment-group",
-      hiddenCount: 5,
-    });
+  it("keeps results in full outside the recent window", () => {
     expect(
-      items
-        .filter((item) => item.type === "event")
-        .map((item) => item.event.id),
-    ).toEqual(["c6", "c7", "c8"]);
+      describeItems(
+        buildTaskActivityFeedItems(
+          thread([
+            [TaskStatus.RUNNING, null],
+            [TaskStatus.COMPLETED, "Result"],
+            [TaskStatus.RUNNING, null],
+            [TaskStatus.FAILED, "It broke"],
+            [null, "a"],
+            [null, "b"],
+            [null, "c"],
+            [null, "d"],
+            [null, "e"],
+          ]),
+          { openedFolds: NONE, openedComments: NONE },
+        ),
+      ),
+    ).toEqual(["01", "02", "03", "04", "05", "06", "07", "08", "09"]);
   });
 });
 

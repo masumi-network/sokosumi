@@ -7,8 +7,10 @@ import {
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-import { TaskActivityVariantHost } from "@/app/tasks/components/activity-variants/activity-variant-host";
-import { type MentionableUser } from "@/app/tasks/components/task-activity";
+import {
+  type MentionableUser,
+  TaskActivitySection,
+} from "@/app/tasks/components/task-activity";
 import { TaskContextSection } from "@/app/tasks/components/task-context-section";
 import { TaskDescription } from "@/app/tasks/components/task-description";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
@@ -748,7 +750,7 @@ async function TaskActivitySectionContent({
     sokoBotById,
   } = buildTaskActivityActors({
     ...task,
-    events: activityEvents.events,
+    events: activityEvents,
   });
   const currentUser = session?.user
     ? {
@@ -782,12 +784,11 @@ async function TaskActivitySectionContent({
   const agentNameById = buildAgentNameById(agents);
 
   return (
-    <TaskActivityVariantHost
+    <TaskActivitySection
       key={taskId}
       taskId={taskId}
       title={t("activity")}
       placeholder={t("commentPlaceholder")}
-      attachLabel={t("attach")}
       submitLabel={t("submit")}
       actorCoworkerLabel={t("actorCoworker")}
       actorUserLabel={t("actorUser")}
@@ -795,9 +796,7 @@ async function TaskActivitySectionContent({
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
-      events={activityEvents.events}
-      commentCount={activityEvents.pagination.commentCount}
-      latestCommentId={activityEvents.pagination.latestCommentId}
+      events={activityEvents}
       taskFiles={task.files}
       agentNameById={agentNameById}
       userById={userById}

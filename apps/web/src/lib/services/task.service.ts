@@ -266,56 +266,10 @@ export const taskService = (() => {
     return { events, pagination };
   }
 
-  /**
-   * Initial Activities window: all non-comment events + the newest 5 comments.
-   * Older comments load on expand via `listTaskEventsBefore`.
-   */
-  async function listTaskActivityFeed(taskId: string): Promise<{
-    events: TaskEvent[];
-    pagination: TaskEventsPaginationMetadata;
-  }> {
-    const { events, pagination } = await listAllTaskEvents(taskId);
-    if (pagination.commentCount <= 5) {
-      return { events, pagination };
-    }
-
-    const comments = events.filter((event) => event.comment != null);
-    const keepCommentIds = new Set(comments.slice(-5).map((event) => event.id));
-    return {
-      events: events.filter(
-        (event) => event.comment == null || keepCommentIds.has(event.id),
-      ),
-      pagination,
-    };
-  }
-
-  /**
-   * Events strictly before `untilEventId` (ascending), for expanding older comments.
-   */
-  async function listTaskEventsBefore(
-    taskId: string,
-    untilEventId: string,
-  ): Promise<TaskEvent[]> {
-    const older: TaskEvent[] = [];
-    let cursor: string | undefined;
-
-    for (;;) {
-      const page = await listTaskEvents(taskId, {
-        cursor,
-        limit: 100,
-      });
-      for (const event of page.events) {
-        if (event.id === untilEventId) {
-          return older;
-        }
-        older.push(event);
-      }
-      const next = page.pagination.nextCursor;
-      if (!next || next === cursor) {
-        return older;
-      }
-      cursor = next;
-    }
+  /** Every event on the Task, ascending; Activities collapses older ones in place. */
+  async function listTaskActivityFeed(taskId: string): Promise<TaskEvent[]> {
+    const { events } = await listAllTaskEvents(taskId);
+    return events;
   }
 
   async function getTaskWorkspace(
@@ -493,7 +447,6 @@ export const taskService = (() => {
     listTaskEvents,
     listAllTaskEvents,
     listTaskActivityFeed,
-    listTaskEventsBefore,
     createTask,
     createTaskLink,
     createTaskEvent,

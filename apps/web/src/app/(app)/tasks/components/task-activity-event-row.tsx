@@ -5,6 +5,7 @@ import {
   extractHttpLinks,
   type SubscriptionPlanName,
 } from "@sokosumi/utils";
+import { ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -166,6 +167,126 @@ export function TaskActivityActorAvatar({
         {getInitials(actorName)}
       </AvatarFallback>
     </Avatar>
+  );
+}
+
+const STATUS_TRAIL_LIMIT = 4;
+
+/** A run of older status changes, folded into one row until opened. */
+export function TaskActivityStatusFoldRow({
+  events,
+  onOpen,
+}: {
+  events: TaskEvent[];
+  onOpen: () => void;
+}) {
+  const t = useTranslations("App.Tasks.Detail");
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
+  const statuses = events.flatMap((event) =>
+    event.status ? [event.status] : [],
+  );
+  const trail = statuses.slice(0, STATUS_TRAIL_LIMIT);
+
+  return (
+    <button
+      type="button"
+      aria-expanded={false}
+      onClick={onOpen}
+      className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring flex min-h-8 w-full items-center gap-4 rounded-lg px-3 py-1 text-left text-xs transition-colors outline-none focus-visible:ring-2"
+    >
+      <span className="flex size-6 shrink-0 items-center justify-center">
+        <ChevronsUpDown className="size-3.5" aria-hidden />
+      </span>
+      <span className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1">
+        <span className="text-foreground text-sm font-medium">
+          {t("showStatusChanges", { count: events.length })}
+        </span>
+        <span className="inline-flex flex-wrap items-center gap-1.5">
+          {trail.map((status, index) => (
+            <span
+              // A status can repeat inside one run.
+              key={`${status}-${index}`}
+              className="inline-flex items-center gap-1.5"
+            >
+              {index > 0 ? <span aria-hidden>→</span> : null}
+              <TaskStatusInline status={status} label={tStatus(status)} />
+            </span>
+          ))}
+          {statuses.length > trail.length ? (
+            <span>+{statuses.length - trail.length}</span>
+          ) : null}
+        </span>
+      </span>
+    </button>
+  );
+}
+
+const MARKDOWN_LINK = /!?\[([^\]]*)\]\([^)]*\)/g;
+const MARKDOWN_MARKS = /[#*_`>~\\]/g;
+
+/** An older comment shrunk to one line; its status keeps today's highlight. */
+export function TaskActivityCompactCommentRow({
+  event,
+  context,
+  onOpen,
+}: {
+  event: TaskEvent;
+  context: TaskActivityRowContext;
+  onOpen: () => void;
+}) {
+  const t = useTranslations("App.Tasks.Detail");
+  const tStatus = useTranslations("App.Tasks.Filters.statusOptions");
+  const { actorName, actorInfo } = useTaskActivityActorName(event, context);
+  const preview = formatMentionsAsMarkdownLinks(
+    event.comment ?? "",
+    context.agentNameById,
+    context.mentionUserNameById,
+  )
+    .replace(MARKDOWN_LINK, "$1")
+    .replace(MARKDOWN_MARKS, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return (
+    <button
+      type="button"
+      aria-expanded={false}
+      aria-label={t("showCommentFrom", { name: actorName })}
+      data-message-id={event.id}
+      onClick={onOpen}
+      className="hover:bg-accent focus-visible:ring-ring flex min-h-8 w-full items-start gap-4 rounded-lg px-3 py-1 text-left transition-colors outline-none focus-visible:ring-2 sm:items-center"
+    >
+      <TaskActivityActorAvatar
+        event={event}
+        actorName={actorName}
+        actorInfo={actorInfo}
+      />
+      {/* Narrow screens give the preview its own line; it had no room beside the status. */}
+      <span className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-baseline sm:gap-2">
+        <span className="flex items-baseline justify-between gap-2 sm:shrink-0">
+          <span className="flex items-baseline gap-2">
+            <span className="text-sm font-medium">{actorName}</span>
+            {event.status ? (
+              <TaskStatusInline
+                status={event.status}
+                label={tStatus(event.status)}
+              />
+            ) : null}
+          </span>
+          <TimeAgo
+            date={event.createdAt}
+            className="text-muted-foreground text-xs whitespace-nowrap sm:hidden"
+          />
+        </span>
+        <span className="text-muted-foreground min-w-0 truncate text-sm">
+          {preview}
+        </span>
+      </span>
+      <TimeAgo
+        date={event.createdAt}
+        className="text-muted-foreground hidden shrink-0 text-xs whitespace-nowrap sm:block"
+      />
+    </button>
   );
 }
 
