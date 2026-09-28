@@ -581,6 +581,58 @@ describe("evidence-backed intent fulfillment", () => {
     );
   });
 
+  it("keeps delegated task creation waiting for independent verification", async () => {
+    dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({
+      id: "turn-one",
+      route: "MANAGE_WORK",
+      intentRevision: 2,
+      sokoBotId: "bot-one",
+      workspaceId: "workspace-one",
+      status: "COMPLETED",
+      intent: {
+        id: "intent-one",
+        revision: 2,
+        state: "ACTIVE",
+        targetIds: ["task-one"],
+        acceptanceCriteria: [
+          {
+            kind: "OUTCOME",
+            id: "requested-outcome",
+            description: "Get the team to research launch options",
+          },
+        ],
+      },
+    });
+    dbMock.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      {
+        id: "call-task",
+        turnId: "turn-one",
+        capability: "create_task",
+        targetId: "task-one",
+        status: "COMPLETED",
+        disposition: "APPLIED",
+        verification: "LOCAL_TRANSACTION",
+        committedAt: new Date("2026-09-28T12:00:00Z"),
+        effectEventId: "event-one",
+      },
+    ]);
+    dbMock.task.findMany.mockResolvedValueOnce([]);
+    await assessSokoBotIntentOutcome(prisma, "turn-one");
+    expect(dbMock.sokoBotIntentOutcome.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          state: "BLOCKED",
+          criteriaResults: [
+            expect.objectContaining({
+              id: "requested-outcome",
+              satisfied: false,
+            }),
+          ],
+        }),
+      }),
+    );
+  });
+
   it("requires a replacement action after the outcome was invalidated", async () => {
     const invalidatedAt = new Date("2026-09-28T12:30:00Z");
     dbMock.sokoBotTurn.findUnique.mockResolvedValueOnce({

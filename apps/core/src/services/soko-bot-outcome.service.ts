@@ -160,16 +160,31 @@ export function criteriaForConfirmedSokoBotAction(
 }
 
 /** A receipt only a committed local effect can produce; reads never qualify. */
-function provenActionReceipt(receipt: ReceiptEvidence): boolean {
+function provenActionReceipt(
+  receipt: ReceiptEvidence,
+  invalidatedAt?: Date,
+): boolean {
   return (
     receipt.status === "COMPLETED" &&
     (receipt.disposition === "APPLIED" ||
       receipt.disposition === "ALREADY_SATISFIED") &&
     receipt.verification !== "NONE" &&
     receipt.committedAt !== null &&
-    receipt.targetId !== null
+    receipt.targetId !== null &&
+    (!invalidatedAt || receipt.committedAt > invalidatedAt)
   );
 }
+
+/**
+ * Delegation hands the work to somebody else, so its receipt cannot prove the
+ * change a `MANAGE_WORK` turn was supposed to make itself; that work still
+ * needs independent verification.
+ */
+const DELEGATED_CAPABILITIES = new Set([
+  "create_task",
+  "hire_agent",
+  "provide_job_input",
+]);
 
 /**
  * The action a `MANAGE_WORK` turn committed for the request it ran.
@@ -188,13 +203,13 @@ function committedDirectAction(
 ): ReceiptEvidence | null {
   const attempts = receipts.filter(
     (receipt) =>
-      receipt.turnId === turnId && ACTION_CAPABILITIES.has(receipt.capability),
+      receipt.turnId === turnId &&
+      ACTION_CAPABILITIES.has(receipt.capability) &&
+      !DELEGATED_CAPABILITIES.has(receipt.capability),
   );
   if (attempts.length === 0) return null;
   const committed = (receipt: ReceiptEvidence) =>
-    provenActionReceipt(receipt) &&
-    (!invalidatedAt ||
-      (receipt.committedAt !== null && receipt.committedAt > invalidatedAt));
+    provenActionReceipt(receipt, invalidatedAt);
   const lastByCapability = new Map<string, ReceiptEvidence>();
   for (const attempt of attempts)
     lastByCapability.set(attempt.capability, attempt);
@@ -261,12 +276,7 @@ export function evaluateSokoBotOutcome(input: {
                 : item.targetId === criterion.targetId) &&
               (!criterion.inputHash ||
                 item.inputHash === criterion.inputHash) &&
-              item.status === "COMPLETED" &&
-              (item.disposition === "APPLIED" ||
-                item.disposition === "ALREADY_SATISFIED") &&
-              item.verification !== "NONE" &&
-              item.committedAt !== null &&
-              (!input.invalidatedAt || item.committedAt > input.invalidatedAt),
+              provenActionReceipt(item, input.invalidatedAt),
           )
         : undefined;
     return {

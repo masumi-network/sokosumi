@@ -532,53 +532,66 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
-  it("keeps a blocked direct action visible when nothing committed", async () => {
-    turnFindUniqueMock.mockResolvedValueOnce({
-      sokoBotId: BOT_ID,
-      userId: "user_1",
-      startedAt: new Date(),
-      costUsdMicros: 0n,
-      status: "RUNNING",
-      finalAnswer: "Sorry, the post was not created.",
-      responseContract: {
-        narrative: {
-          kind: "REPORT",
-          question: null,
-          observationToolCallIds: [],
+  it.each([
+    ["UNVERIFIED_OUTCOME", "The result still needs verification."],
+    [
+      "OUTCOME_SCOPE_REQUIRES_REVIEW",
+      "The result still needs a review against the requested scope.",
+    ],
+    [
+      "ARTIFACT_READABILITY_UNVERIFIED",
+      "The attached result still needs an authorized readability check.",
+    ],
+    ["RESULT_EVIDENCE_UNAVAILABLE", "Result evidence is not yet available."],
+  ] as const)(
+    "keeps a blocked direct action visible when nothing committed: %s",
+    async (blockerKind, detail) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        sokoBotId: BOT_ID,
+        userId: "user_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Sorry, the post was not created.",
+        responseContract: {
+          narrative: {
+            kind: "REPORT",
+            question: null,
+            observationToolCallIds: [],
+          },
         },
-      },
-      capabilityNames: ["create_social_post"],
-      route: "MANAGE_WORK",
-      cancellationRequestedAt: null,
-      scheduleRun: null,
-    });
-    vi.mocked(assessSokoBotIntentOutcome).mockResolvedValueOnce({
-      id: "outcome",
-      intentId: "intent",
-      intentRevision: 1,
-      evidenceRevision: "evidence",
-      state: "BLOCKED",
-      blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
-      remainingSteps: ["requested-outcome"],
-      criteriaResults: [],
-      evidenceIds: [],
-      verifierVersion: "test",
-      assessedAt: new Date(),
-    });
-    await new SokoBotControlPlane()["settleTurn"]({
-      turnId: "turn_1",
-      status: "COMPLETED",
-    });
-    const answerText =
-      "The requested outcome is blocked. Result evidence is not yet available. 1 acceptance criterion remains unverified.\n\nSorry, the post was not created.";
-    expect(turnUpdateMock).toHaveBeenCalledWith({
-      where: { id: "turn_1" },
-      data: {
-        finalAnswer: answerText,
-        responseContract: expect.objectContaining({ answerText }),
-      },
-    });
-  });
+        capabilityNames: ["create_social_post"],
+        route: "MANAGE_WORK",
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      vi.mocked(assessSokoBotIntentOutcome).mockResolvedValueOnce({
+        id: "outcome",
+        intentId: "intent",
+        intentRevision: 1,
+        evidenceRevision: "evidence",
+        state: "BLOCKED",
+        blockerKind,
+        remainingSteps: ["requested-outcome"],
+        criteriaResults: [],
+        evidenceIds: [],
+        verifierVersion: "test",
+        assessedAt: new Date(),
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      const answerText = `The requested outcome is blocked. ${detail} 1 acceptance criterion remains unverified.\n\nSorry, the post was not created.`;
+      expect(turnUpdateMock).toHaveBeenCalledWith({
+        where: { id: "turn_1" },
+        data: {
+          finalAnswer: answerText,
+          responseContract: expect.objectContaining({ answerText }),
+        },
+      });
+    },
+  );
 
   it("persists the assessed outcome before receipt lines and before delivery is enqueued", async () => {
     turnFindUniqueMock.mockResolvedValueOnce({
