@@ -24,7 +24,12 @@ import {
   streamStoredEvents,
 } from "@/lib/soko-bot/in-process-runtime";
 import { SANDBOX_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
-import { closeTurn, failTurn, RuntimeEventLog } from "@/lib/soko-bot/turn-loop";
+import {
+  closeTurn,
+  failTurn,
+  RuntimeEventLog,
+  runtimeEvent,
+} from "@/lib/soko-bot/turn-loop";
 import { issueTurnToken, TURN_TOKEN_HEADER } from "./turn-token";
 
 /** Where the runner lives in the sandbox, outside the bot's workspace. */
@@ -35,15 +40,16 @@ export const SANDBOX_WORKSPACE = "/vercel/sandbox/workspace";
 /** How long a sandbox session stays up without a turn before it parks. */
 const SESSION_TIMEOUT_MS = 20 * 60 * 1_000;
 
-/** Private and link-local ranges: nothing inside our infrastructure. */
+/**
+ * Private and link-local ranges: nothing inside our infrastructure. The
+ * sandbox firewall takes IPv4 CIDRs only (it rejects `fc00::/7`).
+ */
 const DENIED_SUBNETS = [
   "10.0.0.0/8",
   "172.16.0.0/12",
   "192.168.0.0/16",
   "169.254.0.0/16",
   "100.64.0.0/10",
-  "fc00::/7",
-  "fe80::/10",
 ];
 
 export function sandboxName(sokoBotId: string): string {
@@ -192,6 +198,20 @@ async function launch(sessionId: string, input: RuntimeTurnInput) {
       turnId: input.turnId,
       error: error instanceof Error ? error.message : "unknown",
     });
+    // The drain binds a turn on `turn.started` + `message.received` and skips
+    // anything before them, so a turn that failed before the runner started
+    // has to announce itself first or it sits RUNNING until the watchdog.
+    await log
+      .append(runtimeEvent("session.started", { sessionId }))
+      .then(() =>
+        log.append(runtimeEvent("turn.started", { turnId: input.turnId })),
+      )
+      .then(() =>
+        log.append(
+          runtimeEvent("message.received", { message: input.message }),
+        ),
+      )
+      .catch(() => undefined);
     await failTurn(log, {
       code: "sandbox_launch_failed",
       message:
