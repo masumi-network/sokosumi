@@ -92,7 +92,7 @@ export function ChatUnreadNavRows({
   const t = useTranslations("App.Channels.UnreadNav");
   const tChannels = useTranslations("App.Channels");
   const pathname = usePathname();
-  const { isMobile } = useSidebar();
+  const { isMobile, state: sidebarState } = useSidebar();
   // The filter's keyboard path (SOK-1201), split by platform as every web
   // hotkey here is: ⌘⇧U on Apple, Ctrl+Shift+U elsewhere. Below the mobile
   // breakpoint there is no physical keyboard to press it.
@@ -100,6 +100,7 @@ export function ChatUnreadNavRows({
   const showsShortcut = !isMobile;
   const shortcutLabel = isApplePlatform ? "⌘⇧U" : "Ctrl+Shift+U";
   const shortcutKeys = isApplePlatform ? "Meta+Shift+U" : "Control+Shift+U";
+  const shortcutHint = t("allUnreadsShortcut", { shortcut: shortcutLabel });
   const toggleFromKeyboard = useEffectEvent(() => {
     onUnreadOnlyChange(!unreadOnly);
   });
@@ -129,7 +130,7 @@ export function ChatUnreadNavRows({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [showsShortcut, isApplePlatform, toggleFromKeyboard]);
+  }, [showsShortcut, isApplePlatform]);
 
   const { threadCount, mentionCount, rail } =
     resolveUnreadThreadsAttention(rooms);
@@ -304,11 +305,7 @@ export function ChatUnreadNavRows({
             flip from off to on as the page hydrates. */}
         <SidebarMenuButton
           asChild
-          tooltip={
-            showsShortcut
-              ? `${t("allUnreads")} (${shortcutLabel})`
-              : t("allUnreads")
-          }
+          tooltip={showsShortcut ? shortcutHint : t("allUnreads")}
           className={cn(
             unreadOnly
               ? [
@@ -330,6 +327,13 @@ export function ChatUnreadNavRows({
             type="button"
             aria-pressed={unreadOnly}
             aria-keyshortcuts={showsShortcut ? shortcutKeys : undefined}
+            // The rail's tooltip names the shortcut; the expanded sidebar
+            // hides that tooltip, so the row names it on hover instead.
+            title={
+              showsShortcut && sidebarState !== "collapsed"
+                ? shortcutHint
+                : undefined
+            }
             data-filter-on={unreadOnly ? "true" : undefined}
             onClick={() => onUnreadOnlyChange(!unreadOnly)}
           >

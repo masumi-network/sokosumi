@@ -5849,6 +5849,7 @@
         "label": "Unread",
         "threads": "Threads",
         "allUnreads": "Unreads",
+        "allUnreadsShortcut": "Unreads ({shortcut})",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",

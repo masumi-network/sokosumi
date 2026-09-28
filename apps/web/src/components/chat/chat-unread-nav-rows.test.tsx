@@ -360,6 +360,10 @@ describe("ChatUnreadNavRows", () => {
         "aria-keyshortcuts",
         "Meta+Shift+U",
       );
+      expect(screen.getByRole("button", { name: /^Unreads/ })).toHaveAttribute(
+        "title",
+        "Unreads (⌘⇧U)",
+      );
       const preventDefault = pressUnreadsShortcut({
         metaKey: true,
         shiftKey: true,
@@ -424,6 +428,15 @@ describe("ChatUnreadNavRows", () => {
       );
       input.remove();
       expect(onUnreadOnlyChange).not.toHaveBeenCalled();
+    });
+
+    it("leaves the shortcut to the rail's tooltip when collapsed", () => {
+      sidebarMock.state = "collapsed";
+      renderRows([]);
+
+      const toggle = screen.getByRole("button", { name: /^Unreads/ });
+      expect(toggle).toHaveAttribute("aria-keyshortcuts");
+      expect(toggle).not.toHaveAttribute("title");
     });
 
     it("stays unbound below the mobile breakpoint", () => {
