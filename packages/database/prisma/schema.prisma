@@ -4595,8 +4595,20 @@ model ProjectImageJob {
   submitAttempts   Int       @default(0)
 
   falRequestId String?
-  /// Provider-facing error text, already stripped of anything secret.
+  /// One sentence a person can read, written by the studio and never by the
+  /// provider. A raw transport string — "Unexpected status code: 422" reached a
+  /// person's screen once — is not a thing anybody can act on, so it goes to the
+  /// server log instead and this column carries the studio's own words.
   error        String?
+  /// The stable code a client localises, from `IMAGE_JOB_FAILURE_REASONS`.
+  ///
+  /// A string rather than a Prisma enum so a new reason is a deploy and not a
+  /// migration — the same reasoning as `NotificationPreference.category`. Core
+  /// validates it on the way out and maps an unrecognised value to `unknown`, so
+  /// a row written by a newer build can never break an older reader. Null for
+  /// every job that failed before this column existed, and for the one outage
+  /// case whose own wording says it better than a code could.
+  failureReason String?
 
   /// When somebody asked the provider to stop, and it accepted.
   ///

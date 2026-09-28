@@ -6,6 +6,7 @@ import mountGetChatRoomGuestInvitationsExpireSync from "./chat-room-guest-invita
 import mountGetCoworkerLateResponsesSync from "./coworker-late-responses/get.js";
 import mountGetEnterpriseContractsRenewalSync from "./enterprise-contracts-renewal/get.js";
 import mountGetFreeSubscriptionsRenewalSync from "./free-subscriptions-renewal/get.js";
+import mountGetImageCatalogSync from "./image-catalog/get.js";
 import mountGetImageJobsSync from "./image-jobs/get.js";
 import mountGetJobsSync from "./jobs/get.js";
 import mountGetNotificationFollowUpsSync from "./notification-follow-ups/get.js";
@@ -32,6 +33,7 @@ mountGetChatRoomGuestInvitationsExpireSync(app);
 mountGetCoworkerLateResponsesSync(app);
 mountGetEnterpriseContractsRenewalSync(app);
 mountGetFreeSubscriptionsRenewalSync(app);
+mountGetImageCatalogSync(app);
 mountGetImageJobsSync(app);
 mountGetJobsSync(app);
 mountGetNotificationFollowUpsSync(app);

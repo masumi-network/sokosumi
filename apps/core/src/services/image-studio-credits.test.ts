@@ -99,6 +99,7 @@ import { imageModel } from "@/lib/image-studio/catalog";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import {
   createImageJob,
+  failImageJob,
   refundFailedImageJobs,
   refundImageJobCharge,
 } from "@/services/image-studio-jobs.service";
@@ -376,6 +377,84 @@ describe("refunding a failed generation", () => {
     await expect(refundImageJobCharge("job-1")).resolves.toBe(false);
   });
 
+  it("refunds through failImageJob, which every terminal path now goes through", async () => {
+    // The guarantee fal's completion webhook relies on. That handler used to write
+    // FAILED with an `updateMany` of its own and so never refunded — the preview
+    // defect that took eight credits and kept them.
+    jobFindUniqueMock.mockImplementation(async (args) =>
+      isRefundLookup(args) ? refundableRow() : null,
+    );
+    jobUpdateManyMock.mockResolvedValue({ count: 1 });
+
+    await failImageJob(
+      "job-1",
+      "provider_error",
+      "Unexpected status code: 422",
+    );
+
+    const written = jobUpdateManyMock.mock.calls[0]![0].data;
+    expect(written.status).toBe("FAILED");
+    expect(written.failureReason).toBe("provider_error");
+    // A sentence, not the provider's transport string. "Unexpected status code:
+    // 422" reached a person's screen; it now only reaches the log.
+    expect(written.error).toBe(
+      "The image provider could not finish this image.",
+    );
+    expect(written.error).not.toContain("422");
+    // And the money came back.
+    const refund = jobUpdateMock.mock.calls.find(
+      (call) => call[0].data?.refundTransaction,
+    );
+    expect(refund).toBeDefined();
+  });
+
+  it("refunds a generation whose model left the catalog before it was sent", async () => {
+    // Newly reachable now that the catalog is live: a model fal withdraws between
+    // reservation and submission makes `buildFalInput` throw. That used to escape
+    // as a 500 and leave the row SUBMITTING with the charge taken, which the
+    // sweeper then called SUBMISSION_UNCERTAIN — a status deliberately never
+    // refunded. The person paid for a request that was never sent.
+    const withdrawn = jobRow({ model: "fal-ai/withdrawn-last-year" });
+    jobCreateMock.mockResolvedValue(withdrawn);
+    jobFindUniqueOrThrowMock.mockResolvedValue(withdrawn);
+    jobFindUniqueMock.mockImplementation(async (args) =>
+      isRefundLookup(args) ? refundableRow() : null,
+    );
+
+    const job = await createImageJob(BASE_INPUT);
+
+    // Never sent: the failure happened before `submitToQueue`.
+    expect(submitToQueueMock).not.toHaveBeenCalled();
+    expect(job.status).toBe("FAILED");
+    const written = jobUpdateMock.mock.calls[0]![0].data;
+    expect(written.failureReason).toBe("request_not_supported");
+    expect(written.error).toBe(
+      "This model, or these settings, are no longer available from the image provider.",
+    );
+    const refund = jobUpdateMock.mock.calls.find(
+      (call) => call[0].data?.refundTransaction,
+    );
+    expect(refund).toBeDefined();
+  });
+
+  it("tells the person a sentence when the provider refuses a submission", async () => {
+    submitToQueueMock.mockResolvedValue({
+      kind: "rejected",
+      status: 422,
+      message: '{"detail":"Unexpected status code: 422"}',
+    });
+    jobFindUniqueMock.mockImplementation(async (args) =>
+      isRefundLookup(args) ? refundableRow() : null,
+    );
+
+    await createImageJob(BASE_INPUT);
+
+    const written = jobUpdateMock.mock.calls[0]![0].data;
+    expect(written.failureReason).toBe("provider_rejected");
+    expect(written.error).toBe("The image provider refused this request.");
+    expect(written.error).not.toContain("422");
+  });
+
   it("sweeps up a charge whose inline refund never got written", async () => {
     jobFindManyMock.mockResolvedValue([{ id: "job-1" }]);
     jobFindUniqueMock.mockImplementation(async (args) =>
@@ -386,5 +465,18 @@ describe("refunding a failed generation", () => {
     const selection = jobFindManyMock.mock.calls[0]![0].where;
     expect(selection.refundTransactionId).toBeNull();
     expect(selection.status.in).toEqual(["FAILED", "CANCELED", "ORPHANED"]);
+  });
+
+  it("can sweep one project, which is the only backstop a preview has", async () => {
+    // `/sync/image-jobs` is cron-driven and Vercel runs crons on production only,
+    // so on a preview deployment a page load is the only thing that ever sweeps.
+    jobFindManyMock.mockResolvedValue([{ id: "job-1" }]);
+    jobFindUniqueMock.mockImplementation(async (args) =>
+      isRefundLookup(args) ? refundableRow() : null,
+    );
+
+    expect(await refundFailedImageJobs(3, { projectId: "project-1" })).toBe(1);
+    expect(jobFindManyMock.mock.calls[0]![0].where.projectId).toBe("project-1");
+    expect(jobFindManyMock.mock.calls[0]![0].take).toBe(3);
   });
 });

@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { getImageCatalog } from "@/lib/image-studio/catalog";
+import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
 import {
   DEFAULT_IMAGE_MODEL_ID,
   IMAGE_ASPECT_RATIOS,
@@ -118,7 +119,22 @@ export const imageStudioJobSchema = z
     settings: imageStudioSettingsSchema,
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    /**
+     * One sentence a person can read, written by the studio. Never the
+     * provider's own words: a raw transport string is not something anybody can
+     * act on, so it goes to the server log instead.
+     */
     error: z.string().nullable(),
+    /**
+     * The stable reason a client should branch on and translate. Prefer it over
+     * `error`, which is an English fallback.
+     *
+     * Null for a job that failed before the studio recorded a reason, and for the
+     * one outage case whose own wording says more than a code could — fall back
+     * to `error` there. `unknown` means this API saw a code it does not know,
+     * which is how a newer Core stays readable by an older client.
+     */
+    failureReason: z.enum(IMAGE_JOB_FAILURE_REASONS).nullable(),
     parentAssetId: z.string().uuid().nullable(),
     assetId: z.string().uuid().nullable(),
     createdAt: dateTimeSchema,

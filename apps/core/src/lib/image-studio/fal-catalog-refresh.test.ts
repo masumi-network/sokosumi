@@ -104,6 +104,22 @@ describe("refreshImageCatalog", () => {
 });
 
 describe("ensureImageCatalogFresh", () => {
+  it("never crawls fal, whatever the shared cache says", async () => {
+    // The preview defect: this used to start a detached crawl on a miss, which a
+    // serverless invocation always killed — logging a timeout on every cold start
+    // and never once filling the layer it was trying to fill. The crawl belongs to
+    // the script and the cron sync route, both of which own a whole process.
+    redisMock.mockReturnValue({
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn(),
+    });
+
+    await ensureImageCatalogFresh();
+
+    expect(fetchSourcesMock).not.toHaveBeenCalled();
+    expect(getImageCatalog().models).toHaveLength(SNAPSHOT_MODEL_COUNT);
+  });
+
   it("adopts a catalog a sibling instance already shared, without touching fal", async () => {
     const shared = {
       fetchedAt: "2026-09-28T00:00:00.000Z",
@@ -124,7 +140,6 @@ describe("ensureImageCatalogFresh", () => {
       get: vi.fn().mockRejectedValue(new Error("connection refused")),
       set: vi.fn(),
     });
-    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 
     await expect(ensureImageCatalogFresh()).resolves.toBeUndefined();
     expect(getImageCatalog().models).toHaveLength(SNAPSHOT_MODEL_COUNT);
@@ -135,25 +150,55 @@ describe("ensureImageCatalogFresh", () => {
       get: vi.fn().mockResolvedValue(JSON.stringify({ models: [] })),
       set: vi.fn(),
     });
-    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 
     await ensureImageCatalogFresh();
 
     expect(getImageCatalog().models).toHaveLength(SNAPSHOT_MODEL_COUNT);
   });
 
-  it("asks nobody anything while the in-process copy is still fresh", async () => {
+  it("reads Redis at most once per TTL, even after a miss", async () => {
     const get = vi.fn().mockResolvedValue(null);
     redisMock.mockReturnValue({ get, set: vi.fn() });
-    fetchSourcesMock.mockRejectedValue(new Error("fal returned 429"));
 
     await ensureImageCatalogFresh();
     get.mockClear();
-    // The first pass marks this instance fresh for the full TTL even though the
-    // refresh failed: fal answering 429 is a reason to stop asking, not to ask
-    // again on the next page load.
+    // A miss must not make the next page load try again, and an unreachable Redis
+    // must not turn every request into a failed connection.
     await ensureImageCatalogFresh();
 
     expect(get).not.toHaveBeenCalled();
+  });
+});
+
+describe("a crawl that runs out of time", () => {
+  it("is discarded rather than adopted, so no model is silently dropped", async () => {
+    // A partial catalog is a catalog missing models, and adopting one would take
+    // working models out of the composer until the next successful crawl.
+    fetchSourcesMock.mockImplementation(async (options) => {
+      options.shouldContinue?.();
+      throw new Error("the catalog crawl ran out of time before it finished");
+    });
+
+    expect(await refreshImageCatalog({ shouldContinue: () => false })).toBe(
+      false,
+    );
+    expect(getImageCatalog().models).toHaveLength(SNAPSHOT_MODEL_COUNT);
+  });
+
+  it("hands the budget check down to the fetcher", async () => {
+    fetchSourcesMock.mockResolvedValue({
+      models: [],
+      prices: new Map(),
+      schemas: new Map(),
+      editEndpoints: new Set(),
+      fetchedAt: "2026-09-28T00:00:00.000Z",
+    });
+    const shouldContinue = () => true;
+
+    await refreshImageCatalog({ shouldContinue });
+
+    expect(fetchSourcesMock).toHaveBeenCalledWith(
+      expect.objectContaining({ shouldContinue }),
+    );
   });
 });
