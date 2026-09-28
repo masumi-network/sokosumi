@@ -8,11 +8,17 @@ import {
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
 } from "@sokosumi/soko-bot";
-import { generateText, type LanguageModel, Output } from "ai";
+import { generateText, Output } from "ai";
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { gatewayCostUsd } from "@/lib/soko-bot/gateway-cost";
+import {
+  assertSokoBotInferenceRegion,
+  SokoBotModelPolicyError,
+  sokoBotInferenceEvidence,
+  sokoBotModelRequest,
+} from "@/lib/soko-bot/model-policy";
 
 const JUDGE_TIMEOUT_MS = 90_000;
 // Tool results are the judge's evidence. At 2,000 a `search_inbox` result of
@@ -153,7 +159,12 @@ async function loadTranscript(turnId: string, userId?: string) {
 /** The verdict and what it cost. Both attempts count when the first fails. */
 export interface JudgeCall {
   verdict: SokoBotJudgeVerdict;
-  usage: { inputTokens: number; outputTokens: number; costUsd: number };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+    costUsd: number;
+    inference?: ReturnType<typeof sokoBotInferenceEvidence>[];
+  };
 }
 
 /**
@@ -162,17 +173,19 @@ export interface JudgeCall {
  * JUDGE_TIMEOUT_MS bounds the call.
  */
 export async function generateSokoBotJudgeText(options: {
-  model: LanguageModel | string;
+  model: string;
   payload: unknown;
   abortSignal?: AbortSignal;
 }) {
-  return generateText({
-    model: options.model,
+  const result = await generateText({
+    ...sokoBotModelRequest({ role: "judge", model: options.model }),
     output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
     abortSignal: options.abortSignal,
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
   });
+  assertSokoBotInferenceRegion(result.providerMetadata);
+  return result;
 }
 
 async function askJudge(
@@ -181,7 +194,12 @@ async function askJudge(
 ): Promise<JudgeCall> {
   // Structured output occasionally comes back empty; one retry is cheap.
   let lastError: unknown;
-  const usage = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
+  const usage: JudgeCall["usage"] = {
+    inputTokens: 0,
+    outputTokens: 0,
+    costUsd: 0,
+    inference: [],
+  };
   for (let attempt = 0; attempt < 2; attempt += 1) {
     try {
       const result = await generateSokoBotJudgeText({
@@ -194,11 +212,13 @@ async function askJudge(
       usage.inputTokens += result.usage?.inputTokens ?? 0;
       usage.outputTokens += result.usage?.outputTokens ?? 0;
       usage.costUsd += gatewayCostUsd(result.providerMetadata);
+      usage.inference?.push(sokoBotInferenceEvidence(result.providerMetadata));
       return {
         verdict: sokoBotJudgeVerdictSchema.parse(result.output),
         usage,
       };
     } catch (error) {
+      if (error instanceof SokoBotModelPolicyError) throw error;
       lastError = error;
     }
   }
@@ -220,6 +240,7 @@ export class SokoBotJudgeFailure extends SokoBotLabJudgeError {
       inputTokens: number;
       outputTokens: number;
       costUsd: number;
+      inference?: ReturnType<typeof sokoBotInferenceEvidence>[];
     },
   ) {
     super(message);
@@ -244,7 +265,7 @@ export function sokoBotLabJudgeErrorKind(
  */
 async function addTurnOverheadUsage(
   turnId: string,
-  usage: { inputTokens: number; outputTokens: number; costUsd: number },
+  usage: JudgeCall["usage"],
   extra: Prisma.SokoBotTurnUpdateInput = {},
 ): Promise<void> {
   const asNumber = (value: unknown) =>
@@ -257,19 +278,28 @@ async function addTurnOverheadUsage(
       select: { usage: true },
     });
     const previous =
-      current?.usage && typeof current.usage === "object"
-        ? (current.usage as Record<string, unknown>)
+      current?.usage &&
+      typeof current.usage === "object" &&
+      !Array.isArray(current.usage)
+        ? current.usage
         : {};
     await tx.sokoBotTurn.update({
       where: { id: turnId },
       data: {
         ...extra,
         usage: {
+          ...previous,
           inputTokens: asNumber(previous.inputTokens) + usage.inputTokens,
           outputTokens: asNumber(previous.outputTokens) + usage.outputTokens,
           cacheReadTokens: asNumber(previous.cacheReadTokens),
           cacheWriteTokens: asNumber(previous.cacheWriteTokens),
           costUsd: asNumber(previous.costUsd) + usage.costUsd,
+          judgeInference: [
+            ...(Array.isArray(previous.judgeInference)
+              ? previous.judgeInference
+              : []),
+            ...(usage.inference ?? []),
+          ],
         },
         overheadCostUsdMicros: {
           increment: BigInt(Math.round(usage.costUsd * 1_000_000)),

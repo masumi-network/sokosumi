@@ -237,7 +237,7 @@ export function JobsList({
           onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
+        <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">

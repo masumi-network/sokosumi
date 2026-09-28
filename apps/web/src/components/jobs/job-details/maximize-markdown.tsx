@@ -37,11 +37,11 @@ export default function MaximizeMarkdown({
           <Maximize2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[90dvh] max-w-[96vw] flex-col overflow-y-auto sm:max-w-[90vw]">
+      <DialogContent className="app-scrollbar flex max-h-[90dvh] max-w-[96vw] flex-col overflow-y-auto sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle>{t("maximizeTitle")}</DialogTitle>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto py-2">
+        <div className="app-scrollbar flex-grow overflow-y-auto py-2">
           <Markdown>{markdown}</Markdown>
         </div>
         <DialogFooter>

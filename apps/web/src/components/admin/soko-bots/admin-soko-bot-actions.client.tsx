@@ -1,8 +1,9 @@
 "use client";
 
+import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useId, useState, useTransition } from "react";
+import { Fragment, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -14,14 +15,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { performAdminSokoBotAction } from "@/lib/actions/admin-soko-bots/action";
 import type { SokoBotStatus } from "@/lib/clients/generated/core";
-import {
-  ADMIN_SOKO_BOT_ACTIONS,
-  type AdminSokoBotActionKind,
-} from "@/lib/soko-bot/constants";
+import type { AdminSokoBotActionKind } from "@/lib/soko-bot/constants";
 import { newOperationId } from "@/lib/soko-bot/operation-id";
 
 interface AdminSokoBotActionsProps {
@@ -37,9 +42,17 @@ const DESTRUCTIVE: ReadonlySet<AdminSokoBotActionKind> = new Set([
   "RESET_MEMORY",
 ]);
 
+/** Rare, and two of them wipe state: kept behind the menu, not on the page. */
+const MENU_ACTIONS: readonly AdminSokoBotActionKind[] = [
+  "RETRY_LAST_FAILED",
+  "RESET_SESSION",
+  "RESET_MEMORY",
+];
+
 /**
- * Operator controls. Every action requires a reason and is recorded by Core
- * as an immutable admin audit entry.
+ * Operator controls: pause or resume up front, everything else in a menu.
+ * Every action requires a reason and is recorded by Core as an immutable admin
+ * audit entry.
  */
 export function AdminSokoBotActions({
   sokoBotId,
@@ -62,6 +75,10 @@ export function AdminSokoBotActions({
     RESET_MEMORY: true,
     RETRY_LAST_FAILED: hasFailedTurn,
   };
+
+  const primary: AdminSokoBotActionKind = availability.RESUME
+    ? "RESUME"
+    : "PAUSE";
 
   function select(action: AdminSokoBotActionKind) {
     // New action → new operation. Retries of the same dialog keep the id.
@@ -102,23 +119,43 @@ export function AdminSokoBotActions({
 
   return (
     <>
-      <div
-        className="flex flex-wrap gap-2"
-        role="group"
-        aria-label={t("group")}
-      >
-        {ADMIN_SOKO_BOT_ACTIONS.map((action) => (
-          <Button
-            key={action}
-            type="button"
-            size="sm"
-            variant={DESTRUCTIVE.has(action) ? "destructive" : "outline"}
-            disabled={!availability[action] || isPending}
-            onClick={() => select(action)}
-          >
-            {t(`labels.${action}`)}
-          </Button>
-        ))}
+      <div className="flex gap-2" role="group" aria-label={t("group")}>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={!availability[primary] || isPending}
+          onClick={() => select(primary)}
+        >
+          {t(`labels.${primary}`)}
+        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              aria-label={t("more")}
+              disabled={isPending}
+            >
+              <MoreHorizontal aria-hidden className="size-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {MENU_ACTIONS.map((action) => (
+              <Fragment key={action}>
+                {action === "RESET_SESSION" ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuItem
+                  variant={DESTRUCTIVE.has(action) ? "destructive" : "default"}
+                  disabled={!availability[action]}
+                  onSelect={() => select(action)}
+                >
+                  {t(`labels.${action}`)}
+                </DropdownMenuItem>
+              </Fragment>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <Dialog

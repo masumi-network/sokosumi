@@ -74,7 +74,7 @@ export function AdminSokoBotVersion({
   }
 
   return (
-    <section className="space-y-3 rounded-lg border p-4">
+    <section id="version" className="space-y-3 rounded-lg border p-4">
       <div>
         <h2 className="font-medium text-sm">{t("title")}</h2>
         <p className="text-muted-foreground text-xs">{t("description")}</p>

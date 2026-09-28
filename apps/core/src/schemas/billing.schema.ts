@@ -53,7 +53,11 @@ export const checkoutSessionAnalyticsSchema = z
   .object({
     sessionId: z.string().openapi({ example: "cs_test_123" }),
     currency: z.string().nullable().openapi({ example: "eur" }),
-    value: z.number().nullable().openapi({ example: 12000 }),
+    value: z.number().nullable().openapi({
+      description:
+        "Net revenue in major currency units (e.g. 49 for EUR 49.00): total after discounts, excluding tax and shipping.",
+      example: 120,
+    }),
     items: z
       .array(
         z.object({

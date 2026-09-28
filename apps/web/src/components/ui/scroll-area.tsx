@@ -62,19 +62,21 @@ function ScrollBar({
     <ScrollAreaPrimitive.ScrollAreaScrollbar
       data-slot="scroll-area-scrollbar"
       orientation={orientation}
+      // Same geometry and colors as the `app-scrollbar` utility, so a Radix
+      // overlay scrollbar and a native one read as the same control: a 12px
+      // track with a 3px inset and a thumb that walks the same ramp on hover
+      // and press.
       className={cn(
-        "flex touch-none p-px transition-colors select-none",
-        orientation === "vertical" &&
-          "h-full w-2.5 border-l border-l-transparent",
-        orientation === "horizontal" &&
-          "h-2.5 flex-col border-t border-t-transparent",
+        "flex touch-none p-[3px] transition-colors select-none",
+        orientation === "vertical" && "h-full w-3",
+        orientation === "horizontal" && "h-3 flex-col",
         className,
       )}
       {...props}
     >
       <ScrollAreaPrimitive.ScrollAreaThumb
         data-slot="scroll-area-thumb"
-        className="bg-border relative flex-1 rounded-full"
+        className="bg-scrollbar-thumb hover:bg-muted-foreground active:bg-foreground relative flex-1 rounded-full transition-colors"
       />
     </ScrollAreaPrimitive.ScrollAreaScrollbar>
   );

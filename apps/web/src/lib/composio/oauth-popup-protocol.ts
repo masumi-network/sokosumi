@@ -1,3 +1,5 @@
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+
 /**
  * Shared protocol for the Composio OAuth popup ↔ opener handshake.
  *
@@ -107,6 +109,7 @@ export function parseComposioCallbackSearchParams(
  * Inline callback script. Popup session storage survives cross-site redirects
  * that clear window.name and opener, including verifier redirects with no state.
  * Keep the name fallback for OAuth attempts opened before rollout.
+ * Same-tab bot connections have no popup nonce and use the signed-in verifier.
  */
 export function buildComposioCallbackInlineScript(): string {
   const channel = COMPOSIO_OAUTH_BROADCAST_CHANNEL;
@@ -114,6 +117,7 @@ export function buildComposioCallbackInlineScript(): string {
   const popupNamePrefix = COMPOSIO_OAUTH_POPUP_NAME_PREFIX;
   const messageType = COMPOSIO_OAUTH_MESSAGE_TYPE;
   const ackType = COMPOSIO_OAUTH_ACK_TYPE;
+  const botVerifierPath = `${SOKO_BOT_ROUTE}/integrations/verify`;
 
   return `(function(){
 try{
@@ -125,10 +129,13 @@ nonce=window.sessionStorage.getItem(${JSON.stringify(storageKey)})||"";
 window.sessionStorage.removeItem(${JSON.stringify(storageKey)});
 }catch(e){}
 if(!nonce&&popupName.indexOf(${JSON.stringify(popupNamePrefix)})===0)nonce=popupName.slice(${JSON.stringify(popupNamePrefix)}.length);
-if(!nonce)return;
+var sessionUri=p.get("session_uri")||p.get("sessionUri");
+if(!nonce){
+if(sessionUri)window.location.replace(${JSON.stringify(botVerifierPath)}+"?session_uri="+encodeURIComponent(sessionUri));
+return;
+}
 var rawStatus=(p.get("status")||"").toLowerCase();
 var connectionId=p.get("connectedAccountId")||p.get("connected_account_id")||p.get("connectionId")||p.get("id");
-var sessionUri=p.get("session_uri")||p.get("sessionUri");
 var errorMessage=p.get("error")||p.get("error_description");
 var failed=rawStatus==="failed"||rawStatus==="error"||rawStatus==="expired"||rawStatus==="inactive"||!!errorMessage;
 var status=failed?"error":(rawStatus==="success"||rawStatus==="active"||connectionId||sessionUri?"success":"error");

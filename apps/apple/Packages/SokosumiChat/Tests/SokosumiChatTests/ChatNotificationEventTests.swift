@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private func payload(_ overrides: [String: Any] = [:], params: [String: Any] = ["authorName": "Ada", "roomName": "design"]) -> [String: Any] {

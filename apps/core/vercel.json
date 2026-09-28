@@ -11,7 +11,8 @@
   },
   "functions": {
     "dist/index.js": {
-      "maxDuration": 300
+      "maxDuration": 300,
+      "includeFiles": "dist/soko-bot-runner.mjs"
     }
   },
   "relatedProjects": [
@@ -21,6 +22,10 @@
   "crons": [
     {
       "path": "/sync/agents",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/sync/image-jobs",
       "schedule": "*/5 * * * *"
     },
     {
@@ -42,6 +47,10 @@
     {
       "path": "/sync/enterprise-contracts-renewal",
       "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/sync/coworker-late-responses",
+      "schedule": "* * * * *"
     },
     {
       "path": "/sync/chat-room-guest-invitations-expire",
@@ -98,6 +107,10 @@
     {
       "path": "/sync/soko-bot-avatars",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/sync/task-tags",
+      "schedule": "*/5 * * * *"
     }
   ]
 }

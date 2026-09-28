@@ -1,33 +1,14 @@
 import type { Metadata } from "next";
-import { notFound, redirect } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 
-import { AutoContextSwitch } from "@/app/components/auto-context-switch";
-import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
-import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
-import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
+import { ProjectScopeMarker } from "@/app/components/project-scope/project-scope-marker";
 import {
-  taskFormAssigneeId,
-  withCurrentTaskAssigneeOption,
-} from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
-import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
-import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
-import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { getSession } from "@/lib/auth/auth.server";
-import type { Project } from "@/lib/clients/generated/core";
-import { agentService } from "@/lib/services/agent.service";
-import { designMdService } from "@/lib/services/design-md.service";
-import { projectService } from "@/lib/services/project.service";
-import { taskService } from "@/lib/services/task.service";
-import { userService } from "@/lib/services/user.service";
-import { resolveAccountName } from "@/lib/utils/account-name";
+  loadTaskEdit,
+  TaskEditView,
+} from "@/app/tasks/[taskId]/_lib/load-task-edit";
 
 export const metadata: Metadata = {
   title: "Edit Task",
 };
-
-const PROJECT_FILTER_OPTIONS_LIMIT = 100;
 
 export default async function EditTaskPage({
   params,
@@ -35,173 +16,15 @@ export default async function EditTaskPage({
   params: Promise<{ taskId: string }>;
 }) {
   const { taskId } = await params;
-  const taskResult = await taskService.getTaskById(taskId);
-
-  if (!taskResult) {
-    return notFound();
-  }
-
-  if (!isTaskEditPageAllowed(taskResult)) {
-    redirect(`/tasks/${taskId}`);
-  }
-
-  const session = await getSession();
-  const activeOrganizationId = session?.session.activeOrganizationId ?? null;
-  const targetOrganizationId = taskResult.workspace.organizationId ?? null;
-
-  if (activeOrganizationId !== targetOrganizationId) {
-    const [members, tDetail, tOrganizationSwitcher] = await Promise.all([
-      userService.getMyMembersWithOrganizations(),
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("Components.OrganizationSwitcher"),
-    ]);
-    const targetAccountName = resolveAccountName(
-      targetOrganizationId,
-      members,
-      tOrganizationSwitcher("personalAccount"),
-    );
-
-    return (
-      <AutoContextSwitch
-        activeOrganizationId={activeOrganizationId}
-        targetOrganizationId={targetOrganizationId}
-        successMessage={tDetail("switchedWorkspace", {
-          account: targetAccountName,
-        })}
-      />
-    );
-  }
-
-  const [coworkerOptions, agents, projectsPage, initialDesignMdAttachment] =
-    await Promise.all([
-      listTaskAssigneeOptions(targetOrganizationId),
-      agentService.getAvailableAgentsWithCreditsPrice(),
-      projectService.listProjects({ limit: PROJECT_FILTER_OPTIONS_LIMIT }),
-      session?.user?.id
-        ? designMdService.resolveEffectiveDesignMd()
-        : Promise.resolve(null),
-    ]);
-  const projectOptions = await buildProjectOptions(
-    projectsPage.projects,
-    taskResult.projectId ?? null,
-  );
-  const agentNameById = buildAgentNameById(agents);
-
-  const [tEdit, tStatus, tTasks] = await Promise.all([
-    getTranslations("App.Tasks.EditTask"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-    getTranslations("App.Tasks"),
-  ]);
-
+  const result = await loadTaskEdit(taskId);
   return (
-    <TaskEditModal
-      taskId={taskId}
-      title={tEdit("title")}
-      initialDesignMdAttachment={initialDesignMdAttachment}
-      labels={{
-        details: tEdit("details"),
-        detailsDescription: tEdit("detailsDescription"),
-        name: tEdit("name"),
-        namePlaceholder: tEdit("namePlaceholder"),
-        descriptionPlaceholder: tEdit("descriptionPlaceholder"),
-        projectLabel: tEdit("projectLabel"),
-        projectNone: tEdit("projectNone"),
-        projectSearchPlaceholder: tEdit("projectSearchPlaceholder"),
-        projectEmptyResults: tEdit("projectEmptyResults"),
-        projectCreate: tEdit("projectCreate"),
-        projectCreateNamed: tEdit.raw("projectCreateNamed") as string,
-        coworker: tEdit("coworker"),
-        unassigned: tEdit("unassigned"),
-        unavailableAssignee: tEdit("unavailableAssignee"),
-        changeCoworker: tEdit("changeCoworker"),
-        noCoworkerMatches: tEdit("noCoworkerMatches"),
-        status: tEdit("status"),
-        statusDescription: tEdit("statusDescription"),
-        statusDraft: tEdit("statusDraft"),
-        changeStatus: tEdit("changeStatus"),
-        noStatusMatches: tEdit("noStatusMatches"),
-        statusReady: tEdit("statusReady"),
-        statusQueued: tStatus("QUEUED"),
-        untitledTask: tEdit("untitledTask"),
-        saveError: tEdit("saveError"),
-        statusLabels: buildTaskStatusLabels((key) => tStatus(key)),
-        back: tEdit("back"),
-        uploadFile: tEdit("uploadFile"),
-        uploadFileError: tEdit("uploadFileError"),
-        uploadingFile: getTaskAttachmentUploadLabelTemplate(
-          tEdit,
-          "uploadingFile",
-        ),
-        uploadingFiles: getTaskAttachmentUploadLabelTemplate(
-          tEdit,
-          "uploadingFiles",
-        ),
-        removeAttachment: tEdit("removeAttachment"),
-        submit: tEdit("save"),
-        openRunAt: tEdit("openRunAt"),
-        cancel: tEdit("cancel"),
-        ctrl: tEdit("ctrl"),
-      }}
-      coworkerOptions={withCurrentTaskAssigneeOption(
-        coworkerOptions,
-        taskResult.assignee,
-        {
-          fallbackName: tTasks("sokoBot"),
-          vendorName: tTasks("sokoBots"),
-        },
-      )}
-      projectOptions={projectOptions}
-      agentNameById={agentNameById}
-      initialValues={{
-        name: taskResult.name,
-        description: taskResult.description ?? "",
-        assigneeId: taskFormAssigneeId(taskResult),
-        assigneeSokoBotId: taskResult.assigneeSokoBotId ?? null,
-        assigneeUserId: taskResult.assigneeUserId ?? null,
-        projectId: taskResult.projectId ?? null,
-        status: taskResult.status,
-        selectableStatuses: taskResult.selectableStatuses,
-        runAt: taskResult.runAt?.toISOString() ?? null,
-      }}
-    />
+    <>
+      {result.kind === "edit" ? (
+        <ProjectScopeMarker
+          projectId={result.initialValues.projectId ?? null}
+        />
+      ) : null}
+      <TaskEditView result={result} />
+    </>
   );
-}
-
-async function buildProjectOptions(
-  projects: Project[],
-  selectedProjectId: string | null,
-): Promise<ProjectFilterOption[]> {
-  const projectOptions = projects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    logo: project.logo,
-    designMd: project.designMd,
-    briefingUrl: project.briefingUrl,
-    contextMd: project.contextMd,
-  }));
-
-  if (
-    !selectedProjectId ||
-    projectOptions.some((project) => project.id === selectedProjectId)
-  ) {
-    return projectOptions;
-  }
-
-  const selectedProject =
-    await projectService.getProjectById(selectedProjectId);
-  if (!selectedProject) {
-    return projectOptions;
-  }
-
-  return [
-    {
-      id: selectedProject.id,
-      name: selectedProject.name,
-      logo: selectedProject.logo,
-      designMd: selectedProject.designMd,
-      briefingUrl: selectedProject.briefingUrl,
-      contextMd: selectedProject.contextMd,
-    },
-    ...projectOptions,
-  ];
 }

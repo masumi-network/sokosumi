@@ -45,6 +45,7 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
+  tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -226,6 +227,14 @@ export const taskService = (() => {
     }
   }
 
+  async function suggestTaskTags(input: {
+    name?: string;
+    description?: string | null;
+  }) {
+    const result = await coreClient.suggestTaskTags(input);
+    return result.data;
+  }
+
   async function createTask(input: CreateTaskInput): Promise<Task> {
     const result = await coreClient.createTask({
       ...input,
@@ -388,6 +397,7 @@ export const taskService = (() => {
     getTaskById,
     getTaskWorkspace,
     createTask,
+    suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,

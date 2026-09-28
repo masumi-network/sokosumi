@@ -40,7 +40,7 @@ export async function AdminMemoryPanel({ bot }: AdminMemoryPanelProps) {
         <p className="text-muted-foreground px-4 py-6 text-sm">{t("empty")}</p>
       ) : (
         <>
-          <div className="overflow-x-auto">
+          <div className="app-scrollbar overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="text-muted-foreground border-b text-left text-xs">
                 <tr>
@@ -77,7 +77,7 @@ export async function AdminMemoryPanel({ bot }: AdminMemoryPanelProps) {
               <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none px-4 py-2 text-xs font-medium">
                 {t("showCurrent")}
               </summary>
-              <pre className="max-h-96 overflow-auto whitespace-pre-wrap border-t px-4 py-3 font-mono text-xs">
+              <pre className="app-scrollbar max-h-96 overflow-auto whitespace-pre-wrap border-t px-4 py-3 font-mono text-xs">
                 {current.markdown}
               </pre>
             </details>

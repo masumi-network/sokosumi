@@ -1,7 +1,7 @@
 import CoreAPI
 
 /// Cap on named reactors Core returns per emoji; `count` may still exceed it.
-public let maxListedReactionReactors = 20
+let maxListedReactionReactors = 20
 
 /// The viewer's add or remove of one emoji on one message, shown before Core confirms (ADR 0032).
 public struct PendingReaction: Hashable, Sendable {

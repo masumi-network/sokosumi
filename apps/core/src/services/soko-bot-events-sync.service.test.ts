@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
+  metadataUpsertMock,
+  metadataUpdateMock,
+  taskEventFindManyMock,
+  inboxFindManyMock,
   delegationFindManyMock,
   delegationUpdateMock,
   getEnvMock,
@@ -8,6 +12,10 @@ const {
   reconcileTurnMock,
   startTurnMock,
 } = vi.hoisted(() => ({
+  metadataUpsertMock: vi.fn(),
+  metadataUpdateMock: vi.fn(),
+  taskEventFindManyMock: vi.fn(),
+  inboxFindManyMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   delegationUpdateMock: vi.fn(),
   getEnvMock: vi.fn(),
@@ -22,6 +30,9 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    syncMetadata: { upsert: metadataUpsertMock, update: metadataUpdateMock },
+    sokoBotEventInbox: { findMany: inboxFindManyMock },
+    taskEvent: { findMany: taskEventFindManyMock },
     sokoBotDelegation: {
       findMany: delegationFindManyMock,
       update: delegationUpdateMock,
@@ -41,6 +52,7 @@ import { SokoBotBusyError } from "@/services/soko-bot-control-plane.service";
 import {
   buildEventMessage,
   SokoBotEventsSyncService,
+  sokoBotEventClientTurnId,
 } from "./soko-bot-events-sync.service";
 
 const turn = { sokoBotId: "bot_1", userId: "user_1", workspaceId: "ws_1" };
@@ -58,7 +70,16 @@ function taskDelegation(
     id,
     kind: "TASK",
     lastSeenStatus,
-    task: { id: `task_${id}`, name: `Task ${id}`, status, events: [] },
+    task: {
+      id: `task_${id}`,
+      name: `Task ${id}`,
+      visibility: "PUBLIC",
+      ownerId: "user_1",
+      workspaceId: "ws_1",
+      archivedAt: null,
+      status,
+      events: [] as { id: string; comment: string; createdAt: Date }[],
+    },
     job: null,
     turn,
   };
@@ -67,6 +88,14 @@ function taskDelegation(
 describe("SokoBotEventsSyncService", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    metadataUpsertMock.mockResolvedValue({
+      key: "soko-events-v2",
+      createdAt: new Date(0),
+      cursorId: null,
+    });
+    metadataUpdateMock.mockResolvedValue({});
+    inboxFindManyMock.mockResolvedValue([]);
+    taskEventFindManyMock.mockResolvedValue([]);
     getEnvMock.mockReturnValue({ SOKO_BOT_ENABLED: true });
     proactiveGateMock.mockResolvedValue({ ok: true, usedToday: 0, limit: 20 });
     delegationUpdateMock.mockResolvedValue({});
@@ -76,6 +105,122 @@ describe("SokoBotEventsSyncService", () => {
       status: "RUNNING",
       reconciliationLeaseToken: "lease",
     });
+  });
+
+  it("bounds each pass and resumes its persisted cursor without starving older delegations", async () => {
+    const page = Array.from({ length: 500 }, (_, i) =>
+      taskDelegation(`d${i}`, "READY", "FAILED"),
+    );
+    delegationFindManyMock
+      .mockResolvedValueOnce(page)
+      .mockResolvedValueOnce([taskDelegation("older", "READY", "FAILED")]);
+    const service = new SokoBotEventsSyncService();
+    expect((await service.syncDelegatedWork(input)).scanned).toBe(500);
+    expect(delegationFindManyMock).toHaveBeenCalledTimes(1);
+    expect(metadataUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cursorId: "d499" }),
+      }),
+    );
+    metadataUpsertMock.mockResolvedValue({
+      key: "soko-events-v2",
+      createdAt: new Date(0),
+      cursorId: "d499",
+    });
+    expect((await service.syncDelegatedWork(input)).scanned).toBe(1);
+    expect(delegationFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { gt: "d499" } }),
+      }),
+    );
+    expect(metadataUpdateMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ cursorId: null }),
+      }),
+    );
+  });
+
+  it("baselines historical actionable events before the persisted cutover", async () => {
+    metadataUpsertMock.mockResolvedValue({
+      key: "soko-events-v2",
+      createdAt: new Date("2026-09-26"),
+      cursorId: null,
+    });
+    const old = taskDelegation("old", null, "INPUT_REQUIRED");
+    old.task.events = [
+      {
+        id: "old-event",
+        comment: "Old question",
+        createdAt: new Date("2026-01-01"),
+      },
+    ];
+    delegationFindManyMock.mockResolvedValue([old]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(delegationUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ lastSeenEventId: "old-event" }),
+      }),
+    );
+  });
+
+  it("preserves earlier pending occurrences when a later same-timestamp event was already consumed", async () => {
+    const at = new Date("2026-09-25T12:00:00Z");
+    const delegation = {
+      ...taskDelegation("a", "INPUT_REQUIRED", "INPUT_REQUIRED"),
+      lastSeenEventAt: at,
+      lastSeenEventId: "event-0",
+    };
+    delegation.task.events = [
+      { id: "event-2", comment: "new question", createdAt: at },
+    ];
+    delegationFindManyMock.mockResolvedValue([delegation]);
+    taskEventFindManyMock.mockResolvedValue([
+      {
+        id: "event-1",
+        createdAt: at,
+        status: "INPUT_REQUIRED",
+        comment: "first question",
+      },
+      {
+        id: "event-2",
+        createdAt: at,
+        status: "INPUT_REQUIRED",
+        comment: "second question",
+      },
+    ]);
+    inboxFindManyMock.mockResolvedValue([{ eventId: "event-2" }]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    expect(taskEventFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          taskId: "task_a",
+          OR: [
+            { createdAt: { gt: at } },
+            { createdAt: at, id: { gt: "event-0" } },
+          ],
+        },
+      }),
+    );
+    expect(delegationUpdateMock).not.toHaveBeenCalled();
+    expect(startTurnMock.mock.calls[0][0].eventBatch).toEqual([
+      expect.objectContaining({ eventId: "event-1" }),
+    ]);
+    expect(startTurnMock.mock.calls[0][0].message).toContain("first question");
+  });
+
+  it("does not disclose formerly delegated tasks after privacy or workspace changes", async () => {
+    const privateTask = taskDelegation("private", "READY", "FAILED");
+    privateTask.task.visibility = "PRIVATE";
+    privateTask.task.ownerId = "other-owner";
+    const movedTask = taskDelegation("moved", "READY", "FAILED");
+    movedTask.task.workspaceId = "other-workspace";
+    delegationFindManyMock.mockResolvedValue([privateTask, movedTask]);
+    const result = await new SokoBotEventsSyncService().syncDelegatedWork(
+      input,
+    );
+    expect(result.woken).toBe(0);
+    expect(startTurnMock).not.toHaveBeenCalled();
   });
 
   it("does not wake a bot that has spent its daily allowance", async () => {
@@ -121,10 +266,16 @@ describe("SokoBotEventsSyncService", () => {
       'Task "Task a" (id task_a) is now COMPLETED (was READY)',
     );
     expect(call.message).toContain("is now FAILED");
-    expect(delegationUpdateMock).toHaveBeenCalledWith({
-      where: { id: "a" },
-      data: { lastSeenStatus: "COMPLETED" },
-    });
+    expect(call.eventBatch).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          entityId: "task_a",
+          status: "COMPLETED",
+          delegationIds: ["a"],
+        }),
+      ]),
+    );
+    expect(delegationUpdateMock).not.toHaveBeenCalled();
     expect(reconcileTurnMock).toHaveBeenCalledWith(
       "turn_event",
       input.abortSignal,
@@ -166,7 +317,14 @@ describe("SokoBotEventsSyncService", () => {
         kind: "JOB",
         lastSeenStatus: "RUNNING",
         task: null,
-        job: { id: "job_1", name: null, events: [{ status: "COMPLETED" }] },
+        job: {
+          id: "job_1",
+          name: null,
+          workspaceId: "ws_1",
+          ownerId: "user_1",
+          task: null,
+          events: [{ status: "COMPLETED" }],
+        },
         turn,
       },
     ]);
@@ -202,5 +360,62 @@ describe("SokoBotEventsSyncService", () => {
         'Delegated work changed status:\n- Task "Brief" (id t1) is now COMPLETED.',
       ),
     ).toBe(true);
+  });
+  it("retains overflow beyond eight changes and queues only the selected occurrences", async () => {
+    delegationFindManyMock.mockResolvedValue(
+      Array.from({ length: 10 }, (_, i) =>
+        taskDelegation(String(i), "READY", "FAILED"),
+      ),
+    );
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    expect(startTurnMock.mock.calls[0][0].eventBatch).toHaveLength(8);
+    expect(delegationUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it("wakes first actionable observations and repeated statuses with a new event", async () => {
+    delegationFindManyMock.mockResolvedValue([
+      {
+        ...taskDelegation("a", "INPUT_REQUIRED", "INPUT_REQUIRED"),
+        lastSeenEventId: "event-one",
+        task: {
+          ...taskDelegation("a", "INPUT_REQUIRED", "INPUT_REQUIRED").task,
+          id: "task_a",
+          name: "Task a",
+          status: "INPUT_REQUIRED",
+          events: [
+            { id: "event-two", comment: "Please clarify the new requirement" },
+          ],
+        },
+      },
+      {
+        ...taskDelegation("b", null, "INPUT_REQUIRED"),
+        task: {
+          ...taskDelegation("b", null, "INPUT_REQUIRED").task,
+          events: [{ id: "fresh", comment: "new", createdAt: new Date() }],
+        },
+      },
+    ]);
+    await new SokoBotEventsSyncService().syncDelegatedWork(input);
+    expect(startTurnMock.mock.calls[0][0].message).toContain(
+      "Please clarify the new requirement",
+    );
+    expect(startTurnMock.mock.calls[0][0].eventBatch).toHaveLength(2);
+  });
+
+  it("hashes full canonical occurrence identities without prefix collisions", () => {
+    const change = {
+      delegationId: "x".repeat(150),
+      kind: "TASK" as const,
+      entityId: "task",
+      name: "task",
+      from: "READY",
+      to: "INPUT_REQUIRED",
+      note: null,
+      eventId: "event-one",
+    };
+    expect(sokoBotEventClientTurnId([change])).not.toBe(
+      sokoBotEventClientTurnId([{ ...change, eventId: "event-two" }]),
+    );
+    expect(sokoBotEventClientTurnId([change])).toHaveLength(70);
   });
 });

@@ -65,6 +65,74 @@ function getCreditsForCoupon(coupon: Stripe.Coupon): number {
   return credits;
 }
 
+/**
+ * Stripe's non-two-decimal currencies. Amounts arrive in the smallest unit:
+ * zero-decimal ones are already whole units, three-decimal ones are thousandths.
+ * https://docs.stripe.com/currencies#zero-decimal
+ *
+ * Special cases (https://docs.stripe.com/currencies#special-cases): UGX and ISK
+ * are zero-decimal in practice but the API keeps them two-decimal (always
+ * `00`), so they are divided by 100 and UGX is left out of this list despite
+ * appearing on Stripe's zero-decimal list. HUF and TWD are zero-decimal only
+ * for payouts; charges are two-decimal.
+ */
+const STRIPE_ZERO_DECIMAL_CURRENCIES = new Set([
+  "bif",
+  "clp",
+  "djf",
+  "gnf",
+  "jpy",
+  "kmf",
+  "krw",
+  "mga",
+  "pyg",
+  "rwf",
+  "vnd",
+  "vuv",
+  "xaf",
+  "xof",
+  "xpf",
+]);
+const STRIPE_THREE_DECIMAL_CURRENCIES = new Set([
+  "bhd",
+  "jod",
+  "kwd",
+  "omr",
+  "tnd",
+]);
+
+export function stripeAmountToMajorUnits(
+  amount: number,
+  currency: string,
+): number {
+  const code = currency.toLowerCase();
+  if (STRIPE_ZERO_DECIMAL_CURRENCIES.has(code)) return amount;
+  const exponent = STRIPE_THREE_DECIMAL_CURRENCIES.has(code) ? 3 : 2;
+  return amount / 10 ** exponent;
+}
+
+/**
+ * Revenue for analytics, in major units: total after discounts, excluding
+ * tax and shipping. Null when Stripe did not report an amount or currency.
+ */
+function getCheckoutSessionNetValue(
+  session: Stripe.Checkout.Session,
+): number | null {
+  if (session.amount_total === null || !session.currency) {
+    return null;
+  }
+  const tax = session.total_details?.amount_tax ?? 0;
+  const shipping = session.shipping_cost
+    ? session.shipping_cost.amount_total - session.shipping_cost.amount_tax
+    : 0;
+  // Subtotal still includes inclusive tax. Total already accounts for discounts;
+  // subtract all tax and only net shipping so shipping tax is not removed twice.
+  return stripeAmountToMajorUnits(
+    session.amount_total - tax - shipping,
+    session.currency,
+  );
+}
+
 function mapCheckoutSessionAnalytics(session: Stripe.Checkout.Session): {
   sessionId: string;
   currency: string | null;
@@ -101,7 +169,7 @@ function mapCheckoutSessionAnalytics(session: Stripe.Checkout.Session): {
   return {
     sessionId: session.id,
     currency: session.currency,
-    value: session.amount_total,
+    value: getCheckoutSessionNetValue(session),
     items,
   };
 }
@@ -516,8 +584,10 @@ export const stripeBillingService = {
     }
 
     // Incomplete/open/expired sessions must not unlock success UI or purchase
-    // analytics. Coupons can complete with payment_status=no_payment_required.
-    if (session.status !== "complete") {
+    // analytics. `unpaid` is a completed session whose async payment has not
+    // cleared yet (for a subscription: not active). Coupons and subscription
+    // trials complete with payment_status=no_payment_required and amount_total 0.
+    if (session.status !== "complete" || session.payment_status === "unpaid") {
       throw notFound("Checkout session not found");
     }
 

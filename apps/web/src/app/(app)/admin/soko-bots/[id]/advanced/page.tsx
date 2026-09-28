@@ -8,6 +8,7 @@ import { AdminMemoryPanel } from "@/components/admin/soko-bots/admin-memory-pane
 import { AdminSchedulesPanel } from "@/components/admin/soko-bots/admin-schedules-panel";
 import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-bot-danger-zone.client";
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
+import { AdminSokoBotVersion } from "@/components/admin/soko-bots/admin-soko-bot-version.client";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
 export const instant = false;
@@ -25,13 +26,25 @@ export default async function AdminSokoBotAdvancedPage({
   params,
 }: AdminSokoBotAdvancedPageProps) {
   const { id } = await params;
-  const bot = await adminSokoBotService.get(id);
+  const [bot, versionList] = await Promise.all([
+    adminSokoBotService.get(id),
+    adminSokoBotService.listVersions(),
+  ]);
   if (!bot) notFound();
 
   return (
     <div className="min-h-full w-full">
       <div className="mx-auto max-w-6xl space-y-6 px-4 py-2">
         <AdminSokoBotHeader bot={bot} active="advanced" />
+        <AdminSokoBotVersion
+          sokoBotId={bot.id}
+          currentVersionId={bot.versionId ?? null}
+          versions={versionList.versions.map((version) => ({
+            id: version.id,
+            name: version.name,
+          }))}
+          defaultVersionId={versionList.defaultVersionId}
+        />
         <AdminDecisionsPanel decisions={bot.pendingDecisions ?? []} />
         <AdminSchedulesPanel sokoBotId={bot.id} schedules={bot.schedules} />
         <AdminMemoryPanel bot={bot} />

@@ -37,6 +37,7 @@ import {
 } from "@/middleware/auth-middleware";
 
 interface CreateTaskParameters extends AuthenticatedRequest {
+  tagSuggestionReceipt?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -156,6 +157,8 @@ interface DeleteTaskLinkParameters extends AuthenticatedRequest {
 }
 
 interface CreateAndLinkTaskParameters extends AuthenticatedRequest {
+  name?: string;
+  tagSuggestionReceipt?: string;
   taskId: string;
   description: string;
   assigneeId: string | null;
@@ -352,6 +355,7 @@ function resolveAssigneeWrite(
 }
 
 async function createTaskFromDescription(input: {
+  tagSuggestionReceipt?: string;
   name?: string;
   description: string;
   assigneeId: string | null;
@@ -384,6 +388,9 @@ async function createTaskFromDescription(input: {
     : undefined;
 
   return taskService.createTask({
+    ...(input.tagSuggestionReceipt
+      ? { tagSuggestionReceipt: input.tagSuggestionReceipt }
+      : {}),
     description: trimmedDescription,
     ...assigneeWrite,
     projectId: normalizedProjectId ?? null,
@@ -515,6 +522,7 @@ async function archiveCreatedTaskAfterFailure(taskId: string): Promise<void> {
 export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
   async ({
     name,
+    tagSuggestionReceipt,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -530,6 +538,7 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
       const task = await createTaskFromDescription({
         ...(name ? { name } : {}),
         description,
+        tagSuggestionReceipt,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,
@@ -848,6 +857,8 @@ export const createTaskAndLink = withSession<
 >(
   async ({
     taskId,
+    name,
+    tagSuggestionReceipt,
     description,
     assigneeId,
     assigneeSokoBotId,
@@ -872,6 +883,8 @@ export const createTaskAndLink = withSession<
     try {
       createdTask = await createTaskFromDescription({
         description,
+        name,
+        tagSuggestionReceipt,
         assigneeId,
         assigneeSokoBotId,
         assigneeUserId,

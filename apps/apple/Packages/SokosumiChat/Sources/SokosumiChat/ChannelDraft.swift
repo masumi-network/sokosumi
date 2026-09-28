@@ -15,7 +15,7 @@ public struct ChannelDraft: Equatable, Sendable {
 
   public init() {}
 
-  public var canonicalSlug: String {
+  var canonicalSlug: String {
     slug.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
   }
 
@@ -45,7 +45,7 @@ public struct ChannelDraft: Equatable, Sendable {
     topic = Self.limit(raw, to: 200)
   }
 
-  public func selectedRecipients(roster: ChatRecipientRoster, currentUserId: String) -> [DirectRecipient] {
+  func selectedRecipients(roster: ChatRecipientRoster, currentUserId: String) -> [DirectRecipient] {
     let selected = roster.targets.filter { target in
       if addAllMembers, case .human = target.id {
         return true

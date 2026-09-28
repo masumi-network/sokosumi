@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiAuth
+@testable import SokosumiAuth
 import Testing
 
 /// Holds the token response even when cancelled, like a response already

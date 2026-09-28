@@ -1,4 +1,5 @@
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
+import { suggestTaskTags as coreSuggestTaskTags } from "@/lib/clients/generated/core";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
 export type TaskScheduleStateAction = "pause" | "resume" | "end";
@@ -41,6 +42,7 @@ import type {
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
+  GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
   GetProjectsData,
   GetProjectsStatsData,
@@ -82,6 +84,8 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
+  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
+  PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
@@ -125,6 +129,7 @@ import {
   browseSokoBotSkills as coreBrowseSokoBotSkills,
   cancelMySokoBotTurn as coreCancelMySokoBotTurn,
   claimCoupon as coreClaimCoupon,
+  completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
@@ -158,6 +163,7 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
+  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -247,6 +253,7 @@ import {
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
+  getProjectsByIdImageStudio as coreGetProjectsByIdImageStudio,
   getProjectsByIdNeedsAttention as coreGetProjectsByIdNeedsAttention,
   getProjectsByIdSocialConnections as coreGetProjectsByIdSocialConnections,
   getProjectsByIdSocialPosts as coreGetProjectsByIdSocialPosts,
@@ -378,6 +385,9 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
+  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
+  postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
+  postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
   postProjectsByIdSocialConnectionsFinalize as corePostProjectsByIdSocialConnectionsFinalize,
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
@@ -3033,6 +3043,88 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdImageStudio(
+    id: string,
+    query?: GetProjectsByIdImageStudioData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdImageStudio({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Project image studio",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobs(
+    id: string,
+    body: NonNullable<PostProjectsByIdImageStudioJobsData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobs({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to start image generation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioJobsByJobIdCancel(
+    id: string,
+    jobId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioJobsByJobIdCancel({
+          client,
+          path: { id, jobId },
+        }),
+      "Failed to request cancellation",
+    );
+  }
+
+  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+    body: NonNullable<
+      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
+    >,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+          body,
+        }),
+      "Failed to review image version",
+    );
+  }
+
+  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
+    id: string,
+    assetId: string,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
+          client,
+          path: { id, assetId },
+        }),
+      "Failed to clear image review",
+    );
+  }
+
   async function getProjectsByIdSocialPosts(
     id: string,
     query?: GetProjectsByIdSocialPostsData["query"],
@@ -3714,6 +3806,17 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to create task event",
+    );
+  }
+
+  async function suggestTaskTags(body: {
+    name?: string;
+    description?: string | null;
+  }) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSuggestTaskTags({ client, body }),
+      "Task tag suggestions unavailable",
     );
   }
 
@@ -4659,6 +4762,15 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreFinalizeMySokoBotIntegration({ client, path: { provider } }),
       "Failed to finish the integration",
+    );
+  }
+
+  async function completeMySokoBotIntegrationAuth(sessionUri: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCompleteMySokoBotIntegrationAuth({ client, body: { sessionUri } }),
+      "Failed to verify the integration",
     );
   }
 
@@ -5622,6 +5734,11 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getProjectsByIdImageStudio,
+    postProjectsByIdImageStudioJobs,
+    postProjectsByIdImageStudioJobsByJobIdCancel,
+    postProjectsByIdImageStudioAssetsByAssetIdReview,
+    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,
@@ -5653,6 +5770,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getTasks,
     getTasksSummary,
     patchTask,
+    suggestTaskTags,
     putJobShare,
     putTaskShare,
     listTaskSchedules,
@@ -5687,6 +5805,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     searchSokoBotIntegrationCatalog,
     connectMySokoBotIntegration,
     finalizeMySokoBotIntegration,
+    completeMySokoBotIntegrationAuth,
     disconnectMySokoBotIntegration,
     listMySokoBotSkills,
     getSokoBotTeam,
