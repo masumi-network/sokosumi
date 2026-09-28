@@ -317,7 +317,11 @@ describe("FileDetailClient", () => {
        * PARTIAL at 0.9995. Rounding that to 100 puts a sentence directly
        * under "only part of this file is indexed" that contradicts it.
        *
-       * This is the case that fails if the clamp is ever removed.
+       * This case characterises the near-full end; it does not guard the
+       * clamp. Measured, not assumed: with `Math.min(99, ...)` deleted it
+       * stays green, because `Math.floor(99.95)` is already 99. The
+       * ceiling is guarded by the coverage-of-exactly-1 case below, and
+       * the flooring by the case after that.
        */
       partial(0.9995);
 
@@ -361,6 +365,24 @@ describe("FileDetailClient", () => {
 
       expect(
         await screen.findByText('processingPartialCoverage:{"percent":1}'),
+      ).toBeInTheDocument();
+    });
+
+    it("floors rather than rounds, so it never claims more than was read", async () => {
+      /**
+       * The code says "floored rather than rounded, so the number never
+       * promises more than was actually read". Nothing tested that, and
+       * the near-full case above does not: at 0.9995 floor and round both
+       * land on 99 once the clamp has had its say.
+       *
+       * 0.509 separates them. Floor gives 50, round gives 51, and 51 is a
+       * number the file did not earn.
+       */
+      partial(0.509);
+
+      expect(
+        await screen.findByText('processingPartialCoverage:{"percent":50}'),
+        "rounding up reports a share of the document that was never read",
       ).toBeInTheDocument();
     });
 
