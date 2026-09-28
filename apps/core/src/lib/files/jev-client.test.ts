@@ -3,9 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   gatewayJevEvaluator,
   isJevConfigured,
-  isJevProviderLatched,
   jevRouteAvailable,
-  resetJevProviderLatchForTests,
 } from "./jev-client";
 import type { SerializedJevRequest } from "./jev-request";
 
@@ -21,11 +19,6 @@ const env = {
 };
 
 vi.mock("@/config/env", () => ({ getEnv: () => env }));
-
-const { captureMessageMock } = vi.hoisted(() => ({
-  captureMessageMock: vi.fn(),
-}));
-vi.mock("@sentry/node", () => ({ captureMessage: captureMessageMock }));
 
 const request: SerializedJevRequest = {
   body: { rubric: "Rate how well…", query: "invoice", candidate: { id: "r1" } },
@@ -95,8 +88,6 @@ function reply(answers: Record<string, boolean | number>, overrides = {}) {
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  resetJevProviderLatchForTests();
-  captureMessageMock.mockClear();
   env.FILES_JEV_ENABLED = true;
   env.AI_GATEWAY_API_KEY = "test-gateway-key";
   fetchMock = vi.fn();
@@ -477,9 +468,34 @@ describe("what it reports back", () => {
   });
 });
 
-describe("failing closed on the retention request", () => {
-  it.each([400, 422])(
-    "latches off after a %i and never retries without the options",
+/**
+ * A refused request is one refused request.
+ *
+ * This block used to pin a per-process latch: a 400 or a 422 switched the
+ * whole feature off for the life of the instance, on the theory that the
+ * Gateway was rejecting the retention options and every later call would
+ * be rejected too. Two things were wrong with that.
+ *
+ * The status does not say what was refused. The Gateway discriminates on
+ * `error.type`, not on the code, so a 400 is as likely to be a malformed
+ * question map or an oversized envelope as a refusal of
+ * `providerOptions.gateway`. The latch read a cause into a number that
+ * does not carry one.
+ *
+ * And the blast radius was the whole process, from a single response,
+ * with no way back except a redeploy. One bad request took the feature
+ * down for every workspace on that instance until someone noticed, and
+ * the only signal was one Sentry line.
+ *
+ * So the call now answers `status-<n>` for every non-ok status and
+ * nothing outside the call changes. The caller decides what a failure
+ * means: the ranking path falls back to deterministic order, and the
+ * suggestion path fails the job so it is retried rather than recording a
+ * document as done with no labels.
+ */
+describe("a refused request is one refused request", () => {
+  it.each([400, 422, 500])(
+    "answers status-%i and leaves the feature configured",
     async (status) => {
       fetchMock.mockResolvedValue({ ok: false, status } as unknown as Response);
 
@@ -487,25 +503,36 @@ describe("failing closed on the retention request", () => {
         request,
         rubric: "relevance",
       });
-      expect(first.reason).toBe("provider-options-rejected");
 
-      // The whole feature reports unconfigured from here on.
-      expect(isJevConfigured()).toBe(false);
-
-      const second = await gatewayJevEvaluator.evaluate({
-        request,
-        rubric: "relevance",
-      });
-      expect(second.reason).toBe("provider-options-rejected");
-      expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(isJevProviderLatched()).toBe(true);
+      // The status, and only the status. 400 and 422 used to answer
+      // "provider-options-rejected", which named a cause the response did
+      // not give.
+      expect(first.reason).toBe(`status-${status}`);
+      expect(isJevConfigured()).toBe(true);
     },
   );
 
-  it("reports the latch once, naming the instance", async () => {
-    // The latch is per-process: on a multi-instance deployment one instance
-    // can go quiet while its siblings keep calling, and nothing else would
-    // surface that the feature is half-dead.
+  it.each([400, 422])(
+    "still dispatches the next call after a %i",
+    async (status) => {
+      // The latch made this call never happen. A second workspace's
+      // request must not be answered by the first one's response.
+      fetchMock.mockResolvedValue({ ok: false, status } as unknown as Response);
+
+      await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
+      await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
+
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("still keeps asking for retention after a refusal", async () => {
+    /**
+     * The half of the old latch worth keeping. Whatever the Gateway
+     * answers, the next request carries the retention options again —
+     * there is no path that quietly retries without them, which is what
+     * failing closed was protecting against.
+     */
     fetchMock.mockResolvedValue({
       ok: false,
       status: 400,
@@ -514,35 +541,20 @@ describe("failing closed on the retention request", () => {
     await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
     await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
 
-    expect(isJevProviderLatched()).toBe(true);
-    // Once, not once per refused call.
-    expect(captureMessageMock).toHaveBeenCalledTimes(1);
-
-    const [message, context] = captureMessageMock.mock.calls[0];
-    expect(message).toContain("latched off");
-    expect(context.level).toBe("error");
-    expect(context.extra.instanceId).toBe("instance-7");
-    expect(context.extra.status).toBe(400);
+    for (const call of fetchMock.mock.calls) {
+      expect(
+        JSON.parse(call[1].body as string).providerOptions.gateway,
+      ).toEqual({ zeroDataRetention: true, disallowPromptTraining: true });
+    }
   });
 
-  it("separates being latched from being switched off", async () => {
-    expect(isJevProviderLatched()).toBe(false);
-    env.FILES_JEV_ENABLED = false;
-    // Disabled, but not latched: a caller explaining a deterministic
-    // ordering needs to tell those two apart.
-    expect(isJevConfigured()).toBe(false);
-    expect(isJevProviderLatched()).toBe(false);
-  });
-
-  it("does not latch on a transient server error", async () => {
-    fetchMock.mockResolvedValue({
-      ok: false,
-      status: 500,
-    } as unknown as Response);
-
-    await gatewayJevEvaluator.evaluate({ request, rubric: "relevance" });
-
+  it("still reports unconfigured when the feature is switched off", async () => {
+    // The one state that does turn the feature off is the deployment
+    // switch, and it is the only one. A caller explaining a deterministic
+    // ordering has this to point at and nothing else.
     expect(isJevConfigured()).toBe(true);
+    env.FILES_JEV_ENABLED = false;
+    expect(isJevConfigured()).toBe(false);
   });
 });
 
@@ -728,7 +740,31 @@ describe("asking about many labels at once", () => {
     expect(verdict.reason).toBe("invalid-response");
   });
 
-  it("still asks for retention, and still fails closed", async () => {
+  it("still asks for retention", async () => {
+    /**
+     * This test made two claims and only one of them survives.
+     *
+     * Kept: the label path asks for retention like the relevance path
+     * does — it is a second call site for the same options and nothing
+     * else asserts it, so a refusal must not be the thing that proves
+     * they were sent.
+     *
+     * Dropped: "and still fails closed", which asserted that a 400
+     * latched the provider off for the process. That went with the
+     * latch; see "a refused request is one refused request" above for
+     * why, and for what a 400 answers now.
+     */
+    fetchMock.mockResolvedValue(labelReply({ "label-1": 0.9 }));
+
+    await gatewayJevEvaluator.evaluateLabels({ request, labels: labels() });
+
+    expect(sentBody().providerOptions.gateway).toEqual({
+      zeroDataRetention: true,
+      disallowPromptTraining: true,
+    });
+  });
+
+  it("answers a refused label call with the status", async () => {
     fetchMock.mockResolvedValue({
       ok: false,
       status: 400,
@@ -739,7 +775,9 @@ describe("asking about many labels at once", () => {
       labels: labels(),
     });
 
-    expect(verdict.reason).toBe("provider-options-rejected");
-    expect(isJevProviderLatched()).toBe(true);
+    expect(verdict.ok).toBe(false);
+    expect(verdict.reason).toBe("status-400");
+    // And the feature is still on for the next document.
+    expect(isJevConfigured()).toBe(true);
   });
 });

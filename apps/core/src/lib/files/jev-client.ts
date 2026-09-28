@@ -1,5 +1,4 @@
 import { z } from "@hono/zod-openapi";
-import * as Sentry from "@sentry/node";
 
 import { getEnv } from "@/config/env";
 import type { SerializedJevRequest } from "@/lib/files/jev-request";
@@ -47,10 +46,24 @@ import {
  * Every call asks for `zeroDataRetention` and `disallowPromptTraining`. That
  * is a request to the Gateway, and this code does not treat a successful
  * response as proof that either was honoured — nothing in the reply attests
- * to it. What it does guarantee is that a call is never retried without those
- * options: if the Gateway rejects the request as malformed, the evaluator
- * latches off for the life of the process rather than quietly downgrading to
- * a call with weaker retention.
+ * to it. What it does guarantee is that a call is never retried without
+ * those options: there is no code path that builds a request without them,
+ * so a rejection cannot be answered by quietly downgrading.
+ *
+ * ## There is no provider latch any more
+ *
+ * A 400 or a 422 used to latch the evaluator off for the life of the
+ * process, on the theory that the Gateway was rejecting the retention
+ * options. It discriminates on `error.type`, not on status, so that
+ * inference was wrong in both directions: a 400 for any other reason
+ * killed ranking on the instance until it restarted, and a 413 — the
+ * status an oversized request actually gets — did not fire it at all.
+ *
+ * One bad request could therefore take an instance's ranking out
+ * permanently, with siblings still serving, so the feature went half dead
+ * and no aggregate moved enough to notice. The scheduler's circuit breaker
+ * is the real protection here and it half-opens by itself, which a latch
+ * with nothing to clear it never did.
  */
 
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
@@ -73,77 +86,9 @@ export interface JevEvaluationOutcome {
   generationId: string | null;
 }
 
-/**
- * Set when the Gateway rejected a request that carried the retention
- * options. Nothing clears it: a process that cannot ask for zero retention
- * does not send document text at all.
- *
- * ## It is per-instance, and that is why it has to be loud
- *
- * This is process state. On a multi-instance deployment one instance can
- * latch off while its siblings keep calling, so the feature goes half-dead:
- * some searches rerank and some silently do not, and no aggregate metric
- * moves enough to notice. Whether it should ever reset is a separate
- * question; being able to see that it happened is not optional, so latching
- * reports itself once, with the instance it happened on.
- *
- * One place records it besides the report below: every subsequent evaluation
- * returns `provider-options-rejected`, which `recordJevDispatch` writes
- * against the admission row.
- *
- * **Nowhere else.** An earlier version of this comment claimed the search
- * response carries the reason as `fallbackReason` and that the UI shows it.
- * Neither is true — `fallbackReason` is computed by `jev-ranking.ts` and read
- * by nothing but its tests, it is absent from `fileSearchMetaSchema`, and no
- * web code references it. A reader who trusts that sentence stops looking for
- * an explanation that was never there, so it is corrected rather than
- * softened. From outside the process a fallback is visible only as
- * `rankingMode: "deterministic"`, which is also what a healthy search
- * returns; surfacing the reason is a recorded follow-up.
- */
-let providerOptionsRejected = false;
-
-function latchProviderOptionsRejected(status: number): void {
-  if (providerOptionsRejected) return;
-  providerOptionsRejected = true;
-
-  // `captureMessage` rather than a new counter: this is what the rest of
-  // Core uses to say "something noteworthy that is not an exception".
-  Sentry.captureMessage(
-    "Files Jev evaluator latched off: the Gateway rejected the retention options",
-    {
-      level: "error",
-      extra: {
-        status,
-        // Which instance, because the latch is per-process and its
-        // siblings are probably still calling.
-        instanceId: getEnv().INSTANCE_ID,
-        model: FILES_RANKING_MODEL,
-        consequence:
-          "This instance will not send document text to Jev again until it restarts; Files falls back to deterministic ordering here.",
-      },
-    },
-  );
-}
-
 export function isJevConfigured(): boolean {
-  if (providerOptionsRejected) return false;
   const env = getEnv();
   return env.FILES_JEV_ENABLED && Boolean(env.AI_GATEWAY_API_KEY);
-}
-
-/**
- * Whether this instance has latched off, separately from whether the
- * feature is configured. A caller reporting why ranking was deterministic
- * needs to tell "switched off" apart from "refused by the provider".
- */
-export function isJevProviderLatched(): boolean {
-  return providerOptionsRejected;
-}
-
-/** Exposed for tests; production has no reason to clear the latch. */
-export function resetJevProviderLatchForTests(): void {
-  providerOptionsRejected = false;
 }
 
 const catalogSchema = z.object({
@@ -386,13 +331,6 @@ async function postEvaluation(input: {
   const startedAt = Date.now();
   const apiKey = getEnv().AI_GATEWAY_API_KEY;
 
-  if (providerOptionsRejected) {
-    return {
-      kind: "failed",
-      reason: "provider-options-rejected",
-      latencyMs: 0,
-    };
-  }
   if (!apiKey)
     return { kind: "failed", reason: "not-configured", latencyMs: 0 };
 
@@ -424,15 +362,16 @@ async function postEvaluation(input: {
     const latencyMs = Date.now() - startedAt;
 
     if (!response.ok) {
-      if (response.status === 400 || response.status === 422) {
-        latchProviderOptionsRejected(response.status);
-        return {
-          kind: "failed",
-          reason: "provider-options-rejected",
-          latencyMs,
-        };
-      }
-      // Status only. A body can carry back the document text we sent.
+      /**
+       * Status only, and the same answer for every status. A body can
+       * carry back the document text we sent.
+       *
+       * 400 and 422 used to be singled out as "the Gateway rejected our
+       * retention options" and latch the evaluator off. The Gateway
+       * discriminates on `error.type`, so the status told us nothing of
+       * the sort, and the reason string that went with it claimed
+       * knowledge this code does not have.
+       */
       return { kind: "failed", reason: `status-${response.status}`, latencyMs };
     }
 

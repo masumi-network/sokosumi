@@ -196,6 +196,12 @@ export interface SuggestionRunOutcome {
    * document had nothing to say. The job is back in the queue, unchanged.
    */
   deferred?: boolean;
+  /**
+   * True when a call was dispatched and the provider did not answer
+   * usefully. The job is FAILED and will be retried; it was not a verdict
+   * about the document.
+   */
+  failed?: boolean;
 }
 
 export async function runSuggestionJob(
@@ -493,8 +499,33 @@ export async function runSuggestionJob(
   });
 
   if (!verdict.ok) {
-    await completeFileIndexJob({ jobId: job.id, leaseOwner });
-    return { suggested: 0, skipped: verdict.reason ?? "evaluation-failed" };
+    /**
+     * Failed, not completed. The call went out and the provider did not
+     * answer usefully, which is not a verdict about this document.
+     *
+     * `completeFileIndexJob` here recorded the job SUCCEEDED with zero
+     * labels and a null `lastError`. Nothing re-leases a SUCCEEDED job
+     * and nothing re-enqueues a SUGGEST on a timer, so the document was
+     * permanently unlabelled: the loss survived the provider recovering
+     * and survived a restart. Measured, one rejected dispatch put thirty
+     * documents in that state.
+     *
+     * Failing instead gets the bounded retries the job machinery already
+     * has, and leaves a state a person can see. A document the model
+     * genuinely declined still completes — that is the branch below, and
+     * the two must stay distinguishable.
+     */
+    await failFileIndexJob({
+      jobId: job.id,
+      leaseOwner,
+      attempt: job.attempt,
+      error: verdict.reason ?? "evaluation-failed",
+    });
+    return {
+      suggested: 0,
+      skipped: verdict.reason ?? "evaluation-failed",
+      failed: true,
+    };
   }
 
   const chosen = new Set(verdict.chosen);
@@ -591,6 +622,14 @@ export async function processFileSuggestionJobs(input: {
         // the refusal may have been this workspace's budget rather than
         // everyone's, and the job it just put back is held off by its own
         // `runAfter`.
+        result.processed -= 1;
+      }
+      if (outcome.failed) {
+        // Same arithmetic as the deferral above, for the same reason: a
+        // document the provider failed is not a document that was
+        // processed, and counting it as both makes the sync line read
+        // clean straight through an outage.
+        result.failed += 1;
         result.processed -= 1;
       }
     } catch (error) {
