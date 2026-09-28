@@ -457,6 +457,46 @@ test("cleanup refuses a protected branch before deleting anything", async () => 
   assert.ok(!calls.some((call) => call.method === "DELETE"));
 });
 
+test("daily inventory skips a missing PR and still includes later closed PRs", async () => {
+  const { options, envs, pull, calls } = setup();
+  envs.push(
+    { comment: "GitHub-managed preview/gh-99-pr-6" },
+    { comment: "GitHub-managed preview/gh-99-pr-7" },
+  );
+  const lookedUp: number[] = [];
+  const fetchImpl: typeof fetch = async (input, init) => {
+    const url = new URL(String(input));
+    if (url.host !== "api.github.com") return options.fetchImpl(input, init);
+    const number = Number(url.pathname.split("/").at(-1));
+    lookedUp.push(number);
+    return number === 6
+      ? Response.json({ message: "Not Found" }, { status: 404 })
+      : Response.json({ ...pull, state: "closed" });
+  };
+  assert.deepEqual(
+    await previewCleanupInventory({ ...options, fetchImpl }),
+    [7],
+  );
+  assert.deepEqual(lookedUp, [6, 7]);
+  assert.ok(calls.every((call) => call.method === "GET"));
+});
+
+test("daily inventory still fails on GitHub authorization and service errors", async () => {
+  for (const status of [401, 403, 429, 500]) {
+    const { options, envs } = setup();
+    envs.push({ comment: "GitHub-managed preview/gh-99-pr-7" });
+    const fetchImpl: typeof fetch = async (input, init) => {
+      if (new URL(String(input)).host !== "api.github.com")
+        return options.fetchImpl(input, init);
+      return Response.json({ message: "Request failed" }, { status });
+    };
+    await assert.rejects(
+      previewCleanupInventory({ ...options, fetchImpl }),
+      new RegExp(`GitHub ${status}`),
+    );
+  }
+});
+
 test("daily inventory skips open PRs and drains a backlog in bounded batches", async () => {
   const { options, envs, pull } = setup();
   for (let number = 1; number <= 261; number++) {

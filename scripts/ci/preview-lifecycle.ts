@@ -130,7 +130,8 @@ export async function previewCleanupInventory(
       options.githubToken,
       `https://api.github.com/repos/${options.repoOwner}/${options.repoName}/pulls/${pullNumber}`,
     );
-    if (!pull) throw new Error("Cannot verify PR state for cleanup inventory");
+    // A missing PR cannot authorize deletion, but must not block other PRs.
+    if (!pull) continue;
     if (
       pull.state === "closed" &&
       pull.base.repo.id === options.repoId &&
