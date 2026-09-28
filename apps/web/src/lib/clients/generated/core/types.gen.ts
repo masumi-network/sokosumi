@@ -3565,6 +3565,7 @@ export type FileResource = {
         provenance: 'MANUAL' | 'MODEL' | 'RULE';
         evidenceSnippet: string | null;
     }>;
+    folderPath: string | null;
     /**
      * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
      */
@@ -3604,7 +3605,7 @@ export type UpdateFileMetadataRequest = {
 };
 
 export type FileSuggestionDecisionRequest = {
-    decision: 'accept' | 'reject';
+    decision: 'accept' | 'reject' | 'restore';
     expectedMetadataRevision: number;
 };
 
@@ -23960,6 +23961,70 @@ export type PatchDriveLabelsByIdResponses = {
 
 export type PatchDriveLabelsByIdResponse = PatchDriveLabelsByIdResponses[keyof PatchDriveLabelsByIdResponses];
 
+export type GetDriveFoldersData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/folders';
+};
+
+export type GetDriveFoldersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveFoldersError = GetDriveFoldersErrors[keyof GetDriveFoldersErrors];
+
+export type GetDriveFoldersResponses = {
+    /**
+     * Folder paths
+     */
+    200: {
+        data: Array<string>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveFoldersResponse = GetDriveFoldersResponses[keyof GetDriveFoldersResponses];
+
 export type PostDriveFoldersData = {
     body: CreateDriveFolderRequest;
     path?: never;
@@ -25211,6 +25276,7 @@ export type GetDriveSearchData = {
         tagLabelIds?: string;
         tagMatch?: 'any' | 'all';
         projectIds?: string;
+        folder?: string;
         sourceKinds?: string;
         typeFamilies?: string;
         extractionStates?: string;

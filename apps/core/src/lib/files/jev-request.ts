@@ -35,8 +35,12 @@ import {
  * `rubricEnvelopeTokens` now serializes the real envelope and counts it, so
  * the figure follows the rubrics automatically when one is reworded. Live
  * reconciliation against reported usage still needs calls we are not
- * authorized to make, so `FILES_JEV_ENABLED` stays off by default — but the
- * ceiling it would be reconciled against is now the whole request.
+ * authorized to make, so the ceiling stays an estimate — but it is now an
+ * estimate of the whole request rather than of the rubrics alone.
+ *
+ * This used to say `FILES_JEV_ENABLED` stays off by default. `env.ts` defaults
+ * it to `"true"` and mainnet does not set it, so evaluation is on in
+ * production: the docstring contradicted the schema it described.
  */
 
 /**

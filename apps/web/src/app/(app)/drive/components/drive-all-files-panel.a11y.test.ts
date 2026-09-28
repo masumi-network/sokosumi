@@ -88,6 +88,56 @@ describe("what the All files panel exposes to assistive technology", () => {
     expect(SOURCE).toContain("item={item}");
   });
 
+  it("puts the search field first, above everything else it renders", () => {
+    /**
+     * The defect Patrick reported, as a source claim.
+     *
+     * The catalog rendered below a folder grid, so search sat roughly mid-page
+     * and the first file row was below the fold on a list of ten files. The
+     * grid is gone; this asserts the search input is still the first thing
+     * *inside* the panel, ahead of the collections shelf, the status line and
+     * the list, so a later addition cannot quietly get in front of it again.
+     */
+    const lines = jsxLines();
+    const search = lines.find(({ text }) =>
+      text.includes('data-testid="drive-all-files-search"'),
+    );
+    expect(search, "the catalog must have a search field").toBeDefined();
+
+    for (const marker of [
+      'data-testid="drive-all-files-facets"',
+      'data-testid="drive-all-files-status"',
+      "<DriveFileRow",
+    ]) {
+      const after = lines.find(({ text }) => text.includes(marker));
+      expect(after, `${marker} must be rendered`).toBeDefined();
+      expect(
+        (after?.line ?? 0) > (search?.line ?? 0),
+        `${marker} must come after the search field, not before it`,
+      ).toBe(true);
+    }
+  });
+
+  it("renders no empty shelf and no bulk control above the list", () => {
+    /**
+     * Three things used to sit between the search box and the first file,
+     * whether or not the reader had done anything: "No saved collections yet"
+     * in a database with zero collections, "Showing 10 of 10 in this result
+     * window", and "Select this page" with nothing selected.
+     */
+    for (const gone of [
+      "collectionsEmpty",
+      "collectionsLoading",
+      "statusShown",
+      "bulkSelectPage",
+    ]) {
+      expect(
+        jsxLines().filter(({ text }) => text.includes(gone)),
+        `${gone} is implementation vocabulary shown before the reader asked anything`,
+      ).toEqual([]);
+    }
+  });
+
   it("is still watching a panel that exists", () => {
     // A guard that reads the wrong file passes by finding nothing.
     expect(SOURCE).toContain("export function DriveAllFilesPanel");

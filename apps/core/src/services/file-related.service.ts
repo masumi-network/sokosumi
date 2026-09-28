@@ -537,6 +537,7 @@ function toCandidate(resource: LiveResource): FileCandidate {
     mimeType: resource.mimeType,
     sizeBytes: resource.sizeBytes,
     sourceKind: resource.sourceKind,
+    sourceId: resource.sourceId,
     sourceTaskId: resource.sourceTaskId,
     sourceProjectId: resource.sourceProjectId,
     updatedAt: resource.updatedAt,

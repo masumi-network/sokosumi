@@ -4,7 +4,10 @@ import {
   type FileSourceKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { normalizeFileResourceName } from "@sokosumi/utils";
+import {
+  DRIVE_OWNER_PREFIX_PATTERN,
+  normalizeFileResourceName,
+} from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
@@ -112,6 +115,15 @@ export interface FileSearchFilters {
   modifiedBefore?: Date;
   extractionStates?: FileExtractionState[];
   creatorUserIds?: string[];
+  /**
+   * One folder, and everything filed below it.
+   *
+   * A facet, not a navigation layer: it composes with the query and with every
+   * other filter here, which the folder tab it replaces never could. The folder
+   * is read out of `sourceId`, the blob pathname the upload already stored, so
+   * this needs no column of its own.
+   */
+  folderPath?: string;
 }
 
 export interface FileCandidate {
@@ -122,6 +134,8 @@ export interface FileCandidate {
   mimeType: string | null;
   sizeBytes: number | null;
   sourceKind: FileSourceKind;
+  /** Native: a blob pathname for an upload, a task id for a task output. */
+  sourceId: string;
   sourceTaskId: string | null;
   sourceProjectId: string | null;
   updatedAt: Date;
@@ -233,6 +247,25 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
     }
   }
 
+  if (filters.folderPath) {
+    /**
+     * The first three segments are `drive/<users|organizations>/<ownerId>`,
+     * which vary by store and say nothing a reader filed. Stripping them
+     * leaves the folder path, and `starts_with` matches the folder and
+     * everything under it without a LIKE pattern to escape.
+     *
+     * A task output's source id is a task id and is left out by the
+     * `drive/` guard rather than accidentally matched by it.
+     */
+    clauses.push(PrismaRaw.sql`(
+      fr."sourceId" ~ ${DRIVE_OWNER_PREFIX_PATTERN}
+      AND starts_with(
+        regexp_replace(fr."sourceId", ${DRIVE_OWNER_PREFIX_PATTERN}, ''),
+        ${`${filters.folderPath}/`}
+      )
+    )`);
+  }
+
   if (filters.projectIds?.length) {
     clauses.push(PrismaRaw.sql`EXISTS (
       SELECT 1 FROM file_project_link fpl
@@ -254,6 +287,7 @@ interface RawResourceRow {
   mimeType: string | null;
   sizeBytes: number | null;
   sourceKind: FileSourceKind;
+  sourceId: string;
   sourceTaskId: string | null;
   sourceProjectId: string | null;
   updatedAt: Date;
@@ -279,6 +313,7 @@ const RESOURCE_COLUMNS = PrismaRaw.sql`
   fr."mimeType",
   fr."sizeBytes",
   fr."sourceKind",
+  fr."sourceId",
   fr."sourceTaskId",
   fr."sourceProjectId",
   fr."updatedAt",
@@ -302,6 +337,7 @@ function toCandidate(row: RawResourceRow): FileCandidate {
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes === null ? null : Number(row.sizeBytes),
     sourceKind: row.sourceKind,
+    sourceId: row.sourceId,
     sourceTaskId: row.sourceTaskId,
     sourceProjectId: row.sourceProjectId,
     updatedAt: row.updatedAt,

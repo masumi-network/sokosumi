@@ -122,6 +122,15 @@ export const fileResourceSchema = z
      */
     rejected: z.array(fileLabelSchema),
     projects: z.array(fileProjectLinkSchema),
+    /**
+     * The folder this file is filed under, or null at the root.
+     *
+     * Read out of the blob pathname the upload already stored. Null for a
+     * task output, a table and anything else whose source is not a blob:
+     * those have no folder, and inventing one would be a claim about the
+     * reader's filing that nobody made.
+     */
+    folderPath: z.string().nullable(),
     snippet: fileSnippetSchema.nullable(),
     /**
      * Why this appeared in a related list, in the reader's own terms — a
@@ -323,7 +332,16 @@ export const fileMetadataBatchResponseSchema = z
 
 export const fileSuggestionDecisionRequestSchema = z
   .object({
-    decision: z.enum(["accept", "reject"]),
+    /**
+     * `restore` is the way back from a dismissal.
+     *
+     * The only code that ever cleared a REJECT tombstone was the manual
+     * metadata edit, and that edit is gone — so without this, a misclick on
+     * a tag chip was a permanent hole in the reader's metadata: the label
+     * rejected, the model barred from proposing it again, and no surface
+     * left that could undo either.
+     */
+    decision: z.enum(["accept", "reject", "restore"]),
     expectedMetadataRevision: z.number().int(),
   })
   .openapi("FileSuggestionDecisionRequest");

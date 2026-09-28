@@ -2,11 +2,11 @@
 
 import {
   Bookmark,
-  BookmarkPlus,
   Loader2,
   MoreHorizontal,
   Search,
   SlidersHorizontal,
+  X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -17,8 +17,8 @@ import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
 import { DriveFileSheet } from "@/app/drive/components/drive-file-sheet";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,12 +39,14 @@ import {
   countActiveFileFilters,
   createFileCollection,
   createSelectionToken,
+  decideSuggestion,
   deleteFileCollection,
   EMPTY_FILE_FILTERS,
   type FileSearchFilterState,
   type FileStore,
   fetchFileCollections,
   fetchFileSearchPage,
+  fetchWorkspaceFolders,
   fetchWorkspaceLabels,
   updateFileCollection,
 } from "@/lib/utils/file-search.client";
@@ -74,6 +76,31 @@ export interface DriveAllFilesPanelProps {
   isMobile: boolean;
   /** The `q` the reader arrived with, from global search's "See all files". */
   initialQuery?: string;
+  /**
+   * The folder a `?folder=` deep link asked for, pre-applied as a facet.
+   *
+   * Those links used to open a folder browser that owned the whole page. They
+   * still work, and now they narrow the catalog instead of replacing it.
+   */
+  initialFolder?: string;
+  /**
+   * The folder facet changed.
+   *
+   * The page head's folder actions — rename, move, delete — act on whichever
+   * folder is narrowing the list, and they are the only surface left that can:
+   * they used to live on the folder cards this catalog replaced. The page needs
+   * to know which folder that is, and this is the whole of what it needs.
+   */
+  onFolderChange?: (folder: string) => void;
+  /**
+   * Bumped when the page changed the files behind this list — an upload, a
+   * folder rename, a delete.
+   *
+   * The catalog reads the search index and the page's own mutations go through
+   * the blob store, so nothing else connects the two. Without it an upload on
+   * this tab landed in the store and appeared nowhere.
+   */
+  reloadToken?: number;
 }
 
 interface SearchState {
@@ -97,6 +124,9 @@ export function DriveAllFilesPanel({
   viewMode,
   isMobile,
   initialQuery = "",
+  initialFolder = "",
+  onFolderChange,
+  reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
 
@@ -107,7 +137,9 @@ export function DriveAllFilesPanel({
   const [appliedQuery, setAppliedQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<FileSearchFilterState>({
     ...EMPTY_FILE_FILTERS,
+    folder: initialFolder,
   });
+  const [folders, setFolders] = useState<string[]>([]);
   const [labels, setLabels] = useState<WorkspaceLabel[]>([]);
   const categories = labels.filter((label) => label.kind === "CATEGORY");
   const [labelsState, setLabelsState] = useState<
@@ -148,6 +180,24 @@ export function DriveAllFilesPanel({
     error: null,
     restarted: false,
   });
+
+  /**
+   * The one way filters change, so a folder change cannot reach the list
+   * without the page head hearing about it.
+   *
+   * Four things set filters — the filter sheet's Apply, a facet chip's X, Clear
+   * filters, and loading a collection — and the folder actions in the page head
+   * have to follow all four, not the one that was remembered.
+   */
+  const applyFilters = useCallback(
+    (next: FileSearchFilterState) => {
+      setFilters((current) => {
+        if (current.folder !== next.folder) onFolderChange?.(next.folder);
+        return next;
+      });
+    },
+    [onFolderChange],
+  );
 
   const sequenceRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
@@ -231,13 +281,30 @@ export function DriveAllFilesPanel({
     [store, t],
   );
 
+  /**
+   * A folder arriving from outside: a deep link, Back, or the page head having
+   * just renamed or deleted the folder this list is narrowed to.
+   *
+   * `setFilters` and not `applyFilters`: the page is where this came from, so
+   * telling it again would be an echo.
+   */
+  useEffect(() => {
+    setFilters((current) =>
+      current.folder === initialFolder
+        ? current
+        : { ...current, folder: initialFolder },
+    );
+  }, [initialFolder]);
+
   const debouncedSearch = useDebouncedCallback((value: string) => {
     setAppliedQuery(value);
   }, SEARCH_DEBOUNCE_MS);
 
   useEffect(() => {
     void runSearch({ query: appliedQuery, filters });
-  }, [appliedQuery, filters, runSearch]);
+    // `reloadToken` is a signal, not an input: the same query and filters run
+    // again because the files under them changed.
+  }, [appliedQuery, filters, runSearch, reloadToken]);
 
   /**
    * Two loads, reported separately, because they fail separately.
@@ -257,11 +324,19 @@ export function DriveAllFilesPanel({
     setCollectionsState("loading");
 
     void (async () => {
-      const [labelResult, collectionResult] = await Promise.allSettled([
-        fetchWorkspaceLabels({ store, signal: controller.signal }),
-        fetchFileCollections({ store, signal: controller.signal }),
-      ]);
+      const [labelResult, collectionResult, folderResult] =
+        await Promise.allSettled([
+          fetchWorkspaceLabels({ store, signal: controller.signal }),
+          fetchFileCollections({ store, signal: controller.signal }),
+          fetchWorkspaceFolders({ store, signal: controller.signal }),
+        ]);
       if (controller.signal.aborted) return;
+
+      // No state of its own. A folder facet the reader cannot see is a filter
+      // they do not miss, and the search box above it is the better tool
+      // anyway — so a failure here is silent rather than an error about
+      // something they were not looking for.
+      setFolders(folderResult.status === "fulfilled" ? folderResult.value : []);
 
       if (labelResult.status === "fulfilled") {
         setLabels(labelResult.value);
@@ -432,8 +507,59 @@ export function DriveAllFilesPanel({
   }
 
   /** What a collection stores: the filters, plus the query that shaped them. */
-  function currentDefinition(): Record<string, unknown> {
-    return { ...filters, query: appliedQuery };
+  function currentDefinition(
+    applied: FileSearchFilterState = filters,
+  ): Record<string, unknown> {
+    return { ...applied, query: appliedQuery };
+  }
+
+  /**
+   * Take one label off one row, and offer the way back in the same breath.
+   *
+   * A dismissal is two writes: the label is rejected, and a tombstone bars the
+   * model from proposing it again. The only code that ever cleared that
+   * tombstone was the manual metadata edit, which is gone — so without the
+   * Undo below, a misclick here was permanent and silent. The toast is the
+   * only place the reader is still looking when it matters.
+   */
+  async function dismissLabel(item: FileResource, labelId: string) {
+    let restore: (() => Promise<void>) | null = null;
+    try {
+      const updated = await decideSuggestion({
+        store,
+        resourceId: item.id,
+        suggestionId: labelId,
+        decision: "reject",
+        expectedMetadataRevision: item.metadataRevision,
+      });
+      restore = async () => {
+        await decideSuggestion({
+          store,
+          resourceId: item.id,
+          suggestionId: labelId,
+          decision: "restore",
+          // The revision the dismissal produced, not the one it consumed.
+          expectedMetadataRevision: updated.metadataRevision,
+        });
+        await runSearch({ query: appliedQuery, filters, keepSelection: true });
+      };
+      setState((current) => ({
+        ...current,
+        items: current.items.map((row) => (row.id === item.id ? updated : row)),
+      }));
+    } catch {
+      toast.error(t("tagRemoveFailed"));
+      return;
+    }
+
+    toast.success(t("tagRemoved"), {
+      action: {
+        label: t("undo"),
+        onClick: () => {
+          void restore?.().catch(() => toast.error(t("tagRestoreFailed")));
+        },
+      },
+    });
   }
 
   async function reloadCollections() {
@@ -458,7 +584,7 @@ export function DriveAllFilesPanel({
     }
   }
 
-  async function saveCollection() {
+  async function saveCollection(applied: FileSearchFilterState = filters) {
     const name = window.prompt(t("collectionNamePrompt"))?.trim();
     if (!name) return;
 
@@ -469,7 +595,9 @@ export function DriveAllFilesPanel({
       const created = await createFileCollection({
         store,
         name,
-        definition: currentDefinition(),
+        // Passed in, not read back from state: the filter footer applies its
+        // draft and saves in one gesture, and `filters` has not caught up yet.
+        definition: currentDefinition(applied),
       });
       setActiveCollectionId(created.id);
       await reloadCollections();
@@ -529,6 +657,80 @@ export function DriveAllFilesPanel({
   }
 
   const activeFilterCount = countActiveFileFilters(filters);
+  const labelName = (id: string) =>
+    labels.find((label) => label.id === id)?.displayName ?? id;
+
+  /**
+   * What is narrowing the list right now, each with the way to turn it off.
+   *
+   * One line, and absent entirely when nothing is applied. The page used to
+   * carry a collections shelf, a result-window count and a bulk control in
+   * this space whether or not the reader had done anything, so the first file
+   * row sat below the fold on a list of ten files.
+   */
+  const appliedFacets: { key: string; label: string; remove: () => void }[] = [
+    ...(filters.folder
+      ? [
+          {
+            key: `folder:${filters.folder}`,
+            label: filters.folder,
+            remove: () => applyFilters({ ...filters, folder: "" }),
+          },
+        ]
+      : []),
+    ...filters.categoryLabelIds.map((id) => ({
+      key: `category:${id}`,
+      label: labelName(id),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          categoryLabelIds: current.categoryLabelIds.filter(
+            (entry) => entry !== id,
+          ),
+        })),
+    })),
+    ...filters.tagLabelIds.map((id) => ({
+      key: `tag:${id}`,
+      label: labelName(id),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          tagLabelIds: current.tagLabelIds.filter((entry) => entry !== id),
+        })),
+    })),
+    ...filters.sourceKinds.map((kind) => ({
+      key: `source:${kind}`,
+      label: t(`source.${kind}` as "source.DRIVE_UPLOAD"),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          sourceKinds: current.sourceKinds.filter((entry) => entry !== kind),
+        })),
+    })),
+    ...filters.typeFamilies.map((family) => ({
+      key: `type:${family}`,
+      label: t(`type.${family}` as "type.document"),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          typeFamilies: current.typeFamilies.filter(
+            (entry) => entry !== family,
+          ),
+        })),
+    })),
+    ...filters.extractionStates.map((state) => ({
+      key: `status:${state}`,
+      label: t(`status.${state}` as "status.INDEXED"),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          extractionStates: current.extractionStates.filter(
+            (entry) => entry !== state,
+          ),
+        })),
+    })),
+  ];
+
   const selectionCount = selectionToken
     ? (state.meta?.windowCount ?? selectedIds.length)
     : selectedIds.length;
@@ -589,132 +791,175 @@ export function DriveAllFilesPanel({
         <DriveFileFilters
           filters={filters}
           labels={labels}
-          onApply={setFilters}
+          folders={folders}
+          onApply={applyFilters}
+          onSaveCollection={(applied) => void saveCollection(applied)}
+          hasQuery={appliedQuery.trim().length > 0}
+          saveDisabled={collectionBusy}
           sheetOpen={filterSheetOpen}
           onSheetOpenChange={setFilterSheetOpen}
           hideDesktopTrigger={isMobile}
         />
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <Bookmark className="text-muted-foreground size-4" aria-hidden />
-
-        {collectionsState === "loading" ? (
-          <span className="text-muted-foreground text-xs">
-            {t("collectionsLoading")}
-          </span>
-        ) : collectionsState === "failed" ? (
-          // Distinct from "you have none": an empty shelf and a failed load
-          // look identical otherwise, and only one of them is worth retrying.
-          <span className="text-muted-foreground flex items-center gap-2 text-xs">
-            {t("collectionsUnavailable")}
-            <button
-              type="button"
-              className="underline underline-offset-2"
-              onClick={() => void reloadCollections()}
-            >
-              {t("retry")}
-            </button>
-          </span>
-        ) : collections.length === 0 ? (
-          <span className="text-muted-foreground text-xs">
-            {t("collectionsEmpty")}
-          </span>
-        ) : (
-          collections.map((collection) => (
-            <span key={collection.id} className="flex items-center">
-              <Button
-                size="sm"
-                variant={
-                  activeCollectionId === collection.id ? "secondary" : "outline"
-                }
-                disabled={collectionBusy}
-                onClick={() => {
-                  const definition = collection.definition as Partial<
-                    FileSearchFilterState & { query?: string }
-                  >;
-                  setFilters({ ...EMPTY_FILE_FILTERS, ...definition });
-                  setQuery(definition.query ?? "");
-                  setAppliedQuery(definition.query ?? "");
-                  setActiveCollectionId(collection.id);
-                }}
+      {appliedFacets.length > 0 ? (
+        <div
+          className="flex flex-wrap items-center gap-2"
+          data-testid="drive-all-files-facets"
+        >
+          {appliedFacets.map((facet) => (
+            <Badge key={facet.key} variant="secondary" className="gap-1 pr-1">
+              <span className="truncate" title={facet.label}>
+                {facet.label}
+              </span>
+              <button
+                type="button"
+                aria-label={t("removeTag", { name: facet.label })}
+                className="hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
+                onClick={facet.remove}
               >
-                {collection.name}
-              </Button>
-              {collection.isOwner ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      // 44px on touch, which is the minimum this codebase
-                      // uses elsewhere (`min-h-11`); a 32px target was
-                      // comfortable with a mouse and a miss with a thumb.
-                      className="size-11 @2xl:size-8"
-                      disabled={collectionBusy}
-                      aria-label={t("collectionActions", {
-                        name: collection.name,
-                      })}
-                    >
-                      <MoreHorizontal className="size-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="start">
-                    <DropdownMenuItem
-                      onClick={() => void resaveCollection(collection)}
-                    >
-                      {t("collectionResave")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => void renameCollection(collection)}
-                    >
-                      {t("collectionRename")}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onClick={() => void removeCollection(collection)}
-                    >
-                      {t("collectionDelete")}
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : null}
-            </span>
-          ))
-        )}
-
-        {/* Only offered when there is something to save. */}
-        {activeFilterCount > 0 || appliedQuery.trim().length > 0 ? (
+                <X className="size-3" aria-hidden />
+              </button>
+            </Badge>
+          ))}
           <Button
             size="sm"
             variant="ghost"
-            disabled={collectionBusy}
-            onClick={() => void saveCollection()}
+            onClick={() => applyFilters({ ...EMPTY_FILE_FILTERS })}
           >
-            <BookmarkPlus className="size-4" />
-            {t("collectionSave")}
+            {t("filterClear")}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
+      {/**
+       * The saved-collections shelf, when there is a collection to show.
+       *
+       * It used to render unconditionally, so a reader who had never saved
+       * anything — every reader, in a database with zero collections — got a
+       * bookmark icon and "No saved collections yet" between the search box
+       * and their files. An empty shelf is not a feature discovery surface, it
+       * is a row of pixels in the way. Saving moved into the filter footer,
+       * where the thing being saved is assembled.
+       *
+       * A failed load still says so: "you have none" and "we could not tell"
+       * look identical otherwise, and only one of them is worth retrying.
+       */}
+      {collectionsState === "failed" || collections.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Bookmark className="text-muted-foreground size-4" aria-hidden />
+
+          {collectionsState === "failed" ? (
+            <span className="text-muted-foreground flex items-center gap-2 text-xs">
+              {t("collectionsUnavailable")}
+              <button
+                type="button"
+                className="underline underline-offset-2"
+                onClick={() => void reloadCollections()}
+              >
+                {t("retry")}
+              </button>
+            </span>
+          ) : (
+            collections.map((collection) => (
+              <span key={collection.id} className="flex items-center">
+                <Button
+                  size="sm"
+                  variant={
+                    activeCollectionId === collection.id
+                      ? "secondary"
+                      : "outline"
+                  }
+                  disabled={collectionBusy}
+                  onClick={() => {
+                    const definition = collection.definition as Partial<
+                      FileSearchFilterState & { query?: string }
+                    >;
+                    applyFilters({ ...EMPTY_FILE_FILTERS, ...definition });
+                    setQuery(definition.query ?? "");
+                    setAppliedQuery(definition.query ?? "");
+                    setActiveCollectionId(collection.id);
+                  }}
+                >
+                  {collection.name}
+                </Button>
+                {collection.isOwner ? (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        // 44px on touch, which is the minimum this codebase
+                        // uses elsewhere (`min-h-11`); a 32px target was
+                        // comfortable with a mouse and a miss with a thumb.
+                        className="size-11 @2xl:size-8"
+                        disabled={collectionBusy}
+                        aria-label={t("collectionActions", {
+                          name: collection.name,
+                        })}
+                      >
+                        <MoreHorizontal className="size-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuItem
+                        onClick={() => void resaveCollection(collection)}
+                      >
+                        {t("collectionResave")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => void renameCollection(collection)}
+                      >
+                        {t("collectionRename")}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onClick={() => void removeCollection(collection)}
+                      >
+                        {t("collectionDelete")}
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                ) : null}
+              </span>
+            ))
+          )}
+        </div>
+      ) : null}
+
+      {/**
+       * What the list is, in the reader's words, and only when there is
+       * something to say.
+       *
+       * This said "Showing 10 of 10 in this result window" to a reader who had
+       * not searched for anything. "Result window" is our word for our
+       * pagination; a count of everything they own is not news. So: a count of
+       * matches when they asked a question, the truncation warning only when
+       * retrieval actually hit a budget, and silence otherwise. It stays an
+       * `aria-live` region either way, because a screen reader has no other way
+       * to learn that a list it is standing in just changed.
+       */}
       <p
-        className="text-muted-foreground text-xs"
+        className="text-muted-foreground text-xs empty:hidden"
         aria-live="polite"
         data-testid="drive-all-files-status"
       >
         {state.loading
           ? t("statusLoading")
           : state.meta
-            ? t("statusShown", {
-                shown: state.items.length,
-                window: state.meta.windowCount,
-              }) +
-              (state.meta.truncated ? ` · ${t("statusTruncated")}` : "") +
-              (state.meta.indexCoverage.processing > 0
-                ? ` · ${t("statusProcessing", {
-                    count: state.meta.indexCoverage.processing,
-                  })}`
-                : "")
+            ? [
+                appliedQuery.trim().length > 0 || activeFilterCount > 0
+                  ? t("statusMatches", { count: state.items.length })
+                  : null,
+                state.meta.truncated ? t("statusTruncated") : null,
+                state.meta.indexCoverage.processing > 0
+                  ? t("statusProcessing", {
+                      count: state.meta.indexCoverage.processing,
+                    })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" \u00b7 ")
             : ""}
       </p>
 
@@ -725,7 +970,7 @@ export function DriveAllFilesPanel({
           </span>
           {state.meta?.nextCursor && !selectionToken ? (
             <Button size="sm" variant="ghost" onClick={selectWholeWindow}>
-              {t("bulkSelectWindow", {
+              {t("bulkSelectAllMatches", {
                 count: state.meta.windowCount,
               })}
             </Button>
@@ -777,7 +1022,7 @@ export function DriveAllFilesPanel({
             <Button
               className="mt-3"
               variant="outline"
-              onClick={() => setFilters({ ...EMPTY_FILE_FILTERS })}
+              onClick={() => applyFilters({ ...EMPTY_FILE_FILTERS })}
             >
               {t("filterClear")}
             </Button>
@@ -785,22 +1030,15 @@ export function DriveAllFilesPanel({
         </div>
       ) : (
         <>
-          <div className="flex items-center gap-2 px-1">
-            <Checkbox
-              checked={
-                state.items.length > 0 &&
-                state.items.every((item) => selectedIds.includes(item.id))
-              }
-              onCheckedChange={(checked) =>
-                checked ? selectThisPage() : setSelectedIds([])
-              }
-              aria-label={t("bulkSelectPage")}
-            />
-            <span className="text-muted-foreground text-xs">
-              {t("bulkSelectPage")}
-            </span>
-          </div>
-
+          {/**
+           * No "Select this page" strip above the list.
+           *
+           * It was a bulk control offered before there was a selection to act
+           * on, in the space between the search box and the first file. A
+           * selection starts by ticking a row; the bulk bar then offers the
+           * rest of the window, which is the only point at which "all of them"
+           * means anything.
+           */}
           <ul
             className={cn(
               viewMode === "grid"
@@ -818,6 +1056,7 @@ export function DriveAllFilesPanel({
                 onOpen={() =>
                   setOpenFile({ id: item.id, displayName: item.displayName })
                 }
+                onDismissLabel={(label) => void dismissLabel(item, label.id)}
               />
             ))}
           </ul>

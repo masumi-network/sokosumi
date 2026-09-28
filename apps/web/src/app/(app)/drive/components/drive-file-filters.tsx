@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilter } from "lucide-react";
+import { BookmarkPlus, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -72,7 +72,27 @@ const PROCESSING_STATES = [
 export interface DriveFileFiltersProps {
   filters: FileSearchFilterState;
   labels: WorkspaceLabel[];
+  /**
+   * Every folder that holds a file, deepest paths and their ancestors.
+   *
+   * Folders used to be a grid above the catalog, which owned the top of the
+   * page and could not be combined with a query or with any other filter.
+   * Here one folder narrows the same list the search box searches.
+   */
+  folders: string[];
   onApply: (filters: FileSearchFilterState) => void;
+  /**
+   * Keep this filter set, under a name.
+   *
+   * It used to be a button on a shelf above the list, beside "No saved
+   * collections yet" — an empty shelf offering to save nothing, shown to a
+   * reader who had not searched for anything. Saving belongs where the thing
+   * being saved is assembled.
+   */
+  onSaveCollection?: (filters: FileSearchFilterState) => void;
+  /** True when a query is applied, so saving is worth offering. */
+  hasQuery?: boolean;
+  saveDisabled?: boolean;
   /** Mobile sheet is controlled by the panel's own chip row. */
   sheetOpen?: boolean;
   onSheetOpenChange?: (open: boolean) => void;
@@ -88,7 +108,11 @@ function toggle(values: string[], value: string): string[] {
 export function DriveFileFilters({
   filters,
   labels,
+  folders,
   onApply,
+  onSaveCollection,
+  hasQuery = false,
+  saveDisabled = false,
   sheetOpen,
   onSheetOpenChange,
   hideDesktopTrigger,
@@ -105,6 +129,18 @@ export function DriveFileFilters({
   const activeCount = countActiveFileFilters(filters);
   const categories = labels.filter((label) => label.kind === "CATEGORY");
   const tags = labels.filter((label) => label.kind === "TAG");
+  /**
+   * The applied folder is always offered, even when it holds no file.
+   *
+   * The list names folders the catalog has seen a file in. A folder the reader
+   * just created holds nothing and is not in it — and without this the radio
+   * they are standing on would not exist, so the only way out of an empty
+   * folder would be Clear filters.
+   */
+  const folderOptions =
+    draft.folder && !folders.includes(draft.folder)
+      ? [draft.folder, ...folders]
+      : folders;
 
   function apply(next: FileSearchFilterState) {
     onApply(next);
@@ -114,6 +150,45 @@ export function DriveFileFilters({
 
   const body = (
     <div className="flex flex-col gap-5">
+      {folderOptions.length > 0 ? (
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-medium">{t("filterFolder")}</legend>
+          {/**
+           * One folder at a time, so this is a radio set rather than
+           * checkboxes. Two folders would be a union, and the reader who wants
+           * both already has the whole catalog — which is what the first option
+           * is.
+           */}
+          <label className="flex min-h-11 items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="folder"
+              checked={draft.folder === ""}
+              onChange={() =>
+                setDraft((current) => ({ ...current, folder: "" }))
+              }
+            />
+            <span>{t("filterFolderAll")}</span>
+          </label>
+          {folderOptions.map((folder) => (
+            <label
+              key={folder}
+              className="flex min-h-11 items-center gap-2 text-sm"
+            >
+              <input
+                type="radio"
+                name="folder"
+                checked={draft.folder === folder}
+                onChange={() => setDraft((current) => ({ ...current, folder }))}
+              />
+              <span className="truncate" title={folder}>
+                {folder}
+              </span>
+            </label>
+          ))}
+        </fieldset>
+      ) : null}
+
       {categories.length > 0 ? (
         <fieldset className="flex flex-col gap-2">
           <legend className="text-sm font-medium">{t("filterCategory")}</legend>
@@ -259,7 +334,23 @@ export function DriveFileFilters({
       <Button variant="ghost" onClick={() => apply({ ...EMPTY_FILE_FILTERS })}>
         {t("filterClear")}
       </Button>
-      <Button onClick={() => apply(draft)}>{t("filterApply")}</Button>
+      <div className="flex items-center gap-2">
+        {/* Nothing applied and nothing typed is nothing to save. */}
+        {onSaveCollection && (hasQuery || countActiveFileFilters(draft) > 0) ? (
+          <Button
+            variant="ghost"
+            disabled={saveDisabled}
+            onClick={() => {
+              apply(draft);
+              onSaveCollection(draft);
+            }}
+          >
+            <BookmarkPlus className="size-4" />
+            {t("collectionSave")}
+          </Button>
+        ) : null}
+        <Button onClick={() => apply(draft)}>{t("filterApply")}</Button>
+      </div>
     </div>
   );
 
