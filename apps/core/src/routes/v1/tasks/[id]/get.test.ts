@@ -23,8 +23,17 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { taskFindFirstMock, coworkerFindFirstMock } = vi.hoisted(() => ({
+const {
+  taskFindFirstMock,
+  taskFindUniqueMock,
+  projectFindUniqueMock,
+  aliasFindUniqueMock,
+  coworkerFindFirstMock,
+} = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
+  taskFindUniqueMock: vi.fn(),
+  projectFindUniqueMock: vi.fn(),
+  aliasFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
 }));
 
@@ -35,7 +44,10 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     task: {
       findFirst: taskFindFirstMock,
+      findUnique: taskFindUniqueMock,
     },
+    project: { findUnique: projectFindUniqueMock },
+    taskIdentifierAlias: { findUnique: aliasFindUniqueMock },
   },
 }));
 
@@ -702,5 +714,138 @@ describe("GET /tasks/{id}", () => {
         archivedAt: null,
       },
     });
+  });
+});
+
+describe("GET /tasks/{id} by identifier", () => {
+  const PROJECT_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+  const TASK_ID = "01960001-0001-7001-8001-000000000042";
+
+  function get(ref: string) {
+    const app = createApp();
+    mountGetTaskById(app);
+    return app.request(`http://localhost/${ref}`);
+  }
+
+  function accessWhereIds(): unknown[] {
+    return taskFindFirstMock.mock.calls.map(
+      ([args]) => (args as { where: { id: string } }).where.id,
+    );
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    projectFindUniqueMock.mockResolvedValue({ id: PROJECT_ID });
+    taskFindUniqueMock.mockResolvedValue({ id: TASK_ID });
+    aliasFindUniqueMock.mockResolvedValue(null);
+    taskFindFirstMock.mockImplementation(
+      async (args: { where: { id: string }; include?: unknown }) =>
+        args.where.id === TASK_ID
+          ? {
+              ...createTask(),
+              id: TASK_ID,
+              number: 12,
+              projectId: PROJECT_ID,
+              project: {
+                id: PROJECT_ID,
+                name: "Sokosumi",
+                identifier: "SOK",
+                logo: null,
+              },
+            }
+          : null,
+    );
+  });
+
+  it("reads a uuid without any identifier lookup", async () => {
+    const response = await get(TASK_ID);
+
+    expect(response.status).toBe(200);
+    expect(projectFindUniqueMock).not.toHaveBeenCalled();
+    expect(accessWhereIds()).toEqual([TASK_ID]);
+  });
+
+  it.each(["SOK-12", "sok-12", "SOK-12-some-slug"])(
+    "resolves %s in the active workspace and returns the task",
+    async (ref) => {
+      const response = await get(ref);
+
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(body.data).toMatchObject({ id: TASK_ID, identifier: "SOK-12" });
+      expect(projectFindUniqueMock).toHaveBeenCalledWith({
+        where: {
+          workspaceId_identifier: {
+            workspaceId: testWorkspaceId,
+            identifier: "SOK",
+          },
+        },
+        select: { id: true },
+      });
+      expect(taskFindUniqueMock).toHaveBeenCalledWith({
+        where: { projectId_number: { projectId: PROJECT_ID, number: 12 } },
+        select: { id: true },
+      });
+      expect(accessWhereIds()).toEqual([TASK_ID]);
+    },
+  );
+
+  it("falls back to the alias of a task that moved away", async () => {
+    taskFindUniqueMock.mockResolvedValue(null);
+    aliasFindUniqueMock.mockResolvedValue({ taskId: TASK_ID });
+
+    const response = await get("SOK-3");
+
+    expect(response.status).toBe(200);
+    expect(aliasFindUniqueMock).toHaveBeenCalledWith({
+      where: { projectId_number: { projectId: PROJECT_ID, number: 3 } },
+      select: { taskId: true },
+    });
+    expect(accessWhereIds()).toEqual([TASK_ID]);
+  });
+
+  it("returns the usual 404 when the workspace has no such project", async () => {
+    projectFindUniqueMock.mockResolvedValue(null);
+
+    const unknown = await get("OTH-12");
+    const missing = await get("01960001-0001-7001-8001-0000000000ff");
+
+    expect(unknown.status).toBe(404);
+    expect(taskFindUniqueMock).not.toHaveBeenCalled();
+    expect(await unknown.text()).toBe("Task not found");
+    expect(missing.status).toBe(404);
+  });
+
+  it("returns the same 404 body for an unknown number as for a missing task", async () => {
+    taskFindUniqueMock.mockResolvedValue(null);
+
+    const unknownNumber = await get("SOK-99");
+    const missingTask = await get("01960001-0001-7001-8001-0000000000ff");
+
+    expect(unknownNumber.status).toBe(404);
+    expect(await unknownNumber.text()).toBe(await missingTask.text());
+  });
+
+  it("returns 404 when the caller cannot see the resolved task", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const response = await get("SOK-12");
+
+    expect(response.status).toBe(404);
+    expect(taskFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: TASK_ID,
+          ...buildHumanTaskVisibilityWhere("user_123"),
+        }),
+      }),
+    );
+  });
+
+  it("returns 404 for a malformed ref without identifier lookups", async () => {
+    const response = await get("SOK-abc");
+
+    expect(response.status).toBe(404);
+    expect(projectFindUniqueMock).not.toHaveBeenCalled();
   });
 });
