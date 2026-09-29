@@ -15,7 +15,10 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signUp } from "@/lib/auth/auth.client";
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import {
+  buildOAuthConsentReturnUrlFromSearchParams,
+  buildSignInUrlFromSignUp,
+} from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -160,7 +163,7 @@ export default function SignUpForm({
             {t("Login.message")}
           </span>
           <Link
-            href="/signin"
+            href={buildSignInUrlFromSignUp({ returnUrl: effectiveReturnUrl })}
             className="text-primary text-sm font-medium hover:underline"
           >
             {t("Login.link")}
