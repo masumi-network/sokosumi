@@ -13,6 +13,7 @@ import { waitUntil } from "@vercel/functions";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
+  readTaskWorkspaceOrganizationId,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
@@ -308,16 +309,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           : requireUserContext(authContext).userId;
         // Agents spend the task billing org. A person acts in the workspace
         // the task currently lives in (move does not rewrite billing org).
-        let seatOrganizationId = task.organizationId;
-        if (!isAgent) {
-          const placement = await tx.workspace.findUnique({
-            where: { id: task.workspaceId },
-            select: { organizationId: true },
-          });
-          if (placement) {
-            seatOrganizationId = placement.organizationId;
-          }
-        }
+        const seatOrganizationId = isAgent
+          ? task.organizationId
+          : await readTaskWorkspaceOrganizationId(task.workspaceId, tx);
         await requireAssignedOrganizationSeat(
           assignedSeatUserId,
           seatOrganizationId,

@@ -118,7 +118,7 @@ export function buildTaskWriteAccessWhere(
  * billing org and stays put when the task moves, so a seat check against it
  * misses the workspace the member is acting in.
  */
-async function readTaskWorkspaceOrganizationId(
+export async function readTaskWorkspaceOrganizationId(
   workspaceId: string,
   tx: Prisma.TransactionClient,
 ): Promise<string | null> {

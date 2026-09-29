@@ -82,6 +82,23 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
+  // Real lookup against the tx double, so seat tests see the workspace org.
+  readTaskWorkspaceOrganizationId: async (
+    workspaceId: string,
+    tx: {
+      workspace: {
+        findUnique: (args: unknown) => Promise<{
+          organizationId: string | null;
+        } | null>;
+      };
+    },
+  ) =>
+    (
+      await tx.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { organizationId: true },
+      })
+    )?.organizationId ?? null,
   requireTaskCollaboration: requireTaskCollaborationMock,
   requireTaskStatusWriteAccess: requireTaskStatusWriteAccessMock,
   requireTaskCommentAccess: requireTaskCommentAccessMock,
