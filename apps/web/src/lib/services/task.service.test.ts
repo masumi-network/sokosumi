@@ -566,12 +566,11 @@ describe("task.service", () => {
   it("returns the activity summary DTO untouched", async () => {
     const summary = {
       awaitingInput: 2,
-      basis: "lastVisit" as const,
       completed: 4,
       createdByOtherHumans: 3,
-      lastVisitAt: new Date("2026-08-10T09:00:00.000Z"),
       since: new Date("2026-08-10T09:00:00.000Z"),
       workedMinutes: 47,
+      previous: { completed: 3, createdByOtherHumans: 5, workedMinutes: 60 },
     };
     coreClientMock.getTasksSummary.mockResolvedValue({ data: summary });
 
