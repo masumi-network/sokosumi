@@ -13,7 +13,7 @@ import { waitUntil } from "@vercel/functions";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
-  requireTaskCancelAccess,
+  readTaskWorkspaceOrganizationId,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
@@ -297,11 +297,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         authenticationUrl == null &&
         masumiPayment == null;
 
-      const task = isCancelOnlyWrite
-        ? await requireTaskCancelAccess(c.var, taskId, tx)
-        : hasNonCommentWrite
-          ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
-          : await requireTaskCommentAccess(c.var, taskId, tx);
+      const task = hasNonCommentWrite
+        ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
+        : await requireTaskCommentAccess(c.var, taskId, tx);
 
       const isAgent = isAgentAuthContext(authContext);
 
@@ -309,9 +307,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const assignedSeatUserId = isAgent
           ? task.ownerId
           : requireUserContext(authContext).userId;
+        // Agents spend the task billing org. A person acts in the workspace
+        // the task currently lives in (move does not rewrite billing org).
+        const seatOrganizationId = isAgent
+          ? task.organizationId
+          : await readTaskWorkspaceOrganizationId(task.workspaceId, tx);
         await requireAssignedOrganizationSeat(
           assignedSeatUserId,
-          task.organizationId,
+          seatOrganizationId,
           tx,
         );
       }

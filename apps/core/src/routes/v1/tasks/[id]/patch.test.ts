@@ -1,5 +1,8 @@
 import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import {
+  buildAdHocDesignMdPrefix,
+  CORE_API_ERROR_KINDS,
+} from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { forbidden } from "@/helpers/error";
@@ -29,7 +32,7 @@ const {
   requireTaskAssignableSokoBotMock,
   requireTaskAssignableUserMock,
   publishTaskEventDataMock,
-  requireTaskOwnershipMock,
+  requireTaskWriteAccessMock,
   resolveEffectiveDesignMdMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
@@ -43,7 +46,7 @@ const {
   requireTaskAssignableSokoBotMock: vi.fn(),
   requireTaskAssignableUserMock: vi.fn(),
   publishTaskEventDataMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  requireTaskWriteAccessMock: vi.fn(),
   resolveEffectiveDesignMdMock: vi.fn().mockResolvedValue(null),
   taskUpdateMock: vi.fn(),
 }));
@@ -64,7 +67,7 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
   requireTaskAssignableUser: requireTaskAssignableUserMock,
-  requireMutableTaskOwnership: requireTaskOwnershipMock,
+  requireMutableTaskWriteAccess: requireTaskWriteAccessMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -297,7 +300,7 @@ describe("patchTaskRequestSchema", () => {
 describe("PATCH /tasks/{id}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -361,7 +364,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("unassigns a task from its project", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -411,7 +414,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("rejects an update when the task moves workspaces before its row is locked", async () => {
     const app = createApp();
-    requireTaskOwnershipMock
+    requireTaskWriteAccessMock
       .mockResolvedValueOnce({
         id: "tsk_123",
         status: TaskStatus.DRAFT,
@@ -443,7 +446,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("moves a task directly between projects", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -473,7 +476,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("updates fields of a queued task", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -530,12 +533,12 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
   });
 
   it("assigns a personal assistant as soko bot", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -575,7 +578,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("rejects assigning someone else's personal assistant with 403", async () => {
     const sokoBotId = "01960001-0001-7001-8001-000000000099";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -608,7 +611,7 @@ describe("PATCH /tasks/{id}", () => {
   describe("PATCH /tasks/{id} human assignee (SOK-868)", () => {
     beforeEach(() => {
       vi.clearAllMocks();
-      requireTaskOwnershipMock.mockResolvedValue({
+      requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
@@ -685,7 +688,7 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     it("rejects assigning a human teammate to a private Task", async () => {
-      requireTaskOwnershipMock.mockResolvedValue({
+      requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
@@ -711,7 +714,7 @@ describe("PATCH /tasks/{id}", () => {
     });
 
     it("does not notify when the human assignee is cleared", async () => {
-      requireTaskOwnershipMock.mockResolvedValue({
+      requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
@@ -739,7 +742,7 @@ describe("PATCH /tasks/{id}", () => {
      * task they no longer have (SOK-916).
      */
     it("marks the previous holder's assigned row read", async () => {
-      requireTaskOwnershipMock.mockResolvedValue({
+      requireTaskWriteAccessMock.mockResolvedValue({
         id: "tsk_123",
         status: TaskStatus.DRAFT,
         assigneeId: null,
@@ -783,7 +786,7 @@ describe("PATCH /tasks/{id}", () => {
     const briefingUrl = "https://store.public.blob.vercel-storage.com/brief.md";
     const contextMdUrl =
       "https://store.public.blob.vercel-storage.com/context.md";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -828,7 +831,7 @@ describe("PATCH /tasks/{id}", () => {
     const app = createApp();
     const designMdUrl =
       "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -875,7 +878,7 @@ describe("PATCH /tasks/{id}", () => {
       "https://store.public.blob.vercel-storage.com/design-md/projects/old.md";
     const liveBrandUrl =
       "https://store.public.blob.vercel-storage.com/design-md/projects/new.md";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -917,11 +920,48 @@ describe("PATCH /tasks/{id}", () => {
     );
   });
 
+  it("accepts the acting member's own ad-hoc brand on another member's task", async () => {
+    const app = createApp();
+    const memberBrandUrl = `https://store.public.blob.vercel-storage.com/${buildAdHocDesignMdPrefix("user_123")}brand.md`;
+    requireTaskWriteAccessMock.mockResolvedValue({
+      id: "tsk_123",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      projectId: null,
+      workspaceId: WORKSPACE_ID,
+      organizationId: "org_123",
+      ownerId: "user_owner",
+      description: "Keep prose",
+      visibility: TaskVisibility.PUBLIC,
+    });
+    resolveEffectiveDesignMdMock.mockResolvedValue(null);
+
+    const response = await app.request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        description: "Keep prose",
+        context: { brand: { url: memberBrandUrl } },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          description: `[DESIGN.md](${memberBrandUrl})\n\nKeep prose`,
+        }),
+      }),
+    );
+  });
+
   it("treats explicit description null as empty prose when context is provided", async () => {
     const app = createApp();
     const designMdUrl =
       "https://store.public.blob.vercel-storage.com/design-md/projects/brand.md";
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -964,7 +1004,7 @@ describe("PATCH /tasks/{id}", () => {
 
   it("rejects when Context resolves to no attachments and prose is empty", async () => {
     const app = createApp();
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: null,
@@ -1005,7 +1045,7 @@ describe("PATCH /tasks/{id} Queued Task with a Run at (ADR 0041)", () => {
   const taskEventCreateMock = vi.fn();
 
   function mockQueuedTask(overrides: Record<string, unknown> = {}) {
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.QUEUED,
       assigneeId: "cow_123",
@@ -1125,7 +1165,7 @@ describe("PATCH /tasks/{id} Run at", () => {
   }
 
   function mockTask(overrides: Record<string, unknown> = {}) {
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.DRAFT,
       assigneeId: "cow_123",
