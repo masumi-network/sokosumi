@@ -31,13 +31,22 @@ export interface EvidenceScopeKey {
 
 /** Actor kinds each source admits at all. Anything absent fails closed. */
 const SOURCE_ACTOR_CEILING: Record<FileSourceKind, FileActorKind[]> = {
+  // The owner's Soko Bot reads the Drive and Task outputs for its owner, as
+  // an API key or a Coworker does.
   [FileSourceKind.DRIVE_UPLOAD]: [
     "interactive",
     "api_key",
     "oauth",
     "coworker",
+    "soko_bot",
   ],
-  [FileSourceKind.TASK_OUTPUT]: ["interactive", "api_key", "oauth", "coworker"],
+  [FileSourceKind.TASK_OUTPUT]: [
+    "interactive",
+    "api_key",
+    "oauth",
+    "coworker",
+    "soko_bot",
+  ],
   [FileSourceKind.PROJECT_DOCUMENT]: ["interactive"],
   [FileSourceKind.NATIVE_TABLE]: ["interactive"],
   // Studio is interactive-only in v1 and exposes no derived field at all to

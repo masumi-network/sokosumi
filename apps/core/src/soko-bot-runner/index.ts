@@ -22,6 +22,7 @@ import {
 } from "ai";
 
 import {
+  citableSources,
   fetchWebPage,
   listWorkspace,
   readWorkspaceFile,
@@ -105,14 +106,28 @@ async function sandboxTool<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   await callCore("/actions", { name, toolCallId, input });
+  // What the tool returned, clipped: the audit trail of what the bot read.
+  const report = (status: "completed" | "failed", output: unknown) =>
+    callCore("/actions/result", {
+      name,
+      toolCallId,
+      status,
+      output: JSON.stringify(output ?? null).slice(0, ACTION_OUTPUT_LIMIT),
+      sources: citableSources(name, output),
+    }).catch(() => undefined);
   try {
-    return await run();
-  } finally {
-    await callCore("/actions/result", { name, toolCallId }).catch(
-      () => undefined,
-    );
+    const output = await run();
+    await report("completed", output);
+    return output;
+  } catch (error) {
+    await report("failed", {
+      error: error instanceof Error ? error.message : "failed",
+    });
+    throw error;
   }
 }
+
+const ACTION_OUTPUT_LIMIT = 8_000;
 
 const plan: { step: string; status: string }[] = [];
 
@@ -181,7 +196,8 @@ function buildTools(
  * One search, in its own model call. The Gateway runs the search inside that
  * call; keeping it out of the main conversation matters because Gemini
  * rejects a replayed history that mixes Gateway-executed and runner-executed
- * tool calls in one step.
+ * tool calls in one step. The key must not be `web_search`: OpenAI models map
+ * that name to their own built-in tool and reject the call.
  */
 async function searchWeb(
   query: string,
@@ -190,8 +206,10 @@ async function searchWeb(
 ): Promise<{ query: string; results: unknown[] }> {
   const result = await generateText({
     model: gateway(model),
-    tools: { web_search: gateway.tools.perplexitySearch({ maxResults: 5 }) },
-    toolChoice: { type: "tool", toolName: "web_search" },
+    tools: {
+      perplexity_search: gateway.tools.perplexitySearch({ maxResults: 5 }),
+    },
+    toolChoice: { type: "tool", toolName: "perplexity_search" },
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
   });
@@ -256,7 +274,11 @@ async function main(): Promise<void> {
       maxRetries: 1,
     });
     await callCore("/complete", {
-      text: result.text,
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      text:
+        result.text ||
+        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
     });
   } catch (error) {

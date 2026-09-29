@@ -4,6 +4,7 @@ import type {
   AdminSokoBotActionRequest,
   AdminSokoBotDetail,
   AdminSokoBotList,
+  AdminSokoBotModelEvaluations,
   AdminSokoBotQuality,
   AdminSokoBotVersionMigrationRequest,
   AdminSokoBotVersionMigrationResult,
@@ -45,6 +46,12 @@ export const adminSokoBotService = {
       versionId: params.versionId,
       sokoBotId: params.sokoBotId,
     });
+    return response.data;
+  },
+
+  /** Recent judge and routing model comparisons, newest first. */
+  async evaluations(): Promise<AdminSokoBotModelEvaluations> {
+    const response = await coreClient.getAdminSokoBotModelEvaluations();
     return response.data;
   },
 

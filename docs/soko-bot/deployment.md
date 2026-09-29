@@ -36,10 +36,36 @@ Optional, per network:
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
   zero data retention and no prompt training. Without the key every turn
-  falls back to read-only CLARIFY. Only text a person wrote is classified:
+  falls back to read-only CLARIFY. Only text a person wrote is routed:
   turns whose prompt Core writes (task-board and delegation events, inbox
   sync, the stand-up and weekly wrap) run on fixed routes in
   `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
+  The same exception (widened 2026-09-30) covers the bot's own text: the
+  router also sees the bot's previous reply, so a bare "yes" has a referent;
+  the claim check reads each reply on a turn that could act, to hold back
+  one that claims an unconfirmed change; and `find_agents` sends the
+  request. Replies can quote mail, calendar and Tasks, so this applies to
+  EU-pinned versions too: their answers are written in the EU, these checks
+  are not.
+- The agent model is the turn's version model. The default, GPT-6 Luna
+  (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
+  second owner-approved exception (2026-09-29), for the agent role only:
+  owner prompts, Tasks and mail are processed by OpenAI outside the EU, with
+  zero data retention and no prompt training. One call is the exception: the
+  web search itself, which Perplexity runs through the Gateway, carries only
+  the search terms and keeps no prompt training but not zero retention, which
+  Perplexity does not offer. The search terms are written by the model and can
+  quote the owner's request. EU-pinned versions (v20, on
+  Gemini 3.8) stay available, and the lab judge and preview evaluation runs
+  stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
+- `SOKO_BOT_JUDGE_MODEL` — the behaviour lab's judge, Claude Opus 5.5 in the EU
+  by default. It agreed with hand grades most often of the EU-routable models
+  compared on 2026-09-30 (Haiku 4.5, Sonnet 5 and 5.5, Gemini 3.8 Flash), and
+  gave the same verdict on every re-run. Only lab turns are judged: settled
+  real turns are not scored, which cost a model call per turn. Re-run the
+  comparison with `pnpm --filter @sokosumi/core soko-bot:judge-eval`, and the
+  route classifier's with `soko-bot:router-eval`; results appear under Admin →
+  Soko Bots → Model evaluations.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
@@ -96,14 +122,20 @@ the old prefix after DB URLs are clean:
   with `scripts/soko-bot-runner-local.mts`, which needs neither.
 - The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
   per-turn token its network proxy injects. Core serves the prompt, executes
-  Sokosumi tools, proxies and meters every model call under the EU policy, and
+  Sokosumi tools, proxies and meters every model call under the model policy
+  (EU pinning, or the owner-approved global agent models above), and
   settles the turn through `soko_bot_runtime_event` and the
   `/sync/soko-bot-turns` drain as before.
 - Turns are bounded by the 15-minute turn deadline and `SOKO_BOT_MAX_STEPS`.
 - Capability scoping, the pinned context snapshot, lease and deadline checks,
   and administrator pause gate every Sokosumi tool call. After a turn reads the
   web or runs a command, outward actions (hire, job input, integrations,
-  uploads, chat posts) are refused until the owner approves.
+  uploads, image generation, chat posts) are refused until the owner approves.
+- Sandbox tools (web search and fetch, bash, the workspace) are recorded as
+  tool-call rows with their clipped output and the pages they give grounds to
+  cite. They have no actor bot, so they are never receipts, and they do not
+  count toward the per-turn tool limit. A turn's answer keeps only links it
+  found or loaded, was given, or that point into Sokosumi.
 
 ## History
 

@@ -28,6 +28,17 @@ export const sokoBotTaskIdInputSchema = z
   .object({ taskId: z.string().min(1) })
   .strict();
 
+export const sokoBotListTasksInputSchema = z
+  .object({
+    state: z.enum(["open", "finished", "all"]).default("open"),
+    query: z.string().trim().min(1).max(200).optional(),
+    assignee: z.string().trim().min(1).max(160).optional(),
+    idleDays: z.number().int().min(1).max(365).optional(),
+    projectId: z.string().min(1).optional(),
+    limit: z.number().int().min(1).max(25).default(15),
+  })
+  .strict();
+
 export const sokoBotJobIdInputSchema = z
   .object({ jobId: z.string().min(1) })
   .strict();
@@ -197,10 +208,18 @@ export const sokoBotPostChatInputSchema = z.object({
 });
 
 export const sokoBotListFilesInputSchema = z.object({
-  /** Narrow to names containing this text. */
+  /** Words to find in file names and contents; omit to list the newest. */
   query: z.string().max(200).optional(),
-  limit: z.number().int().min(1).max(100).optional(),
+  limit: z.number().int().min(1).max(20).optional(),
 });
+
+export const sokoBotReadFileInputSchema = z
+  .object({
+    /** File id from `list_files`. */
+    fileId: z.string().min(1),
+    maxChars: z.number().int().min(500).max(40_000).optional(),
+  })
+  .strict();
 
 export const sokoBotUploadFileInputSchema = z.object({
   /** File name including extension, e.g. "launch-brief.md". */
@@ -210,6 +229,22 @@ export const sokoBotUploadFileInputSchema = z.object({
   /** MIME type; defaults to text/markdown. */
   contentType: z.string().max(120).optional(),
 });
+
+export const sokoBotGenerateImageInputSchema = z
+  .object({
+    /** Project whose Content Studio receives the image. */
+    projectId: z.string().min(1),
+    prompt: z.string().trim().min(1).max(4_000),
+    /** Width:height such as "16:9"; the studio checks it. Defaults to 1:1. */
+    aspectRatio: z.string().max(10).optional(),
+    /** Most credits this image may cost; the price is checked first. */
+    maxCredits: z.number().positive().max(10_000),
+  })
+  .strict();
+
+export const sokoBotGetImageInputSchema = z
+  .object({ projectId: z.string().min(1), jobId: z.string().min(1) })
+  .strict();
 
 export const sokoBotOpenDirectChatInputSchema = z.object({
   /** Who to reach: their name or email address, as your owner said it. Must be someone in your owner's organization. */
@@ -456,6 +491,9 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   post_chat: sokoBotPostChatInputSchema,
   list_files: sokoBotListFilesInputSchema,
+  read_file: sokoBotReadFileInputSchema,
+  generate_image: sokoBotGenerateImageInputSchema,
+  get_image: sokoBotGetImageInputSchema,
   upload_file: sokoBotUploadFileInputSchema,
   list_integrations: emptyInputSchema,
   search_inbox: sokoBotSearchInboxInputSchema,
@@ -468,6 +506,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   archive_task: sokoBotArchiveTaskInputSchema,
   assign_task: sokoBotAssignTaskInputSchema,
   get_task_status: sokoBotTaskIdInputSchema,
+  list_tasks: sokoBotListTasksInputSchema,
   reply_to_task: sokoBotReplyToTaskInputSchema,
   update_assigned_task: sokoBotUpdateAssignedTaskInputSchema,
   link_tasks: sokoBotLinkTasksInputSchema,
@@ -529,7 +568,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_chats:
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat.",
   read_chat:
-    "Read recent messages in one chat room you are a member of, newest first, with who sent each one. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
+    "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:
@@ -545,7 +584,13 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_table_columns:
     "Add columns or update descriptions/names/order using the current table version and the full retained column list. Preserve IDs. Populated columns cannot change type or remove options. Include taskId for task-driven work. Follow-up requests reuse the same table.",
   list_files:
-    "Files in the owner\u2019s Drive: name, size, type and when each was uploaded. Use it to find an existing document before writing a new one.",
+    "Search the owner\u2019s Drive by words in file names and contents, or list the newest files. Returns each file\u2019s id, name, type, size, last change, category, tags, folder and a matching passage. Use it to find an existing document before writing a new one.",
+  generate_image:
+    "Generate an image in a Project's Content Studio from a prompt. It spends the owner's credits: set maxCredits, and it refuses when the image would cost more. Only for a request the owner made in this chat. Generation takes a minute; check it with get_image.",
+  get_image:
+    "Check an image started with generate_image: its status, and a link to it in Content Studio once it is ready.",
+  read_file:
+    "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
     "Write a text file into the owner\u2019s Drive (a brief, a summary, notes). Give a filename with an extension; the file appears in their Drive straight away.",
   list_integrations:
@@ -559,7 +604,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
-    "Create Sokosumi Task, preferably DRAFT, for Coworker execution.",
+    "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task.",
   update_task:
     "Update existing Task scope or DRAFT/READY status. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
@@ -567,6 +612,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   assign_task: "Assign Task to available Coworker and optionally make READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
+  list_tasks:
+    "List the owner's Tasks on the board. Filter by state (open, finished, all), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first. Use get_task_status for one Task in full.",
   reply_to_task:
     "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
   update_assigned_task:
@@ -574,7 +621,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   link_tasks:
     "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
   find_agents:
-    "Find marketplace Agents when Coworker delegation is unsuitable.",
+    "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer; `closest` then shows the nearest listings, which do related work, not this. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
     "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",

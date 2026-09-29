@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  judgeCaseSummarySchema,
+  judgeModelSummarySchema,
+  routerCaseSummarySchema,
+  routerModelSummarySchema,
+} from "@/lib/soko-bot/model-evaluation";
 import { userSummarySchema } from "@/schemas/user.schema";
 
 export const sokoBotSummarySchema = z
@@ -630,6 +636,8 @@ export const adminSokoBotVersionMigrationRequestSchema = z
     fromVersionId: sokoBotVersionSlugSchema.optional(),
     toVersionId: sokoBotVersionSlugSchema,
     reason: z.string().trim().min(1).max(2_000),
+    /** Post a fixed note in each moved bot's owner chat saying what changed. */
+    notifyOwners: z.boolean().optional(),
   })
   .strict()
   .openapi("AdminSokoBotVersionMigrationRequest");
@@ -639,6 +647,8 @@ export const adminSokoBotVersionMigrationResultSchema = z
     /** Bots that matched the filter, including ones already on the target. */
     total: z.number().int(),
     moved: z.number().int(),
+    /** Owners told in their bot's chat; moved bots whose owner has no chat yet are not. */
+    notified: z.number().int(),
     alreadyOnVersion: z.number().int(),
     failed: z.number().int(),
     /** A sample of the failures, so a partial run says where to look. */
@@ -1094,3 +1104,42 @@ export const setSokoBotAvailabilityRequestSchema = z
     reason: z.string().trim().max(300).optional(),
   })
   .openapi("SetSokoBotAvailabilityRequest");
+
+const modelEvaluationBase = {
+  id: z.string(),
+  createdAt: dateTimeSchema,
+  label: z.string(),
+  /** The model the role ran on when this was recorded. */
+  inUseModel: z.string().nullable(),
+};
+
+export const adminSokoBotJudgeEvaluationSchema = z
+  .object({
+    ...modelEvaluationBase,
+    models: z.array(
+      judgeModelSummarySchema.openapi("SokoBotJudgeModelSummary"),
+    ),
+    cases: z.array(judgeCaseSummarySchema.openapi("SokoBotJudgeCaseSummary")),
+  })
+  .openapi("AdminSokoBotJudgeEvaluation");
+
+export const adminSokoBotRouterEvaluationSchema = z
+  .object({
+    ...modelEvaluationBase,
+    models: z.array(
+      routerModelSummarySchema.openapi("SokoBotRouterModelSummary"),
+    ),
+    cases: z.array(routerCaseSummarySchema.openapi("SokoBotRouterCaseSummary")),
+  })
+  .openapi("AdminSokoBotRouterEvaluation");
+
+export const adminSokoBotModelEvaluationsSchema = z
+  .object({
+    /** What each role runs on now, to mark it in the tables. */
+    currentJudgeModel: z.string(),
+    currentRouteModel: z.string(),
+    /** Newest first. */
+    judge: z.array(adminSokoBotJudgeEvaluationSchema),
+    router: z.array(adminSokoBotRouterEvaluationSchema),
+  })
+  .openapi("AdminSokoBotModelEvaluations");

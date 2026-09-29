@@ -1,4 +1,4 @@
-import { FlaskConical, GitBranch } from "lucide-react";
+import { FlaskConical, GitBranch, Scale } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
@@ -73,6 +73,12 @@ export default async function AdminSokoBotsPage({
               <Link href="/admin/soko-bots/lab">
                 <FlaskConical aria-hidden className="size-4" />
                 {t("labLink")}
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/admin/soko-bots/evaluations">
+                <Scale aria-hidden className="size-4" />
+                {t("evaluationsLink")}
               </Link>
             </Button>
           </div>

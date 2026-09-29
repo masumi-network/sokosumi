@@ -152,8 +152,12 @@ vi.mock("./soko-bot-delivery.service", () => ({
   deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { postOwnerNoticeMock } = vi.hoisted(() => ({
+  postOwnerNoticeMock: vi.fn(),
+}));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
+  postSokoBotOwnerNotice: postOwnerNoticeMock,
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -464,12 +468,12 @@ describe("SokoBotControlPlane lifecycle", () => {
       state: "BLOCKED" as const,
     },
     {
-      finalAnswer: "Created social post (post-one).",
+      finalAnswer: "Created social post.",
       blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
       state: "BLOCKED" as const,
     },
     {
-      finalAnswer: "Created social post (post-one).",
+      finalAnswer: "Created social post.",
       blockerKind: "ARTIFACT_READABILITY_UNVERIFIED",
       state: "BLOCKED" as const,
     },
@@ -601,7 +605,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       startedAt: new Date(),
       costUsdMicros: 0n,
       status: "RUNNING",
-      finalAnswer: "Created task (task-one).",
+      finalAnswer: "Created task.",
       capabilityNames: ["create_task"],
       leaseToken: null,
       cancellationRequestedAt: null,
@@ -612,8 +616,8 @@ describe("SokoBotControlPlane lifecycle", () => {
       intentId: "intent-one",
       intentRevision: 1,
       evidenceRevision: "evidence-one",
-      state: "PARTIAL",
-      blockerKind: "OUTCOME_SCOPE_REQUIRES_REVIEW",
+      state: "BLOCKED",
+      blockerKind: "UNCERTAIN_ACTION",
       remainingSteps: ["research-scope"],
       criteriaResults: [],
       evidenceIds: ["receipt-one"],
@@ -625,7 +629,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "COMPLETED",
     });
     const answerText =
-      "The requested outcome is partially complete. The result still needs a review against the requested scope. 1 acceptance criterion remains unverified.\n\nCreated task (task-one).";
+      "The requested outcome is blocked. An action outcome is uncertain; reconciliation is required before retrying. 1 acceptance criterion remains unverified.\n\nCreated task.";
     expect(turnUpdateMock).toHaveBeenCalledWith({
       where: { id: "turn_1" },
       data: {
@@ -637,6 +641,50 @@ describe("SokoBotControlPlane lifecycle", () => {
       vi.mocked(enqueueSokoBotDelivery).mock.invocationCallOrder[0],
     );
   });
+
+  it.each([
+    ["BLOCKED", "RESULT_EVIDENCE_UNAVAILABLE"],
+    ["PARTIAL", "OUTCOME_SCOPE_REQUIRES_REVIEW"],
+  ] as const)(
+    "does not prefix delegated work still reporting back (%s %s)",
+    async (state, blockerKind) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        sokoBotId: BOT_ID,
+        userId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: "Created task.",
+        capabilityNames: ["create_task"],
+        leaseToken: null,
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      vi.mocked(assessSokoBotIntentOutcome).mockResolvedValueOnce({
+        id: "outcome-one",
+        intentId: "intent-one",
+        intentRevision: 1,
+        evidenceRevision: "evidence-one",
+        state,
+        blockerKind,
+        remainingSteps: ["requested-outcome"],
+        criteriaResults: [],
+        evidenceIds: [],
+        verifierVersion: "test-verifier",
+        assessedAt: new Date(),
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status: "COMPLETED",
+      });
+      expect(turnUpdateMock).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ finalAnswer: expect.anything() }),
+        }),
+      );
+    },
+  );
 
   it.each([
     ["Remember my preference for short replies", "MEMORY", "update_memory"],
@@ -692,6 +740,102 @@ describe("SokoBotControlPlane lifecycle", () => {
       expect(result.capabilities).toEqual(capabilities);
     },
   );
+
+  it("classifies a bare yes against the bot's last reply in the same conversation", async () => {
+    jevEvaluate.mockResolvedValue(
+      jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.source === "CHAT"
+        ? {
+            status: "COMPLETED",
+            finalAnswer: "Here is the LinkedIn draft. Want me to post it?",
+          }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "scope-turn",
+      leaseToken: "scope-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "scope-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "yes-client",
+      message: "yes, post it",
+    });
+
+    expect(jevEvaluate.mock.calls[0][0].state.previousReply).toBe(
+      "Here is the LinkedIn draft. Want me to post it?",
+    );
+    const replyQuery = turnFindFirstMock.mock.calls.find(
+      ([query]) => query?.where?.source === "CHAT",
+    )?.[0];
+    expect(replyQuery.where).toMatchObject({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      source: "CHAT",
+      requestedByUserId: null,
+      chatMentionId: null,
+    });
+    expect(turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames).toContain(
+      "create_social_post",
+    );
+  });
+
+  it("gives a bare yes no referent when the newest turn did not complete", async () => {
+    jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.source === "CHAT"
+        ? { status: "FAILED", finalAnswer: null }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "scope-turn",
+      leaseToken: "scope-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "scope-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "stale-yes",
+      message: "yes",
+    });
+    expect(jevEvaluate.mock.calls[0][0].state.previousReply).toBeNull();
+  });
 
   it.each([
     ["Also research Y", false, "DELEGATE_TASK"],
@@ -3420,6 +3564,107 @@ describe("SET_VERSION and fleet migration", () => {
       failed: 1,
     });
     expect(result.failures[0]?.sokoBotId).toBe(stuck);
+  });
+
+  it("tells the owners of moved bots, and only them, what changed", async () => {
+    const stuck = "01960001-0001-7001-8001-0000000000ff";
+    const moving = "01960001-0001-7001-8001-0000000000aa";
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v19" },
+      { id: moving, versionId: "v16" },
+      { id: stuck, versionId: "v15" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.id === stuck ? null : adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move the fleet to Luna",
+      notifyOwners: true,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 1, failed: 1 });
+    // Not the bot already on v19, and not the one that failed to move.
+    expect(postOwnerNoticeMock).toHaveBeenCalledExactlyOnceWith({
+      sokoBotId: moving,
+      content: expect.stringMatching(/^I've been updated to version v19\./),
+      key: expect.stringMatching(new RegExp(`^version:.+:${moving}$`)),
+    });
+  });
+
+  it("keeps a move whose notice could not be posted", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v16" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move the fleet to Luna",
+      notifyOwners: true,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
+    warn.mockRestore();
+  });
+
+  it("posts nothing unless asked to", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v16" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset();
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v20",
+      reason: "Quiet fix",
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 0 });
+    expect(postOwnerNoticeMock).not.toHaveBeenCalled();
+  });
+
+  it("always tells owners when their bot moves outside the EU", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v20" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v20" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move to Luna",
+      notifyOwners: false,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 1 });
+    expect(postOwnerNoticeMock.mock.calls[0][0].content).toMatch(
+      /outside the EU/,
+    );
   });
 
   it("gives each bot its own operation id, fresh on every run", async () => {

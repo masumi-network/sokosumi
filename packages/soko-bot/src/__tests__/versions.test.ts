@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-
+import { composeSokoBotVersionNotice } from "../persona.js";
 import {
   applyVersionCapabilities,
   composeSystemPrompt,
@@ -58,6 +58,20 @@ describe("versions", () => {
     expect(prompt).toMatch(/ask me to create the post and I will/i);
   });
 
+  it("tell the default version what the behaviour lab kept catching", () => {
+    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
+    expect(version.model).toBe("openai/gpt-6-luna");
+    // Coworker questions went back to the owner instead of being answered.
+    expect(version.systemPrompt).toMatch(
+      /answer it on the Task with reply_to_task/,
+    );
+    // Links to pages the bot never opened.
+    expect(version.systemPrompt).toMatch(/Cite only pages you opened/);
+    // "Start a turn with chat posting available" instead of a question.
+    expect(version.systemPrompt).toMatch(/"Want me to post this\?"/);
+    expect(version.systemPrompt).toMatch(/list_tasks/);
+  });
+
   it("keep the v17 prompt frozen while v18 covers every provider", () => {
     const v17Prompt = composeSystemPrompt(getSokoBotVersion("v17"));
     expect(v17Prompt).toMatch(/X only/);
@@ -69,10 +83,27 @@ describe("versions", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
     );
-    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v18");
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v19");
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
+  });
+
+  it("tell owners what a version change means for them", () => {
+    const luna = composeSokoBotVersionNotice(getSokoBotVersion("v19"));
+    expect(luna).toMatch(/^I've been updated to version v19\./);
+    // Moving an owner onto Luna moves their data outside the EU: say so.
+    expect(luna).toMatch(/outside the EU/);
+    expect(luna).toMatch(/search terms may be kept/);
+    expect(luna).toMatch(/v20/);
+    // v20 writes in the EU, but its routing and claim checks do not run there.
+    const eu = composeSokoBotVersionNotice(getSokoBotVersion("v20"));
+    expect(eu).toMatch(/inside the EU/);
+    expect(eu).toMatch(/outside the EU/);
+    // A version without a note says what it is from its summary.
+    expect(
+      composeSokoBotVersionNotice({ id: "custom", summary: "A lab prompt." }),
+    ).toContain("A lab prompt.");
   });
 
   it("fall back to the default for unknown ids", () => {

@@ -9,7 +9,7 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",
@@ -31,12 +31,94 @@ const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  generate_image: "Started image",
   create_social_post: "Created social post",
   update_social_post: "Updated social post",
   schedule_social_post: "Scheduled social post",
   cancel_social_post: "Canceled social post",
   publish_social_post: "Published social post",
 };
+
+const TABLE_CAPABILITIES = new Set([
+  "create_table",
+  "write_table_rows",
+  "update_table_columns",
+]);
+
+const TASK_TARGET_CAPABILITIES = new Set([
+  "create_task",
+  "update_task",
+  "archive_task",
+  "assign_task",
+  "reply_to_task",
+  "update_assigned_task",
+]);
+
+interface TaskLabel {
+  name: string;
+  assignee: string | null;
+}
+
+/** Names come from the stored task, never from the model's narration. */
+async function taskLabels(
+  tx: Prisma.TransactionClient,
+  ids: string[],
+): Promise<Map<string, TaskLabel>> {
+  if (!ids.length) return new Map();
+  const tasks = await tx.task.findMany({
+    where: { id: { in: [...new Set(ids)] } },
+    select: {
+      id: true,
+      name: true,
+      assignee: { select: { name: true } },
+      assigneeUser: { select: { name: true } },
+      assigneeSokoBot: { select: { name: true } },
+    },
+  });
+  return new Map(
+    tasks.map((task) => [
+      task.id,
+      {
+        name: task.name,
+        assignee:
+          task.assignee?.name ??
+          task.assigneeUser?.name ??
+          task.assigneeSokoBot?.name ??
+          null,
+      },
+    ]),
+  );
+}
+
+function linkText(value: string): string {
+  return value.replace(/[[\]\\]/g, "").slice(0, 120);
+}
+
+function actionTarget(
+  call: { capability: string; targetId: string | null; result?: unknown },
+  tasks: Map<string, TaskLabel>,
+): string {
+  const id = call.targetId ?? "";
+  if (TABLE_CAPABILITIES.has(call.capability))
+    return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (call.capability === "generate_image") {
+    const studio = z
+      .object({ studioUrl: z.string().startsWith("/studio?") })
+      .safeParse(call.result);
+    if (studio.success)
+      return `([Open in Content Studio](${studio.data.studioUrl}))`;
+  }
+  if (call.capability === "upload_file" && id.startsWith("https://"))
+    return `([Open file](${id}))`;
+  const task = tasks.get(id);
+  // Anything else is named by its label alone: a raw id tells the owner
+  // nothing.
+  if (!task) return "";
+  const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;
+  return call.capability === "assign_task" && task.assignee
+    ? `${link} → ${linkText(task.assignee)}`
+    : link;
+}
 
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
@@ -49,6 +131,8 @@ const QUESTIONS = {
 export const actionNarrativeSchema = z
   .object({
     kind: z.enum(["REPORT", "CLARIFY", "SILENT"]),
+    /** The bot's own words; action lines never come from here. */
+    message: z.string().trim().max(8_000).nullable().optional(),
     question: z
       .enum(["TARGET", "SCOPE", "TIME", "APPROVAL", "DETAILS"])
       .nullable(),
@@ -56,14 +140,20 @@ export const actionNarrativeSchema = z
   })
   .strict();
 
+export type ActionNarrative = z.infer<typeof actionNarrativeSchema>;
+
 export function parseActionNarrative(value: unknown) {
   const parsed = actionNarrativeSchema.safeParse(value);
   return parsed.success ? parsed.data : null;
 }
 
+/** Accepts the object on its own, fenced as ```json, or wrapped in prose. */
 export function parseActionNarrativeText(text: string) {
+  const start = text.indexOf("{");
+  const end = text.lastIndexOf("}");
+  if (start < 0 || end <= start) return null;
   try {
-    return parseActionNarrative(JSON.parse(text));
+    return parseActionNarrative(JSON.parse(text.slice(start, end + 1)));
   } catch {
     return null;
   }
@@ -219,6 +309,18 @@ function describeRead(capability: string, value: unknown): string[] {
   return observations;
 }
 
+/** Whether `later` repeats every field `earlier` set, with the same value. */
+function inputCovers(later: unknown, earlier: unknown): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  return Object.entries(earlier).every(
+    ([key, value]) => JSON.stringify(later[key]) === JSON.stringify(value),
+  );
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 /** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
@@ -287,10 +389,24 @@ export async function buildActionResponse(
   }
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
+  // A refused attempt the bot then made good — the same call on the same
+  // target, or again with the missing fields filled in — is not something the
+  // owner needs to hear about. One whose outcome is unknown always is.
+  const madeGood = (call: (typeof calls)[number]) =>
+    call.disposition !== "UNKNOWN" &&
+    unique.some(
+      (applied) =>
+        applied.turnId === turnId &&
+        applied.capability === call.capability &&
+        applied.createdAt > call.createdAt &&
+        ((call.targetId !== null && applied.targetId === call.targetId) ||
+          inputCovers(applied.input, call.input)),
+    );
   const unfulfilledActions = calls
     .filter(
       (call) =>
         !appliedReceiptIds.includes(call.id) &&
+        !madeGood(call) &&
         !(
           call.replayedReceiptId &&
           prior.some(
@@ -307,15 +423,31 @@ export async function buildActionResponse(
       receiptId: call.id,
       reason: call.disposition === "UNKNOWN" ? "UNKNOWN" : "NOT_VERIFIED",
     }));
+  const tasks = await taskLabels(
+    tx,
+    unique.flatMap((call) =>
+      TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
+        ? [call.targetId]
+        : [],
+    ),
+  );
   const actionText = unique.map(
     (call) =>
-      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} (${call.capability === "create_table" ? `[Open table](/drive/tables/${encodeURIComponent(call.targetId ?? "")})` : call.targetId}).`,
+      `${call.turnId !== turnId ? "Previously verified: " : ""}${[
+        call.disposition === "ALREADY_SATISFIED"
+          ? "Already satisfied"
+          : ACTION_LABELS[call.capability],
+        actionTarget(call, tasks),
+      ]
+        .filter(Boolean)
+        .join(" ")}.`,
   );
   for (const action of unfulfilledActions) {
+    const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
     actionText.push(
       action.reason === "UNKNOWN"
-        ? `The outcome of ${action.action} is unknown. Reconciliation is required before retrying.`
-        : `I could not verify ${action.action}.`,
+        ? `Outcome unknown: ${label}. It has to be checked before trying again.`
+        : `Not confirmed: ${label}.`,
     );
   }
   const narrative =
@@ -344,11 +476,20 @@ export async function buildActionResponse(
       observations.push(...describeRead(read.capability, read.result));
     }
   }
+  const message = narrative?.message || null;
   const question =
-    narrative?.kind === "CLARIFY" && narrative.question
+    !message && narrative?.kind === "CLARIFY" && narrative.question
       ? QUESTIONS[narrative.question]
       : null;
-  const narrativeText = [...observations, ...(question ? [question] : [])];
+  // Observations restate reads in fixed wording; the bot's own message says
+  // the same in plain words, so they are shown only when it wrote none.
+  const narrativeText = message
+    ? [message]
+    : actionText.length
+      ? question
+        ? [question]
+        : []
+      : [...observations, ...(question ? [question] : [])];
   const silent =
     !calls.length &&
     (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));
@@ -360,9 +501,11 @@ export async function buildActionResponse(
     answerText: silent
       ? "Nothing to add."
       : calls.length || narrativeText.length
-        ? [...actionText, ...narrativeText].join("\n")
+        ? [actionText.join("\n"), narrativeText.join("\n")]
+            .filter(Boolean)
+            .join("\n\n")
         : actionRequested
-          ? "No action was verified. Please specify the target and change you want."
+          ? "Nothing was changed in this turn."
           : answerText,
   };
 }

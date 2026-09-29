@@ -1,10 +1,13 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   containsSokoBotSensitiveMaterial,
   type RuntimeJsonValue,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { jsonInput } from "@/helpers/prisma-json";
 
 const PERSISTED_VALUE_MAX_DEPTH = 8;
+const TOOL_RESULT_MAX_BYTES = 16_384;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
 
 /**
@@ -49,4 +52,48 @@ export function sanitizePersistedValue(
   }
   if (Object.keys(value).length > entries.length) result._truncated = true;
   return result;
+}
+
+/** The longest prefix of `value` within `maxBytes` of UTF-8. */
+export function truncateUtf8(value: string, maxBytes: number): string {
+  if (Buffer.byteLength(value, "utf8") <= maxBytes) return value;
+  let low = 0;
+  let high = value.length;
+  while (low < high) {
+    const middle = Math.ceil((low + high) / 2);
+    if (Buffer.byteLength(value.slice(0, middle), "utf8") <= maxBytes) {
+      low = middle;
+    } else {
+      high = middle - 1;
+    }
+  }
+  return value.slice(0, low);
+}
+
+/** A tool input or result as stored on its row: sanitized, and at most 16 KB. */
+export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
+  const sanitized = sanitizePersistedValue(value);
+  const serialized = JSON.stringify(sanitized);
+  if (Buffer.byteLength(serialized, "utf8") <= TOOL_RESULT_MAX_BYTES) {
+    return jsonInput(sanitized);
+  }
+  const emptyWrapper = JSON.stringify({ truncated: true, preview: "" });
+  let preview = truncateUtf8(
+    serialized,
+    TOOL_RESULT_MAX_BYTES - Buffer.byteLength(emptyWrapper, "utf8"),
+  );
+  let wrapper = { truncated: true, preview };
+  while (
+    Buffer.byteLength(JSON.stringify(wrapper), "utf8") > TOOL_RESULT_MAX_BYTES
+  ) {
+    const excess =
+      Buffer.byteLength(JSON.stringify(wrapper), "utf8") -
+      TOOL_RESULT_MAX_BYTES;
+    preview = truncateUtf8(
+      preview,
+      Math.max(0, Buffer.byteLength(preview, "utf8") - excess - 1),
+    );
+    wrapper = { truncated: true, preview };
+  }
+  return jsonInput(wrapper);
 }
