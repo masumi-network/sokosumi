@@ -38,6 +38,7 @@ import {
 } from "@/lib/actions/errors/action-error";
 import {
   createProjectSocialPost,
+  publishProjectSocialPost,
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
@@ -81,7 +82,7 @@ interface SocialPostComposerDialogProps {
   projectId: string;
 }
 
-type PendingSubmit = "save" | "schedule" | null;
+type PendingSubmit = "save" | "schedule" | "publish" | null;
 
 function formatHandle(handle: string | null): string {
   if (!handle) return "";
@@ -114,6 +115,7 @@ export function SocialPostComposerDialog({
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const { data: session } = useSession();
@@ -192,6 +194,15 @@ export function SocialPostComposerDialog({
     scheduledAtValid &&
     !isBusy;
   const canSave = textValid && !isBusy;
+  // Posting now is for a new post: the fastest path is open, type, post.
+  const canPublishNow =
+    mode.kind === "create" &&
+    textValid &&
+    mediaValid &&
+    selectedConnections.length > 0 &&
+    !isBusy;
+  // With no time picked, posting now is what the reader is here to do.
+  const publishNowIsPrimary = mode.kind === "create" && scheduledAt === "";
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
@@ -351,6 +362,72 @@ export function SocialPostComposerDialog({
     }
   }
 
+  /**
+   * Creates the post for each picked account and publishes it at once. A
+   * post that fails to publish stays in Needs attention to retry, so the
+   * reader loses nothing; the toast names the first failure.
+   */
+  async function handlePublishNow(): Promise<void> {
+    if (!canPublishNow) return;
+    setPending("publish");
+    let published = 0;
+    let failure: string | null = null;
+    try {
+      for (const connection of selectedConnections) {
+        const created = await createProjectSocialPost({
+          projectId,
+          text: trimmedText,
+          media,
+          socialConnectionId: connection.id,
+        });
+        if (!created.ok) {
+          onError(created.error);
+          return;
+        }
+        const result = await publishProjectSocialPost({
+          projectId,
+          postId: created.value.id,
+          revision: created.value.revision,
+        });
+        if (!result.ok) {
+          onSaved(created.value);
+          onError(result.error);
+          return;
+        }
+        onSaved(result.value);
+        if (result.value.status === "PUBLISHED") {
+          published += 1;
+        } else {
+          failure ??=
+            result.value.lastAttempt?.outcome === "authorization_revoked"
+              ? t("outcomes.authorizationRevoked")
+              : (result.value.lastError ?? t("toasts.failed"));
+        }
+      }
+      if (failure) {
+        toast.error(t("toasts.publishFailed", { error: failure }));
+      } else {
+        toast.success(t("toasts.publishedMany", { count: published }));
+      }
+      onOpenChange(false);
+    } catch (error) {
+      onError(toActionRejectionError(error));
+    } finally {
+      setPending(null);
+    }
+  }
+
+  /** ⌘/Ctrl+Enter: the dialog's main action for what the reader has filled. */
+  function handleSubmitShortcut(): void {
+    if (scheduledAt !== "") {
+      void handleSchedule();
+    } else if (mode.kind === "create") {
+      void handlePublishNow();
+    } else {
+      void handleSaveDraft();
+    }
+  }
+
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
     setPending("save");
@@ -488,7 +565,25 @@ export function SocialPostComposerDialog({
         onOpenChange(nextOpen);
       }}
     >
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        onKeyDown={(event) => {
+          if (
+            event.key === "Enter" &&
+            (event.metaKey || event.ctrlKey) &&
+            !event.nativeEvent.isComposing
+          ) {
+            event.preventDefault();
+            handleSubmitShortcut();
+          }
+        }}
+        onOpenAutoFocus={(event) => {
+          // Straight to the text: the account is already picked.
+          if (isScheduleOnly) return;
+          event.preventDefault();
+          textareaRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{t("composer.description")}</DialogDescription>
@@ -628,6 +723,7 @@ export function SocialPostComposerDialog({
                   disabled={isBusy}
                   onChange={(event) => setText(event.target.value)}
                   placeholder={t("composer.textPlaceholder")}
+                  ref={textareaRef}
                   rows={5}
                   value={text}
                 />
@@ -753,7 +849,10 @@ export function SocialPostComposerDialog({
           </div>
         </form>
 
-        <DialogFooter className="gap-2 sm:gap-2">
+        <DialogFooter className="gap-2 sm:items-center sm:gap-2">
+          <p className="text-muted-foreground me-auto hidden text-xs sm:block">
+            {t("composer.shortcut")}
+          </p>
           <Button
             type="button"
             variant="ghost"
@@ -782,8 +881,27 @@ export function SocialPostComposerDialog({
                 : t("composer.saveDraft")}
             </Button>
           )}
+          {mode.kind === "create" ? (
+            <Button
+              type="button"
+              variant={publishNowIsPrimary ? "default" : "outline"}
+              disabled={!canPublishNow}
+              onClick={() => {
+                void handlePublishNow();
+              }}
+            >
+              {pending === "publish" ? (
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
+              ) : null}
+              {t("composer.publishNow")}
+            </Button>
+          ) : null}
           <Button
             type="button"
+            variant={publishNowIsPrimary ? "outline" : "default"}
             disabled={!canSchedule}
             onClick={() => {
               void handleSchedule();
