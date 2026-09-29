@@ -7,6 +7,7 @@ import {
   ComposioToolError,
   createSocialPublishSession,
   executeSocialPublishTool,
+  guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -69,26 +70,28 @@ export async function publishYouTubeVideo(
       file: video,
       signal: context.signal,
     });
-    const uploaded = await executeSocialPublishTool({
-      sessionId,
-      toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
-      arguments: {
-        title: deriveYouTubeTitle(context.text),
-        description: context.text,
-        tags: [],
-        categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
-        privacyStatus: "public",
-        videoFilePath: {
-          name: video.name,
-          mimetype: video.mimeType,
-          s3key,
+    const uploaded = await guardSocialCreateOutcome(label, () =>
+      executeSocialPublishTool({
+        sessionId,
+        toolSlug: YOUTUBE_UPLOAD_TOOL_SLUG,
+        arguments: {
+          title: deriveYouTubeTitle(context.text),
+          description: context.text,
+          tags: [],
+          categoryId: YOUTUBE_DEFAULT_CATEGORY_ID,
+          privacyStatus: "public",
+          videoFilePath: {
+            name: video.name,
+            mimetype: video.mimeType,
+            s3key,
+          },
         },
-      },
-      context: "upload YouTube video",
-      refused: "YouTube refused the upload",
-      timeoutMs: 180_000,
-      signal: context.signal,
-    });
+        context: "upload YouTube video",
+        refused: "YouTube refused the upload",
+        timeoutMs: 180_000,
+        signal: context.signal,
+      }),
+    );
     const externalId = videoIdOf(uploaded);
     if (!externalId) throw new ComposioPublishOutcomeUnknownError(label);
     return {

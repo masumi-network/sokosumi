@@ -418,7 +418,7 @@ export function ProjectSocialPosts({
                   rel="noreferrer"
                   target="_blank"
                 >
-                  {t("viewOnX")}
+                  {t("viewPost")}
                   <ExternalLink className="size-3" aria-hidden />
                 </a>
               ) : null}

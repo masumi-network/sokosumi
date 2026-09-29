@@ -333,6 +333,53 @@ describe("social post publisher service", () => {
     );
   });
 
+  it("fails permanently on an unknown stored provider without dispatching", async () => {
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ ...duePost, provider: "threads" })
+      .mockResolvedValue(null);
+    const { publishDueSocialPosts } = await loadService();
+
+    const result = await publishDueSocialPosts(syncContext);
+
+    expect(result).toMatchObject({ failed: 1 });
+    expect(publishXPostMock).not.toHaveBeenCalled();
+    expect(settleCall().data).toMatchObject({
+      status: "FAILED",
+      lastError: "Unsupported social provider: threads",
+    });
+  });
+
+  it("records the provider's attempt slug and the adapter's actual tool", async () => {
+    socialPostFindFirstMock.mockReset();
+    socialPostFindFirstMock
+      .mockResolvedValueOnce({ ...duePost, provider: "linkedin" })
+      .mockResolvedValue(null);
+    publishXPostMock.mockResolvedValue({
+      externalId: "urn:li:share:1",
+      publishedUrl: "https://www.linkedin.com/feed/update/urn:li:share:1",
+      toolSlug: "LINKEDIN_CREATE_VIDEO_POST",
+    });
+    const { publishDueSocialPosts } = await loadService();
+
+    await publishDueSocialPosts(syncContext);
+
+    expect(attemptCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          toolSlug: "LINKEDIN_CREATE_LINKED_IN_POST",
+        }),
+      }),
+    );
+    expect(attemptUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          toolSlug: "LINKEDIN_CREATE_VIDEO_POST",
+        }),
+      }),
+    );
+  });
+
   it("numbers a new attempt after the highest recorded one", async () => {
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: 4 } });
     const { publishDueSocialPosts } = await loadService();

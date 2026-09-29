@@ -17,6 +17,8 @@ export const v18: SokoBotVersion = {
   createdAt: "2026-09-29",
   summary:
     "v17 with the Social-posts skill covering every connected provider: the account's platform decides the media and text requirements, and scheduling and publishing are no longer X-only.",
-  skills: v17.skills,
+  skills: v17.skills.map((id) =>
+    id === "social-posts-x-only" ? "social-posts" : id,
+  ),
   systemPrompt: v17.systemPrompt,
 };

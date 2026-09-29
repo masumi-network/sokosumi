@@ -58,6 +58,13 @@ describe("versions", () => {
     expect(prompt).toMatch(/ask me to create the post and I will/i);
   });
 
+  it("keep the v17 prompt frozen while v18 covers every provider", () => {
+    const v17Prompt = composeSystemPrompt(getSokoBotVersion("v17"));
+    expect(v17Prompt).toMatch(/X only/);
+    const v18Prompt = composeSystemPrompt(getSokoBotVersion("v18"));
+    expect(v18Prompt).not.toMatch(/X only/);
+  });
+
   it("tell the default version it can publish to every provider", () => {
     const prompt = composeSystemPrompt(
       getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),

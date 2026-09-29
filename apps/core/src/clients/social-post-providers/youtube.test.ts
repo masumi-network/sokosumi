@@ -156,6 +156,17 @@ describe("publishYouTubeVideo", () => {
     ]);
   });
 
+  it("marks the outcome unknown when the upload times out upstream", async () => {
+    stubSession(() => new Response("unavailable", { status: 503 }));
+
+    const { ComposioPublishOutcomeUnknownError } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    await expect(publishYouTubeVideo(context)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
   it("raises a tool error when YouTube refuses the upload", async () => {
     stubSession(() =>
       Response.json({

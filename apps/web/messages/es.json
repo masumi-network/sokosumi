@@ -2263,7 +2263,7 @@
       },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
-        "description": "Conecta cuentas de redes sociales a este proyecto. Actualmente se puede publicar en X.",
+        "description": "Conecta cuentas de redes sociales a este proyecto. Redacta, programa y publica en cualquier plataforma conectada.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
         "connectAccount": "Conectar cuenta",
@@ -2298,6 +2298,7 @@
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
         },
         "errors": {
+          "facebookPage": "Publicar en Facebook requiere una cuenta que gestione exactamente una página. Usa una cuenta con una sola página gestionable.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
@@ -2316,7 +2317,7 @@
         "loadMore": "Cargar más",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
-        "description": "Redacta publicaciones de texto para X y prográmalas desde este proyecto.",
+        "description": "Redacta, programa y publica en las cuentas de redes sociales conectadas a este proyecto.",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
@@ -2417,7 +2418,7 @@
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
-        "viewOnX": "Ver en X",
+        "viewPost": "Ver publicación",
         "publishedAt": "Publicada {date}",
         "failedAt": "Falló {date}",
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
@@ -2427,7 +2428,7 @@
         },
         "publishDialog": {
           "title": "¿Publicar esta publicación ahora?",
-          "description": "La publicación saldrá en X de inmediato en lugar de esperar a la hora programada.",
+          "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         }
       },

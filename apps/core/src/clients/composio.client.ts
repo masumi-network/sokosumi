@@ -43,6 +43,14 @@ export class ComposioConfigError extends Error {
   }
 }
 
+/** The provider's identity lookup succeeded but cannot be used as-is. */
+export class ComposioIdentityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ComposioIdentityError";
+  }
+}
+
 export class ComposioApiError extends Error {
   constructor(
     readonly httpStatus: number,
@@ -580,6 +588,11 @@ export async function getConnectedSocialIdentity(input: {
     const payload = socialIdentityPayload(result, input.provider);
     const identity = payload ? socialIdentity(input.provider, payload) : null;
     if (!identity) {
+      if (payload && input.provider === "facebook") {
+        throw new ComposioIdentityError(
+          "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+        );
+      }
       throw new ComposioApiError(
         response.status,
         undefined,

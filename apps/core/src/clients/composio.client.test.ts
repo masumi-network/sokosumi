@@ -521,6 +521,13 @@ describe("getConnectedSocialIdentity", () => {
       provider: "facebook",
       payload: { data: [{ id: "", name: "Alice" }] },
     },
+    {
+      provider: "facebook",
+      payload: {
+        data: [{ id: "page_one", name: "One" }],
+        paging: { next: "https://backend.composio.dev/next" },
+      },
+    },
     { provider: "youtube", payload: { items: [] } },
     {
       provider: "youtube",
@@ -542,7 +549,12 @@ describe("getConnectedSocialIdentity", () => {
           connectedAccountId: "ca_selected",
           executorUserId: input.executorUserId,
         }),
-      ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+      ).rejects.toMatchObject({
+        name:
+          provider === "facebook"
+            ? "ComposioIdentityError"
+            : "ComposioApiError",
+      });
       expect(fetchMock).toHaveBeenCalledTimes(3);
     },
   );

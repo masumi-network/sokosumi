@@ -60,6 +60,7 @@ import {
 import {
   socialPostComposerAccept,
   socialPostComposerIssue,
+  socialPostComposerProvider,
 } from "./social-post-composer-rules";
 import {
   buildSocialPostMediaRef,
@@ -143,7 +144,10 @@ export function SocialPostComposerDialog({
   const selectedConnection = connections.find(
     (connection) => connection.id === connectionId,
   );
-  const provider = post?.provider ?? selectedConnection?.provider ?? "x";
+  const provider = socialPostComposerProvider(
+    post?.provider,
+    selectedConnection?.provider,
+  );
   const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
   const accept = socialPostComposerAccept(provider);
   const composerIssue = socialPostComposerIssue(provider, text, media);

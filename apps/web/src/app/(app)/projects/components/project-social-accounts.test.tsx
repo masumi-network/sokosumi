@@ -39,7 +39,7 @@ const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
 const MESSAGES: Record<string, string> = {
   title: "Social accounts",
   description:
-    "Connect social accounts to this project. Publishing is currently available for X.",
+    "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
