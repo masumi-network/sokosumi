@@ -45,7 +45,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Friday afternoon: what got done, what slipped, and what is queued for next week.",
     prompt:
-      "Weekly wrap. Using the packet below and get_task_status where needed: what got done this week, what slipped and why, what is queued for next week, and one decision the owner should make. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.",
+      "Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.",
   },
 ];
 

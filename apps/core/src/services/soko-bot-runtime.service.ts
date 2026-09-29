@@ -283,6 +283,8 @@ function isTextMimeType(mimeType: string | null): boolean {
 
 /** Drive text small enough to read whole. */
 const MAX_DIRECT_READ_BYTES = 200_000;
+const DIRECT_READ_ATTEMPTS = 4;
+const DIRECT_READ_RETRY_MS = 5_000;
 
 /**
  * A Drive text file's content, read from the blob itself, for a file search
@@ -295,11 +297,15 @@ async function readDriveText(file: LiveResource): Promise<string | null> {
     (file.sizeBytes ?? Number.POSITIVE_INFINITY) > MAX_DIRECT_READ_BYTES
   )
     return null;
-  try {
-    const bytes = await downloadBlob(file.sourceId);
-    return bytes ? new TextDecoder().decode(bytes) : null;
-  } catch {
-    return null;
+  // A pathname written again after a delete answers 404 for up to ~15s.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const bytes = await downloadBlob(file.sourceId);
+      return bytes ? new TextDecoder().decode(bytes) : null;
+    } catch {
+      if (attempt >= DIRECT_READ_ATTEMPTS) return null;
+      await new Promise((resolve) => setTimeout(resolve, DIRECT_READ_RETRY_MS));
+    }
   }
 }
 

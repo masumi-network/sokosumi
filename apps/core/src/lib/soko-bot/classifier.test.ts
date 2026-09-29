@@ -126,6 +126,36 @@ describe("Jev route selection", () => {
     );
   });
 
+  it("keeps every work tool for a request of several kinds, whatever its scope", async () => {
+    // The launch plan: tasks, memory and a weekly reminder. Jev named the
+    // reminder as the scope; narrowing to it left the tasks uncreated.
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "SCHEDULE" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: {
+              MANAGE_WORK: 0.6,
+              MIXED: 0.35,
+              DELEGATE_TASK: 0.03,
+            },
+          },
+        },
+      }),
+    ).classify("Create the launch tasks and remind me weekly", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining([
+        "create_task",
+        "create_schedule",
+        "update_memory",
+      ]),
+    );
+  });
+
   it("still gives an unsure single MANAGE_WORK lead reads only", async () => {
     const result = await new JevTurnClassifier(
       split(

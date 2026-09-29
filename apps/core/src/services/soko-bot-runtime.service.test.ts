@@ -4864,6 +4864,33 @@ describe("Drive file tools", () => {
     ).rejects.toThrow("File not found");
   });
 
+  it("waits out the 404 a just-rewritten file gives", async () => {
+    vi.useFakeTimers();
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-4",
+        displayName: "notes.md",
+        mimeType: "text/markdown",
+        sizeBytes: 5,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/users/u/notes.md",
+        contentRevision: 1,
+        extractionState: "RUNNING",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download
+      .mockReset()
+      .mockRejectedValueOnce(new Error("Blob download failed with status 404"))
+      .mockResolvedValueOnce(new TextEncoder().encode("hello"));
+    const read = service["readFile"](authorized as never, { fileId: "file-4" });
+    await vi.runAllTimersAsync();
+    await expect(read).resolves.toMatchObject({ text: "hello" });
+    expect(files.download).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it("reads a Drive text file itself while search has not indexed it", async () => {
     const notes = {
       id: "file-3",

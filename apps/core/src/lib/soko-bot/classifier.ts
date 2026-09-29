@@ -356,6 +356,12 @@ const WORK_ROUTES = ["DELEGATE_TASK", "MANAGE_WORK", "MIXED"] as const;
  * reached 0.66, and single asks that need no Sokosumi write 0.72–0.86.
  */
 const MIN_POOLED_WORK_CONFIDENCE = 0.9;
+/**
+ * A MIXED share this large means several kinds of change: the launch plan
+ * (tasks, memory and a weekly reminder) puts 0.44–0.61 on MIXED, single asks
+ * 0.07 or less. One write scope cannot hold such a request.
+ */
+const MIN_MIXED_SHARE = 0.2;
 
 /** The route and write scope Jev chose for the message itself. */
 function routeFromAnswers(
@@ -380,8 +386,10 @@ function routeFromAnswers(
   // kind, gets that kind's writes only: "remember Anna prefers email" must not
   // be lifted to DELEGATE_TASK and its chat, mail and upload tools. A write
   // scope Jev is unsure of stays unset, and unset grants reads only.
+  const severalKinds = (probabilities.MIXED ?? 0) >= MIN_MIXED_SHARE;
   if (
     route === "MANAGE_WORK" &&
+    !severalKinds &&
     (confidence >= MIN_ROUTE_CONFIDENCE ||
       (workConfidence >= MIN_POOLED_WORK_CONFIDENCE && confidentScope))
   ) {
