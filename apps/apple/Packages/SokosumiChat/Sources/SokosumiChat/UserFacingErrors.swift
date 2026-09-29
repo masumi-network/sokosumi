@@ -26,27 +26,27 @@ public func friendlyMessage(for error: Error, mode: UserFacingErrorMode = .windo
 private func chatServiceMessage(_ error: ChatServiceError, mode: UserFacingErrorMode) -> String {
   switch error {
   case let .unprocessable(statusCode, message):
-    return unprocessableMessage(statusCode: statusCode, message: message, mode: mode)
+    unprocessableMessage(statusCode: statusCode, message: message, mode: mode)
   case let .unexpectedResponse(message):
-    return message
+    message
   case let .unauthorized(message):
-    return unauthorizedMessage(message, mode: mode)
+    unauthorizedMessage(message, mode: mode)
   case .blocked:
-    return "Couldn't complete the request. Try again."
+    "Couldn't complete the request. Try again."
   }
 }
 
 private func unprocessableMessage(statusCode: Int, message: String, mode: UserFacingErrorMode) -> String {
   switch mode {
-  case .coreMessage: return message
-  case .window: return "Core rejected the request (\(statusCode)): \(message)"
+  case .coreMessage: message
+  case .window: "Core rejected the request (\(statusCode)): \(message)"
   }
 }
 
 private func unauthorizedMessage(_ message: String, mode: UserFacingErrorMode) -> String {
   switch mode {
-  case .coreMessage: return message
-  case .window: return "Couldn't complete the request. Try again."
+  case .coreMessage: message
+  case .window: "Couldn't complete the request. Try again."
   }
 }
 
@@ -56,13 +56,13 @@ private func urlErrorMessage(_ urlError: URLError) -> String {
   // which is exactly the dump this replaces.
   switch urlError.code {
   case .notConnectedToInternet:
-    return "No network connection. Check your connection and try again."
+    "No network connection. Check your connection and try again."
   case .networkConnectionLost:
-    return "The network connection was lost."
+    "The network connection was lost."
   case .timedOut:
-    return "The request timed out. Please try again."
+    "The request timed out. Please try again."
   default:
-    return "Couldn't reach Core. Check your connection and try again."
+    "Couldn't reach Core. Check your connection and try again."
   }
 }
 
