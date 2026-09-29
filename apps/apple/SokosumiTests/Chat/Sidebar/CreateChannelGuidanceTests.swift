@@ -49,9 +49,17 @@
         let model = try await loadedModel()
         model.draft.setName(Self.name)
         model.draft.setTopic(Self.topic)
-        let (host, window) = mount(model, dark: dark)
+        var checked = false
+        let (host, window) = mount(model, dark: dark) { _ in
+          checked = true
+          return true
+        }
         defer { window.orderOut(nil) }
         try await waitForLoad(model, in: host)
+        // The sheet re-checks the handle on mount; without Vision (CI) `render` draws at once, so wait for that check.
+        _ = try await waitForView(in: host, timeoutMessage: "The mount-time handle check never settled") {
+          checked && model.handleStatus == .help ? host : nil
+        }
         let bitmap = try await render(host, in: window, expecting: ["Unique among channels", "Shown in the sidebar", "\(80 - Self.name.utf16.count)", "\(200 - Self.topic.utf16.count)"])
         try Self.expectWindowBackground(bitmap, dark: dark)
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "create-channel-guidance-\(dark ? "dark" : "light").png")
@@ -88,6 +96,10 @@
         }
         defer { window.orderOut(nil) }
         try await waitForLoad(model, in: host)
+        // Without Vision (CI) `render` draws at once, so the sheet's own check has to reach the state first.
+        _ = try await waitForView(in: host, timeoutMessage: "The handle line never reached \(line)") {
+          model.handleStatus == line.status ? host : nil
+        }
         let bitmap = try await render(host, in: window, expecting: [line.fragment] + (line == .failed ? ["Retry"] : []), absent: ["Unique among channels"])
         #expect(model.handleStatus == line.status)
         try Self.expectWindowBackground(bitmap, dark: dark)
