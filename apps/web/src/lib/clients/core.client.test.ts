@@ -14,6 +14,7 @@ const getChatRoomsMock = vi.fn();
 const getAgentsByIdInputSchemaMock = vi.fn();
 const getShareByTokenMock = vi.fn();
 const getHistoryMock = vi.fn();
+const getTransactionsMock = vi.fn();
 const getTasksMock = vi.fn();
 const getTasksByIdMock = vi.fn();
 const getUsersByIdNoticesPendingMock = vi.fn();
@@ -54,6 +55,7 @@ vi.mock("@/lib/clients/generated/core", () => ({
   getAgentsByIdInputSchema: getAgentsByIdInputSchemaMock,
   getChatsRooms: getChatRoomsMock,
   getHistory: getHistoryMock,
+  getTransactions: getTransactionsMock,
   getTasks: getTasksMock,
   getShareByToken: getShareByTokenMock,
   getTasksById: getTasksByIdMock,
@@ -115,6 +117,65 @@ describe("core.client", () => {
     expect(forwardedHeaders?.["x-sokosumi-web-build-version"]).toBe("1");
     expect(response.meta?.timestamp).toEqual(
       new Date("2026-02-19T12:00:00.000Z"),
+    );
+  });
+
+  /**
+   * The ledger is a second endpoint, not the feed in disguise. `getHistory`
+   * still carries `updatedAt`/`archivedAt` for the Cmd+K palette, and this one
+   * carries the consumption date the Transactions page sorts by.
+   */
+  it("normalizes transaction consumedAt strings through the server transport", async () => {
+    getTransactionsMock.mockImplementation(
+      async (options: {
+        responseTransformer?: (data: unknown) => Promise<unknown>;
+      }) => {
+        const rawResponse = {
+          data: [
+            {
+              kind: "topUp",
+              id: "tx_1",
+              title: "Credit top up",
+              description: null,
+              consumedAt: "2026-02-19T10:00:00.000Z",
+              credits: 1000,
+              projectId: null,
+              owner: null,
+              bucketSource: "STRIPE_TOPUP",
+            },
+          ],
+          meta: {
+            requestId: "req_124",
+            timestamp: "2026-02-19T12:00:00.000Z",
+            pagination: {
+              cursor: null,
+              limit: 20,
+              total: 1,
+              nextCursor: null,
+            },
+          },
+        };
+
+        return {
+          data: options.responseTransformer
+            ? await options.responseTransformer(rawResponse)
+            : rawResponse,
+          response: new Response("{}", { status: 200 }),
+        };
+      },
+    );
+
+    const { coreClient } = await import("./core.client");
+    const response = await coreClient.getTransactions({ limit: 20 });
+
+    expect(getTransactionsMock).toHaveBeenCalledWith({
+      cache: "no-store",
+      client: mockClient,
+      query: { limit: 20 },
+      responseTransformer: expect.any(Function),
+    });
+    expect(response.data[0]?.consumedAt).toEqual(
+      new Date("2026-02-19T10:00:00.000Z"),
     );
   });
 
@@ -657,7 +718,7 @@ describe("core.client", () => {
     expect(response.task.events[0]?.channel).toBe("SOKOSUMI");
   });
 
-  it("normalizes history updatedAt and archivedAt strings through the server transport", async () => {
+  it("normalizes history createdAt and archivedAt strings through the server transport", async () => {
     getHistoryMock.mockImplementation(
       async (options: {
         responseTransformer?: (data: unknown) => Promise<unknown>;
@@ -670,7 +731,7 @@ describe("core.client", () => {
               title: "Review onboarding",
               description: null,
               status: "READY",
-              updatedAt: "2026-02-19T10:00:00.000Z",
+              createdAt: "2026-02-19T10:00:00.000Z",
               archivedAt: "2026-02-20T10:00:00.000Z",
               credits: 2,
               projectId: null,
@@ -707,7 +768,7 @@ describe("core.client", () => {
       query: { limit: 20 },
       responseTransformer: expect.any(Function),
     });
-    expect(response.data[0]?.updatedAt).toEqual(
+    expect(response.data[0]?.createdAt).toEqual(
       new Date("2026-02-19T10:00:00.000Z"),
     );
     expect(response.data[0]?.archivedAt).toEqual(
