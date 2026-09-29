@@ -2742,7 +2742,7 @@
       "newPost": {
         "label": "Nueva publicación",
         "options": "Opciones de nueva publicación",
-        "manual": "Escribirla yo",
+        "manual": "Publicación manual",
         "manualHint": "Elige la cuenta, los medios y la hora.",
         "sokoBot": "Publicar con Soko Bot",
         "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",

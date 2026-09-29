@@ -11,7 +11,7 @@ interface SocialCompose {
 const SocialComposeContext = createContext<SocialCompose | null>(null);
 
 /**
- * Whether Social's "Write it myself" composer is open.
+ * Whether Social's Manual post composer is open.
  *
  * The New post menu sits at the top of the page, above the calendar, while
  * the composer belongs to the posts list further down (it owns the saved-post
