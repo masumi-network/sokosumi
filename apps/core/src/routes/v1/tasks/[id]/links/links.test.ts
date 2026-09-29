@@ -22,7 +22,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   prismaTransactionMock,
-  requireTaskOwnershipMock,
+  requireTaskWriteAccessMock,
   requireTaskReadForRouteVarsMock,
   taskFindFirstMock,
   taskFindUniqueMock,
@@ -33,7 +33,7 @@ const {
   taskLinkUpdateMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  requireTaskWriteAccessMock: vi.fn(),
   requireTaskReadForRouteVarsMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
@@ -45,8 +45,8 @@ const {
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskOwnership: requireTaskOwnershipMock,
-  requireMutableTaskOwnership: requireTaskOwnershipMock,
+  buildTaskWriteAccessWhere: (userId: string) => ({ writeAccessFor: userId }),
+  requireMutableTaskWriteAccess: requireTaskWriteAccessMock,
   requireTaskReadForRouteVars: requireTaskReadForRouteVarsMock,
 }));
 
@@ -649,7 +649,7 @@ describe("GET /tasks/{id}/links", () => {
 describe("POST /tasks/{id}/links", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskOwnershipMock.mockImplementation(
+    requireTaskWriteAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         ownerId: "user_123",
@@ -707,8 +707,8 @@ describe("POST /tasks/{id}/links", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        ownerId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
+        writeAccessFor: "user_123",
       },
       select: {
         id: true,
@@ -870,7 +870,7 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
     expect(taskLinkCreateMock).not.toHaveBeenCalled();
   });
 
@@ -887,7 +887,7 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
     expect(taskLinkUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -900,7 +900,7 @@ describe("POST /tasks/{id}/links", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
     expect(taskLinkDeleteMock).not.toHaveBeenCalled();
   });
 
@@ -948,7 +948,7 @@ describe("POST /tasks/{id}/links", () => {
 describe("DELETE /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskOwnershipMock.mockImplementation(
+    requireTaskWriteAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         ownerId: "user_123",
@@ -990,7 +990,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
   });
 
   it("returns 200 when the peer task is archived but still owned by the user", async () => {
-    requireTaskOwnershipMock.mockImplementation(
+    requireTaskWriteAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -1020,12 +1020,12 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskWriteAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
   it("returns 200 when the peer task is outside the user's current workspace", async () => {
-    requireTaskOwnershipMock.mockImplementation(
+    requireTaskWriteAccessMock.mockImplementation(
       async (_auth, taskId: string) => {
         if (taskId !== "tsk_a") {
           throw new HTTPException(404, { message: "Task not found" });
@@ -1055,7 +1055,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
     expect(taskLinkDeleteMock).toHaveBeenCalledWith({
       where: { id: "tl_1" },
     });
-    expect(requireTaskOwnershipMock).toHaveBeenCalledTimes(1);
+    expect(requireTaskWriteAccessMock).toHaveBeenCalledTimes(1);
     expect(taskFindUniqueMock).not.toHaveBeenCalled();
   });
 
@@ -1095,7 +1095,7 @@ describe("DELETE /tasks/{id}/links/{linkId}", () => {
 describe("PATCH /tasks/{id}/links/{linkId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    requireTaskOwnershipMock.mockImplementation(
+    requireTaskWriteAccessMock.mockImplementation(
       async (_auth, taskId: string) => ({
         id: taskId,
         ownerId: "user_123",
@@ -1159,8 +1159,8 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
     expect(taskFindFirstMock).toHaveBeenCalledWith({
       where: {
         id: "tsk_b",
-        ownerId: "user_123",
         workspaceId: "11111111-1111-7111-8111-111111111111",
+        writeAccessFor: "user_123",
       },
       select: {
         id: true,

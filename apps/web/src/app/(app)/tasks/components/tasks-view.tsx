@@ -60,7 +60,6 @@ import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-serv
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
-  isTaskDraggableForViewFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -695,17 +694,7 @@ export function TasksView({
     if (typeof activeId !== "string" || typeof overId !== "string") return;
 
     const draggedTask = itemsRef.current.find((task) => task.id === activeId);
-    if (
-      !draggedTask ||
-      !isTaskDnDDraggable(draggedTask) ||
-      !isTaskDraggableForViewFilters(
-        draggedTask,
-        userId,
-        routeFilters,
-        initialFilters,
-        activeOrganizationId,
-      )
-    ) {
+    if (!draggedTask || !isTaskDnDDraggable(draggedTask)) {
       return;
     }
 
@@ -1282,15 +1271,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
-                      canCreateTask &&
-                      isTaskDnDDraggable(task) &&
-                      isTaskDraggableForViewFilters(
-                        task,
-                        userId,
-                        routeFilters,
-                        initialFilters,
-                        activeOrganizationId,
-                      )
+                      canCreateTask && isTaskDnDDraggable(task)
                     }
                     labels={{
                       columns: labels.columns,
