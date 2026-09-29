@@ -1,8 +1,9 @@
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 
 import type { Coworker } from "@/app/chat/utils/types";
 import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
+import { ActivityTrend } from "./activity-trend";
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";
 import { OpenCoworkerRoomProvider } from "./use-open-coworker-room";
@@ -37,10 +38,7 @@ export async function ChatLandingMobile({
   summary,
   userName,
 }: ChatLandingMobileProps) {
-  const [t, format] = await Promise.all([
-    getTranslations("App.Chat.Landing"),
-    getFormatter(),
-  ]);
+  const t = await getTranslations("App.Chat.Landing");
   const featured = resolveFeaturedCoworker(coworkers);
   const stats = buildActivityStats(summary, isOrganizationWorkspace, t);
 
@@ -72,20 +70,15 @@ export async function ChatLandingMobile({
         className="flex w-full shrink-0 flex-col items-center gap-2 px-4 pt-1"
         data-testid="landing-activity-stats"
       >
-        <p className="text-muted-foreground text-xs">
-          {summary?.basis === "lastVisit"
-            ? t("stats.sinceLastActivity", {
-                when: format.relativeTime(summary.since),
-              })
-            : t("stats.recent")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("stats.recent")}</p>
         <div className="flex flex-wrap items-center justify-center gap-2">
           {stats.map((stat) => (
             <span
               className="bg-card text-muted-foreground rounded-full border px-2.5 py-1 text-xs tabular-nums"
-              key={stat}
+              key={stat.label}
             >
-              {stat}
+              {stat.label}
+              <ActivityTrend trend={stat.trend} />
             </span>
           ))}
         </div>

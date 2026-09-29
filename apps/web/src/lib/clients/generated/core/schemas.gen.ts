@@ -23020,8 +23020,8 @@ export const TaskActivitySummarySchema = {
         since: {
             type: 'string',
             format: 'date-time',
-            example: '2026-08-10T09:00:00.000Z',
-            description: 'Start of the reporting window, echoed back. Always set: either the caller\'s last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.'
+            example: '2026-08-10T12:00:00.000Z',
+            description: 'Start of the reporting window (now minus 24h), echoed back.'
         },
         completed: {
             type: 'integer',
@@ -23041,29 +23041,34 @@ export const TaskActivitySummarySchema = {
             description: 'Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.',
             example: 3
         },
-        lastVisitAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2026-08-10T09:00:00.000Z',
-            description: 'Caller\'s most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.'
-        },
-        basis: {
-            type: 'string',
-            enum: [
-                'lastVisit',
-                'recent'
-            ],
-            description: 'Which window the counts cover: since the caller\'s last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.',
-            example: 'lastVisit'
-        },
         workedMinutes: {
             type: 'integer',
             minimum: 0,
             description: 'Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.',
             example: 47
+        },
+        previous: {
+            type: 'object',
+            properties: {
+                completed: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                createdByOtherHumans: {
+                    type: 'integer',
+                    minimum: 0
+                },
+                workedMinutes: {
+                    type: 'integer',
+                    minimum: 0
+                }
+            },
+            required: [
+                'completed',
+                'createdByOtherHumans',
+                'workedMinutes'
+            ],
+            description: 'Same counters for the 24h before the window (48h to 24h ago), for trend arrows. `awaitingInput` is point-in-time and has no previous value.'
         }
     },
     required: [
@@ -23071,9 +23076,8 @@ export const TaskActivitySummarySchema = {
         'completed',
         'awaitingInput',
         'createdByOtherHumans',
-        'lastVisitAt',
-        'basis',
-        'workedMinutes'
+        'workedMinutes',
+        'previous'
     ]
 } as const;
 
