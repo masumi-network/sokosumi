@@ -944,7 +944,7 @@ export const deleteChatsRoomsByIdMembersByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
+ * Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications, except mention and direct-message notifications for replies in Threads the user Participates in that no Thread look covers yet. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.
  */
 export const postChatsRoomsByIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdReadResponses, PostChatsRoomsByIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdReadResponseTransformer,
@@ -980,7 +980,7 @@ export const getChatsRoomsByIdThreadsUnreadCount = <ThrowOnError extends boolean
 });
 
 /**
- * Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications. Does not Look lurker Threads.
+ * Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState and clears the mention and direct-message notifications for replies in Threads the user Participates in that those looks cover. Does not change room read state. Does not Look lurker Threads.
  */
 export const postChatsRoomsByIdThreadsRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdThreadsReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdThreadsReadResponses, PostChatsRoomsByIdThreadsReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdThreadsReadResponseTransformer,
@@ -1007,7 +1007,7 @@ export const getChatsRoomsByIdThreadsByParentMessageIdMessages = <ThrowOnError e
 });
 
 /**
- * Mark a thread root as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.
+ * Mark a thread root as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState and clears the mention and direct-message notifications for replies in Threads the user Participates in that the look covers. Does not change room read state.
  */
 export const postChatsRoomsByIdThreadsByParentMessageIdRead = <ThrowOnError extends boolean = false>(options: Options<PostChatsRoomsByIdThreadsByParentMessageIdReadData, ThrowOnError>): RequestResult<PostChatsRoomsByIdThreadsByParentMessageIdReadResponses, PostChatsRoomsByIdThreadsByParentMessageIdReadErrors, ThrowOnError> => (options.client ?? client).post<PostChatsRoomsByIdThreadsByParentMessageIdReadResponses, PostChatsRoomsByIdThreadsByParentMessageIdReadErrors, ThrowOnError>({
     responseTransformer: postChatsRoomsByIdThreadsByParentMessageIdReadResponseTransformer,
