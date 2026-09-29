@@ -1,3 +1,6 @@
+#if os(macOS)
+  import AppKit
+#endif
 import AVKit
 import SokosumiChat
 import SwiftUI
@@ -78,11 +81,12 @@ struct AttachmentDocumentButton: View {
 }
 
 /// The document and image viewers' bar: Close, the file name (after the image's position when the
-/// message has several), Open in Browser, Copy Image (the image viewer) and Save.
+/// message has several), Open in Browser, Copy Image and Print (the image viewer) and Save.
 struct AttachmentViewerToolbar: View {
   let attachment: MessageAttachment
   var position: String?
-  var copiesImage = false
+  /// The image viewer's Copy Image and Print; the document viewer has neither, as on web.
+  var offersImageActions = false
   let close: () -> Void
 
   var body: some View {
@@ -104,8 +108,9 @@ struct AttachmentViewerToolbar: View {
       }
       .help("Open in Browser")
       #if os(macOS)
-        if copiesImage {
+        if offersImageActions {
           AttachmentCopyImageButton(url: attachment.url)
+          AttachmentPrintImageButton(attachment: attachment)
         }
       #endif
       AttachmentSaveButton(attachment: attachment)
@@ -137,9 +142,47 @@ struct AttachmentViewerToolbar: View {
       .task(id: copying) {
         guard copying else { return }
         defer { copying = false }
-        let content = await ImageCopy.content(of: url)
+        let image = await ImageFetch.image(at: url)
         guard !Task.isCancelled else { return }
-        PlatformPasteboard.copyImage(content, from: url, to: pasteboard)
+        PlatformPasteboard.copyImage(image, from: url, to: pasteboard)
+      }
+    }
+  }
+
+  /// Web's Print: the shown image by itself, through the system print panel, from the same fetch as
+  /// Copy Image. Web fails silently; an image that cannot be downloaded or read says so here, as Save does.
+  private struct AttachmentPrintImageButton: View {
+    let attachment: MessageAttachment
+    @Environment(\.imagePrinter) private var printer
+    @State private var preparing = false
+    @State private var failed = false
+
+    var body: some View {
+      Button { preparing = true } label: {
+        if preparing {
+          ProgressView().controlSize(.small)
+        } else {
+          Label("Print…", systemImage: "printer")
+        }
+      }
+      .keyboardShortcut("p", modifiers: .command)
+      .help("Print")
+      .disabled(preparing)
+      .alert("Could not print image", isPresented: $failed) {
+        Button("OK", role: .cancel) {}
+      } message: {
+        Text("The image could not be downloaded. Try again or open it in the browser.")
+      }
+      .task(id: preparing) {
+        guard preparing else { return }
+        defer { preparing = false }
+        let fetched = await ImageFetch.image(at: attachment.url)
+        guard !Task.isCancelled else { return }
+        guard let data = fetched?.data, let image = NSImage(data: data) else {
+          failed = true
+          return
+        }
+        printer.print(image, title: attachment.filename)
       }
     }
   }

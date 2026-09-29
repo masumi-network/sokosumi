@@ -73,7 +73,7 @@ struct MessageImageViewer: View {
       let imageZoom = zoomBinding(for: image.url)
       VStack(spacing: 16) {
         // Keyed by the image, as web keys its chrome, so a Save or Copy in flight belongs to its own image.
-        AttachmentViewerToolbar(attachment: image, position: gallery.positionLabel(of: image.url), copiesImage: true) { openURL = nil }
+        AttachmentViewerToolbar(attachment: image, position: gallery.positionLabel(of: image.url), offersImageActions: true) { openURL = nil }
           .id(image.url)
         ZStack {
           // The neighbours load hidden beside the shown image, so a step shows a loaded image.

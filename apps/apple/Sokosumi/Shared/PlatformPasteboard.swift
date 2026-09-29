@@ -25,14 +25,14 @@ enum PlatformPasteboard {
     /// Web's Copy image: the image as the system image (for any app) plus its original bytes under
     /// their type; bytes that are not an image, or no bytes at all, copy the image's link instead.
     @discardableResult
-    static func copyImage(_ content: ImageCopyContent, from url: URL, to name: NSPasteboard.Name = .general) -> Bool {
+    static func copyImage(_ image: FetchedImage?, from url: URL, to name: NSPasteboard.Name = .general) -> Bool {
       let pasteboard = NSPasteboard(name: name)
       pasteboard.clearContents()
-      if case let .image(data, contentType) = content, let tiff = NSImage(data: data)?.tiffRepresentation {
+      if let image, let tiff = NSImage(data: image.data)?.tiffRepresentation {
         let item = NSPasteboardItem()
         item.setData(tiff, forType: .tiff)
-        if let type = UTType(mimeType: contentType), type.conforms(to: .image), type != .tiff {
-          item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+        if let type = UTType(mimeType: image.contentType), type.conforms(to: .image), type != .tiff {
+          item.setData(image.data, forType: NSPasteboard.PasteboardType(type.identifier))
         }
         if pasteboard.writeObjects([item]) {
           return true

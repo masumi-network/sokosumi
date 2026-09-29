@@ -31,6 +31,15 @@
   /// The 15b viewer fixture's helpers: hosting, opening, sheet capture and the green-region reader.
   private typealias Gallery = NativeWindowTests.MessageImageGalleryViewerTests
 
+  /// Stands in for the system print panel: records each image handed to it, prints nothing.
+  @MainActor private final class RecordingPrinter: ImagePrinting {
+    private(set) var jobs: [(title: String, size: CGSize)] = []
+
+    func print(_ image: NSImage, title: String) {
+      jobs.append((title, image.size))
+    }
+  }
+
   extension NativeWindowTests {
     /// Row 15a2a: web's `ImageViewer` zoom (25 %–400 % in 25 % steps, reset to 100 %, the limit
     /// controls disabled, every image opening at 100 %) and Copy image (the image, else its link), in
@@ -42,12 +51,14 @@
         "https://scroll-fixture.invalid/\(run)/\(name).svg?format=svg&shape=\(shape.rawValue)"
       }
 
-      private static func fixture(_ source: String, pasteboard: NSPasteboard.Name = .general, dark: Bool = false) -> GalleryFixture {
+      private static func fixture(_ source: String, pasteboard: NSPasteboard.Name = .general, printer: RecordingPrinter = RecordingPrinter(),
+                                  dark: Bool = false) -> GalleryFixture {
         let view = AnyView(MessageMarkdownView(source: source)
           .padding(12)
           .frame(width: 400, alignment: .leading)
           .background(.background)
           .environment(\.imageCopyPasteboard, pasteboard)
+          .environment(\.imagePrinter, printer)
           .environmentObject(WorkspaceState()).environmentObject(AuthState())
           .environment(\.colorScheme, dark ? .dark : .light))
         let host = NSHostingView(rootView: view)
@@ -218,7 +229,88 @@
         #expect(pasteboard.data(forType: .tiff) == nil, "The earlier image is gone.")
       }
 
-      /// The viewer with its zoom controls and Copy Image, light and dark, over the sheet's own background.
+      private static func waitForJobs(_ count: Int, _ printer: RecordingPrinter) async throws {
+        for _ in 0 ..< 250 where printer.jobs.count < count {
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        try #require(printer.jobs.count == count, "\(printer.jobs.count) of \(count) print jobs.")
+      }
+
+      /// Row 15a2b: web's Print prints the shown image by itself; ⌘P hands the image the viewer shows
+      /// now, stepped to or not, to the printer, named by its file.
+      @Test func printPrintsTheShownImage() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let printer = RecordingPrinter()
+        let fixture = Self.fixture(Gallery.threeImages(UUID()), printer: printer)
+        defer { Gallery.close(fixture) }
+        let (sheet, _) = try await Self.open(1, of: 3, .portrait, in: fixture)
+
+        #expect(try Self.press("p", keyCode: 35, in: sheet), "⌘P is Print's key.")
+        try await Self.waitForJobs(1, printer)
+        let first = try #require(printer.jobs.last)
+        #expect(first.title == "b.svg")
+        #expect(first.size.height > first.size.width, "The portrait image: \(first.size)")
+
+        #expect(try Gallery.pressRight(in: sheet))
+        try await Gallery.waitForShape(.wide, in: sheet, "→ steps to the next image.")
+        #expect(try Self.press("p", keyCode: 35, in: sheet))
+        try await Self.waitForJobs(2, printer)
+        let second = try #require(printer.jobs.last)
+        #expect(second.title == "c.svg", "Print follows the stepped image.")
+        #expect(second.size.width > 4 * second.size.height, "The wide image: \(second.size)")
+      }
+
+      /// Web prints silently or not at all; Apple says when the image cannot be downloaded to print.
+      @Test func printReportsAnImageItCannotFetch() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let printer = RecordingPrinter()
+        let fixture = Self.fixture("Only one: " + Gallery.link("b", .portrait, run: UUID()), printer: printer)
+        defer { Gallery.close(fixture) }
+        let (sheet, _) = try await Self.open(0, of: 1, .portrait, in: fixture)
+
+        URLProtocol.registerClass(FailingImageProtocol.self)
+        defer { URLProtocol.unregisterClass(FailingImageProtocol.self) }
+        #expect(try Self.press("p", keyCode: 35, in: sheet))
+        for _ in 0 ..< 250 where sheet.attachedSheet == nil {
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        let alert = try #require(sheet.attachedSheet, "An alert says the image could not be printed.")
+        sheet.endSheet(alert)
+        #expect(printer.jobs.isEmpty, "Nothing reached the printer.")
+      }
+
+      /// Print and Copy Image belong to the image viewer only: the document viewer's bar, the same
+      /// view, offers neither key.
+      @Test func printAndCopyAreForImagesOnly() async throws {
+        URLProtocol.registerClass(ScrollMediaProtocol.self)
+        defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
+        let printer = RecordingPrinter()
+        let pasteboard = NSPasteboard.withUniqueName()
+        defer { pasteboard.releaseGlobally() }
+        let run = UUID()
+        let pdfURL = try #require(URL(string: "https://scroll-fixture.invalid/\(run)/notes.pdf"))
+        let imageURL = try #require(URL(string: Self.imageURL("b", .portrait, run: run)))
+        let pdf = try #require(MessageAttachment(url: pdfURL, label: "notes.pdf"))
+        let image = try #require(MessageAttachment(url: imageURL, label: "b.svg"))
+        for (attachment, offersImageActions) in [(pdf, false), (image, true)] {
+          let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 640, height: 60), styleMask: [.titled], backing: .buffered, defer: false)
+          window.contentView = NSHostingView(rootView: AttachmentViewerToolbar(attachment: attachment, offersImageActions: offersImageActions) {}
+            .padding()
+            .environment(\.imagePrinter, printer)
+            .environment(\.imageCopyPasteboard, pasteboard.name))
+          window.orderFront(nil)
+          defer { window.orderOut(nil) }
+          try await Task.sleep(for: .milliseconds(100))
+          #expect(try Self.press("p", keyCode: 35, in: window) == offersImageActions, "⌘P in the \(attachment.filename) viewer.")
+          #expect(try Self.press("c", keyCode: 8, in: window) == offersImageActions, "⌘C in the \(attachment.filename) viewer.")
+        }
+        try await Self.waitForJobs(1, printer)
+        #expect(printer.jobs.first?.title == "b.svg", "Only the image printed.")
+      }
+
+      /// The viewer with its zoom controls, Copy Image and Print, light and dark, over the sheet's own background.
       @Test(arguments: [false, true])
       func rendersTheZoomControls(dark: Bool) async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
