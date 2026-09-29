@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -15,10 +14,7 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signUp } from "@/lib/auth/auth.client";
-import {
-  buildOAuthConsentReturnUrlFromSearchParams,
-  buildSignInUrlFromSignUp,
-} from "@/lib/auth/auth.utils";
+import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -26,6 +22,8 @@ import {
   type SignUpFormSchemaType,
   signUpFormSchema,
 } from "@/lib/schemas/auth";
+
+import SignInLink from "./sign-in-link";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
@@ -162,12 +160,7 @@ export default function SignUpForm({
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}
           </span>
-          <Link
-            href={buildSignInUrlFromSignUp({ returnUrl: effectiveReturnUrl })}
-            className="text-primary text-sm font-medium hover:underline"
-          >
-            {t("Login.link")}
-          </Link>
+          <SignInLink />
         </div>
       </div>
     </AuthForm>
