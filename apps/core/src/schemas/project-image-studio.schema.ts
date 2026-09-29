@@ -1,12 +1,15 @@
 import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { getImageCatalog } from "@/lib/image-studio/catalog";
+import { IMAGE_JOB_FAILURE_REASONS } from "@/lib/image-studio/failure-reason";
 import {
   DEFAULT_IMAGE_MODEL_ID,
   IMAGE_ASPECT_RATIOS,
-  IMAGE_MODEL_IDS,
   IMAGE_OUTPUT_FORMATS,
+  IMAGE_PROVIDER_FIELDS,
   IMAGE_RESOLUTIONS,
-} from "@/lib/image-studio/catalog";
+} from "@/lib/image-studio/image-model";
+import { IMAGE_PROMPT_MAX_LENGTH } from "@/lib/image-studio/request-validation";
 
 export const IMAGE_JOB_STATUSES = [
   "PENDING",
@@ -55,22 +58,12 @@ export const imageStudioJobParamsSchema = imageStudioProjectParamsSchema.extend(
 
 export const imageStudioSettingsSchema = z
   .object({
-    placementId: z.string().max(100).nullable().optional(),
     aspectRatio: z.enum(IMAGE_ASPECT_RATIOS).default("1:1"),
     resolution: z.enum(IMAGE_RESOLUTIONS).default("1K"),
     outputFormat: z.enum(IMAGE_OUTPUT_FORMATS).default("png"),
     seed: z.number().int().min(0).max(2_147_483_647).nullable().default(null),
   })
   .openapi("ProjectImageSettings");
-
-export const imageStudioReviewSchema = z
-  .object({
-    decision: z.enum(["APPROVED", "REJECTED"]),
-    feedback: z.string().nullable(),
-    decidedAt: dateTimeSchema,
-    decidedByUserId: z.string(),
-  })
-  .openapi("ProjectImageReview");
 
 export const imageStudioAssetSchema = z
   .object({
@@ -97,13 +90,6 @@ export const imageStudioAssetSchema = z
      * is private and has no URL a client could fetch directly.
      */
     contentPath: z.string(),
-    /**
-     * Absent until somebody decides. Optional rather than nullable on purpose:
-     * the OpenAPI client generator emits an unguarded date transform for a
-     * nullable object, which crashes on `null`, but guards an optional one. A
-     * new version has no review, so that path is the common case, not an edge.
-     */
-    review: imageStudioReviewSchema.optional(),
   })
   .openapi("ProjectImageAsset");
 
@@ -118,7 +104,22 @@ export const imageStudioJobSchema = z
     settings: imageStudioSettingsSchema,
     /** The versions it referenced, so a retry keeps every one of them. */
     referenceAssetIds: z.array(z.string().uuid()),
+    /**
+     * One sentence a person can read, written by the studio. Never the
+     * provider's own words: a raw transport string is not something anybody can
+     * act on, so it goes to the server log instead.
+     */
     error: z.string().nullable(),
+    /**
+     * The stable reason a client should branch on and translate. Prefer it over
+     * `error`, which is an English fallback.
+     *
+     * Null for a job that failed before the studio recorded a reason, and for the
+     * one outage case whose own wording says more than a code could — fall back
+     * to `error` there. `unknown` means this API saw a code it does not know,
+     * which is how a newer Core stays readable by an older client.
+     */
+    failureReason: z.enum(IMAGE_JOB_FAILURE_REASONS).nullable(),
     parentAssetId: z.string().uuid().nullable(),
     assetId: z.string().uuid().nullable(),
     createdAt: dateTimeSchema,
@@ -136,6 +137,22 @@ export const imageStudioJobSchema = z
      * a second time.
      */
     retryMayDuplicateCharge: z.boolean(),
+    /**
+     * What this generation cost, in the same user-facing decimal the rest of the
+     * API uses.
+     *
+     * The studio charges on delivery, so this is **null until there is an image**
+     * — including for a job that failed, which costs nothing. A client that wants
+     * to show a price before then computes it from the catalog with
+     * `creditsPerImageCents`, the same way the composer's estimate does.
+     */
+    credits: z.number().nullable(),
+    /**
+     * @deprecated Always false. The studio charges on delivery, so a failed
+     * generation moves no money and there is nothing to refund. Kept for one
+     * release so clients can drop their refunded branch; read `credits` instead.
+     */
+    refunded: z.boolean(),
   })
   .openapi("ProjectImageJob");
 
@@ -152,8 +169,28 @@ export const imageStudioSessionSchema = z
 
 export const createImageJobRequestSchema = z
   .object({
-    modelId: z.enum(IMAGE_MODEL_IDS).default(DEFAULT_IMAGE_MODEL_ID),
-    prompt: z.string().trim().min(1).max(4_000),
+    /**
+     * A catalog model id.
+     *
+     * Not a Zod enum, because the catalog is read from fal and moves without a
+     * deploy: a fixed list compiled into the schema would reject a model the
+     * studio is already offering. The refinement reads the *resolved* catalog at
+     * parse time instead, so a model that appeared in the last refresh is
+     * accepted and an unknown id is still a 400 rather than reaching the
+     * reservation. `resolveImageSettings` checks it again before anything is
+     * charged, because the schema is not the only way into that code.
+     */
+    modelId: z
+      .string()
+      .trim()
+      .min(1)
+      .max(200)
+      .default(DEFAULT_IMAGE_MODEL_ID)
+      .refine(
+        (id) => getImageCatalog().models.some((model) => model.id === id),
+        { message: "Unknown image model. Choose one from the studio catalog." },
+      ),
+    prompt: z.string().trim().min(1).max(IMAGE_PROMPT_MAX_LENGTH),
     settings: imageStudioSettingsSchema.optional(),
     referenceAssetIds: z.array(z.string().uuid()).max(4).default([]),
     parentAssetId: z.string().uuid().nullable().default(null),
@@ -165,20 +202,6 @@ export const createImageJobRequestSchema = z
     idempotencyKey: z.string().trim().min(8).max(200),
   })
   .openapi("CreateProjectImageJobRequest");
-
-export const reviewImageAssetRequestSchema = z
-  .object({
-    decision: z.enum(["APPROVED", "REJECTED"]),
-    feedback: z.string().trim().max(2_000).nullable().default(null),
-  })
-  .openapi("ReviewProjectImageAssetRequest");
-
-export const bindImageSessionRequestSchema = z
-  .object({
-    eveSessionId: z.string().trim().min(1).max(200),
-    title: z.string().trim().max(200).nullable().default(null),
-  })
-  .openapi("BindProjectImageSessionRequest");
 
 export const imageStudioStateQuerySchema = z.object({
   /**
@@ -195,64 +218,79 @@ export const imageStudioStateQuerySchema = z.object({
   beforeId: z.string().uuid().optional(),
 });
 
+/**
+ * One catalog row, and the whole contract a client has about a model.
+ *
+ * Lean on purpose: this ships about a hundred and fifty times, so nothing is
+ * repeated here that a client does not read. It used to ride inside every poll
+ * of the studio state; it now has its own cached route for exactly that reason.
+ */
+export const imageStudioCatalogModelSchema = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    description: z.string(),
+    generateEndpoint: z.string(),
+    /**
+     * Null when fal lists no `/edit` variant. Such a model generates and cannot
+     * refine: a client must offer no refine, no references, and no "make a
+     * variation of this" for it. `maxReferences` is 0 for the same models.
+     */
+    editEndpoint: z.string().nullable(),
+    aspectRatios: z.array(z.string()),
+    resolutions: z.array(z.string()),
+    /** Empty means the model chooses its own format and none is sent. */
+    outputFormats: z.array(z.string()),
+    supportsSeed: z.boolean(),
+    maxReferences: z.number().int(),
+    dimensionMode: z.enum(["aspect-ratio", "image-size"]),
+    /** The provider input properties this endpoint declares. */
+    providerFields: z.array(z.enum(IMAGE_PROVIDER_FIELDS)),
+    /** 1-5 for the curated shortlist, in order. Null for everything else. */
+    curatedRank: z.number().int().nullable(),
+    notes: z.string(),
+    /**
+     * fal's published list price, and the inputs to the credits figure.
+     *
+     * A client computes credits with `creditsPerImageCents` from
+     * `@sokosumi/utils`, the same function Core charges with, so the estimate the
+     * composer shows and the debit the reservation takes cannot disagree.
+     */
+    price: z.object({
+      /** fal's own unit, e.g. `images` or `megapixels`. */
+      unit: z.string(),
+      unitPriceUsd: z.number(),
+      /**
+       * Hand-verified USD per image by resolution tier, where fal's unit alone
+       * does not describe one image. `partialRecord`, not `record`: a plain
+       * record over an enum is exhaustive in Zod 4, and no model offers every
+       * tier.
+       */
+      perImageUsd: z
+        .partialRecord(z.enum(IMAGE_RESOLUTIONS), z.number())
+        .optional(),
+      basis: z.string(),
+      sourceUrl: z.string(),
+      verifiedAt: z.string(),
+    }),
+    sourceUrls: z.array(z.string()),
+    verifiedAt: z.string(),
+  })
+  .openapi("ProjectImageStudioCatalogModel");
+
 export const imageStudioCatalogSchema = z
   .object({
     defaultModelId: z.string(),
-    models: z.array(
-      z.object({
-        id: z.string(),
-        label: z.string(),
-        description: z.string(),
-        generateEndpoint: z.string(),
-        editEndpoint: z.string(),
-        aspectRatios: z.array(z.string()),
-        resolutions: z.array(z.string()),
-        outputFormats: z.array(z.string()),
-        supportsSeed: z.boolean(),
-        maxReferences: z.number().int(),
-        dimensionMode: z.enum(["aspect-ratio", "image-size"]),
-        notes: z.string(),
-        /**
-         * The provider's published list price, never a charge. Nothing in this
-         * studio records what a job actually cost, so a client showing money
-         * has to say it is an estimate and say where the number came from —
-         * which is what `basis` and `sourceUrl` are for.
-         */
-        price: z.object({
-          /**
-           * USD per image by resolution tier. `partialRecord`, not `record`: a
-           * plain record over an enum is exhaustive in Zod 4, and no model
-           * offers every tier — the two 2K-and-1K models have no 0.5K entry to
-           * give, and demanding one rejected the real catalog.
-           */
-          perImageUsd: z.partialRecord(z.enum(IMAGE_RESOLUTIONS), z.number()),
-          basis: z.string(),
-          sourceUrl: z.string(),
-          verifiedAt: z.string(),
-        }),
-        sourceUrls: z.array(z.string()),
-        verifiedAt: z.string(),
-      }),
-    ),
-    placements: z.array(
-      z.object({
-        id: z.string(),
-        platform: z.string(),
-        label: z.string(),
-        aspectRatio: z.string(),
-        width: z.number().int(),
-        height: z.number().int(),
-        notes: z.string(),
-        sourceUrl: z.string(),
-        verifiedAt: z.string(),
-      }),
-    ),
+    models: z.array(imageStudioCatalogModelSchema),
+    /** When the committed cold-start snapshot behind this catalog was captured. */
+    snapshotDate: z.string(),
+    /** When this instance last refreshed from fal. Null on a cold start. */
+    refreshedAt: z.string().nullable(),
   })
   .openapi("ProjectImageStudioCatalog");
 
 export const imageStudioListSchema = z
   .object({
-    catalog: imageStudioCatalogSchema,
     assets: z.array(imageStudioAssetSchema),
     jobs: z.array(imageStudioJobSchema),
     sessions: z.array(imageStudioSessionSchema),

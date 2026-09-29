@@ -11,6 +11,7 @@ import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { assertDriveFolderPathNotReserved } from "@/helpers/drive-folder-reserved-names";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -22,6 +23,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { renameDriveFolderRequestSchema } from "@/schemas/drive-file.schema";
+import { reconcileDriveUploadMoves } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "patch",
@@ -175,18 +177,38 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    // Resolve the workspace *before* anything is mutated. Doing it after
+    // the renames meant a failure here left the objects moved and the
+    // catalog untouched, with no way back.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: body.scope,
+      organizationId: body.scope === "org" ? body.organizationId : undefined,
+    });
+
     // Bounded-concurrency head + rename (10 concurrent operations)
     const limit = pLimit(10);
+
+    // Pairs that really moved, collected as they succeed so a partial
+    // failure reconciles exactly what happened and nothing more.
+    const moved: { fromPathname: string; toPathname: string }[] = [];
 
     const renameTasks = allPathnames.map((sourcePathname) =>
       limit(async () => {
         const relativePath = sourcePathname.slice(oldPrefix.length);
         const newPathname = `${newPrefix}${relativePath}`;
 
-        // Skip if already at target (retry-safe)
+        // Skip if already at target (retry-safe). It still counts as
+        // moved: on a retry of a half-completed rename these are exactly
+        // the files that moved on the first attempt, and skipping them
+        // without recording the pair is what left them never reconciled.
         try {
           const targetCheck = await head(newPathname, { token });
           if (targetCheck) {
+            moved.push({
+              fromPathname: sourcePathname,
+              toPathname: newPathname,
+            });
             return;
           }
         } catch (error) {
@@ -222,10 +244,33 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           }
           throw error;
         }
+
+        moved.push({ fromPathname: sourcePathname, toPathname: newPathname });
       }),
     );
 
-    await Promise.all(renameTasks);
+    // `allSettled`, not `all`. `Promise.all` rejects on the first failure,
+    // so the reconcile below was never reached — while every rename that
+    // had already committed stayed committed, and the tasks still in
+    // flight kept renaming, because `pLimit` does not cancel. A folder that
+    // half-moved left its documents indexed at pathnames that no longer
+    // hold them, and each vacated pathname free for a later upload to
+    // inherit that document's manual tags.
+    const outcomes = await Promise.allSettled(renameTasks);
+
+    // Follow the objects in the catalog. Without this every document under
+    // the renamed folder stayed indexed at its old pathname. This runs for
+    // whatever actually moved, including after a partial failure.
+    if (moved.length > 0) {
+      await reconcileDriveUploadMoves({
+        workspaceId: workspace.workspaceId,
+        scope,
+        moves: moved,
+      });
+    }
+
+    const failed = outcomes.find((outcome) => outcome.status === "rejected");
+    if (failed) throw failed.reason;
 
     return ok(c, body);
   });

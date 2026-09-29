@@ -1,6 +1,7 @@
 import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 import { sokoBotOutcomeSummary } from "@/services/soko-bot-outcome.service";
 
 import {
@@ -30,6 +31,11 @@ const ACTION_LABELS: Record<string, string> = {
   provide_job_input: "Submitted job input",
   run_integration_tool: "Integration acknowledged operation",
   upload_file: "Uploaded file",
+  create_social_post: "Created social post",
+  update_social_post: "Updated social post",
+  schedule_social_post: "Scheduled social post",
+  cancel_social_post: "Canceled social post",
+  publish_social_post: "Published social post",
 };
 
 const QUESTIONS = {
@@ -114,7 +120,63 @@ function quoteRead(value: string) {
   return JSON.stringify(value.slice(0, 600));
 }
 
+const socialAccountObservationSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  externalHandle: z.string().nullable(),
+  status: z.string(),
+  connectedAt: z.string().nullable(),
+  disconnectedAt: z.string().nullable(),
+});
+
+const socialPostObservationSchema = z.object({
+  id: z.string(),
+  provider: z.string(),
+  text: z.string(),
+  status: z.string(),
+  revision: z.number().int().nonnegative(),
+  scheduledAt: z.string().nullable(),
+  timezone: z.string().nullable(),
+  publishedUrl: z.string().nullable(),
+  socialConnection: z
+    .object({ externalHandle: z.string().nullable(), status: z.string() })
+    .nullable()
+    .optional(),
+});
+
+function describeSocialPost(read: z.infer<typeof socialPostObservationSchema>) {
+  return `Observed social post ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, status ${quoteRead(read.status)}, revision ${read.revision}. Text: ${quoteRead(read.text)}. Scheduled at: ${quoteRead(read.scheduledAt ?? "not scheduled")}; time zone: ${quoteRead(read.timezone ?? "not set")}.${read.socialConnection ? ` Account: ${quoteRead(read.socialConnection.externalHandle ?? "unknown handle")}, status ${quoteRead(read.socialConnection.status)}.` : ""}${read.publishedUrl ? ` Published URL: ${quoteRead(read.publishedUrl)}.` : ""}`;
+}
+
 function describeRead(capability: string, value: unknown): string[] {
+  if (capability === "list_project_social_accounts") {
+    const parsed = z.array(socialAccountObservationSchema).safeParse(value);
+    if (!parsed.success) return [];
+    return [
+      `Showing ${parsed.data.length} of ${parsed.data.length} returned social accounts.`,
+      ...parsed.data.map(
+        (read) =>
+          `Observed social account ${quoteRead(read.id)}: platform ${quoteRead(read.provider)}, handle ${quoteRead(read.externalHandle ?? "unknown handle")}, status ${quoteRead(read.status)}. Connected at: ${quoteRead(read.connectedAt ?? "not recorded")}; disconnected at: ${quoteRead(read.disconnectedAt ?? "not recorded")}.`,
+      ),
+    ];
+  }
+  if (capability === "list_social_posts") {
+    const parsed = z
+      .object({
+        posts: z.array(socialPostObservationSchema),
+        pagination: cursorPaginationMetaSchema,
+      })
+      .safeParse(value);
+    if (!parsed.success) return [];
+    return [
+      `Showing ${Math.min(parsed.data.posts.length, 5)} of ${parsed.data.posts.length} returned social posts (${parsed.data.pagination.total} total).${parsed.data.pagination.nextCursor ? " More posts are available." : ""}`,
+      ...parsed.data.posts.slice(0, 5).map(describeSocialPost),
+    ];
+  }
+  if (capability === "get_social_post") {
+    const parsed = socialPostObservationSchema.safeParse(value);
+    return parsed.success ? [describeSocialPost(parsed.data)] : [];
+  }
   const parsed = readObservationSchema.safeParse(value);
   if (!parsed.success) return [];
   const read = parsed.data;
@@ -265,7 +327,15 @@ export async function buildActionResponse(
       where: {
         turnId,
         toolCallId: { in: narrative.observationToolCallIds },
-        capability: { in: ["get_task_status", "get_job_status"] },
+        capability: {
+          in: [
+            "get_task_status",
+            "get_job_status",
+            "list_project_social_accounts",
+            "list_social_posts",
+            "get_social_post",
+          ],
+        },
         status: "COMPLETED",
       },
       orderBy: [{ createdAt: "asc" }, { id: "asc" }],

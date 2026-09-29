@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
   getExtensionFromUrl,
   unfurlCardHasPreviewContent,
@@ -36,7 +35,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 import {
   CoworkerFailedThoughtSparkle,
   CoworkerLiveThought,
@@ -74,10 +72,6 @@ import {
 } from "@/app/chat/utils/room-message-segments";
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
-import {
-  ComposerWysiwygEditor,
-  type ComposerWysiwygEditorHandle,
-} from "@/components/chat/composer-wysiwyg-editor";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
 import {
   AlertDialog,
@@ -121,7 +115,6 @@ import {
   recordEmojiUse,
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
-import { useMountEffect } from "@/hooks/use-mount-effect";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
 import type {
   ChatRoomCoworkerParticipant,
@@ -131,7 +124,6 @@ import type {
   ChatRoomMessageReaction,
   ChatRoomMessageUnfurl,
   ChatRoomSokoBotParticipant,
-  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
@@ -140,20 +132,19 @@ import { classifyFilePreview } from "@/lib/utils/file-preview";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
+import { MessageEditComposer } from "./message-edit-composer";
 import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
   type ChatParticipantHoverProfile,
-  composerMentionDisplayNames,
   formatRoomComposerTooLongFailure,
-  isRoomComposerContentCountVisible,
-  isRoomComposerContentOverLimit,
   type MessageSenderProfile,
   messageSender,
   ROOM_MESSAGE_MARKDOWN_CLASSNAME,
   ROOM_QUOTE_MARKDOWN_CLASSNAME,
   type RoomMentionParticipant,
   senderProfile,
+  type UserMentionLookup,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
@@ -162,7 +153,6 @@ import {
   SokoBotMessageFooter,
 } from "./soko-bot-message-footer";
 
-type UserMentionLookup = Pick<ChatRoomUserParticipant, "id" | "name">;
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
 type RoomQuoteAttachment = Exclude<ChatRoomMessageQuoteAttachment, null>;
 
@@ -417,7 +407,7 @@ function MessageQuoteBlock({
     <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
       <button
         type="button"
-        className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
+        className="press hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
           // Sent to yourself from another room: this transcript does not hold
@@ -465,7 +455,7 @@ function MessageQuoteBlock({
       {expanded || overflows ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary press hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -543,12 +533,12 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
         {siteLabel ? (
-          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
+          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium">
             {siteLabel}
           </div>
         ) : null}
@@ -886,7 +876,7 @@ function ChannelMessageBody({
       {!skipBodyClamp && (expanded || overflows) ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary press hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -1811,162 +1801,6 @@ function TouchMessageActionsSheet({
   );
 }
 
-function MessageEditComposer({
-  value,
-  originalContent,
-  onChange,
-  onSave,
-  onCancel,
-  isSaving,
-  mentions = {},
-  usersById,
-  usersBySlug,
-  coworkersById,
-  coworkersBySlug,
-  sokoBotsById,
-  sokoBotsBySlug,
-  channels = [],
-}: {
-  value: string;
-  originalContent: string;
-  onChange: (value: string) => void;
-  onSave: (content: string) => void;
-  onCancel: () => void;
-  isSaving: boolean;
-  mentions?: Record<string, MentionRecordEntry<RoomMentionParticipant>>;
-  usersById?: Map<string, UserMentionLookup>;
-  usersBySlug?: Map<string, UserMentionLookup>;
-  coworkersById?: Map<string, ChatRoomCoworkerParticipant>;
-  coworkersBySlug?: Map<string, ChatRoomCoworkerParticipant>;
-  sokoBotsById?: Map<string, ChatRoomSokoBotParticipant>;
-  sokoBotsBySlug?: Map<string, ChatRoomSokoBotParticipant>;
-  channels?: readonly ComposerChannelOption[];
-}) {
-  const t = useTranslations("App.Channels");
-  const editorRef = useRef<ComposerWysiwygEditorHandle>(null);
-  const liveRef = useRef(value);
-  liveRef.current = value;
-
-  const mentionDisplay = useMemo(
-    () =>
-      composerMentionDisplayNames({
-        usersById,
-        usersBySlug,
-        coworkersById,
-        coworkersBySlug,
-        sokoBotsById,
-        sokoBotsBySlug,
-        mentionCatalog: mentions,
-      }),
-    [
-      coworkersById,
-      coworkersBySlug,
-      mentions,
-      sokoBotsById,
-      sokoBotsBySlug,
-      usersById,
-      usersBySlug,
-    ],
-  );
-
-  useMountEffect(() => {
-    editorRef.current?.focusAtEnd();
-  });
-
-  function liveMarkdown(): string {
-    return editorRef.current?.getMarkdown() ?? liveRef.current;
-  }
-
-  function handleCommit() {
-    if (isSaving) return;
-    const markdown = liveMarkdown();
-    const liveTrimmed = markdown.trim();
-    const originalTrimmed = originalContent.trim();
-    if (isRoomComposerContentOverLimit(liveTrimmed)) {
-      toast.error(
-        t("composerTooLong", {
-          count: liveTrimmed.length,
-          max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-        }),
-      );
-      return;
-    }
-    if (liveTrimmed.length > 0 && liveTrimmed !== originalTrimmed) {
-      onSave(markdown);
-      return;
-    }
-    onCancel();
-  }
-
-  const trimmedEditContent = value.trim();
-  const editOverLimit = isRoomComposerContentOverLimit(trimmedEditContent);
-  const showEditContentCount =
-    isRoomComposerContentCountVisible(trimmedEditContent);
-
-  return (
-    <div className="pt-0.5">
-      <div
-        className={cn(
-          "border-input focus-within:border-ring focus-within:ring-ring-halo dark:bg-quinary rounded-md border bg-transparent focus-within:ring-[3px]",
-          isSaving && "pointer-events-none opacity-50",
-        )}
-      >
-        <ComposerWysiwygEditor
-          ref={editorRef}
-          value={value}
-          onChange={(next) => {
-            liveRef.current = next;
-            onChange(next);
-          }}
-          mentions={mentions}
-          mentionDisplayByKey={mentionDisplay.byKey}
-          mentionDisplayBySlug={mentionDisplay.bySlug}
-          channels={channels}
-          disabled={isSaving}
-          ariaLabel={t("Edit.composerAria")}
-          modifierEnterSubmits
-          onSubmitShortcut={handleCommit}
-          onEscape={() => {
-            if (!isSaving) onCancel();
-          }}
-          onBlur={() => {
-            if (isSaving) return;
-            if (liveMarkdown().trim() === originalContent.trim()) {
-              onCancel();
-            }
-          }}
-          className="app-scrollbar min-h-10 max-h-40 overflow-y-auto px-3 py-2.5 leading-6"
-        />
-      </div>
-      {editOverLimit || showEditContentCount ? (
-        <div className="flex items-start justify-between gap-2 pt-1">
-          {editOverLimit ? (
-            <p className="text-destructive text-xs" role="alert">
-              {t("composerTooLongHint")}
-            </p>
-          ) : (
-            <span />
-          )}
-          {showEditContentCount ? (
-            <span
-              className={cn(
-                "text-xs tabular-nums",
-                editOverLimit ? "text-destructive" : "text-muted-foreground",
-              )}
-              aria-live="polite"
-            >
-              {t("composerCharacterCount", {
-                count: trimmedEditContent.length,
-                max: CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
-              })}
-            </span>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 /**
  * Header (next to name): min width so spinner → check → time does not nudge.
  * Continuation gutter matches the avatar rail (`w-8`); icons only — no min-w.
@@ -2196,7 +2030,7 @@ function FailedMentionActions({
     >
       <button
         type="button"
-        className="text-primary hover:text-primary-hover font-medium"
+        className="text-primary press hover:text-primary-hover font-medium"
         data-testid="coworker-mention-retry"
         onClick={onRetryMention}
       >
@@ -2232,7 +2066,7 @@ function OutboundFailedActions({
       {onRetryOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover font-medium"
+          className="text-primary press hover:text-primary-hover font-medium"
           onClick={() => onRetryOutbound(message)}
         >
           {t("Outbound.retry")}
@@ -2241,7 +2075,7 @@ function OutboundFailedActions({
       {onRemoveOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover font-medium"
+          className="text-primary press hover:text-primary-hover font-medium"
           onClick={() => onRemoveOutbound(message)}
         >
           {t("Outbound.remove")}
@@ -2323,7 +2157,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-primary hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-primary press hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2417,7 +2251,7 @@ function MessageMetaFooter({
                     type="button"
                     onClick={() => onToggleReaction(message, reaction.emoji)}
                     className={cn(
-                      "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      "border-border bg-background press hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       reaction.reactedByCurrentUser &&
                         "border-primary-tertiary bg-primary-quinary text-primary",
                     )}

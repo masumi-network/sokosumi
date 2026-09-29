@@ -2,7 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  CLI_COMMAND_CATALOG,
   CLI_COMMANDS,
+  formatCliCommandHelpLines,
+  formatUnknownCommandUsage,
   runDiscoverCommand,
 } from "../../../src/cli/commands/discover.js";
 
@@ -13,6 +16,31 @@ const config = {
   clientId: "mainnet-client",
   clientSecret: "",
 };
+
+test("one catalog derives discover commands, help lines, and unknown-command usage", () => {
+  assert.deepEqual(
+    [...CLI_COMMANDS],
+    CLI_COMMAND_CATALOG.map((entry) => entry.command),
+  );
+  const unknownUsage = formatUnknownCommandUsage();
+  assert.equal(unknownUsage, `Usage: sokosumi ${CLI_COMMANDS.join(" | ")}`);
+  assert.match(unknownUsage, /\bskills\b/);
+  assert.match(unknownUsage, /\bskills path\b/);
+  assert.match(unknownUsage, /\bruntime run\b/);
+  assert.match(unknownUsage, /\bcoworkers list\b/);
+  assert.match(unknownUsage, /\bcoworkers register\b/);
+  assert.match(unknownUsage, /\btasks list\b/);
+  assert.match(unknownUsage, /\bjobs list\b/);
+  assert.match(
+    formatCliCommandHelpLines(),
+    /^  sokosumi vendors create --name NAME --slug SLUG$/m,
+  );
+  assert.match(
+    formatCliCommandHelpLines(),
+    /^  sokosumi runtime run TASK_ID \[options\]$/m,
+  );
+  assert.match(formatCliCommandHelpLines(), /^  sokosumi skills$/m);
+});
 
 test("discover JSON lists the current command catalog", async () => {
   const output: string[] = [];
@@ -67,6 +95,9 @@ test("discover collects Core resources with stable JSON fields", async () => {
         return { data } as T;
       },
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
@@ -94,6 +125,9 @@ test("discover JSON redacts credential assignments in errors", async () => {
       );
     },
     post: async <T>() => ({}) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 

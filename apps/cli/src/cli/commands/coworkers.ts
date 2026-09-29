@@ -1,4 +1,5 @@
 import type { CoworkerWorkspaceAccess } from "../../api/models/coworker-workspace-access.js";
+import { hasPlatformAdminRole } from "../../api/models/user-identity.js";
 import {
   createCoworker,
   createCoworkerApiKey,
@@ -9,6 +10,7 @@ import {
   updateCoworker,
 } from "../../api/services/coworker-service.js";
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import type { CliTargetConfig } from "../../auth/config.js";
 import {
@@ -52,11 +54,19 @@ function rethrowCoworkerCreationError(
   const failure = error instanceof Error ? error : new Error(String(error));
   const status = "status" in failure ? failure.status : undefined;
   if (status === 403) {
-    failure.message +=
-      "\nOnly a Sokosumi platform admin can create a Coworker.\n" +
-      `Send Vendor ${vendorId} and your final Coworker name to the organizer.\n` +
-      `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${organizationId}\`.\n` +
-      "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.";
+    const body = "body" in failure ? record(failure.body) : {};
+    const guidance = [
+      "Check the signed-in Preprod account with `sokosumi --preprod auth whoami --json`.",
+    ];
+    if (body.message === "Admin access required") {
+      guidance.push(
+        "Coworker creation requires a Sokosumi platform admin on Preprod.",
+        `Send Vendor ${vendorId} and your final Coworker name to the organizer.`,
+        `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${organizationId}\`.`,
+        "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
+      );
+    }
+    failure.message = `${failure.message}\n${guidance.join("\n")}`;
   } else if (typeof status !== "number" || status < 400 || status >= 500) {
     failure.message +=
       " Creation may have succeeded. Inspect `sokosumi --preprod coworkers list --scope all` before retrying.";
@@ -230,10 +240,27 @@ export async function runCoworkersCommand({
     }
     const payload = await buildPayload(options, "provision");
     const vendorId = String(payload.vendorId);
+    const user = await fetchUserIdentity(client, signal);
+    if (!hasPlatformAdminRole(user)) {
+      throw new Error(
+        `Signed in on Preprod as ${user.email} [${user.id}], platform role: ${user.platformRole}. Coworker creation requires a Sokosumi platform admin. Send Vendor ${vendorId} and your final Coworker name to the organizer. Check your account with \`sokosumi --preprod auth whoami --json\`.`,
+      );
+    }
     let coworker: Awaited<ReturnType<typeof createCoworker>>["coworker"];
+    let isWhitelisted: unknown;
     try {
-      ({ coworker } = await createCoworker(client, payload, signal));
+      const created = await createCoworker(client, payload, signal);
+      coworker = created.coworker;
+      isWhitelisted = record(created.response.data).isWhitelisted;
     } catch (error) {
+      if (
+        error instanceof Error &&
+        error.message.startsWith("Invalid vendor response:")
+      ) {
+        throw new Error(
+          "Core returned an invalid Coworker Vendor. Creation may have succeeded. Inspect `sokosumi --preprod coworkers list --scope all` before retrying.",
+        );
+      }
       rethrowCoworkerCreationError(error, vendorId);
     }
     if (!coworker.id?.trim()) {
@@ -241,13 +268,34 @@ export async function runCoworkersCommand({
         "Core returned no Coworker ID. Creation may have succeeded. Check `sokosumi --preprod coworkers list --scope all` before retrying.",
       );
     }
-    if (json) writeJson(stdout, { coworker });
+    if (coworker.vendor?.id !== vendorId) {
+      throw new Error(
+        `Core returned Coworker ${coworker.id}, but its Vendor does not match ${vendorId}. Creation may have succeeded. Inspect Coworker ${coworker.id} with \`sokosumi --preprod coworkers list --scope all\` before retrying.`,
+      );
+    }
+    if (isWhitelisted !== false) {
+      throw new Error(
+        `Core returned Coworker ${coworker.id}, but its private approval state could not be confirmed. Creation may have succeeded. Inspect Coworker ${coworker.id} before retrying.`,
+      );
+    }
+    if (json)
+      writeJson(stdout, {
+        coworker,
+        handoff: { coworkerId: coworker.id, vendorId },
+      });
     else
       writeText(stdout, [
+        "Admin step complete.",
         `Provisioned ${coworker.name} [${coworker.id}] under Vendor ${vendorId}.`,
-        `Give Coworker ID ${coworker.id} to the developer. They run:`,
+        `Give Coworker ID ${coworker.id} and Vendor ID ${vendorId} to the developer.`,
+        "Developer: confirm your account, select a Workspace, then connect and check Seat eligibility:",
+        "  sokosumi --preprod auth whoami --json",
+        "  sokosumi --preprod workspaces list",
         `  sokosumi --preprod coworkers connect ${coworker.id} --vendor-id ${vendorId} --workspace-id ORGANIZATION_ID`,
+        "  sokosumi --preprod workspaces check ORGANIZATION_ID",
+        "Operator: create the runtime key in a trusted terminal:",
         `  sokosumi --preprod coworkers api-key ${coworker.id} --json`,
+        "Send the key to the agent host through secure stdin.",
       ]);
     return;
   }
@@ -383,6 +431,9 @@ export async function runCoworkersCommand({
     else
       writeText(stdout, [
         `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+        `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+        `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,
+        "The operator supplies the Coworker key through secure stdin.",
       ]);
     return;
   }

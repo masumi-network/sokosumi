@@ -35,6 +35,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
+import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -155,7 +156,7 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
-  isOrgOwnerOrAdmin?: boolean;
+  hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
    * viewer cannot create a schedule; the Task itself is never changed.
@@ -185,7 +186,7 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
-  isOrgOwnerOrAdmin = false,
+  hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
@@ -262,7 +263,8 @@ export function TaskDetailActions({
     forceReadOnly,
     taskStatus: status,
     isTaskOwner,
-    isOrgOwnerOrAdmin,
+    isOrganizationTask: currentOrganizationId != null,
+    hasAssignedSeat,
   });
   const canArchiveTask =
     canArchiveParked ||
@@ -272,8 +274,11 @@ export function TaskDetailActions({
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
+  // Move stays owner-only: a member moving the task would take it away from
+  // its owner.
   const canMove =
     canMutateTask &&
+    isTaskOwner &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
@@ -439,6 +444,7 @@ export function TaskDetailActions({
     startArchiveTransition(async () => {
       try {
         await deleteTask({ taskId });
+        markTaskArchived(taskId);
         setIsOpen(false);
         router.push("/tasks");
       } catch (error) {
@@ -598,7 +604,10 @@ export function TaskDetailActions({
                 onSelect={handleRepeat}
               >
                 {isRepeatLoading ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
                 ) : (
                   <Repeat className="size-4" aria-hidden />
                 )}
@@ -619,7 +628,10 @@ export function TaskDetailActions({
                   onSelect={() => handleStatusToggle(action)}
                 >
                   {isStatusPending && pendingStatusTarget === action.target ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
                   ) : (
                     <StatusIcon className="size-4" aria-hidden />
                   )}
@@ -800,7 +812,7 @@ export function TaskDetailActions({
                                 {isRemoveRelatedPending &&
                                 pendingRemoveLinkId === link.id ? (
                                   <Loader2
-                                    className="size-4 animate-spin"
+                                    className="size-4 animate-spin motion-reduce:animate-pulse"
                                     aria-hidden
                                   />
                                 ) : (
@@ -852,7 +864,7 @@ export function TaskDetailActions({
                               {isRemoveRelatedPending &&
                               pendingRemoveLinkId === link.id ? (
                                 <Loader2
-                                  className="size-4 animate-spin"
+                                  className="size-4 animate-spin motion-reduce:animate-pulse"
                                   aria-hidden
                                 />
                               ) : (
@@ -883,7 +895,10 @@ export function TaskDetailActions({
                     onSelect={handleRemoveParent}
                   >
                     {isParentRemovalPending ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <SquareArrowRightExit className="size-4" aria-hidden />
                     )}

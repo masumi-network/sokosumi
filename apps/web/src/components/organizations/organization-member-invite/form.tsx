@@ -82,7 +82,9 @@ export default function OrganizationMemberInviteForm({
         <fieldset disabled={isLoading} className="flex flex-col gap-8">
           <FormFields form={form} formData={inviteFormData} />
           <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {isLoading && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {t("submit")}
           </Button>
         </fieldset>

@@ -11,7 +11,11 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
+import {
+  CLI_COMMANDS,
+  formatCliCommandHelpLines,
+  formatUnknownCommandUsage,
+} from "../../src/cli/commands/discover.js";
 import {
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
@@ -108,6 +112,9 @@ test("resource commands reject mismatched target API keys before Core requests",
           return {} as T;
         },
         post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
@@ -129,6 +136,9 @@ test("Coworker registration defaults to Preprod", async () => {
           return { data: [] } as T;
         },
         post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: () => undefined },
@@ -177,6 +187,9 @@ test("developer connects a provisioned Coworker through CLI arguments", async ()
             },
           } as T;
         },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -214,6 +227,9 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
           coreCalls += 1;
           return {} as T;
         },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => {
           coreCalls += 1;
           return {} as T;
@@ -224,8 +240,14 @@ test("preflight rejects unauthenticated resource commands before Core", async ()
     new RegExp(errorMessage.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
   );
   assert.equal(coreCalls, 0);
-  assert.equal(output.join(""), `${JSON.stringify({ error: errorMessage })}\n`);
-  assert.deepEqual(JSON.parse(output.join("")), { error: errorMessage });
+  assert.equal(
+    output.join(""),
+    `${JSON.stringify({ error: errorMessage, code: "AUTH_REQUIRED" })}\n`,
+  );
+  assert.deepEqual(JSON.parse(output.join("")), {
+    error: errorMessage,
+    code: "AUTH_REQUIRED",
+  });
 });
 
 test("preprod auth ignores a hosted mainnet auth URL flag", async () => {
@@ -284,6 +306,7 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   const escape = (value: string) =>
     value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  assert.ok(help.includes(formatCliCommandHelpLines()));
   for (const command of CLI_COMMANDS) {
     assert.match(help, new RegExp(`^  sokosumi ${escape(command)}`, "m"));
   }
@@ -310,12 +333,11 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
     /^  sokosumi vendors create --name NAME --slug SLUG$/m,
   );
   assert.doesNotMatch(
-    commandUsage.replace(
-      "  sokosumi vendors create --name NAME --slug SLUG\n",
-      "",
-    ),
-    / --/,
+    commandUsage,
+    / --(?:api-url|auth-url|client-id|oauth-port|oauth-timeout-ms|preprod|json|api-key-stdin)\b/,
   );
+  assert.match(commandUsage, /admin add-member WORKSPACE_SLUG --email EMAIL/);
+  assert.match(commandUsage, /workspaces check ORGANIZATION_ID/);
 
   const parsed = parseArgv([
     "--preprod",
@@ -342,6 +364,24 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   assert.equal(parsed.options["oauth-port"], "53682");
   assert.equal(parsed.options["oauth-timeout-ms"], "180000");
   assert.equal(parsed.options["create-api-key"], true);
+});
+
+test("unknown command usage comes from the command catalog", async () => {
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCli(["not-a-command", "--json"], {
+        stdout: { write: (value) => output.push(value) },
+        tuiFn: async () => {
+          throw new Error("TUI should not launch");
+        },
+      }),
+    { message: formatUnknownCommandUsage() },
+  );
+  assert.deepEqual(JSON.parse(output.join("")), {
+    error: formatUnknownCommandUsage(),
+    code: "UNKNOWN",
+  });
 });
 
 test("parses coworker registration vendor ID", () => {
@@ -418,6 +458,7 @@ test("rejects inline values for boolean options without echoing them", async () 
   );
   assert.deepEqual(JSON.parse(output.join("")), {
     error: "Option --details does not accept a value",
+    code: "VALIDATION",
   });
   assert.equal(output.join("").includes(secret), false);
 });
@@ -433,7 +474,7 @@ test("unsupported inline option values are never echoed", async () => {
   );
   assert.equal(
     output.join(""),
-    `${JSON.stringify({ error: "Unknown option: --api-key" })}\n`,
+    `${JSON.stringify({ error: "Unknown option: --api-key", code: "VALIDATION" })}\n`,
   );
   assert.equal(output.join("").includes(secret), false);
 });
@@ -452,6 +493,9 @@ test("index JSON errors redact credential assignments", async () => {
           throw new Error(message);
         },
         post: async <T>() => ({}) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({}) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -466,6 +510,7 @@ test("index JSON errors redact credential assignments", async () => {
   assert.deepEqual(JSON.parse(serialized), {
     error:
       "Core API failed: apiKey: [REDACTED] refreshToken: [REDACTED] ordinary detail",
+    code: "UNKNOWN",
   });
 });
 
@@ -559,6 +604,9 @@ test("auth whoami verifies the live identity on the selected target", async () =
         post: async () => {
           throw new Error("whoami must not write");
         },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async () => {
           throw new Error("whoami must not write");
         },
@@ -597,6 +645,9 @@ test("auth whoami rejects missing authentication before Core", async () => {
           post: async () => {
             throw new Error("Unexpected write");
           },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
           patch: async () => {
             throw new Error("Unexpected write");
           },
@@ -626,6 +677,9 @@ test("auth whoami reports rejected credentials as one JSON error", async () => {
         post: async () => {
           throw new Error("Unexpected write");
         },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async () => {
           throw new Error("Unexpected write");
         },
@@ -654,6 +708,108 @@ test("auth whoami rejects trailing arguments", async () => {
           },
           post: async () => {
             throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Usage:|Unexpected argument:/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+  }
+});
+
+test("workspaces check reports a missing Seat without changing access", async () => {
+  const output: string[] = [];
+  const paths: string[] = [];
+  await runCli(["--preprod", "workspaces", "check", "org-1", "--json"], {
+    env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+    authManager: createTestAuthManager(),
+    coreClient: {
+      get: async <T>(path: string) => {
+        paths.push(path);
+        return { data: { assigned: false } } as T;
+      },
+      post: async () => {
+        throw new Error("Seat check must not write");
+      },
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
+      patch: async () => {
+        throw new Error("Seat check must not write");
+      },
+    },
+    stdout: { write: (value) => output.push(value) },
+  });
+  assert.deepEqual(paths, ["/v1/organizations/org-1/members/me/seat"]);
+  assert.equal(output.length, 1);
+  assert.deepEqual(JSON.parse(output[0]), {
+    organizationId: "org-1",
+    taskSeatEligible: false,
+  });
+});
+
+test("workspaces check rejects missing authentication before Core", async () => {
+  for (const args of [["workspaces", "check", "org-1"]]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli(["--preprod", ...args, "--json"], {
+        env: {},
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
+          patch: async () => {
+            throw new Error("Unexpected write");
+          },
+        },
+        stdout: { write: (value) => output.push(value) },
+      }),
+      /Authentication required/,
+    );
+    assert.equal(calls, 0);
+    assert.equal(output.length, 1);
+    assert.match(JSON.parse(output[0]).error, /Authentication required/);
+  }
+});
+
+test("workspaces check rejects missing identities and trailing arguments", async () => {
+  for (const args of [
+    ["workspaces", "check"],
+    ["workspaces", "check", "org-1", "extra"],
+  ]) {
+    const output: string[] = [];
+    let calls = 0;
+    await assert.rejects(
+      runCli([...args, "--json"], {
+        env: { SOKOSUMI_AUTH_TOKEN: "test-token" },
+        authManager: createTestAuthManager(),
+        coreClient: {
+          get: async <T>() => {
+            calls++;
+            return {} as T;
+          },
+          post: async () => {
+            throw new Error("Unexpected write");
+          },
+          put: async () => {
+            throw new Error("Unexpected PUT");
           },
           patch: async () => {
             throw new Error("Unexpected write");
@@ -688,6 +844,7 @@ test("auth status rejected promises emit one redacted JSON error", async () => {
   assert.equal(output.length, 1);
   assert.deepEqual(JSON.parse(output[0]), {
     error: "Authorization Bearer [REDACTED]",
+    code: "UNKNOWN",
   });
   assert.equal(output[0].includes(secret), false);
 });
@@ -720,6 +877,7 @@ test("malformed HOME config emits one redacted JSON error", () => {
       secret,
       "[REDACTED]",
     )}`,
+    code: "UNKNOWN",
   });
   assert.equal(result.stdout.includes(secret), false);
 });
@@ -769,6 +927,9 @@ test("dispatches discover JSON without opening a TUI", async () => {
     coreClient: {
       get: async <T>() => ({ data: [] }) as T,
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },
@@ -809,6 +970,9 @@ test("dispatches new read commands through their exact Core routes", async () =>
           } as T;
         },
         post: async <T>() => ({ data: null }) as T,
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
         patch: async <T>() => ({ data: null }) as T,
       },
       stdout: { write: (value) => output.push(value) },
@@ -846,6 +1010,9 @@ test("new read commands reject unauthenticated calls before Core", async () => {
             coreCalls += 1;
             return {} as T;
           },
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
           patch: async <T>() => {
             coreCalls += 1;
             return {} as T;
@@ -856,7 +1023,9 @@ test("new read commands reject unauthenticated calls before Core", async () => {
       /Authentication required/,
     );
     assert.equal(coreCalls, 0);
-    assert.deepEqual(output, [JSON.stringify({ error: authError }) + "\n"]);
+    assert.deepEqual(output, [
+      `${JSON.stringify({ error: authError, code: "AUTH_REQUIRED" })}\n`,
+    ]);
   }
 });
 
@@ -879,6 +1048,9 @@ test("new commands require their exact subcommand and no trailing args", async (
         coreClient: {
           get: async <T>() => ({}) as T,
           post: async <T>() => ({}) as T,
+          put: async () => {
+            throw new Error("Unexpected PUT");
+          },
           patch: async <T>() => ({}) as T,
         },
         stdout: { write: (value) => output.push(value) },
@@ -911,6 +1083,9 @@ test("dispatches agents list through the injected Core client", async () => {
           ],
         }) as T,
       post: async <T>() => ({ data: null }) as T,
+      put: async () => {
+        throw new Error("Unexpected PUT");
+      },
       patch: async <T>() => ({ data: null }) as T,
     },
     stdout: { write: (value) => output.push(value) },

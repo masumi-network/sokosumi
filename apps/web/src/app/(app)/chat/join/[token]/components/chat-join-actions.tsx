@@ -67,7 +67,9 @@ export function ChatJoinActions({
         onClick={handleJoin}
         disabled={isJoining}
       >
-        {isJoining && <Loader2 className="size-4 animate-spin" />}
+        {isJoining && (
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+        )}
         {isJoining ? t("joining") : t("join", { room: roomName })}
       </Button>
     );

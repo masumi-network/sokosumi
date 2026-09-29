@@ -49,6 +49,7 @@ import {
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   getJobsListFiltersForLazyAgentCatalog,
   getJobsListFiltersResetKey,
@@ -59,7 +60,6 @@ import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-serv
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
-  isTaskDraggableForViewFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -538,9 +538,10 @@ export function TasksView({
 
   useEffect(() => {
     const isListView = defaultViewMode === "list";
+    const serverTasks = tasks.filter((task) => !isTaskArchived(task.id));
     const next = mergeTasksOnServerRefresh({
-      prev: itemsRef.current,
-      serverTasks: tasks,
+      prev: itemsRef.current.filter((task) => !isTaskArchived(task.id)),
+      serverTasks,
       pendingMoveTaskIds: new Set(pendingMoveVersionByTaskIdRef.current.keys()),
       // List is a single updatedAt stream: keep load-more rows across
       // router.refresh() and listCursor goes stale vs the new first page.
@@ -550,7 +551,7 @@ export function TasksView({
     setItems(next);
 
     // List always resyncs. Board only when no client-only load-more rows remain.
-    if (isListView || next.length <= tasks.length) {
+    if (isListView || next.length <= serverTasks.length) {
       setColumnCursorById(
         buildInitialColumnCursorById(columns, initialColumnNextCursorById),
       );
@@ -693,17 +694,7 @@ export function TasksView({
     if (typeof activeId !== "string" || typeof overId !== "string") return;
 
     const draggedTask = itemsRef.current.find((task) => task.id === activeId);
-    if (
-      !draggedTask ||
-      !isTaskDnDDraggable(draggedTask) ||
-      !isTaskDraggableForViewFilters(
-        draggedTask,
-        userId,
-        routeFilters,
-        initialFilters,
-        activeOrganizationId,
-      )
-    ) {
+    if (!draggedTask || !isTaskDnDDraggable(draggedTask)) {
       return;
     }
 
@@ -1280,15 +1271,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
-                      canCreateTask &&
-                      isTaskDnDDraggable(task) &&
-                      isTaskDraggableForViewFilters(
-                        task,
-                        userId,
-                        routeFilters,
-                        initialFilters,
-                        activeOrganizationId,
-                      )
+                      canCreateTask && isTaskDnDDraggable(task)
                     }
                     labels={{
                       columns: labels.columns,

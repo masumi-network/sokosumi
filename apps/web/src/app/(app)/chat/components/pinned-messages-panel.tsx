@@ -245,7 +245,7 @@ export function PinnedMessagesPanel({
           return (
             <div
               key={item.messageId}
-              className="border-border hover:bg-card-background relative mb-3 flex w-full items-start gap-1 rounded-lg border p-3"
+              className="border-border press hover:bg-card-background relative mb-3 flex w-full items-start gap-1 rounded-lg border p-3"
             >
               <div className="min-w-0 flex-1">
                 <button
@@ -262,7 +262,10 @@ export function PinnedMessagesPanel({
                   </span>
                   {isJumping ? (
                     <span className="text-muted-foreground flex shrink-0 items-center self-center">
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-3.5 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                       <span className="sr-only">{labels.jumping}</span>
                     </span>
                   ) : (

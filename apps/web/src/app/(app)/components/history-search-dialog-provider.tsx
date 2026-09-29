@@ -100,6 +100,9 @@ export function HistorySearchDialogProvider({
           loading: tSearch("loading"),
           error: tSearch("error"),
           updated: tHistory("Row.updated"),
+          filesGroup: tSearch("filesGroup"),
+          filesSeeAll: tSearch("filesSeeAll"),
+          filesFilenameMatch: tSearch("filesFilenameMatch"),
         }}
       />
     </HistorySearchContext.Provider>

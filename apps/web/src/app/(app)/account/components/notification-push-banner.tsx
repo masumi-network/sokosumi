@@ -219,7 +219,7 @@ function BrowserNotice({
           >
             {action.saving ? (
               <Loader2
-                className="size-4 shrink-0 motion-safe:animate-spin"
+                className="size-4 shrink-0 motion-safe:animate-spin motion-reduce:animate-pulse"
                 aria-hidden="true"
               />
             ) : null}

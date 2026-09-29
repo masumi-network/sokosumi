@@ -10,10 +10,10 @@ import type { QueuedGeneration } from "./use-generation-queue";
 /**
  * The composer, driven the way a person drives it.
  *
- * The rule under test: a model that cannot frame the chosen placement must
- * not survive in the selection, and must never reach a request. Asserting
- * only that the fixture *has* such a model proves nothing about the
- * composer — this drives the actual controls.
+ * The rules under test are the ones about what a press of Generate buys: which
+ * models it runs, how many copies of each, what that is worth, and how the
+ * batch ceiling cuts a plan down. Asserting on the fixture proves nothing
+ * about the composer — this drives the actual controls.
  *
  * Radix's menu and popover are stubbed, as they are elsewhere in this app's
  * suite: they open on a real pointer event that happy-dom does not produce,
@@ -25,70 +25,6 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
-
-vi.mock("@/components/ui/dropdown-menu", () => {
-  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  return {
-    DropdownMenu: Passthrough,
-    DropdownMenuTrigger: Passthrough,
-    DropdownMenuContent: Passthrough,
-    DropdownMenuLabel: Passthrough,
-    DropdownMenuSeparator: () => null,
-    DropdownMenuCheckboxItem: ({
-      checked,
-      children,
-      disabled,
-      onSelect,
-    }: {
-      checked?: boolean;
-      children?: React.ReactNode;
-      disabled?: boolean;
-      onSelect?: (event: { preventDefault: () => void }) => void;
-    }) => (
-      <button
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onSelect?.({ preventDefault: () => {} })}
-        role="menuitemcheckbox"
-        type="button"
-      >
-        {children}
-      </button>
-    ),
-    DropdownMenuRadioGroup: ({
-      children,
-      onValueChange,
-    }: {
-      children?: React.ReactNode;
-      onValueChange?: (value: string) => void;
-    }) => (
-      <div
-        data-testid="radio-group"
-        onClick={(event) => {
-          const value = (event.target as HTMLElement)
-            .closest("[data-value]")
-            ?.getAttribute("data-value");
-          if (value !== null && value !== undefined) onValueChange?.(value);
-        }}
-      >
-        {children}
-      </div>
-    ),
-    DropdownMenuRadioItem: ({
-      children,
-      value,
-    }: {
-      children?: React.ReactNode;
-      value: string;
-    }) => (
-      <button data-value={value} role="menuitemradio" type="button">
-        {children}
-      </button>
-    ),
-  };
-});
 
 vi.mock("@/components/ui/popover", () => {
   const Passthrough = ({ children }: { children?: React.ReactNode }) => (
@@ -129,13 +65,11 @@ function catalogOf(count: number): StudioCatalog {
 function targetFor(modelIds: string[]): StudioTarget {
   return {
     modelIds,
-    placementId: null,
     settings: {
       aspectRatio: "1:1",
       resolution: "1K",
       outputFormat: "png",
       seed: null,
-      placementId: null,
     },
   };
 }
@@ -158,6 +92,7 @@ function Harness({
         busy={false}
         catalog={catalog}
         labels={LABELS}
+        onApplyTemplate={() => {}}
         onClearReferences={() => {}}
         onGenerate={onGenerate}
         onPromptChange={setPrompt}
@@ -168,31 +103,19 @@ function Harness({
         target={target}
       />
       <output data-testid="models">{target.modelIds.join(",")}</output>
-      <output data-testid="placement">{target.placementId ?? "none"}</output>
       <output data-testid="frame">{target.settings.aspectRatio ?? "-"}</output>
     </>
   );
 }
 
-const BOTH_MODELS: StudioTarget = {
-  // model-b cannot frame 9:16; model-a can. See TEST_CATALOG.
-  modelIds: ["model-a", "model-b"],
-  placementId: null,
-  settings: {
-    aspectRatio: "1:1",
-    resolution: "1K",
-    outputFormat: "png",
-    seed: null,
-    placementId: null,
-  },
-};
+const BOTH_MODELS: StudioTarget = targetFor(["model-a", "model-b"]);
 
 /**
  * Click the control whose visible text says `text`.
  *
  * By element rather than by role: the stubbed menu items carry
- * `menuitemcheckbox`/`menuitemradio`, which replaces the implicit button
- * role, so a role query would miss exactly the options under test.
+ * `menuitemcheckbox`, which replaces the implicit button role, so a role query
+ * would miss exactly the options under test.
  */
 function clickOption(text: string) {
   const option = [...document.querySelectorAll("button")].find((element) =>
@@ -216,72 +139,86 @@ function clickChip(text: string) {
   fireEvent.click(chip);
 }
 
+/**
+ * Toggle one model's menu entry.
+ *
+ * By role, not by text: the trigger summarises the selection, so when one model
+ * is left it *also* reads "Model B" — and it comes first in the DOM, so a
+ * text-first search clicks the trigger and silently does nothing.
+ */
+function clickModel(label: string) {
+  const entry = screen
+    .getAllByRole("checkbox")
+    .find((node) => node.textContent?.includes(label));
+  if (!entry) throw new Error(`no model entry for ${label}`);
+  fireEvent.click(entry);
+}
+
 function generate(prompt = "a calm product shot") {
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: prompt } });
+  fireEvent.change(screen.getByRole("textbox", { name: "promptPlaceholder" }), {
+    target: { value: prompt },
+  });
   // By name rather than by an exact label: the button says "generateOne" for a
   // single image and "generateMany" with a count for a batch, which is the
   // whole point of it.
   fireEvent.click(screen.getByRole("button", { name: /^generate/i }));
 }
 
-describe("choosing a placement some selected models cannot frame", () => {
-  it("drops the model that cannot frame it", () => {
+describe("choosing between 152 models", () => {
+  it("prices every row, so the choice is not guesswork", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
-    expect(screen.getByTestId("models").textContent).toBe("model-a,model-b");
 
-    clickOption("Instagram Reels");
-
-    // model-b has no 9:16, so it cannot serve this placement and must go.
-    expect(screen.getByTestId("models").textContent).toBe("model-a");
-    expect(screen.getByTestId("placement").textContent).toBe("reels");
-    expect(screen.getByTestId("frame").textContent).toBe("9:16");
+    const rows = screen.getAllByRole("checkbox");
+    // Model A is 4 credits an image at 1K and Model B is 10. Before this the
+    // only figure anywhere was the aggregate after selection.
+    expect(rows[0]).toHaveTextContent('creditsCount:{"count":4}');
+    expect(rows[1]).toHaveTextContent('creditsCount:{"count":10}');
   });
 
-  it("never builds a request for a model that cannot frame it", () => {
-    const onGenerate = vi.fn();
-    render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
+  it("follows the frame, because the frame is what decides it", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    clickOption("Instagram Reels");
-    fireEvent.change(screen.getByRole("textbox"), {
-      target: { value: "a vertical product shot" },
-    });
-    clickOption("generateOne");
+    clickChip("2K");
 
-    expect(onGenerate).toHaveBeenCalledTimes(1);
-    const requests = onGenerate.mock.calls[0][0] as QueuedGeneration[];
-    expect(requests.map((r) => r.modelId)).toEqual(["model-a"]);
-    // The frame that goes out is the placement's, not a clamped substitute.
-    expect(requests[0].settings.aspectRatio).toBe("9:16");
-    expect(requests[0].settings.placementId).toBe("reels");
+    // Model A has a verified 2K figure; Model B falls through to its megapixel
+    // unit price at 2048x2048. A row showing the 1K price at 2K would be the
+    // picker disagreeing with the button.
+    const rows = screen.getAllByRole("checkbox");
+    expect(rows[0]).toHaveTextContent('creditsCount:{"count":8}');
+    expect(rows[1]).toHaveTextContent('creditsCount:{"count":21}');
   });
 
-  it("switches to a model that can frame it when none of the selected can", () => {
+  it("says so rather than nothing when a model cannot be priced", () => {
+    const unpriceable: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
     render(
       <Harness
-        initial={{ ...BOTH_MODELS, modelIds: ["model-b"] }}
+        catalog={unpriceable}
+        initial={targetFor(["by-the-second"])}
         onGenerate={vi.fn()}
       />,
     );
 
-    clickOption("Instagram Reels");
-
-    // Refusing silently would make the option look broken; the composer picks
-    // the first catalog model that can serve it instead.
-    expect(screen.getByTestId("models").textContent).toBe("model-a");
-    expect(screen.getByTestId("placement").textContent).toBe("reels");
-  });
-
-  it("leaves the selection alone when the placement is cleared", () => {
-    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
-    clickOption("Instagram Reels");
-    expect(screen.getByTestId("models").textContent).toBe("model-a");
-
-    clickOption("placementNone");
-
-    expect(screen.getByTestId("placement").textContent).toBe("none");
-    // Clearing a placement is not a request to reframe or to re-add models.
-    expect(screen.getByTestId("frame").textContent).toBe("9:16");
-    expect(screen.getByTestId("models").textContent).toBe("model-a");
+    expect(screen.getAllByRole("checkbox")[0]).toHaveTextContent(
+      "creditsNoFigure",
+    );
   });
 });
 
@@ -310,21 +247,21 @@ describe("what the composer says without being opened", () => {
 });
 
 /**
- * What the composer promises before the money is spent.
+ * What the composer promises before the credits are spent.
  *
- * Modelled on fal's Sandbox, which puts the run's estimated cost in the footer
- * of the prompt bar — so the line has to be a true statement about the batch
- * the button will actually buy, including when the ceiling has cut it down.
+ * Not an estimate any more: `creditsPerImageCents` is the function Core charges
+ * with, over the same catalog row, so this line is the debit. Which makes it
+ * worth pinning to the arithmetic rather than to a shape — a number that
+ * disagrees with the ledger is the one bug this whole seam exists to prevent.
  */
 describe("the line above Generate", () => {
-  it("says how many runs, across how many models, and what that is worth", () => {
+  it("says how many runs, across how many models, and how many credits", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    // Model A is $0.04 at 1K and Model B is $0.10. See TEST_CATALOG.
+    // Model A publishes $0.04 an image at 1K and Model B $0.10, so 4 + 10
+    // credits at 1 credit to the cent. See TEST_CATALOG.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":1,"models":2,"cost":"$0.14"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":14}'),
     ).toBeInTheDocument();
   });
 
@@ -333,24 +270,62 @@ describe("the line above Generate", () => {
 
     clickChip("3");
 
+    // Three runs each of a 4-credit and a 10-credit model.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":3,"models":2,"cost":"$0.42"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":3,"models":2,"credits":42}'),
     ).toBeInTheDocument();
   });
 
-  it("stays silent about money when one model has no published price", () => {
+  it("prices a per-megapixel model off the frame it would run at", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    // Model B publishes nothing at 2K, so the total would be the price of half
-    // the batch wearing the whole batch's label.
     clickChip("2K");
 
+    // Model A has a hand-verified $0.08 at 2K → 8 credits. Model B has no 2K
+    // figure, so its megapixel unit price decides: $0.05 x 4.19MP at 2048x2048
+    // → 21 credits. Taking the wrong branch for either one is how the composer
+    // and the ledger start disagreeing.
     expect(
-      screen.getByText('runPlan:{"copies":1,"models":2}'),
+      screen.getByText('runPlanCredits:{"copies":1,"models":2,"credits":29}'),
     ).toBeInTheDocument();
-    expect(screen.getByText("estimateUnpriced")).toBeInTheDocument();
+  });
+
+  it("stays silent about credits rather than printing NaN", () => {
+    // Core excludes models it cannot price per image, so this should never
+    // reach the composer — but "should never" is not "cannot", and a batch
+    // total of `NaN` credits is the worst possible thing to show about money.
+    const unpriceable: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs, which nobody knows yet.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        catalog={unpriceable}
+        initial={targetFor(["by-the-second"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText('runPlan:{"copies":1,"models":1}'),
+    ).toBeInTheDocument();
+    expect(screen.getByText("creditsUnderivable")).toBeInTheDocument();
+    expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
   it("buys exactly the batch it described", () => {
@@ -371,6 +346,179 @@ describe("the line above Generate", () => {
   });
 });
 
+describe("a copy count the ceiling rules out", () => {
+  /** The chips, by their visible number. */
+  function copyChip(count: string) {
+    const chip = [...document.querySelectorAll("button")].find(
+      (node) => node.textContent?.trim().startsWith(count) && node.title,
+    );
+    return chip ?? null;
+  }
+
+  it("says why, in its own arithmetic", () => {
+    // Five interchangeable models: 5x3 and 5x4 are over the twelve-image cap.
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const three = copyChip("3");
+    expect(three).not.toBeNull();
+    // The multiplication, not a pointer at a footnote. A dimmed "3" beside
+    // "at most 12 images per press" left the reader to do this themselves.
+    const reason =
+      'copiesOverCeiling:{"models":5,"copies":3,"images":15,"limit":12}';
+    expect(three?.title).toBe(reason);
+    expect(three?.textContent).toContain(reason);
+  });
+
+  it("stays focusable, so the reason can be read out", () => {
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const three = copyChip("3");
+    // `aria-disabled`, not `disabled`: a natively disabled control is not
+    // focusable, so a screen reader could never reach the description. It heard
+    // "3, dimmed" and nothing else.
+    expect(three?.getAttribute("aria-disabled")).toBe("true");
+    expect(three?.hasAttribute("disabled")).toBe(false);
+    expect(three?.getAttribute("aria-describedby")).toBe(
+      "studio-copies-3-reason",
+    );
+    expect(document.getElementById("studio-copies-3-reason")).not.toBeNull();
+  });
+
+  it("still refuses the press", () => {
+    render(
+      <Harness
+        catalog={catalogOf(5)}
+        initial={targetFor(["many-0", "many-1", "many-2", "many-3", "many-4"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    const before = screen.getByText(/^runPlanCredits/).textContent;
+    const three = copyChip("3");
+    if (three) fireEvent.click(three);
+
+    // The cap is unchanged; only the explaining is new.
+    expect(screen.getByText(/^runPlanCredits/).textContent).toBe(before);
+  });
+
+  it("says nothing on a count that is available", () => {
+    render(<Harness initial={targetFor(["model-a"])} onGenerate={vi.fn()} />);
+
+    // One model, so every count fits and no chip needs a reason.
+    const withReason = [...document.querySelectorAll("button")].filter(
+      (node) => node.title,
+    );
+    expect(withReason).toHaveLength(0);
+  });
+});
+
+describe("how a price is explained", () => {
+  it("says the unit once, in the singular", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    // fal's pricing API answers in plurals because it is describing a rate, and
+    // Core passes that through in `price.basis` — so the sentence used to read
+    // "fal lists $0.04 per images for this endpoint". Model A is priced per
+    // image and Model B per megapixel, so both branches show up here.
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.04","unit":"PriceUnits.images"}',
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.05","unit":"PriceUnits.megapixels"}',
+      ),
+    ).toBeInTheDocument();
+    // And never Core's own English sentence.
+    expect(screen.queryByText(/per images/)).toBeNull();
+  });
+
+  it("falls back to fal's own word for a unit we have no name for", () => {
+    const perSecond: StudioCatalog = {
+      ...TEST_CATALOG,
+      defaultModelId: "by-the-second",
+      models: [
+        {
+          ...TEST_CATALOG.models[0],
+          id: "by-the-second",
+          label: "By the second",
+          price: {
+            unit: "compute seconds",
+            unitPriceUsd: 0.002,
+            basis: "Priced by how long it runs.",
+            sourceUrl: "https://example.test/by-the-second",
+            verifiedAt: "2026-09-27",
+          },
+        },
+      ],
+    };
+
+    render(
+      <Harness
+        catalog={perSecond}
+        initial={targetFor(["by-the-second"])}
+        onGenerate={vi.fn()}
+      />,
+    );
+
+    // A real unit that sounds slightly off beats a confidently invented
+    // singular. These never reach the catalog anyway — Core excludes them.
+    expect(
+      screen.getByText(
+        'priceBasis:{"price":"$0.002","unit":"compute seconds"}',
+      ),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("unselecting a model", () => {
+  it("leaves the frame where it was", () => {
+    // A property rather than a regression: unselecting narrows nothing, so it
+    // has no business touching the frame. `toggleModel` only clamps on the way
+    // in for that reason. (The clamp on the way out was a no-op — every
+    // selected model already supports the current frame — so this pins the
+    // property, it does not commemorate a bug.)
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickModel("Model B");
+    expect(screen.getByTestId("models").textContent).toBe("model-a");
+    clickChip("9:16");
+    expect(screen.getByTestId("frame").textContent).toBe("9:16");
+
+    // Model B cannot frame 9:16, so adding it does move the frame.
+    clickModel("Model B");
+    const clamped = screen.getByTestId("frame").textContent;
+    expect(clamped).not.toBe("9:16");
+
+    // Taking it back out does not.
+    clickModel("Model B");
+    expect(screen.getByTestId("frame").textContent).toBe(clamped);
+  });
+
+  it("can empty the selection, and refuses to generate on an empty one", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickModel("Model A");
+    clickModel("Model B");
+
+    expect(screen.getByTestId("models").textContent).toBe("");
+    expect(screen.getByRole("button", { name: /^generate/i })).toBeDisabled();
+  });
+});
+
 describe("picking many models at once", () => {
   it("takes the whole catalog in one click", () => {
     render(<Harness initial={targetFor(["model-a"])} onGenerate={vi.fn()} />);
@@ -379,16 +527,26 @@ describe("picking many models at once", () => {
 
     expect(screen.getByTestId("models").textContent).toBe("model-a,model-b");
   });
+});
 
-  it("takes only the models that can frame the chosen placement", () => {
-    render(<Harness initial={targetFor(["model-a"])} onGenerate={vi.fn()} />);
+describe("searching and clearing the model list", () => {
+  it("unselects everything in one click", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    clickOption("Instagram Reels");
+    clickOption("unselectAllModels");
+
+    expect(screen.getByTestId("models").textContent).toBe("");
+  });
+
+  it("filters by search, and select all acts on what is shown", () => {
+    render(<Harness initial={targetFor([])} onGenerate={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("searchModels"), {
+      target: { value: "Model B" },
+    });
     clickOption("selectAllModels");
 
-    // model-b has no 9:16. "All" must not mean "all, and then silently reframe
-    // the ones that cannot".
-    expect(screen.getByTestId("models").textContent).toBe("model-a");
+    expect(screen.getByTestId("models").textContent).toBe("model-b");
   });
 });
 
@@ -409,10 +567,9 @@ describe("the batch ceiling", () => {
     clickChip("4");
     clickOption("selectAllModels");
 
+    // Five clones of Model A at 4 credits each, two runs apiece.
     expect(
-      screen.getByText(
-        'runPlanEstimated:{"copies":2,"models":5,"cost":"$0.40"}',
-      ),
+      screen.getByText('runPlanCredits:{"copies":2,"models":5,"credits":40}'),
     ).toBeInTheDocument();
 
     generate();

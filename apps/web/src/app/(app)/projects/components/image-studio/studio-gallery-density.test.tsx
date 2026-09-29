@@ -1,30 +1,23 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
-import { TEST_CATALOG } from "./studio-fixtures";
-import {
-  isActive,
-  type StudioAsset,
-  type StudioJob,
-  type StudioLabels,
-} from "./types";
+import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import { isActive, type StudioAsset, type StudioJob } from "./types";
 
 /**
  * The gallery with work in it.
  *
  * Every capture of this studio on the preview is of an empty project, because
  * generating costs money — so the dense states are pinned here instead: a full
- * grid, the review badges, the running and queued tiles, the failed-generation
+ * grid, the running and queued tiles, the failed-generation
  * notice, and selecting two versions to compare. These are the states whose
  * surface treatment changed when the project became one card, and they are the
  * part of that change a screenshot has never shown.
  */
 
 const mocks = vi.hoisted(() => ({
-  review: vi.fn(),
   cancel: vi.fn(),
-  clear: vi.fn(),
   refresh: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -35,13 +28,14 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
+  // Values included, because the credits figure interpolates a count and a
+  // bare key would hide whether the right number reached the tile.
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${JSON.stringify(values)}` : key,
   useFormatter: () => ({ dateTime: () => "today" }),
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: mocks.review,
-  clearImageVersionReview: mocks.clear,
   requestImageJobCancel: mocks.cancel,
 }));
 
@@ -58,7 +52,6 @@ vi.mock("./use-studio-state", () => ({
     // every job made a settled failure render as a pending tile as well as in
     // its notice.
     activeJobs: initialState.jobs.filter((job) => isActive(job)),
-    applyAsset: vi.fn(),
     refresh: mocks.refresh,
     loadOlder: vi.fn(),
     hasOlder: false,
@@ -76,11 +69,6 @@ vi.mock("./use-generation-queue", () => ({
   }),
 }));
 
-const LABELS = new Proxy(
-  { examplePrompts: ["Example one", "Example two"] } as Record<string, unknown>,
-  { get: (target, key: string) => target[key] ?? key },
-) as unknown as StudioLabels;
-
 const ASSET = {
   id: "a",
   rootId: "a",
@@ -96,17 +84,15 @@ const ASSET = {
   jobId: "j",
   settings: {},
   contentPath: "/a",
-  review: null,
 } as unknown as StudioAsset;
 
 function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
   return render(
     <ImageStudio
+      catalog={TEST_CATALOG}
       initialSelectedAssetId={null}
-      initialState={
-        { catalog: TEST_CATALOG, assets, jobs, sessions: [] } as never
-      }
-      labels={LABELS}
+      initialState={{ assets, jobs, sessions: [] } as never}
+      labels={TEST_LABELS}
       projectId="p"
     />,
   );
@@ -115,10 +101,6 @@ function mount(assets: StudioAsset[] = [], jobs: StudioJob[] = []) {
 beforeEach(() => {
   vi.clearAllMocks();
   vi.unstubAllGlobals();
-  mocks.review.mockResolvedValue({
-    ...ASSET,
-    review: { decision: "APPROVED" },
-  });
   mocks.cancel.mockResolvedValue({ accepted: true });
 });
 
@@ -142,29 +124,16 @@ function manyAssets(count: number): StudioAsset[] {
       resolution: i % 2 ? "2K" : "1K",
       outputFormat: "png",
       seed: null,
-      placementId: i % 4 === 1 ? "reels" : null,
     },
-    ...(i % 5 === 0
-      ? {
-          review: {
-            decision: "APPROVED",
-            feedback: "Use this one.",
-            createdAt: "2026-09-26T00:00:00Z",
-          },
-        }
-      : i % 5 === 2
-        ? {
-            review: {
-              decision: "REJECTED",
-              feedback: "Too warm.",
-              createdAt: "2026-09-26T00:00:00Z",
-            },
-          }
-        : {}),
   })) as unknown as StudioAsset[];
 }
 
-function job(id: string, status: string, error?: string) {
+function job(
+  id: string,
+  status: string,
+  error?: string,
+  failureReason: string | null = "provider_error",
+) {
   return {
     id,
     status,
@@ -174,6 +143,7 @@ function job(id: string, status: string, error?: string) {
     settings: {},
     referenceAssetIds: [],
     error: error ?? null,
+    failureReason,
     parentAssetId: null,
     assetId: null,
     createdAt: "2026-09-26T00:00:00Z",
@@ -198,6 +168,7 @@ function settledJob(
   assetId: string,
   elapsedMs: number,
   shape: "date" | "iso" = "iso",
+  credits: number | null = 4,
 ) {
   const submittedAt = new Date("2026-09-26T00:00:00Z");
   const settledAt = new Date(submittedAt.getTime() + elapsedMs);
@@ -208,42 +179,36 @@ function settledJob(
     createdAt: as(submittedAt),
     submittedAt: as(submittedAt),
     settledAt: as(settledAt),
+    credits,
   } as unknown as StudioJob;
 }
 
 describe("a gallery with work in it", () => {
-  it("renders a full grid of versions with their provenance", () => {
+  it("renders a bare wall of pictures, each with its selection box drawn", () => {
     mount(manyAssets(14));
 
-    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(14);
-    // The model is on every tile, which is the provenance requirement, and
-    // the filters appear because there is now something to filter.
-    for (const name of [
-      "filterAll",
-      "filterApproved",
-      "filterRejected",
-      "filterUndecided",
-    ]) {
-      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    const tiles = document.querySelectorAll("figure[data-asset-id]");
+    expect(tiles).toHaveLength(14);
+    // No caption under the picture: the prompt, model, time and credits live
+    // in the viewer, not on the tile.
+    expect(document.querySelectorAll("figcaption")).toHaveLength(0);
+    // The selection box is always in the DOM and never gated on hover.
+    for (const tile of tiles) {
+      const box = tile.querySelector("button[aria-pressed]");
+      expect(box).not.toBeNull();
+      expect(box?.className).not.toContain("opacity-0");
     }
-    // Decisions are carried by an icon *and* a word, never colour alone.
-    expect(screen.getAllByText("approved").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("rejected").length).toBeGreaterThan(0);
+    // Decisions are gone entirely.
+    expect(screen.queryByRole("button", { name: "filterApproved" })).toBeNull();
   });
 
-  it("narrows to a decision and back", () => {
-    mount(manyAssets(14));
-    const all = document.querySelectorAll("figure[data-asset-id]").length;
+  it("gives each tile its own aspect ratio, so mixed frames pack cleanly", () => {
+    mount(manyAssets(3));
 
-    fireEvent.click(screen.getByRole("button", { name: "filterApproved" }));
-    const approved = document.querySelectorAll("figure[data-asset-id]").length;
-    expect(approved).toBeGreaterThan(0);
-    expect(approved).toBeLessThan(all);
-
-    fireEvent.click(screen.getByRole("button", { name: "filterAll" }));
-    expect(document.querySelectorAll("figure[data-asset-id]")).toHaveLength(
-      all,
-    );
+    const ratios = [
+      ...document.querySelectorAll("figure[data-asset-id] button > span"),
+    ].map((node) => (node as HTMLElement).style.aspectRatio.replace(/\s/g, ""));
+    expect(new Set(ratios)).toEqual(new Set(["1536/1024", "1024/1536"]));
   });
 
   it("shows running and queued work as tiles, and a failure as a notice", () => {
@@ -268,50 +233,95 @@ describe("a gallery with work in it", () => {
         within(tile as HTMLElement).getByRole("button", { name: "cancel" }),
       ).toBeInTheDocument();
     }
-    // A settled failure is stated above the gallery, with its reason.
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      "The provider refused it.",
+    // A settled failure is stated above the gallery.
+    expect(screen.getByRole("status")).toHaveTextContent("provider_error");
+  });
+
+  /**
+   * What a failure says, and what it does not say.
+   *
+   * It used to print `job.error` verbatim, which on the preview read
+   * "Unexpected status code: 422" — an HTTP detail, in English, shown to
+   * somebody who asked for a picture. The provider's words are kept, one
+   * disclosure away, for whoever has to chase fal about them.
+   */
+  it("states a failure in a sentence, with the provider's words behind a toggle", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Unexpected status code: 422"),
+    ]);
+
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("provider_error");
+    // Present in the DOM — a `details` only hides its own body visually — but
+    // never in the sentence a reader gets handed.
+    const summary = screen.getByText("failedDetails");
+    expect(summary.closest("details")).toHaveTextContent(
+      "Unexpected status code: 422",
+    );
+    expect(alert.querySelector("p")?.textContent).not.toContain("422");
+  });
+
+  it("offers no disclosure when the provider said nothing", () => {
+    mount(manyAssets(2), [job("failed", "FAILED")]);
+
+    expect(screen.getByRole("status")).toHaveTextContent("provider_error");
+    expect(screen.queryByText("failedDetails")).toBeNull();
+  });
+
+  /**
+   * Core reports a stable code now, and the sentence is chosen by it.
+   *
+   * The point is that the reader gets *their* language: the code is what Web
+   * branches on, and Core's English `error` string — itself a real sentence
+   * since the last Core pass — never becomes the headline.
+   */
+  it("says why, per the reason Core reported", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 409 from upstream", "cancelled"),
+    ]);
+
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("cancelled");
+    expect(alert).not.toHaveTextContent("provider_error");
+  });
+
+  /**
+   * The money sentence, and what it must not say.
+   *
+   * Images are charged on success, so a generation that produced none was never
+   * charged — there is nothing to give back and nothing that says otherwise. It
+   * is unconditional for that reason: no per-job flag decides it.
+   */
+  it("says a failed generation cost nothing, without a refund in sight", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "HTTP 500 from upstream", "provider_error"),
+    ]);
+
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("failedNoCharge");
+    // No wording about money coming back, in any of the three languages this
+    // ships in. The strings are keys here, so this guards the shape rather than
+    // the prose — the locale files are where the prose is checked.
+    expect(alert.textContent ?? "").not.toMatch(
+      /refund|erstatt|reembols|devuelt/i,
     );
   });
 
-  /**
-   * The active filter used to be `bg-secondary text-foreground`.
-   *
-   * Both tokens follow the page in the same direction and `--secondary` is its
-   * inverse, so the pair rendered near-black on near-black in light mode and
-   * near-white on white in dark: the one chip saying what the gallery was
-   * narrowed to was the one chip nobody could read, in both themes. This pins
-   * the pairing rather than the colour, because the pairing is the bug.
-   */
-  it("pairs the active filter's fill with its own foreground token", () => {
-    mount(manyAssets(6));
+  it("has a sentence for a row from before Core recorded reasons", () => {
+    mount(manyAssets(2), [
+      job("failed", "FAILED", "Something went wrong", null),
+    ]);
 
-    const active = screen.getByRole("button", { name: "filterAll" });
-    expect(active.className).toContain("bg-secondary");
-    expect(active.className).toContain("text-secondary-foreground");
-    expect(active.className).not.toMatch(/(^|\s)text-foreground(\s|$)/);
+    // Not a blank line and not the raw string: `failureReason` is null on every
+    // job that settled before the column existed.
+    const alert = screen.getByRole("status");
+    expect(alert).toHaveTextContent("failedBodyUnreported");
+    expect(alert.querySelector("p")?.textContent).not.toContain(
+      "Something went wrong",
+    );
   });
 
-  it("pairs the rejected badge the same way", () => {
-    mount(manyAssets(6));
-
-    const badge = screen
-      .getAllByText("rejected")
-      .map((node) => node.closest("span"))
-      .find((node) => node?.className.includes("bg-secondary"));
-    expect(badge?.className).toContain("text-secondary-foreground");
-    expect(badge?.className).not.toContain("text-muted-foreground");
-  });
-
-  /**
-   * What a batch across several models is actually read for.
-   *
-   * The time is measured — the provider's own submit-to-settle interval, off
-   * the job row. The money is not: nothing in this studio records what fal
-   * billed, so the tile shows the published list price for these settings and
-   * marks it as an approximation.
-   */
-  it("shows each version's generation time and estimated cost", () => {
+  it("keeps generation time and credits off the tile", () => {
     mount(
       [
         {
@@ -322,7 +332,6 @@ describe("a gallery with work in it", () => {
             resolution: "1K",
             outputFormat: "png",
             seed: null,
-            placementId: null,
           },
         } as unknown as StudioAsset,
       ],
@@ -331,46 +340,38 @@ describe("a gallery with work in it", () => {
 
     const tile = document.querySelector("figure[data-asset-id]");
     expect(tile).not.toBeNull();
-    expect(tile?.textContent).toContain("3.2s");
-    // Model A is $0.04 an image at 1K in TEST_CATALOG, and the tilde is what
-    // says this is a list price rather than a charge.
-    expect(tile?.textContent).toContain("~$0.04");
+    // Time and credits are not on the tile any more; they are in the viewer.
+    expect(tile?.textContent).toBe("");
   });
 
-  it("reads the same timing when the dates arrive as Date objects", () => {
-    mount(
-      [
-        {
-          ...ASSET,
-          id: "v1",
-          settings: {
-            aspectRatio: "1:1",
-            resolution: "1K",
-            outputFormat: "png",
-            seed: null,
-            placementId: null,
-          },
-        } as unknown as StudioAsset,
-      ],
-      [settledJob("j1", "v1", 3_200, "date")],
+  /**
+   * The gallery wraps each tile in a button that opens the lightbox, and the
+   * recovery control from a broken thumbnail sits inside it. Without
+   * `stopPropagation` the click reached both, so recovering a thumbnail threw
+   * the reader into the full-screen viewer — which is not what they asked for.
+   */
+  it("recovers a broken thumbnail without opening the lightbox", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 503 })),
     );
+    mount([{ ...ASSET, id: "v1" } as unknown as StudioAsset]);
 
-    expect(
-      document.querySelector("figure[data-asset-id]")?.textContent,
-    ).toContain("3.2s");
-  });
+    // Two failures and a 503 probe: the neutral placeholder with its button.
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 600));
+    });
+    await act(async () => {
+      fireEvent.error(screen.getByRole("img"));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
 
-  it("says nothing about time for a version whose job is off the page", () => {
-    mount(
-      [{ ...ASSET, id: "v1" } as unknown as StudioAsset],
-      // No job carries this version, which is what an older version looks like
-      // once its job has fallen out of the most recent page of them.
-      [settledJob("j1", "somebody-else", 3_200)],
-    );
+    fireEvent.click(screen.getByRole("button", { name: /imageRetry/ }));
 
-    const text = document.querySelector("figure[data-asset-id]")?.textContent;
-    // No invented duration, and no zero either: absent is not "took no time".
-    expect(text).not.toMatch(/\d+(\.\d+)?s/);
+    expect(screen.queryByRole("dialog")).toBeNull();
+    // And it did retry: the image is back, asking for a fresh URL.
+    expect(screen.getByRole("img").getAttribute("src")).toContain("reload=1-");
   });
 
   it("offers comparison once two versions are selected", () => {
@@ -392,6 +393,6 @@ describe("a gallery with work in it", () => {
 
     fireEvent.click(compare());
     const dialog = screen.getByRole("dialog");
-    expect(within(dialog).getAllByRole("textbox")).toHaveLength(2);
+    expect(dialog.querySelectorAll("figure")).toHaveLength(2);
   });
 });

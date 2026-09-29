@@ -47,8 +47,25 @@ export const DRIVE_HEADER_CONTROL_CLASS = "h-10 @xl:h-8";
 export const DRIVE_SURFACE_PANEL_CLASS =
   "bg-card-background overflow-hidden rounded-xl";
 
-export function driveItemsPanelClass(_viewMode: FilesViewMode): string {
-  return cn(DRIVE_SURFACE_PANEL_CLASS, "p-2", PROJECTS_LIST_CARD_MIN_H_CLASS);
+/**
+ * `fillsThePage` reserves the list's minimum height.
+ *
+ * True everywhere a list is the whole answer on screen, so a short list does not
+ * leave the page looking broken. False for the folder strip at the Workspace
+ * root, where the catalog sits directly underneath: there the minimum reserves a
+ * screen of blank space between two or three folders and the search field below
+ * them, which reads as a list that failed to load.
+ */
+export function driveItemsPanelClass(
+  _viewMode: FilesViewMode,
+  options: { fillsThePage?: boolean } = {},
+): string {
+  const { fillsThePage = true } = options;
+  return cn(
+    DRIVE_SURFACE_PANEL_CLASS,
+    "p-2",
+    fillsThePage && PROJECTS_LIST_CARD_MIN_H_CLASS,
+  );
 }
 
 export function driveItemsListClass(viewMode: FilesViewMode): string {

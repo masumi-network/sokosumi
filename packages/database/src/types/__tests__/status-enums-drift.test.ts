@@ -31,10 +31,11 @@ import { MemberRole } from "../organization.js";
  * - Database `MemberRole` / `InvitationStatus` value locks
  */
 describe("status enum drift guard", () => {
-  it("Prisma HistoryKind excludes legacy CONVERSATION after rooms cutover", () => {
+  it("Prisma HistoryKind covers TASK, JOB and IMAGE and excludes legacy CONVERSATION", () => {
     expect({ ...PrismaHistoryKind }).toEqual({
       TASK: "TASK",
       JOB: "JOB",
+      IMAGE: "IMAGE",
     });
   });
 

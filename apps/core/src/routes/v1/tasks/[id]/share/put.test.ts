@@ -6,7 +6,7 @@ import mountPutTaskShareById from "./put";
 
 const {
   authContextState,
-  requireMutableTaskOwnershipMock,
+  requireMutableTaskWriteAccessMock,
   publicShareUpsertMock,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -30,13 +30,13 @@ const {
         }
       | null,
   },
-  requireMutableTaskOwnershipMock: vi.fn(),
+  requireMutableTaskWriteAccessMock: vi.fn(),
   publicShareUpsertMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: (...args: unknown[]) =>
-    requireMutableTaskOwnershipMock(...args),
+  requireMutableTaskWriteAccess: (...args: unknown[]) =>
+    requireMutableTaskWriteAccessMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -101,7 +101,7 @@ describe("PUT /tasks/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    requireMutableTaskOwnershipMock.mockResolvedValue({
+    requireMutableTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       pendingVendorGrantId: null,
@@ -146,7 +146,7 @@ describe("PUT /tasks/{id}/share", () => {
   });
 
   it("rejects creating a public share for a private task", async () => {
-    requireMutableTaskOwnershipMock.mockResolvedValue({
+    requireMutableTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       pendingVendorGrantId: null,
@@ -188,7 +188,7 @@ describe("PUT /tasks/{id}/share", () => {
 
   it("returns 404 when the task is not owned by the caller", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -209,7 +209,7 @@ describe("PUT /tasks/{id}/share", () => {
 
   it("returns 404 when the task does not exist", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -248,7 +248,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireMutableTaskWriteAccessMock).not.toHaveBeenCalled();
     expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 });

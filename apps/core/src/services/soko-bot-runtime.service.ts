@@ -24,6 +24,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   sokoBotReplyToTaskInputSchema as replyToTaskInputSchema,
+  SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotCapability,
   type SokoBotDecisionTarget,
   type SokoBotTurnGrantClaims,
@@ -74,7 +75,9 @@ import {
   type TableOperationCompletion,
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { jsonInput } from "@/helpers/prisma-json";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
 import { applyGuardedTaskStatusUpdate } from "@/helpers/task-event-charge";
@@ -111,10 +114,26 @@ import {
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
 import {
+  BEARER_USER_SELECT,
+  isActiveUser,
+} from "@/middleware/auth-active-user";
+import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
 import { dataTableSchema } from "@/schemas/data-table.schema";
+import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
+import { socialPostSchema } from "@/schemas/social-post.schema";
+import { listProjectSocialConnections } from "@/services/project-social-connections.service";
+import { publishSocialPostNow } from "@/services/social-post-publisher.service";
+import {
+  cancelSocialPost,
+  createSocialPost,
+  getSocialPost,
+  listSocialPosts,
+  scheduleSocialPost,
+  updateSocialPost,
+} from "@/services/social-posts.service";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { enqueueSokoBotEffect } from "@/services/soko-bot-effect-outbox.service";
 import { claimTaskEventAction } from "@/services/soko-bot-event-action.service";
@@ -2872,10 +2891,37 @@ export class SokoBotRuntimeService {
       if (existing.status === "COMPLETED") {
         let replayResult = existing.result;
         if (
+          [
+            "create_social_post",
+            "update_social_post",
+            "schedule_social_post",
+            "cancel_social_post",
+            "publish_social_post",
+          ].includes(input.capability)
+        ) {
+          await this.requireSocialAccess(authorized);
+        }
+        if (
           input.capability === "list_tables" ||
           input.capability === "read_table"
         ) {
           return this.executeAuthorizedTool(input);
+        }
+        if (
+          input.capability === "list_project_social_accounts" ||
+          input.capability === "list_social_posts" ||
+          input.capability === "get_social_post"
+        ) {
+          const result = await this.executeAuthorizedTool(input);
+          await prisma.sokoBotToolCall.updateMany({
+            where: {
+              turnId: input.turnId,
+              toolCallId: input.toolCallId,
+              status: "COMPLETED",
+            },
+            data: { result: persistedToolResult(result) },
+          });
+          return result;
         }
         if (
           ["create_table", "write_table_rows", "update_table_columns"].includes(
@@ -3152,11 +3198,191 @@ export class SokoBotRuntimeService {
     return { ...actor, taskId, ownerChat };
   }
 
+  /** Social tools use the turn's owner/workspace, never actor fields from model input. */
+  private async requireSocialAccess(
+    authorized: AuthorizedSokoBotRuntime,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    if (
+      authorized.turn.chainDepth > 0 ||
+      (authorized.askedByKind && authorized.askedByKind !== "OWNER")
+    ) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Project social tools are only available to the bot's owner",
+      );
+    }
+    const owner = await tx.user.findUnique({
+      where: { id: authorized.turn.userId },
+      select: BEARER_USER_SELECT,
+    });
+    if (!isActiveUser(owner)) {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Social account owner is no longer active",
+      );
+    }
+    const workspace = await requireSokoBotWorkspaceAccess(
+      tx,
+      authorized.turn.userId,
+      authorized.turn.workspaceId,
+    );
+    await requireAssignedOrganizationSeat(
+      authorized.turn.userId,
+      workspace.organizationId,
+      tx,
+    );
+    await requireSocialBetaAccess(authorized.turn.userId, tx);
+    return workspace;
+  }
+
+  private async executeSocialTool(
+    input: ExecuteSokoBotToolInput,
+    authorized: AuthorizedSokoBotRuntime,
+  ) {
+    const { workspaceId, userId } = authorized.turn;
+    switch (input.capability) {
+      case "list_project_social_accounts": {
+        const params =
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.list_project_social_accounts.parse(
+            input.input,
+          );
+        await this.requireSocialAccess(authorized);
+        return z
+          .array(projectSocialConnectionSchema)
+          .parse(
+            await listProjectSocialConnections({ ...params, workspaceId }),
+          );
+      }
+      case "list_social_posts": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.list_social_posts.parse(
+          input.input,
+        );
+        await this.requireSocialAccess(authorized);
+        const result = await listSocialPosts({ ...params, workspaceId });
+        return {
+          ...result,
+          posts: result.posts.map((post) => socialPostSchema.parse(post)),
+        };
+      }
+      case "get_social_post": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.get_social_post.parse(
+          input.input,
+        );
+        await this.requireSocialAccess(authorized);
+        return socialPostSchema.parse(
+          await getSocialPost({ ...params, workspaceId }),
+        );
+      }
+      case "publish_social_post": {
+        const params = SOKO_BOT_TOOL_INPUT_SCHEMAS.publish_social_post.parse(
+          input.input,
+        );
+        await this.requireSocialAccess(authorized);
+        // The external-effect reservation fences retries before the provider call.
+        // The publisher owns revision checks, claiming, and delivery reconciliation.
+        return socialPostSchema.parse(
+          await publishSocialPostNow({ ...params, workspaceId, userId }),
+        );
+      }
+      case "create_social_post":
+      case "update_social_post":
+      case "schedule_social_post":
+      case "cancel_social_post":
+        return serializableTransaction(async (tx) => {
+          await this.requireMutationAuthority(
+            tx,
+            authorized,
+            false,
+            input.capability,
+          );
+          const workspace = await this.requireSocialAccess(authorized, tx);
+          const scope = {
+            workspaceId,
+            userId,
+            organizationId: workspace.organizationId,
+          };
+          const post = await (async () => {
+            switch (input.capability) {
+              case "create_social_post": {
+                const params =
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.parse(
+                    input.input,
+                  );
+                return createSocialPost(
+                  {
+                    ...params,
+                    ...scope,
+                    sokoBotId: authorized.turn.sokoBotId,
+                    scheduledAt: params.scheduledAt
+                      ? new Date(params.scheduledAt)
+                      : undefined,
+                  },
+                  tx,
+                );
+              }
+              case "update_social_post": {
+                const params =
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
+                    input.input,
+                  );
+                return updateSocialPost({ ...params, ...scope }, tx);
+              }
+              case "schedule_social_post": {
+                const params =
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.schedule_social_post.parse(
+                    input.input,
+                  );
+                return scheduleSocialPost(
+                  {
+                    ...params,
+                    ...scope,
+                    scheduledAt: new Date(params.scheduledAt),
+                  },
+                  tx,
+                );
+              }
+              case "cancel_social_post": {
+                const params =
+                  SOKO_BOT_TOOL_INPUT_SCHEMAS.cancel_social_post.parse(
+                    input.input,
+                  );
+                return cancelSocialPost({ ...params, ...scope }, tx);
+              }
+              default:
+                throw new SokoBotRuntimeValidationError(
+                  "Unsupported social mutation",
+                );
+            }
+          })();
+          const result = socialPostSchema.parse(post);
+          await commitActionReceipt(tx, {
+            turnId: authorized.turn.id,
+            toolCallId: input.toolCallId,
+            actorBotId: authorized.turn.sokoBotId,
+            targetId: post.id,
+            observedVersion: String(post.revision),
+            result: persistedToolResult(result),
+          });
+          return result;
+        }, "Social post changed concurrently");
+      default:
+        throw new SokoBotRuntimeValidationError("Unsupported social tool");
+    }
+  }
+
   private async executeAuthorizedTool(
     input: ExecuteSokoBotToolInput,
   ): Promise<unknown> {
     const authorized = await this.authorize(input);
     switch (input.capability) {
+      case "list_project_social_accounts":
+      case "list_social_posts":
+      case "get_social_post":
+      case "create_social_post":
+      case "update_social_post":
+      case "schedule_social_post":
+      case "cancel_social_post":
+      case "publish_social_post":
+        return this.executeSocialTool(input, authorized);
       case "list_tables":
       case "read_table":
       case "create_table":

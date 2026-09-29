@@ -145,7 +145,9 @@ export default function JobDetailsName({
             )}
           />
           <Button size="sm" type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {isSubmitting && (
+              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {t("save")}
           </Button>
           <Button

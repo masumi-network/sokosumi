@@ -811,7 +811,10 @@ export function ChatRoomSidebarRow({
               }}
             >
               {isLeaving ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {tActions("leaveConfirm")}
             </AlertDialogAction>

@@ -3,6 +3,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildHumanJobParentVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
@@ -47,7 +48,7 @@ const route = withOrganizationSlugHeaderParameter(
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireOwnerUserContext(c.var.authContext);
+    const userContext = requireOwnerUserContext(c.var.authContext);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, jobId } = c.req.valid("param");
 
@@ -61,7 +62,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const unlinkResult = await prisma.job.updateMany({
-      where: { id: jobId, projectId, workspaceId },
+      where: {
+        id: jobId,
+        projectId,
+        workspaceId,
+        ...buildHumanJobParentVisibilityWhere(userContext.userId),
+      },
       data: { projectId: null },
     });
     if (unlinkResult.count === 0) {

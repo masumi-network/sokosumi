@@ -348,7 +348,7 @@ struct ConversationSidebarView: View {
       .accessibilityAddTraits(isOn ? [.isToggle, .isSelected] : .isToggle)
       .accessibilityValue(isOn ? "Showing unread only" : "")
       .help(isOn ? "Show every chat" : "Show only chats with something unread")
-      if let filter, !filter.markAllTargets.isEmpty {
+      if let filter, filter.showsMarkAll {
         markAllButton
       }
     }
@@ -417,7 +417,7 @@ struct ConversationSidebarView: View {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        invitationFailure = .init(action: action, message: chatErrorMessage(error))
+        invitationFailure = .init(action: action, message: friendlyMessage(for: error, mode: .coreMessage))
       }
     }
   }

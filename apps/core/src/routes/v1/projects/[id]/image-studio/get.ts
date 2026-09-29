@@ -6,7 +6,6 @@ import {
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
 import { requireProjectAccess } from "@/lib/image-studio/access";
-import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -28,7 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "get",
     path: "/{id}/image-studio",
     description:
-      "Image studio state for a Project: versions with their review decisions, recent generation jobs, and the conversations bound to this Project.",
+      "Image studio state for a Project: versions, recent generation jobs, and the conversations bound to this Project. The model catalog is NOT here — clients poll this route every few seconds and the catalog is about a hundred and fifty rows, so it has its own cached route at GET /v1/image-studio/catalog.",
     tags: ["Projects"],
     request: {
       params: imageStudioProjectParamsSchema,
@@ -86,10 +85,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         assets: assetPage.assets.map((asset) => ({
           ...asset,
           contentPath: assetContentPath(projectId, asset.id),
-          // Omit rather than send null: see the schema comment on `review`.
-          review: asset.review ?? undefined,
         })),
-        catalog: IMAGE_STUDIO_CATALOG,
         jobs,
         sessions,
         nextCursor: assetPage.nextCursor,

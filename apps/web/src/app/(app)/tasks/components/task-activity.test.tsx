@@ -31,6 +31,15 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const highlightListMessageMock = vi.hoisted(() =>
+  vi.fn((_list: string, _messageId: string) => true),
+);
+
+vi.mock("@/app/chat/utils/room-message-highlight", () => ({
+  highlightListMessage: (list: string, messageId: string) =>
+    highlightListMessageMock(list, messageId),
+}));
+
 vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",
   useLocale: () => "en",
@@ -41,6 +50,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => {
     const labels: Record<string, string> = {
       authenticate: "Authenticate",
+      jumpToRecent: "Jump to latest",
+      showOlderComments: "Show {count} older comments",
       "billingCta.upgradePlan": "Get more credits",
       "billingCta.addCredits": "Add credits",
       "billingCta.placeholder":
@@ -48,8 +59,6 @@ vi.mock("next-intl", () => ({
       "billingCta.statusUnavailable": "This task is out of credits.",
       actionChargedCredits: "charged {credits} credits",
       actionTriedChargedCredits: "tried to charge {credits} credits",
-      sendWith: "Send with",
-      ctrl: "Ctrl",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
       fileLabel: "File",
       "channelApp.sokosumi": "Sokosumi",
@@ -76,6 +85,10 @@ vi.mock("next-intl", () => ({
 
       if (key === "actorSokoBotWithOwner") {
         return `${values?.assistant ?? ""} · ${values?.owner ?? ""}`.trim();
+      }
+
+      if (key === "showOlderComments") {
+        return `Show ${values?.count ?? ""} older comments`.trim();
       }
 
       if (
@@ -107,34 +120,36 @@ vi.mock("next-intl", () => ({
   },
 }));
 
-vi.mock("@/hooks/use-os-detection", () => ({
-  useOSDetection: () => ({
-    os: "MacOS",
-    isMobile: false,
-  }),
-}));
-
-const { createTaskCommentMock, markdownEditorProps } = vi.hoisted(() => ({
-  createTaskCommentMock: vi.fn(),
-  markdownEditorProps: {
-    current: null as null | {
-      onChange: (value: string) => void;
-      mentions?: Record<string, { value: string }>;
+const { createTaskCommentMock, loadOlderTaskActivityEventsMock, editorProps } =
+  vi.hoisted(() => ({
+    createTaskCommentMock: vi.fn(),
+    loadOlderTaskActivityEventsMock: vi.fn(),
+    editorProps: {
+      current: null as null | {
+        value: string;
+        onChange: (value: string) => void;
+        mentions?: Record<string, { value: string }>;
+      },
     },
-  },
-}));
+  }));
 
 vi.mock("@/lib/actions/task/action", () => ({
   createTaskComment: createTaskCommentMock,
+  loadOlderTaskActivityEvents: loadOlderTaskActivityEventsMock,
 }));
 
-vi.mock("./markdown-editor", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./markdown-editor")>();
+vi.mock("@/components/chat/composer-wysiwyg-editor", async (importOriginal) => {
+  const actual =
+    await importOriginal<
+      typeof import("@/components/chat/composer-wysiwyg-editor")
+    >();
   return {
     ...actual,
-    MarkdownEditor: (props: Parameters<typeof actual.MarkdownEditor>[0]) => {
-      markdownEditorProps.current = props;
-      return <actual.MarkdownEditor {...props} />;
+    ComposerWysiwygEditor: (
+      props: Parameters<typeof actual.ComposerWysiwygEditor>[0],
+    ) => {
+      editorProps.current = props;
+      return <actual.ComposerWysiwygEditor {...props} />;
     },
   };
 });
@@ -282,7 +297,6 @@ const baseProps = {
   taskId: "task-1",
   title: "Activity",
   placeholder: "Write a comment...",
-  attachLabel: "Attach",
   submitLabel: "Submit",
   actorCoworkerLabel: "Coworker",
   actorUserLabel: "User",
@@ -619,8 +633,6 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    // Markdown keeps the inline link; SourcesGrid also lists the extracted
-    // file via FileChipWithMetadata (mocked above as the URL/name text).
     expect(screen.getAllByText(/report\.pdf/i).length).toBeGreaterThanOrEqual(
       1,
     );
@@ -785,8 +797,6 @@ describe("TaskActivitySection", () => {
     render(<TaskActivitySection {...baseProps} events={events} />);
 
     expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
-    // `avatarSeed` is null for every bot, so passing it through showed a
-    // different face here than the sidebar and the Soko Bots page show.
     expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
       "data-seed",
       defaultOrbSeed("user-1"),
@@ -818,7 +828,6 @@ describe("TaskActivitySection", () => {
             },
           },
         },
-        // Legacy dual FK: flat userId would have won the old coworker>user>orch order.
         userId: "user-2",
         user: {
           id: "user-2",
@@ -1064,7 +1073,7 @@ describe("TaskActivitySection", () => {
     );
   });
 
-  it("shows the custom cancel toast when in-progress comment uploads abort on unmount", async () => {
+  it("does not toast when in-progress comment uploads abort on unmount", async () => {
     const user = userEvent.setup();
     const file = new File(["report"], "report.pdf", {
       type: "application/pdf",
@@ -1120,8 +1129,8 @@ describe("TaskActivitySection", () => {
     await waitFor(() => {
       expect(abortSignal?.aborted).toBe(true);
       expect(toastDismissMock).toHaveBeenCalledTimes(1);
-      expect(toastErrorMock).toHaveBeenCalledWith("Upload canceled.");
     });
+    expect(toastErrorMock).not.toHaveBeenCalled();
   });
 
   describe("workspace member mentions", () => {
@@ -1139,13 +1148,11 @@ describe("TaskActivitySection", () => {
         />,
       );
 
-      expect(markdownEditorProps.current?.mentions).toMatchObject({
+      expect(editorProps.current?.mentions).toMatchObject({
         "agent-1": { value: "Writer" },
         "user-2": { value: "Ada" },
       });
-      expect(markdownEditorProps.current?.mentions).not.toHaveProperty(
-        "user-1",
-      );
+      expect(editorProps.current?.mentions).not.toHaveProperty("user-1");
     });
 
     it("does not send the viewer when they @ themselves", async () => {
@@ -1153,7 +1160,7 @@ describe("TaskActivitySection", () => {
       render(<TaskActivitySection {...baseProps} mentionableUsers={members} />);
 
       act(() => {
-        markdownEditorProps.current?.onChange("joining @user-1:user");
+        editorProps.current?.onChange("joining @user-1:user");
       });
       await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -1177,7 +1184,7 @@ describe("TaskActivitySection", () => {
       );
 
       act(() => {
-        markdownEditorProps.current?.onChange(
+        editorProps.current?.onChange(
           "Thanks @user-2:ada and @agent-1:writer, again @user-2:ada",
         );
       });
@@ -1203,7 +1210,7 @@ describe("TaskActivitySection", () => {
       );
 
       act(() => {
-        markdownEditorProps.current?.onChange("Thanks @user-2:ada");
+        editorProps.current?.onChange("Thanks @user-2:ada");
       });
       await userEvent.click(screen.getByRole("button", { name: "Submit" }));
 
@@ -1232,6 +1239,388 @@ describe("TaskActivitySection", () => {
       );
 
       expect(screen.getByText("cc @Ada")).toBeInTheDocument();
+    });
+  });
+
+  it("renders events oldest to newest with composer below the list", () => {
+    const events: TaskEvent[] = [
+      createEvent("older", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "First",
+      }),
+      createEvent("newer", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Second",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const comments = screen.getAllByText(/First|Second/);
+    expect(comments[0]).toHaveTextContent("First");
+    expect(comments[1]).toHaveTextContent("Second");
+
+    const section = container.querySelector("section");
+    expect(section).toBeTruthy();
+    const children = [...(section?.children ?? [])];
+    const listIndex = children.findIndex((el) =>
+      el.hasAttribute("data-chat-message-list"),
+    );
+    const formIndex = children.findIndex((el) => el.tagName === "FORM");
+    expect(listIndex).toBeGreaterThan(-1);
+    expect(formIndex).toBeGreaterThan(listIndex);
+  });
+
+  it("groups comments when commentCount is greater than 5", () => {
+    const events: TaskEvent[] = Array.from({ length: 6 }, (_, i) =>
+      createEvent(`c${i}`, {
+        createdAt: `2026-01-01T0${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={6} />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Show 1 older comments" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Comment 0")).not.toBeInTheDocument();
+    expect(screen.getByText("Comment 5")).toBeInTheDocument();
+  });
+
+  it("shows Jump to latest and lands on the latest comment", async () => {
+    highlightListMessageMock.mockReturnValue(true);
+    const events: TaskEvent[] = [
+      createEvent("c1", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: null,
+        comment: "Old",
+      }),
+      createEvent("c2", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: null,
+        comment: "Latest",
+      }),
+    ];
+
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={events}
+        latestCommentId="c2"
+      />,
+    );
+
+    const jump = screen.getByRole("button", { name: "Jump to latest" });
+    expect(
+      screen.getByRole("heading", { name: "Activity" }).parentElement,
+    ).toContainElement(jump);
+
+    await userEvent.click(jump);
+
+    expect(highlightListMessageMock).toHaveBeenCalledWith(
+      "task-activity",
+      "c2",
+    );
+  });
+
+  it("hides Jump to latest when there are no comments", () => {
+    render(
+      <TaskActivitySection
+        {...baseProps}
+        events={[
+          createEvent("status", {
+            createdAt: "2026-01-01T10:00:00.000Z",
+            status: TaskStatus.RUNNING,
+          }),
+        ]}
+        commentCount={0}
+        latestCommentId={null}
+      />,
+    );
+
+    expect(
+      screen.queryByRole("button", { name: "Jump to latest" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads older Core pages when expanding a comment group", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const events: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={8} />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(loadOlderTaskActivityEventsMock).toHaveBeenCalledWith({
+        taskId: "task-1",
+        untilEventId: "c5",
+      });
+    });
+  });
+
+  it("places auth CTA on the chronologically latest matching event", () => {
+    const events: TaskEvent[] = [
+      createEvent("older-running", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskStatus.RUNNING,
+      }),
+      createEvent("latest-auth", {
+        createdAt: "2026-01-01T12:00:00.000Z",
+        status: TaskStatus.AUTHENTICATION_REQUIRED,
+        authenticationUrl: "https://example.com/oauth",
+      }),
+    ];
+
+    const { container } = render(
+      <TaskActivitySection {...baseProps} events={events} />,
+    );
+
+    const authLink = screen.getByRole("link", { name: "Authenticate" });
+    const row = authLink.closest("[data-message-id]");
+    expect(row).toHaveAttribute("data-message-id", "latest-auth");
+    expect(container.querySelectorAll("[data-message-id]").length).toBe(2);
+  });
+
+  it("keeps expanded older comments after events prop refresh", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const truncatedFeed: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        events={truncatedFeed}
+        commentCount={8}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Oldest")).toBeInTheDocument();
+    });
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        events={[...truncatedFeed]}
+        commentCount={8}
+      />,
+    );
+
+    expect(screen.getByText("Oldest")).toBeInTheDocument();
+  });
+
+  it("does not leak expanded events across taskId changes", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: true,
+      value: [
+        createEvent("c0", {
+          createdAt: "2026-01-01T00:00:00.000Z",
+          status: null,
+          comment: "Oldest",
+        }),
+      ],
+    });
+
+    const truncatedFeed: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    const { rerender } = render(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-1"
+        events={truncatedFeed}
+        commentCount={8}
+      />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Oldest")).toBeInTheDocument();
+    });
+
+    const otherTaskEvents: TaskEvent[] = [
+      createEvent("other-c1", {
+        createdAt: "2026-02-01T10:00:00.000Z",
+        status: null,
+        comment: "Other task comment",
+      }),
+    ];
+
+    rerender(
+      <TaskActivitySection
+        {...baseProps}
+        taskId="task-2"
+        events={otherTaskEvents}
+        commentCount={1}
+        latestCommentId="other-c1"
+      />,
+    );
+
+    expect(screen.queryByText("Oldest")).not.toBeInTheDocument();
+    expect(screen.getByText("Other task comment")).toBeInTheDocument();
+  });
+
+  it("keeps expand control when older-page load fails", async () => {
+    loadOlderTaskActivityEventsMock.mockResolvedValue({
+      ok: false,
+      error: { code: "UNKNOWN", message: "nope" },
+    });
+
+    const events: TaskEvent[] = Array.from({ length: 3 }, (_, i) =>
+      createEvent(`c${i + 5}`, {
+        createdAt: `2026-01-01T1${i}:00:00.000Z`,
+        status: null,
+        comment: `Comment ${i + 5}`,
+      }),
+    );
+
+    render(
+      <TaskActivitySection {...baseProps} events={events} commentCount={8} />,
+    );
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    );
+
+    await waitFor(() => {
+      expect(loadOlderTaskActivityEventsMock).toHaveBeenCalled();
+    });
+
+    expect(
+      screen.getByRole("button", { name: /Show 5 older comments/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("jumps to an optimistic comment before refresh", async () => {
+    highlightListMessageMock.mockReturnValue(true);
+    createTaskCommentMock.mockImplementation(
+      () => new Promise(() => undefined),
+    );
+
+    render(<TaskActivitySection {...baseProps} latestCommentId="c-old" />);
+
+    act(() => {
+      editorProps.current?.onChange("Brand new");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Brand new")).toBeInTheDocument();
+    });
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Jump to latest" }),
+    );
+
+    expect(highlightListMessageMock).toHaveBeenCalled();
+    const targetId = highlightListMessageMock.mock.calls.at(-1)?.[1];
+    expect(String(targetId)).toMatch(/^optimistic:/);
+  });
+
+  it("restores the draft when the comment fails to send", async () => {
+    createTaskCommentMock.mockRejectedValue(new Error("offline"));
+    const { container } = render(<TaskActivitySection {...baseProps} />);
+
+    act(() => {
+      editorProps.current?.onChange("Keep me");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(createTaskCommentMock).toHaveBeenCalled();
+      expect(editorProps.current?.value).toBe("Keep me");
+    });
+    expect(
+      container.querySelector('[data-message-id^="optimistic:"]'),
+    ).toBeNull();
+  });
+
+  it("merges text typed during a failed send with the restored draft", async () => {
+    let rejectSend!: (error: Error) => void;
+    createTaskCommentMock.mockImplementation(
+      () =>
+        new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        }),
+    );
+    render(<TaskActivitySection {...baseProps} />);
+
+    act(() => {
+      editorProps.current?.onChange("Original");
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Submit" }));
+
+    await waitFor(() => {
+      expect(createTaskCommentMock).toHaveBeenCalled();
+      expect(editorProps.current?.value).toBe("");
+    });
+
+    act(() => {
+      editorProps.current?.onChange("Typed while pending");
+    });
+
+    await act(async () => {
+      rejectSend(new Error("offline"));
+    });
+
+    await waitFor(() => {
+      expect(editorProps.current?.value).toBe("Original\nTyped while pending");
     });
   });
 });

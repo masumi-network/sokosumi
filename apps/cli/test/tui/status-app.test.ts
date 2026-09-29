@@ -118,6 +118,9 @@ function stubCoreClient(): CoreHttpClient {
   return {
     get: async <T>() => ({}) as T,
     post: async <T>() => ({}) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({}) as T,
   };
 }

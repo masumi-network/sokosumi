@@ -60,15 +60,16 @@ const historyTypesQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
     z
-      .array(z.enum(["task", "job"]))
+      .array(z.enum(["task", "job", "image"]))
       .min(1)
       .optional()
       .transform(deduplicateQueryValues),
   )
   .openapi({
     param: { name: "types", in: "query" },
-    description: "Comma-separated history kinds to include: task, job",
-    example: "task,job",
+    description:
+      "Comma-separated history kinds to include: task, job, image. `image` is one generated image studio version per row.",
+    example: "task,job,image",
   });
 
 const historyStatusQuerySchema = z
@@ -83,7 +84,7 @@ const historyStatusQuerySchema = z
   .openapi({
     param: { name: "status", in: "query" },
     description:
-      "Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task and job rows match.",
+      "Comma-separated status filters. Use `archived` for archived tasks. Task statuses apply to tasks. Job statuses are resolved from computed job state. When `active` is the only filter, non-archived task, job and image rows match. Image rows have no status of their own, so a filter naming task or job states excludes them.",
     example: "READY,completed",
   });
 
@@ -110,9 +111,10 @@ const query = z
 const historyKindByQueryType = {
   task: HistoryKind.TASK,
   job: HistoryKind.JOB,
+  image: HistoryKind.IMAGE,
 } as const;
 
-const allHistoryKinds = [HistoryKind.TASK, HistoryKind.JOB];
+const allHistoryKinds = [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE];
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({

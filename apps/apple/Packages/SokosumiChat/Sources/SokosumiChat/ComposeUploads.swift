@@ -40,11 +40,7 @@ public final class ComposeUploads: ObservableObject {
   }
 
   public func report(_ error: Error) {
-    switch error {
-    case let ChatServiceError.unauthorized(message), let ChatServiceError.unprocessable(_, message), let ChatServiceError.unexpectedResponse(message):
-      errorMessage = message
-    default: errorMessage = error.localizedDescription
-    }
+    errorMessage = friendlyMessage(for: error, mode: .coreMessage)
   }
 
   public func upload(_ files: [URL], cleanupDirectory: URL? = nil, using upload: @escaping @MainActor (URL) async throws -> ComposeAttachment) {

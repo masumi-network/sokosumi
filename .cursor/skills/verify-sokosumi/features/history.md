@@ -1,11 +1,11 @@
 # History
 
-History lets a signed-in user open `/history` and see their unified list of **tasks and jobs** (including an empty state).
+History lets a signed-in user open `/history` and see their unified list of **tasks, jobs, and images** (including an empty state).
 
 ## Sub-features
 
 - `history-open` loads `/history` while authenticated.
-- `history-list-or-empty` shows either history rows (task and/or job) or a clear empty state (“No history yet”).
+- `history-list-or-empty` shows either history rows (`task` / `job` / `image`) or a clear empty state (“No history yet”).
 - `history-gated` redirects anonymous users away from `/history` toward sign-in.
 
 ## How to get to it (user POV)
@@ -21,12 +21,12 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open history.** Run `agent-browser open $WEB_URL/history` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL is `/history` (not `/signin`).
-- **List or empty.** Snapshot shows history rows **or** heading “No history yet”. Either is success; note which. Do not require job-only rows — the page is task + job history.
+- **List or empty.** Snapshot shows history rows **or** heading “No history yet”. Either is success; note which. Do not require job-only rows — the page is task + job + image history. Filters include Task / Job / Image.
 - **Optional gate check.** In a fresh browser session without cookies, open `/history` and confirm redirect to `/signin?returnUrl=%2Fhistory`. Do not reuse `AGENT_BROWSER_SESSION` / `AGENT_BROWSER_SESSION_NAME` for this check (use another `--session` / `AGENT_BROWSER_SESSION` value, or `agent-browser close` then a new session). After `agent-browser close`, open the URL again before `get url` (a close can leave `about:blank`). Wait for network idle before `get url` / snapshot so the session is fully attached.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/history` then screenshot + snapshot of the authenticated history view.
 
 ## Gotchas
 
-- Empty history is valid proof for a new fixture user — do not require existing tasks/jobs.
+- Empty history is valid proof for a new fixture user — do not require existing tasks/jobs/images. Empty subtitle may mention “conversations”; list kinds are still `task` / `job` / `image`.
 - Do not open agent job detail (`/agents/.../jobs/...`) and call it history; that is a different route.
 - Nav label is **History**, not “Jobs”.

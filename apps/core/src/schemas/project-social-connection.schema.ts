@@ -1,6 +1,14 @@
 import { z } from "@hono/zod-openapi";
 
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { dateTimeSchema } from "@/helpers/datetime";
+
+export const projectSocialProviderSchema = z
+  .enum(Object.keys(PROJECT_SOCIAL_PROVIDERS) as ProjectSocialProvider[])
+  .openapi("ProjectSocialProvider", { example: "x" });
 
 export const projectSocialConnectionProjectParamsSchema = z.object({
   id: z
@@ -28,7 +36,7 @@ export const projectSocialConnectionSchema = z
     id: z.string().uuid().openapi({
       example: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     }),
-    provider: z.literal("x"),
+    provider: projectSocialProviderSchema,
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
     status: z
       .enum(["pending", "active", "reauthorization_required", "disconnected"])
@@ -49,7 +57,7 @@ export const initiateProjectSocialConnectionRequestSchema = z
   .discriminatedUnion("action", [
     z.object({
       action: z.literal("connect"),
-      provider: z.literal("x"),
+      provider: projectSocialProviderSchema,
     }),
     z.object({
       action: z.literal("reconnect"),

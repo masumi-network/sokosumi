@@ -4,10 +4,12 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactNode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { loadMoreTasksColumn } from "@/app/tasks/actions";
 import type {
   KanbanColumnId,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
+import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { JobsListFilters } from "@/app/tasks/utils/jobs-filters";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
@@ -57,9 +59,11 @@ vi.mock("./kanban-board", () => ({
   KanbanBoard: ({
     tasks,
     compact,
+    columnFooterById,
   }: {
     tasks: TaskWithCoworker[];
     compact: boolean;
+    columnFooterById: Partial<Record<KanbanColumnId, ReactNode>>;
   }) => (
     <div data-testid="board-density" data-compact={compact}>
       {tasks.map((task) => (
@@ -69,6 +73,9 @@ vi.mock("./kanban-board", () => ({
           data-column={task.columnId}
           data-status={task.status}
         />
+      ))}
+      {Object.entries(columnFooterById).map(([columnId, footer]) => (
+        <div key={columnId}>{footer}</div>
       ))}
     </div>
   ),
@@ -263,7 +270,15 @@ function renderBoard(
   tasks: TaskWithCoworker[] = [TASK],
   defaultDensity?: ComponentProps<typeof TasksView>["defaultDensity"],
 ) {
-  return render(
+  return render(boardView(tasks, defaultDensity));
+}
+
+function boardView(
+  tasks: TaskWithCoworker[],
+  defaultDensity?: ComponentProps<typeof TasksView>["defaultDensity"],
+  doneCursor: string | null = null,
+) {
+  return (
     <TasksView
       tasks={tasks}
       listNextCursor={null}
@@ -273,7 +288,7 @@ function renderBoard(
           todo: null,
           "in-progress": null,
           "input-required": null,
-          done: null,
+          done: doneCursor,
         } as Record<KanbanColumnId, string | null>
       }
       coworkerOptions={[]}
@@ -286,7 +301,7 @@ function renderBoard(
       defaultDensity={defaultDensity}
       canCreateTask
       labels={labels}
-    />,
+    />
   );
 }
 
@@ -496,4 +511,54 @@ it("keeps board and list drag overlays in Compact", async () => {
     "data-compact",
     "true",
   );
+});
+
+it("keeps a task that left the server page when this tab did not archive it", () => {
+  const shifted: TaskWithCoworker = { ...TASK, id: "task-shifted" };
+  const { rerender } = renderBoard([TASK, shifted]);
+  expect(boardCard(shifted.id)).toBeInTheDocument();
+
+  rerender(boardView([TASK]));
+
+  expect(boardCard(shifted.id)).toBeInTheDocument();
+});
+
+it("drops a task this tab archived, including when the refresh still returns it", () => {
+  const archived: TaskWithCoworker = { ...TASK, id: "task-archived" };
+  const { rerender } = renderBoard([TASK, archived]);
+  expect(boardCard(archived.id)).toBeInTheDocument();
+
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK, archived]));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(TASK.id)).toBeInTheDocument();
+});
+
+it("drops a load-more task once it is archived, and keeps the other load-more rows", async () => {
+  const loaded: TaskWithCoworker = { ...CANCELED_TASK, id: "task-loaded" };
+  const archived: TaskWithCoworker = {
+    ...CANCELED_TASK,
+    id: "task-loaded-archived",
+  };
+  vi.mocked(loadMoreTasksColumn).mockResolvedValue({
+    tasks: [loaded, archived],
+    nextCursor: null,
+  });
+  const { rerender } = render(boardView([TASK], undefined, "cursor-1"));
+  // userEvent never reaches this footer button here; a native click does.
+  act(() => screen.getByRole("button", { name: "Load more" }).click());
+  expect(
+    await screen.findByTestId(`board-card-${archived.id}`),
+  ).toBeInTheDocument();
+
+  markTaskArchived(archived.id);
+  rerender(boardView([TASK], undefined, "cursor-1"));
+
+  expect(
+    screen.queryByTestId(`board-card-${archived.id}`),
+  ).not.toBeInTheDocument();
+  expect(boardCard(loaded.id)).toBeInTheDocument();
 });

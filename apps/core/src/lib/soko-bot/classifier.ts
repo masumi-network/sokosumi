@@ -38,7 +38,7 @@ const MIN_CONFIRMATION_CONFIDENCE = 0.85;
 
 const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   DIRECT_RESPONSE:
-    "Conversation, a question, or work the assistant does on its own without changing anything in Sokosumi or for other people: greetings, explanations, status of tasks or jobs, what is on the calendar or in the inbox, what is in files, tables, chats or memory, and research on the web, reading pages, analysing data, writing files in its own workspace or running commands there. Nothing in Sokosumi is created or changed and nothing is sent to anyone.",
+    "Conversation, a question, or work the assistant does on its own without changing anything in Sokosumi or for other people: greetings, explanations, status of tasks or jobs, connected Project social accounts and social posts, what is on the calendar or in the inbox, what is in files, tables, chats or memory, and research on the web, reading pages, analysing data, writing files in its own workspace or running commands there. Nothing in Sokosumi is created or changed and nothing is sent to anyone.",
   CLARIFY:
     "Nothing can be acted on yet: the owner refuses or postpones the action they mention (do not, not yet, wait until), is thinking aloud (what if, should we, do you think), quotes someone else, gives a bare confirmation with nothing to confirm, or leaves out what is needed (which task, which person, what outcome). Asking the assistant to stop, cancel or forget something is not a refusal; that is a change.",
   DELEGATE_TASK:
@@ -46,14 +46,17 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
   HIRE_AGENT:
     "Explicitly asks to hire, book or run a marketplace Agent. This spends the owner's credits, so choose it only when the owner plainly asks for an Agent.",
   MANAGE_WORK:
-    "Asks for a concrete change the assistant makes itself: update, move, reassign, archive or cancel existing Tasks or Jobs; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; save or write a file; create or change calendar events or email through a connected account; remember something or forget something it was told.",
+    "Asks for a concrete change the assistant makes itself: create or edit a Project social post, schedule or reschedule it, cancel it or publish it now; update, move, reassign, archive or cancel existing Tasks or Jobs; set, change or stop its own reminders, check-ins or schedules; post or send a message, or contact a person; save or write a file; create or change calendar events or email through a connected account; remember something or forget something it was told.",
   MIXED:
     "Asks for two or more independent actions that belong to different routes above in one message, for example hiring an Agent and also creating a Task.",
 };
 
 const WRITE_SCOPE_CRITERIA = {
   WORK: "changes existing Tasks, Jobs or Projects",
-  SCHEDULE: "the assistant's own reminders, check-ins or schedules",
+  SCHEDULE:
+    "the assistant's own reminders, check-ins or recurring prompt schedules; not social media posts",
+  SOCIAL:
+    "creating, editing, scheduling, rescheduling, canceling or publishing a Project social media post",
   CHAT: "posting a message in a chat room or channel, or messaging or asking a person in chat (not by email)",
   FILE: "saving or writing a file or document",
   INTEGRATION:

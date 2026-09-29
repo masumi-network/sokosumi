@@ -1,11 +1,19 @@
+import { SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getEnvMock, logSetMock } = vi.hoisted(() => ({
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
+
+const { getEnvMock, logSetMock, ssrfSafeFetchMock } = vi.hoisted(() => ({
   getEnvMock: vi.fn(),
   logSetMock: vi.fn(),
+  ssrfSafeFetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 
@@ -16,13 +24,43 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_123",
 };
 
-describe("initiateProjectXConnection", () => {
+describe("initiateProjectSocialConnection", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
     getEnvMock.mockReturnValue({
       COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
       COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("creates a connector-owned shared link with only the project executor in its ACL", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      Response.json({
+        connected_account_id: "ca_shared",
+        redirect_url: "https://connect.composio.dev/shared-link",
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await initiateProjectSocialConnection({
+      ...input,
+      authConfigId: "ac_instagram",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      new URL("https://backend.composio.dev/api/v3.1/connected_accounts/link"),
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+      auth_config_id: "ac_instagram",
+      user_id: input.connectorUserId,
+      callback_url: input.callbackUrl,
+      experimental: {
+        account_type: "SHARED",
+        acl_config_for_shared: { allowed_user_ids: [input.executorUserId] },
+      },
     });
   });
 
@@ -72,9 +110,10 @@ describe("initiateProjectXConnection", () => {
         return Response.json({});
       });
     vi.stubGlobal("fetch", fetchMock);
-    const { getConnectedXIdentity } = await import("./composio.client");
+    const { getConnectedSocialIdentity } = await import("./composio.client");
     await expect(
-      getConnectedXIdentity({
+      getConnectedSocialIdentity({
+        provider: "x",
         connectedAccountId: "ca_123",
         executorUserId: input.executorUserId,
       }),
@@ -105,14 +144,16 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
       body: undefined,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 400,
         fields: ["auth_config_id"],
@@ -141,13 +182,15 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 422,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 422,
         fields: ["callback_url"],
@@ -168,13 +211,15 @@ describe("initiateProjectXConnection", () => {
           new Response("secret-provider-response", { status: 400 }),
         ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
     });
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
-        operation: "initiate Project X connection",
+        operation: "initiate Project social connection",
         failure: "http_error",
         upstreamStatus: 400,
         fields: [],
@@ -187,15 +232,24 @@ describe("initiateProjectXConnection", () => {
     getEnvMock.mockReturnValue({
       COMPOSIO_X_AUTH_CONFIG_ID: "private-config-id",
     });
-    const { initiateProjectXConnection } = await import("./composio.client");
-    await expect(initiateProjectXConnection(input)).rejects.toThrow(
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
+    await expect(initiateProjectSocialConnection(input)).rejects.toThrow(
       "COMPOSIO_API_KEY is not configured",
     );
     expect(logSetMock).toHaveBeenCalledWith({
       composio: {
         failure: "missing_configuration",
         apiKeyConfigured: false,
-        xAuthConfigConfigured: true,
+        authConfigsConfigured: {
+          x: true,
+          tiktok: false,
+          instagram: false,
+          linkedin: false,
+          facebook: false,
+          youtube: false,
+        },
       },
     });
   });
@@ -215,9 +269,11 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { initiateProjectXConnection } = await import("./composio.client");
+    const { initiateProjectSocialConnection } = await import(
+      "./composio.client"
+    );
 
-    await expect(initiateProjectXConnection(input)).resolves.toEqual({
+    await expect(initiateProjectSocialConnection(input)).resolves.toEqual({
       connectionId: "ca_123",
       redirectUrl,
     });
@@ -239,11 +295,11 @@ describe("initiateProjectXConnection", () => {
         ),
       ),
     );
-    const { ComposioApiError, initiateProjectXConnection } = await import(
+    const { ComposioApiError, initiateProjectSocialConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -254,11 +310,11 @@ describe("initiateProjectXConnection", () => {
       "fetch",
       vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
     );
-    const { ComposioApiError, initiateProjectXConnection } = await import(
+    const { ComposioApiError, initiateProjectSocialConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectXConnection(input)).rejects.toMatchObject({
+    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -270,10 +326,12 @@ describe("initiateProjectXConnection", () => {
         .fn()
         .mockResolvedValue(new Response("{}", { status }));
       vi.stubGlobal("fetch", fetchMock);
-      const { deleteProjectXConnectionIntent } = await import(
+      const { deleteProjectSocialConnectionIntent } = await import(
         "./composio.client"
       );
-      await deleteProjectXConnectionIntent({ connectedAccountId: "ca_123" });
+      await deleteProjectSocialConnectionIntent({
+        connectedAccountId: "ca_123",
+      });
       expect(fetchMock).toHaveBeenCalledWith(
         new URL(
           "https://backend.composio.dev/api/v3.1/connected_accounts/ca_123?revoke_on_delete=true",
@@ -302,10 +360,907 @@ describe("initiateProjectXConnection", () => {
             ),
           ),
       );
-      const { revokeProjectXConnection } = await import("./composio.client");
-      const result = revokeProjectXConnection({ connectedAccountId: "ca_123" });
+      const { revokeProjectSocialConnection } = await import(
+        "./composio.client"
+      );
+      const result = revokeProjectSocialConnection({
+        connectedAccountId: "ca_123",
+      });
       if (status === "REVOKED") await expect(result).resolves.toBeUndefined();
       else await expect(result).rejects.toMatchObject({ httpStatus: 409 });
     },
   );
+});
+
+describe("getConnectedSocialIdentity", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({ COMPOSIO_API_KEY: "test-composio-key" });
+  });
+
+  const identities: {
+    provider: ProjectSocialProvider;
+    slug: string;
+    args: Record<string, unknown>;
+    payload: Record<string, unknown>;
+    identity: { id: string; handle: string | null };
+  }[] = [
+    {
+      provider: "x",
+      slug: "TWITTER_USER_LOOKUP_ME",
+      args: {},
+      payload: { data: { id: "x_123", username: "alice" } },
+      identity: { id: "x_123", handle: "alice" },
+    },
+    {
+      provider: "tiktok",
+      slug: "TIKTOK_GET_USER_STATS",
+      args: { fields: ["open_id", "display_name"] },
+      payload: {
+        data: { user: { open_id: "tt_123", display_name: "Alice" } },
+        error: { code: "ok", message: "", log_id: "private-log-id" },
+      },
+      identity: { id: "tt_123", handle: "Alice" },
+    },
+    {
+      provider: "instagram",
+      slug: "INSTAGRAM_GET_USER_INFO",
+      args: { ig_user_id: "me", fields: "id,username" },
+      payload: { id: "17841400000000000", username: "alice" },
+      identity: { id: "17841400000000000", handle: "alice" },
+    },
+    {
+      provider: "linkedin",
+      slug: "LINKEDIN_GET_MY_INFO",
+      args: {},
+      payload: { response_dict: { author_id: "urn:li:person:alice" } },
+      identity: { id: "urn:li:person:alice", handle: null },
+    },
+    {
+      provider: "facebook",
+      slug: "FACEBOOK_GET_CURRENT_USER",
+      args: { fields: "id,name" },
+      payload: { id: "fb_123", name: "Alice", email: "alice@example.com" },
+      identity: { id: "fb_123", handle: "Alice" },
+    },
+    {
+      provider: "youtube",
+      slug: "YOUTUBE_LIST_CHANNELS",
+      args: { mine: true, part: "id,snippet", maxResults: 2 },
+      payload: {
+        items: [{ id: "UC_123", snippet: { customUrl: "@alice" } }],
+      },
+      identity: { id: "UC_123", handle: "@alice" },
+    },
+  ];
+
+  function stubIdentity(payload: unknown) {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockResolvedValueOnce(Response.json(payload))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  it.each(identities)(
+    "looks up $provider through only its authenticated account and identity tool",
+    async ({ provider, slug, args, payload, identity }) => {
+      const fetchMock = stubIdentity({
+        data: { data: payload, successful: true },
+        error: null,
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual(identity);
+
+      const toolkit = PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug;
+      expect(JSON.parse(String(fetchMock.mock.calls[0][1].body))).toEqual({
+        user_id: input.executorUserId,
+        toolkits: { enable: [toolkit] },
+        connected_accounts: { [toolkit]: ["ca_selected"] },
+        manage_connections: { enable: false, enable_connection_removal: false },
+        tools: { [toolkit]: { enable: [slug] } },
+        workbench: { enable: false, enable_proxy_execution: false },
+        search: { enable: false },
+        execute: { enable_multi_execute: false },
+      });
+      expect(JSON.parse(String(fetchMock.mock.calls[1][1].body))).toEqual({
+        tool_slug: slug,
+        arguments: args,
+      });
+      expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it.each(identities)(
+    "rejects a refused $provider lookup even if an identity is present",
+    async ({ provider, payload }) => {
+      const fetchMock = stubIdentity({
+        data: { data: payload, successful: false },
+        error: null,
+      });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+      expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+    },
+  );
+
+  it.each([
+    { provider: "x", payload: { id: 123, username: "alice" } },
+    { provider: "tiktok", payload: { user: { open_id: " " } } },
+    { provider: "instagram", payload: { user_id: "17841400000000000" } },
+    {
+      provider: "linkedin",
+      payload: { name: "Alice", email: "alice@example.com" },
+    },
+    { provider: "facebook", payload: { name: "Alice", id: "" } },
+    { provider: "youtube", payload: { items: [] } },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_one" }, { id: "UC_two" }] },
+    },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_one" }], nextPageToken: "more" },
+    },
+    { provider: "youtube", payload: { items: [{ id: 123 }] } },
+  ] satisfies { provider: ProjectSocialProvider; payload: unknown }[])(
+    "rejects malformed or ambiguous $provider identities: $payload",
+    async ({ provider, payload }) => {
+      const fetchMock = stubIdentity({ data: { data: payload } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    "invalid-json",
+    { data: { id: "x_123" }, error: "access_token=private-token" },
+    { data: { error: { message: "private-token" }, data: { id: "x_123" } } },
+  ])(
+    "rejects invalid or failed envelopes without retaining payload: %j",
+    async (payload) => {
+      stubIdentity(payload);
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "x",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({
+        name: "ComposioApiError",
+        message: "X identity lookup failed",
+        body: undefined,
+      });
+      expect(JSON.stringify(logSetMock.mock.calls)).not.toContain(
+        "private-token",
+      );
+    },
+  );
+
+  it("rejects TikTok provider errors despite a returned user", async () => {
+    stubIdentity({
+      data: {
+        data: { user: { open_id: "tt_123" } },
+        error: {
+          code: "scope_not_authorized",
+          message: "private-provider-message",
+        },
+      },
+    });
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "tiktok",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).rejects.toMatchObject({ name: "ComposioApiError", body: undefined });
+  });
+
+  it.each([
+    {
+      provider: "tiktok",
+      payload: { user: { open_id: "tt_123" } },
+      id: "tt_123",
+    },
+    {
+      provider: "linkedin",
+      payload: { sub: "li_123", name: "Alice" },
+      id: "li_123",
+      handle: "Alice",
+    },
+    {
+      provider: "linkedin",
+      payload: { id: "li_123", vanityName: "alice" },
+      id: "li_123",
+      handle: "alice",
+    },
+    {
+      provider: "youtube",
+      payload: { items: [{ id: "UC_123", snippet: { title: "Alice" } }] },
+      id: "UC_123",
+      handle: "Alice",
+    },
+  ] satisfies {
+    provider: ProjectSocialProvider;
+    payload: unknown;
+    id: string;
+    handle?: string;
+  }[])(
+    "accepts $provider identity with an optional public handle or display name",
+    async ({ provider, payload, id, handle }) => {
+      stubIdentity({ data: { data: JSON.stringify(payload) } });
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider,
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).resolves.toEqual({ id, handle: handle ?? null });
+    },
+  );
+
+  it.each([null, { session_id: "" }, { session_id: 123 }])(
+    "rejects invalid session metadata before tool execution: %j",
+    async (metadata) => {
+      const fetchMock = vi.fn().mockResolvedValue(Response.json(metadata));
+      vi.stubGlobal("fetch", fetchMock);
+      const { getConnectedSocialIdentity } = await import("./composio.client");
+      await expect(
+        getConnectedSocialIdentity({
+          provider: "x",
+          connectedAccountId: "ca_selected",
+          executorUserId: input.executorUserId,
+        }),
+      ).rejects.toMatchObject({ name: "ComposioApiError" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("preserves identity when cleanup fails without logging transport secrets", async () => {
+    const fetchMock = stubIdentity({ data: { id: "fb_123" } });
+    fetchMock
+      .mockReset()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockResolvedValueOnce(Response.json({ data: { id: "fb_123" } }))
+      .mockRejectedValueOnce(new Error("private-token private-session-url"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "facebook",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).resolves.toEqual({ id: "fb_123", handle: null });
+    expect(warn).toHaveBeenCalledWith(
+      "[composio] delete Project Facebook identity session failed",
+    );
+    warn.mockRestore();
+  });
+
+  it("sanitizes execute transport failures and deletes the identity session", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
+      .mockRejectedValueOnce(new Error("Bearer private-token private-url"))
+      .mockResolvedValueOnce(Response.json({}));
+    vi.stubGlobal("fetch", fetchMock);
+    const { getConnectedSocialIdentity } = await import("./composio.client");
+    await expect(
+      getConnectedSocialIdentity({
+        provider: "x",
+        connectedAccountId: "ca_selected",
+        executorUserId: input.executorUserId,
+      }),
+    ).rejects.toMatchObject({
+      name: "ComposioApiError",
+      message: "Composio API request failed",
+      httpStatus: 503,
+      body: undefined,
+    });
+    expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+  });
+});
+
+describe("publishXPost", () => {
+  const publishInput = {
+    connectedAccountId: "ca_123",
+    executorUserId: "sokosumi:project-executor:project_123",
+    text: "Hello world",
+    media: [],
+  };
+
+  function stubSession(execute: () => Promise<Response> | Response) {
+    const fetchMock = vi.fn(
+      async (url: URL, init?: RequestInit): Promise<Response> => {
+        const path = url.pathname;
+        if (path === "/api/v3.1/tool_router/session") {
+          const body = JSON.parse(String(init?.body));
+          // REST rejects the SDK's array shorthand before any post is sent.
+          if (Array.isArray(body.toolkits)) {
+            return Response.json(
+              { error: "Invalid toolkits" },
+              { status: 400 },
+            );
+          }
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        }
+        if (path.endsWith("/execute")) {
+          return execute();
+        }
+        if (init?.method === "DELETE") {
+          return new Response(JSON.stringify({}));
+        }
+        throw new Error(`unexpected ${path}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+
+  function calls(fetchMock: ReturnType<typeof stubSession>) {
+    return fetchMock.mock.calls.map(([url, init]) => ({
+      path: url.pathname,
+      method: init?.method ?? "GET",
+      body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
+    }));
+  }
+
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    getEnvMock.mockReturnValue({
+      COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
+      COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("creates a restricted session, executes the create-post tool, and deletes the session", async () => {
+    const fetchMock = stubSession(
+      () =>
+        new Response(
+          JSON.stringify({
+            data: { data: { data: { id: "1907", text: "Hello world" } } },
+            error: null,
+            successful: true,
+          }),
+        ),
+    );
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "1907",
+    });
+
+    const requests = calls(fetchMock);
+    expect(requests).toHaveLength(3);
+    expect(requests[0]).toMatchObject({
+      path: "/api/v3.1/tool_router/session",
+      method: "POST",
+      body: {
+        user_id: publishInput.executorUserId,
+        toolkits: { enable: ["twitter"] },
+        connected_accounts: { twitter: ["ca_123"] },
+        manage_connections: { enable: false, enable_connection_removal: false },
+        tools: {
+          twitter: {
+            enable: ["TWITTER_CREATION_OF_A_POST"],
+          },
+        },
+        workbench: { enable: false, enable_proxy_execution: false },
+        search: { enable: false },
+      },
+    });
+    expect(requests[1]).toEqual({
+      path: "/api/v3.1/tool_router/session/sess_1/execute",
+      method: "POST",
+      body: {
+        tool_slug: "TWITTER_CREATION_OF_A_POST",
+        arguments: { text: "Hello world" },
+      },
+    });
+    expect(requests[2]).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+
+  it("keeps a successful publish when session cleanup fails", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: URL, init?: RequestInit): Promise<Response> => {
+        const path = url.pathname;
+        if (path === "/api/v3.1/tool_router/session") {
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        }
+        if (path.endsWith("/execute")) {
+          return new Response(
+            JSON.stringify({ data: { id: "1907" }, error: null }),
+          );
+        }
+        if (init?.method === "DELETE") {
+          return new Response("boom", { status: 500 });
+        }
+        throw new Error(`unexpected ${path}`);
+      }),
+    );
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "1907",
+    });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it("parses a flat tool result", async () => {
+    stubSession(
+      () => new Response(JSON.stringify({ data: { id: "42" }, error: null })),
+    );
+    const { publishXPost } = await import("./composio.client");
+
+    await expect(publishXPost(publishInput)).resolves.toEqual({
+      externalId: "42",
+    });
+  });
+
+  it("raises a tool error carrying only the sanitized provider message", async () => {
+    const opaqueId = "opaque_1234567890abcdefghijklmnopqrstuvwxyz";
+    const fetchMock = stubSession(
+      () =>
+        new Response(
+          JSON.stringify({
+            data: null,
+            error: {
+              message: `Duplicate content.\nsession sess_1 Bearer bearer-secret api_key=api-secret https://internal.example/path ${opaqueId} {"access_token":"short-secret","client_secret":"client-secret","authorization":"Basic dXNlcjpwYXNz","password":"my secret"}`,
+              status: 403,
+            },
+            successful: false,
+          }),
+        ),
+    );
+    const { ComposioToolError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    const error = await publishXPost(publishInput).catch((e) => e);
+    expect(error).toBeInstanceOf(ComposioToolError);
+    expect(error).toMatchObject({
+      providerMessage:
+        'Duplicate content. session [redacted] Bearer [redacted] api_key=[redacted] [redacted-url] [redacted-id] {"access_token":"[redacted]","client_secret":"[redacted]","authorization":"[redacted]","password":"[redacted]"}',
+      providerStatus: 403,
+    });
+    expect(error.message).not.toContain("sess_1");
+    expect(error.providerMessage).not.toContain("bearer-secret");
+    expect(error.providerMessage).not.toContain("api-secret");
+    expect(error.providerMessage).not.toContain("internal.example");
+    expect(error.providerMessage).not.toContain(opaqueId);
+    expect(error.providerMessage).not.toContain("short-secret");
+    expect(error.providerMessage).not.toContain("client-secret");
+    expect(error.providerMessage).not.toContain("dXNlcjpwYXNz");
+    expect(error.providerMessage).not.toContain("my secret");
+    expect(calls(fetchMock).at(-1)).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+
+  it("marks the result uncertain when no post id comes back", async () => {
+    stubSession(() => new Response(JSON.stringify({ data: { text: "x" } })));
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it("does not allow automatic retries after a create-post transport timeout", async () => {
+    stubSession(() => {
+      throw new DOMException("Timed out", "TimeoutError");
+    });
+    const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
+  it.each([500, 502, 503])(
+    "treats create-post HTTP %s as an uncertain external outcome",
+    async (status) => {
+      stubSession(() => new Response("unavailable", { status }));
+      const { ComposioPublishOutcomeUnknownError, publishXPost } = await import(
+        "./composio.client"
+      );
+      await expect(publishXPost(publishInput)).rejects.toBeInstanceOf(
+        ComposioPublishOutcomeUnknownError,
+      );
+    },
+  );
+
+  it("preserves retryable errors before the create-post request starts", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("unavailable", { status: 503 })),
+    );
+    const { ComposioApiError, publishXPost } = await import(
+      "./composio.client"
+    );
+    await expect(publishXPost(publishInput)).rejects.toMatchObject({
+      constructor: ComposioApiError,
+      httpStatus: 503,
+    });
+  });
+
+  it("deletes the session when the execute call fails upstream", async () => {
+    const fetchMock = stubSession(
+      () => new Response("rate limited", { status: 429 }),
+    );
+    const { ComposioApiError, publishXPost } = await import(
+      "./composio.client"
+    );
+
+    await expect(publishXPost(publishInput)).rejects.toMatchObject({
+      constructor: ComposioApiError,
+      httpStatus: 429,
+    });
+    expect(calls(fetchMock).at(-1)).toMatchObject({
+      path: "/api/v3.1/tool_router/session/sess_1",
+      method: "DELETE",
+    });
+  });
+});
+
+describe("publishXPost with media", () => {
+  const COMPOSIO_TOOL_MIME_TYPES: Record<
+    "TWITTER_UPLOAD_MEDIA" | "TWITTER_UPLOAD_LARGE_MEDIA",
+    readonly string[]
+  > = {
+    TWITTER_UPLOAD_MEDIA: ["image/jpeg", "image/png", "image/webp"],
+    TWITTER_UPLOAD_LARGE_MEDIA: [
+      "video/mp4",
+      "video/webm",
+      "image/gif",
+      "image/jpeg",
+      "image/png",
+      "image/webp",
+    ],
+  };
+
+  interface ExecuteCall {
+    tool_slug: string;
+    arguments: Record<string, unknown>;
+  }
+  function toolResponse(data: unknown) {
+    return new Response(
+      JSON.stringify({ data: { data }, error: null, successful: true }),
+    );
+  }
+  function stubMediaSession(
+    execute: (call: ExecuteCall) => Response = (call) =>
+      toolResponse({
+        id:
+          call.tool_slug === "TWITTER_CREATION_OF_A_POST" ? "1907" : "media_1",
+        ...(call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA"
+          ? { processing_info: { state: "succeeded" } }
+          : {}),
+      }),
+  ) {
+    const fetchMock = vi.fn(
+      async (url: URL, init?: RequestInit): Promise<Response> => {
+        if (url.pathname === "/api/v3.1/tool_router/session")
+          return new Response(JSON.stringify({ session_id: "sess_1" }));
+        if (url.pathname === "/api/v3.1/files/upload/request")
+          return new Response(
+            JSON.stringify({
+              key: "staged-media",
+              new_presigned_url:
+                "https://uploads.example.com/media?signed=token",
+            }),
+          );
+        if (url.pathname.endsWith("/execute"))
+          return execute(JSON.parse(String(init?.body)));
+        if (init?.method === "DELETE") return new Response("{}");
+        throw new Error(`Unexpected path ${url.pathname}`);
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    return fetchMock;
+  }
+  function executeCalls(
+    fetchMock: ReturnType<typeof stubMediaSession>,
+  ): ExecuteCall[] {
+    return fetchMock.mock.calls
+      .filter(([url]) => url.pathname.endsWith("/execute"))
+      .map(([, init]) => JSON.parse(String(init?.body)));
+  }
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+    ssrfSafeFetchMock.mockReset().mockResolvedValue(new Response(""));
+    getEnvMock.mockReturnValue({
+      COMPOSIO_API_BASE_URL: "https://backend.composio.dev",
+      COMPOSIO_API_KEY: "test-composio-key",
+    });
+  });
+
+  it("keeps every accepted MIME type within its selected Composio tool contract", () => {
+    const rules = SOCIAL_POST_MEDIA_RULES.x;
+    for (const mimeType of rules.imageMimeTypes) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_MEDIA).toContain(mimeType);
+    }
+    for (const mimeType of [...rules.gifMimeTypes, ...rules.videoMimeTypes]) {
+      expect(COMPOSIO_TOOL_MIME_TYPES.TWITTER_UPLOAD_LARGE_MEDIA).toContain(
+        mimeType,
+      );
+    }
+  });
+
+  it.each([
+    {
+      kind: "image" as const,
+      mimeType: "image/png",
+      tool: "TWITTER_UPLOAD_MEDIA",
+      category: "tweet_image",
+    },
+    {
+      kind: "gif" as const,
+      mimeType: "image/gif",
+      tool: "TWITTER_UPLOAD_LARGE_MEDIA",
+      category: "tweet_gif",
+    },
+    {
+      kind: "video" as const,
+      mimeType: "video/mp4",
+      tool: "TWITTER_UPLOAD_LARGE_MEDIA",
+      category: "tweet_video",
+    },
+  ])(
+    "stages $kind bytes and uses the published FileUploadable contract",
+    async ({ kind, mimeType, tool, category }) => {
+      const fetchMock = stubMediaSession();
+      const bytes = new Uint8Array([0, 128, 255]);
+      const signal = new AbortController().signal;
+      const { publishXPost } = await import("./composio.client");
+      await expect(
+        publishXPost({
+          connectedAccountId: "ca_123",
+          executorUserId: "executor",
+          text: "",
+          media: [{ bytes, name: "original-file", mimeType, kind }],
+          signal,
+        }),
+      ).resolves.toEqual({ externalId: "1907" });
+      const staging = fetchMock.mock.calls.find(([url]) =>
+        url.pathname.endsWith("/files/upload/request"),
+      );
+      expect(JSON.parse(String(staging?.[1]?.body))).toMatchObject({
+        toolkit_slug: "twitter",
+        tool_slug: tool,
+        filename: "original-file",
+        mimetype: mimeType,
+        md5: expect.stringMatching(/^[a-f0-9]{32}$/),
+      });
+      expect(ssrfSafeFetchMock).toHaveBeenCalledWith(
+        "https://uploads.example.com/media?signed=token",
+        expect.objectContaining({
+          method: "PUT",
+          body: bytes,
+          headers: { "Content-Type": mimeType },
+          maxResponseBytes: 65536,
+          signal: expect.any(AbortSignal),
+        }),
+      );
+      expect(executeCalls(fetchMock)).toEqual([
+        {
+          tool_slug: tool,
+          arguments: {
+            media: {
+              name: "original-file",
+              mimetype: mimeType,
+              s3key: "staged-media",
+            },
+            media_category: category,
+          },
+        },
+        {
+          tool_slug: "TWITTER_CREATION_OF_A_POST",
+          arguments: { media_media_ids: ["media_1"] },
+        },
+      ]);
+    },
+  );
+
+  it("polls processing before publishing and propagates cancellation into the wait", async () => {
+    const controller = new AbortController();
+    const fetchMock = stubMediaSession((call) => {
+      if (call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA") {
+        queueMicrotask(() => controller.abort());
+        return toolResponse({
+          id: "media_1",
+          processing_info: { state: "pending", check_after_secs: 120 },
+        });
+      }
+      return toolResponse({ id: "1907" });
+    });
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Clip",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(executeCalls(fetchMock).map((c) => c.tool_slug)).toEqual([
+      "TWITTER_UPLOAD_LARGE_MEDIA",
+    ]);
+    expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it("waits for a processing result before sending the media id to X", async () => {
+    const fetchMock = stubMediaSession((call) => {
+      if (call.tool_slug === "TWITTER_UPLOAD_LARGE_MEDIA")
+        return toolResponse({
+          media_id_string: "media_1",
+          processing_info: { state: "pending", check_after_secs: 0 },
+        });
+      if (call.tool_slug === "TWITTER_GET_MEDIA_UPLOAD_STATUS")
+        return toolResponse({ processing_info: { state: "succeeded" } });
+      return toolResponse({ id: "1907" });
+    });
+    const { publishXPost } = await import("./composio.client");
+    await publishXPost({
+      connectedAccountId: "ca_123",
+      executorUserId: "executor",
+      text: "Clip",
+      media: [
+        { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+      ],
+    });
+    expect(executeCalls(fetchMock).map((c) => c.tool_slug)).toEqual([
+      "TWITTER_UPLOAD_LARGE_MEDIA",
+      "TWITTER_GET_MEDIA_UPLOAD_STATUS",
+      "TWITTER_CREATION_OF_A_POST",
+    ]);
+  });
+
+  it.each([true, false])(
+    "requires confirmed processing when upload omits status (confirmed=%s)",
+    async (confirmed) => {
+      const fetchMock = stubMediaSession((call) => {
+        if (call.tool_slug === "TWITTER_GET_MEDIA_UPLOAD_STATUS")
+          return toolResponse(
+            confirmed ? { processing_info: { state: "succeeded" } } : {},
+          );
+        return toolResponse({
+          id:
+            call.tool_slug === "TWITTER_CREATION_OF_A_POST"
+              ? "1907"
+              : "media_1",
+        });
+      });
+      const { publishXPost } = await import("./composio.client");
+      const result = publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Clip",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+      });
+      if (confirmed)
+        await expect(result).resolves.toEqual({ externalId: "1907" });
+      else
+        await expect(result).rejects.toThrow(
+          "did not confirm media processing",
+        );
+      expect(
+        executeCalls(fetchMock).some(
+          (c) => c.tool_slug === "TWITTER_CREATION_OF_A_POST",
+        ),
+      ).toBe(confirmed);
+    },
+  );
+
+  it("does not publish text alone when provider staging fails", async () => {
+    const fetchMock = stubMediaSession();
+    ssrfSafeFetchMock.mockResolvedValue(
+      new Response("denied", { status: 403 }),
+    );
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "image/png", kind: "image" },
+        ],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 403 });
+    expect(executeCalls(fetchMock)).toEqual([]);
+    expect(fetchMock.mock.calls.at(-1)?.[1]?.method).toBe("DELETE");
+  });
+
+  it("stops before creating a post when cancellation occurs during staging", async () => {
+    const controller = new AbortController();
+    const fetchMock = stubMediaSession();
+    ssrfSafeFetchMock.mockImplementation(async () => {
+      controller.abort();
+      return new Response("");
+    });
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "image/png", kind: "image" },
+        ],
+        signal: controller.signal,
+      }),
+    ).rejects.toMatchObject({ name: "AbortError" });
+    expect(executeCalls(fetchMock)).toEqual([]);
+  });
+
+  it("fails media processing without creating a post", async () => {
+    const fetchMock = stubMediaSession(() =>
+      toolResponse({
+        id: "media_1",
+        processing_info: {
+          state: "failed",
+          error: { message: "Invalid codec" },
+        },
+      }),
+    );
+    const { publishXPost } = await import("./composio.client");
+    await expect(
+      publishXPost({
+        connectedAccountId: "ca_123",
+        executorUserId: "executor",
+        text: "Pic",
+        media: [
+          { bytes: new Uint8Array([1]), mimeType: "video/mp4", kind: "video" },
+        ],
+      }),
+    ).rejects.toMatchObject({ providerMessage: "Invalid codec" });
+    expect(executeCalls(fetchMock)).toHaveLength(1);
+  });
 });

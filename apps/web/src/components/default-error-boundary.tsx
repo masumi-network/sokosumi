@@ -4,6 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { useTranslations } from "next-intl";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 
+import { Button } from "@/components/ui/button";
+
 interface DefaultErrorBoundaryProps {
   children: ReactNode;
   fallback?: ReactNode;
@@ -54,21 +56,32 @@ class DefaultErrorBoundary extends Component<
 
   render() {
     if (this.state.hasError) {
-      return this.props.fallback ?? <DefaultErrorBoundaryError />;
+      return (
+        this.props.fallback ?? (
+          <DefaultErrorBoundaryError onRetry={this.reset} />
+        )
+      );
     }
 
     return this.props.children;
   }
+
+  private reset = () => this.setState({ hasError: false });
 }
 
 export default DefaultErrorBoundary;
 
-function DefaultErrorBoundaryError() {
+function DefaultErrorBoundaryError({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations("Components.DefaultErrorBoundary");
 
   return (
-    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4">
-      <span className="text-lg text-semantic-destructive">{t("error")}</span>
+    <div className="flex min-h-[120px] w-full flex-col items-center justify-center gap-3 rounded-md border border-semantic-destructive-tertiary bg-semantic-destructive-quinary p-4 text-center">
+      <span className="text-lg text-semantic-destructive text-pretty">
+        {t("error")}
+      </span>
+      <Button type="button" variant="outline" size="sm" onClick={onRetry}>
+        {t("tryAgain")}
+      </Button>
     </div>
   );
 }

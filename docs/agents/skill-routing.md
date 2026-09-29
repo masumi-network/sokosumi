@@ -40,6 +40,10 @@ Native SwiftUI work uses `swiftui-expert-skill` (from `avdlee/swiftui-agent-skil
 
 Parity rows run one per fresh session: the user types `/apple-parity-next`, optionally with a row id such as `/apple-parity-next 24h` (user-invoked, [`.agents/skills/apple-parity-next/`](../../.agents/skills/apple-parity-next/)), which carries the next `apps/apple/PARITY.md` row from dispatch to a merged PR.
 
+### New in Sokosumi
+
+The user types `/create-new-in-sokosumi` with a PR, a description or screenshots (user-invoked, [`.agents/skills/create-new-in-sokosumi/`](../../.agents/skills/create-new-in-sokosumi/)). It renders a release announcement image from the design-system template and shows it in the reply.
+
 ### Ask Matt
 
 Main engineering flow. See [`.agents/skills/ask-matt/`](../../.agents/skills/ask-matt/) when choosing how to grill, spec, ticket, or implement.
@@ -82,4 +86,6 @@ Single-context: live `CONTEXT.md` + `docs/adr/` at the repo root. See [`docs/age
 
 **Coworker integrators:** [`docs/coworker/vendor-workspace-grants-api.md`](../../docs/coworker/vendor-workspace-grants-api.md) — vendor workspace grants, `GRANT_PENDING`, Core API error kinds. [`docs/coworker/coworker-workspace-access-api.md`](../../docs/coworker/coworker-workspace-access-api.md) — coworker early access (per-workspace pilot, not VendorGrant).
 
-**Soko Bot:** contracts in [`packages/soko-bot`](../../packages/soko-bot) (`@sokosumi/soko-bot`); in-process runtime in Core (`apps/core/src/lib/soko-bot/`). See [`docs/adr/0007-soko-bot-eve-runtime.md`](../../docs/adr/0007-soko-bot-eve-runtime.md) — first-party personal project manager running inside Core, capability-scoped tools, context packets, memory, schedules, and admin operations. There is no `apps/soko-bot` deployable.
+**Soko Bot:** contracts in [`packages/soko-bot`](../../packages/soko-bot) (`@sokosumi/soko-bot`). Core is the control plane (`apps/core/src/lib/soko-bot/`); each turn's loop runs in a per-bot Vercel Sandbox (`apps/core/src/soko-bot-runner`). The runner calls Core at `/v1/soko-bot-runtime` (`apps/core/src/routes/v1/soko-bot-runtime`). In-process is the evaluation adapter. See [`docs/adr/0043-soko-bot-runs-in-per-bot-sandboxes.md`](../../docs/adr/0043-soko-bot-runs-in-per-bot-sandboxes.md) (amends [`0007`](../../docs/adr/0007-soko-bot-eve-runtime.md)). There is no `apps/soko-bot` deployable.
+
+**Project image studio:** eve agent at [`apps/web/agents/image-studio/`](../../apps/web/agents/image-studio/). `withEve()` in `apps/web/next.config.ts` serves it at `/eve/image-studio/v1/*`. See [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and [`docs/image-studio/deployment.md`](../../docs/image-studio/deployment.md).

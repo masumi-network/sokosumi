@@ -44,11 +44,11 @@ public struct ChannelEditDraft: Equatable, Sendable {
   }
 
   public mutating func setName(_ raw: String) {
-    name = ChannelDraft.limit(raw, to: 80)
+    name = ChannelDraft.limit(raw, to: ChannelDraft.nameLimit)
   }
 
   public mutating func setTopic(_ raw: String) {
-    topic = ChannelDraft.limit(raw, to: 200)
+    topic = ChannelDraft.limit(raw, to: ChannelDraft.topicLimit)
   }
 }
 
@@ -99,7 +99,7 @@ public final class ChannelEditing: ObservableObject {
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
     }
   }
 
@@ -117,7 +117,7 @@ public final class ChannelEditing: ObservableObject {
       return saved
     } catch {
       guard !Task.isCancelled, !(error is CancellationError) else { return false }
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
       return false
     }
   }

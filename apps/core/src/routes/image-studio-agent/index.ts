@@ -1,10 +1,9 @@
 import { Hono } from "hono";
-import { IMAGE_STUDIO_CATALOG } from "@/lib/image-studio/catalog";
+import { getImageCatalog } from "@/lib/image-studio/catalog";
+import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
+import { describeImageStudioRefusal } from "@/lib/image-studio/request-validation";
 
-import {
-  assetContentPath,
-  createImageJobRequestSchema,
-} from "@/schemas/project-image-studio.schema";
+import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
 import {
   getAsset,
   getJob,
@@ -30,20 +29,12 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  * immediately.
  *
  * Deliberately small. The agent can describe what exists, start a generation,
- * and read job state — it cannot review, cannot delete, and cannot read image
- * bytes. Approval is a human decision, and the bytes have one authorized
- * route which requires a browser session.
+ * and read job state — it cannot delete and cannot read image bytes. The
+ * bytes have one authorized route which requires a browser session.
  */
 
 const app = new Hono();
 
-/**
- * Authorize one operation on an eve session.
- *
- * Called by the agent's channel policy on every request that names a session,
- * before eve does anything with it. The answer is deliberately minimal: it
- * says yes or no, and nothing about the conversation.
- */
 /**
  * Confirm the grant's user still has access to the grant's project.
  *
@@ -74,7 +65,8 @@ app.post("/sessions/:eveSessionId/authorize", async (c) => {
 app.get("/options", async (c) => {
   const context = await authorize(c.req.raw);
   if (context instanceof Response) return context;
-  return c.json({ ok: true, catalog: IMAGE_STUDIO_CATALOG });
+  await ensureImageCatalogFresh();
+  return c.json({ ok: true, catalog: getImageCatalog() });
 });
 
 app.get("/versions", async (c) => {
@@ -102,7 +94,6 @@ app.get("/versions", async (c) => {
       width: asset.width,
       height: asset.height,
       createdAt: asset.createdAt.toISOString(),
-      review: asset.review ? asset.review.decision : "UNDECIDED",
     })),
     activeJobs: jobs
       .filter((job) => job.assetId === null && job.settledAt === null)
@@ -137,16 +128,15 @@ app.post("/generations", async (c) => {
       resolution: raw.resolution,
       outputFormat: raw.outputFormat,
       seed: raw.seed,
-      placementId: raw.placementId,
     },
   });
   if (!parsed.success) {
+    // The studio's own wording, not Zod's. This one lands in a tool result the
+    // model reads back to a person, so "Too big: expected string to have <=4000
+    // characters" would be repeated to them verbatim.
+    const refusal = describeImageStudioRefusal(parsed.error);
     return c.json(
-      {
-        ok: false,
-        error: "invalid_input",
-        detail: parsed.error.issues[0]?.message,
-      },
+      { ok: false, error: refusal.kind, detail: refusal.message },
       400,
     );
   }
@@ -204,6 +194,7 @@ app.get("/generations/:jobId", async (c) => {
       model: job.model,
       settings: job.settings,
       error: job.error,
+      failureReason: job.failureReason,
       retryMayDuplicateCharge: job.retryMayDuplicateCharge,
     },
     version: asset
@@ -213,12 +204,9 @@ app.get("/generations/:jobId", async (c) => {
           lineageId: asset.rootId,
           model: asset.model,
           settings: asset.settings,
-          review: asset.review ? asset.review.decision : "UNDECIDED",
         }
       : null,
   });
 });
 
 export default app;
-
-export { assetContentPath };

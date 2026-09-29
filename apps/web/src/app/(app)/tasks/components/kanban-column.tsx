@@ -41,7 +41,7 @@ export function KanbanColumn({
 
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar",
+          "flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto rounded-b-xl px-2 [scrollbar-gutter:stable] app-scrollbar scroll-edge-y",
           LIST_MOBILE_CREATE_FAB_CLEARANCE,
           "md:pb-2",
         )}
@@ -55,7 +55,7 @@ export function KanbanColumn({
         )}
         {footer}
         {isEmpty && (
-          <div className="flex flex-1 items-center justify-center py-8">
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 flex flex-1 items-center justify-center py-8 duration-200">
             <p className="text-muted-foreground text-sm">{emptyLabel}</p>
           </div>
         )}

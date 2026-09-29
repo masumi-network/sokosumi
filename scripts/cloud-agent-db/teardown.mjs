@@ -125,6 +125,11 @@ export async function githubJson({ token, url, fetchImpl = globalThis.fetch }) {
  * Same-repo PR bodies for the workflow_run that just completed. Fork PRs
  * are skipped so a close event cannot name someone else's agent id.
  *
+ * Closed runs list no pulls, and commits/{sha}/pulls omits PRs closed
+ * without merging, so the "PR closed" run-name (display_title, the PR
+ * number) is tried first. It comes from head YAML, so every candidate must
+ * have the run's head SHA as its head.
+ *
  * @param {object} options
  * @param {string} options.token
  * @param {string} options.repo
@@ -152,6 +157,16 @@ export async function sameRepoPullRequestBodies({
   /** @type {{ number?: number }[]} */
   let pullRequests = Array.isArray(run?.pull_requests) ? run.pull_requests : [];
 
+  const titleNumber = Number(run?.display_title);
+  if (
+    pullRequests.length === 0 &&
+    headSha &&
+    Number.isSafeInteger(titleNumber) &&
+    titleNumber > 0
+  ) {
+    pullRequests = [{ number: titleNumber }];
+  }
+
   if (pullRequests.length === 0 && headSha) {
     const associated = await githubJson({
       token,
@@ -173,6 +188,12 @@ export async function sameRepoPullRequestBodies({
     if (pullRequest.head?.repo?.full_name !== repo) {
       warn(
         `Skipping fork pull request ${entry.number} (head ${pullRequest.head?.repo?.full_name ?? "unknown"})`,
+      );
+      continue;
+    }
+    if (headSha && pullRequest.head?.sha !== headSha) {
+      warn(
+        `Skipping pull request ${entry.number} (head ${pullRequest.head?.sha ?? "unknown"} is not ${headSha})`,
       );
       continue;
     }

@@ -25,6 +25,9 @@ function clientWith(response: unknown): CoreHttpClient {
     post: async () => {
       throw new Error("Identity lookup must not write");
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async () => {
       throw new Error("Identity lookup must not write");
     },

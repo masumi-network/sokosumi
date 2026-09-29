@@ -151,7 +151,9 @@ describe("GET /history", () => {
           {
             OR: [
               {
-                kind: { in: [HistoryKind.TASK, HistoryKind.JOB] },
+                kind: {
+                  in: [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE],
+                },
                 userId: "user_123",
                 workspaceId: WORKSPACE_CONTEXT.workspaceId,
               },
@@ -196,7 +198,9 @@ describe("GET /history", () => {
             {
               OR: [
                 {
-                  kind: { in: [HistoryKind.TASK, HistoryKind.JOB] },
+                  kind: {
+                    in: [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE],
+                  },
                   workspaceId: WORKSPACE_CONTEXT.workspaceId,
                 },
               ],

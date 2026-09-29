@@ -82,6 +82,6 @@ public enum AttachmentUpload {
     struct Response: Decodable { let url: String }
     guard let result = try? JSONDecoder().decode(Response.self, from: data) else { throw Failure.invalidResponse }
     guard let url = URL(string: result.url), url.scheme == "https", url.host != nil else { throw Failure.invalidResponse }
-    return ComposeAttachment(url: result.url, fileName: filename, mediaType: contentType)
+    return ComposeAttachment(url: result.url, fileName: filename, mediaType: contentType, size: size)
   }
 }

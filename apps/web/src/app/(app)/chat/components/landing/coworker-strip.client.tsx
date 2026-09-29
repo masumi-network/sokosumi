@@ -229,7 +229,7 @@ export function CoworkerStrip({
               aria-label={t("team.select", { name: coworker.name })}
               data-coworker-id={coworker.id}
               className={cn(
-                "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity outline-none",
+                "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity press outline-none",
                 "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2",
                 scale.itemWidth,
               )}
