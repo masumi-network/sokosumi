@@ -65,3 +65,26 @@ export function getPlanTranslationKey(
     }
   }
 }
+
+interface ScheduledCancellation {
+  cancelAt?: Date | null;
+  cancelAtPeriodEnd?: boolean | null;
+  periodEnd?: Date | null;
+}
+
+/**
+ * When a scheduled cancellation takes effect, or null when none is scheduled.
+ * Stripe classic billing mode sets cancelAtPeriodEnd; flexible billing mode
+ * sets only cancelAt.
+ */
+export function resolveScheduledCancelDate(
+  subscription: ScheduledCancellation | null | undefined,
+): Date | null {
+  if (subscription?.cancelAt) {
+    return subscription.cancelAt;
+  }
+
+  return subscription?.cancelAtPeriodEnd
+    ? (subscription.periodEnd ?? null)
+    : null;
+}

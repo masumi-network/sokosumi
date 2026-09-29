@@ -18,6 +18,7 @@ import { PersonalSubscriptionSection } from "@/components/billing/personal-subsc
 import { SubscriptionCheckoutReturn } from "@/components/billing/subscription-checkout-return";
 import {
   getPlanTranslationKey,
+  resolveScheduledCancelDate,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
@@ -241,9 +242,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
-                cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
-                currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
                 isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}
@@ -251,6 +250,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
+                scheduledCancelDate={resolveScheduledCancelDate(billingPlan)}
               />
             }
             creditsContent={
@@ -357,12 +357,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           showCreditsTab
           subscriptionContent={
             <PersonalSubscriptionSection
-              cancelAtPeriodEnd={
-                latestPersonalSubscription?.cancelAtPeriodEnd ?? false
-              }
-              currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"
+              scheduledCancelDate={resolveScheduledCancelDate(
+                latestPersonalSubscription,
+              )}
               status={subscriptionStatus}
             />
           }
