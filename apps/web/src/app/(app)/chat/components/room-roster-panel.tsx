@@ -187,7 +187,7 @@ function RosterMemberRow({
 
   const messageIcon = isOpening ? (
     <Loader2
-      className="text-muted-foreground size-4 shrink-0 animate-spin"
+      className="text-muted-foreground size-4 shrink-0 animate-spin motion-reduce:animate-pulse"
       aria-hidden
     />
   ) : (

@@ -114,7 +114,7 @@ export function OrganizationLogoUploadField({
                 )}
               >
                 {isUploading ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 ) : (
                   <CloudUpload className="size-4" />
                 )}
@@ -142,7 +142,7 @@ export function OrganizationLogoUploadField({
               )}
             >
               {isRemoving ? (
-                <Loader2 className="size-3 animate-spin" />
+                <Loader2 className="size-3 animate-spin motion-reduce:animate-pulse" />
               ) : (
                 <X className="size-3.5" strokeWidth={2.5} />
               )}

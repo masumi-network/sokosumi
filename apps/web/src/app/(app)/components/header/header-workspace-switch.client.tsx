@@ -405,7 +405,7 @@ export default function HeaderWorkspaceSwitch({
               }}
             >
               {isCreatingPersonal ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {tIdentity("continue")}
             </Button>

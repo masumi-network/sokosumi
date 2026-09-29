@@ -846,7 +846,12 @@ export function StudioComposer({
           size="sm"
           variant="primary"
         >
-          {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
+          {busy ? (
+            <Loader2
+              aria-hidden
+              className="animate-spin motion-reduce:animate-pulse"
+            />
+          ) : null}
           {totalJobs > 1
             ? t("generateMany", { count: totalJobs })
             : labels.generateOne}

@@ -173,13 +173,13 @@ export default function ChatRoomInvitationCard({
           disabled={loading}
         >
           {loading && action === "decline" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("Actions.decline")}
         </Button>
         <Button onClick={() => void handleAccept()} disabled={loading}>
           {loading && action === "accept" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("Actions.accept")}
         </Button>

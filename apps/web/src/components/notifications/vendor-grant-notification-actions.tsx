@@ -106,7 +106,7 @@ export function VendorGrantNotificationActions({
         onClick={(event) => void handleAccept(event)}
       >
         {loadingAction === "accept" ? (
-          <Loader2 className="size-3.5 animate-spin" />
+          <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
         ) : null}
         {t("accept")}
       </Button>

@@ -103,7 +103,9 @@ function NameGroupForm({
       </div>
       <DialogFooter>
         <Button type="submit" variant="primary" disabled={isPending}>
-          {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isPending ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          ) : null}
           {t("save")}
         </Button>
       </DialogFooter>

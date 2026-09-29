@@ -113,7 +113,7 @@ export function TurnProgress({
                 ) : (
                   <Loader2
                     aria-hidden
-                    className="text-primary size-3.5 shrink-0 animate-spin"
+                    className="text-primary size-3.5 shrink-0 animate-spin motion-reduce:animate-pulse"
                   />
                 )}
                 <span

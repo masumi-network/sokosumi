@@ -453,7 +453,7 @@ function PendingTile({
         aria-hidden
         className={cn(
           "text-muted-foreground size-4",
-          variant === "running" && "animate-spin",
+          variant === "running" && "animate-spin motion-reduce:animate-pulse",
         )}
       />
       <p className="text-muted-foreground text-xs">{label}</p>

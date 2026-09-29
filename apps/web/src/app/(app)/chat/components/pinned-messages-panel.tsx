@@ -262,7 +262,10 @@ export function PinnedMessagesPanel({
                   </span>
                   {isJumping ? (
                     <span className="text-muted-foreground flex shrink-0 items-center self-center">
-                      <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-3.5 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                       <span className="sr-only">{labels.jumping}</span>
                     </span>
                   ) : (

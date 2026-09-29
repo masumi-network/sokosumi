@@ -54,7 +54,8 @@
       "copyError": "No se pudo copiar el enlace"
     },
     "DefaultErrorBoundary": {
-      "error": "Ocurrió un error desconocido. Por favor, contacta con nuestro soporte"
+      "error": "Algo salió mal aquí. Inténtalo de nuevo o contacta con soporte si sigue pasando.",
+      "tryAgain": "Intentar de nuevo"
     },
     "Agents": {
       "RiskClassification": {

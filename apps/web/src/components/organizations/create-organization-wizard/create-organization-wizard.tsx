@@ -740,7 +740,7 @@ export function CreateOrganizationWizard({
                 <div className="flex min-h-24 flex-none items-center justify-center">
                   {isResolvingLogo ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                      <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
                     </div>
                   ) : (
                     <OrganizationLogoUploadField
@@ -794,7 +794,7 @@ export function CreateOrganizationWizard({
                           disabled={isUploadingLogo}
                         >
                           {isUploadingLogo ? (
-                            <Loader2 className="size-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                           ) : (
                             <CloudUpload className="size-4" />
                           )}
@@ -823,7 +823,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
-                      <Loader2 className="text-primary size-6 animate-spin" />
+                      <Loader2 className="text-primary size-6 animate-spin motion-reduce:animate-pulse" />
                     </div>
                   )}
                 </div>
@@ -998,7 +998,7 @@ export function CreateOrganizationWizard({
                       onClick={() => void handleSendInvites()}
                     >
                       {isSendingInvites && (
-                        <Loader2 className="size-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                       )}
                       {isSendingInvites
                         ? t("Invite.sending")
@@ -1051,7 +1051,9 @@ export function CreateOrganizationWizard({
               className="h-11 px-6"
               disabled={isBusy}
             >
-              {isCreatingOrg && <Loader2 className="size-4 animate-spin" />}
+              {isCreatingOrg && (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
               {!isCreatingOrg && <ArrowRight className="size-4" />}
             </Button>

@@ -378,7 +378,10 @@ export function ChatParticipantHoverCard({
             }}
           >
             {isOpeningDirect ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : (
               <MessageCircle className="size-4" aria-hidden />
             )}

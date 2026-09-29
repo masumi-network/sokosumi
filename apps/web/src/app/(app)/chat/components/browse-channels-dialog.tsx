@@ -131,7 +131,10 @@ export function BrowseChannelsDialog({
         <ScrollArea className="h-[min(24rem,50dvh)]">
           {isLoading ? (
             <div className="text-muted-foreground flex items-center justify-center gap-2 px-4 py-12 text-sm">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
               {t("loading")}
             </div>
           ) : rooms.length === 0 ? (
@@ -174,7 +177,7 @@ export function BrowseChannelsDialog({
                     >
                       {isJoining ? (
                         <Loader2
-                          className="size-3.5 animate-spin"
+                          className="size-3.5 animate-spin motion-reduce:animate-pulse"
                           aria-hidden
                         />
                       ) : (

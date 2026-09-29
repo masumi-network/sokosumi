@@ -54,7 +54,8 @@
       "copyError": "Failed to copy link"
     },
     "DefaultErrorBoundary": {
-      "error": "An unknown error occurred, please contact our support"
+      "error": "Something went wrong here. Try again, or contact support if it keeps happening.",
+      "tryAgain": "Try again"
     },
     "Agents": {
       "RiskClassification": {

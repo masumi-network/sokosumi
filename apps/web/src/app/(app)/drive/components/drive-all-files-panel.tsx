@@ -1084,7 +1084,7 @@ export function DriveAllFilesPanel({
               onClick={() => void loadMore()}
             >
               {state.loadingMore ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("loadMore")}
             </Button>

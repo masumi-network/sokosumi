@@ -54,7 +54,8 @@
       "copyError": "Link konnte nicht kopiert werden"
     },
     "DefaultErrorBoundary": {
-      "error": "Ein unbekannter Fehler ist aufgetreten. Bitte kontaktiere unseren Support"
+      "error": "Hier ist etwas schiefgelaufen. Versuche es erneut oder kontaktiere den Support, wenn es weiter passiert.",
+      "tryAgain": "Erneut versuchen"
     },
     "Agents": {
       "RiskClassification": {

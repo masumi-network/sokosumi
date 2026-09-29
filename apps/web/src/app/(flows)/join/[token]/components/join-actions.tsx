@@ -116,7 +116,7 @@ export function JoinActions({
           disabled={busy || retryOrganizationId !== null}
         >
           {isJoining && !retryOrganizationId && (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           )}
           {isJoining && !retryOrganizationId
             ? t("joining")
@@ -132,7 +132,9 @@ export function JoinActions({
             disabled={busy}
             data-testid="join-retry-activation"
           >
-            {isJoining && <Loader2 className="size-4 animate-spin" />}
+            {isJoining && (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {t("activateRetry")}
           </Button>
         ) : null}
@@ -145,7 +147,9 @@ export function JoinActions({
           }}
           disabled={busy}
         >
-          {isDeclining && <Loader2 className="size-4 animate-spin" />}
+          {isDeclining && (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          )}
           {t("decline")}
         </Button>
       </div>

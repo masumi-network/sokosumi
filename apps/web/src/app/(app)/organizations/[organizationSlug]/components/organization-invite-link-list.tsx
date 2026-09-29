@@ -252,7 +252,7 @@ function InviteLinkRow({
                       }}
                     >
                       {revoking ? (
-                        <Loader2 className="size-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                       ) : null}
                       {t("revokeDialog.confirm")}
                     </AlertDialogAction>

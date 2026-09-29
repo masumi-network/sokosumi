@@ -270,7 +270,9 @@ export function IdentityOnboardingForm({
                 className="w-full"
                 data-testid="workspace-gate-identity-submit"
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+                ) : null}
                 {t("continue")}
               </Button>
             </fieldset>
@@ -281,7 +283,7 @@ export function IdentityOnboardingForm({
           className="flex justify-center py-6"
           data-testid="workspace-gate-leaving"
         >
-          <Loader2 className="size-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
         </div>
       )}
       <CreateOrganizationWizard
