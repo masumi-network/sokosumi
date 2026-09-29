@@ -1,3 +1,4 @@
+import { AgentJobStatus, SokosumiJobStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   buildJobsListFiltersSearchParams,
@@ -11,10 +12,6 @@ import {
   sanitizeJobAgentIdInput,
   tasksViewJobStillEligibleForJobsListFilters,
 } from "@/app/tasks/utils/jobs-filters";
-import {
-  AgentJobStatus,
-  SokosumiJobStatus,
-} from "@/lib/clients/generated/core";
 
 const agentOptions = [
   {

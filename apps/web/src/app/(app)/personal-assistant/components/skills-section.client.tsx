@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  SokoBotInstalledSkill,
+  SokoBotSkillBrowse,
+  SokoBotSkillSearchResult,
+  SokoBotVersion,
+} from "@sokosumi/core-client";
 import { ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -12,12 +18,6 @@ import {
   removeSokoBotSkillAction,
   searchSokoBotSkillsAction,
 } from "@/lib/actions/soko-bot/action";
-import type {
-  SokoBotInstalledSkill,
-  SokoBotSkillBrowse,
-  SokoBotSkillSearchResult,
-  SokoBotVersion,
-} from "@/lib/clients/generated/core";
 
 interface Candidate {
   name: string;

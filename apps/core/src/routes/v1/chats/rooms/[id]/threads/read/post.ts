@@ -1,5 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
+import { markLookedThreadReplyRowsRead } from "@/helpers/chat-thread-reply-notifications";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -28,7 +32,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/threads/read",
     description:
-      "Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications. Does not Look lurker Threads.",
+      "Mark every unread Thread the current user Participates in for this room (Look). Upserts ChatRoomThreadReadState and clears the mention and direct-message notifications for replies in Threads the user Participates in that those looks cover. Does not change room read state. Does not Look lurker Threads.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -56,9 +60,26 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const markedCount = await prisma.$transaction((tx) =>
-      markAllChatRoomThreadsRead(room.id, userContext.userId, tx),
+    const { markedCount, clearedRows } = await prisma.$transaction(
+      async (tx) => {
+        const markedCount = await markAllChatRoomThreadsRead(
+          room.id,
+          userContext.userId,
+          tx,
+        );
+        // The Looks are what read these Threads, so they clear the Threads'
+        // rows (SOK-1217). Lurker and muted Threads were not Looked and keep
+        // theirs.
+        const clearedRows = await markLookedThreadReplyRowsRead(
+          room.id,
+          userContext.userId,
+          tx,
+        );
+        return { markedCount, clearedRows };
+      },
     );
+    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+    waitUntil(cancelNotificationEmails(clearedRows));
 
     return ok(c, chatRoomThreadsMarkAllSchema.parse({ markedCount }));
   });

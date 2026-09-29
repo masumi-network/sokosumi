@@ -105,4 +105,4 @@ pnpm test
 
 The web app does not connect to Postgres directly. Bootstrap the database from the repo root (`pnpm prisma:migrate:dev`, `pnpm prisma:generate`) and configure `apps/core/.env` — see the root `AGENTS.md` setup section.
 
-Domain types come from the generated Core client (`src/lib/clients/generated/core`); see `src/lib/types/core-dto.ts` and `apps/web/AGENTS.md` (Database Access). After changing Core API schemas, regenerate the web client with `pnpm --filter web generate:core:snapshot`.
+Domain types come from the generated Core client (`@sokosumi/core-client`); see `src/lib/types/core-dto.ts` and `apps/web/AGENTS.md` (Database Access). After changing Core API schemas, regenerate the client with `pnpm --filter @sokosumi/core-client generate:snapshot`.

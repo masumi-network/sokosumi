@@ -1,4 +1,4 @@
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 

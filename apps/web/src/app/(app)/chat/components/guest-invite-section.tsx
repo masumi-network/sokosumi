@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+  ChatRoomGuestInviteLink,
+  ChatRoomInvitation,
+  ChatRoomUserParticipant,
+} from "@sokosumi/core-client";
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import {
@@ -10,7 +15,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-
 import {
   createRoomGuestInviteLinkAction,
   createRoomInvitationAction,
@@ -30,11 +34,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type {
-  ChatRoomGuestInviteLink,
-  ChatRoomInvitation,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import { isValidEmail } from "@/lib/utils/email";
 
 /** Select value for "no hard expiry". */

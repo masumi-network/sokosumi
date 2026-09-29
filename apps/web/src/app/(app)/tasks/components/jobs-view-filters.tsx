@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentJobStatus } from "@sokosumi/core-client";
 import { Building2, CircleDashed, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
@@ -13,7 +14,6 @@ import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 interface JobsViewFiltersProps {
   activeOrganizationId: string | null;

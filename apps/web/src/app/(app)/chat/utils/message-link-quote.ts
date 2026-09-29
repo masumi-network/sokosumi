@@ -1,14 +1,13 @@
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   canQuoteIntoRoom,
   isSelfJoinableChannelDiscoverability,
 } from "@sokosumi/utils";
-
 import {
   type PendingRoomQuote,
   pendingQuoteFromMessage,
 } from "@/app/chat/components/room-helpers";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
-import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
 
 type QuoteRoom = Pick<

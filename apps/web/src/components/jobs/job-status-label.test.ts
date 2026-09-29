@@ -1,10 +1,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { getJobStatusBadgeLabelKey } from "./job-status-label";
 
 /**

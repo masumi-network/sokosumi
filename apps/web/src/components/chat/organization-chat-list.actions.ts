@@ -1,17 +1,13 @@
 "use server";
 
+import type { ChatRoom, StarredChatRoomOrder } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
-
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type {
-  ChatRoom,
-  StarredChatRoomOrder,
-} from "@/lib/clients/generated/core";
 import {
   type ChatRoomsPage,
   chatRoomService,

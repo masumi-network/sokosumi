@@ -1,5 +1,14 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomMessageQuote,
+  ChatRoomMessageQuoteAttachment,
+  ChatRoomMessageReaction,
+  ChatRoomMessageUnfurl,
+  ChatRoomSokoBotParticipant,
+} from "@sokosumi/core-client";
 import {
   type ChannelLinkTarget,
   getExtensionFromUrl,
@@ -116,15 +125,6 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomMessage,
-  ChatRoomMessageQuote,
-  ChatRoomMessageQuoteAttachment,
-  ChatRoomMessageReaction,
-  ChatRoomMessageUnfurl,
-  ChatRoomSokoBotParticipant,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";

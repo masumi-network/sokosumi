@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it, vi } from "vitest";
-
 import { performRoomNotificationJump } from "@/app/chat/utils/room-notification-jump";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 function message(overrides: Partial<ChatRoomMessage> = {}): ChatRoomMessage {
   return {

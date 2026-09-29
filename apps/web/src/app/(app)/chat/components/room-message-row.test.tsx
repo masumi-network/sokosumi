@@ -16,11 +16,11 @@ const { copyMock } = vi.hoisted(() => ({
   copyMock: vi.fn().mockResolvedValue(undefined),
 }));
 
-import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-room-message";
 import { ChatMessageRow } from "./room-message-row";
 
 const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));

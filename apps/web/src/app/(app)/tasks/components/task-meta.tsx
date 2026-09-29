@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectSummary } from "@sokosumi/core-client";
 import { Calendar, MessageSquare } from "lucide-react";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
@@ -12,7 +13,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { ProjectSummary } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 

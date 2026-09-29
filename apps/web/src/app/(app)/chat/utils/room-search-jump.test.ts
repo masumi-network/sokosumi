@@ -1,3 +1,4 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   CHAT_MESSAGE_LIST_ROOM,
@@ -8,7 +9,6 @@ import {
   waitForSearchJumpPaint,
   waitForThreadJumpPaint,
 } from "@/app/chat/utils/room-search-jump";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 function message(overrides: Partial<ChatRoomMessage> = {}): ChatRoomMessage {
   return {

@@ -1,11 +1,11 @@
 "use client";
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { History } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import type { TableColumn, TableRow } from "@/lib/clients/generated/core";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { isTableRejection } from "./table-mutations";
 import { parseTableInput, tableError, tableValueText } from "./table-value";

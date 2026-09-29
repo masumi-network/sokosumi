@@ -1,6 +1,6 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
-import type { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TaskDetailLink } from "./task-detail-link";
 

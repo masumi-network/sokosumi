@@ -1,6 +1,6 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => {

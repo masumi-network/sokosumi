@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 
 /** A room member, as the row's roster and Leave rules see one. */
 export function makeUser(id: string, access: "member" | "guest" = "member") {

@@ -12,6 +12,7 @@ import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
   buildSignedOAuthConsentQueryFromSearchParams,
+  buildSignInUrlFromSignUp,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
@@ -251,6 +252,31 @@ describe("buildSignUpUrlFromSignIn", () => {
     ).toBe(
       "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
     );
+  });
+});
+
+describe("buildSignInUrlFromSignUp", () => {
+  it("returns bare signin path without an OAuth request or returnUrl", () => {
+    expect(buildSignInUrlFromSignUp({})).toBe("/signin");
+  });
+
+  it("carries the signed OAuth consent query to signin intact", () => {
+    const consentReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
+      new URLSearchParams(
+        "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+      ),
+    );
+
+    const signInUrl = buildSignInUrlFromSignUp({
+      returnUrl: consentReturnUrl,
+    });
+
+    expect(signInUrl).toBe(
+      "/signin?returnUrl=%2Foauth%2Fconsent%3Fclient_id%3Dclient_1%26redirect_uri%3Dhttps%253A%252F%252Fexample.com%252Fcallback%26code_challenge%3Dchallenge_1%26exp%3D1772367377%26sig%3DmVXxByc5E32WEKh8YvwTBB%252BvbGZAR42ECbHJf8K%252F24s%253D",
+    );
+    expect(
+      new URL(signInUrl, "https://sokosumi.test").searchParams.get("returnUrl"),
+    ).toBe(consentReturnUrl);
   });
 });
 

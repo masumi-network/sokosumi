@@ -1,8 +1,7 @@
+import type { TaskSchedule } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { TaskSchedule } from "@/lib/clients/generated/core";
 
 import { TaskScheduleActions } from "./task-schedule-actions";
 

@@ -1,12 +1,11 @@
+import type { EnterpriseContractStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
-
 import { ContractsTable } from "@/components/admin/enterprise-contracts/contracts-table";
 import { Button } from "@/components/ui/button";
 import { listEnterpriseContractsAction } from "@/lib/actions/enterprise-contract/action";
-import type { EnterpriseContractStatus } from "@/lib/clients/generated/core/types.gen";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
 export const metadata: Metadata = {

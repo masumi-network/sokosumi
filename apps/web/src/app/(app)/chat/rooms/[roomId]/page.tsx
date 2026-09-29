@@ -1,3 +1,4 @@
+import type { ChatRoom, Organization } from "@sokosumi/core-client";
 import { redirect } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
@@ -7,7 +8,6 @@ import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-vie
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
-import type { ChatRoom, Organization } from "@/lib/clients/generated/core";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { userService } from "@/lib/services/user.service";
 import { isUuidString } from "@/lib/utils/uuid";

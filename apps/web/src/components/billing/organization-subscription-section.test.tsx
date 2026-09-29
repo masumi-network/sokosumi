@@ -111,9 +111,8 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows only the enterprise card when the org has a consumable contract", () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="enterprise"
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         currentSeats={5}
         isEnterpriseConsumable
         isEnterpriseContract
@@ -136,9 +135,8 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows self-serve plans after the enterprise commercial term ends", () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="enterprise"
-        currentPeriodEnd={null}
+        scheduledCancelDate={null}
         currentSeats={5}
         isEnterpriseConsumable={false}
         isEnterpriseContract
@@ -161,11 +159,10 @@ describe("OrganizationSubscriptionSection", () => {
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -195,11 +192,10 @@ describe("OrganizationSubscriptionSection", () => {
   it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={new Date("2026-04-01T00:00:00.000Z")}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -220,11 +216,10 @@ describe("OrganizationSubscriptionSection", () => {
   it("does not force purchased seats up to the assigned member count", () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         currentSeats={2}
         memberCount={3}
         organizationId="org-1"
@@ -245,11 +240,10 @@ describe("OrganizationSubscriptionSection", () => {
   it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"
@@ -292,11 +286,10 @@ describe("OrganizationSubscriptionSection", () => {
 
     render(
       <OrganizationSubscriptionSection
-        cancelAtPeriodEnd={false}
         currentPlan="starter"
         isEnterpriseConsumable={false}
         isEnterpriseContract={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         currentSeats={2}
         memberCount={2}
         organizationId="org-1"

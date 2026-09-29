@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { EnterpriseContractBillingSummary } from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { EnterpriseContractBillingSummary } from "@/lib/clients/generated/core/types.gen";
 
 export type { EnterpriseContractBillingSummary };
 
