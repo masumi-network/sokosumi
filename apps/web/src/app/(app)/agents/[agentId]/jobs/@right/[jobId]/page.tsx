@@ -1,4 +1,4 @@
-import { JobDetailsView } from "@/app/agents/[agentId]/jobs/_lib/job-details-view";
+import { JobDetailsLoader } from "@/app/agents/[agentId]/jobs/_lib/job-details-loader";
 import JobDetails from "@/components/jobs/job-details/job-details";
 
 export default async function JobDetailsPage({
@@ -8,8 +8,8 @@ export default async function JobDetailsPage({
 }) {
   const { agentId, jobId } = await params;
   return (
-    <JobDetailsView agentId={agentId} jobId={jobId}>
+    <JobDetailsLoader agentId={agentId} jobId={jobId}>
       {(props) => <JobDetails className="h-full" {...props} />}
-    </JobDetailsView>
+    </JobDetailsLoader>
   );
 }
