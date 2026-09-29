@@ -3,15 +3,16 @@
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
-  CalendarClock,
   ExternalLink,
   MoreHorizontal,
   Plus,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
+import { SiX } from "react-icons/si";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -35,6 +36,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   type ActionError,
   toActionRejectionError,
 } from "@/lib/actions/errors/action-error";
@@ -49,6 +58,7 @@ import type {
   SocialPostMediaRef,
   SocialPostStatus,
 } from "@/lib/clients/generated/core/types.gen";
+import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
 
@@ -58,17 +68,32 @@ interface ProjectSocialPostsProps {
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
+  /**
+   * The post a link names (`?postId=`). Its tab opens first. A published or
+   * canceled post has no tab, so it is shown above the tabs instead.
+   */
+  selectedPostId?: string;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
 
+/** Statuses the tab already names, so a badge on the row would only repeat it. */
+const TAB_STATUSES: readonly SocialPostStatus[] = ["SCHEDULED", "DRAFT"];
+
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
 }
 
-function historyTimeOf(post: SocialPost): number {
-  return timeOf(post.publishedAt ?? post.canceledAt ?? post.updatedAt);
+function sectionOf(post: SocialPost): SectionKey | undefined {
+  return SECTION_ORDER.find((section) =>
+    SECTION_STATUSES[section].includes(post.status),
+  );
+}
+
+function tabFor(posts: SocialPost[], postId: string | undefined): SectionKey {
+  const post = posts.find((candidate) => candidate.id === postId);
+  return (post && sectionOf(post)) ?? "upcoming";
 }
 
 function sortSection(section: SectionKey, posts: SocialPost[]): SocialPost[] {
@@ -76,9 +101,6 @@ function sortSection(section: SectionKey, posts: SocialPost[]): SocialPost[] {
     return [...posts].sort(
       (a, b) => timeOf(a.scheduledAt) - timeOf(b.scheduledAt),
     );
-  }
-  if (section === "history") {
-    return [...posts].sort((a, b) => historyTimeOf(b) - historyTimeOf(a));
   }
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
@@ -139,6 +161,7 @@ export function ProjectSocialPosts({
   posts: initialPosts,
   nextCursors,
   projectId,
+  selectedPostId,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.SocialPosts");
@@ -147,12 +170,20 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
+  const [syncedSelectedPostId, setSyncedSelectedPostId] =
+    useState(selectedPostId);
+  const [tab, setTab] = useState(() => tabFor(initialPosts, selectedPostId));
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
     setPosts(initialPosts);
     setCursors(nextCursors ?? {});
+  }
+  // A link to another post opens the tab that lists it.
+  if (syncedSelectedPostId !== selectedPostId) {
+    setSyncedSelectedPostId(selectedPostId);
+    setTab(tabFor(initialPosts, selectedPostId));
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
@@ -161,6 +192,28 @@ export function ProjectSocialPosts({
   const [publishPending, setPublishPending] = useState(false);
 
   const accountsHref = "#social-accounts";
+
+  function postsIn(section: SectionKey): SocialPost[] {
+    return sortSection(
+      section,
+      posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
+    );
+  }
+
+  // Needs attention is a tab only while something needs it. Once the last
+  // post in it is dealt with, the list goes back to Upcoming.
+  const tabs = SECTION_ORDER.filter(
+    (section) =>
+      section !== "attention" ||
+      postsIn(section).length > 0 ||
+      Boolean(cursors[section]),
+  );
+  if (!tabs.includes(tab)) {
+    setTab("upcoming");
+  }
+  const selectedUnlistedPost = posts.find(
+    (post) => post.id === selectedPostId && !sectionOf(post),
+  );
 
   function handleActionError(error: ActionError): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
@@ -202,6 +255,10 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
+    // Follow the post to the tab that lists it now, so a new draft, a
+    // scheduled draft or a failed publish stays in view.
+    const section = sectionOf(post);
+    if (section) setTab(section);
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -261,8 +318,199 @@ export function ProjectSocialPosts({
     }
   }
 
+  function renderPost(post: SocialPost) {
+    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
+    const isRetry = RETRY_STATUSES.includes(post.status);
+    // A post that failed or missed its time has one thing left to do, so
+    // Retry sits on the row, the way Reconnect does on a Social account.
+    const canRetry = isRetry && post.canPublishNow;
+    const canPublishNow = !isRetry && post.canPublishNow;
+    const hasMenu =
+      canPublishNow || post.canEdit || post.canSchedule || post.canCancel;
+    const creatorLabel = post.creator.name
+      ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
+      : t(`creator.${post.creator.kind}`);
+    const failedAt = post.lastAttempt?.finishedAt ?? null;
+    const failureReason =
+      post.lastAttempt?.outcome === "authorization_revoked"
+        ? t("outcomes.authorizationRevoked")
+        : post.lastError;
+
+    return (
+      <li
+        key={post.id}
+        id={`social-post-${post.id}`}
+        className="flex flex-wrap items-start gap-3 p-3"
+        data-testid={`social-post-${post.id}`}
+      >
+        <span
+          aria-hidden
+          className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
+        >
+          <SiX className="size-5" />
+        </span>
+        <div className="min-w-48 flex-1 space-y-1.5">
+          <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            {post.scheduledAt ? (
+              <time
+                className="text-foreground font-medium whitespace-nowrap tabular-nums"
+                dateTime={post.scheduledAt.toISOString()}
+              >
+                {formatter.dateTime(post.scheduledAt, "dateTime")}
+              </time>
+            ) : null}
+            <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
+            {TAB_STATUSES.includes(post.status) ? null : (
+              <SocialPostStatusBadge
+                label={t(`status.${post.status}`)}
+                status={post.status}
+              />
+            )}
+          </p>
+          <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
+          {post.media.length > 0 ? (
+            <div
+              className="flex flex-wrap items-center gap-1.5 pt-0.5"
+              data-testid={`social-post-media-${post.id}`}
+            >
+              {post.media.map((ref) => (
+                <SocialPostMediaThumb key={ref.pathname} media={ref} />
+              ))}
+            </div>
+          ) : null}
+          <p className="text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs">
+            <span>{creatorLabel}</span>
+            {post.attemptCount > 0 ? (
+              <span>{t("attempts", { count: post.attemptCount })}</span>
+            ) : null}
+          </p>
+          {post.connectionNeedsReconnect ? (
+            <p
+              className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+              data-testid="social-post-needs-reconnect"
+              role="status"
+            >
+              <span className="inline-flex items-center gap-1">
+                <AlertTriangle className="size-3" aria-hidden />
+                {t("needsReconnect")}
+              </span>
+              <Link
+                className="font-medium underline-offset-4 hover:underline"
+                href={accountsHref}
+              >
+                {t("needsReconnectLink")}
+              </Link>
+            </p>
+          ) : null}
+          {post.status === "PUBLISHED" ? (
+            <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+              {post.publishedAt ? (
+                <time dateTime={post.publishedAt.toISOString()}>
+                  {t("publishedAt", {
+                    date: formatter.dateTime(post.publishedAt, "dateTime"),
+                  })}
+                </time>
+              ) : null}
+              {post.publishedUrl ? (
+                <a
+                  className="text-primary inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
+                  href={post.publishedUrl}
+                  rel="noreferrer"
+                  target="_blank"
+                >
+                  {t("viewOnX")}
+                  <ExternalLink className="size-3" aria-hidden />
+                </a>
+              ) : null}
+            </div>
+          ) : null}
+          {post.status === "FAILED" ? (
+            <div className="space-y-0.5 text-xs">
+              {failureReason ? (
+                <p className="text-destructive">{failureReason}</p>
+              ) : null}
+              {failedAt ? (
+                <time
+                  className="text-muted-foreground"
+                  dateTime={failedAt.toISOString()}
+                >
+                  {t("failedAt", {
+                    date: formatter.dateTime(failedAt, "dateTime"),
+                  })}
+                </time>
+              ) : null}
+            </div>
+          ) : null}
+          {post.status === "MISSED" && post.lastError ? (
+            <p className="text-muted-foreground text-xs">{post.lastError}</p>
+          ) : null}
+        </div>
+        {canRetry || hasMenu ? (
+          <div className="ms-auto flex items-center gap-2">
+            {canRetry ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setPublishTarget(post)}
+              >
+                <RotateCcw className="size-4" aria-hidden />
+                {t("actions.retry")}
+              </Button>
+            ) : null}
+            {hasMenu ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    aria-label={t("moreActions")}
+                  >
+                    <MoreHorizontal className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  {canPublishNow ? (
+                    <DropdownMenuItem onSelect={() => setPublishTarget(post)}>
+                      {t("actions.publishNow")}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {post.canEdit ? (
+                    <DropdownMenuItem
+                      onSelect={() => setComposer({ kind: "edit", post })}
+                    >
+                      {t("composer.edit")}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {post.canSchedule ? (
+                    <DropdownMenuItem
+                      onSelect={() => setComposer({ kind: "schedule", post })}
+                    >
+                      {post.status === "SCHEDULED" || isRetry
+                        ? t("composer.reschedule")
+                        : t("composer.schedule")}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {post.canCancel ? (
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setCancelTarget(post)}
+                    >
+                      {t("composer.cancel")}
+                    </DropdownMenuItem>
+                  ) : null}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
+          </div>
+        ) : null}
+      </li>
+    );
+  }
+
   return (
-    <section className="space-y-6" data-testid="project-social-posts">
+    <section className="space-y-4" data-testid="project-social-posts">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="space-y-1">
           <h2 className="text-base font-semibold">{t("title")}</h2>
@@ -278,257 +526,104 @@ export function ProjectSocialPosts({
         </Button>
       </div>
 
-      {SECTION_ORDER.map((section) => {
-        const sectionPosts = sortSection(
-          section,
-          posts.filter((post) =>
-            SECTION_STATUSES[section].includes(post.status),
-          ),
-        );
-        const headingId = `social-posts-${section}-heading`;
-
-        return (
-          <section
-            key={section}
-            aria-labelledby={headingId}
-            className="space-y-2"
-            data-testid={`social-posts-section-${section}`}
+      {selectedUnlistedPost ? (
+        <section
+          aria-labelledby="social-posts-selected-heading"
+          className="space-y-2"
+          data-testid="social-posts-selected"
+        >
+          <h3
+            id="social-posts-selected-heading"
+            className="text-muted-foreground text-xs font-medium"
           >
-            <h3
-              id={headingId}
-              className="text-muted-foreground text-xs font-medium"
-            >
-              {t(`sections.${section}`)}
-            </h3>
-            {sectionPosts.length === 0 ? (
-              <p className="text-muted-foreground rounded-lg border border-dashed p-4 text-sm">
-                {t(`empty.${section}`)}
-              </p>
-            ) : (
-              <ul className="divide-y rounded-lg border">
-                {sectionPosts.map((post) => {
-                  const handle = formatHandle(
-                    post.socialConnection?.externalHandle ?? null,
-                  );
-                  const isRetry = RETRY_STATUSES.includes(post.status);
-                  const hasActions =
-                    post.canEdit ||
-                    post.canSchedule ||
-                    post.canCancel ||
-                    post.canPublishNow;
-                  const creatorLabel = post.creator.name
-                    ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
-                    : t(`creator.${post.creator.kind}`);
-                  const failedAt = post.lastAttempt?.finishedAt ?? null;
-                  const failureReason =
-                    post.lastAttempt?.outcome === "authorization_revoked"
-                      ? t("outcomes.authorizationRevoked")
-                      : post.lastError;
+            {t("selectedPost")}
+          </h3>
+          <ul className="rounded-lg border">
+            {renderPost(selectedUnlistedPost)}
+          </ul>
+        </section>
+      ) : null}
 
-                  return (
-                    <li
-                      key={post.id}
-                      id={`social-post-${post.id}`}
-                      className="flex flex-col gap-3 p-3 sm:flex-row sm:items-start"
-                      data-testid={`social-post-${post.id}`}
-                    >
-                      <span
-                        aria-hidden
-                        className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border text-sm font-semibold"
-                      >
-                        X
-                      </span>
-                      <div className="min-w-0 flex-1 space-y-1">
-                        <p className="text-sm whitespace-pre-wrap break-words">
-                          {post.text}
-                        </p>
-                        {post.media.length > 0 ? (
-                          <div
-                            className="flex flex-wrap items-center gap-1.5"
-                            data-testid={`social-post-media-${post.id}`}
-                          >
-                            {post.media.map((ref) => (
-                              <SocialPostMediaThumb
-                                key={ref.pathname}
-                                media={ref}
-                              />
-                            ))}
-                          </div>
-                        ) : null}
-                        <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                          <span>{handle ?? t("noAccount")}</span>
-                          {post.scheduledAt ? (
-                            <span className="inline-flex items-center gap-1">
-                              <CalendarClock className="size-3" aria-hidden />
-                              <time dateTime={post.scheduledAt.toISOString()}>
-                                {formatter.dateTime(
-                                  post.scheduledAt,
-                                  "dateTime",
-                                )}
-                              </time>
-                            </span>
-                          ) : null}
-                          <span>{creatorLabel}</span>
-                          {post.attemptCount > 0 ? (
-                            <span>
-                              {t("attempts", { count: post.attemptCount })}
-                            </span>
-                          ) : null}
-                        </div>
-                        {post.connectionNeedsReconnect ? (
-                          <p
-                            className="text-semantic-warning flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
-                            data-testid="social-post-needs-reconnect"
-                            role="status"
-                          >
-                            <span className="inline-flex items-center gap-1">
-                              <AlertTriangle className="size-3" aria-hidden />
-                              {t("needsReconnect")}
-                            </span>
-                            <Link
-                              className="font-medium underline-offset-4 hover:underline"
-                              href={accountsHref}
-                            >
-                              {t("needsReconnectLink")}
-                            </Link>
-                          </p>
-                        ) : null}
-                        {post.status === "PUBLISHED" ? (
-                          <div className="text-muted-foreground flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-                            {post.publishedAt ? (
-                              <time dateTime={post.publishedAt.toISOString()}>
-                                {t("publishedAt", {
-                                  date: formatter.dateTime(
-                                    post.publishedAt,
-                                    "dateTime",
-                                  ),
-                                })}
-                              </time>
-                            ) : null}
-                            {post.publishedUrl ? (
-                              <a
-                                className="text-primary inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline"
-                                href={post.publishedUrl}
-                                rel="noreferrer"
-                                target="_blank"
-                              >
-                                {t("viewOnX")}
-                                <ExternalLink className="size-3" aria-hidden />
-                              </a>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {post.status === "FAILED" ? (
-                          <div className="space-y-0.5 text-xs">
-                            {failureReason ? (
-                              <p className="text-destructive">
-                                {failureReason}
-                              </p>
-                            ) : null}
-                            {failedAt ? (
-                              <time
-                                className="text-muted-foreground"
-                                dateTime={failedAt.toISOString()}
-                              >
-                                {t("failedAt", {
-                                  date: formatter.dateTime(
-                                    failedAt,
-                                    "dateTime",
-                                  ),
-                                })}
-                              </time>
-                            ) : null}
-                          </div>
-                        ) : null}
-                        {post.status === "MISSED" && post.lastError ? (
-                          <p className="text-muted-foreground text-xs">
-                            {post.lastError}
-                          </p>
-                        ) : null}
-                      </div>
-                      <div className="flex items-center gap-2 sm:justify-end">
-                        <SocialPostStatusBadge
-                          label={t(`status.${post.status}`)}
-                          status={post.status}
-                        />
-                        {hasActions ? (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                aria-label={t("moreActions")}
-                              >
-                                <MoreHorizontal
-                                  className="size-4"
-                                  aria-hidden
-                                />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {post.canPublishNow ? (
-                                <DropdownMenuItem
-                                  onSelect={() => setPublishTarget(post)}
-                                >
-                                  {isRetry
-                                    ? t("actions.retry")
-                                    : t("actions.publishNow")}
-                                </DropdownMenuItem>
-                              ) : null}
-                              {post.canEdit ? (
-                                <DropdownMenuItem
-                                  onSelect={() =>
-                                    setComposer({ kind: "edit", post })
-                                  }
-                                >
-                                  {t("composer.edit")}
-                                </DropdownMenuItem>
-                              ) : null}
-                              {post.canSchedule ? (
-                                <DropdownMenuItem
-                                  onSelect={() =>
-                                    setComposer({ kind: "schedule", post })
-                                  }
-                                >
-                                  {post.status === "SCHEDULED" || isRetry
-                                    ? t("composer.reschedule")
-                                    : t("composer.schedule")}
-                                </DropdownMenuItem>
-                              ) : null}
-                              {post.canCancel ? (
-                                <DropdownMenuItem
-                                  variant="destructive"
-                                  onSelect={() => setCancelTarget(post)}
-                                >
-                                  {t("composer.cancel")}
-                                </DropdownMenuItem>
-                              ) : null}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        ) : null}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-            {cursors[section] ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={loadingSection !== null}
-                onClick={() => {
-                  void handleLoadMore(section);
-                }}
+      <Tabs
+        className="gap-3"
+        value={tab}
+        onValueChange={(value) => {
+          const next = SECTION_ORDER.find((section) => section === value);
+          if (next) setTab(next);
+        }}
+      >
+        <TabsList
+          aria-label={t("title")}
+          className={cn(
+            SEGMENTED_TABS_LIST_CLASS_NAME,
+            "app-scrollbar w-fit max-w-full overflow-x-auto",
+          )}
+        >
+          {tabs.map((section) => {
+            const count = postsIn(section).length;
+            return (
+              <TabsTrigger
+                key={section}
+                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                data-testid={`social-posts-tab-${section}`}
+                value={section}
               >
-                {loadingSection === section ? t("loading") : t("loadMore")}
-              </Button>
-            ) : null}
-          </section>
-        );
-      })}
+                {section === "attention" ? (
+                  <AlertTriangle
+                    className="text-semantic-warning size-4"
+                    aria-hidden
+                  />
+                ) : null}
+                {t(`sections.${section}`)}{" "}
+                {count > 0 ? (
+                  <span className="text-muted-foreground tabular-nums">
+                    {cursors[section] ? `${count}+` : count}
+                  </span>
+                ) : null}
+              </TabsTrigger>
+            );
+          })}
+        </TabsList>
+
+        {tabs.map((section) => {
+          const sectionPosts = postsIn(section);
+          const cursor = cursors[section];
+          return (
+            <TabsContent
+              key={section}
+              className="space-y-3"
+              data-testid={`social-posts-section-${section}`}
+              value={section}
+            >
+              {sectionPosts.length > 0 ? (
+                <ul className="divide-y rounded-lg border">
+                  {sectionPosts.map(renderPost)}
+                </ul>
+              ) : cursor ? null : (
+                <div className="rounded-lg border border-dashed px-4 py-8 text-center">
+                  <p className="text-sm font-medium">{t(`empty.${section}`)}</p>
+                  <p className="text-muted-foreground mt-1 text-sm text-pretty">
+                    {t(`emptyHint.${section}`)}
+                  </p>
+                </div>
+              )}
+              {cursor ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loadingSection !== null}
+                  onClick={() => {
+                    void handleLoadMore(section);
+                  }}
+                >
+                  {loadingSection === section ? t("loading") : t("loadMore")}
+                </Button>
+              ) : null}
+            </TabsContent>
+          );
+        })}
+      </Tabs>
 
       {composer ? (
         <SocialPostComposerDialog

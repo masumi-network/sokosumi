@@ -114,7 +114,7 @@ describe("authorizeAgentSession", () => {
     // Claiming an unknown id for whichever project asked first meant a
     // conversation created before this code existed — or one whose binding
     // failed — belonged to whoever guessed it. Ownership is established once,
-    // by the signed-in user, through `bindSession`.
+    // by the signed-in user, through `registerCreatedSession`.
     sessionFindUniqueMock.mockResolvedValue(null);
 
     await expect(

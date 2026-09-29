@@ -7,7 +7,6 @@ import {
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 // Wait for the current session and project access before rendering, as the
 // project's other areas do.
@@ -28,10 +27,7 @@ interface ProjectMemoryPageProps {
 export default async function ProjectMemoryPage({
   params,
 }: ProjectMemoryPageProps) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserSocialBetaAccess(),
-    params,
-  ]);
+  const { projectId } = await params;
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
@@ -61,7 +57,6 @@ export default async function ProjectMemoryPage({
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}
-      showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
       <ProjectMemoryPanel

@@ -454,7 +454,7 @@ function isUniqueViolation(error: unknown): boolean {
   );
 }
 
-export async function touchSession(sessionId: string): Promise<SessionView> {
+async function touchSession(sessionId: string): Promise<SessionView> {
   return await prisma.projectImageSession.update({
     where: { id: sessionId },
     data: { lastActivityAt: new Date() },
@@ -488,8 +488,8 @@ export async function listSessions(options: {
  * whichever project asked first, which meant a conversation created before
  * this code existed — or one whose binding failed — belonged to whoever
  * guessed its id. Ownership is established once, by the signed-in user through
- * `bindSession`, before the conversation carries anything; everything after
- * that only ever checks.
+ * `registerCreatedSession`, before the conversation carries anything; everything
+ * after that only ever checks.
  *
  * @throws 404 for an unbound session, a session belonging to another project,
  * or a caller who no longer has access. Never 403: whether a conversation
@@ -515,29 +515,4 @@ export async function authorizeAgentSession(options: {
   }
 
   return await touchSession(existing.id);
-}
-
-/**
- * Re-authorize a resume.
- *
- * Called on every reattachment, not only when the session is created: a user
- * whose membership was revoked between the first message and the reload must
- * not get the transcript back.
- */
-export async function resolveSessionForResume(options: {
-  eveSessionId: string;
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-}): Promise<SessionView> {
-  await requireProjectAccess(options);
-  const session = await prisma.projectImageSession.findFirst({
-    where: {
-      eveSessionId: options.eveSessionId,
-      projectId: options.projectId,
-    },
-    select: sessionSelect,
-  });
-  if (!session) throw notFound("Conversation not found");
-  return session;
 }
