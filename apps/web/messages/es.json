@@ -2420,6 +2420,11 @@
             "dateSelected": "Fecha: {date}",
             "timeSelected": "Hora: {time}",
             "times": "Horas"
+          },
+          "timezone": {
+            "yours": "Las horas están en tu zona horaria, {zone}.",
+            "goesOut": "Sale el {date}, tu hora ({zone}).",
+            "postZone": "Programada para {date} en {zone}."
           }
         },
         "cancelDialog": {
@@ -7046,7 +7051,8 @@
         "all": "Todos los coworkers"
       },
       "timezone": {
-        "label": "Zona horaria"
+        "label": "Zona horaria",
+        "showing": "Horas en {zone}"
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",

@@ -2420,6 +2420,11 @@
             "dateSelected": "Datum: {date}",
             "timeSelected": "Uhrzeit: {time}",
             "times": "Uhrzeiten"
+          },
+          "timezone": {
+            "yours": "Zeiten in deiner Zeitzone, {zone}.",
+            "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
+            "postZone": "Geplant für {date} in {zone}."
           }
         },
         "cancelDialog": {
@@ -7046,7 +7051,8 @@
         "all": "Alle Coworker"
       },
       "timezone": {
-        "label": "Zeitzone"
+        "label": "Zeitzone",
+        "showing": "Zeiten in {zone}"
       },
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",

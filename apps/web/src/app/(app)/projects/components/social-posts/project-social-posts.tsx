@@ -371,7 +371,10 @@ export function ProjectSocialPosts({
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
                 dateTime={post.scheduledAt.toISOString()}
               >
-                {formatter.dateTime(post.scheduledAt, "dateTime")}
+                {/* Named, so a reader in another zone does not misread it. */}
+                {formatter.dateTime(post.scheduledAt, "dateTime", {
+                  timeZoneName: "short",
+                })}
               </time>
             ) : null}
             <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
