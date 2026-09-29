@@ -45,24 +45,41 @@ export function socialPostComposerIssue(
 }
 
 /**
- * The provider the composer validates against: the connection the user has
- * selected wins, because Core re-derives the provider from that connection on
- * save and schedule; an edited post without a selected connection keeps its
- * own provider, and a new post with no connections falls back to X.
+ * The providers the composer validates against: the selected connections win,
+ * because Core re-derives the provider from each connection on save and
+ * schedule; a post without a selected connection keeps its own provider, and
+ * a new post with none falls back to X. Never empty, never repeated.
  */
-export function socialPostComposerProvider(
+export function socialPostComposerProviders(
   postProvider: SocialPostProvider | null | undefined,
-  selectedConnectionProvider: SocialPostProvider | null | undefined,
-): SocialPostProvider {
-  return selectedConnectionProvider ?? postProvider ?? "x";
+  selectedConnectionProviders: readonly SocialPostProvider[],
+): [SocialPostProvider, ...SocialPostProvider[]] {
+  const [first, ...rest] = [...new Set(selectedConnectionProviders)];
+  return first ? [first, ...rest] : [postProvider ?? "x"];
 }
 
-/** The file picker's accept list for the selected provider's media rules. */
-export function socialPostComposerAccept(provider: SocialPostProvider): string {
-  const rules = SOCIAL_POST_MEDIA_RULES[provider];
-  return [
-    ...rules.imageMimeTypes,
-    ...rules.gifMimeTypes,
-    ...rules.videoMimeTypes,
-  ].join(",");
+/**
+ * The file picker's accept list: only types every selected provider takes,
+ * since one set of media goes to all of them.
+ */
+export function socialPostComposerAccept(
+  providers: readonly SocialPostProvider[],
+): string {
+  const typesOf = (provider: SocialPostProvider) => {
+    const rules = SOCIAL_POST_MEDIA_RULES[provider];
+    return [
+      ...rules.imageMimeTypes,
+      ...rules.gifMimeTypes,
+      ...rules.videoMimeTypes,
+    ];
+  };
+  const [first, ...rest] = providers;
+  if (!first) return "";
+  return typesOf(first)
+    .filter((type) =>
+      rest.every((provider) =>
+        (typesOf(provider) as readonly string[]).includes(type),
+      ),
+    )
+    .join(",");
 }
