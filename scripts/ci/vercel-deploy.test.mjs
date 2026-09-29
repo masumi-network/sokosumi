@@ -861,7 +861,9 @@ describe("preview change gating", () => {
       "utf8",
     );
     const triggers = workflow.split(/^jobs:/m)[0];
-    assert.match(triggers, /types: \[closed, synchronize\]/);
+    assert.match(triggers, /workflow_run:/);
+    assert.match(triggers, /workflows:\s*\["PR closed", "PR synchronize"\]/);
+    assert.doesNotMatch(triggers, /^\s+pull_request_target:/m);
     assert.doesNotMatch(triggers, /paths:/);
   });
 });
@@ -1119,8 +1121,9 @@ describe("git preview policy", () => {
       "utf8",
     );
     assert.match(workflow, /types: \[created\]/);
-    assert.match(workflow, /types: \[closed, synchronize\]/);
+    assert.match(workflow, /workflows:\s*\["PR closed", "PR synchronize"\]/);
     assert.doesNotMatch(workflow, /types:.*opened/);
+    assert.doesNotMatch(workflow, /^\s+pull_request_target:/m);
     assert.match(workflow, /schedule:/);
     for (const jobId of [
       "comment",
@@ -1143,11 +1146,11 @@ describe("git preview policy", () => {
       assert.doesNotMatch(job, /ref:.*pull_request\.head/);
     }
     const renew = jobBlock(workflow, "renew");
-    assert.match(renew, /github\.event\.action == 'synchronize'/);
+    assert.match(renew, /workflow_run\.name == 'PR synchronize'/);
     assert.match(renew, /preview-lifecycle\.ts renew/);
     assert.doesNotMatch(renew, /vercel-deploy\.mjs/);
     const closed = jobBlock(workflow, "closed");
-    assert.match(closed, /github\.event\.action == 'closed'/);
+    assert.match(closed, /workflow_run\.name == 'PR closed'/);
     assert.doesNotMatch(closed, /issues: write/);
     const reconcile = jobBlock(workflow, "reconcile");
     assert.match(reconcile, /group:.*matrix\.pr/);

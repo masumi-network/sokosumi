@@ -27,6 +27,98 @@ interface LifecycleOptions extends Omit<PreviewOptions, "ref"> {
   repoName: string;
 }
 
+interface WorkflowRunEvent {
+  pull_request?: { number?: number };
+  workflow_run?: {
+    id?: number | string;
+    head_sha?: string;
+    display_title?: string;
+    pull_requests?: { number?: number }[];
+  };
+}
+
+/**
+ * PR number for preview close/renew. workflow_run.pull_requests is often
+ * empty (always for closed PRs), so fall back to the signal run-name
+ * (display_title), then the Actions run, then the unique same-repo
+ * commit-associated pull whose head SHA matches the signal. display_title
+ * comes from head YAML, so it only counts when that PR is same-repo and its
+ * head is the signal's head SHA. commits/{sha}/pulls omits PRs closed
+ * without merging, so it cannot serve close on its own. First-match
+ * is unsafe: that API lists PRs that contain the commit, and the later
+ * open/closed re-check still deletes if the wrong PR is also closed.
+ */
+export async function resolvePreviewPullNumber(options: {
+  event: WorkflowRunEvent;
+  githubToken: string;
+  repoOwner: string;
+  repoName: string;
+  env?: NodeJS.ProcessEnv;
+  fetchImpl?: typeof fetch;
+}): Promise<number> {
+  const env = options.env ?? process.env;
+  const fromEnvOrPull = Number(
+    env.PREVIEW_PR_NUMBER || options.event.pull_request?.number,
+  );
+  if (Number.isSafeInteger(fromEnvOrPull) && fromEnvOrPull > 0) {
+    return fromEnvOrPull;
+  }
+
+  const fromPayload = Number(
+    options.event.workflow_run?.pull_requests?.[0]?.number,
+  );
+  if (Number.isSafeInteger(fromPayload) && fromPayload > 0) {
+    return fromPayload;
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const repo = `${options.repoOwner}/${options.repoName}`;
+  const runId = env.WORKFLOW_RUN_ID || options.event.workflow_run?.id;
+  const headSha = env.HEAD_SHA || options.event.workflow_run?.head_sha;
+
+  const fromTitle = Number(options.event.workflow_run?.display_title);
+  if (headSha && Number.isSafeInteger(fromTitle) && fromTitle > 0) {
+    const pull = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/pulls/${fromTitle}`,
+    );
+    if (pull?.head?.repo?.full_name === repo && pull?.head?.sha === headSha) {
+      return fromTitle;
+    }
+  }
+
+  if (runId) {
+    const run = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/actions/runs/${runId}`,
+    );
+    const fromRun = Number(run?.pull_requests?.[0]?.number);
+    if (Number.isSafeInteger(fromRun) && fromRun > 0) return fromRun;
+  }
+
+  if (headSha) {
+    const associated = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/commits/${headSha}/pulls`,
+    );
+    const matches = (Array.isArray(associated) ? associated : []).filter(
+      (pull) =>
+        pull?.head?.repo?.full_name === repo &&
+        pull?.head?.sha === headSha &&
+        pull?.number,
+    );
+    if (matches.length === 1) {
+      const fromCommit = Number(matches[0].number);
+      if (Number.isSafeInteger(fromCommit) && fromCommit > 0) return fromCommit;
+    }
+  }
+
+  throw new Error("A valid PR number is required");
+}
+
 export async function cleanupClosedPreview(options: LifecycleOptions) {
   // Read current state inside the same per-PR queue as deploy/reset. An old
   // close event must not delete a preview after the PR has been reopened.
@@ -165,11 +257,12 @@ async function main() {
     );
     return;
   }
-  const pullNumber = Number(
-    process.env.PREVIEW_PR_NUMBER ?? event.pull_request?.number,
-  );
-  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0)
-    throw new Error("A valid PR number is required");
+  const pullNumber = await resolvePreviewPullNumber({
+    event,
+    githubToken: context.githubToken,
+    repoOwner: context.repoOwner,
+    repoName: context.repoName,
+  });
   console.log(
     JSON.stringify(
       await (process.argv[2] === "renew"
