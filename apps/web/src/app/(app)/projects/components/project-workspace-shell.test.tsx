@@ -22,7 +22,6 @@ const LABELS = {
   design: "Design",
   memory: "Memory",
   overview: "Overview",
-  social: "Social",
 };
 
 function renderShell() {
@@ -32,7 +31,6 @@ function renderShell() {
       metadata={[{ label: "Updated", value: "Today" }]}
       projectId="p1"
       projectName="Example project"
-      showSocialTab={false}
     >
       <p>area content</p>
     </ProjectWorkspaceShell>,
@@ -86,8 +84,8 @@ describe("the project workspace surface", () => {
   it("navigates the three views a project actually has, and nothing else", () => {
     renderShell();
 
-    // The studio and the calendar are top-level destinations now: neither is
-    // an area *of* a project, so neither is a tab here.
+    // The studio, the calendar and Social are top-level destinations now: none
+    // of them is an area *of* a project, so none of them is a tab here.
     const tabs = screen
       .getAllByRole("link")
       .map((link) => [link.textContent, link.getAttribute("href")]);
@@ -98,25 +96,10 @@ describe("the project workspace surface", () => {
     ]);
   });
 
-  it("adds Social as a fourth tab only inside the beta", () => {
-    render(
-      <ProjectWorkspaceShell
-        labels={LABELS}
-        metadata={[]}
-        projectId="p1"
-        projectName="Example project"
-        showSocialTab
-      >
-        <p>area content</p>
-      </ProjectWorkspaceShell>,
-    );
+  it("no longer offers Social here: it is a destination in the sidebar", () => {
+    renderShell();
 
-    // This row is Social's only navigation, so dropping the tab would strand
-    // the route rather than tidy the page.
-    expect(screen.getByRole("link", { name: "Social" })).toHaveAttribute(
-      "href",
-      "/projects/p1/social",
-    );
+    expect(screen.queryByRole("link", { name: "Social" })).toBeNull();
   });
 
   it("gives the header, the tabs and the content one shared inset", () => {

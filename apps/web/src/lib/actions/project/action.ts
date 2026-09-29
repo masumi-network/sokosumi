@@ -181,7 +181,10 @@ function revalidateProjectSocialConnectionMutationRoutes(projectId: string) {
 
 function revalidateProjectSocialPostMutationRoutes(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
-  revalidatePath(`/projects/${projectId}/social`);
+  // Social is a top-level destination scoped by `?projectId=`, and a scheduled
+  // post is a Calendar entry, so both surfaces go stale on the same write.
+  revalidatePath("/social");
+  revalidatePath("/calendar");
 }
 
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {

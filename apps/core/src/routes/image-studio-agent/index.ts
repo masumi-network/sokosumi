@@ -3,10 +3,7 @@ import { getImageCatalog } from "@/lib/image-studio/catalog";
 import { ensureImageCatalogFresh } from "@/lib/image-studio/fal-catalog-refresh";
 import { describeImageStudioRefusal } from "@/lib/image-studio/request-validation";
 
-import {
-  assetContentPath,
-  createImageJobRequestSchema,
-} from "@/schemas/project-image-studio.schema";
+import { createImageJobRequestSchema } from "@/schemas/project-image-studio.schema";
 import {
   getAsset,
   getJob,
@@ -38,13 +35,6 @@ import { authorizeAgentGrant as authorize } from "./authorize";
 
 const app = new Hono();
 
-/**
- * Authorize one operation on an eve session.
- *
- * Called by the agent's channel policy on every request that names a session,
- * before eve does anything with it. The answer is deliberately minimal: it
- * says yes or no, and nothing about the conversation.
- */
 /**
  * Confirm the grant's user still has access to the grant's project.
  *
@@ -220,5 +210,3 @@ app.get("/generations/:jobId", async (c) => {
 });
 
 export default app;
-
-export { assetContentPath };
