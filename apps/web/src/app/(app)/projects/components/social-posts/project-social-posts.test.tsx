@@ -509,7 +509,10 @@ describe("ProjectSocialPosts", () => {
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(within(draftRow).getByText("No account")).toBeVisible();
     expect(within(draftRow).getByText("User · Alice")).toBeVisible();
-    expect(within(draftRow).queryByText("Draft")).not.toBeInTheDocument();
+    // Every card leads with its status, the way a task card does.
+    expect(
+      within(draftRow).getByTestId("social-post-status-DRAFT"),
+    ).toHaveTextContent("Draft");
 
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
