@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-
+import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
 import { BRIEFING_COLLAPSE_CHAR_THRESHOLD } from "@/app/projects/project-briefing";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
@@ -46,7 +46,9 @@ export function ProjectBriefing({
               isLong && !expanded && "max-h-64 overflow-hidden",
             )}
           >
-            <Markdown>{content}</Markdown>
+            <Markdown components={SECTION_MARKDOWN_HEADINGS}>
+              {content}
+            </Markdown>
           </div>
           {isLong ? (
             <button

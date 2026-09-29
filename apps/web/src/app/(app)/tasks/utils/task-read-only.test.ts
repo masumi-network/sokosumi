@@ -1,5 +1,5 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   canArchiveParkedTaskForViewer,
@@ -9,24 +9,19 @@ import {
 } from "./task-read-only";
 
 describe("isReadOnlyForViewer", () => {
-  it("forces read-only for admins regardless of ownership", () => {
+  it("forces read-only for admins", () => {
     expect(
       isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: null,
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
         forceReadOnly: true,
         taskStatus: TaskStatus.READY,
+        hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
 
-  it("keeps the owner of an organization task editable", () => {
+  it("keeps any seated viewer editable, owner or not", () => {
     expect(
       isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
         hasAssignedSeat: true,
@@ -37,21 +32,15 @@ describe("isReadOnlyForViewer", () => {
   it("defaults to read-only when assigned seat is omitted", () => {
     expect(
       isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
       }),
     ).toBe(true);
   });
 
-  it("makes an unseated paid owner read-only", () => {
+  it("makes an unseated viewer read-only", () => {
     expect(
       isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.READY,
         hasAssignedSeat: false,
@@ -59,64 +48,12 @@ describe("isReadOnlyForViewer", () => {
     ).toBe(true);
   });
 
-  it("makes a non-owner collaborator on an organization task read-only", () => {
-    expect(
-      isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: "member_2",
-        forceReadOnly: false,
-        taskStatus: TaskStatus.READY,
-      }),
-    ).toBe(true);
-  });
-
-  it("keeps the owner of a personal-workspace task editable", () => {
-    expect(
-      isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: null,
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
-        forceReadOnly: false,
-        taskStatus: TaskStatus.READY,
-        hasAssignedSeat: true,
-      }),
-    ).toBe(false);
-  });
-
-  it("treats a non-owner on a personal-workspace task as editable when not forced (unreachable on the user route, but the gate must not over-restrict)", () => {
-    expect(
-      isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: null,
-        taskOwnerId: "owner_1",
-        sessionUserId: "someone_else",
-        forceReadOnly: false,
-        taskStatus: TaskStatus.READY,
-        hasAssignedSeat: true,
-      }),
-    ).toBe(false);
-  });
-
-  it("is read-only for an unauthenticated viewer on an organization task", () => {
-    expect(
-      isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: null,
-        forceReadOnly: false,
-        taskStatus: TaskStatus.READY,
-      }),
-    ).toBe(true);
-  });
-
   it("is read-only while vendor grant approval is pending", () => {
     expect(
       isReadOnlyForViewer({
-        taskWorkspaceOrganizationId: "org_1",
-        taskOwnerId: "owner_1",
-        sessionUserId: "owner_1",
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
+        hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
@@ -129,29 +66,44 @@ describe("canArchiveParkedTaskForViewer", () => {
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: true,
-        isOrgOwnerOrAdmin: false,
+        isOrganizationTask: false,
+        hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
 
-  it("allows org owner/admin to archive grant-pending tasks they do not own", () => {
+  it("allows any member to archive a grant-pending organization task they do not own", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: true,
+        isOrganizationTask: true,
+        hasAssignedSeat: true,
       }),
     ).toBe(true);
   });
 
-  it("blocks archive for plain members while grant is pending", () => {
+  it("blocks archive for a non-owner of a personal task while grant is pending", () => {
     expect(
       canArchiveParkedTaskForViewer({
         forceReadOnly: false,
         taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: false,
-        isOrgOwnerOrAdmin: false,
+        isOrganizationTask: false,
+        hasAssignedSeat: true,
+      }),
+    ).toBe(false);
+  });
+
+  it("blocks archive for an unseated member who does not own the task", () => {
+    expect(
+      canArchiveParkedTaskForViewer({
+        forceReadOnly: false,
+        taskStatus: TaskStatus.GRANT_PENDING,
+        isTaskOwner: false,
+        isOrganizationTask: true,
+        hasAssignedSeat: false,
       }),
     ).toBe(false);
   });
@@ -162,7 +114,8 @@ describe("canArchiveParkedTaskForViewer", () => {
         forceReadOnly: true,
         taskStatus: TaskStatus.GRANT_PENDING,
         isTaskOwner: true,
-        isOrgOwnerOrAdmin: true,
+        isOrganizationTask: true,
+        hasAssignedSeat: true,
       }),
     ).toBe(false);
   });

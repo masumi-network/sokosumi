@@ -50,7 +50,10 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
 - [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (not Ably messaging; `/chat` is adjacent).
 - [Tasks board](./tasks-board.md) — `/tasks` task manager shell (kanban / tabs).
-- [Projects](./projects.md) — `/projects` list or empty state.
-- [Files](./files.md) — `/drive` Recents / browse (desktop main nav **Files**; personal tab **My Files**).
-- [History](./history.md) — `/history` unified History (tasks + jobs) for the signed-in user.
+- [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
+- [Calendar](./calendar.md) — `/calendar` workspace calendar (Month / Week / Agenda).
+- [Content Studio](./studio.md) — `/studio` image studio; project picker when no `?projectId=`.
+- [Projects](./projects.md) — `/projects` list or empty state (not a desktop sidebar row).
+- [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
+- [History](./history.md) — `/history` unified History (task / job / image) for the signed-in user.
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

@@ -1,22 +1,28 @@
 "use client";
 
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+  SocialPostStatus,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
   MoreHorizontal,
-  Plus,
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
-import { SiX } from "react-icons/si";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { useSocialCompose } from "@/app/social/components/social-compose-context";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -52,12 +58,6 @@ import {
   cancelProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
-} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
@@ -186,6 +186,10 @@ export function ProjectSocialPosts({
     setTab(tabFor(initialPosts, selectedPostId));
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
+  // Social's top-level New post menu opens a fresh composer through context.
+  const compose = useSocialCompose();
+  const composerMode: SocialPostComposerMode | null =
+    composer ?? (compose?.open ? { kind: "create" } : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
@@ -229,6 +233,7 @@ export function ProjectSocialPosts({
       setPublishTarget(null);
       toast.error(t("toasts.conflict"));
       setComposer(null);
+      compose?.setOpen(false);
       setCancelTarget(null);
       router.refresh();
       return;
@@ -347,7 +352,7 @@ export function ProjectSocialPosts({
           aria-hidden
           className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
         >
-          <SiX className="size-5" />
+          <SocialPostProviderIcon provider={post.provider} className="size-5" />
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -418,7 +423,7 @@ export function ProjectSocialPosts({
                   rel="noreferrer"
                   target="_blank"
                 >
-                  {t("viewOnX")}
+                  {t("viewPost")}
                   <ExternalLink className="size-3" aria-hidden />
                 </a>
               ) : null}
@@ -516,14 +521,6 @@ export function ProjectSocialPosts({
           <h2 className="text-base font-semibold">{t("title")}</h2>
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setComposer({ kind: "create" })}
-        >
-          <Plus className="size-4" aria-hidden />
-          {t("newPost")}
-        </Button>
       </div>
 
       {selectedUnlistedPost ? (
@@ -625,13 +622,15 @@ export function ProjectSocialPosts({
         })}
       </Tabs>
 
-      {composer ? (
+      {composerMode ? (
         <SocialPostComposerDialog
           connections={connections}
-          mode={composer}
+          mode={composerMode}
           onError={handleActionError}
           onOpenChange={(open) => {
-            if (!open) setComposer(null);
+            if (open) return;
+            setComposer(null);
+            compose?.setOpen(false);
           }}
           onSaved={handleSaved}
           open

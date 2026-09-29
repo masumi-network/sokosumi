@@ -36,6 +36,7 @@ export const CORE_API_ERROR_KINDS = {
   SCHEDULE_REVISION_CONFLICT: "schedule_revision_conflict",
   SCHEDULE_STATE_CONFLICT: "schedule_state_conflict",
   SOCIAL_POST_REVISION_CONFLICT: "social_post_revision_conflict",
+  SOCIAL_FACEBOOK_PAGE_REQUIRED: "social_facebook_page_required",
   TASK_SCHEDULE_MOVED: "task_schedule_moved",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",

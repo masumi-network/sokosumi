@@ -8,8 +8,8 @@ import {
 } from "@/app/history/utils/history-filters";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import {
-  type HistoryItem,
   historyService,
+  type TransactionHistoryItem,
 } from "@/lib/services/history.service";
 import {
   type AuthenticatedRequest,
@@ -26,7 +26,7 @@ interface LoadMoreHistoryParams extends AuthenticatedRequest {
 export const loadMoreHistory = withSession<
   LoadMoreHistoryParams,
   {
-    history: HistoryItem[];
+    history: TransactionHistoryItem[];
     nextCursor: string | null;
   }
 >(async ({ cursor, filters, session }) => {
@@ -37,7 +37,6 @@ export const loadMoreHistory = withSession<
         q: filters.q ?? undefined,
         scope: filters.scope,
         type: filters.type ?? undefined,
-        status: filters.status ?? undefined,
         projectId: filters.projectId ?? undefined,
       },
       activeOrganizationId,
@@ -50,7 +49,6 @@ export const loadMoreHistory = withSession<
     projectId: resolvedFilters.projectId ?? undefined,
     q: resolvedFilters.q ?? undefined,
     scope: resolvedFilters.scope,
-    status: resolvedFilters.status ? [resolvedFilters.status] : undefined,
     types: resolveHistoryApiTypes(resolvedFilters.type),
   });
 

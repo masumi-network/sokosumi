@@ -1,16 +1,25 @@
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
-  render,
+  render as renderUi,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import {
+  SocialComposeProvider,
+  useSocialCompose,
+} from "@/app/social/components/social-compose-context";
 import {
   cancelProjectSocialPost,
   createProjectSocialPost,
@@ -18,11 +27,6 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 
 import { loadMoreSocialPosts } from "./actions";
 
@@ -70,7 +74,7 @@ const MESSAGES: Record<string, string> = {
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
-  viewOnX: "View on X",
+  viewPost: "View post",
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
   attempts: "{count} attempts",
@@ -402,6 +406,32 @@ async function openTab(
   await user.click(getTab(label));
 }
 
+// Social's top-level New post menu stands in as a plain button here; it opens
+// the composer through the same context.
+function NewPostButton() {
+  const compose = useSocialCompose();
+  return (
+    <button type="button" onClick={() => compose?.setOpen(true)}>
+      New post
+    </button>
+  );
+}
+
+function ComposeHarness({ children }: { children: React.ReactNode }) {
+  return (
+    <NuqsTestingAdapter>
+      <SocialComposeProvider>
+        <NewPostButton />
+        {children}
+      </SocialComposeProvider>
+    </NuqsTestingAdapter>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return renderUi(ui, { wrapper: ComposeHarness });
+}
+
 describe("ProjectSocialPosts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -489,6 +519,26 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the composer when Social links here with ?compose=new", () => {
+    renderUi(
+      <NuqsTestingAdapter searchParams="?compose=new">
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            connections={[buildConnection()]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "New post",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
@@ -1287,7 +1337,7 @@ describe("ProjectSocialPosts", () => {
     const row = within(selected).getByTestId("social-post-post-published");
     expect(within(row).getByText("Published")).toBeVisible();
     expect(within(row).getByText("Soko Bot")).toBeVisible();
-    const link = within(row).getByRole("link", { name: "View on X" });
+    const link = within(row).getByRole("link", { name: "View post" });
     expect(link).toHaveAttribute(
       "href",
       "https://x.com/sokosumi/status/1234567890",

@@ -3,6 +3,7 @@
 - Status: Accepted
 - Date: 2026-09-19
 - Amended: 2026-09-20 (queue deferred)
+- Amended: 2026-09-29 (generated client moved to `@sokosumi/core-client`, SOK-1222)
 - Renumbered from ADR-0033 to ADR-0039; ADR-0033 belongs to Typing.
 
 Core keeps its stack: **Hono + `@hono/zod-openapi`, TypeScript, Zod 4, Prisma
@@ -145,6 +146,8 @@ Amendment 2 reversed the proposal. Keep the findings; do not re-shop.
   new evidence.
 - `generate:core:snapshot`, the 18 generated files, and the DTO-drift
   typecheck step all stay. Web keeps no dependency on `@sokosumi/core`.
+  Since SOK-1222 the generated client lives in `packages/core-client` and
+  regenerates with `pnpm --filter @sokosumi/core-client generate:snapshot`.
 - `neverthrow` needs no work. The convention in
   [`.cursor/rules/neverthrow.mdc`](../../.cursor/rules/neverthrow.mdc) stands.
 - If a queue is revisited, start from Spent rather than from scratch.

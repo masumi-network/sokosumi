@@ -1,11 +1,20 @@
 "use server";
 
-import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
-
+import type {
+  DisconnectProjectSocialConnectionResponse,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
+  Project,
+  ProjectCloseStatus,
+  ProjectContextMd,
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
+import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
-
 import {
   type ActionResultDto,
   toActionResult,
@@ -18,17 +27,6 @@ import {
   mapCoreApiStatusToCommonErrorCode,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type {
-  DisconnectProjectSocialConnectionResponse,
-  InitiateProjectSocialConnectionRequest,
-  InitiateProjectSocialConnectionResponse,
-  Project,
-  ProjectCloseStatus,
-  ProjectContextMd,
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,
@@ -544,7 +542,7 @@ const socialPostMediaRefSchema = z.object({
 
 const socialPostMediaSchema = z
   .array(socialPostMediaRefSchema)
-  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages);
+  .max(SOCIAL_POST_MEDIA_MAX);
 
 const createProjectSocialPostSchema = z
   .object({

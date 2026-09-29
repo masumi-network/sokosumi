@@ -1,8 +1,11 @@
+import type { SocialPostProvider } from "@sokosumi/utils";
+import { socialPostProviderLabel } from "@sokosumi/utils";
+
+import { ComposioApiError } from "@/clients/composio.client";
 import {
-  ComposioApiError,
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-} from "@/clients/composio.client";
+} from "@/clients/social-post-providers/tools";
 import { SocialPostMediaError } from "@/helpers/social-post-media";
 
 const SUMMARY_LIMIT = 300;
@@ -44,12 +47,14 @@ function classifyApiError(error: ComposioApiError): PublishErrorClassification {
 
 function classifyToolError(
   error: ComposioToolError,
+  provider: SocialPostProvider,
 ): PublishErrorClassification {
   const providerMessage = error.providerMessage ?? "";
   const status = error.providerStatus;
+  const label = socialPostProviderLabel(provider);
   const summary = summarize(
     providerMessage
-      ? `X rejected the post${status ? ` (${status})` : ""}: ${providerMessage}`
+      ? `${label} rejected the post${status ? ` (${status})` : ""}: ${providerMessage}`
       : error.message,
   );
   if (status === 429 || /rate.?limit|\b429\b/i.test(providerMessage)) {
@@ -71,12 +76,14 @@ function classifyToolError(
  */
 export function classifyPublishError(
   error: unknown,
+  provider: SocialPostProvider,
 ): PublishErrorClassification {
   if (error instanceof ComposioPublishOutcomeUnknownError) {
     return { kind: "unknown", transient: false, summary: error.message };
   }
   if (error instanceof ComposioApiError) return classifyApiError(error);
-  if (error instanceof ComposioToolError) return classifyToolError(error);
+  if (error instanceof ComposioToolError)
+    return classifyToolError(error, provider);
   if (error instanceof SocialPostMediaError) {
     return { kind: error.kind, transient: false, summary: error.message };
   }

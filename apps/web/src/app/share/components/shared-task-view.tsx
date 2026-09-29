@@ -1,4 +1,11 @@
 import {
+  BlobStatus,
+  Channel,
+  type PublicSharedTask,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
+import {
   extractFileLikeLinks,
   extractHttpLinks,
   removeTaskContextAttachmentLinks,
@@ -27,13 +34,6 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import {
-  BlobStatus,
-  Channel,
-  type PublicSharedTask,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
@@ -351,17 +351,19 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               <span className="text-sm font-medium">
                                 {actorName}
                               </span>
-                              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                                <span>{action}</span>
+                              <span className="text-muted-foreground text-xs">
+                                <span>{action}</span>{" "}
                                 {!event.status ? (
                                   <>
-                                    <span>{originFromLabel}</span>
-                                    <ChannelIcon
-                                      className="text-muted-foreground size-3.5 shrink-0"
-                                      role="img"
-                                      aria-label={originFromLabel}
-                                      data-testid={`origin-icon-${event.id}`}
-                                    />
+                                    <span className="whitespace-nowrap">
+                                      {originFromLabel}
+                                      <ChannelIcon
+                                        className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                        role="img"
+                                        aria-label={originFromLabel}
+                                        data-testid={`origin-icon-${event.id}`}
+                                      />
+                                    </span>
                                   </>
                                 ) : null}
                               </span>
@@ -371,14 +373,16 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                     status={event.status}
                                     label={statusLabels[event.status]}
                                   />
-                                  <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                                    <span>{originFromLabel}</span>
-                                    <ChannelIcon
-                                      className="text-muted-foreground size-3.5 shrink-0"
-                                      role="img"
-                                      aria-label={originFromLabel}
-                                      data-testid={`origin-icon-${event.id}`}
-                                    />
+                                  <span className="text-muted-foreground text-xs">
+                                    <span className="whitespace-nowrap">
+                                      {originFromLabel}
+                                      <ChannelIcon
+                                        className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                        role="img"
+                                        aria-label={originFromLabel}
+                                        data-testid={`origin-icon-${event.id}`}
+                                      />
+                                    </span>
                                   </span>
                                 </>
                               ) : null}

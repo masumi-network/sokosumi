@@ -1,9 +1,9 @@
+import type { AgentReview } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
 import { RatingDistribution } from "@/components/agents/rating-distribution";
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AgentReview } from "@/lib/clients/generated/core";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
 
 import { ReviewsList } from "./reviews-list";

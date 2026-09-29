@@ -2,13 +2,16 @@ import type { Prisma, SocialPostStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
   isVercelBlobPublicHost,
+  SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMediaKindForMime,
+  socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 
@@ -283,14 +286,19 @@ function requireProvider(provider: string): SocialPostProvider {
   return provider;
 }
 
-/** Text is optional once media is attached; the post still needs one of the two. */
+/** Text rules differ per provider: some require text, others accept media only. */
 function requireTextWithinLimit(
   text: string,
   provider: string,
   hasMedia: boolean,
 ): string {
+  const scopedProvider = requireProvider(provider);
+  const label = socialPostProviderLabel(scopedProvider);
   const trimmed = text.trim();
-  const limit = SOCIAL_POST_TEXT_LIMITS[requireProvider(provider)];
+  const limit = SOCIAL_POST_TEXT_LIMITS[scopedProvider];
+  if (SOCIAL_POST_TEXT_REQUIRED[scopedProvider] && trimmed.length === 0) {
+    throw badRequest(`${label} requires text`);
+  }
   if (trimmed.length === 0 && !hasMedia) {
     throw badRequest("Text is required");
   }
@@ -302,14 +310,29 @@ function requireTextWithinLimit(
   return trimmed;
 }
 
+/** Some providers refuse a post without media, or without exactly one video. */
+function requireMediaRequirement(
+  provider: SocialPostProvider,
+  media: readonly SocialPostMediaRef[],
+): void {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none") return;
+  const label = socialPostProviderLabel(provider);
+  if (requirement === "any") {
+    if (media.length === 0) {
+      throw badRequest(`${label} requires at least one image or video`);
+    }
+    return;
+  }
+  if (media.length !== 1 || media[0]?.kind !== "video") {
+    throw badRequest(`${label} requires a video`);
+  }
+}
+
 interface NormalizeMediaInput extends WorkspaceOwnerScope {
   userId: string;
   provider: string;
   media: readonly SocialPostMediaRef[];
-}
-
-function providerLabel(provider: SocialPostProvider): string {
-  return provider === "x" ? "X" : provider;
 }
 
 /** Human-readable reason for a media rule violation, keyed by the shared reason. */
@@ -317,7 +340,7 @@ function mediaValidationMessage(
   provider: SocialPostProvider,
   reason: SocialPostMediaValidationReason,
 ): string {
-  const label = providerLabel(provider);
+  const label = socialPostProviderLabel(provider);
   switch (reason) {
     case "too_many_images":
       return `${label} allows at most ${SOCIAL_POST_MEDIA_RULES[provider].maxImages} images per post`;
@@ -372,7 +395,7 @@ function normalizeSocialPostMedia(
     const mimeType = ref.mimeType.trim().toLowerCase();
     if (socialPostMediaKindForMime(mimeType) !== ref.kind) {
       throw badRequest(
-        `Media file "${ref.name}" is not a file type ${providerLabel(provider)} accepts`,
+        `Media file "${ref.name}" is not a file type ${socialPostProviderLabel(provider)} accepts`,
       );
     }
     return {
@@ -558,6 +581,7 @@ export async function createSocialPost(
     media: input.media ?? [],
   });
   const text = requireTextWithinLimit(input.text, provider, media.length > 0);
+  requireMediaRequirement(requireProvider(provider), media);
   const scheduled = input.scheduledAt !== undefined;
 
   const post = await tx.socialPost.create({
@@ -600,24 +624,8 @@ export async function updateSocialPost(
           scheduledByCoworkerId: input.coworkerId ?? null,
         }
       : {};
-  let media = parseSocialPostMedia(post.media, post.id);
-  if (input.media !== undefined) {
-    media = normalizeSocialPostMedia({
-      userId: input.userId,
-      organizationId: input.organizationId,
-      provider: post.provider,
-      media: input.media,
-    });
-    data.media = mediaJson(media);
-  }
-  if (input.text !== undefined || input.media !== undefined) {
-    data.text = requireTextWithinLimit(
-      input.text ?? post.text,
-      post.provider,
-      media.length > 0,
-    );
-  }
-
+  const currentProvider = requireProvider(post.provider);
+  let provider = currentProvider;
   if (input.socialConnectionId === null) {
     if (post.status === "SCHEDULED") {
       throw badRequest("A scheduled post must keep a social connection");
@@ -637,12 +645,46 @@ export async function updateSocialPost(
             tx,
           );
     data.socialConnectionId = connection.id;
+    provider = requireProvider(connection.provider);
   } else if (post.status === "SCHEDULED") {
     await requireActiveProjectConnection(
       input.projectId,
       post.socialConnectionId,
       tx,
     );
+  }
+
+  const providerChanged = provider !== currentProvider;
+  if (providerChanged) {
+    data.provider = provider;
+  }
+  let media = parseSocialPostMedia(post.media, post.id);
+  if (input.media !== undefined) {
+    media = normalizeSocialPostMedia({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      provider,
+      media: input.media,
+    });
+    data.media = mediaJson(media);
+  }
+  if (
+    input.text !== undefined ||
+    input.media !== undefined ||
+    providerChanged
+  ) {
+    data.text = requireTextWithinLimit(
+      input.text ?? post.text,
+      provider,
+      media.length > 0,
+    );
+    if (input.media === undefined) {
+      const validation = validateSocialPostMedia(provider, media);
+      if (!validation.ok) {
+        throw badRequest(mediaValidationMessage(provider, validation.reason));
+      }
+    }
+    requireMediaRequirement(provider, media);
   }
 
   return mapSocialPost(
@@ -662,21 +704,19 @@ export async function scheduleSocialPost(
   requireRevision(post, input.revision);
   requireFutureScheduledAt(input.scheduledAt);
   const media = parseSocialPostMedia(post.media, post.id);
-  const validation = validateSocialPostMedia(
-    requireProvider(post.provider),
-    media,
-  );
-  if (!validation.ok) {
-    throw badRequest(
-      mediaValidationMessage(requireProvider(post.provider), validation.reason),
-    );
-  }
-  requireTextWithinLimit(post.text, post.provider, media.length > 0);
+  const currentProvider = requireProvider(post.provider);
   const connection = await requireActiveProjectConnection(
     input.projectId,
     input.socialConnectionId ?? post.socialConnectionId,
     tx,
   );
+  const provider = requireProvider(connection.provider);
+  const validation = validateSocialPostMedia(provider, media);
+  if (!validation.ok) {
+    throw badRequest(mediaValidationMessage(provider, validation.reason));
+  }
+  requireTextWithinLimit(post.text, provider, media.length > 0);
+  requireMediaRequirement(provider, media);
 
   return mapSocialPost(
     await writeWithRevision(
@@ -687,6 +727,7 @@ export async function scheduleSocialPost(
         scheduledAt: input.scheduledAt,
         timezone: input.timezone ?? post.timezone,
         socialConnectionId: connection.id,
+        ...(provider !== currentProvider ? { provider } : {}),
         scheduledByUserId: input.userId,
         scheduledByCoworkerId: input.coworkerId ?? null,
         lastError: null,

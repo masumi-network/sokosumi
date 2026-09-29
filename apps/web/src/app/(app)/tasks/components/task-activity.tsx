@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  TaskEvent,
+  TaskFile,
+  TaskParticipant,
+} from "@sokosumi/core-client";
+import { BlobStatus, Channel, TaskStatus } from "@sokosumi/core-client";
 import {
   extractFileLikeLinks,
   extractHttpLinks,
@@ -43,12 +49,6 @@ import {
   createTaskComment,
   loadOlderTaskActivityEvents,
 } from "@/lib/actions/task/action";
-import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
-import type {
-  TaskEvent,
-  TaskFile,
-  TaskParticipant,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
@@ -665,17 +665,19 @@ export function TaskActivitySection({
                     <div className="flex flex-row items-baseline justify-between gap-2">
                       <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
                         <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                          <span>{action}</span>
+                        <span className="text-muted-foreground text-xs">
+                          <span>{action}</span>{" "}
                           {!event.status ? (
                             <>
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
+                              <span className="whitespace-nowrap">
+                                {originFromLabel}
+                                <ChannelIcon
+                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                  role="img"
+                                  aria-label={originFromLabel}
+                                  data-testid={`origin-icon-${event.id}`}
+                                />
+                              </span>
                             </>
                           ) : null}
                         </span>
@@ -685,14 +687,16 @@ export function TaskActivitySection({
                               status={event.status}
                               label={tStatus(event.status)}
                             />
-                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
+                            <span className="text-muted-foreground text-xs">
+                              <span className="whitespace-nowrap">
+                                {originFromLabel}
+                                <ChannelIcon
+                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                  role="img"
+                                  aria-label={originFromLabel}
+                                  data-testid={`origin-icon-${event.id}`}
+                                />
+                              </span>
                             </span>
                           </>
                         ) : null}

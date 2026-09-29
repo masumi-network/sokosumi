@@ -45,8 +45,8 @@ export function activeProjectTabId(
 }
 
 /**
- * The project's subpages, as one underlined row sitting on the workspace
- * card's own divider.
+ * The project's subpages, as one underlined row directly above the content
+ * they switch.
  *
  * Real links, not a client-side tab widget: each subpage is its own route that
  * renders on the server, so a tab is bookmarkable, opens in a new tab with a
@@ -56,22 +56,15 @@ export function activeProjectTabId(
  */
 export function ProjectTabs({
   ariaLabel,
-  className,
   tabs,
 }: {
   ariaLabel: string;
-  /** The surrounding surface's horizontal inset. */
-  className?: string;
   tabs: readonly ProjectTab[];
 }) {
   const pathname = usePathname();
   const activeId = activeProjectTabId(pathname, tabs);
 
   return (
-    // The rule is the card's own divider between its header and its content,
-    // and the tabs sit on it. That is what makes them read as the top edge of
-    // the thing they navigate rather than as a control floating above it.
-    //
     // The tabs wrap rather than scroll. A horizontal scroller here was worse
     // than the problem it solved: `overflow-x: auto` computes `overflow-y`
     // to `auto` as well, and the active tab is taller than the row by the
@@ -79,10 +72,7 @@ export function ProjectTabs({
     // the indicator and offered a vertical scrollbar for it. Four short
     // labels fit on one line at 390px, and a fifth wrapping to a second line
     // is a better failure than an indicator nobody can see.
-    <nav
-      aria-label={ariaLabel}
-      className={cn("border-border border-b", className)}
-    >
+    <nav aria-label={ariaLabel} className="border-border border-b">
       <ul className="-mb-px flex flex-wrap items-center gap-x-5 text-sm">
         {tabs.map((tab) => {
           const isActive = tab.id === activeId;
@@ -95,7 +85,7 @@ export function ProjectTabs({
                   // No radius: the corners belong to the indicator too, and a
                   // rounded 2px bar under a word reads as a pill rather than
                   // as an underline.
-                  "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
+                  "focus-visible:ring-ring-halo focus-visible:inset-ring-ring outline-none focus-visible:ring-2 focus-visible:inset-ring-1",
                   isActive
                     ? "border-foreground text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground border-transparent",

@@ -22,12 +22,12 @@ const {
   mapTaskMock,
   markTaskArchivedReadMock,
   prismaTransactionMock,
-  requireTaskArchiveAccessMock,
+  requireTaskWriteAccessMock,
 } = vi.hoisted(() => ({
   markTaskArchivedReadMock: vi.fn(),
   deliverCalendarInvalidationsNowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireTaskArchiveAccessMock: vi.fn(),
+  requireTaskWriteAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
     const status = t.status as string | undefined;
@@ -171,7 +171,7 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireTaskArchiveAccess: requireTaskArchiveAccessMock,
+  requireTaskWriteAccess: requireTaskWriteAccessMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -276,7 +276,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.READY,
@@ -311,7 +311,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.READY,
@@ -369,7 +369,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.RUNNING,
@@ -405,7 +405,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_other",
       status: TaskStatus.GRANT_PENDING,
@@ -440,7 +440,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_other",
       status: TaskStatus.GRANT_PENDING,
@@ -473,7 +473,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.QUEUED,
@@ -507,6 +507,6 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskArchiveAccessMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
   });
 });

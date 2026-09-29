@@ -1,3 +1,4 @@
+import { AgentJobStatus, TaskStatus } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
@@ -28,7 +29,6 @@ import { getTasksListPage } from "@/app/tasks/utils/tasks-list-page";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { parseTasksTab } from "@/app/tasks/utils/tasks-tab";
 import { getSession } from "@/lib/auth/auth.server";
-import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { projectService } from "@/lib/services/project.service";

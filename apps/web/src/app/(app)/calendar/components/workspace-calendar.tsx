@@ -7,6 +7,13 @@ import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
+import {
+  TaskStatus,
+  type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
+  type WorkspaceCalendarItem,
+  type WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
@@ -81,13 +88,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import {
-  TaskStatus,
-  type TaskStatus as TaskStatusValue,
-  type WorkspaceCalendarEntry,
-  type WorkspaceCalendarItem,
-  type WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 import {
   getDefaultTimezone,
   getTimezoneOptions,
@@ -477,6 +477,7 @@ function CalendarView({
   onDateClick,
   runHandlers,
   socialOnly,
+  socialPostVariant,
   sources,
   timeZone,
   view,
@@ -488,6 +489,8 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   socialOnly: boolean;
+  /** Social's own calendar previews posts; the workspace Calendar lists them. */
+  socialPostVariant: "compact" | "preview";
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
@@ -581,7 +584,11 @@ function CalendarView({
               {dayItems.map((item) => (
                 <li key={item.id}>
                   {item.kind === "socialPost" ? (
-                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                    <SocialPostCalendarEvent
+                      item={item}
+                      timeZone={timeZone}
+                      variant={socialPostVariant}
+                    />
                   ) : (
                     <CalendarEvent
                       item={item}
@@ -657,7 +664,11 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                <SocialPostCalendarEvent
+                  item={item}
+                  timeZone={timeZone}
+                  variant={socialPostVariant}
+                />
               );
             return (
               <CalendarEvent
@@ -1293,6 +1304,7 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
+          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
           sources={sources}
           timeZone={timeZone}
           view={view}

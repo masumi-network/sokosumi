@@ -44,11 +44,11 @@ public struct ChannelEditDraft: Equatable, Sendable {
   }
 
   public mutating func setName(_ raw: String) {
-    name = ChannelDraft.limit(raw, to: 80)
+    name = ChannelDraft.limit(raw, to: ChannelDraft.nameLimit)
   }
 
   public mutating func setTopic(_ raw: String) {
-    topic = ChannelDraft.limit(raw, to: 200)
+    topic = ChannelDraft.limit(raw, to: ChannelDraft.topicLimit)
   }
 }
 

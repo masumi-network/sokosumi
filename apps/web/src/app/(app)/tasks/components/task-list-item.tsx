@@ -1,7 +1,7 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";

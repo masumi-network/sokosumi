@@ -334,7 +334,6 @@ describe("whole pixels", () => {
     const violations: string[] = [];
 
     for (const file of SRC_FILES) {
-      if (file.relSrc.startsWith("lib/clients/generated/")) continue;
       if (file.relSrc.endsWith(".test.ts") || file.relSrc.endsWith(".test.tsx"))
         continue;
 
@@ -425,7 +424,6 @@ describe("full-bleed rules", () => {
 
     for (const file of SRC_FILES) {
       if (file.ext !== ".tsx") continue;
-      if (file.relSrc.startsWith("lib/clients/generated/")) continue;
       if (file.relSrc.endsWith(".test.tsx")) continue;
 
       file.lines.forEach((line, index) => {

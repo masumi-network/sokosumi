@@ -105,7 +105,10 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("Web/Core/Packages jobs invoke turbo run test:ci", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    assert.match(jobBlock(test, "web"), /turbo run test:ci --filter=web\n/);
+    assert.match(
+      jobBlock(test, "web"),
+      /turbo run test:ci --filter=web --filter=cmo\n/,
+    );
     assert.match(
       jobBlock(test, "core"),
       /turbo run test:ci --filter=@sokosumi\/core\n/,
@@ -168,6 +171,68 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(workflow, /secrets\.VERCEL_TOKEN/);
   });
 
+  it("pins preview close and renew to workflow_run from the default branch", async () => {
+    const workflow = await readRepoFile(
+      ".github",
+      "workflows",
+      "preview-deploy.yml",
+    );
+    const closedSignal = await readRepoFile(
+      ".github",
+      "workflows",
+      "pr-closed.yml",
+    );
+    const syncSignal = await readRepoFile(
+      ".github",
+      "workflows",
+      "pr-synchronize.yml",
+    );
+    const triggerSection = workflow.split(/^jobs:/m)[0];
+    // A pull_request_target trigger loads YAML from the PR base. A same-repo
+    // branch that replaces this file would then run with VERCEL_TOKEN and
+    // NEON_API_KEY.
+    assert.doesNotMatch(triggerSection, /^\s+pull_request_target:/m);
+    assert.match(triggerSection, /workflow_run:/);
+    assert.match(
+      triggerSection,
+      /workflows:\s*\["PR closed", "PR synchronize"\]/,
+    );
+    assert.match(closedSignal, /^name: PR closed$/m);
+    assert.match(syncSignal, /^name: PR synchronize$/m);
+    assert.doesNotMatch(closedSignal, /secrets\./);
+    assert.doesNotMatch(syncSignal, /secrets\./);
+    assert.match(closedSignal, /pull_request:\s*\n\s+types:\s*\[closed\]/);
+    assert.match(syncSignal, /pull_request:\s*\n\s+types:\s*\[synchronize\]/);
+    // Closed workflow runs have pull_requests: []. The signal run-name is the
+    // PR number; preview-deploy reads it back as display_title so close stays
+    // on the same concurrency group as /deploy and /reset-db.
+    const runName =
+      /^run-name: \$\{\{ github\.event\.pull_request\.number \}\}$/m;
+    assert.match(closedSignal, runName);
+    assert.match(syncSignal, runName);
+    const queueKey =
+      /workflow_run\.pull_requests\[0\]\.number \|\| github\.event\.workflow_run\.display_title \|\| github\.event\.workflow_run\.id/;
+    assert.match(jobBlock(workflow, "closed"), queueKey);
+    assert.match(jobBlock(workflow, "renew"), queueKey);
+    assert.match(
+      jobBlock(workflow, "closed"),
+      /workflow_run\.name == 'PR closed'/,
+    );
+    assert.match(
+      jobBlock(workflow, "renew"),
+      /workflow_run\.name == 'PR synchronize'/,
+    );
+    assert.match(jobBlock(workflow, "closed"), /secrets\.VERCEL_TOKEN/);
+    assert.match(jobBlock(workflow, "renew"), /secrets\.NEON_API_KEY/);
+    assert.match(jobBlock(workflow, "comment"), /issue_comment/);
+    assert.match(jobBlock(workflow, "reset-db"), /\/reset-db/);
+    assert.doesNotMatch(
+      jobBlock(workflow, "closed"),
+      /pull_request\.head\.sha/,
+    );
+    assert.doesNotMatch(jobBlock(workflow, "renew"), /pull_request\.head\.ref/);
+  });
+
   it("path-gated jobs skip at job level and fail open", async () => {
     const ci = await readRepoFile(".github", "workflows", "ci.yml");
 
@@ -226,10 +291,13 @@ describe("GitHub OIDC remote cache wiring", () => {
   it("per-leg filters only drop what the leg cannot reach", async () => {
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
     assert.match(filter, /^web:\n  - \*js\n  - "!apps\/core\/\*\*"\n\n/m);
-    assert.match(filter, /^core:\n  - \*js\n  - "!apps\/web\/\*\*"\n\n/m);
     assert.match(
       filter,
-      /^packages:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/core\/\*\*"\n\n/m,
+      /^core:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/cmo\/\*\*"\n\n/m,
+    );
+    assert.match(
+      filter,
+      /^packages:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/core\/\*\*"\n  - "!apps\/cmo\/\*\*"\n\n/m,
     );
   });
 

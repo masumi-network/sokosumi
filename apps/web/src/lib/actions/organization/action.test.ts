@@ -1,5 +1,5 @@
+import { MemberRole } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { MemberRole } from "@/lib/clients/generated/core";
 
 vi.mock("server-only", () => ({}));
 

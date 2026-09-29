@@ -1,4 +1,4 @@
-import type { StripeCustomerBillingAddress } from "@/lib/clients/generated/core";
+import type { StripeCustomerBillingAddress } from "@sokosumi/core-client";
 import { getBillingCountryLabel } from "@/lib/constants/billing-countries";
 
 export function formatStripeBillingAddress(

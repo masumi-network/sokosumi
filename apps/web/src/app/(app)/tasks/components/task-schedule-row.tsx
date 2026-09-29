@@ -1,8 +1,8 @@
 "use client";
 
+import type { TaskSchedule } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
@@ -13,7 +13,6 @@ import {
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import type { SchedulesViewMode } from "@/lib/ui-preferences/schedules-view-mode";

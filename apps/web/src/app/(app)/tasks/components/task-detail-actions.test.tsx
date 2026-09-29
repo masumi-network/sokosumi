@@ -1,3 +1,5 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
+import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -22,8 +24,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {
@@ -655,6 +655,7 @@ function renderActions(
       organizations={sampleOrganizations}
       personalWorkspaceLabel={personalWorkspaceLabel}
       isReadOnly={false}
+      isTaskOwner
       {...props}
     />,
   );
@@ -1161,6 +1162,38 @@ describe("TaskDetailActions", () => {
 
     expect(
       screen.getByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides move to workspace from a member who does not own the task", async () => {
+    const user = userEvent.setup();
+
+    renderActions({ isTaskOwner: false });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeNull();
+  });
+
+  it("shows archive while grant approval is pending to a member of an organization task", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      currentOrganizationId: "org-1",
+      isTaskOwner: false,
+      hasAssignedSeat: true,
+      isReadOnly: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
     ).toBeInTheDocument();
   });
 

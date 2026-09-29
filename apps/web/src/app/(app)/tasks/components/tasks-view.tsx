@@ -10,6 +10,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
+import {
   CORE_API_ERROR_KINDS,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
@@ -60,7 +65,6 @@ import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-serv
 import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
-  isTaskDraggableForViewFilters,
   type ProjectFilterOption,
   type TasksFilters,
 } from "@/app/tasks/utils/tasks-filters";
@@ -81,18 +85,12 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import {
   jobStatusDataSchema,
   type TaskEventData,
   taskEventDataSchema,
 } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import {
-  AgentJobStatus,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   serializeTasksDensityCookie,
@@ -695,17 +693,7 @@ export function TasksView({
     if (typeof activeId !== "string" || typeof overId !== "string") return;
 
     const draggedTask = itemsRef.current.find((task) => task.id === activeId);
-    if (
-      !draggedTask ||
-      !isTaskDnDDraggable(draggedTask) ||
-      !isTaskDraggableForViewFilters(
-        draggedTask,
-        userId,
-        routeFilters,
-        initialFilters,
-        activeOrganizationId,
-      )
-    ) {
+    if (!draggedTask || !isTaskDnDDraggable(draggedTask)) {
       return;
     }
 
@@ -1282,15 +1270,7 @@ export function TasksView({
                     compact={density === "compact"}
                     statusLabels={labels.filters.statusOptions}
                     canDragTask={(task) =>
-                      canCreateTask &&
-                      isTaskDnDDraggable(task) &&
-                      isTaskDraggableForViewFilters(
-                        task,
-                        userId,
-                        routeFilters,
-                        initialFilters,
-                        activeOrganizationId,
-                      )
+                      canCreateTask && isTaskDnDDraggable(task)
                     }
                     labels={{
                       columns: labels.columns,

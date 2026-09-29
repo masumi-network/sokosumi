@@ -3614,13 +3614,15 @@ describe("agentSyncService.syncCardanoV2RailReadiness", () => {
       sleep: async (ms) => {
         waits.push(ms);
       },
-      // The shipped budget's shape, three orders of magnitude smaller. The
-      // real 20s and 25s are unreachable from a test: AbortSignal.timeout
-      // does not go through the global setTimeout, so no fake timer can wind
-      // one forward, and a real one would cost 20s of suite time.
+      // The shipped budget's shape, scaled down. The real 20s and 25s are
+      // unreachable from a test: AbortSignal.timeout does not go through
+      // the global setTimeout, so no fake timer can wind one forward, and
+      // a real one would cost 20s of suite time. 20ms/25ms is the same
+      // shape but loses the second attempt when the suite is busy; 50/80
+      // still fits one attempt plus backoff and not two.
       budget: {
-        attemptTimeoutMs: 20,
-        totalTimeoutMs: 25,
+        attemptTimeoutMs: 50,
+        totalTimeoutMs: 80,
         backoffMs: [1, 1, 1],
       },
     });

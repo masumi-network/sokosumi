@@ -1,13 +1,13 @@
+import type {
+  SocialPostCalendarItem,
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  SocialPostCalendarItem,
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 
 /**
  * The Social-only view of the calendar.
@@ -140,6 +140,7 @@ const POST: SocialPostCalendarItem = {
   kind: "socialPost",
   id: "social:post-1",
   postId: "post-1",
+  provider: "x",
   text: "Launch news",
   status: "SCHEDULED",
   externalHandle: "team",
@@ -147,6 +148,7 @@ const POST: SocialPostCalendarItem = {
   scheduledByName: "Ada",
   scheduledByImage: null,
   attachmentCount: 0,
+  previewMedia: null,
   scheduledAt: new Date("2030-01-03T09:00:00.000Z"),
   sourceId: "project:project-1",
   sourceProjectId: "project-1",

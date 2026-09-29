@@ -1,5 +1,5 @@
+import type { GetJobsData, GetTasksData } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
@@ -11,10 +11,6 @@ import {
   unassignedWorkspaceJobsQuery,
   unassignedWorkspaceTasksQuery,
 } from "@/app/projects/constants";
-import type {
-  GetJobsData,
-  GetTasksData,
-} from "@/lib/clients/generated/core/types.gen";
 
 describe("projects list CLS layout constants", () => {
   it("exports full Tailwind class strings for scanner + Instant pairing", () => {

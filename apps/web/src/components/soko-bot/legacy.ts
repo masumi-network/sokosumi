@@ -1,4 +1,4 @@
-import type { SokoBotLegacyMessage } from "@/lib/clients/generated/core";
+import type { SokoBotLegacyMessage } from "@sokosumi/core-client";
 
 export type LegacyRole = "user" | "assistant" | "system";
 

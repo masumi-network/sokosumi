@@ -1,11 +1,11 @@
 "use client";
 
+import type { SokoBotAvailability } from "@sokosumi/core-client";
 import { Power, PowerOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setSokoBotAvailabilityAction } from "@/lib/actions/admin-soko-bots/action";
-import type { SokoBotAvailability } from "@/lib/clients/generated/core";
 
 /**
  * Switches the whole feature off: no turns start and no model calls are made,

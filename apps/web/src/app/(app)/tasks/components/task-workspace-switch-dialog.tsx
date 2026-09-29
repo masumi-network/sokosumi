@@ -1,13 +1,13 @@
 "use client";
 
 import * as Sentry from "@sentry/nextjs";
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-
 import HeaderWorkspaceAvatar from "@/app/components/header/header-workspace-avatar";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import {
@@ -20,7 +20,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 interface TaskWorkspaceSwitchDialogProps {
   currentAccountName: string;
