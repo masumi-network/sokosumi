@@ -1459,7 +1459,7 @@ describe("Drive Tasks Routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          folderPath: "Tasks",
+          folderPath: "Sokosumi Projects",
           scope: "me",
         }),
       });
@@ -1477,7 +1477,7 @@ describe("Drive Tasks Routes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          folderPath: "Tasks/SubFolder",
+          folderPath: "Sokosumi Projects/SubFolder",
           scope: "me",
         }),
       });
@@ -1562,7 +1562,7 @@ describe("Drive Tasks Routes", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           oldFolderPath: "Documents",
-          newFolderPath: "Tasks",
+          newFolderPath: "Sokosumi Projects",
           scope: "me",
         }),
       });
@@ -1581,7 +1581,7 @@ describe("Drive Tasks Routes", () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           itemType: "folder",
-          sourcePathname: "Projects/Tasks",
+          sourcePathname: "Projects/Sokosumi Projects",
           targetFolderPath: "",
           scope: "me",
         }),
