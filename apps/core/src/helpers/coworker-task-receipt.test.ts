@@ -30,7 +30,7 @@ describe("resolveTaskSellerReceipt", () => {
       ok({
         onChainState: "Withdrawn",
         CurrentTransaction: { txHash: "tx_withdrawn" },
-        WithdrawnForSeller: [{ unit: "lovelace", amount: 500000 }],
+        WithdrawnForSeller: [{ unit: "lovelace", amount: "500000" }],
       }),
     );
     const receipt = await resolveTaskSellerReceipt(

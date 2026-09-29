@@ -30,6 +30,11 @@ export async function resolveTaskSellerReceipt(
   taskId: string,
   db: Pick<typeof prisma, "taskPaymentClaim"> = prisma,
 ): Promise<TaskSellerReceipt> {
+  // The pilot has one payment per task, so the newest claim is the one to
+  // prove. Known limitation: if a task is later re-charged (a second claim),
+  // this reports the newest claim only. An older settled claim on the same task
+  // would then read as settled:false. Revisit with a status-aware selection if
+  // re-charging Coworker tasks becomes a real flow.
   const claim = await db.taskPaymentClaim.findFirst({
     where: { taskEvent: { taskId } },
     orderBy: { createdAt: "desc" },

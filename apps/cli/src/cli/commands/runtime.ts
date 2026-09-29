@@ -168,7 +168,8 @@ export async function runRuntimeCommand({
   for (const name of Object.keys(options)) {
     if (
       (!COMMON_OPTIONS.has(name) && !commandOptions.has(name)) ||
-      (command === "key-import" && name === "organization-id")
+      (["key-import", "receipt"].includes(command) &&
+        name === "organization-id")
     ) {
       throw new Error(
         `runtime ${command} does not accept --${name}; runtime uses Preprod only`,

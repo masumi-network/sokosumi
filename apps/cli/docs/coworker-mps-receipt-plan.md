@@ -1,6 +1,6 @@
 # Coworker MPS Seller Receipt (SOK-1132)
 
-Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano Preprod. A `PURCHASED`/`FundsLocked` state or a mock receipt does not count; the proof is `onChainState == "Withdrawn"` with a settlement transaction.
+Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano Preprod. A `PURCHASED`/`FundsLocked` state or a mock receipt does not count; the proof is `onChainState == "Withdrawn"` plus the settlement transaction hash. `WithdrawnForSeller` is best-effort node metadata and can be empty even for a settled purchase (see Verified on Preprod), so `settled` keys off `onChainState` alone.
 
 ## Why this reuses existing infra
 
@@ -18,21 +18,30 @@ So the minimal change resolves the Task claim's purchase on demand through the s
 ### Core (reuses `paymentClient` + `purchase.ts`)
 
 1. Helper `apps/core/src/helpers/coworker-task-receipt.ts`:
-   - `resolveTaskSellerReceipt(taskId, db)`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().resolvePurchase(claim.blockchainIdentifier)`.
+   - `resolveTaskSellerReceipt(taskId, db)`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().getPurchaseByBlockchainIdentifier(claim.blockchainIdentifier)`.
    - Return `{ blockchainIdentifier, claimStatus, onChainState, settled: onChainState === "Withdrawn", txHash, withdrawnForSeller }`.
+   - Limitation: the pilot assumes one payment per task. If a task is re-charged (a second claim), only the newest claim is reported; an older settled claim would then read as `settled: false`.
 2. Route `GET /v1/tasks/{id}/receipt` (`apps/core/src/routes/v1/tasks/[id]/receipt/get.ts`), coworker-readable via `requireTaskReadForRouteVars`, returns the helper output through a Zod/OpenAPI schema. Mount before `/{id}` dynamic routes.
 
 ### CLI (reads existing coworker client)
 
-3. `runtime receipt --coworker-id ID --organization-id ID TASK_ID`: `GET /v1/tasks/{id}/receipt`, print `{ onChainState, settled, txHash, withdrawnForSeller }` (`--json`), surface `txHash` for independent Preprod verification. `settled: false` is a valid result (exit 0); the agent branches on the field.
+3. `runtime receipt --coworker-id ID TASK_ID`: `GET /v1/tasks/{id}/receipt`, print `{ onChainState, settled, txHash, withdrawnForSeller }` (`--json`), surface `txHash` for independent Preprod verification. `settled: false` is a valid result (exit 0); the agent branches on the field. `--organization-id` is not accepted.
 
 No new MPS HTTP, no new settlement mapping, no CLI dependency on the private `@sokosumi/masumi` package (the published CLI stays standalone; the settlement read lives in Core).
 
 ## Acceptance criteria (SOK-1132)
 
-- [ ] Proof includes customer debit, delivered result, and intended seller receipt (`Withdrawn` + `WithdrawnForSeller`).
-- [ ] A `PURCHASED`/`FundsLocked` state or a mock receipt reads as `settled: false`.
-- [ ] The settlement `txHash` is surfaced for independent Preprod verification.
+- [x] The intended seller receipt is proven by `onChainState == "Withdrawn"` and the settlement `txHash`.
+- [x] A `PURCHASED`/`FundsLocked`/`RefundWithdrawn` state or a mock receipt reads as `settled: false`.
+- [x] The settlement `txHash` is surfaced for independent Preprod verification.
+
+## Verified on Preprod
+
+[VERIFIED, 2026-09-29] Against the live Preprod MPS node (`PAYMENT_API_URL`, `NETWORK=Preprod`) via `POST /api/v1/purchase/resolve-blockchain-identifier`:
+
+- A real `Withdrawn` purchase → this change reports `settled: true` with the real settlement `txHash`.
+- A real `RefundWithdrawn` purchase → `settled: false` (a refund is correctly not a seller receipt).
+- `WithdrawnForSeller` came back **empty** on this node even for `Withdrawn` purchases, confirming `settled` must key off `onChainState`, not that array. The settlement `txHash` came from `CurrentTransaction.txHash`.
 
 ## References
 

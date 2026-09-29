@@ -709,3 +709,77 @@ test("runtime receipt reports an unsettled payment as not proven", async () => {
   const result = JSON.parse(output.join("")) as { settled: boolean };
   assert.equal(result.settled, false);
 });
+
+test("runtime receipt text mode confirms a settled seller receipt", async () => {
+  const { dependencies, output } = receiptDependencies({
+    blockchainIdentifier: "bc_1",
+    claimStatus: "PURCHASED",
+    onChainState: "Withdrawn",
+    settled: true,
+    txHash: "tx_withdrawn",
+    withdrawnForSeller: [],
+  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  await runCli(
+    [
+      "runtime",
+      "receipt",
+      "task-1",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
+    ],
+    dependencies,
+  );
+  const text = output.join("");
+  assert.match(text, /Seller receipt confirmed/);
+  assert.match(text, /tx_withdrawn/);
+});
+
+test("runtime receipt text mode reports an unsettled payment as not settled", async () => {
+  const { dependencies, output } = receiptDependencies({
+    blockchainIdentifier: "bc_1",
+    claimStatus: "PURCHASED",
+    onChainState: "FundsLocked",
+    settled: false,
+    txHash: null,
+    withdrawnForSeller: [],
+  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  await runCli(
+    [
+      "runtime",
+      "receipt",
+      "task-1",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
+    ],
+    dependencies,
+  );
+  const text = output.join("");
+  assert.match(text, /Seller receipt not settled/);
+  assert.match(text, /FundsLocked/);
+});
+
+test("runtime receipt rejects --organization-id like key-import", async () => {
+  const { dependencies } = receiptDependencies({}) as {
+    dependencies: CliDependencies;
+    paths: string[];
+    output: string[];
+  };
+  await assert.rejects(
+    runCli(
+      [
+        "runtime",
+        "receipt",
+        "task-1",
+        "--coworker-id",
+        "cw-1",
+        "--organization-id",
+        "org-1",
+        "--api-key-stdin",
+      ],
+      dependencies,
+    ),
+    /does not accept --organization-id/,
+  );
+});
