@@ -327,6 +327,18 @@ describe("sandbox turn service", () => {
       status: "FAILED",
       errorDetail: '{"error":"fetch failed"}',
     });
+
+    // A failure can echo a credential; it is redacted before it is stored.
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c12",
+      status: "failed",
+      output:
+        "401 from https://api.example.com with Authorization: Bearer fake-test-credential-4f9a2c7e1b8d",
+    });
+    const redacted = toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    expect(redacted.status).toBe("FAILED");
+    expect(redacted.errorDetail).not.toContain("fake-test-credential");
   });
 
   it("settles only sandbox tools from the runner", async () => {

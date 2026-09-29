@@ -36,10 +36,17 @@ Optional, per network:
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
   zero data retention and no prompt training. Without the key every turn
-  falls back to read-only CLARIFY. Only text a person wrote is classified:
+  falls back to read-only CLARIFY. Only text a person wrote is routed:
   turns whose prompt Core writes (task-board and delegation events, inbox
   sync, the stand-up and weekly wrap) run on fixed routes in
   `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
+  The same exception (widened 2026-09-30) covers the bot's own text: the
+  router also sees the bot's previous reply, so a bare "yes" has a referent;
+  the claim check reads each reply on a turn that could act, to hold back
+  one that claims an unconfirmed change; and `find_agents` sends the
+  request. Replies can quote mail, calendar and Tasks, so this applies to
+  EU-pinned versions too: their answers are written in the EU, these checks
+  are not.
 - The agent model is the turn's version model. The default, GPT-6 Luna
   (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
   second owner-approved exception (2026-09-29), for the agent role only:

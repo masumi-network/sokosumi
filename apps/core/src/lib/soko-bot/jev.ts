@@ -4,8 +4,10 @@ import { z } from "zod";
 /**
  * Jev, TypeSafe AI's evaluation model: typed questions answered with a
  * probability instead of text. It has no EU regional route, so it runs under
- * an owner-approved exception to the EU policy in `model-policy.ts`; every
- * request keeps nothing and trains on nothing.
+ * an owner-approved exception to the EU policy in `model-policy.ts`, for
+ * every version including EU-pinned ones: routing (owner messages and the
+ * bot's previous reply), the claim check (the bot's replies) and agent fit
+ * (the owner's request). Every request keeps nothing and trains on nothing.
  */
 export const SOKO_BOT_JEV_MODEL = "typesafe-ai/jev";
 

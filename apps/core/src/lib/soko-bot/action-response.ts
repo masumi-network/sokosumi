@@ -309,7 +309,6 @@ function describeRead(capability: string, value: unknown): string[] {
   return observations;
 }
 
-/** Model text cannot confer evidence. Replays reference original committed proof. */
 /** Whether `later` repeats every field `earlier` set, with the same value. */
 function inputCovers(later: unknown, earlier: unknown): boolean {
   if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
@@ -322,6 +321,7 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** Model text cannot confer evidence. Replays reference original committed proof. */
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
   turnId: string,

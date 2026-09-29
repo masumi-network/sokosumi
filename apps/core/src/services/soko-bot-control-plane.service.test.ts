@@ -3635,12 +3635,36 @@ describe("SET_VERSION and fleet migration", () => {
 
     const result = await new SokoBotControlPlane().migrateVersions({
       operatorId: "admin_1",
-      toVersionId: "v19",
+      toVersionId: "v20",
       reason: "Quiet fix",
     });
 
     expect(result).toMatchObject({ moved: 1, notified: 0 });
     expect(postOwnerNoticeMock).not.toHaveBeenCalled();
+  });
+
+  it("always tells owners when their bot moves outside the EU", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v20" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v20" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move to Luna",
+      notifyOwners: false,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 1 });
+    expect(postOwnerNoticeMock.mock.calls[0][0].content).toMatch(
+      /outside the EU/,
+    );
   });
 
   it("gives each bot its own operation id, fresh on every run", async () => {

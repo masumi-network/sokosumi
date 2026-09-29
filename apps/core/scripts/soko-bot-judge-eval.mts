@@ -11,9 +11,9 @@
  * turns picked because they went wrong. Grade before looking at any model's
  * verdict, or the comparison measures agreement with the model you read.
  *
- * Every candidate is asked for an EU route and its answer is discarded unless
- * the Gateway reports EU inference, so an unapproved model can be measured
- * without owner data leaving the EU. Only lab turns are ever judged.
+ * Every candidate is asked for an EU-only route, so the Gateway refuses rather
+ * than falls back outside the EU; an answer whose reported region is not the
+ * EU is still discarded, in case that ever changes. Only lab turns are judged.
  */
 import { readFileSync } from "node:fs";
 import {

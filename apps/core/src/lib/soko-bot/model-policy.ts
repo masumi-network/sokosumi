@@ -4,8 +4,8 @@ import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
 
 /** Public Gateway catalog checked 2026-09-26. Add exact IDs only after review.
  * Virtual aliases and direct-provider objects cannot bypass regional routing.
- * Jev has no regional support and is intentionally absent: route selection
- * uses it under a separate, owner-approved exception (see `classifier.ts`).
+ * Jev has no regional support and is intentionally absent: it runs under a
+ * separate, owner-approved exception (see `jev.ts`).
  */
 const EU_MODELS: Readonly<Record<string, { providers: readonly string[] }>> = {
   "google/gemini-3.6-flash": { providers: ["vertex"] },

@@ -4203,6 +4203,7 @@
           "reasonPlaceholder": "¿Por qué mueve la flota? (obligatorio, queda registrado para cada bot)",
           "notifyLabel": "Avisar a los propietarios en el chat de su bot",
           "notifyHint": "Cada bot movido publica un mensaje fijo con la versión que usa ahora y lo que cambia para su propietario. No inicia ningún turno.",
+          "notifyRequired": "Obligatorio para esta versión: funciona fuera de la UE, así que cada bot movido avisa a su propietario. No inicia ningún turno.",
           "confirm": "Mover {count} bots",
           "nothingToMove": "No hay nada que mover con esta selección.",
           "working": "Moviendo…",

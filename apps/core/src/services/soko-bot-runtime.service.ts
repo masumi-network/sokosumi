@@ -99,6 +99,11 @@ import {
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { FileActor } from "@/lib/files/actor";
+import {
+  FILE_CHUNK_OVERLAP_CHARS,
+  FILE_CHUNK_TARGET_CHARS,
+  joinExtractedChunks,
+} from "@/lib/files/extraction";
 import { nudgeFileIndexing } from "@/lib/files/in-process-indexer";
 import { requireProjectAccess } from "@/lib/image-studio/access";
 import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
@@ -1713,14 +1718,20 @@ export class SokoBotRuntimeService {
         "File not found; use an id from list_files",
       );
     const limit = input.maxChars ?? 20_000;
+    // Enough chunks to fill the limit, and one more to know there is more.
+    const needed = Math.ceil(
+      limit / (FILE_CHUNK_TARGET_CHARS - FILE_CHUNK_OVERLAP_CHARS),
+    );
     const chunks = await prisma.fileChunk.findMany({
       where: {
         version: { resourceId: file.id, revision: file.contentRevision },
       },
       orderBy: { ordinal: "asc" },
+      take: needed + 1,
       select: { text: true },
     });
-    const indexed = chunks.map((chunk) => chunk.text).join("\n\n");
+    const indexed = joinExtractedChunks(chunks.slice(0, needed));
+    const moreIndexed = chunks.length > needed;
     const direct = indexed ? null : await readDriveText(file);
     const text = indexed || direct || "";
     return {
@@ -1728,7 +1739,7 @@ export class SokoBotRuntimeService {
       name: file.displayName,
       type: file.mimeType,
       text: text.slice(0, limit),
-      truncated: text.length > limit,
+      truncated: text.length > limit || moreIndexed,
       ...(direct
         ? {
             note: "Read from the file itself; search has not indexed it yet.",

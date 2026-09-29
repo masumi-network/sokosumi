@@ -3435,7 +3435,7 @@ export class SokoBotControlPlane {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
-    /** Tell each moved bot's owner, in its chat, what changed. */
+    /** Tell each moved bot's owner, in its chat, what changed. Always on for a non-EU target. */
     notifyOwners?: boolean;
     requestId?: string;
     traceId?: string;
@@ -3452,11 +3452,13 @@ export class SokoBotControlPlane {
         `Unknown Soko Bot version ${input.toVersionId}`,
       );
     }
-    const notice = input.notifyOwners
-      ? composeSokoBotVersionNotice(
-          await resolveSokoBotVersion(input.toVersionId),
-        )
-      : null;
+    const target = await resolveSokoBotVersion(input.toVersionId);
+    // Moving a bot off EU-pinned inference changes where its owner's data is
+    // processed; that is never done without telling them.
+    const notice =
+      input.notifyOwners || target.inferenceRegion !== "eu"
+        ? composeSokoBotVersionNotice(target)
+        : null;
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,

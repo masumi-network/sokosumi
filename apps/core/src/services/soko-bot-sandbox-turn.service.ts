@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import {
@@ -205,6 +206,7 @@ export async function recordSandboxAction(
 }
 
 const SANDBOX_OUTPUT_MAX_BYTES = 12_288;
+const SANDBOX_ERROR_DETAIL_MAX_BYTES = 1_000;
 
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
@@ -242,7 +244,16 @@ export async function recordSandboxActionResult(
           sources: input.sources ?? [],
         }),
       ),
-      ...(failed ? { errorDetail: input.output?.slice(0, 500) } : {}),
+      // Redacted as Core's own tool errors are: a failed fetch can echo a URL
+      // with a token in it, and this row is shown to the owner and the judge.
+      ...(failed
+        ? {
+            errorDetail: truncateUtf8(
+              redactSokoBotSensitiveText(input.output ?? ""),
+              SANDBOX_ERROR_DETAIL_MAX_BYTES,
+            ),
+          }
+        : {}),
     },
   });
   await logFor(claims).append(

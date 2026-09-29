@@ -23,14 +23,15 @@ vi.mock("@/lib/actions/admin-soko-bots/action", () => ({
 
 import { SokoBotVersionMigration } from "./soko-bot-version-migration.client";
 
-function renderMigration() {
+function renderMigration(defaultVersionId = "v20") {
   render(
     <SokoBotVersionMigration
       versions={[
-        { id: "v16", name: "v16" },
-        { id: "v19", name: "v19" },
+        { id: "v16", name: "v16", euPinned: true },
+        { id: "v19", name: "v19", euPinned: false },
+        { id: "v20", name: "v20", euPinned: true },
       ]}
-      defaultVersionId="v19"
+      defaultVersionId={defaultVersionId}
       inUse={[{ versionId: "v16", count: 5 }]}
     />,
   );
@@ -61,9 +62,19 @@ describe("SokoBotVersionMigration", () => {
     fireEvent.click(screen.getByRole("button", { name: "confirm" }));
     await waitFor(() => expect(migrateActionMock).toHaveBeenCalled());
     expect(migrateActionMock.mock.calls[0][0].input).toMatchObject({
-      toVersionId: "v19",
+      toVersionId: "v20",
       notifyOwners: true,
     });
+  });
+
+  it("locks the notice on for a version that runs outside the EU", async () => {
+    renderMigration("v19");
+    const box = screen.getByRole("checkbox");
+    expect(box).toBeChecked();
+    expect(box).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "confirm" }));
+    await waitFor(() => expect(migrateActionMock).toHaveBeenCalled());
+    expect(migrateActionMock.mock.calls[0][0].input.notifyOwners).toBe(true);
   });
 
   it("moves quietly when the box is cleared", async () => {

@@ -2188,6 +2188,8 @@ model SokoBotTurn {
   /// Owner thumbs on a proactive message: 1 useful, -1 not.
   ownerFeedback   Int?
   ownerFeedbackAt DateTime?
+  /// Judge scores. Written for behaviour-lab turns only since 2026-09-30;
+  /// real turns are no longer judged.
   qualityScore    Int?
   qualityVerdict  Json?
   qualityModel    String?

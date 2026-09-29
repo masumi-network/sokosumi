@@ -326,11 +326,6 @@ async function storeTurnVerdict(turnId: string, call: JudgeCall) {
   });
 }
 
-/**
- * Grades one lab turn against its scenario rubric and records the run
- * (deterministic checks + verdict) so the admin overview can compare
- * versions across users and sessions.
- */
 type LabScenario = (typeof SOKO_BOT_SCENARIOS)[number];
 type Transcript = Awaited<ReturnType<typeof loadTranscript>>["transcript"];
 
@@ -364,6 +359,11 @@ export async function loadLabJudgePayload(turnId: string, scenarioId: string) {
   return labJudgePayload(scenario, transcript);
 }
 
+/**
+ * Grades one lab turn against its scenario rubric and records the run
+ * (deterministic checks + verdict) so the admin overview can compare
+ * versions across users and sessions.
+ */
 export async function judgeSokoBotLabTurn(input: {
   userId: string;
   turnId: string;

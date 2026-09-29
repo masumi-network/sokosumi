@@ -94,10 +94,12 @@ describe("versions", () => {
     expect(luna).toMatch(/^I've been updated to version v19\./);
     // Moving an owner onto Luna moves their data outside the EU: say so.
     expect(luna).toMatch(/outside the EU/);
+    expect(luna).toMatch(/search terms may be kept/);
     expect(luna).toMatch(/v20/);
-    expect(composeSokoBotVersionNotice(getSokoBotVersion("v20"))).toMatch(
-      /inside the EU/,
-    );
+    // v20 writes in the EU, but its routing and claim checks do not run there.
+    const eu = composeSokoBotVersionNotice(getSokoBotVersion("v20"));
+    expect(eu).toMatch(/inside the EU/);
+    expect(eu).toMatch(/outside the EU/);
     // A version without a note says what it is from its summary.
     expect(
       composeSokoBotVersionNotice({ id: "custom", summary: "A lab prompt." }),

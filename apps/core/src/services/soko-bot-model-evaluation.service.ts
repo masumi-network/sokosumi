@@ -39,15 +39,20 @@ export async function listSokoBotModelEvaluations() {
   return {
     currentJudgeModel: sokoBotJudgeModel(),
     currentRouteModel: SOKO_BOT_ROUTE_MODEL,
-    judge: judge.map((row) => ({
-      ...base(row),
-      models: judgeModelSummarySchema.array().parse(row.models),
-      cases: judgeCaseSummarySchema.array().parse(row.cases),
-    })),
-    router: router.map((row) => ({
-      ...base(row),
-      models: routerModelSummarySchema.array().parse(row.models),
-      cases: routerCaseSummarySchema.array().parse(row.cases),
-    })),
+    // A row written in an older shape is skipped, not allowed to fail the page.
+    judge: judge.flatMap((row) => {
+      const models = judgeModelSummarySchema.array().safeParse(row.models);
+      const cases = judgeCaseSummarySchema.array().safeParse(row.cases);
+      return models.success && cases.success
+        ? [{ ...base(row), models: models.data, cases: cases.data }]
+        : [];
+    }),
+    router: router.flatMap((row) => {
+      const models = routerModelSummarySchema.array().safeParse(row.models);
+      const cases = routerCaseSummarySchema.array().safeParse(row.cases);
+      return models.success && cases.success
+        ? [{ ...base(row), models: models.data, cases: cases.data }]
+        : [];
+    }),
   };
 }

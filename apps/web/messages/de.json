@@ -4203,6 +4203,7 @@
           "reasonPlaceholder": "Warum verschieben Sie die Flotte? (erforderlich, wird für jeden Bot festgehalten)",
           "notifyLabel": "Besitzer im Chat ihres Bots informieren",
           "notifyHint": "Jeder verschobene Bot schreibt eine feste Nachricht, welche Version er jetzt nutzt und was sich für seinen Besitzer ändert. Dabei wird kein Durchlauf gestartet.",
+          "notifyRequired": "Für diese Version Pflicht: Sie läuft außerhalb der EU, daher informiert jeder verschobene Bot seinen Besitzer. Dabei wird kein Durchlauf gestartet.",
           "confirm": "{count} Bots verschieben",
           "nothingToMove": "Für diese Auswahl gibt es nichts zu verschieben.",
           "working": "Wird verschoben…",

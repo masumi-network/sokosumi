@@ -324,11 +324,6 @@ export async function runTurnTool(input: {
     : { evidenceToolCallId: callId, result };
 }
 
-/**
- * The model's words for the owner on a turn that could act. Its reply is
- * meant to be the JSON narrative; plain prose is kept as its message too. A
- * message that claims an action is dropped, since only receipts may.
- */
 /** The changes this turn's receipts confirm, as the answer names them. */
 async function confirmedChanges(turnId: string): Promise<string[]> {
   const calls = await prisma.sokoBotToolCall.findMany({
@@ -347,6 +342,11 @@ async function confirmedChanges(turnId: string): Promise<string[]> {
   ];
 }
 
+/**
+ * The model's words for the owner on a turn that could act. Its reply is
+ * meant to be the JSON narrative; plain prose is kept as its message too. A
+ * message that claims an action is dropped, since only receipts may.
+ */
 async function ownerNarrative(
   text: string,
   turnId: string,
@@ -379,7 +379,7 @@ async function ownerNarrative(
     ...narrative,
     message:
       claim === null
-        ? "I held back my reply because it could not be checked just now. Ask me again to see it."
+        ? "I held back this reply because it could not be checked just now."
         : null,
   };
 }
