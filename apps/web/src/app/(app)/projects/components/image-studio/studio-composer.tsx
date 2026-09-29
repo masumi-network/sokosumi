@@ -33,7 +33,7 @@ import {
   type StudioSettings,
   type StudioTarget,
 } from "./types";
-import type { QueuedGeneration } from "./use-generation-queue";
+import type { GenerationRequest } from "./use-generation-queue";
 
 /**
  * The most a single press of Generate may buy.
@@ -146,7 +146,6 @@ export function StudioComposer({
   onGenerate,
   onPromptChange,
   onTargetChange,
-  projectId,
   prompt,
   promptRef,
   referenceAssets,
@@ -157,7 +156,7 @@ export function StudioComposer({
   catalog: StudioCatalog;
   labels: StudioLabels;
   onApplyTemplate: (template: StudioTemplate) => void;
-  onGenerate: (requests: QueuedGeneration[]) => void;
+  onGenerate: (requests: GenerationRequest[]) => void;
   /**
    * The prompt lives above this component.
    *
@@ -176,7 +175,6 @@ export function StudioComposer({
    * this composer, so that was not a rare case.
    */
   onTargetChange: (update: (current: StudioTarget) => StudioTarget) => void;
-  projectId: string;
   prompt: string;
   /**
    * The prompt box itself, so the studio can put the caret in it.
@@ -356,7 +354,7 @@ export function StudioComposer({
     // Straight from the plan, so the batch bought is the batch the line above
     // the button described — including its model order and its clamped
     // settings. Nothing is decided a second time here.
-    const requests: QueuedGeneration[] = plan.legs.map((leg) => {
+    const requests: GenerationRequest[] = plan.legs.map((leg) => {
       const id = crypto.randomUUID();
       return {
         id,
@@ -371,8 +369,9 @@ export function StudioComposer({
         idempotencyKey: `ui:${id}`,
       };
     });
+    // The studio clears the prompt once the batch has somewhere to go: with no
+    // project picked yet, the brief stays put while the person chooses one.
     onGenerate(requests);
-    onPromptChange("");
   }
 
   const modelSummary =
@@ -416,7 +415,7 @@ export function StudioComposer({
                     <img
                       alt=""
                       className="size-5 rounded-sm object-cover"
-                      src={assetContentUrl(projectId, asset.id)}
+                      src={assetContentUrl(asset)}
                     />
                     v{asset.version}
                   </span>

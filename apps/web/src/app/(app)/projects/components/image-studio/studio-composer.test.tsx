@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { MAX_BATCH, StudioComposer } from "./studio-composer";
 import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioCatalog, StudioLabels, StudioTarget } from "./types";
-import type { QueuedGeneration } from "./use-generation-queue";
+import type { GenerationRequest } from "./use-generation-queue";
 
 /**
  * The composer, driven the way a person drives it.
@@ -82,7 +82,7 @@ function Harness({
 }: {
   catalog?: StudioCatalog;
   initial: StudioTarget;
-  onGenerate: (requests: QueuedGeneration[]) => void;
+  onGenerate: (requests: GenerationRequest[]) => void;
 }) {
   const [target, setTarget] = useState<StudioTarget>(initial);
   const [prompt, setPrompt] = useState("");
@@ -97,7 +97,6 @@ function Harness({
         onGenerate={onGenerate}
         onPromptChange={setPrompt}
         onTargetChange={(update) => setTarget((current) => update(current))}
-        projectId="p"
         prompt={prompt}
         referenceAssets={[]}
         target={target}
@@ -335,7 +334,7 @@ describe("the line above Generate", () => {
     clickChip("3");
     generate();
 
-    const requests = onGenerate.mock.calls[0][0] as QueuedGeneration[];
+    const requests = onGenerate.mock.calls[0][0] as GenerationRequest[];
     expect(requests).toHaveLength(6);
     // Round-robin: the first pass covers every model, so a batch is comparable
     // while it is still arriving.
@@ -573,7 +572,7 @@ describe("the batch ceiling", () => {
     ).toBeInTheDocument();
 
     generate();
-    const requests = onGenerate.mock.calls[0][0] as QueuedGeneration[];
+    const requests = onGenerate.mock.calls[0][0] as GenerationRequest[];
     expect(requests).toHaveLength(10);
   });
 
@@ -590,7 +589,7 @@ describe("the batch ceiling", () => {
     clickOption("selectAllModels");
     generate();
 
-    const requests = onGenerate.mock.calls[0][0] as QueuedGeneration[];
+    const requests = onGenerate.mock.calls[0][0] as GenerationRequest[];
     expect(requests).toHaveLength(MAX_BATCH);
     // One run each of as many models as fit, rather than several runs of an
     // arbitrary few.

@@ -14506,6 +14506,338 @@ export const ProjectImageStudioCatalogModelSchema = {
     ]
 } as const;
 
+export const ImageStudioWorkspaceStateSchema = {
+    type: 'object',
+    properties: {
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        nextCursor: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'createdAt',
+                'id'
+            ]
+        }
+    },
+    required: [
+        'assets',
+        'jobs',
+        'nextCursor'
+    ]
+} as const;
+
+export const ProjectImageAssetSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectName: {
+            type: 'string'
+        },
+        rootId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer',
+            minimum: 1
+        },
+        prompt: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        width: {
+            type: 'integer',
+            minimum: 0
+        },
+        height: {
+            type: 'integer',
+            minimum: 0
+        },
+        bytes: {
+            type: 'integer',
+            minimum: 0
+        },
+        contentType: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        contentPath: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'projectName',
+        'rootId',
+        'parentId',
+        'version',
+        'prompt',
+        'model',
+        'width',
+        'height',
+        'bytes',
+        'contentType',
+        'createdAt',
+        'jobId',
+        'settings',
+        'contentPath'
+    ]
+} as const;
+
+export const ProjectImageSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3',
+                '4:5',
+                '5:4'
+            ],
+            default: '1:1'
+        },
+        resolution: {
+            type: 'string',
+            enum: [
+                '0.5K',
+                '1K',
+                '2K'
+            ],
+            default: '1K'
+        },
+        outputFormat: {
+            type: 'string',
+            enum: [
+                'png',
+                'jpeg',
+                'webp'
+            ],
+            default: 'png'
+        },
+        seed: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 2147483647,
+            default: null
+        }
+    }
+} as const;
+
+export const ProjectImageJobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'SUBMITTING',
+                'QUEUED',
+                'RUNNING',
+                'SUCCEEDED',
+                'FAILED',
+                'CANCELED',
+                'SUBMISSION_UNCERTAIN',
+                'ORPHANED'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'GENERATE',
+                'EDIT'
+            ]
+        },
+        model: {
+            type: 'string'
+        },
+        prompt: {
+            type: 'string'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submittedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        settledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancelRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        retryMayDuplicateCharge: {
+            type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'status',
+        'kind',
+        'model',
+        'prompt',
+        'settings',
+        'referenceAssetIds',
+        'error',
+        'failureReason',
+        'parentAssetId',
+        'assetId',
+        'createdAt',
+        'submittedAt',
+        'settledAt',
+        'cancelRequestedAt',
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -18523,280 +18855,6 @@ export const ProjectImageStudioStateSchema = {
         'jobs',
         'sessions',
         'nextCursor'
-    ]
-} as const;
-
-export const ProjectImageAssetSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        rootId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        version: {
-            type: 'integer',
-            minimum: 1
-        },
-        prompt: {
-            type: 'string'
-        },
-        model: {
-            type: 'string'
-        },
-        width: {
-            type: 'integer',
-            minimum: 0
-        },
-        height: {
-            type: 'integer',
-            minimum: 0
-        },
-        bytes: {
-            type: 'integer',
-            minimum: 0
-        },
-        contentType: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        settings: {
-            $ref: '#/components/schemas/ProjectImageSettings'
-        },
-        contentPath: {
-            type: 'string'
-        }
-    },
-    required: [
-        'id',
-        'rootId',
-        'parentId',
-        'version',
-        'prompt',
-        'model',
-        'width',
-        'height',
-        'bytes',
-        'contentType',
-        'createdAt',
-        'jobId',
-        'settings',
-        'contentPath'
-    ]
-} as const;
-
-export const ProjectImageSettingsSchema = {
-    type: 'object',
-    properties: {
-        aspectRatio: {
-            type: 'string',
-            enum: [
-                '1:1',
-                '4:3',
-                '3:4',
-                '16:9',
-                '9:16',
-                '3:2',
-                '2:3',
-                '4:5',
-                '5:4'
-            ],
-            default: '1:1'
-        },
-        resolution: {
-            type: 'string',
-            enum: [
-                '0.5K',
-                '1K',
-                '2K'
-            ],
-            default: '1K'
-        },
-        outputFormat: {
-            type: 'string',
-            enum: [
-                'png',
-                'jpeg',
-                'webp'
-            ],
-            default: 'png'
-        },
-        seed: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 2147483647,
-            default: null
-        }
-    }
-} as const;
-
-export const ProjectImageJobSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'SUBMITTING',
-                'QUEUED',
-                'RUNNING',
-                'SUCCEEDED',
-                'FAILED',
-                'CANCELED',
-                'SUBMISSION_UNCERTAIN',
-                'ORPHANED'
-            ]
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'GENERATE',
-                'EDIT'
-            ]
-        },
-        model: {
-            type: 'string'
-        },
-        prompt: {
-            type: 'string'
-        },
-        settings: {
-            $ref: '#/components/schemas/ProjectImageSettings'
-        },
-        referenceAssetIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            }
-        },
-        error: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        failureReason: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'provider_rejected',
-                'provider_error',
-                'provider_lost_request',
-                'provider_unreachable',
-                'submission_uncertain',
-                'reference_not_sendable',
-                'request_not_supported',
-                'cancelled',
-                'abandoned_before_send',
-                'access_revoked',
-                'storage_unavailable',
-                'unknown',
-                null
-            ]
-        },
-        parentAssetId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        assetId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        submittedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        settledAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        cancelRequestedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        retryMayDuplicateCharge: {
-            type: 'boolean'
-        },
-        credits: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        refunded: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'id',
-        'status',
-        'kind',
-        'model',
-        'prompt',
-        'settings',
-        'referenceAssetIds',
-        'error',
-        'failureReason',
-        'parentAssetId',
-        'assetId',
-        'createdAt',
-        'submittedAt',
-        'settledAt',
-        'cancelRequestedAt',
-        'retryMayDuplicateCharge',
-        'credits',
-        'refunded'
     ]
 } as const;
 

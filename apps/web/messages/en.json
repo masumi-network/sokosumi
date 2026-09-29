@@ -2683,6 +2683,8 @@
       "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "pickForGeneration": "Which project do these images go to?",
+      "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
