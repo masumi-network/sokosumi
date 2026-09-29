@@ -1,6 +1,8 @@
+import { TaskVisibility } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -68,6 +70,11 @@ const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
   context: { userId: "user_123", organizationId: null },
 };
 
+const OTHER_MEMBER_AUTH_CONTEXT: AuthenticationContext = {
+  ...USER_AUTH_CONTEXT,
+  userId: "user_456",
+};
+
 const WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 const TASK_ID = "tsk_abc";
@@ -77,6 +84,29 @@ const WORKSPACE_CONTEXT = {
   userId: "user_123",
   organizationId: null,
 } satisfies WorkspaceVariables["workspaceContext"];
+
+type StoredTask = {
+  visibility: TaskVisibility;
+  ownerId: string;
+};
+
+// Applies the route's visibility OR clauses to one stored row, so the tests
+// exercise the real human visibility rule instead of a hand-picked null.
+function findFirstVisibleTask(task: StoredTask) {
+  return async ({ where }: { where: { OR: Partial<StoredTask>[] } }) =>
+    where.OR.some((clause) =>
+      Object.entries(clause).every(
+        ([key, value]) => task[key as keyof StoredTask] === value,
+      ),
+    )
+      ? {
+          ...task,
+          pendingVendorGrantId: null,
+          status: "READY",
+          workspaceId: WORKSPACE_ID,
+        }
+      : null;
+}
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
@@ -149,6 +179,7 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         archivedAt: null,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
       data: { projectId: null },
     });
@@ -189,5 +220,68 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
     expect(projectFindFirstMock).not.toHaveBeenCalled();
     expect(taskFindFirstMock).not.toHaveBeenCalled();
     expect(taskUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  describe("private Task visibility", () => {
+    const deleteTask = (authContext: AuthenticationContext) => {
+      const app = createApp(authContext);
+      app.onError(errorHandler);
+      mountDeleteProjectTask(app);
+      return app.request(`http://localhost/${PROJECT_ID}/tasks/${TASK_ID}`, {
+        method: "DELETE",
+      });
+    };
+
+    it("lets the owner remove their private Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await deleteTask(USER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateManyMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 404 when another member removes a private Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await deleteTask(OTHER_MEMBER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({
+        message: "Project or task link not found",
+      });
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+      expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("lets any member remove a public Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PUBLIC,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await deleteTask(OTHER_MEMBER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining(
+            buildHumanTaskVisibilityWhere("user_456"),
+          ),
+        }),
+      );
+    });
   });
 });

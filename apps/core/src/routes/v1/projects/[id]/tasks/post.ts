@@ -5,6 +5,7 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -73,7 +74,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.task.findFirst({
-      where: { id: body.taskId, archivedAt: null, workspaceId },
+      where: {
+        id: body.taskId,
+        archivedAt: null,
+        workspaceId,
+        ...buildHumanTaskVisibilityWhere(userContext.userId),
+      },
       select: {
         projectId: true,
         pendingVendorGrantId: true,
@@ -112,6 +118,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             archivedAt: null,
             workspaceId,
             projectId: null,
+            ...buildHumanTaskVisibilityWhere(userContext.userId),
           },
           data: {
             projectId,
