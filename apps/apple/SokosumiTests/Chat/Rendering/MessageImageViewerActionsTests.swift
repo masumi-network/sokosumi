@@ -142,7 +142,9 @@
         try await Self.waitForScale(1.5, of: baseline, in: sheet, "⌘= zooms in.")
         #expect(try Self.press("+", keyCode: 24, modifiers: [.command, .shift], in: sheet), "⌘⇧= types + on a US layout.")
         try await Self.waitForScale(1.75, of: baseline, in: sheet, "⌘+ zooms in.")
-        #expect(try Self.press("+", keyCode: 30, in: sheet), "+ has its own key on a German layout.")
+        // The event a layout with its own + key sends: characters "+", Command only. It proves ⌘+
+        // without Shift takes the shortcut, not how a physical key maps on any layout.
+        #expect(try Self.press("+", keyCode: 30, in: sheet), "⌘+ without Shift (characters \"+\", Command only) is Zoom in's key.")
         try await Self.waitForScale(2, of: baseline, in: sheet, "⌘+ without Shift zooms in.")
         #expect(try Self.resetZoom(sheet), "⌘0 is Reset zoom's key.")
         try await Self.waitForScale(1, of: baseline, in: sheet, "Reset returns to 100 %.")

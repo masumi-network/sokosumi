@@ -186,10 +186,13 @@ private struct MessageImageZoomControls: View {
       control("Reset Zoom", systemImage: "magnifyingglass", key: "0", isEnabled: true) { zoom.reset() }
       control("Zoom In", systemImage: "plus", key: "+", isEnabled: zoom.canZoomIn) { zoom.zoomIn() }
         .background {
+          // Only a key equivalent: invisible, and out of hit testing, the key-view loop and VoiceOver.
           Button("Zoom In") { zoom.zoomIn() }
             .keyboardShortcut("=", modifiers: .command)
             .disabled(!zoom.canZoomIn)
             .opacity(0)
+            .allowsHitTesting(false)
+            .focusable(false)
             .accessibilityHidden(true)
         }
     }
