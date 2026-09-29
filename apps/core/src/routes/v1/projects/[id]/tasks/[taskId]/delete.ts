@@ -5,6 +5,7 @@ import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
 import {
@@ -65,7 +66,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const task = await prisma.task.findFirst({
-      where: { id: taskId, projectId, workspaceId },
+      where: {
+        id: taskId,
+        projectId,
+        workspaceId,
+        archivedAt: null,
+        ...buildHumanTaskVisibilityWhere(userContext.userId),
+      },
       select: {
         pendingVendorGrantId: true,
         status: true,
@@ -93,7 +100,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Project or task link not found");
       }
       const unlinkResult = await tx.task.updateMany({
-        where: { id: taskId, projectId, workspaceId, archivedAt: null },
+        where: {
+          id: taskId,
+          projectId,
+          workspaceId,
+          archivedAt: null,
+          ...buildHumanTaskVisibilityWhere(userContext.userId),
+        },
         data: { projectId: null },
       });
       if (unlinkResult.count === 0) {
