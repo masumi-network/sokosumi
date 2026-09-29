@@ -118,7 +118,9 @@ export function ProjectWorkspaceShell({
   ];
 
   return (
-    <div className={TASK_DETAIL_SHELL_CLASS}>
+    // The app's 16px main padding alone puts the name against the header
+    // rule; the extra top space gives the page a clear start.
+    <div className={cn(TASK_DETAIL_SHELL_CLASS, "pt-2 md:pt-6")}>
       {/* Rows sit 16px apart: on a wide screen that joins the name to its
           tabs, and in one column it joins the name to its Properties. The
           tabs block adds 16px in one column, so the Properties close their

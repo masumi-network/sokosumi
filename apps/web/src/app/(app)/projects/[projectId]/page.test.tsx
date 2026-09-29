@@ -121,9 +121,10 @@ describe("ProjectDetailPage", () => {
 
     const { container } = render(html);
     // The task detail shell: same width and gutter as a task page.
-    expect((container.firstChild as HTMLElement).className).toBe(
-      TASK_DETAIL_SHELL_CLASS,
-    );
+    const shell = container.firstChild as HTMLElement;
+    for (const cls of TASK_DETAIL_SHELL_CLASS.split(/\s+/)) {
+      expect(shell.classList).toContain(cls);
+    }
     expect(container.firstChild).not.toHaveClass("-mx-4");
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),

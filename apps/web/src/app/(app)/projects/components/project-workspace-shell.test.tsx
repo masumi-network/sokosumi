@@ -55,7 +55,12 @@ describe("the project detail layout", () => {
     const { container } = renderShell();
 
     const shell = container.firstElementChild as HTMLElement;
-    expect(shell.className).toBe(TASK_DETAIL_SHELL_CLASS);
+    for (const cls of TASK_DETAIL_SHELL_CLASS.split(/\s+/)) {
+      expect(shell.classList).toContain(cls);
+    }
+    // Room above the name, on top of the app's own 16px padding.
+    expect(shell.classList).toContain("pt-2");
+    expect(shell.classList).toContain("md:pt-6");
     const grid = shell.firstElementChild as HTMLElement;
     for (const cls of TASK_DETAIL_GRID_CLASS.split(/\s+/)) {
       expect(grid.classList).toContain(cls);
