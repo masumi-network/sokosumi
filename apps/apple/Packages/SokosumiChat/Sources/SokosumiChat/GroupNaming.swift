@@ -74,7 +74,7 @@ public final class GroupNaming: ObservableObject {
       return saved && !Task.isCancelled
     } catch {
       guard !Task.isCancelled, !(error is CancellationError) else { return false }
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
       return false
     }
   }

@@ -1,21 +1,36 @@
 import Foundation
 
-/// Short, window-safe message for errors shown in the window.
-///
-/// Typed `ChatServiceError` values keep their Core status/message. Transport
-/// and coding failures stay generic — never interpolate an unknown error,
-/// because bridging a wrapped `URLError` to text dumps the whole `NSError`
-/// chain (SOK-973 follow-up: a -1005 filled the window).
-public func friendlyMessage(for error: Error) -> String {
+/// How Chat surfaces an error to the user.
+public enum UserFacingErrorMode: Sendable {
+  /// Window chrome: wrap Core `unprocessable` with status; hide `unauthorized`.
+  case window
+  /// Forms: Core's message as-is, then typed upload copy, then window-safe fallback.
+  case coreMessage
+}
+
+/// Short user-facing message. Default is window-safe (SOK-973): never interpolate an
+/// unknown error, because bridging a wrapped `URLError` dumps the `NSError` chain.
+public func friendlyMessage(for error: Error, mode: UserFacingErrorMode = .window) -> String {
   if let serviceError = error as? ChatServiceError {
     switch serviceError {
     case let .unprocessable(statusCode, message):
-      return "Core rejected the request (\(statusCode)): \(message)"
+      switch mode {
+      case .coreMessage: return message
+      case .window: return "Core rejected the request (\(statusCode)): \(message)"
+      }
     case let .unexpectedResponse(message):
       return message
-    case .blocked, .unauthorized:
+    case let .unauthorized(message):
+      switch mode {
+      case .coreMessage: return message
+      case .window: return "Couldn't complete the request. Try again."
+      }
+    case .blocked:
       return "Couldn't complete the request. Try again."
     }
+  }
+  if let failure = error as? AttachmentUpload.Failure, let description = failure.errorDescription {
+    return description
   }
   if let urlError = findURLError(in: error) {
     // Explicit strings: a bare `URLError.localizedDescription` degrades to

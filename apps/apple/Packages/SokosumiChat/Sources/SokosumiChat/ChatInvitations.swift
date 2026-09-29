@@ -114,7 +114,7 @@ public final class InvitationDetail: ObservableObject {
       return try await respond(action, id)
     } catch {
       guard !Task.isCancelled, !(error is CancellationError) else { return false }
-      responseError = chatErrorMessage(error)
+      responseError = friendlyMessage(for: error, mode: .coreMessage)
       return false
     }
   }
@@ -175,7 +175,7 @@ public final class GuestJoin: ObservableObject {
     } catch {
       joining = false
       guard !Task.isCancelled, !(error is CancellationError) else { return false }
-      joinError = chatErrorMessage(error)
+      joinError = friendlyMessage(for: error, mode: .coreMessage)
       return false
     }
   }

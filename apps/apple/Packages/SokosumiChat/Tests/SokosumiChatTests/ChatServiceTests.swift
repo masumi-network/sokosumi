@@ -612,6 +612,33 @@ struct ChatServiceTests {
     )
   }
 
+  @Test func friendlyMessageCoreMessageModeSurfacesCoreCopy() {
+    #expect(
+      friendlyMessage(for: ChatServiceError.unprocessable(statusCode: 422, message: "slug taken"), mode: .coreMessage)
+        == "slug taken"
+    )
+    #expect(
+      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"), mode: .coreMessage)
+        == "Sign in to continue"
+    )
+    #expect(
+      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"))
+        == "Couldn't complete the request. Try again."
+    )
+    #expect(
+      friendlyMessage(for: AttachmentUpload.Failure.tooLarge)
+        == "Files must be 100 MiB or smaller."
+    )
+    #expect(
+      friendlyMessage(for: URLError(.timedOut), mode: .coreMessage)
+        == "The request timed out. Please try again."
+    )
+    struct Mystery: Error {}
+    let generic = friendlyMessage(for: Mystery(), mode: .coreMessage)
+    #expect(!generic.contains("NSUnderlying"))
+    #expect(generic.count < 120)
+  }
+
   @Test func serverWorkspaceRestoresWhenStillPresent() async throws {
     let transport = ScriptedTransport([
       (200, accessBody(gate: "ready")),
