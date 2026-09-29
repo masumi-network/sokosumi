@@ -70,6 +70,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         id: taskId,
         projectId,
         workspaceId,
+        archivedAt: null,
         ...buildHumanTaskVisibilityWhere(userContext.userId),
       },
       select: {

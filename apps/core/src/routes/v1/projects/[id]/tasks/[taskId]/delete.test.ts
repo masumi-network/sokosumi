@@ -243,6 +243,17 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
       const response = await deleteTask(USER_AUTH_CONTEXT);
 
       expect(response.status).toBe(200);
+      expect(taskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: TASK_ID,
+            projectId: PROJECT_ID,
+            workspaceId: WORKSPACE_ID,
+            archivedAt: null,
+            ...buildHumanTaskVisibilityWhere("user_123"),
+          },
+        }),
+      );
       expect(taskUpdateManyMock).toHaveBeenCalledOnce();
     });
 

@@ -323,6 +323,16 @@ describe("POST /projects/{id}/tasks", () => {
       const response = await postTask(USER_AUTH_CONTEXT);
 
       expect(response.status).toBe(200);
+      expect(taskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: TASK_ID,
+            archivedAt: null,
+            workspaceId: WORKSPACE_ID,
+            ...buildHumanTaskVisibilityWhere("user_123"),
+          },
+        }),
+      );
       expect(taskUpdateManyMock).toHaveBeenCalledOnce();
     });
 
