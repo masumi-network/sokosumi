@@ -177,23 +177,51 @@ describe("RoomSeenByLine", () => {
   });
 
   /**
-   * Mostly saturated, unringed, and the same in every state. Class tokens
-   * rather than computed styles, because filters only resolve in a real
-   * browser.
+   * Grey and unringed until the faces themselves are hovered, focused or
+   * open. Class tokens rather than computed styles, because filters only
+   * resolve in a real browser.
    */
-  it("keeps the faces in steady, slightly muted colour and unringed", () => {
-    render(<Probe members={[member("user-a", "2026-01-01T13:00:00.000Z")]} />);
+  it("keeps the faces grey and unringed until the trigger itself wakes", () => {
+    render(
+      <Probe
+        members={[
+          member("user-a", "2026-01-01T13:00:00.000Z"),
+          member("user-b", "2026-01-01T12:40:00.000Z"),
+          member("user-c", "2026-01-01T12:30:00.000Z"),
+          member("user-d", "2026-01-01T12:20:00.000Z"),
+        ]}
+      />,
+    );
 
-    const face = screen
-      .getByTestId("read-receipt-face-user-a")
-      .querySelector("[data-slot='avatar']");
-    const tokens = face?.className.split(/\s+/) ?? [];
+    const face = screen.getByTestId("read-receipt-face-user-a");
+    const stack = face.parentElement;
+    const tokens = stack?.className.split(/\s+/) ?? [];
+    const avatarTokens =
+      face.querySelector("[data-slot='avatar']")?.className.split(/\s+/) ?? [];
+    const overflow = Array.from(stack?.children ?? []).find((child) =>
+      child.textContent?.startsWith("+"),
+    );
 
-    expect(tokens).toContain("saturate-75");
-    expect(tokens).not.toContain("grayscale");
-    expect(tokens.some((token) => token.startsWith("group-"))).toBe(false);
+    expect(screen.getByTestId("room-seen-by-line")).toHaveClass(
+      "group/seen-by",
+    );
+    // One layer. Per-face opacity would composite the overlap darker.
+    expect(tokens).toContain("grayscale");
+    expect(tokens).toContain("opacity-50");
+    expect(tokens).toContain("group-hover/seen-by:opacity-100");
+    expect(tokens).toContain("group-hover/seen-by:grayscale-0");
+    expect(tokens).toContain("group-focus-visible/seen-by:opacity-100");
+    expect(tokens).toContain("group-focus-visible/seen-by:grayscale-0");
+    expect(tokens).toContain("group-data-[state=open]/seen-by:opacity-100");
+    expect(tokens).toContain("group-data-[state=open]/seen-by:grayscale-0");
+    expect(avatarTokens).not.toContain("opacity-50");
+    expect(avatarTokens).not.toContain("grayscale");
+    expect(overflow?.className ?? "").not.toContain("opacity-50");
+    // The message row is a bare `group` too, and `group-hover:` answers to
+    // any `.group` ancestor: hovering the message would wake the faces.
+    expect(tokens.some((token) => /group-[^/\s]+:/.test(token))).toBe(false);
     // The ring is what made them read as three badges on the text.
-    expect(tokens).not.toContain("ring-1");
+    expect(avatarTokens).not.toContain("ring-1");
   });
 
   it("names every reader and when they read, newest first", async () => {
