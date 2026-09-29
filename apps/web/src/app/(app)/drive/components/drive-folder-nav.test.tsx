@@ -80,3 +80,46 @@ describe("DriveFolderNav", () => {
     expect(screen.getByRole("button", { name: "rename" })).toBeVisible();
   });
 });
+
+describe("DriveFolderNav virtual folder", () => {
+  it("lists the virtual folder with the root folders, sorted, and opens it", async () => {
+    const user = userEvent.setup();
+    const onOpen = vi.fn();
+    render(
+      <DriveFolderNav
+        folders={FOLDERS}
+        current=""
+        onSelect={vi.fn()}
+        virtualFolder={{ label: "Sokosumi Projects", onOpen }}
+      />,
+    );
+    const names = within(screen.getByTestId("drive-folder-children"))
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(names).toEqual(["Brand", "Reports", "Sokosumi Projects"]);
+    await user.click(screen.getByRole("button", { name: "Sokosumi Projects" }));
+    expect(onOpen).toHaveBeenCalledOnce();
+  });
+
+  it("shows it even with no real folders, but not inside a folder", () => {
+    const virtualFolder = { label: "Sokosumi Projects", onOpen: vi.fn() };
+    const { rerender } = render(
+      <DriveFolderNav
+        folders={[]}
+        current=""
+        onSelect={vi.fn()}
+        virtualFolder={virtualFolder}
+      />,
+    );
+    expect(screen.getByText("Sokosumi Projects")).toBeInTheDocument();
+    rerender(
+      <DriveFolderNav
+        folders={FOLDERS}
+        current="Reports"
+        onSelect={vi.fn()}
+        virtualFolder={virtualFolder}
+      />,
+    );
+    expect(screen.queryByText("Sokosumi Projects")).toBeNull();
+  });
+});

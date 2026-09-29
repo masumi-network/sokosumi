@@ -1499,27 +1499,11 @@ function DrivePageWorkspace({
    * They act on the folder the reader is standing in, so they sit beside the
    * folder trail as labelled buttons and are absent at the root, where there is
    * no folder to act on.
-   *
-   * `Task outputs` is its own button for the same reason: the Tasks view was
-   * reachable only through a "Tasks" card in the grid this page replaced.
    */
   const facetFolderItem: DriveItem | null = facetFolder
     ? { type: "folder", name: facetFolder, path: facetFolder }
     : null;
   const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
-  const tasksOutputsButton = (testId: string) => (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className="gap-1.5"
-      onClick={navigateToTasksRoot}
-      data-testid={testId}
-    >
-      <Folders className="size-4" aria-hidden />
-      {t("tasksFolder")}
-    </Button>
-  );
   const folderActions = facetFolderItem ? (
     <>
       <Button
@@ -1605,13 +1589,6 @@ function DrivePageWorkspace({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
                   <DropdownMenuItem
-                    onSelect={navigateToTasksRoot}
-                    data-testid="files-mobile-tasks-outputs"
-                  >
-                    <Folders className="size-4" aria-hidden />
-                    {t("tasksFolder")}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
                     onSelect={openCreateFolderDialog}
                     data-testid="files-mobile-create-folder"
                   >
@@ -1660,7 +1637,6 @@ function DrivePageWorkspace({
                     on the page, directly under the tabs, and two search boxes
                     over one list is the duplication this tab was merged to
                     remove. */}
-                {tasksOutputsButton("files-tasks-outputs")}
                 <Button
                   type="button"
                   size="sm"
@@ -2201,6 +2177,10 @@ function DrivePageWorkspace({
           initialFolder={folderParam}
           onFolderChange={applyFolderFacet}
           folderActions={folderActions}
+          virtualFolder={{
+            label: t("tasksFolder"),
+            onOpen: navigateToTasksRoot,
+          }}
           reloadToken={catalogReloadToken}
         />
       ) : null}
