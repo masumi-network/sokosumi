@@ -2433,8 +2433,7 @@
             "mediaPost": "Bild- oder Videobeitrag",
             "video": "Video (Text wird Titel und Beschreibung)"
           },
-          "publishNow": "Jetzt posten",
-          "shortcut": "⌘↵ postet oder plant"
+          "publishNow": "Jetzt posten"
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",

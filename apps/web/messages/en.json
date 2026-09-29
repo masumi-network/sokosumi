@@ -2433,8 +2433,7 @@
             "mediaPost": "image or video post",
             "video": "video (text is the title and description)"
           },
-          "publishNow": "Post now",
-          "shortcut": "⌘↵ posts or schedules"
+          "publishNow": "Post now"
         },
         "cancelDialog": {
           "title": "Cancel this post?",

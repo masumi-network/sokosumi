@@ -2433,8 +2433,7 @@
             "mediaPost": "publicación con imagen o video",
             "video": "video (el texto es el título y la descripción)"
           },
-          "publishNow": "Publicar ahora",
-          "shortcut": "⌘↵ publica o programa"
+          "publishNow": "Publicar ahora"
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",

@@ -133,7 +133,6 @@ const MESSAGES: Record<string, string> = {
   "composer.account": "Account",
   "composer.accounts": "Post to",
   "composer.publishNow": "Post now",
-  "composer.shortcut": "⌘↵ posts or schedules",
   "toasts.publishedMany": "Post published.",
   "composer.platforms": "Limits per platform",
   "composer.platformLimit": "{provider} {format} · {count} / {limit}",

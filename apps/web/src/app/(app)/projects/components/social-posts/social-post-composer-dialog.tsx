@@ -405,15 +405,31 @@ export function SocialPostComposerDialog({
     }
   }
 
-  /** ⌘/Ctrl+Enter: the dialog's main action for what the reader has filled. */
+  /** What ⌘/Ctrl+Enter runs: the main action for what the reader has filled. */
+  const shortcutAction: Exclude<PendingSubmit, null> =
+    scheduledAt !== ""
+      ? "schedule"
+      : mode.kind === "create"
+        ? "publish"
+        : "save";
+
   function handleSubmitShortcut(): void {
-    if (scheduledAt !== "") {
-      void handleSchedule();
-    } else if (mode.kind === "create") {
-      void handlePublishNow();
-    } else {
-      void handleSaveDraft();
-    }
+    if (shortcutAction === "schedule") void handleSchedule();
+    else if (shortcutAction === "publish") void handlePublishNow();
+    else void handleSaveDraft();
+  }
+
+  /** The shortcut, shown on the button it runs. */
+  function shortcutHint(action: Exclude<PendingSubmit, null>) {
+    if (action !== shortcutAction) return null;
+    return (
+      <kbd
+        aria-hidden
+        className="hidden font-sans text-xs opacity-70 sm:inline"
+      >
+        ⌘↵
+      </kbd>
+    );
   }
 
   async function handleSaveDraft(): Promise<void> {
@@ -837,10 +853,7 @@ export function SocialPostComposerDialog({
           </div>
         </form>
 
-        <DialogFooter className="gap-2 sm:items-center sm:gap-2">
-          <p className="text-muted-foreground me-auto hidden text-xs sm:block">
-            {t("composer.shortcut")}
-          </p>
+        <DialogFooter className="gap-2 sm:gap-2">
           <Button
             type="button"
             variant="ghost"
@@ -867,6 +880,7 @@ export function SocialPostComposerDialog({
               {mode.kind === "edit" && mode.post.status !== "DRAFT"
                 ? t("composer.save")
                 : t("composer.saveDraft")}
+              {shortcutHint("save")}
             </Button>
           )}
           {mode.kind === "create" ? (
@@ -885,6 +899,7 @@ export function SocialPostComposerDialog({
                 />
               ) : null}
               {t("composer.publishNow")}
+              {shortcutHint("publish")}
             </Button>
           ) : null}
           <Button
@@ -902,6 +917,7 @@ export function SocialPostComposerDialog({
               />
             ) : null}
             {isReschedule ? t("composer.reschedule") : t("composer.schedule")}
+            {shortcutHint("schedule")}
           </Button>
         </DialogFooter>
 
