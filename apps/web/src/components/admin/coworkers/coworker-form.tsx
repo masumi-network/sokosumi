@@ -1,11 +1,11 @@
 "use client";
 
+import type { Coworker, CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-
 import { CoworkerEarlyAccessForm } from "@/components/admin/coworkers/coworker-early-access-form";
 import { CoworkerDisplayForm } from "@/components/coworkers/coworker-display-form";
 import {
@@ -40,10 +40,6 @@ import {
   updateAdminCoworkerWhitelistAction,
 } from "@/lib/actions/admin-coworkers/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type {
-  Coworker,
-  CoworkerWorkspaceAccess,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   ADMIN_COWORKER_CAPABILITIES,
   type AdminCoworkerCapability,

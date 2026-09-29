@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { ChatRoomMessageFullEventData } from "@/lib/ably/schema";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 function toDate(value: string): Date {
   return new Date(value);

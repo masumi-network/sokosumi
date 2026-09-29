@@ -51,7 +51,7 @@ vi.mock("@/app/chat/components/rooms-client", () => ({
   RoomsClient: () => <div data-testid="rooms-client" />,
 }));
 
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 
 import { ChatRoomPageContent, generateStaticParams } from "./page";
 

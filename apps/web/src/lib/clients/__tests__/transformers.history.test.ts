@@ -1,6 +1,5 @@
+import { getHistoryResponseTransformer } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
-
-import { getHistoryResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 describe("getHistoryResponseTransformer", () => {
   it("converts meta.timestamp to a Date and leaves history item createdAt unchanged", async () => {

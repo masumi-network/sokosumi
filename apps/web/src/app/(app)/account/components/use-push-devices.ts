@@ -1,10 +1,10 @@
 "use client";
 
+import type { PushDevice } from "@sokosumi/core-client";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { handleRevokedPushDevice } from "@/lib/ably/push-revocation.client";
 import { readAblyPushDeviceId } from "@/lib/ably/release-push-device.client";
-import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { revokePushDevice } from "@/lib/services/push-devices.service";
 import {
   getPushDevicesQueryKey,

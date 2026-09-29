@@ -1,9 +1,9 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   getColumnId,
   getColumnListQueryOptions,
 } from "@/app/tasks/utils/task-column";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("getColumnId", () => {
   it("maps READY tasks to todo by default", () => {

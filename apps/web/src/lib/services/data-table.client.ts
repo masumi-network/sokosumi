@@ -1,4 +1,3 @@
-import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import {
   getCoworkers,
   getDriveTables,
@@ -19,7 +18,8 @@ import {
   postDriveTablesByIdRows,
   postDriveTablesByIdUndo,
   postDriveTablesByIdViews,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
 function options() {
   return { client: getBrowserCoreClient(), throwOnError: true as const };

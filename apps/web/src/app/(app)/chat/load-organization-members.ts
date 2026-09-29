@@ -1,5 +1,5 @@
+import type { Member } from "@sokosumi/core-client";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type { Member } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
 /**
  * Org roster is secondary for room viewing (member pickers / edit channel).

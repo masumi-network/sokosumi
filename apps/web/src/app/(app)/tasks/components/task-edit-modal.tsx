@@ -1,9 +1,9 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import type {

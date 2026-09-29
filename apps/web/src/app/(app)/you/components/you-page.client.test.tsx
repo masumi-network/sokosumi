@@ -26,8 +26,8 @@ vi.mock("@/components/analytics/cookie-banner", () => ({
   openConsentPreferences: vi.fn(),
 }));
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { YouPageClient } from "@/app/you/components/you-page.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const sessionUser: SessionUser = {
   id: "user_1",

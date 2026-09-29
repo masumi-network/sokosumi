@@ -1,5 +1,11 @@
 "use client";
 
+import {
+  type Coworker,
+  getCoworkers,
+  getProjectsById,
+  getTasksById,
+} from "@sokosumi/core-client";
 import { Folder, ListCheck, Sparkles } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -8,12 +14,6 @@ import {
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import {
-  type Coworker,
-  getCoworkers,
-  getProjectsById,
-  getTasksById,
-} from "@/lib/clients/generated/core";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import { fetchDriveTasksPage } from "@/lib/utils/drive-tasks-list.client";
 

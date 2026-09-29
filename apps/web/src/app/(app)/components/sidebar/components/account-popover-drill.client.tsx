@@ -1,5 +1,6 @@
 "use client";
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import {
   ChevronLeft,
   ChevronRight,
@@ -12,7 +13,6 @@ import { useTranslations } from "next-intl";
 import { type ReactElement, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import {
   getAccountNavItems,

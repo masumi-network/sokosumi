@@ -5,7 +5,7 @@ import type {
   TaskTags,
   TaskVisibility,
   UserSummary,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
 import type { CoreAgentDto, TaskStatus } from "@/lib/types/core-dto";
 
 export interface TaskAssigneeView {

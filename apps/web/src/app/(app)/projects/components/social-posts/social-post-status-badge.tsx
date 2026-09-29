@@ -1,6 +1,6 @@
+import type { SocialPostStatus } from "@sokosumi/core-client";
 import { Badge } from "@/components/ui/badge";
 import { MARKER_ICONS } from "@/components/ui/status-marker";
-import type { SocialPostStatus } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 type BadgeVariant = NonNullable<React.ComponentProps<typeof Badge>["variant"]>;

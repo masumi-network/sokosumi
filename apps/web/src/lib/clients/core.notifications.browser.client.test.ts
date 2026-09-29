@@ -13,7 +13,7 @@ vi.mock("@/lib/clients/utils/core-api-base-url.browser", () => ({
   getBrowserCoreApiBaseUrl: () => "https://api.sokosumi.com/v1",
 }));
 
-vi.mock("@/lib/clients/generated/core/client", () => ({
+vi.mock("@sokosumi/core-client/client", () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 

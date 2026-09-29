@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberRole } from "@sokosumi/core-client";
 import { Ellipsis } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,6 @@ import {
 } from "@/lib/actions/admin-organizations/member-actions";
 import { searchUsersClient } from "@/lib/actions/admin-search/client";
 import type { ActionError } from "@/lib/actions/errors/action-error";
-import { MemberRole } from "@/lib/clients/generated/core";
 import type {
   AdminOrganizationMemberOverviewItem,
   AdminOrganizationMemberOverviewPage,

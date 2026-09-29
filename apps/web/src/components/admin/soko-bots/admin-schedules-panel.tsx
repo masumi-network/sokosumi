@@ -1,9 +1,8 @@
+import type { AdminSokoBotSchedule } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { Panel } from "@/components/soko-bot/panel";
 import { ScheduleRunStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
-import type { AdminSokoBotSchedule } from "@/lib/clients/generated/core";
 
 import { AdminScheduleAction } from "./admin-schedule-action.client";
 

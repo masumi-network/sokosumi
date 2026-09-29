@@ -2,7 +2,11 @@ import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
   input: "http://localhost:8787/v1/openapi.json",
-  output: "./src/lib/clients/generated/core",
+  output: {
+    path: "./src/generated",
+    tsConfigPath: "./tsconfig.json",
+    importFileExtension: "js",
+  },
   name: "SokosumiCoreClient",
   plugins: [
     ...defaultPlugins,

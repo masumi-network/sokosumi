@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,7 +24,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 /** Same cap as a Channel name; Core enforces it too. */
 const GROUP_NAME_MAX_LENGTH = 80;

@@ -1,7 +1,6 @@
+import type { SokoBotAvatar, SokoBotTeam } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
-import type { SokoBotAvatar, SokoBotTeam } from "@/lib/clients/generated/core";
 
 import { SokoBotsHero } from "./soko-bots-hero";
 

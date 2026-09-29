@@ -1,5 +1,6 @@
 "use client";
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -29,7 +30,6 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import useModal from "@/hooks/use-modal";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceAvatar from "./header-workspace-avatar";

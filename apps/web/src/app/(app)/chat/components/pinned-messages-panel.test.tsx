@@ -1,10 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   ChatRoomMessage,
   ChatRoomPinnedMessageListItem,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PinnedMessagesPanel } from "./pinned-messages-panel";
 
 const listPinnedMessagesActionMock = vi.fn();

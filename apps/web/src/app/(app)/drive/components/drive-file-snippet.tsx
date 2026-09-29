@@ -1,6 +1,6 @@
 "use client";
 
-import type { FileResource } from "@/lib/clients/generated/core";
+import type { FileResource } from "@sokosumi/core-client";
 
 /** The snippet shape as the generated client inlines it on a resource. */
 type FileSnippet = NonNullable<FileResource["snippet"]>;

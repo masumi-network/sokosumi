@@ -1,7 +1,6 @@
+import type { Agent } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
-import type { Agent } from "@/lib/clients/generated/core";
 
 interface JobDetailsFooterProps {
   legal?: Agent["legal"] | null;

@@ -1,5 +1,6 @@
 "use client";
 
+import { JobType, OnChainJobStatus } from "@sokosumi/core-client";
 import {
   type InputVerificationOptions,
   isInputHashVerified,
@@ -16,7 +17,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import { JobType, OnChainJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface VerificationState {
