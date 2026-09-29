@@ -55,20 +55,24 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
 
   async function handleDeny() {
     setIsDenying(true);
-    const result = await authClient.oauth2.consent({
-      accept: false,
-      ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
-    });
+    try {
+      const result = await authClient.oauth2.consent({
+        accept: false,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      });
 
-    if (result.error) {
-      toast.error(result.error.message || t("denyError"));
-      setIsDenying(false);
-      return;
-    }
+      if (result.error) {
+        toast.error(result.error.message || t("denyError"));
+        setIsDenying(false);
+        return;
+      }
 
-    // Better Auth's client follows the redirect back to the client.
-    if (result.data.redirect && result.data.url) {
-      return;
+      // Better Auth's client follows the redirect back to the client.
+      if (result.data.redirect && result.data.url) {
+        return;
+      }
+    } catch (error) {
+      console.error("OAuth deny error:", error);
     }
 
     toast.error(t("denyError"));

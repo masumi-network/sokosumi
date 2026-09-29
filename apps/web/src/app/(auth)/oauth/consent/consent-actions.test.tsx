@@ -79,6 +79,18 @@ describe("ConsentActions", () => {
     expect(mockConsent).not.toHaveBeenCalled();
   });
 
+  it("re-enables Deny with a message when the consent call throws", async () => {
+    mockConsent.mockRejectedValue(new Error("network down"));
+    render(<ConsentActions oauthQuery={oauthQuery} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "deny" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("denyError");
+    });
+    expect(screen.getByRole("button", { name: "deny" })).toBeEnabled();
+  });
+
   it("submits the canonical signed query when denying", async () => {
     render(<ConsentActions oauthQuery={oauthQuery} />);
 
@@ -122,22 +134,22 @@ describe("ConsentActions", () => {
     // Better Auth's client already follows `{ redirect: true, url }`. A second
     // navigation sends the code twice; a confidential client such as CMO then
     // exchanges it twice and Core revokes the first exchange's tokens.
-    it.each([
-      ["authorize", true],
-      ["deny", false],
-    ])("leaves the redirect after %s to Better Auth's client", async (name) => {
-      mockConsent.mockResolvedValue({
-        data: { redirect: true, url: callbackUrl },
-        error: null,
-      });
-      render(<ConsentActions oauthQuery={oauthQuery} />);
+    it.each(["authorize", "deny"])(
+      "leaves the redirect after %s to Better Auth's client",
+      async (name) => {
+        mockConsent.mockResolvedValue({
+          data: { redirect: true, url: callbackUrl },
+          error: null,
+        });
+        render(<ConsentActions oauthQuery={oauthQuery} />);
 
-      fireEvent.click(screen.getByRole("button", { name }));
-      await waitFor(() => expect(mockConsent).toHaveBeenCalled());
-      await new Promise((resolve) => setTimeout(resolve, 400));
+        fireEvent.click(screen.getByRole("button", { name }));
+        await waitFor(() => expect(mockConsent).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 400));
 
-      expect(navigations).toEqual([]);
-    });
+        expect(navigations).toEqual([]);
+      },
+    );
 
     it("goes home when an authorized consent has nowhere to return", async () => {
       mockConsent.mockResolvedValue({
