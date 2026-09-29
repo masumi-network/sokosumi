@@ -28,6 +28,8 @@ interface FakeCore {
   revokeAll(): void;
   /** Core refuses the user on `/v1`, as for a banned or deleted account. */
   refuseUser(): void;
+  /** Core's discovery document answers 503 while true. */
+  discoveryDown: boolean;
 }
 
 /**
@@ -111,6 +113,7 @@ async function createFakeCore(): Promise<FakeCore> {
 
     switch (url.pathname) {
       case "/auth/.well-known/openid-configuration":
+        if (fake.discoveryDown) return json({ error: "unavailable" }, 503);
         return json({
           issuer: ISSUER,
           authorization_endpoint: `${ISSUER}/oauth2/authorize`,
@@ -186,7 +189,7 @@ async function createFakeCore(): Promise<FakeCore> {
     }
   };
 
-  return {
+  const fake: FakeCore = {
     fetch: fakeFetch as typeof fetch,
     approve(authorizeUrl) {
       const query = new URL(authorizeUrl).searchParams;
@@ -208,7 +211,9 @@ async function createFakeCore(): Promise<FakeCore> {
     refuseUser() {
       userRefused = true;
     },
+    discoveryDown: false,
   };
+  return fake;
 }
 
 /** A browser's cookie jar for one origin. */
@@ -470,6 +475,20 @@ describe("CMO auth handler", () => {
     expect(core.revoked).toEqual(["soko_refresh_token_2"]);
     expect(jar.names()).toEqual([]);
     expect(await sessionUser(auth, jar)).toBeNull();
+  });
+
+  it("revokes again after Core's discovery document was unavailable", async () => {
+    await signIn(auth, jar, core);
+    core.discoveryDown = true;
+    await send(auth, jar, "/api/auth/sign-out", { method: "POST", body: {} });
+    expect(core.revoked).toEqual([]);
+    expect(jar.names()).toEqual([]);
+
+    core.discoveryDown = false;
+    await signIn(auth, jar, core);
+    await send(auth, jar, "/api/auth/sign-out", { method: "POST", body: {} });
+
+    expect(core.revoked).toEqual(["soko_refresh_token_4"]);
   });
 
   it("returns to the signed-out page when consent is declined", async () => {

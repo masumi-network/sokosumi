@@ -38,21 +38,26 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
  */
 export function createCmoAuth(config: CmoAuthConfig) {
   const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
-  let revocationEndpoint: Promise<string | undefined> | undefined;
+  let revocationEndpoint: Promise<string> | undefined;
 
+  /** Throws on any failure; the sign-out hook logs it and still signs out. */
   async function revokeRefreshToken(refreshToken: string) {
     revocationEndpoint ??= fetch(discoveryUrl)
-      .then((response) => response.json())
-      .then((document: { revocation_endpoint?: string }) => {
+      .then(async (response) => {
+        const document: { revocation_endpoint?: string } = response.ok
+          ? await response.json()
+          : {};
+        if (!document.revocation_endpoint) {
+          throw new Error(`No revocation_endpoint (${response.status})`);
+        }
         return document.revocation_endpoint;
       })
       .catch((error: unknown) => {
+        // Only a good document is kept; retry discovery on the next sign out.
         revocationEndpoint = undefined;
         throw error;
       });
-    const endpoint = await revocationEndpoint;
-    if (!endpoint) return;
-    await fetch(endpoint, {
+    const response = await fetch(await revocationEndpoint, {
       method: "POST",
       headers: {
         authorization: `Basic ${btoa(`${encodeURIComponent(config.clientId)}:${encodeURIComponent(config.clientSecret)}`)}`,
@@ -63,6 +68,8 @@ export function createCmoAuth(config: CmoAuthConfig) {
         token_type_hint: "refresh_token",
       }),
     });
+    if (!response.ok)
+      throw new Error(`Core refused the revoke (${response.status})`);
   }
 
   return betterAuth({
