@@ -8,33 +8,36 @@ function requireEnv(name: string): string {
   return value;
 }
 
+/**
+ * CMO's production origin: the only callback Core's mainnet client registers.
+ * Not `VERCEL_PROJECT_PRODUCTION_URL`, which names the project's
+ * `*.preview.sokosumi.com` alias instead of cmo.xyz.
+ */
+const CMO_PRODUCTION_URL = "https://cmo.xyz";
+
 function vercelHostUrl(name: string): string | undefined {
   const host = process.env[name];
   return host ? `https://${host}` : undefined;
 }
 
 /**
- * Reads Sign in with Sokosumi's settings from env. On Vercel, CMO's origin
- * comes from the deployment (the branch alias on previews), and both
- * production and previews run the OAuth proxy against mainnet Core
- * (ADR 0045). Locally, CMO signs in directly against `CORE_APP_BASE_URL`.
+ * Reads Sign in with Sokosumi's settings from env. On Vercel, production runs
+ * on cmo.xyz and previews on their branch alias; both run the OAuth proxy
+ * against mainnet Core (ADR 0045). Locally, CMO signs in directly against
+ * `CORE_APP_BASE_URL` on `BETTER_AUTH_URL`.
  */
 export function readCmoAuthConfig(): CmoAuthConfig {
   const vercelEnv = process.env.VERCEL_ENV;
-  const productionURL = vercelHostUrl("VERCEL_PROJECT_PRODUCTION_URL");
   const baseURL = resolveBetterAuthPublicBaseUrl({
     vercelEnv,
     vercelUrl: undefined,
     vercelBranchUrl: vercelHostUrl("VERCEL_BRANCH_URL"),
-    vercelProductionUrl: productionURL,
+    vercelProductionUrl: CMO_PRODUCTION_URL,
     fallbackUrl: process.env.BETTER_AUTH_URL ?? "",
   });
   if (!baseURL) throw new Error("BETTER_AUTH_URL is not set");
 
   const onVercel = vercelEnv === "production" || vercelEnv === "preview";
-  if (onVercel && !productionURL) {
-    throw new Error("VERCEL_PROJECT_PRODUCTION_URL is not set");
-  }
 
   return {
     baseURL,
@@ -42,9 +45,11 @@ export function readCmoAuthConfig(): CmoAuthConfig {
     clientId: requireEnv("SOKOSUMI_OAUTH_CLIENT_ID"),
     clientSecret: requireEnv("SOKOSUMI_OAUTH_CLIENT_SECRET"),
     secret: requireEnv("BETTER_AUTH_SECRET"),
-    oauthProxy:
-      onVercel && productionURL
-        ? { productionURL, secret: requireEnv("OAUTH_PROXY_SECRET") }
-        : undefined,
+    oauthProxy: onVercel
+      ? {
+          productionURL: CMO_PRODUCTION_URL,
+          secret: requireEnv("OAUTH_PROXY_SECRET"),
+        }
+      : undefined,
   };
 }
