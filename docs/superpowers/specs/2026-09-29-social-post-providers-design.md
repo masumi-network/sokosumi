@@ -73,9 +73,10 @@ Counts, byte caps, and MIME lists are data in the shared rules below. Kinds neve
 - Requirement flags exposed as data, not a validation framework:
   `textRequired` (linkedin, youtube), `mediaRequired` (instagram, tiktok,
   youtube), `videoRequired` (tiktok, youtube).
-- `socialPostMediaKindForMime` and the byte-cap helper take the provider;
-  `validateSocialPostMedia(provider, media)` reads the provider's entry. No other
-  new validation machinery.
+- `validateSocialPostMedia(provider, media)` enforces the provider's counts, byte
+  caps, and MIME lists; `socialPostMediaKindForMime` keeps its provider-neutral
+  signature (kind is a MIME category) and `socialPostMaxBytesForKind(provider,
+  kind)` is the exported byte-cap helper. No other new validation machinery.
 
 ## Data model (no migration)
 
