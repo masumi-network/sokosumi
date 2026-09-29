@@ -20,6 +20,7 @@ import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,13 +33,6 @@ import {
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import {
   type ActionError,
@@ -59,7 +53,7 @@ import {
 import {
   socialPostComposerAccept,
   socialPostComposerIssue,
-  socialPostComposerProvider,
+  socialPostComposerProviders,
 } from "./social-post-composer-rules";
 import {
   buildSocialPostMediaRef,
@@ -113,7 +107,7 @@ export function SocialPostComposerDialog({
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
   const textId = useId();
-  const accountId = useId();
+  const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -128,9 +122,13 @@ export function SocialPostComposerDialog({
   const [media, setMedia] = useState<SocialPostMediaRef[]>(
     post?.media ? [...post.media] : [],
   );
-  const [connectionId, setConnectionId] = useState(
-    post?.socialConnection?.id ?? connections[0]?.id ?? "",
-  );
+  // A new post may go to several accounts at once, one post each; an existing
+  // post belongs to one account.
+  const multiAccount = mode.kind === "create";
+  const [connectionIds, setConnectionIds] = useState<string[]>(() => {
+    const initial = post?.socialConnection?.id ?? connections[0]?.id;
+    return initial ? [initial] : [];
+  });
   const [scheduledAt, setScheduledAt] = useState(
     toDateTimeLocalValue(post?.scheduledAt ?? null),
   );
@@ -140,19 +138,32 @@ export function SocialPostComposerDialog({
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
-  const selectedConnection = connections.find(
-    (connection) => connection.id === connectionId,
+  const selectedConnections = connections.filter((connection) =>
+    connectionIds.includes(connection.id),
   );
-  const provider = socialPostComposerProvider(
+  const connectionId = selectedConnections[0]?.id ?? "";
+  const providers = socialPostComposerProviders(
     post?.provider,
-    selectedConnection?.provider,
+    selectedConnections.map((connection) => connection.provider),
+  );
+  // One text goes to every selected account, so the strictest one rules.
+  const provider = providers.reduce((strictest, candidate) =>
+    SOCIAL_POST_TEXT_LIMITS[candidate] < SOCIAL_POST_TEXT_LIMITS[strictest]
+      ? candidate
+      : strictest,
   );
   const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
-  const accept = socialPostComposerAccept(provider);
-  const composerIssue = socialPostComposerIssue(provider, text, media);
+  const accept = socialPostComposerAccept(providers);
+  const issueProvider =
+    providers.find(
+      (candidate) => socialPostComposerIssue(candidate, text, media) !== null,
+    ) ?? provider;
+  const composerIssue = socialPostComposerIssue(issueProvider, text, media);
   const trimmedText = text.trim();
   const overLimit = text.length > textLimit;
-  const mediaValid = validateSocialPostMedia(provider, media).ok;
+  const mediaValid = providers.every(
+    (candidate) => validateSocialPostMedia(candidate, media).ok,
+  );
   const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
   const requirementHint =
     composerIssue === "text_required" ||
@@ -186,9 +197,15 @@ export function SocialPostComposerDialog({
     !isBusy;
   const canSave = textValid && !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
-  const selectedConnectionExists = connections.some(
-    (connection) => connection.id === connectionId,
-  );
+
+  function toggleConnection(id: string): void {
+    setConnectionIds((current) => {
+      if (!multiAccount) return [id];
+      return current.includes(id)
+        ? current.filter((candidate) => candidate !== id)
+        : [...current, id];
+    });
+  }
 
   const title =
     mode.kind === "create"
@@ -199,11 +216,25 @@ export function SocialPostComposerDialog({
           ? t("composer.rescheduleTitle")
           : t("composer.scheduleTitle");
 
-  function mediaErrorText(reason: SocialPostMediaValidationReason): string {
+  function mediaErrorText(
+    reason: SocialPostMediaValidationReason,
+    rejectedBy: typeof provider,
+  ): string {
     return t(`composer.media.errors.${reason}`, {
-      provider: socialPostProviderLabel(provider),
-      max: SOCIAL_POST_MEDIA_RULES[provider].maxImages,
+      provider: socialPostProviderLabel(rejectedBy),
+      max: SOCIAL_POST_MEDIA_RULES[rejectedBy].maxImages,
     });
+  }
+
+  /** The first selected provider that refuses this media, with its reason. */
+  function mediaRejection(
+    next: SocialPostMediaRef[],
+  ): { reason: SocialPostMediaValidationReason; by: typeof provider } | null {
+    for (const candidate of providers) {
+      const check = validateSocialPostMedia(candidate, next);
+      if (!check.ok) return { reason: check.reason, by: candidate };
+    }
+    return null;
   }
 
   function attachMedia(ref: SocialPostMediaRef): void {
@@ -211,9 +242,9 @@ export function SocialPostComposerDialog({
       toast.error(t("composer.media.alreadyAttached"));
       return;
     }
-    const check = validateSocialPostMedia(provider, [...media, ref]);
-    if (!check.ok) {
-      toast.error(mediaErrorText(check.reason));
+    const rejection = mediaRejection([...media, ref]);
+    if (rejection) {
+      toast.error(mediaErrorText(rejection.reason, rejection.by));
       return;
     }
     setMedia((current) => [...current, ref]);
@@ -252,9 +283,9 @@ export function SocialPostComposerDialog({
       );
       return;
     }
-    const precheck = validateSocialPostMedia(provider, [...media, candidate]);
-    if (!precheck.ok) {
-      toast.error(mediaErrorText(precheck.reason));
+    const rejection = mediaRejection([...media, candidate]);
+    if (rejection) {
+      toast.error(mediaErrorText(rejection.reason, rejection.by));
       return;
     }
 
@@ -285,34 +316,66 @@ export function SocialPostComposerDialog({
     }
   }
 
+  /**
+   * One post per selected account, in the order they were picked; a draft
+   * with no account is a single post. Stops at the first failure so the
+   * reader sees one error, and returns how many were saved.
+   */
+  async function createForEachAccount(
+    create: (
+      socialConnectionId: string | null,
+    ) => ReturnType<typeof createProjectSocialPost>,
+  ): Promise<number> {
+    const targets: (string | null)[] =
+      selectedConnections.length > 0
+        ? selectedConnections.map((connection) => connection.id)
+        : [null];
+    let created = 0;
+    for (const socialConnectionId of targets) {
+      const result = await create(socialConnectionId);
+      if (!result.ok) {
+        onError(result.error);
+        return 0;
+      }
+      onSaved(result.value);
+      created += 1;
+    }
+    return created;
+  }
+
   async function handleSaveDraft(): Promise<void> {
     if (!canSave) return;
     setPending("save");
     try {
-      const result =
-        mode.kind === "edit"
-          ? await updateProjectSocialPost({
-              projectId,
-              postId: mode.post.id,
-              text: trimmedText,
-              media,
-              socialConnectionId: connectionId || null,
-              revision: mode.post.revision,
-            })
-          : await createProjectSocialPost({
-              projectId,
-              text: trimmedText,
-              media,
-              socialConnectionId: connectionId || null,
-            });
-      if (!result.ok) {
-        onError(result.error);
+      if (mode.kind === "edit") {
+        const result = await updateProjectSocialPost({
+          projectId,
+          postId: mode.post.id,
+          text: trimmedText,
+          media,
+          socialConnectionId: connectionId || null,
+          revision: mode.post.revision,
+        });
+        if (!result.ok) {
+          onError(result.error);
+          return;
+        }
+        toast.success(t("toasts.updated"));
+        onSaved(result.value);
+        onOpenChange(false);
         return;
       }
-      toast.success(
-        mode.kind === "edit" ? t("toasts.updated") : t("toasts.created"),
+
+      const created = await createForEachAccount((socialConnectionId) =>
+        createProjectSocialPost({
+          projectId,
+          text: trimmedText,
+          media,
+          socialConnectionId,
+        }),
       );
-      onSaved(result.value);
+      if (created === 0) return;
+      toast.success(t("toasts.created", { count: created }));
       onOpenChange(false);
     } catch (error) {
       onError(toActionRejectionError(error));
@@ -328,20 +391,18 @@ export function SocialPostComposerDialog({
     const timezone = resolveTimezone();
     try {
       if (mode.kind === "create") {
-        const result = await createProjectSocialPost({
-          projectId,
-          text: trimmedText,
-          media,
-          socialConnectionId: connectionId,
-          scheduledAt: scheduledAtIso,
-          timezone,
-        });
-        if (!result.ok) {
-          onError(result.error);
-          return;
-        }
-        toast.success(t("toasts.scheduled"));
-        onSaved(result.value);
+        const created = await createForEachAccount((socialConnectionId) =>
+          createProjectSocialPost({
+            projectId,
+            text: trimmedText,
+            media,
+            socialConnectionId,
+            scheduledAt: scheduledAtIso,
+            timezone,
+          }),
+        );
+        if (created === 0) return;
+        toast.success(t("toasts.scheduled", { count: created }));
         onOpenChange(false);
         return;
       }
@@ -377,7 +438,7 @@ export function SocialPostComposerDialog({
         onError(result.error);
         return;
       }
-      toast.success(t("toasts.scheduled"));
+      toast.success(t("toasts.scheduled", { count: 1 }));
       onSaved(result.value);
       onOpenChange(false);
     } catch (error) {
@@ -432,6 +493,62 @@ export function SocialPostComposerDialog({
             event.preventDefault();
           }}
         >
+          <div className="space-y-2">
+            <p className="text-sm font-medium" id={accountsLabelId}>
+              {multiAccount ? t("composer.accounts") : t("composer.account")}
+            </p>
+            {connections.length === 0 ? (
+              <p
+                className="text-muted-foreground text-sm"
+                data-testid="social-post-no-accounts"
+              >
+                {t("composer.noAccounts")}
+              </p>
+            ) : (
+              <div
+                aria-labelledby={accountsLabelId}
+                className="flex flex-wrap gap-2"
+                data-testid="social-post-accounts"
+                role="group"
+              >
+                {connections.map((connection) => {
+                  const selected = connectionIds.includes(connection.id);
+                  const handle =
+                    formatHandle(connection.externalHandle) ||
+                    t("composer.unknownHandle");
+                  return (
+                    <Button
+                      aria-label={t("composer.accountOption", {
+                        provider: socialPostProviderLabel(connection.provider),
+                        handle,
+                      })}
+                      aria-pressed={selected}
+                      className={cn(
+                        "h-9 gap-2 rounded-full px-3",
+                        selected
+                          ? "border-primary bg-primary-quinary text-foreground hover:bg-primary-quaternary"
+                          : "text-muted-foreground",
+                      )}
+                      disabled={isBusy}
+                      key={connection.id}
+                      onClick={() => toggleConnection(connection.id)}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <SocialPostProviderIcon
+                        aria-hidden
+                        className="size-4"
+                        provider={connection.provider}
+                      />
+                      <span className="max-w-40 truncate">{handle}</span>
+                    </Button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {isScheduleOnly ? (
             <div className="space-y-3">
               <p className="bg-card-background rounded-md border p-3 text-sm whitespace-pre-wrap">
@@ -533,29 +650,6 @@ export function SocialPostComposerDialog({
               </div>
             </>
           )}
-
-          <div className="space-y-2">
-            <Label htmlFor={accountId}>{t("composer.account")}</Label>
-            <Select
-              disabled={isBusy || connections.length === 0}
-              onValueChange={setConnectionId}
-              value={selectedConnectionExists ? connectionId : ""}
-            >
-              <SelectTrigger id={accountId} className="w-full">
-                <SelectValue placeholder={t("composer.noAccount")} />
-              </SelectTrigger>
-              <SelectContent>
-                {connections.map((connection) => (
-                  <SelectItem key={connection.id} value={connection.id}>
-                    {`${socialPostProviderLabel(connection.provider)} · ${
-                      formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle")
-                    }`}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="space-y-2">
             <Label htmlFor={scheduledAtId}>{t("composer.scheduledAt")}</Label>

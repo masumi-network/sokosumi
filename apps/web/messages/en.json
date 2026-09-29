@@ -2365,7 +2365,7 @@
           "editTitle": "Edit post",
           "scheduleTitle": "Schedule post",
           "rescheduleTitle": "Reschedule post",
-          "description": "Write the text, pick the account, and choose when it goes out.",
+          "description": "Pick where it goes, write it, and choose when it goes out.",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
@@ -2395,7 +2395,9 @@
             "video_required": "{provider} requires a video."
           },
           "account": "Account",
-          "noAccount": "Choose an account",
+          "accounts": "Post to",
+          "accountOption": "{provider} {handle}",
+          "noAccounts": "No accounts connected yet. Connect one on the Accounts tab.",
           "unknownHandle": "Unknown account",
           "scheduledAt": "Scheduled time",
           "scheduledAtTooSoon": "Choose a time at least one minute from now.",
@@ -2413,8 +2415,8 @@
           "confirm": "Cancel post"
         },
         "toasts": {
-          "created": "Draft saved.",
-          "scheduled": "Post scheduled.",
+          "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
+          "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
