@@ -15,17 +15,13 @@ import {
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserSocialBetaAccess(),
-    params,
-  ]);
+  const { projectId } = await params;
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
@@ -91,7 +87,6 @@ export default async function ProjectDetailPage({
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}
-      showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
       {/*

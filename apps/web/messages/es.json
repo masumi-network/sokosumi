@@ -2266,6 +2266,8 @@
         "description": "Conecta cuentas de redes sociales a este proyecto. Actualmente se puede publicar en X.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
+        "connectHeading": "Conectar una cuenta",
+        "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
@@ -2324,12 +2326,16 @@
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
-          "history": "Historial"
+          "attention": "Requiere atención"
         },
+        "selectedPost": "Publicación seleccionada",
         "empty": {
           "upcoming": "Aún no hay publicaciones programadas.",
-          "drafts": "Aún no hay borradores.",
-          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+          "drafts": "Aún no hay borradores."
+        },
+        "emptyHint": {
+          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
+          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2388,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
-          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "description": "La publicación no se publicará. Esta acción no se puede deshacer.",
           "confirm": "Cancelar publicación"
         },
         "toasts": {
@@ -2565,7 +2571,6 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "social": "Social",
           "backToProjects": "Todos los proyectos",
           "ariaLabel": "Secciones del proyecto"
         },
@@ -2708,6 +2713,17 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Social funciona dentro de un proyecto: las cuentas desde las que publica le pertenecen. Elige un proyecto para planificar sus publicaciones.",
+      "pickAction": "Elegir un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "calendar": {
+        "title": "Calendario de publicación",
+        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
+      }
+    },
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
@@ -2748,7 +2764,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
-          "schedules": "Programaciones"
+          "schedules": "Programaciones",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -6927,7 +6944,8 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -6952,6 +6970,9 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
+      },
+      "socialOnly": {
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {
