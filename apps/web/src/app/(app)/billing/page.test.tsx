@@ -225,6 +225,7 @@ function mockSelfServeOrganizationBillingPlan(
       isConsumable: false,
       purchasedSeats,
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-03-01T00:00:00.000Z"),
     },
   });
@@ -241,6 +242,7 @@ function mockEnterpriseOrganizationBillingPlan(
       isConsumable,
       purchasedSeats,
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     },
   });
@@ -438,9 +440,8 @@ describe("BillingPage", () => {
     );
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
         returnPath: "/billing?tab=subscription",
+        scheduledCancelDate: null,
         status: null,
       }),
     );
@@ -449,6 +450,69 @@ describe("BillingPage", () => {
         coworkersPromise,
         status: null,
       }),
+    );
+  });
+
+  it("passes a flexible-mode cancel date to the personal subscription section", async () => {
+    const cancelAt = new Date("2026-03-01T00:00:00.000Z");
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: {
+        subscription: {
+          cancelAt,
+          cancelAtPeriodEnd: false,
+          periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+          plan: "pro",
+          seats: 1,
+          status: "active",
+        },
+      },
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledCancelDate: cancelAt }),
+    );
+  });
+
+  it("passes a flexible-mode cancel date to the organization subscription section", async () => {
+    const cancelAt = new Date("2026-03-01T00:00:00.000Z");
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    getOrganizationBillingPlanMock.mockResolvedValue({
+      data: {
+        mode: "self_serve",
+        plan: "pro",
+        isConsumable: false,
+        purchasedSeats: 2,
+        cancelAtPeriodEnd: false,
+        cancelAt,
+        periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+      },
+    });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 2,
+      paidPlan: null,
+      purchasedSeats: 2,
+      unusedSeats: 0,
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledCancelDate: cancelAt }),
     );
   });
 
@@ -557,13 +621,12 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancelAtPeriodEnd: false,
         currentPlan: "free",
-        currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,
         memberCount: 2,
+        scheduledCancelDate: null,
       }),
     );
     expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
