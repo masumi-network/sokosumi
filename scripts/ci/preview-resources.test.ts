@@ -5,6 +5,7 @@ import {
   cleanupClosedPreview,
   previewCleanupInventory,
   renewOpenPreview,
+  resolvePreviewPullNumber,
 } from "./preview-lifecycle.ts";
 import { preparePreviewResources } from "./preview-resources.ts";
 import { deployTargets, runPreviewDeployComment } from "./vercel-deploy.mjs";
@@ -521,4 +522,81 @@ test("daily inventory skips open PRs and drains a backlog in bounded batches", a
   assert.equal(inventory[0], 2);
   assert.equal(inventory.at(-1), 257);
   assert.equal(lookedUp.at(-1), 257);
+});
+
+test("resolvePreviewPullNumber prefers PREVIEW_PR_NUMBER then the event payload", async () => {
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (input) => {
+    calls.push(String(input));
+    throw new Error(`unexpected ${input}`);
+  };
+  assert.equal(
+    await resolvePreviewPullNumber({
+      event: { pull_request: { number: 4 } },
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      env: { PREVIEW_PR_NUMBER: "12" },
+      fetchImpl,
+    }),
+    12,
+  );
+  assert.equal(
+    await resolvePreviewPullNumber({
+      event: {
+        workflow_run: { pull_requests: [{ number: 9 }] },
+      },
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      env: {},
+      fetchImpl,
+    }),
+    9,
+  );
+  assert.deepEqual(calls, []);
+});
+
+test("resolvePreviewPullNumber looks up the workflow run then commit pulls", async () => {
+  const repo = "acme/sokosumi";
+  const fetchImpl: typeof fetch = async (input) => {
+    const url = String(input);
+    if (url.endsWith("/actions/runs/99")) {
+      return Response.json({ pull_requests: [] });
+    }
+    if (url.endsWith("/commits/abc123/pulls")) {
+      return Response.json([
+        { number: 2, head: { repo: { full_name: "evil/fork" } } },
+        { number: 3, head: { repo: { full_name: repo } } },
+      ]);
+    }
+    throw new Error(`unexpected ${url}`);
+  };
+  assert.equal(
+    await resolvePreviewPullNumber({
+      event: { workflow_run: { id: 99, head_sha: "abc123" } },
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      env: {},
+      fetchImpl,
+    }),
+    3,
+  );
+});
+
+test("resolvePreviewPullNumber fails when no PR can be resolved", async () => {
+  await assert.rejects(
+    resolvePreviewPullNumber({
+      event: {},
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      env: {},
+      fetchImpl: async () => {
+        throw new Error("should not fetch");
+      },
+    }),
+    /A valid PR number is required/,
+  );
 });

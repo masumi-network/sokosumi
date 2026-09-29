@@ -1,8 +1,10 @@
 name: PR closed
 
-# Unprivileged signal. `cloud-agent-db-teardown.yml` listens via workflow_run
-# so the privileged YAML always comes from the default branch. pull_request_target
-# would load YAML from the PR base, which a same-repo branch can replace.
+# Unprivileged signal. `cloud-agent-db-teardown.yml` and `preview-deploy.yml`
+# listen via workflow_run so the privileged YAML always comes from the default
+# branch. pull_request_target would load YAML from the PR base, which a
+# same-repo branch can replace. Do not add synchronize here: teardown must
+# not run on every push.
 permissions:
   contents: read
 

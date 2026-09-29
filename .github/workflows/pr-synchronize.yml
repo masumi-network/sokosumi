@@ -1,0 +1,19 @@
+name: PR synchronize
+
+# Unprivileged signal. `preview-deploy.yml` listens via workflow_run
+# so the privileged YAML always comes from the default branch. pull_request_target
+# would load YAML from the PR base, which a same-repo branch can replace.
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    types: [synchronize]
+
+jobs:
+  synchronize:
+    name: Signal PR synchronize
+    runs-on: ubuntu-latest
+    steps:
+      - name: Record synchronize
+        run: echo "PR ${{ github.event.pull_request.number }} synchronized"

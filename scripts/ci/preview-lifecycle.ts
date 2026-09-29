@@ -27,6 +27,74 @@ interface LifecycleOptions extends Omit<PreviewOptions, "ref"> {
   repoName: string;
 }
 
+interface WorkflowRunEvent {
+  pull_request?: { number?: number };
+  workflow_run?: {
+    id?: number | string;
+    head_sha?: string;
+    pull_requests?: { number?: number }[];
+  };
+}
+
+/**
+ * PR number for preview close/renew. workflow_run.pull_requests is often
+ * empty, so fall back to the Actions run and commit-associated pulls APIs
+ * (same lookup as cloud-agent-db teardown).
+ */
+export async function resolvePreviewPullNumber(options: {
+  event: WorkflowRunEvent;
+  githubToken: string;
+  repoOwner: string;
+  repoName: string;
+  env?: NodeJS.ProcessEnv;
+  fetchImpl?: typeof fetch;
+}): Promise<number> {
+  const env = options.env ?? process.env;
+  const fromEnvOrPull = Number(
+    env.PREVIEW_PR_NUMBER || options.event.pull_request?.number,
+  );
+  if (Number.isSafeInteger(fromEnvOrPull) && fromEnvOrPull > 0) {
+    return fromEnvOrPull;
+  }
+
+  const fromPayload = Number(
+    options.event.workflow_run?.pull_requests?.[0]?.number,
+  );
+  if (Number.isSafeInteger(fromPayload) && fromPayload > 0) {
+    return fromPayload;
+  }
+
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const repo = `${options.repoOwner}/${options.repoName}`;
+  const runId = env.WORKFLOW_RUN_ID || options.event.workflow_run?.id;
+  const headSha = env.HEAD_SHA || options.event.workflow_run?.head_sha;
+
+  if (runId) {
+    const run = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/actions/runs/${runId}`,
+    );
+    const fromRun = Number(run?.pull_requests?.[0]?.number);
+    if (Number.isSafeInteger(fromRun) && fromRun > 0) return fromRun;
+  }
+
+  if (headSha) {
+    const associated = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/commits/${headSha}/pulls`,
+    );
+    const sameRepo = (Array.isArray(associated) ? associated : []).find(
+      (pull) => pull?.head?.repo?.full_name === repo && pull?.number,
+    );
+    const fromCommit = Number(sameRepo?.number);
+    if (Number.isSafeInteger(fromCommit) && fromCommit > 0) return fromCommit;
+  }
+
+  throw new Error("A valid PR number is required");
+}
+
 export async function cleanupClosedPreview(options: LifecycleOptions) {
   // Read current state inside the same per-PR queue as deploy/reset. An old
   // close event must not delete a preview after the PR has been reopened.
@@ -165,11 +233,12 @@ async function main() {
     );
     return;
   }
-  const pullNumber = Number(
-    process.env.PREVIEW_PR_NUMBER ?? event.pull_request?.number,
-  );
-  if (!Number.isSafeInteger(pullNumber) || pullNumber <= 0)
-    throw new Error("A valid PR number is required");
+  const pullNumber = await resolvePreviewPullNumber({
+    event,
+    githubToken: context.githubToken,
+    repoOwner: context.repoOwner,
+    repoName: context.repoName,
+  });
   console.log(
     JSON.stringify(
       await (process.argv[2] === "renew"
