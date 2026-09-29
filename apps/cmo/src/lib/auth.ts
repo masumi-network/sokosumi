@@ -1,8 +1,13 @@
 import { getUsersById } from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
 import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
-import { createAuthMiddleware } from "better-auth/api";
-import { getAccountCookie } from "better-auth/cookies";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import {
+  applySetCookies,
+  getAccountCookie,
+  getCookies,
+  parseCookies,
+} from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { decryptOAuthToken } from "better-auth/oauth2";
@@ -38,7 +43,16 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
  */
 export function createCmoAuth(config: CmoAuthConfig) {
   const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+  const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
   let revocationEndpoint: Promise<string> | undefined;
+
+  function getCoreUser(accessToken: string) {
+    return getUsersById({
+      client: coreClient,
+      path: { id: "me" },
+      headers: { authorization: `Bearer ${accessToken}` },
+    });
+  }
 
   /** Throws on any failure; the sign-out hook logs it and still signs out. */
   async function revokeRefreshToken(refreshToken: string) {
@@ -91,6 +105,16 @@ export function createCmoAuth(config: CmoAuthConfig) {
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (
+          ctx.path === "/sign-in/social" &&
+          typeof ctx.body?.errorCallbackURL === "string"
+        ) {
+          // Production handles preview callbacks; preserve the caller's origin.
+          ctx.body.errorCallbackURL = new URL(
+            ctx.body.errorCallbackURL,
+            config.baseURL,
+          ).href;
+        }
         if (ctx.path !== "/sign-out") return;
         const account = await getAccountCookie(ctx);
         if (!account?.refreshToken) return;
@@ -105,6 +129,28 @@ export function createCmoAuth(config: CmoAuthConfig) {
             error,
           );
         }
+      }),
+      after: createAuthMiddleware(async (ctx) => {
+        if (ctx.path !== "/get-access-token") return;
+        const tokens = ctx.context.returned;
+        if (
+          !tokens ||
+          typeof tokens !== "object" ||
+          !("accessToken" in tokens) ||
+          typeof tokens.accessToken !== "string"
+        ) {
+          return;
+        }
+        // Refresh grants do not check bans; /v1 checks current Core access.
+        const result = await getCoreUser(tokens.accessToken).catch(() => null);
+        if (result?.data) return;
+        const status = result?.response?.status;
+        throw new APIError(
+          status === 401 || status === 403
+            ? "FORBIDDEN"
+            : "SERVICE_UNAVAILABLE",
+          { message: "Core could not authorize this CMO session" },
+        );
       }),
     },
     plugins: [
@@ -121,11 +167,8 @@ export function createCmoAuth(config: CmoAuthConfig) {
             // Core's ID token and userinfo carry only `sub` (it grants no
             // `profile` or `email` scope), so identity comes from /v1.
             async getUserInfo(tokens) {
-              const { data } = await getUsersById({
-                client: createClient({ baseUrl: `${config.coreBaseUrl}/v1` }),
-                path: { id: "me" },
-                headers: { authorization: `Bearer ${tokens.accessToken}` },
-              });
+              if (!tokens.accessToken) return null;
+              const { data } = await getCoreUser(tokens.accessToken);
               if (!data) return null;
               const user = data.data;
               return {
@@ -170,14 +213,15 @@ function withSetCookies(from: Response): Response {
   for (const cookie of from.headers.getSetCookie()) {
     headers.append("set-cookie", cookie);
   }
-  return new Response(null, { status: 204, headers });
+  return new Response(null, {
+    status: from.status === 503 ? 503 : 204,
+    headers,
+  });
 }
 
-/**
- * One in-flight renewal per cookie jar. Core deletes the refresh-token family
- * when a second request presents a token the first request just rotated.
- */
-const renewalsInFlight = new Map<string, Promise<Response>>();
+// ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
+const RENEWAL_REPLAY_MS = 30_000;
+const renewalsByAuth = new WeakMap<CmoAuth, Map<string, Promise<Response>>>();
 
 /**
  * Keeps a page request's Sokosumi access fresh. Returns an empty response
@@ -188,15 +232,43 @@ export function renewSession(
   auth: CmoAuth,
   request: Request,
 ): Promise<Response> {
-  const key = request.headers.get("cookie") ?? "";
-  const current = renewalsInFlight.get(key);
+  const { accountData, sessionToken } = getCookies(auth.options);
+  const key = JSON.stringify(
+    [...parseCookies(request.headers.get("cookie") ?? "")]
+      .filter(
+        ([name]) =>
+          name === sessionToken.name ||
+          name === accountData.name ||
+          (name.startsWith(`${accountData.name}.`) &&
+            /^\d+$/.test(name.slice(accountData.name.length + 1))),
+      )
+      .sort(([first], [second]) => first.localeCompare(second)),
+  );
+  let renewals = renewalsByAuth.get(auth);
+  if (!renewals) {
+    renewals = new Map();
+    renewalsByAuth.set(auth, renewals);
+  }
+  const current = renewals.get(key);
   if (current) return current.then((response) => response.clone());
 
-  const renewal = renewSessionOnce(auth, request);
-  renewalsInFlight.set(key, renewal);
-  return renewal.finally(() => {
-    if (renewalsInFlight.get(key) === renewal) renewalsInFlight.delete(key);
-  });
+  const cache = renewals;
+  const renewal = renewSessionOnce(auth, request).then(
+    (response) => {
+      if (response.headers.getSetCookie().length === 0) cache.delete(key);
+      else {
+        // Requests already sent by the browser can arrive after rotation ends.
+        setTimeout(() => cache.delete(key), RENEWAL_REPLAY_MS).unref();
+      }
+      return response;
+    },
+    (error: unknown) => {
+      cache.delete(key);
+      throw error;
+    },
+  );
+  cache.set(key, renewal);
+  return renewal.then((response) => response.clone());
 }
 
 async function renewSessionOnce(
@@ -206,11 +278,11 @@ async function renewSessionOnce(
   // An internal call: address CMO by its own origin, since the page request
   // may arrive on an internal host that Better Auth's CSRF check refuses.
   const origin = auth.options.baseURL;
-  const headers = {
+  const headers = new Headers({
     cookie: request.headers.get("cookie") ?? "",
     origin,
     "content-type": "application/json",
-  };
+  });
   const renewed = await auth.handler(
     new Request(`${origin}/api/auth/get-access-token`, {
       method: "POST",
@@ -219,8 +291,12 @@ async function renewSessionOnce(
     }),
   );
   // 401: nobody is signed in.
-  if (renewed.ok || renewed.status === 401) return withSetCookies(renewed);
+  if (renewed.ok || renewed.status === 401 || renewed.status === 503) {
+    return withSetCookies(renewed);
+  }
 
+  // The access check may reject a user after refresh has rotated the token.
+  applySetCookies(headers, renewed.headers.getSetCookie());
   const signedOut = await auth.handler(
     new Request(`${origin}/api/auth/sign-out`, {
       method: "POST",

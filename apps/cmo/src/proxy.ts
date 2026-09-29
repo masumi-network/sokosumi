@@ -9,6 +9,12 @@ import { getAuth, renewSession } from "./lib/auth";
  */
 export async function proxy(request: NextRequest) {
   const renewal = await renewSession(getAuth(), request);
+  if (renewal.status === 503) {
+    return new NextResponse("CMO is temporarily unavailable. Try again.", {
+      status: 503,
+      headers: renewal.headers,
+    });
+  }
   const cookies = renewal.headers.getSetCookie();
   if (cookies.length === 0) return NextResponse.next();
 

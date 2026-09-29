@@ -30,6 +30,7 @@ interface FakeCore {
   refuseUser(): void;
   /** Core's discovery document answers 503 while true. */
   discoveryDown: boolean;
+  userLookupDown: boolean;
 }
 
 /**
@@ -156,6 +157,7 @@ async function createFakeCore(): Promise<FakeCore> {
         return json({ error: "unsupported_grant_type" }, 400);
       }
       case "/v1/users/me": {
+        if (fake.userLookupDown) return json({ error: "unavailable" }, 503);
         const bearer = request.headers.get("authorization")?.slice(7) ?? "";
         if (userRefused || !accessTokens.has(bearer)) {
           return json({ error: "Unauthorized" }, 401);
@@ -212,6 +214,7 @@ async function createFakeCore(): Promise<FakeCore> {
       userRefused = true;
     },
     discoveryDown: false,
+    userLookupDown: false,
   };
   return fake;
 }
@@ -428,6 +431,95 @@ describe("CMO auth handler", () => {
     }
   });
 
+  it("replays renewal for a delayed request before the browser applies cookies", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const request = browserRequest(jar, "/");
+
+    const first = await renewSession(auth, request.clone());
+    const delayed = await renewSession(auth, request.clone());
+    jar.store(first);
+    jar.store(delayed);
+
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+    expect(delayed.headers.getSetCookie()).toEqual(
+      first.headers.getSetCookie(),
+    );
+  });
+
+  it("shares renewal when unrelated cookies or cookie ordering change", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const firstCookies = jar.header();
+    const secondCookies = `analytics=changed; ${firstCookies.split("; ").reverse().join("; ")}`;
+
+    const responses = await Promise.all(
+      [firstCookies, secondCookies].map((cookie) =>
+        renewSession(auth, new Request(`${CMO}/`, { headers: { cookie } })),
+      ),
+    );
+    for (const response of responses) jar.store(response);
+
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+    expect(responses[0].headers.getSetCookie()).toEqual(
+      responses[1].headers.getSetCookie(),
+    );
+  });
+
+  it("shares renewal for reordered chunks of the same account cookie", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const cookie = jar
+      .header()
+      .split("; ")
+      .find((pair) => pair.startsWith("__Secure-cmo.account_data="));
+    expect(cookie).toBeDefined();
+    const value = cookie?.slice("__Secure-cmo.account_data=".length) ?? "";
+    const half = Math.floor(value.length / 2);
+    const otherCookies = jar
+      .header()
+      .split("; ")
+      .filter((pair) => !pair.startsWith("__Secure-cmo.account_data="));
+    const chunks = [
+      ...otherCookies,
+      `__Secure-cmo.account_data.0=${value.slice(0, half)}`,
+      `__Secure-cmo.account_data.1=${value.slice(half)}`,
+    ];
+
+    const responses = await Promise.all(
+      [chunks.join("; "), chunks.reverse().join("; ")].map((cookies) =>
+        renewSession(
+          auth,
+          new Request(`${CMO}/`, { headers: { cookie: cookies } }),
+        ),
+      ),
+    );
+    for (const response of responses) jar.store(response);
+
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("stops replaying rotated cookies after the short grace window", async () => {
+    await signIn(auth, jar, core);
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const request = browserRequest(jar, "/");
+    const first = await renewSession(auth, request.clone());
+    jar.store(first);
+
+    await vi.advanceTimersByTimeAsync(31_000);
+    const stale = await renewSession(auth, request.clone());
+    jar.store(stale);
+
+    expect(await sessionUser(auth, jar)).toBeNull();
+    expect(stale.headers.getSetCookie()).not.toEqual(
+      first.headers.getSetCookie(),
+    );
+  });
+
   it("renews an expired access token silently and keeps the rotated refresh token", async () => {
     await signIn(auth, jar, core);
 
@@ -455,6 +547,46 @@ describe("CMO auth handler", () => {
 
     expect(await sessionUser(auth, jar)).toBeNull();
     expect(jar.names()).toEqual([]);
+  });
+
+  it.each([0, TWO_HOURS_S + 60])(
+    "signs out a user banned after login, with access token age %s seconds",
+    async (age) => {
+      await signIn(auth, jar, core);
+      core.refuseUser();
+      vi.setSystemTime(Date.now() + age * 1000);
+
+      await renew(auth, jar);
+
+      expect(await sessionUser(auth, jar)).toBeNull();
+      expect(jar.names()).toEqual([]);
+      // After a refresh, sign-out must revoke the newly rotated token.
+      expect(core.revoked).toEqual([
+        age === 0 ? "soko_refresh_token_2" : "soko_refresh_token_3",
+      ]);
+    },
+  );
+
+  it("preserves rotated tokens during a temporary Core identity outage", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    core.userLookupDown = true;
+
+    const unavailable = await renew(auth, jar);
+
+    expect(unavailable.status).toBe(503);
+    expect(core.revoked).toEqual([]);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+
+    core.userLookupDown = false;
+    const recovered = await renew(auth, jar);
+    expect(recovered.status).toBe(204);
+    expect(core.refreshCount()).toBe(1);
+
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+    expect(core.refreshCount()).toBe(2);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
   it("does nothing for a signed-out visitor", async () => {
@@ -501,8 +633,36 @@ describe("CMO auth handler", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe("/?error=access_denied");
+    expect(response.headers.get("location")).toBe(
+      `${CMO}/?error=access_denied`,
+    );
     expect(await sessionUser(auth, jar)).toBeNull();
+  });
+
+  it("returns declined preview consent to the preview even with a production session", async () => {
+    await signIn(auth, jar, core);
+    const preview = createCmoAuth({
+      baseURL: PREVIEW,
+      coreBaseUrl: CORE,
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      secret: "a-preview-cookie-secret-of-at-least-32-characters",
+      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
+    });
+    const previewJar = new CookieJar(PREVIEW);
+    const { state } = core.approve(await startSignIn(preview, previewJar));
+
+    const declined = await send(
+      auth,
+      jar,
+      `/api/auth/callback/sokosumi?error=access_denied&state=${encodeURIComponent(state)}`,
+    );
+
+    expect(declined.headers.get("location")).toBe(
+      `${PREVIEW}/?error=access_denied`,
+    );
+    expect(await sessionUser(preview, previewJar)).toBeNull();
+    expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
   it("refuses a user Core does not accept", async () => {
@@ -515,7 +675,9 @@ describe("CMO auth handler", () => {
       `/api/auth/callback/sokosumi?code=${code}&state=${state}`,
     );
 
-    expect(response.headers.get("location")).toMatch(/^\/\?error=/);
+    expect(response.headers.get("location")).toMatch(
+      /^https:\/\/cmo\.xyz\/\?error=/,
+    );
     expect(await sessionUser(auth, jar)).toBeNull();
   });
 
