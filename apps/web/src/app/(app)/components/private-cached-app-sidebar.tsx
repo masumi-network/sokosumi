@@ -14,6 +14,8 @@ interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
+  /** Resolved by the frame: Social is still a beta surface. */
+  socialMenuEnabled: boolean;
 }
 
 /**
@@ -26,11 +28,13 @@ export default function PrivateCachedAppSidebar({
   sessionUser,
   activeOrganizationId,
   adminMenuEnabled,
+  socialMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
   const sokoBotMenuEnabled = hasSokoBotBetaAccess(sessionUser);
 
   return (
     <Sidebar
+      socialMenuEnabled={socialMenuEnabled}
       sokoBotMenuEnabled={sokoBotMenuEnabled}
       chatList={
         <Suspense

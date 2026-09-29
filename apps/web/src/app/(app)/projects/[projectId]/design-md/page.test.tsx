@@ -1,19 +1,14 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const {
-  fetchDesignMdMarkdownMock,
-  hasCurrentUserSocialBetaAccessMock,
-  notFoundMock,
-  projectServiceMock,
-} = vi.hoisted(() => ({
-  fetchDesignMdMarkdownMock: vi.fn(),
-  hasCurrentUserSocialBetaAccessMock: vi.fn(),
-  notFoundMock: vi.fn(() => {
-    throw new Error("NOT_FOUND");
-  }),
-  projectServiceMock: { getProjectById: vi.fn() },
-}));
+const { fetchDesignMdMarkdownMock, notFoundMock, projectServiceMock } =
+  vi.hoisted(() => ({
+    fetchDesignMdMarkdownMock: vi.fn(),
+    notFoundMock: vi.fn(() => {
+      throw new Error("NOT_FOUND");
+    }),
+    projectServiceMock: { getProjectById: vi.fn() },
+  }));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -28,10 +23,6 @@ vi.mock("next-intl/server", async () => {
       `${namespace}.${key}`,
   };
 });
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
-}));
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
@@ -69,7 +60,6 @@ function buildProject(overrides: Record<string, unknown> = {}) {
 describe("ProjectDesignPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
   });
 
   it("calls notFound when the project is missing", async () => {

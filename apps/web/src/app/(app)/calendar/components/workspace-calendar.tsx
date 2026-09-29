@@ -25,12 +25,14 @@ import {
   Ellipsis,
   FolderKanban,
   Repeat,
+  Share2,
   Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  parseAsBoolean,
   parseAsString,
   parseAsStringEnum,
   parseAsStringLiteral,
@@ -152,6 +154,12 @@ function findCalendarPeople(
 
 interface WorkspaceCalendarProps {
   includeSocialPosts?: boolean;
+  /**
+   * Social's own calendar: Social posts are all this calendar ever shows, so
+   * the toggle, the task filters and task creation are left out rather than
+   * offered and then ignored.
+   */
+  socialPostsOnly?: boolean;
   activeOrganizationId?: string | null;
   currentUserId?: string | null;
   initialDate: string;
@@ -178,6 +186,7 @@ const calendarParsers = {
   projectId: parseAsString,
   sourceId: parseAsString,
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
+  socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
@@ -467,6 +476,7 @@ function CalendarView({
   items,
   onDateClick,
   runHandlers,
+  socialOnly,
   sources,
   timeZone,
   view,
@@ -477,6 +487,7 @@ function CalendarView({
   items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
+  socialOnly: boolean;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
@@ -542,7 +553,7 @@ function CalendarView({
         <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
         {items.length === 0 ? (
           <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t("empty.title")}
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
           </p>
         ) : null}
         {Array.from(days, ([day, dayItems]) => (
@@ -684,6 +695,7 @@ export function WorkspaceCalendar({
   lockedProjectId,
   workspaceId = null,
   includeSocialPosts = false,
+  socialPostsOnly = false,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
@@ -776,13 +788,19 @@ export function WorkspaceCalendar({
       : selectedSchedulableSource?.sourceType === "WORKSPACE"
         ? null
         : undefined);
-  const canCreate = sources.some(
-    (source) =>
-      source.isSchedulable &&
-      (source.sourceType === "WORKSPACE" ||
-        getProjectIdFromSource(source) !== null) &&
-      (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
-  );
+  // Social's own calendar is social-only by definition; everywhere else the
+  // reader turns it on, and only where Social posts are on the calendar at all.
+  const socialOnly =
+    socialPostsOnly || (includeSocialPosts && state.socialOnly);
+  const canCreate =
+    !socialPostsOnly &&
+    sources.some(
+      (source) =>
+        source.isSchedulable &&
+        (source.sourceType === "WORKSPACE" ||
+          getProjectIdFromSource(source) !== null) &&
+        (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
+    );
 
   useMountEffect(() => {
     if (!isValidTimezone(state.timezone)) {
@@ -801,6 +819,10 @@ export function WorkspaceCalendar({
     : null;
   const visibleItems = loadedItems
     .filter((item) => {
+      // Only Social posts survive the toggle. The grid views drain every page
+      // in range before they paint, so filtering the loaded entries here shows
+      // the same posts a Social-only request would have returned.
+      if (socialOnly && item.kind !== "socialPost") return false;
       if (item.kind === "socialPost")
         return (
           (view !== "agenda" ||
@@ -1105,7 +1127,9 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...runFilterSections(),
+    // A coworker, human or task status chosen while Social-only is on would
+    // empty the calendar: a Social post has none of the three.
+    ...(socialOnly ? [] : runFilterSections()),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1194,7 +1218,32 @@ export function WorkspaceCalendar({
               ))}
             </TabsList>
           </Tabs>
-          {lockedProjectId ? (
+          {includeSocialPosts && !socialPostsOnly ? (
+            <Button
+              aria-pressed={socialOnly}
+              data-testid="calendar-social-only"
+              onClick={() =>
+                void setState(
+                  // The task filters cannot apply to a Social post, so they go
+                  // with the runs rather than sitting on as dead narrowing.
+                  {
+                    socialOnly: !state.socialOnly,
+                    assigneeId: null,
+                    assigneeUserId: null,
+                    status: null,
+                  },
+                  { shallow: false },
+                )
+              }
+              size="sm"
+              type="button"
+              variant={socialOnly ? "secondary" : "outline"}
+            >
+              <Share2 aria-hidden className="size-4" />
+              {t("socialOnly.label")}
+            </Button>
+          ) : null}
+          {lockedProjectId && !socialPostsOnly ? (
             <Button asChild size="sm" variant="outline">
               <Link
                 href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
@@ -1212,9 +1261,10 @@ export function WorkspaceCalendar({
               sections={filterSections}
               showActiveIndicator={
                 state.scope === "owned" ||
-                state.assigneeId !== null ||
-                state.assigneeUserId !== null ||
-                state.status !== null ||
+                (!socialOnly &&
+                  (state.assigneeId !== null ||
+                    state.assigneeUserId !== null ||
+                    state.status !== null)) ||
                 selectedSourceId !== null
               }
             />
@@ -1231,7 +1281,7 @@ export function WorkspaceCalendar({
       <div className="flex min-w-0 flex-col gap-4">
         {visibleItems.length === 0 && view !== "agenda" ? (
           <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
-            {t("empty.title")}
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
           </div>
         ) : null}
         <CalendarView
@@ -1242,6 +1292,7 @@ export function WorkspaceCalendar({
           items={visibleItems}
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
+          socialOnly={socialOnly}
           sources={sources}
           timeZone={timeZone}
           view={view}

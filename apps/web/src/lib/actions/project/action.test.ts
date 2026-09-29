@@ -548,7 +548,7 @@ describe("project actions", () => {
       );
       expect(result).toEqual({ ok: true, value: post });
       expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
-      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
     it("creates a scheduled post from an ISO timestamp and timezone", async () => {
@@ -703,7 +703,7 @@ describe("project actions", () => {
         { revision: 1 },
       );
       expect(canceled).toMatchObject({ ok: true, value: { revision: 2 } });
-      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
     it("publishes a post now through the service and revalidates", async () => {
@@ -731,7 +731,7 @@ describe("project actions", () => {
         value: { status: "PUBLISHED", revision: 3 },
       });
       expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
-      expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1/social");
+      expect(revalidatePath).toHaveBeenCalledWith("/social");
     });
 
     it("rejects a negative revision before publishing", async () => {

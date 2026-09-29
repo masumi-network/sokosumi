@@ -1,18 +1,16 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
-  vi.hoisted(() => ({
-    hasCurrentUserSocialBetaAccessMock: vi.fn(),
-    projectServiceMock: {
-      getProjectCloseStatus: vi.fn(),
-      getProjectById: vi.fn(),
-      getProjectsStats: vi.fn(),
-    },
-    notFoundMock: vi.fn(() => {
-      throw new Error("NOT_FOUND");
-    }),
-  }));
+const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+  projectServiceMock: {
+    getProjectCloseStatus: vi.fn(),
+    getProjectById: vi.fn(),
+    getProjectsStats: vi.fn(),
+  },
+  notFoundMock: vi.fn(() => {
+    throw new Error("NOT_FOUND");
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -28,10 +26,6 @@ vi.mock("next-intl/server", async () => {
       `${namespace}.${key}`,
   };
 });
-
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
-}));
 
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
@@ -90,7 +84,6 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound when the project is missing", async () => {
@@ -184,7 +177,7 @@ describe("ProjectDetailPage", () => {
     ).toBeTruthy();
   });
 
-  it("navigates Overview, Design and Memory, plus Social inside the beta", async () => {
+  it("navigates Overview, Design and Memory, and nothing else", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -195,6 +188,8 @@ describe("ProjectDetailPage", () => {
     );
 
     const tabs = screen.getByRole("navigation");
+    // Social is a destination in the sidebar now, scoped by `?projectId=`, so
+    // it is no longer a tab of the project it posts for.
     expect(
       Array.from(tabs.querySelectorAll("a")).map((link) =>
         link.getAttribute("href"),
@@ -203,34 +198,11 @@ describe("ProjectDetailPage", () => {
       "/projects/project-1",
       "/projects/project-1/design-md",
       "/projects/project-1/memory",
-      "/projects/project-1/social",
     ]);
     // Overview is the default tab, and it is the one that is open.
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.overview" }),
     ).toHaveAttribute("aria-current", "page");
-  });
-
-  it("drops the Social tab outside the beta", async () => {
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
-    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
-
-    const { default: ProjectDetailPage } = await import("./page");
-    render(
-      await ProjectDetailPage({
-        params: Promise.resolve({ projectId: "project-1" }),
-      }),
-    );
-
-    expect(
-      Array.from(screen.getByRole("navigation").querySelectorAll("a")).map(
-        (link) => link.getAttribute("href"),
-      ),
-    ).toEqual([
-      "/projects/project-1",
-      "/projects/project-1/design-md",
-      "/projects/project-1/memory",
-    ]);
   });
 
   it("loads and renders close status only after closing starts", async () => {
