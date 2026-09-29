@@ -85,8 +85,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     loadWorkspaceCalendarPage({ projectId: project.id, searchParams }),
   ]);
   const activeConnections = connections.filter(
-    (socialConnection) =>
-      socialConnection.status === "active" && socialConnection.provider === "x",
+    (socialConnection) => socialConnection.status === "active",
   );
   const posts = selectedPost
     ? [

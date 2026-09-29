@@ -1,0 +1,68 @@
+import {
+  SOCIAL_POST_MEDIA_REQUIREMENTS,
+  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_TEXT_REQUIRED,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidationReason,
+  type SocialPostProvider,
+  validateSocialPostMedia,
+} from "@sokosumi/utils";
+
+/** Why a post cannot be saved yet, or null when the composer may submit. */
+export type SocialPostComposerIssue =
+  | "text_required"
+  | "text_or_media_required"
+  | "media_required"
+  | "video_required"
+  | SocialPostMediaValidationReason;
+
+/**
+ * Composer-side view of the provider's rules; the server enforces the same
+ * rules authoritatively on create, update, and schedule.
+ */
+export function socialPostComposerIssue(
+  provider: SocialPostProvider,
+  text: string,
+  media: readonly SocialPostMediaRef[],
+): SocialPostComposerIssue | null {
+  const hasText = text.trim().length > 0;
+  if (SOCIAL_POST_TEXT_REQUIRED[provider] && !hasText) {
+    return "text_required";
+  }
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "none" && !hasText && media.length === 0) {
+    return "text_or_media_required";
+  }
+  if (requirement === "any" && media.length === 0) return "media_required";
+  if (
+    requirement === "video" &&
+    (media.length !== 1 || media[0]?.kind !== "video")
+  ) {
+    return "video_required";
+  }
+  const validation = validateSocialPostMedia(provider, media);
+  return validation.ok ? null : validation.reason;
+}
+
+/**
+ * The provider the composer validates against: the connection the user has
+ * selected wins, because Core re-derives the provider from that connection on
+ * save and schedule; an edited post without a selected connection keeps its
+ * own provider, and a new post with no connections falls back to X.
+ */
+export function socialPostComposerProvider(
+  postProvider: SocialPostProvider | null | undefined,
+  selectedConnectionProvider: SocialPostProvider | null | undefined,
+): SocialPostProvider {
+  return selectedConnectionProvider ?? postProvider ?? "x";
+}
+
+/** The file picker's accept list for the selected provider's media rules. */
+export function socialPostComposerAccept(provider: SocialPostProvider): string {
+  const rules = SOCIAL_POST_MEDIA_RULES[provider];
+  return [
+    ...rules.imageMimeTypes,
+    ...rules.gifMimeTypes,
+    ...rules.videoMimeTypes,
+  ].join(",");
+}

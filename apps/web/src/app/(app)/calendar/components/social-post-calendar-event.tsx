@@ -1,10 +1,11 @@
 "use client";
 
+import { socialPostProviderLabel } from "@sokosumi/utils";
 import { Paperclip } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { SiX } from "react-icons/si";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
 import type { SocialPostCalendarItem } from "@/lib/clients/generated/core";
 
@@ -21,7 +22,10 @@ export function SocialPostCalendarEvent({
   const scheduler = t("scheduledBy", {
     name: item.scheduledByName ?? t("unknownScheduler"),
   });
-  const account = item.externalHandle ? `X · @${item.externalHandle}` : "X";
+  const providerLabel = socialPostProviderLabel(item.provider);
+  const account = item.externalHandle
+    ? `${providerLabel} · @${item.externalHandle}`
+    : providerLabel;
   return (
     <Link
       href={`/projects/${item.sourceProjectId}/social?postId=${item.postId}#social-post-${item.postId}`}
@@ -33,7 +37,12 @@ export function SocialPostCalendarEvent({
           className="flex size-4 shrink-0 items-center justify-center"
           title={account}
         >
-          <SiX role="img" aria-label={account} className="size-3" />
+          <SocialPostProviderIcon
+            provider={item.provider}
+            role="img"
+            aria-label={account}
+            className="size-3"
+          />
         </span>
         <span className="text-muted-foreground shrink-0 tabular-nums">
           {formatter.dateTime(item.scheduledAt, "time", { timeZone })}

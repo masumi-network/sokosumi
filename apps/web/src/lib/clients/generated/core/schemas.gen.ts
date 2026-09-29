@@ -17432,6 +17432,17 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        provider: {
+            type: 'string',
+            enum: [
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
+            ]
+        },
         text: {
             type: 'string'
         },
@@ -17499,6 +17510,7 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'provider',
         'text',
         'status',
         'externalHandle',
@@ -17915,7 +17927,12 @@ export const SocialPostSchema = {
         provider: {
             type: 'string',
             enum: [
-                'x'
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
             ]
         },
         text: {
@@ -18305,7 +18322,7 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 280,
+            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         media: {
@@ -18314,7 +18331,7 @@ export const CreateSocialPostRequestSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
             maxItems: 4,
-            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
+            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -18340,7 +18357,7 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 280,
+            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         media: {
@@ -18349,7 +18366,7 @@ export const UpdateSocialPostRequestSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
             maxItems: 4,
-            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
+            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         socialConnectionId: {
             type: [

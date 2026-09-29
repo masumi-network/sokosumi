@@ -520,6 +520,7 @@ export async function readWorkspaceCalendar(
           orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
           select: {
             id: true,
+            provider: true,
             text: true,
             status: true,
             scheduledAt: true,
@@ -543,6 +544,7 @@ export async function readWorkspaceCalendar(
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
+      provider: post.provider,
       text: post.text,
       status: post.status,
       externalHandle: post.socialConnection?.externalHandle ?? null,

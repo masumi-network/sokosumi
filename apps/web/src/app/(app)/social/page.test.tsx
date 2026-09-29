@@ -59,11 +59,13 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
     posts: { id: string }[];
+    connections: { id: string }[];
     projectId: string;
     selectedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
+      data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
@@ -136,6 +138,22 @@ describe("SocialPage", () => {
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
+  });
+
+  it("offers every active connection to the post composer", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockResolvedValue([
+      { id: "conn-x", status: "active", provider: "x" },
+      { id: "conn-ig", status: "active", provider: "instagram" },
+      { id: "conn-off", status: "disconnected", provider: "linkedin" },
+    ]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-connections",
+      "conn-x,conn-ig",
+    );
   });
 
   it("stays hidden outside the beta", async () => {

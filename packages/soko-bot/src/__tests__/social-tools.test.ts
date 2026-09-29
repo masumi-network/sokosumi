@@ -11,6 +11,7 @@ import {
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
+  SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   type TurnClassification,
@@ -135,6 +136,26 @@ describe("Social tool contracts", () => {
     }
   });
 
+  it("describes every provider's publishing rules", () => {
+    const descriptions = SOKO_BOT_TOOL_DESCRIPTIONS;
+    const socialKeys = [
+      "list_project_social_accounts",
+      "list_social_posts",
+      "get_social_post",
+      "create_social_post",
+      "update_social_post",
+      "schedule_social_post",
+      "cancel_social_post",
+      "publish_social_post",
+    ] as const;
+    for (const key of socialKeys) {
+      expect(descriptions[key]).not.toMatch(/X only/);
+    }
+    expect(descriptions.list_project_social_accounts).toMatch(/Instagram/);
+    expect(descriptions.create_social_post).toMatch(/video/);
+    expect(descriptions.create_social_post).toMatch(/LinkedIn/);
+  });
+
   it("requires text or media for creation and preserves partial updates", () => {
     expect(
       schemas.create_social_post.parse({ projectId, text: "  Launch  " }).text,
@@ -143,8 +164,16 @@ describe("Social tool contracts", () => {
       schemas.create_social_post.safeParse({ projectId, text: " " }).success,
     ).toBe(false);
     expect(
-      schemas.create_social_post.safeParse({ projectId, text: "x".repeat(281) })
-        .success,
+      schemas.create_social_post.safeParse({
+        projectId,
+        text: "x".repeat(3000),
+      }).success,
+    ).toBe(true);
+    expect(
+      schemas.create_social_post.safeParse({
+        projectId,
+        text: "x".repeat(63207),
+      }).success,
     ).toBe(false);
     expect(
       schemas.create_social_post.safeParse({

@@ -2263,10 +2263,10 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Connect social accounts to this project. Publishing is currently available for X.",
+        "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectHeading": "Connect an account",
+        "connectAccount": "Connect account",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
@@ -2298,6 +2298,7 @@
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
         },
         "errors": {
+          "facebookPage": "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
@@ -2310,13 +2311,15 @@
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
           "notConfigured": "This integration is not configured yet. Contact support to enable it."
-        }
+        },
+        "comingSoon": "Coming soon",
+        "connectComingSoon": "{provider} (coming soon)"
       },
       "SocialPosts": {
         "loadMore": "Load more",
         "loading": "Loading…",
         "title": "Social posts",
-        "description": "Draft text posts for X and schedule them from this Project.",
+        "description": "Draft, schedule, and publish posts on this Project’s connected social accounts.",
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
@@ -2365,23 +2368,29 @@
             "upload": "Upload",
             "uploading": "Uploading…",
             "remove": "Remove {name}",
-            "hint": "Up to 4 images, or one GIF, or one video.",
-            "unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+            "hint": "Attach images or one video, within {provider}'s limits.",
+            "unsupported": "Use a file type {provider} accepts.",
             "alreadyAttached": "That file is already attached.",
             "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
             "uploadFailed": "The upload failed. Try again.",
             "errors": {
-              "too_many_images": "X allows at most 4 images per post.",
-              "too_many_gifs": "X allows one GIF per post.",
-              "too_many_videos": "X allows one video per post.",
-              "mixed_media": "Use images, one GIF, or one video — not a mix.",
-              "unsupported_type": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
-              "too_large": "A file is too large for X."
+              "too_many_images": "{provider} allows at most {max} images per post.",
+              "too_many_gifs": "{provider} allows one GIF per post.",
+              "too_many_videos": "{provider} allows one video per post.",
+              "mixed_media": "{provider} does not allow mixing images, a GIF, or a video.",
+              "unsupported_type": "{provider} does not accept this file type.",
+              "too_large": "A file is too large for {provider}."
             }
+          },
+          "requirements": {
+            "text_or_media_required": "Add text or media.",
+            "text_required": "{provider} requires text.",
+            "media_required": "{provider} requires at least one image or video.",
+            "video_required": "{provider} requires a video."
           },
           "account": "Account",
           "noAccount": "Choose an account",
-          "unknownHandle": "Unknown X account",
+          "unknownHandle": "Unknown account",
           "scheduledAt": "Scheduled time",
           "scheduledAtTooSoon": "Choose a time at least one minute from now.",
           "saveDraft": "Save draft",
@@ -2411,7 +2420,7 @@
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
-        "viewOnX": "View on X",
+        "viewPost": "View post",
         "publishedAt": "Published {date}",
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
@@ -2421,7 +2430,7 @@
         },
         "publishDialog": {
           "title": "Publish this post now?",
-          "description": "The post goes out to X right away instead of waiting for its scheduled time.",
+          "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
         }
       },
