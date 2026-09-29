@@ -361,7 +361,7 @@ import Synchronization
             for _ in 0..<100 {
               if mode == "existing" {
                 if state.canRetryMention(message) { allowed += 1 }
-              } else if case .failed(_, _?) = CoworkerMentionShell(message: message) {
+              } else if case .failed(_, _?) = MentionThoughtShell(message: message) {
                 if state.canRetryMention(message) { allowed += 1 }
               }
             }

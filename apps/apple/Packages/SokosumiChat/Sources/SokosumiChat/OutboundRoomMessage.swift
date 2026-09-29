@@ -77,7 +77,14 @@ public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMes
   isRoomStatusMessage(message)
     || !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     || message.quote != nil
-    || CoworkerMentionShell(message: message) != nil
+    || isCoworkerMentionShell(message)
+}
+
+/// Web `isMentionCoworkerShell` (`merge-room-messages.ts`): only a coworker's
+/// bodiless shell stays; a Soko Bot's, which the row could draw, is dropped.
+private func isCoworkerMentionShell(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  guard case .case2 = message.sender else { return false }
+  return MentionThoughtShell(message: message) != nil
 }
 
 /// Persisted rows the transcript shows (`shouldKeepPersistedMessage`), then the local outbound shells.

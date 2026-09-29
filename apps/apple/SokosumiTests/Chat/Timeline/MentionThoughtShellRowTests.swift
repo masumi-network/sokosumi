@@ -11,7 +11,7 @@
 
   /// Persisted mention shells in the transcript: live Thought (with and without
   /// reasoning beats) and the failed shell with the mentioner-only Retry.
-  @MainActor struct CoworkerMentionShellRowTests {
+  @MainActor struct MentionThoughtShellRowTests {
     private func shell(id: String, metadata: [String: any Sendable]) throws -> Components.Schemas.ChatRoomMessage {
       try .init(
         id: id,
@@ -35,9 +35,9 @@
 
     @Test func shellsAreDetectedFromTheGeneratedDTO() throws {
       let thinking = try shell(id: "thinking", metadata: ["streaming": true, "mention_id": "mention_1", "thought_timing_ms": ["start": 1_788_868_800_000]])
-      #expect(CoworkerMentionShell(message: thinking) == .thinking(startedAt: Date(timeIntervalSince1970: 1_788_868_800)))
+      #expect(MentionThoughtShell(message: thinking) == .thinking(startedAt: Date(timeIntervalSince1970: 1_788_868_800)))
       let failed = try shell(id: "failed", metadata: ["mention_id": "mention_1", "mention_failed": true, "in_reply_to_message_id": "source"])
-      #expect(CoworkerMentionShell(message: failed) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
+      #expect(MentionThoughtShell(message: failed) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
     }
 
     @Test(arguments: [false, true])
