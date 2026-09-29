@@ -267,7 +267,7 @@ function VendorCardActions({
           }
         >
           {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("approve")}
         </Button>
@@ -286,7 +286,7 @@ function VendorCardActions({
           }
         >
           {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("deny")}
         </Button>
@@ -312,7 +312,7 @@ function VendorCardActions({
           }
         >
           {loadingAction === "revoke" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("revoke")}
         </Button>
@@ -338,7 +338,7 @@ function VendorCardActions({
           }
         >
           {loadingAction === "grant" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tGrantForm("submit")}
         </Button>

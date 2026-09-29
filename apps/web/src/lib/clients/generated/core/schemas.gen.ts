@@ -18522,9 +18522,6 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
-        },
-        review: {
-            $ref: '#/components/schemas/ProjectImageReview'
         }
     },
     required: [
@@ -18591,39 +18588,6 @@ export const ProjectImageSettingsSchema = {
             default: null
         }
     }
-} as const;
-
-export const ProjectImageReviewSchema = {
-    type: 'object',
-    properties: {
-        decision: {
-            type: 'string',
-            enum: [
-                'APPROVED',
-                'REJECTED'
-            ]
-        },
-        feedback: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        decidedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        decidedByUserId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'decision',
-        'feedback',
-        'decidedAt',
-        'decidedByUserId'
-    ]
 } as const;
 
 export const ProjectImageJobSchema = {
@@ -18878,30 +18842,6 @@ export const CancelProjectImageJobResponseSchema = {
     },
     required: [
         'accepted'
-    ]
-} as const;
-
-export const ReviewProjectImageAssetRequestSchema = {
-    type: 'object',
-    properties: {
-        decision: {
-            type: 'string',
-            enum: [
-                'APPROVED',
-                'REJECTED'
-            ]
-        },
-        feedback: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 2000,
-            default: null
-        }
-    },
-    required: [
-        'decision'
     ]
 } as const;
 

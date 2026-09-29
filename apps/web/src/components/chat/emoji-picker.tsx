@@ -55,7 +55,7 @@ function EmojiGridButton({
       type="button"
       title={`:${primaryName}:`}
       aria-label={entry.description || primaryName}
-      className="hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
+      className="press hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
       onClick={() => onPick(entry.emoji)}
     >
       {entry.emoji}
@@ -294,7 +294,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
                   }}
                   className="[content-visibility:auto]"
                 >
-                  <h3 className="text-muted-foreground mb-1 px-1 text-xs font-medium tracking-wide uppercase">
+                  <h3 className="text-muted-foreground mb-1 px-1 text-xs font-medium">
                     {heading}
                   </h3>
                   <div className="grid grid-cols-8 gap-0.5">

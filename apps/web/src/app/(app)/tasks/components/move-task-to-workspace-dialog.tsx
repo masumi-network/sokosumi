@@ -127,7 +127,7 @@ export function MoveTaskToWorkspaceDialog({
                 "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
                 selectedValue === option.id
                   ? "border-primary bg-primary-quinary"
-                  : "border-border hover:bg-card-background",
+                  : "border-border press hover:bg-card-background",
               )}
             >
               <RadioGroupItem value={option.id} id={`workspace-${option.id}`} />
@@ -159,7 +159,7 @@ export function MoveTaskToWorkspaceDialog({
             disabled={isPending || !selectedOption}
           >
             {isPending ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
             ) : null}
             {t("moveToWorkspaceButton")}
           </Button>

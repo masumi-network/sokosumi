@@ -1716,7 +1716,7 @@ function DrivePageWorkspace({
             <button
               type="button"
               onClick={navigateToWorkspaceRoot}
-              className="hover:text-foreground whitespace-nowrap transition-colors"
+              className="press hover:text-foreground whitespace-nowrap transition-colors"
               title={t("workspaceTab")}
             >
               {t("workspaceTab")}
@@ -1728,7 +1728,7 @@ function DrivePageWorkspace({
                   type="button"
                   onClick={crumb.onClick}
                   className={cn(
-                    "hover:text-foreground whitespace-nowrap transition-colors",
+                    "press hover:text-foreground whitespace-nowrap transition-colors",
                     index === tasksBreadcrumbs.length - 1 &&
                       "text-foreground font-medium",
                   )}
@@ -2295,7 +2295,7 @@ function DrivePageWorkspace({
                   type="button"
                   onClick={() => setSelectedDestination(dest.path)}
                   className={cn(
-                    "text-foreground hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
+                    "text-foreground press hover:bg-card-background flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors",
                     selectedDestination === dest.path &&
                       "bg-muted border-primary",
                   )}

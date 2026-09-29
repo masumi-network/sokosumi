@@ -214,7 +214,7 @@ export function DriveFilePreview({
       ) : isText ? (
         text.kind === "loading" ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             {t("previewLoading")}
           </p>
         ) : text.kind === "failed" ? (

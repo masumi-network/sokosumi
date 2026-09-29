@@ -85,7 +85,6 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
-  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
@@ -165,7 +164,6 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
-  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -389,7 +387,6 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
-  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
@@ -3134,40 +3131,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
-    id: string,
-    assetId: string,
-    body: NonNullable<
-      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
-    >,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
-          client,
-          path: { id, assetId },
-          body,
-        }),
-      "Failed to review image version",
-    );
-  }
-
-  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
-    id: string,
-    assetId: string,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
-          client,
-          path: { id, assetId },
-        }),
-      "Failed to clear image review",
-    );
-  }
-
   async function getProjectsByIdSocialPosts(
     id: string,
     query?: GetProjectsByIdSocialPostsData["query"],
@@ -5798,8 +5761,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
-    postProjectsByIdImageStudioAssetsByAssetIdReview,
-    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,

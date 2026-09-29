@@ -106,7 +106,7 @@ export function RotateOAuthClientDialog({
               onClick={() => void handleRotate()}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("RotateDialog.confirmButton")}
             </Button>

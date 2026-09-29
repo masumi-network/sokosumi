@@ -81,7 +81,9 @@ export function WorkspaceAccessRow({
               void handleRevoke();
             }}
           >
-            {isRevoking ? <Loader2 className="size-3.5 animate-spin" /> : null}
+            {isRevoking ? (
+              <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
+            ) : null}
             {t("revoke")}
           </Button>
         ) : null}

@@ -43,18 +43,6 @@ export interface StudioStateHook {
   selectedAsset: StudioAsset | null;
   selectAsset: (assetId: string) => void;
   activeJobs: StudioJob[];
-  /**
-   * Fold one server-confirmed asset back into state.
-   *
-   * The refresh below pins only the *selected* version, so a mutation applied
-   * to any other version — which comparison made possible, since it can review
-   * a version that is not the selected one — comes back in no subsequent
-   * response. Its row is retained from the previous state and keeps showing
-   * the decision it had before the save. Merging the mutation's own return
-   * value is what closes that, and it has to happen before the refresh so the
-   * retained copy is already the updated one.
-   */
-  applyAsset: (asset: StudioAsset) => void;
   refresh: () => Promise<void>;
   /** Appends the next, older page of versions. */
   loadOlder: () => Promise<void>;
@@ -192,22 +180,6 @@ export function useStudioState(options: {
     [onSelectionChange],
   );
 
-  const applyAsset = useCallback((asset: StudioAsset) => {
-    const previous = stateRef.current;
-    if (!previous.assets.some((candidate) => candidate.id === asset.id)) return;
-    const merged = {
-      ...previous,
-      assets: previous.assets.map((candidate) =>
-        candidate.id === asset.id ? asset : candidate,
-      ),
-    };
-    // Written through the ref as well as through state: a refresh started in
-    // the same tick reads `stateRef.current` to decide what to retain, and
-    // would otherwise retain the pre-mutation row it was called to replace.
-    stateRef.current = merged;
-    setState(merged);
-  }, []);
-
   const refresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -322,7 +294,6 @@ export function useStudioState(options: {
     selectedAsset,
     selectAsset,
     activeJobs,
-    applyAsset,
     refresh,
     loadOlder,
     hasOlder: shownState.nextCursor !== null,

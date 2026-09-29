@@ -31,8 +31,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: vi.fn(),
-  clearImageVersionReview: vi.fn(),
   requestImageJobCancel: vi.fn(),
 }));
 
@@ -42,7 +40,6 @@ vi.mock("./use-studio-state", () => ({
     selectedAsset: null,
     selectAsset: vi.fn(),
     activeJobs: [],
-    applyAsset: vi.fn(),
     refresh: vi.fn().mockResolvedValue(undefined),
     loadOlder: vi.fn(),
     hasOlder: false,
@@ -60,37 +57,6 @@ vi.mock("./use-generation-queue", () => ({
     clearError: vi.fn(),
   }),
 }));
-
-vi.mock("@/components/ui/dropdown-menu", () => {
-  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  return {
-    DropdownMenu: Passthrough,
-    DropdownMenuTrigger: Passthrough,
-    DropdownMenuContent: Passthrough,
-    DropdownMenuLabel: Passthrough,
-    DropdownMenuCheckboxItem: ({
-      checked,
-      children,
-      onSelect,
-    }: {
-      checked?: boolean;
-      children?: React.ReactNode;
-      onSelect?: (event: { preventDefault: () => void }) => void;
-    }) => (
-      <button
-        aria-checked={checked}
-        data-checked={checked}
-        onClick={() => onSelect?.({ preventDefault: () => {} })}
-        role="menuitemcheckbox"
-        type="button"
-      >
-        {children}
-      </button>
-    ),
-  };
-});
 
 vi.mock("@/components/ui/popover", () => {
   const Passthrough = ({ children }: { children?: React.ReactNode }) => (
@@ -139,11 +105,11 @@ function mount(catalog: StudioCatalog) {
 
 /** The model entries, in render order, with whether each is selected. */
 function modelEntries() {
-  return screen.getAllByRole("menuitemcheckbox").map((entry) => ({
+  return screen.getAllByRole("checkbox").map((entry) => ({
     // A row is the model's name, then its price, then its description, so the
     // name is the first element rather than the row's whole text.
     label: entry.querySelector(".font-medium")?.textContent?.trim() ?? "",
-    checked: entry.getAttribute("data-checked") === "true",
+    checked: entry.getAttribute("aria-checked") === "true",
   }));
 }
 
@@ -201,7 +167,7 @@ describe("editing the opening selection", () => {
 
     for (const label of ["Ranked 1", "Ranked 2", "Ranked 3"]) {
       const entry = screen
-        .getAllByRole("menuitemcheckbox")
+        .getAllByRole("checkbox")
         .find((node) => node.textContent?.includes(label));
       if (!entry) throw new Error(`no entry for ${label}`);
       fireEvent.click(entry);

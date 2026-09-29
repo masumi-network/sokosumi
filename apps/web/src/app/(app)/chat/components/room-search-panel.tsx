@@ -445,7 +445,7 @@ export function RoomSearchPanel({
         >
           {showLoading ? (
             <div className="text-muted-foreground flex items-center justify-center gap-2 px-2 py-6 text-sm">
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               {labels.loading}
             </div>
           ) : null}
@@ -479,7 +479,7 @@ export function RoomSearchPanel({
                 aria-selected={isActive}
                 tabIndex={-1}
                 className={cn(
-                  "flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm",
+                  "flex w-full cursor-pointer flex-col gap-0.5 rounded-md px-2 py-2 text-left text-sm transition-colors press",
                   isActive && "bg-accent",
                 )}
                 onClick={() => handleSelect(message)}

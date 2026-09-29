@@ -1,8 +1,4 @@
-import {
-  PROJECTS_WORKSPACE_CARD_CLASS,
-  PROJECTS_WORKSPACE_GUTTER_CLASS,
-  PROJECTS_WORKSPACE_SHELL_CLASS,
-} from "@/app/projects/constants";
+import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { cn } from "@/lib/utils";
 
 /**
@@ -38,18 +34,11 @@ export function StudioPageShell({
   title: string;
 }) {
   return (
-    <div className={PROJECTS_WORKSPACE_SHELL_CLASS}>
-      <div className={PROJECTS_WORKSPACE_CARD_CLASS}>
-        <div
-          className={cn(
-            PROJECTS_WORKSPACE_GUTTER_CLASS,
-            "min-w-0 py-5 md:pt-6",
-          )}
-        >
-          <h1 className="sr-only">{title}</h1>
-          {children}
-        </div>
-      </div>
+    // No card: like the task board, the page is the lighter surface and the
+    // components sitting on it (composer, images) are the darker ones.
+    <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "min-w-0")}>
+      <h1 className="sr-only">{title}</h1>
+      {children}
     </div>
   );
 }

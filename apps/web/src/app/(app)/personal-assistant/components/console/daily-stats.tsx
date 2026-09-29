@@ -53,7 +53,9 @@ export function DailyStats({ stats }: { stats: SokoBotDailyStats }) {
             >
               {t(total.key)}
             </dt>
-            <dd className="text-2xl font-light tabular-nums">{total.value}</dd>
+            <dd className="text-2xl font-light tabular-nums tracking-tight">
+              {total.value}
+            </dd>
           </div>
         ))}
       </dl>

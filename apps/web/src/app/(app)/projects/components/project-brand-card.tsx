@@ -244,7 +244,10 @@ export function ProjectBrandCard({
                 }}
               >
                 {generation.isRunning ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
                 ) : (
                   <RefreshCw className="size-4" aria-hidden />
                 )}
@@ -307,7 +310,10 @@ export function ProjectBrandCard({
           </div>
           <Badge variant="outline" className="shrink-0 gap-1.5 text-xs">
             {generation.isRunning ? (
-              <Loader2 className="size-3 animate-spin" aria-hidden />
+              <Loader2
+                className="size-3 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : designMd ? (
               <span
                 className="bg-semantic-success size-1.5 rounded-full"

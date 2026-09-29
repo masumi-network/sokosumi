@@ -101,7 +101,9 @@ export default function DisconnectModal({
               onClick={handleDisconnect}
               disabled={loading}
             >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              {loading && (
+                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {t("confirm")}
             </Button>
             <DialogClose asChild>

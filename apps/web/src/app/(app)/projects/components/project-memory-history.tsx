@@ -41,7 +41,7 @@ export function ProjectMemoryHistory({
         type="button"
         aria-controls="project-memory-history-list"
         aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo -mx-1 flex items-center gap-1.5 rounded px-1 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]"
+        className="text-muted-foreground press hover:text-foreground focus-visible:ring-ring-halo -mx-1 flex items-center gap-1.5 rounded px-1 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]"
         onClick={() => setOpen((current) => !current)}
       >
         <ChevronRight
@@ -83,7 +83,7 @@ function HistoryEntry({ version }: { version: ProjectMemoryVersion }) {
         type="button"
         aria-controls={contentId}
         aria-expanded={open}
-        className="hover:bg-card-background focus-visible:ring-ring-halo flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
+        className="press hover:bg-card-background focus-visible:ring-ring-halo flex w-full items-center gap-2 px-3 py-2.5 text-left transition-colors outline-none focus-visible:ring-[3px]"
         onClick={() => setOpen((current) => !current)}
       >
         <ChevronRight

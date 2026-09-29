@@ -101,7 +101,7 @@ export function VendorGrantApprovalActions({
           onClick={() => void runAction("approve", onApprove)}
         >
           {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {labels.approve}
         </Button>
@@ -114,7 +114,7 @@ export function VendorGrantApprovalActions({
           onClick={() => void runAction("deny", onDeny)}
         >
           {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {labels.deny}
         </Button>

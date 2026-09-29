@@ -59,7 +59,7 @@ export function SubscriptionFreePlanRow({
             </CardDescription>
           </div>
           <div className="space-y-1">
-            <p className="text-2xl font-medium md:text-3xl">
+            <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
               {formatPlanPrice({
                 formatCurrency: (amount) =>
                   formatter.number(amount, {

@@ -145,7 +145,7 @@ export default function DataTable<TData extends RowData>({
             <TableCell
               aria-label={`Group header for ${currentKey}`}
               colSpan={colSpan}
-              className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
+              className="text-muted-foreground p-2 text-xs font-medium"
             >
               {renderGroupHeader ? renderGroupHeader(currentKey) : currentKey}
             </TableCell>

@@ -6,7 +6,7 @@ import { idempotencyKeyFor, identityFrom } from "../lib/identity";
 
 export default defineTool({
   description:
-    "Make a new version from an existing one, using it as a visual reference. The original is never altered: this always produces a new version, and the new version starts undecided even when the one it came from was approved.",
+    "Make a new version from an existing one, using it as a visual reference. The original is never altered: this always produces a new version.",
   inputSchema: z.object({
     sourceVersionId: z
       .string()
@@ -68,8 +68,6 @@ export default defineTool({
       model: job.model,
       settings: job.settings,
       note: job.note,
-      reviewNote:
-        "The new version is undecided. It does not inherit the source version's approval.",
     };
   },
 });

@@ -145,12 +145,12 @@ function RefundErrorButton({
 }) {
   return (
     <button
-      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity press hover:opacity-80"
       onClick={onRetry}
       disabled={isLoading}
     >
       {isLoading ? (
-        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+        <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-pulse" />
       ) : (
         <RefreshCw className="h-3.5 w-3.5" />
       )}
@@ -266,7 +266,9 @@ export default function RequestRefundButton({
       <ButtonBase disabled={true} className={className}>
         <Icon
           className={
-            statusConfig.isAnimated ? "h-4 w-4 animate-spin" : "h-4 w-4"
+            statusConfig.isAnimated
+              ? "h-4 w-4 animate-spin motion-reduce:animate-pulse"
+              : "h-4 w-4"
           }
         />
         {t(statusConfig.labelKey)}
@@ -346,7 +348,7 @@ export default function RequestRefundButton({
                     className={className}
                   >
                     {isLoading ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                      <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-pulse" />
                     ) : (
                       <HandCoins className="h-4 w-4" />
                     )}

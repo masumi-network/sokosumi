@@ -54,7 +54,8 @@
       "copyError": "No se pudo copiar el enlace"
     },
     "DefaultErrorBoundary": {
-      "error": "Ocurrió un error desconocido. Por favor, contacta con nuestro soporte"
+      "error": "Algo salió mal aquí. Inténtalo de nuevo o contacta con soporte si sigue pasando.",
+      "tryAgain": "Intentar de nuevo"
     },
     "Agents": {
       "RiskClassification": {
@@ -521,7 +522,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
-        "emptyJobs": "Aún sin jobs.",
+        "emptyJobs": "Aún sin jobs. Contrata a este coworker para empezar uno.",
         "loadMore": "Cargar más",
         "loading": "Cargando...",
         "loadMoreError": "No se pudieron cargar más jobs"
@@ -1648,7 +1649,7 @@
         },
         "recentTitle": "Recientes",
         "emptyRecent": "No hay jobs completados recientemente.",
-        "emptyList": "Aún sin jobs.",
+        "emptyList": "Aún sin jobs. Contrata a un coworker y tus jobs aparecerán aquí.",
         "emptySection": "No hay jobs en este estado.",
         "untitled": "Job sin título",
         "unknownAgent": "Agent desconocido"
@@ -2473,7 +2474,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "Aún no hay jobs vinculados a este proyecto.",
+          "empty": "Aún no hay jobs vinculados. Añade uno para reunir sus resultados aquí.",
           "add": "Añadir job",
           "remove": "Quitar job",
           "viewAll": "Ver todos los jobs",
@@ -2487,7 +2488,7 @@
         },
         "tasks": {
           "title": "Tareas",
-          "empty": "Aún no hay tareas vinculadas a este proyecto.",
+          "empty": "Aún no hay tareas vinculadas. Añade una para mantenerla con este proyecto.",
           "add": "Añadir tarea",
           "pickerTitle": "Añadir tarea",
           "pickerDescription": "Elige una tarea sin asignar para vincularla a este proyecto.",
@@ -2578,7 +2579,7 @@
       "back": "Volver al proyecto",
       "updated": "Actualizado",
       "emptyTitle": "Aún no hay imágenes",
-      "emptyBody": "Escribe un prompt arriba y elige los modelos con los que probarlo. Recibirás versiones para comparar, refinar y aprobar.",
+      "emptyBody": "Escribe un prompt abajo y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",
@@ -2587,13 +2588,6 @@
       "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
       "compare": "Comparar",
-      "approve": "Aprobar",
-      "reject": "Rechazar",
-      "undecided": "Sin decidir",
-      "approved": "Aprobada",
-      "rejected": "Rechazada",
-      "clearReview": "Borrar decisión",
-      "feedbackPlaceholder": "Nota opcional para esta versión",
       "version": "Versión",
       "generating": "Generando",
       "queued": "En cola en el proveedor",
@@ -2605,9 +2599,6 @@
       "tryAgain": "Intentar de nuevo",
       "cancel": "Cancelar",
       "cancelRequested": "Cancelación solicitada. Puede que el proveedor ya haya terminado.",
-      "clearFilter": "Mostrar todas",
-      "filterAll": "Todas",
-      "filterApproved": "Aprobadas",
       "lineage": "Linaje",
       "from": "Prompt",
       "loadOlder": "Cargar versiones anteriores",
@@ -2644,9 +2635,6 @@
         "mockup": "Maqueta"
       },
       "gallery": "Imágenes",
-      "filterRejected": "Rechazadas",
-      "filterUndecided": "Sin decidir",
-      "noneMatchFilter": "Nada coincide con ese filtro",
       "select": "Seleccionar",
       "deselect": "Quitar selección",
       "selectedCount": "{count, plural, one {# imagen seleccionada} other {# imágenes seleccionadas}}",
@@ -2676,6 +2664,9 @@
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
+      "unselectAllModels": "Deseleccionar todos",
+      "searchModels": "Buscar modelos…",
+      "noModelsMatch": "Ningún modelo coincide.",
       "noModelSelected": "Elige al menos un modelo. El encuadre, la resolución y el formato que se ofrecen son los que todos los modelos elegidos admiten.",
       "generationTime": "Tiempo de generación",
       "runPlan": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}",
@@ -5282,7 +5273,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Iniciar una tarea nueva para {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5297,7 +5288,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Tareas listas para ejecutar",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5330,7 +5321,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas."
       },
       "Jobs": {
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
@@ -5715,7 +5706,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
-      "directMessages": "Direct Messages",
+      "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
       "reorderPinnedDone": "Terminar de reordenar",

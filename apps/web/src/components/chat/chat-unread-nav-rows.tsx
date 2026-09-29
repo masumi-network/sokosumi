@@ -273,7 +273,7 @@ export function ChatUnreadNavRows({
                 <div className="bg-border h-px" />
                 <Link
                   href={CHAT_THREADS_PATH}
-                  className="text-muted-foreground ring-sidebar-ring hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
+                  className="text-muted-foreground ring-sidebar-ring press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground block rounded-md px-2 py-1.5 text-sm outline-hidden focus-visible:ring-2"
                 >
                   {t("allThreads")}
                 </Link>
