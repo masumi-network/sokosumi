@@ -1,6 +1,6 @@
+import type { ChatRoomUserParticipant } from "@sokosumi/core-client";
 import type { RoomReader } from "@/app/chat/hooks/use-room-read-receipts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { ChatRoomUserParticipant } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 

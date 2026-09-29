@@ -1,9 +1,9 @@
 "use client";
 
+import type { HistoryItem } from "@sokosumi/core-client";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/core-client";
 import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const SEARCH_STATUS_BADGE_CLASSNAME = "ml-auto shrink-0";
 

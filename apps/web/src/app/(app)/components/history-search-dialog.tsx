@@ -1,5 +1,6 @@
 "use client";
 
+import type { FileResource, HistoryItem } from "@sokosumi/core-client";
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -19,10 +20,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import type {
-  FileResource,
-  HistoryItem,
-} from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface HistorySearchDialogLabels {

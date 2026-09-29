@@ -1,7 +1,6 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import type { Coworker } from "@/app/chat/utils/types";
-import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,

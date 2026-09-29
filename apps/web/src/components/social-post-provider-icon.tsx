@@ -1,6 +1,6 @@
+import type { SocialPost } from "@sokosumi/core-client";
 import type { ComponentProps } from "react";
 import { SiX } from "react-icons/si";
-
 import {
   FacebookIcon,
   InstagramIcon,
@@ -8,7 +8,6 @@ import {
   TikTokIcon,
   YouTubeIcon,
 } from "@/components/social-icons";
-import type { SocialPost } from "@/lib/clients/generated/core";
 
 type Provider = SocialPost["provider"];
 

@@ -1,7 +1,6 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import type { Coworker } from "@/app/chat/utils/types";
-import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";
 import { LandingCoworkerPicker } from "./landing-coworker-picker.client";

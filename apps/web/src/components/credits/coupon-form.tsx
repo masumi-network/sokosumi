@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Organization } from "@sokosumi/core-client";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -29,7 +30,6 @@ import { Input } from "@/components/ui/input";
 import { claimFreeCreditsWithCoupon } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
-import type { Organization } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 const couponFormSchema = (t: IntlTranslation<"App.Credits">) =>

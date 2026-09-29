@@ -34,8 +34,8 @@ vi.mock("@/components/admin/soko-bots/quality-version-filter.client", () => ({
   QualityVersionFilter: () => null,
 }));
 
+import type { AdminSokoBotQuality } from "@sokosumi/core-client";
 import { QualityOverview } from "@/components/admin/soko-bots/quality-overview";
-import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 
 function qualityFixture(): AdminSokoBotQuality {
   return {

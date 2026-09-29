@@ -7,7 +7,7 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-import type { WorkspaceLabel } from "@/lib/clients/generated/core";
+import type { WorkspaceLabel } from "@sokosumi/core-client";
 
 import {
   BULK_CATEGORY_BUTTONS,

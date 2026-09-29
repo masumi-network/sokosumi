@@ -14,7 +14,7 @@
 
 - Node.js 24, pinned dependency versions; no new dependencies.
 - No Prisma migration. `SocialPost.provider` stays a free string; `ProjectSocialConnection.externalAccountId` stores each provider's identity id.
-- Never hand-edit generated artifacts; after the Core schema change run `pnpm --filter web generate:core:snapshot`, then `pnpm --filter web typecheck`.
+- Never hand-edit generated artifacts; after the Core schema change run `pnpm --filter @sokosumi/core-client generate:snapshot`, then `pnpm --filter web typecheck`.
 - Shared provider labels and rules live once in `packages/utils/src/social-post.ts`; Core, Web, and `@sokosumi/soko-bot` import them.
 - Conventional Commit messages; let commit hooks run (`pnpm check && pnpm typecheck`).
 - Filtered Core Vitest runs must start with `pnpm --filter @sokosumi/database prisma:generate`.
@@ -328,7 +328,7 @@ Sequence: `TIKTOK_QUERY_CREATOR_INFO` → `privacy_level_options`; pick with the
 
 - [ ] **Step 1: Regenerate the Core client**
 
-Run: `pnpm --filter web generate:core:snapshot` then `pnpm --filter web typecheck`.
+Run: `pnpm --filter @sokosumi/core-client generate:snapshot` then `pnpm --filter web typecheck`.
 Expected: regenerated `provider` union and no web errors beyond the changes below.
 
 - [ ] **Step 2: Write failing tests** in the composer suite: Instagram requires media and disables save without it; TikTok/YouTube require a video; LinkedIn/YouTube require text; switching the selected connection changes the enforced text limit and hint; the social page passes non-X active connections (page-level data test or assertion in the existing page suite).

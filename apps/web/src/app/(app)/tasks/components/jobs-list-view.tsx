@@ -1,5 +1,6 @@
 "use client";
 
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { useEffect, useMemo, useState } from "react";
 import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
 import {
@@ -8,7 +9,6 @@ import {
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { EmptyState } from "@/components/common/empty-state";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 import { ColumnHeader } from "./column-header";
 import { JobListItem } from "./job-list-item";

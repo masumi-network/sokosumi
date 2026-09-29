@@ -1,12 +1,12 @@
 "use client";
 
+import type { Project } from "@sokosumi/core-client";
 import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
 import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
@@ -20,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject } from "@/lib/actions/project/action";
-import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 import type { ProjectCreationSource } from "./project-form";

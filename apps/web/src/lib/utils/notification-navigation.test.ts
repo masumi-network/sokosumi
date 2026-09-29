@@ -1,7 +1,6 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { NotificationItem } from "@/lib/clients/generated/core";
 
 const { getWorkspaceOrganizationIdMock, getMyMembersWithOrganizationsMock } =
   vi.hoisted(() => ({

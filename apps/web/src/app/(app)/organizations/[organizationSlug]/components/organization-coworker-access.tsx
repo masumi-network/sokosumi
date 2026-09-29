@@ -1,3 +1,4 @@
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import { CoreAuthReadRetry } from "@/components/auth/core-auth-read-retry";
 import { CoworkerAccessList } from "@/components/coworker-access/coworker-access-list";
@@ -8,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 
 interface OrganizationCoworkerAccessProps {

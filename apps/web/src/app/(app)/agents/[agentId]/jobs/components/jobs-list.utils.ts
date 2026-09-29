@@ -1,4 +1,4 @@
-import type { JobSummary } from "@/lib/clients/generated/core";
+import type { JobSummary } from "@sokosumi/core-client";
 
 import { getDateGroupKey } from "@/lib/utils/datetime";
 export interface JobsByDayGroup {

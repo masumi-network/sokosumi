@@ -1,5 +1,6 @@
 "use client";
 
+import type { NotificationItem } from "@sokosumi/core-client";
 import {
   isMentionNotification,
   isNeedsActionNotification,
@@ -8,7 +9,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
 import { NotificationCenterRow } from "@/components/notifications/notification-center-row";
@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
 import { useNotifications } from "@/contexts/notification-provider";
 import { useSession } from "@/lib/auth/auth.client";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useNotificationMessage } from "@/lib/utils/notification-message";
 import { handleNotificationNavigation } from "@/lib/utils/notification-navigation";

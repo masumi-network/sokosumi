@@ -1,9 +1,8 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getFirstName } from "@sokosumi/utils";
-
 import { getCoworkerImageUrl } from "@/app/chat/utils/coworker-utils";
 import type { Coworker } from "@/app/chat/utils/types";
 import { canUseNextImageSrc } from "@/config/next-image";
-import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 /** Face shown in the landing coworker strip. Shared across RSC and client. */
 export interface StripCoworker {

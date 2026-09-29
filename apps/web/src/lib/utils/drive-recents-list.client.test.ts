@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getDriveRecentsMock = vi.fn();
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   getDriveRecents: (...args: unknown[]) => getDriveRecentsMock(...args),
 }));
 

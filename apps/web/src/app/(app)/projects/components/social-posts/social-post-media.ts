@@ -1,10 +1,9 @@
+import type { DriveFile } from "@sokosumi/core-client";
 import {
   type SocialPostMediaRef,
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
 } from "@sokosumi/utils";
-
-import type { DriveFile } from "@/lib/clients/generated/core/types.gen";
 
 interface SocialPostMediaSource {
   name: string;

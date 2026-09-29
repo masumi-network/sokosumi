@@ -1,3 +1,12 @@
+import type {
+  ChatRoom,
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomMessageSender,
+  ChatRoomPresence,
+  ChatRoomSokoBotParticipant,
+  ChatRoomUserParticipant,
+} from "@sokosumi/core-client";
 import {
   buildRoomQuoteSnippetParts,
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
@@ -15,15 +24,6 @@ import type {
   MentionSuggestionGroup,
   NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
-import type {
-  ChatRoom,
-  ChatRoomCoworkerParticipant,
-  ChatRoomMessage,
-  ChatRoomMessageSender,
-  ChatRoomPresence,
-  ChatRoomSokoBotParticipant,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import { parseMentions, slugifyMentionValue } from "@/lib/utils/mention-parser";
 import { chatRoomHref } from "../utils/chat-route-base";
 

@@ -40,12 +40,12 @@ vi.mock("@/lib/utils/datetime.client", () => ({
   }),
 }));
 
+import type { HistoryItem } from "@sokosumi/core-client";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
 import {
   HISTORY_SEARCH_DEBOUNCE_MS,
   HISTORY_SEARCH_PAGE_SIZE,
 } from "@/app/components/use-history-search-corpus";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const labels = {
   dialogTitle: "Search history",

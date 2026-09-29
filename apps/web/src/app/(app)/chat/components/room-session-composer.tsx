@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomSokoBotParticipant,
+  ChatRoomUserParticipant,
+} from "@sokosumi/core-client";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
@@ -19,7 +24,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { usePersistComposeDraft } from "@/app/chat/hooks/use-compose-draft";
 import {
   type ComposeDraft,
@@ -27,11 +31,6 @@ import {
 } from "@/app/chat/utils/compose-draft-storage";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomSokoBotParticipant,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import {
   type ChatRoomMessageLink,
   parseChatRoomMessageLink,

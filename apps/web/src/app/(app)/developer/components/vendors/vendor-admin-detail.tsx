@@ -1,11 +1,10 @@
 "use client";
 
+import type { VendorMembership } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { toast } from "sonner";
-
 import { patchVendorProfileAction } from "@/lib/actions/vendors/vendor-admin.action";
-import type { VendorMembership } from "@/lib/clients/generated/core";
 
 import { VendorProfileForm } from "./vendor-profile-form";
 

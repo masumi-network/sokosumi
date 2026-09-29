@@ -131,7 +131,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFilesDelete: vi.fn(),
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>

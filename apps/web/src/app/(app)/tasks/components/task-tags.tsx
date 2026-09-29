@@ -1,5 +1,6 @@
 "use client";
 
+import type { TaskTags as TaskTagsDto } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,7 +9,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { TaskTags as TaskTagsDto } from "@/lib/clients/generated/core";
 
 export function TaskTags({
   tags,

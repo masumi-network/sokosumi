@@ -1,7 +1,4 @@
-import type {
-  GetJobsData,
-  GetTasksData,
-} from "@/lib/clients/generated/core/types.gen";
+import type { GetJobsData, GetTasksData } from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
 

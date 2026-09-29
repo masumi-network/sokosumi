@@ -1,10 +1,10 @@
+import type { TaskEvent } from "@sokosumi/core-client";
+import { Channel, TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskActivitySection } from "@/app/tasks/components/task-activity";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import type { TaskEvent } from "@/lib/clients/generated/core";
-import { Channel, TaskStatus } from "@/lib/clients/generated/core";
 
 const {
   uploadTaskAttachmentMock,

@@ -1,7 +1,4 @@
-import {
-  type HistoryItem,
-  NotificationKind,
-} from "@/lib/clients/generated/core";
+import { type HistoryItem, NotificationKind } from "@sokosumi/core-client";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**

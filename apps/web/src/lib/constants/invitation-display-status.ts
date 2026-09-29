@@ -1,4 +1,4 @@
-import { InvitationStatus } from "@/lib/clients/generated/core";
+import { InvitationStatus } from "@sokosumi/core-client";
 
 export const InvitationDisplayStatus = {
   ...InvitationStatus,

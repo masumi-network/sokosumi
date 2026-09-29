@@ -1,10 +1,9 @@
 import "./rooms-client-harness";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { act, screen, waitFor } from "@testing-library/react";
-
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import { TestQueryProvider } from "@/test/query-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";

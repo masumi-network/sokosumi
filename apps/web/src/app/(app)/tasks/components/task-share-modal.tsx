@@ -1,11 +1,11 @@
 "use client";
 
+import type { TaskShare } from "@sokosumi/core-client";
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -21,7 +21,6 @@ import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
-import type { TaskShare } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface TaskShareModalProps {
