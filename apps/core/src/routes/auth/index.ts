@@ -9,6 +9,7 @@ import { cors } from "hono/cors";
 import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
+import { handleOAuthRefreshTokenRequest } from "@/lib/auth-oauth-provider.js";
 import { withClientSecretPostShim } from "@/routes/auth/oauth2-token-secret-shim.js";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
@@ -46,7 +47,17 @@ app.get("/.well-known/openid-configuration", (c) =>
 // client_secret_post requests into the client_secret_basic form Better Auth
 // requires — see oauth2-token-secret-shim.ts.
 app.on(["POST", "GET"], "*", async (c) => {
-  return auth.handler(await withClientSecretPostShim(c.req.raw));
+  return handleOAuthRefreshTokenRequest(
+    await withClientSecretPostShim(c.req.raw),
+    auth.handler,
+    (body, request) =>
+      auth.api.oauth2Token({
+        body,
+        request,
+        headers: request.headers,
+        asResponse: true,
+      }),
+  );
 });
 
 export default app;
