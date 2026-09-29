@@ -175,6 +175,10 @@ jobs:
 
   renew:
     name: Renew preview expiry
+    # Known gap: pull_request workflows do not run while a PR has merge
+    # conflicts, so PR synchronize never fires and pushes to a conflicted PR
+    # do not renew. Its preview DB expires after PREVIEW_TTL_MS (24h); resolve
+    # the conflict and push, or comment /deploy, to recreate it.
     if: >
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
