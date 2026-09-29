@@ -140,6 +140,7 @@ const POST: SocialPostCalendarItem = {
   kind: "socialPost",
   id: "social:post-1",
   postId: "post-1",
+  provider: "x",
   text: "Launch news",
   status: "SCHEDULED",
   externalHandle: "team",
