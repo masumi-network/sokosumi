@@ -54,7 +54,7 @@ pnpm --filter @sokosumi/soko-bot test --maxWorkers=1
 pnpm check
 ```
 
-On memory-constrained hosts, use `GOMEMLIMIT=1000MiB GOMAXPROCS=2 pnpm --filter core typecheck --singleThreaded` and the same command for `web`, sequentially. Regenerate the client with `pnpm --filter web generate:core:snapshot` after changing Core OpenAPI.
+On memory-constrained hosts, use `GOMEMLIMIT=1000MiB GOMAXPROCS=2 pnpm --filter core typecheck --singleThreaded` and the same command for `web`, sequentially. Regenerate the client with `pnpm --filter @sokosumi/core-client generate:snapshot` after changing Core OpenAPI.
 
 For browser proof, use `.cursor/skills/verify-sokosumi/bin/verify-sokosumi launch`, `doctor` and `sign-in`, then Files → Tables. The harness requires its own portless HTTPS proxy on 443, a browser installation and valid test authentication. Do not stop another checkout's proxy, reuse production credentials or invent signup accounts to bypass those prerequisites. Check keyboard draft/conflict handling, light/dark themes, mobile horizontal overflow, import retries, source history, archived rows/tables, selected-row task links and progressive writes.
 

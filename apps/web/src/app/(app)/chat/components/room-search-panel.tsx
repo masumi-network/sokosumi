@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { Loader2, Search } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import { messageSender } from "@/app/chat/components/room-helpers";
@@ -13,7 +14,6 @@ import {
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 

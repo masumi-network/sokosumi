@@ -1,9 +1,9 @@
 "use client";
 
+import type { PendingInvitation } from "@sokosumi/core-client";
+import { InvitationStatus, MemberRole } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import DataTable from "@/components/data-table/data-table";
-import type { PendingInvitation } from "@/lib/clients/generated/core";
-import { InvitationStatus, MemberRole } from "@/lib/clients/generated/core";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";

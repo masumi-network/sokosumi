@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -12,7 +13,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
@@ -45,7 +45,6 @@ import {
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useSidebarFlyout } from "@/hooks/use-sidebar-flyout";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 

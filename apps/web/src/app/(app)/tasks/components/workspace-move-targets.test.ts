@@ -1,5 +1,5 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import { buildWorkspaceMoveTargets } from "./workspace-move-targets";
 

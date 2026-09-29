@@ -1,5 +1,6 @@
 "use client";
 
+import type { JobSummary } from "@sokosumi/core-client";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
@@ -7,7 +8,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
-import type { JobSummary } from "@/lib/clients/generated/core";
 import { jobMatchesQuery, type SearchableJob } from "@/lib/job/job-search";
 
 const MAX_QUERY_LENGTH = 256;

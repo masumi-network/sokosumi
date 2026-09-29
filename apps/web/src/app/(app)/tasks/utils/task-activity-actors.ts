@@ -1,8 +1,6 @@
+import type { Task, TaskEvent } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-
-import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 import { getCoworkerImage } from "./coworker-image";
 

@@ -1,11 +1,11 @@
 "use client";
 
+import type { SokoBotVersionDetail } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,6 @@ import {
   archiveAdminSokoBotVersionAction,
   promoteAdminSokoBotVersionAction,
 } from "@/lib/actions/admin-soko-bots/action";
-import type { SokoBotVersionDetail } from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 
 interface SokoBotVersionActionsProps {

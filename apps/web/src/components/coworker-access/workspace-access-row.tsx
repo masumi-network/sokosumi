@@ -1,12 +1,11 @@
 "use client";
 
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { workspaceApprovalStatusMessageKey } from "@/lib/utils/workspace-approval";
 
 interface WorkspaceAccessRowProps {

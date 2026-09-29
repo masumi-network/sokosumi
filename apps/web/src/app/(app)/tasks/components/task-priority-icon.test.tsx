@@ -1,7 +1,6 @@
+import { TaskPriority } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
-import { TaskPriority } from "@/lib/clients/generated/core";
 
 import { TaskPriorityIcon } from "./task-priority-icon";
 

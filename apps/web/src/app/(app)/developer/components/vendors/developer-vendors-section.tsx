@@ -1,6 +1,5 @@
+import type { VendorMembership } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-
-import type { VendorMembership } from "@/lib/clients/generated/core";
 
 import { DeveloperVendorsList } from "./developer-vendors-list";
 

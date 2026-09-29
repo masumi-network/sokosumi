@@ -1,12 +1,8 @@
 "use client";
 
+import type { ChatRoom, ChatRoomUserParticipant } from "@sokosumi/core-client";
 import { useCallback, useMemo, useRef, useState } from "react";
-
 import type { ChatRoomReadEventData } from "@/lib/ably/schema";
-import type {
-  ChatRoom,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 
 /** One member of the Room roster and when they last read the room. */
 export interface RoomReader {

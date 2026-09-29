@@ -1,8 +1,5 @@
+import type { CreditTopUpPricing, Organization } from "@sokosumi/core-client";
 import CreditsForm from "@/components/credits/credits-form";
-import type {
-  CreditTopUpPricing,
-  Organization,
-} from "@/lib/clients/generated/core";
 
 interface CreditsSectionProps {
   isPurchaseEnabled?: boolean;

@@ -1,8 +1,8 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { getToneStyle } from "@/components/ui/status-marker";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 import { TaskStatusPicker } from "./task-status-picker";

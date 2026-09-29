@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -23,6 +22,8 @@ import {
   type SignUpFormSchemaType,
   signUpFormSchema,
 } from "@/lib/schemas/auth";
+
+import SignInLink from "./sign-in-link";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
@@ -159,12 +160,7 @@ export default function SignUpForm({
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}
           </span>
-          <Link
-            href="/signin"
-            className="text-primary text-sm font-medium hover:underline"
-          >
-            {t("Login.link")}
-          </Link>
+          <SignInLink />
         </div>
       </div>
     </AuthForm>

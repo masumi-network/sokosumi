@@ -1,15 +1,15 @@
 import "server-only";
 
-import { cache } from "react";
-import { getSession } from "@/lib/auth/auth.server";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   Member,
   MemberRecord,
   MemberWithOrganization,
   Organization,
   WorkspaceAccess,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { cache } from "react";
+import { getSession } from "@/lib/auth/auth.server";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 /**
  * Service for user-related operations.

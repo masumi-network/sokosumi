@@ -1,5 +1,5 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
-
 import {
   type ChatParticipantHoverProfile,
   getRoomParticipantPreviews,
@@ -9,7 +9,6 @@ import {
   LiveMemberPresenceText,
 } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 

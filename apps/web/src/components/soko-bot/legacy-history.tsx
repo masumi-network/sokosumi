@@ -1,7 +1,6 @@
+import type { SokoBotLegacyMessage } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import Markdown from "@/components/markdown";
-import type { SokoBotLegacyMessage } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { formatDurationMs } from "./format";

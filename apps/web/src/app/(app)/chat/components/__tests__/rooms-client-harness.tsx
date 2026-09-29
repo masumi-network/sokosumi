@@ -1,12 +1,12 @@
-import { type RenderOptions, render } from "@testing-library/react";
-import type { ComponentProps, ReactElement, ReactNode } from "react";
-import { beforeEach, type Mock, vi } from "vitest";
 import type {
   ChatRoom,
   ChatRoomMessage,
   ChatRoomThreadUnreadReplyCount,
   Organization,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { type RenderOptions, render } from "@testing-library/react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { beforeEach, type Mock, vi } from "vitest";
 
 import { RoomsClient } from "../rooms-client";
 

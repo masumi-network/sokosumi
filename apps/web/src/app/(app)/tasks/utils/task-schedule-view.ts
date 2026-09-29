@@ -1,9 +1,9 @@
+import type { TaskSchedule } from "@sokosumi/core-client";
 import {
   computeScheduleTitleInfo,
   formatScheduleTitle,
   type ScheduleTitleTranslateFn,
 } from "@/components/schedules/format";
-import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { DateTimeFormatter } from "@/lib/schedules/cron";
 import type { CoworkerOption } from "@/lib/types/coworker";
 

@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  TaskEvent,
+  TaskFile,
+  TaskParticipant,
+} from "@sokosumi/core-client";
+import { BlobStatus, Channel, TaskStatus } from "@sokosumi/core-client";
 import {
   extractFileLikeLinks,
   extractHttpLinks,
@@ -43,12 +49,6 @@ import {
   createTaskComment,
   loadOlderTaskActivityEvents,
 } from "@/lib/actions/task/action";
-import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
-import type {
-  TaskEvent,
-  TaskFile,
-  TaskParticipant,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
