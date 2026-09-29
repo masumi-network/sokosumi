@@ -250,9 +250,11 @@ function renderRow({
   usersById,
   isPinned,
   seenBySource,
+  seenBy,
 }: {
   message?: ChatRoomMessage;
   seenBySource?: SeenBySource;
+  seenBy?: ReactNode;
   isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
@@ -307,6 +309,7 @@ function renderRow({
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       isPinned={isPinned}
+      seenBy={seenBy}
       seenByFor={
         seenBySource
           ? (createdAt, authorId) =>
@@ -750,9 +753,12 @@ describe("ChatMessageRow", () => {
 
     await user.click(screen.getByRole("button", { name: "Actions.more" }));
     const sheet = screen.getByRole("dialog");
-    await user.click(
-      within(sheet).getByRole("button", { name: "action 1 of 3" }),
-    );
+    const seenByRow = within(sheet).getByRole("button", {
+      name: "action 1 of 3",
+    });
+    // First of the actions, straight under the reactions.
+    expect(seenByRow.parentElement?.firstElementChild).toBe(seenByRow);
+    await user.click(seenByRow);
 
     expect(
       within(sheet).getByRole("heading", { name: "SeenBy.action" }),
@@ -860,9 +866,9 @@ describe("ChatMessageRow", () => {
         name: "Actions.overflow",
       }),
     );
-    await user.click(
-      await screen.findByRole("menuitem", { name: "action 1 of 3" }),
-    );
+    const menuItems = await screen.findAllByRole("menuitem");
+    expect(menuItems[0]).toHaveAccessibleName("action 1 of 3");
+    await user.click(menuItems[0] as HTMLElement);
 
     const detail = await screen.findByTestId("message-seen-by-detail");
     expect(
@@ -873,26 +879,31 @@ describe("ChatMessageRow", () => {
     ).toBeInTheDocument();
   });
 
-  it("hides Seen by without receipts, with nobody to read, and on a streaming overlay", async () => {
+  it("hides Seen by without receipts, with nobody to read, beside the faces, and on a streaming overlay", async () => {
     const user = userEvent.setup();
-    const cases: { message?: ChatRoomMessage; seenBySource?: SeenBySource }[] =
-      [
-        {},
-        {
-          seenBySource: {
-            readers: [],
-            nonReaders: [],
-            readersAsOf: () => [],
-          },
+    const cases: {
+      message?: ChatRoomMessage;
+      seenBySource?: SeenBySource;
+      seenBy?: ReactNode;
+    }[] = [
+      {},
+      // The newest message's faces already open the same list.
+      { seenBySource: twoOfThreeNotYet(), seenBy: <span>faces</span> },
+      {
+        seenBySource: {
+          readers: [],
+          nonReaders: [],
+          readersAsOf: () => [],
         },
-        {
-          message: coworkerMessage({
-            id: "stream:turn-1",
-            content: "Still streaming",
-          }),
-          seenBySource: twoOfThreeNotYet(),
-        },
-      ];
+      },
+      {
+        message: coworkerMessage({
+          id: "stream:turn-1",
+          content: "Still streaming",
+        }),
+        seenBySource: twoOfThreeNotYet(),
+      },
+    ];
     for (const props of cases) {
       renderRow(props);
       await user.click(screen.getByRole("button", { name: "Actions.more" }));

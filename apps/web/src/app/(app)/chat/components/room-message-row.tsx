@@ -1203,6 +1203,8 @@ function MessageActionControls({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-48">
+            {/* Menu content mounts on open, so the list is read then. */}
+            {getSeenBy ? <SeenBySubmenu getList={getSeenBy} /> : null}
             {showPin ? (
               <DropdownMenuItem
                 onSelect={() => {
@@ -1251,8 +1253,6 @@ function MessageActionControls({
                 {t("Copy.action")}
               </DropdownMenuItem>
             ) : null}
-            {/* Menu content mounts on open, so the list is read then. */}
-            {getSeenBy ? <SeenBySubmenu getList={getSeenBy} /> : null}
             {showDelete ? (
               <DropdownMenuItem
                 variant="destructive"
@@ -1760,6 +1760,15 @@ function TouchMessageActionsSheet({
               </ul>
             ) : null}
             <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+              {seenByList ? (
+                <SeenBySheetRow
+                  ref={seenByRowRef}
+                  list={seenByList}
+                  onOpen={() => {
+                    setView("seenBy");
+                  }}
+                />
+              ) : null}
               {showEditButton && onEdit ? (
                 <Button
                   type="button"
@@ -1864,15 +1873,6 @@ function TouchMessageActionsSheet({
                   <MessageCircle className="size-4 shrink-0" aria-hidden />
                   {t("Thread.open")}
                 </Button>
-              ) : null}
-              {seenByList ? (
-                <SeenBySheetRow
-                  ref={seenByRowRef}
-                  list={seenByList}
-                  onOpen={() => {
-                    setView("seenBy");
-                  }}
-                />
               ) : null}
               {showDeleteButton && onDelete ? (
                 <Button
@@ -2621,8 +2621,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
   const canCopyLink = isDurableRoomMessage;
   const canSendToSelf = isDurableRoomMessage && onSendToSelf != null;
+  // The faces under the newest message already answer this, one click away.
   const getSeenBy =
-    isDurableRoomMessage && seenByFor != null
+    isDurableRoomMessage && seenByFor != null && seenBy == null
       ? () =>
           seenByFor(
             message.createdAt,
