@@ -442,6 +442,9 @@ model Project {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   name                    String
+  /// Short task-id prefix (e.g. SOK), unique per workspace. Filled by the
+  /// project_set_identifier trigger when omitted. Format enforced by a DB CHECK.
+  identifier              String?
   filesToken              String?
   briefing                String?
   briefingUrl             String?
@@ -482,6 +485,7 @@ model Project {
 
   fileLinks FileProjectLink[]
 
+  @@unique([workspaceId, identifier])
   @@index([workspaceId])
   @@map("project")
 }

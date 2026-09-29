@@ -105,6 +105,7 @@ const sampleProject = {
   name: "P",
   filesToken: "secret_token",
   websiteUrl: null,
+  identifier: null,
   logo: null,
   designMdUrl: null,
   designMdExtractionId: null,
@@ -265,6 +266,57 @@ describe("PATCH /projects/{id}", () => {
     );
     const body = (await res.json()) as { data: { name: string } };
     expect(body.data.name).toBe("New");
+  });
+
+  it("updates the identifier alone, uppercased", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      identifier: "WEB",
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "web" }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: expect.objectContaining({ identifier: "WEB" }),
+    });
+    const body = (await res.json()) as { data: { identifier: string } };
+    expect(body.data.identifier).toBe("WEB");
+  });
+
+  it("rejects an invalid identifier", async () => {
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "w" }),
+    });
+    expect(res.status).toBe(422);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the identifier is taken in the workspace", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    projectUpdateManyMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["workspaceId", "identifier"] },
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "SOK" }),
+    });
+    expect(res.status).toBe(409);
+    expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
   });
 
   it("uploads a briefing before one scoped project update", async () => {

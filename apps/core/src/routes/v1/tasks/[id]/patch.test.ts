@@ -117,7 +117,9 @@ function createTaskApi(projectId: string | null = null) {
     organizationId: "org_123",
     projectId,
     project:
-      projectId == null ? null : { id: projectId, name: "Project", logo: null },
+      projectId == null
+        ? null
+        : { id: projectId, name: "Project", identifier: null, logo: null },
     owner: {
       id: "user_123",
       name: "Ada Lovelace",

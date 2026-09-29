@@ -36,6 +36,20 @@ const projectWebsiteUrlSchema = z
     }
   }, "Website URL must use HTTP or HTTPS");
 
+export const projectIdentifierSchema = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .regex(
+    /^[A-Z][A-Z0-9]{1,6}$/,
+    "Identifier must be 2-7 letters or digits and start with a letter",
+  )
+  .openapi({
+    description:
+      "Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.",
+    example: "SOK",
+  });
+
 const projectLogoUrlSchema = z
   .string()
   .url()
@@ -119,6 +133,10 @@ export const projectSummarySchema = z
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     }),
     name: z.string().openapi({ example: "Q1 research" }),
+    identifier: z.string().nullable().openapi({
+      description: "Task ID prefix; null only for projects without one.",
+      example: "SOK",
+    }),
     logo: z.url().nullable().openapi({
       example:
         "https://example.public.blob.vercel-storage.com/projects/aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa/logos/logo.png",
@@ -135,6 +153,10 @@ export const projectSchema = z
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
     name: z.string().openapi({ example: "Q1 research" }),
+    identifier: z.string().nullable().openapi({
+      description: "Task ID prefix; null only for projects without one.",
+      example: "SOK",
+    }),
     briefing: z.string().nullable().openapi({ example: "Campaign briefing" }),
     briefingUrl: z.url().nullable().openapi({
       example:
@@ -284,6 +306,10 @@ export const createProjectRequestSchema = z
       example: "Legacy campaign briefing",
     }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
+    identifier: projectIdentifierSchema.optional().openapi({
+      description:
+        "Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.",
+    }),
   })
   .transform(({ description, ...data }) => ({
     ...data,
@@ -301,10 +327,12 @@ export const patchProjectRequestSchema = z
     }),
     websiteUrl: projectWebsiteUrlSchema.nullish().optional(),
     logo: projectLogoUrlSchema.nullish().optional(),
+    identifier: projectIdentifierSchema.optional(),
   })
   .superRefine((data, ctx) => {
     if (
       data.name === undefined &&
+      data.identifier === undefined &&
       data.briefing === undefined &&
       data.description === undefined &&
       data.websiteUrl === undefined &&
@@ -313,7 +341,7 @@ export const patchProjectRequestSchema = z
       ctx.addIssue({
         code: "custom",
         message:
-          "Provide at least one of name, briefing, description, websiteUrl, or logo",
+          "Provide at least one of name, identifier, briefing, description, websiteUrl, or logo",
         path: [],
       });
     }
@@ -429,6 +457,7 @@ export function mapProjectForApi(
     id: project.id,
     workspaceId: project.workspaceId,
     name: project.name,
+    identifier: project.identifier,
     briefing: project.briefing,
     latestUpdate:
       project.latestUpdateMd && project.latestUpdateMdUpdatedAt
