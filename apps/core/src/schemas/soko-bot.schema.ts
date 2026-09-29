@@ -1,6 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import {
+  judgeCaseSummarySchema,
+  judgeModelSummarySchema,
+  routerCaseSummarySchema,
+  routerModelSummarySchema,
+} from "@/lib/soko-bot/model-evaluation";
 import { userSummarySchema } from "@/schemas/user.schema";
 
 export const sokoBotSummarySchema = z
@@ -1098,3 +1104,42 @@ export const setSokoBotAvailabilityRequestSchema = z
     reason: z.string().trim().max(300).optional(),
   })
   .openapi("SetSokoBotAvailabilityRequest");
+
+const modelEvaluationBase = {
+  id: z.string(),
+  createdAt: dateTimeSchema,
+  label: z.string(),
+  /** The model the role ran on when this was recorded. */
+  inUseModel: z.string().nullable(),
+};
+
+export const adminSokoBotJudgeEvaluationSchema = z
+  .object({
+    ...modelEvaluationBase,
+    models: z.array(
+      judgeModelSummarySchema.openapi("SokoBotJudgeModelSummary"),
+    ),
+    cases: z.array(judgeCaseSummarySchema.openapi("SokoBotJudgeCaseSummary")),
+  })
+  .openapi("AdminSokoBotJudgeEvaluation");
+
+export const adminSokoBotRouterEvaluationSchema = z
+  .object({
+    ...modelEvaluationBase,
+    models: z.array(
+      routerModelSummarySchema.openapi("SokoBotRouterModelSummary"),
+    ),
+    cases: z.array(routerCaseSummarySchema.openapi("SokoBotRouterCaseSummary")),
+  })
+  .openapi("AdminSokoBotRouterEvaluation");
+
+export const adminSokoBotModelEvaluationsSchema = z
+  .object({
+    /** What each role runs on now, to mark it in the tables. */
+    currentJudgeModel: z.string(),
+    currentRouteModel: z.string(),
+    /** Newest first. */
+    judge: z.array(adminSokoBotJudgeEvaluationSchema),
+    router: z.array(adminSokoBotRouterEvaluationSchema),
+  })
+  .openapi("AdminSokoBotModelEvaluations");

@@ -125,14 +125,9 @@ const baseEnvSchema = z.object({
    * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
    * model, so a case for changing it can be made with numbers.
    */
-  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
-  /** Score every completed turn with the judge model. */
-  SOKO_BOT_TURN_JUDGE_ENABLED: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
   /**
    * fal.ai key for Soko Bot avatar generation and the Project image studio.
    * Neither feature can reach the provider without it; both degrade to a

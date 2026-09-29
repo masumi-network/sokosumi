@@ -1864,23 +1864,6 @@ export class SokoBotControlPlane {
                 );
               }),
           );
-          // Quality score for every settled turn; the lab re-judges its own
-          // turns with the scenario rubric afterwards.
-          const { judgeTurnQuality } = await import(
-            "@/services/soko-bot-lab-judge.service"
-          );
-          // A turn still in flight when the switch was thrown settles here.
-          // Scoring it is another model call, so it waits until the feature is
-          // switched back on.
-          const judgeAllowed = !(await getSokoBotAvailability()).disabled;
-          void (
-            judgeAllowed ? judgeTurnQuality(input.turnId) : Promise.resolve()
-          ).catch(async (error) => {
-            const { reportFailedTurnJudge } = await import(
-              "@/services/soko-bot-lab-judge.service"
-            );
-            await reportFailedTurnJudge(input.turnId, error);
-          });
         }
         return settled;
       },

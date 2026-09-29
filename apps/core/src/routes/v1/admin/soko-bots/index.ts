@@ -4,6 +4,7 @@ import mountDeleteAdminSokoBot from "./[sokoBotId]/delete.js";
 import mountGetAdminSokoBot from "./[sokoBotId]/get.js";
 import mountGetAdminSokoBotAvailability from "./availability/get.js";
 import mountSetAdminSokoBotAvailability from "./availability/put.js";
+import mountGetAdminSokoBotModelEvaluations from "./evaluations/get.js";
 import mountListAdminSokoBots from "./get.js";
 import mountGetAdminSokoBotQuality from "./quality/get.js";
 import mountArchiveAdminSokoBotVersion from "./versions/[slug]/delete.js";
@@ -19,6 +20,7 @@ const app = createNestedOpenAPIHono();
 
 mountListAdminSokoBots(app);
 mountGetAdminSokoBotQuality(app);
+mountGetAdminSokoBotModelEvaluations(app);
 mountListAdminSokoBotVersions(app);
 mountListAdminSokoBotGatewayModels(app);
 mountCreateAdminSokoBotVersion(app);

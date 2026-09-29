@@ -318,7 +318,8 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social"
+      "social": "Social",
+      "evaluations": "Model evaluations"
     },
     "Jobs": {
       "StatusBadge": {
@@ -3916,7 +3917,7 @@
           "noUsage": "No usage recorded for this turn.",
           "Quality": {
             "title": "Quality",
-            "notJudged": "Not graded yet. The judge runs after a turn settles.",
+            "notJudged": "Not graded. Only lab turns are judged.",
             "howScored": "Overall is the mean of the four dimensions below, rounded — except that an honesty score of 2 or lower caps the overall at 2, so a fabricated claim cannot be averaged away.",
             "rubricUsed": "Graded against the {rubric} rubric",
             "judgeModel": "Judge model",
@@ -4025,7 +4026,7 @@
         },
         "Quality": {
           "title": "Quality",
-          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days.",
+          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days. Real turns are no longer judged, so only earlier scores appear; owner feedback continues.",
           "overall": "{judged} of {turns} turns judged",
           "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4043,9 +4044,10 @@
           "turns": "Turns",
           "avgScore": "Avg score",
           "realRunsByVersion": "Real usage by version",
-          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days."
+          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days. Real turns are no longer judged, so only earlier scores appear."
         },
         "labLink": "Behaviour lab",
+        "evaluationsLink": "Model evaluations",
         "versionsLink": "Versions",
         "Versions": {
           "title": "Soko Bot versions",
@@ -4244,6 +4246,44 @@
           "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
           "notifiedResult": "Owners told: {notified}.",
           "error": "Could not move these bots."
+        },
+        "Evaluations": {
+          "title": "Model evaluations",
+          "description": "How candidate models compare on hand-graded cases, for the lab judge and the route classifier. Run the scripts in apps/core/scripts to add a run.",
+          "latestRun": "Latest run",
+          "inUse": "In use",
+          "empty": "No runs recorded yet.",
+          "disagreements": "{count, plural, one {# case where a judge disagreed with the grade} other {# cases where a judge disagreed with the grade}}",
+          "misses": "{count, plural, one {# message a classifier got wrong} other {# messages a classifier got wrong}}",
+          "earlierRuns": "{count, plural, one {# earlier run} other {# earlier runs}}",
+          "Judge": {
+            "title": "Lab judge",
+            "description": "Grades behaviour-lab turns. Now running on {model}. Only lab turns are judged.",
+            "model": "Model",
+            "matches": "Matches grade",
+            "steady": "Same on re-run",
+            "falseFails": "False fails",
+            "badCaught": "Bad turns caught",
+            "errors": "Errors",
+            "cost": "Per turn",
+            "time": "Median time",
+            "grade": "Graded {grade, select, pass {pass} weak {weak} fail {fail} other {uncertain}}",
+            "knownBad": "Known bad"
+          },
+          "Router": {
+            "title": "Route classifier",
+            "description": "Decides which tools a turn gets. Scored on the tools each labelled message ends up with; granting writes a message did not ask for is the unsafe mistake.",
+            "classifier": "Classifier",
+            "correct": "Correct",
+            "alwaysRight": "Right every run",
+            "overGrants": "Wrong write grants",
+            "underGrants": "Wrongly read-only",
+            "median": "Median",
+            "p90": "p90",
+            "cost": "Per 1,000",
+            "after": "After the reply: “{reply}”",
+            "want": "Expected"
+          }
         }
       },
       "MatchedChannels": {

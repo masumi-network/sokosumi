@@ -1,0 +1,254 @@
+[
+  {
+    "message": "what's new with x402 this week?",
+    "want": "READ"
+  },
+  {
+    "message": "research x402 news for me",
+    "want": "READ"
+  },
+  {
+    "message": "What are the three biggest changes to the EU AI Act timeline this year? Cite sources.",
+    "want": "READ"
+  },
+  {
+    "message": "Compare Zapier, Make and n8n entry plans in a table",
+    "want": "READ"
+  },
+  {
+    "message": "Our Q3 pipeline: Acme 12000 won, Beta 8000 lost, Gamma 20000 open. Save it as pipeline.csv in your workspace and tell me total won.",
+    "want": "READ"
+  },
+  {
+    "message": "write a short summary of the attached report",
+    "want": "READ"
+  },
+  {
+    "message": "which of my tasks are stuck?",
+    "want": "READ"
+  },
+  {
+    "message": "what's on my calendar tomorrow?",
+    "want": "READ"
+  },
+  {
+    "message": "did anyone email me about the invoice?",
+    "want": "READ"
+  },
+  {
+    "message": "What files do I have in my Drive?",
+    "want": "READ"
+  },
+  {
+    "message": "What does my launch notes file say?",
+    "want": "READ"
+  },
+  {
+    "message": "What did I miss in my chats?",
+    "want": "READ"
+  },
+  {
+    "message": "hi, how are you?",
+    "want": "READ"
+  },
+  {
+    "message": "Give me a status rundown of all my open tasks and flag anything idle",
+    "want": "READ"
+  },
+  {
+    "message": "Don't hire any agent yet. Just tell me what a copywriting agent would cost.",
+    "want": "READ"
+  },
+  {
+    "message": "should we create a research task for x402?",
+    "want": "READ"
+  },
+  {
+    "message": "what if we moved the launch to November?",
+    "want": "READ"
+  },
+  {
+    "message": "don't create a task yet, just tell me what x402 is",
+    "want": "READ"
+  },
+  {
+    "message": "Sort out the thing with the client from last week",
+    "want": "READ"
+  },
+  {
+    "message": "yes",
+    "want": "READ"
+  },
+  {
+    "message": "summarize the TOKEN2049 dates and draft a post, but don't post it",
+    "want": "READ"
+  },
+  {
+    "message": "Hannah said we should hire an SEO agent, what do you think?",
+    "want": "READ"
+  },
+  {
+    "message": "okay please start a research task for x402 news",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "create a task for Hannah to draft the Q4 newsletter",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "get someone to research competitor pricing for us",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Bitte erstelle eine Aufgabe: eine kurze Wettbewerbsanalyse der drei größten deutschen KI-Agenten-Anbieter, bis Freitag.",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Have the team put together a one-page brief on EU AI-agent marketplaces by next Friday",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "assign the landing page task to Alex",
+    "want": "DELEGATE",
+    "alt": ["MANAGE:WORK"]
+  },
+  {
+    "message": "Can you get a designer on the launch banner?",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Delegate a review of our pricing page to whoever handles copy",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Create a task for the Q4 newsletter and check in on it daily at 9",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "We launch in six weeks. Break this into 4 draft tasks, remember the launch date, and remind me every Monday at 10 about what's open.",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Create a research task for x402 and post in the team chat that it's started",
+    "want": "DELEGATE"
+  },
+  {
+    "message": "Move the landing page task to the Website project and remember that Daniel owns it",
+    "want": "DELEGATE",
+    "alt": ["MANAGE:WORK"]
+  },
+  {
+    "message": "Find an agent that writes SEO blog posts and hire it for an 800-word post, max 10 credits",
+    "want": "HIRE"
+  },
+  {
+    "message": "hire the company researcher agent to profile Acme",
+    "want": "HIRE"
+  },
+  {
+    "message": "Book a marketplace agent to do a market study on Zapier",
+    "want": "HIRE"
+  },
+  {
+    "message": "post 'standup moved to 10' in the team chat",
+    "want": "MANAGE:CHAT"
+  },
+  {
+    "message": "Post a short note in one of my chat rooms saying you're picking up the launch follow-ups",
+    "want": "MANAGE:CHAT"
+  },
+  {
+    "message": "message Hannah and ask if the brief is on track",
+    "want": "MANAGE:CHAT"
+  },
+  {
+    "message": "remind me every Monday at 9 to review the board",
+    "want": "MANAGE:SCHEDULE"
+  },
+  {
+    "message": "stop the daily check-ins",
+    "want": "MANAGE:SCHEDULE"
+  },
+  {
+    "message": "Stop checking in on the research brief and drop the weekly launch reminder",
+    "want": "MANAGE:SCHEDULE"
+  },
+  {
+    "message": "move my weekly wrap to Thursday afternoon",
+    "want": "MANAGE:SCHEDULE"
+  },
+  {
+    "message": "remember that Anna prefers email",
+    "want": "MANAGE:MEMORY"
+  },
+  {
+    "message": "forget what I said about the Berlin office",
+    "want": "MANAGE:MEMORY"
+  },
+  {
+    "message": "save these notes as a file in my drive",
+    "want": "MANAGE:FILE"
+  },
+  {
+    "message": "put the meeting notes in my Drive as notes.md",
+    "want": "MANAGE:FILE"
+  },
+  {
+    "message": "make an image of a purple robot for the launch post",
+    "want": "MANAGE:FILE"
+  },
+  {
+    "message": "archive the old test tasks",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "rename the QA task to Launch QA and set it READY",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "draft a LinkedIn post about the launch for the Sokosumi project",
+    "want": "MANAGE:SOCIAL"
+  },
+  {
+    "message": "schedule the launch post for Friday at 10",
+    "want": "MANAGE:SOCIAL"
+  },
+  {
+    "message": "reply to Daniel's email and say we'll ship Friday",
+    "want": "MANAGE:INTEGRATION"
+  },
+  {
+    "message": "put a 30 minute call with Hannah on my calendar tomorrow at 3",
+    "want": "MANAGE:INTEGRATION"
+  },
+  {
+    "message": "yes",
+    "want": "MANAGE:CHAT",
+    "previousReply": "I drafted this post for the team chat: 'TOKEN2049 is 7–8 October.' Want me to post this?"
+  },
+  {
+    "message": "go ahead",
+    "want": "DELEGATE",
+    "previousReply": "I can create a Task for Hannah to research x402 news and set it READY. Want me to do that?"
+  },
+  {
+    "message": "yes please",
+    "want": "MANAGE:SCHEDULE",
+    "previousReply": "Should I set a reminder every Friday at 4pm for the weekly wrap?"
+  },
+  {
+    "message": "no, don't",
+    "want": "READ",
+    "previousReply": "Want me to post this in the team chat?"
+  },
+  {
+    "message": "sure, the first one",
+    "want": "HIRE",
+    "previousReply": "I found two agents: Company Researcher (30 credits) and SEO Researcher (900). Which should I hire?"
+  },
+  {
+    "message": "thanks!",
+    "want": "READ",
+    "previousReply": "Created the task and assigned it to Hannah."
+  }
+]

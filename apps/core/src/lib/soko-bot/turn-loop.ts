@@ -368,6 +368,11 @@ async function ownerNarrative(
     await confirmedChanges(turnId),
   );
   if (claim === false) return narrative;
+  // Counted, never quoted: how often a reply is withheld is the signal.
+  console.warn("Soko Bot reply withheld", {
+    turnId,
+    reason: claim === null ? "unchecked" : "claims_unconfirmed_change",
+  });
   // A claim is dropped: the receipts say what changed, or that nothing did.
   // An unchecked reply is not shown either, but the owner is told why.
   return {

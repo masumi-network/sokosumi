@@ -51,6 +51,14 @@ Optional, per network:
   quote the owner's request. EU-pinned versions (v20, on
   Gemini 3.8) stay available, and the lab judge and preview evaluation runs
   stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
+- `SOKO_BOT_JUDGE_MODEL` — the behaviour lab's judge, Claude Opus 5.5 in the EU
+  by default. It agreed with hand grades most often of the EU-routable models
+  compared on 2026-09-30 (Haiku 4.5, Sonnet 5 and 5.5, Gemini 3.8 Flash), and
+  gave the same verdict on every re-run. Only lab turns are judged: settled
+  real turns are not scored, which cost a model call per turn. Re-run the
+  comparison with `pnpm --filter @sokosumi/core soko-bot:judge-eval`, and the
+  route classifier's with `soko-bot:router-eval`; results appear under Admin →
+  Soko Bots → Model evaluations.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.

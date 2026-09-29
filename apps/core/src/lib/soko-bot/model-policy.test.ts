@@ -99,7 +99,7 @@ describe("Soko Bot EU model policy", () => {
       "not approved",
     );
   });
-  it("rejects a region override and an unsupported structured-output role", () => {
+  it("rejects a region override, and judges on Opus in the EU", () => {
     expect(() =>
       sokoBotModelRequest({
         role: "agent",
@@ -107,12 +107,12 @@ describe("Soko Bot EU model policy", () => {
         inferenceRegion: "us",
       }),
     ).toThrow();
-    expect(() =>
-      sokoBotModelRequest({
-        role: "judge",
-        model: "anthropic/claude-opus-5.5",
-      }),
-    ).toThrow();
+    // The lab judge: its EU route returned a structured verdict on all 68
+    // calls of the judge comparison (2026-09-30).
+    expect(
+      sokoBotModelRequest({ role: "judge", model: "anthropic/claude-opus-5.5" })
+        .providerOptions.gateway,
+    ).toMatchObject({ inferenceRegion: { geoRegion: "eu" } });
   });
   it("records absent metadata as unknown, not proof of EU inference", () => {
     expect(sokoBotInferenceEvidence(undefined).regionStatus).toBe("UNKNOWN");

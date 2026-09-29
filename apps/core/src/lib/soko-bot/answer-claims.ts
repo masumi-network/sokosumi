@@ -1,6 +1,7 @@
 import { askJev } from "./jev";
 
-const TIMEOUT_MS = 4_000;
+/** A long report (a weekly wrap, a stand-up) takes Jev several seconds. */
+const TIMEOUT_MS = 12_000;
 const MAX_TEXT_LENGTH = 8_000;
 /** Below this the text is shown; Jev is sure about plain reports and questions. */
 const MAX_CLAIM_PROBABILITY = 0.5;

@@ -1,93 +1,169 @@
 /**
- * Grades the judge.
+ * Compares candidate lab judges on hand-graded lab turns and stores the
+ * result for the admin console (Soko Bots → Model evaluations).
  *
- * Each case is a turn whose outcome was checked by hand against the tool
- * results and the context packet, so a model's verdict can be compared with
- * something better than another model's opinion. Runs every model given and
- * reports where each disagrees with the evidence, and what it charged for the
- * privilege — this judge runs on every settled turn, so a model that agrees
- * marginally more often is not automatically the one to run.
+ *   JUDGE_EVAL_GRADES=grades.json JUDGE_EVAL_MODELS=a,b JUDGE_EVAL_RUNS=2 \
+ *     pnpm --filter @sokosumi/core soko-bot:judge-eval
+ *
+ * GRADES is a JSON array of { caseId, turnId, scenario, grade, why?, set }:
+ * `grade` is what reading the turn supports ("pass" | "weak" | "fail" |
+ * "uncertain"), and `set` is "lab" for turns as they ran or "known-bad" for
+ * turns picked because they went wrong. Grade before looking at any model's
+ * verdict, or the comparison measures agreement with the model you read.
+ *
+ * Every candidate is asked for an EU route and its answer is discarded unless
+ * the Gateway reports EU inference, so an unapproved model can be measured
+ * without owner data leaving the EU. Only lab turns are ever judged.
  */
+import { readFileSync } from "node:fs";
+import {
+  SOKO_BOT_JUDGE_RUBRIC,
+  sokoBotJudgeVerdictSchema,
+} from "@sokosumi/soko-bot";
+import { gateway, generateText, Output } from "ai";
 import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
 import {
-  judgeTurnWithModel,
-  SokoBotJudgeFailure,
+  type JudgeCall,
+  summarizeJudgeRun,
+} from "@/lib/soko-bot/model-evaluation";
+import {
+  loadLabJudgePayload,
+  sokoBotJudgeModel,
 } from "@/services/soko-bot-lab-judge.service";
 
-const caseSchema = z.object({
-  turnId: z.string().min(1),
-  scenario: z.string().min(1),
-  /** What the evidence supports, established by reading the turn. */
-  honest: z.boolean(),
-  /** Why, so a case can be argued with rather than taken on faith. */
-  why: z.string().min(1),
-});
-
-// Parsed, not cast: a malformed case would otherwise slip past the length
-// guard and be evaluated as dishonest, quietly scoring every model as wrong.
-const parsedCases = z
-  .array(caseSchema)
-  .safeParse(JSON.parse(process.env.JUDGE_EVAL_CASES ?? "[]"));
-if (!parsedCases.success) {
-  console.error(`JUDGE_EVAL_CASES is malformed: ${parsedCases.error.message}`);
-  process.exit(1);
-}
-const cases = parsedCases.data;
-const models = (process.env.JUDGE_EVAL_MODELS ?? "")
-  .split(",")
-  .map((model) => model.trim());
-
-if (cases.length === 0 || models.some((model) => model === "")) {
-  console.error(
-    "Set JUDGE_EVAL_CASES (non-empty) and JUDGE_EVAL_MODELS (comma-separated, no blanks).",
-  );
-  process.exit(1);
-}
-
-for (const model of models) {
-  let agree = 0;
-  let costUsd = 0;
-  const misses: string[] = [];
-  for (const c of cases) {
-    const call = await judgeTurnWithModel(c.turnId, model).catch(
-      (error: unknown) => {
-        // A model that burns tokens and returns nothing usable is the
-        // expensive kind of unreliable; dropping the cost of its failures
-        // would make it look cheaper than one that simply answers.
-        if (error instanceof SokoBotJudgeFailure)
-          costUsd += error.usage.costUsd;
-        misses.push(
-          `${c.scenario}: judge errored — ${error instanceof Error ? error.message : String(error)}`,
-        );
-        return null;
-      },
-    );
-    if (!call) continue;
-    costUsd += call.usage.costUsd;
-    // The honesty axis is the one under test: does the model call an answer
-    // grounded when the evidence grounds it, and only then?
-    const saidHonest = call.verdict.scores.honesty >= 4;
-    if (saidHonest === c.honest) {
-      agree += 1;
-    } else {
-      misses.push(
-        `${c.scenario}: evidence says ${c.honest ? "honest" : "not honest"}, judge gave honesty ${call.verdict.scores.honesty}\n       why it says so: ${(call.verdict.issues ?? []).slice(0, 2).join(" | ").slice(0, 260)}`,
-      );
-    }
-  }
-  console.log(
-    `\n${model}: ${agree}/${cases.length} match the evidence, $${costUsd.toFixed(4)} for the set`,
-  );
-  for (const miss of misses) console.log(`   - ${miss}`);
-}
-
-// Every case here is a turn the bot was honest on, so this measures false
-// accusations only. Whether a judge catches a real fabrication needs a turn
-// known to have lied, which nothing in this set is.
-console.log(
-  `\nMeasured against ${cases.filter((c) => c.honest).length} honest and ${cases.filter((c) => !c.honest).length} dishonest turns.`,
+const gradesSchema = z.array(
+  z.object({
+    caseId: z.string().min(1),
+    turnId: z.string().min(1),
+    scenario: z.string().min(1),
+    grade: z.enum(["pass", "weak", "fail", "uncertain"]),
+    why: z.string().optional(),
+    set: z.enum(["lab", "known-bad"]),
+  }),
 );
 
+const grades = gradesSchema.parse(
+  JSON.parse(readFileSync(process.env.JUDGE_EVAL_GRADES ?? "", "utf8")),
+);
+const models = (process.env.JUDGE_EVAL_MODELS ?? "")
+  .split(",")
+  .map((model) => model.trim())
+  .filter(Boolean);
+const runs = Number(process.env.JUDGE_EVAL_RUNS ?? 2);
+if (grades.length === 0 || models.length === 0 || !(runs >= 1)) {
+  console.error(
+    "Set JUDGE_EVAL_GRADES (a graded case file), JUDGE_EVAL_MODELS and JUDGE_EVAL_RUNS.",
+  );
+  process.exit(1);
+}
+
+const TIMEOUT_MS = 180_000;
+const CONCURRENCY = 6;
+const EU_PROVIDERS = ["vertex", "bedrock"];
+
+const payloads = new Map<string, unknown>();
+for (const grade of grades)
+  payloads.set(
+    grade.caseId,
+    await loadLabJudgePayload(grade.turnId, grade.scenario),
+  );
+
+const routingSchema = z.object({
+  gateway: z.object({
+    cost: z.coerce.number().optional(),
+    routing: z.object({
+      modelAttempts: z.array(
+        z.object({
+          providerAttempts: z.array(
+            z.object({
+              inferenceEndpoint: z.object({ geoRegion: z.string() }).nullish(),
+            }),
+          ),
+        }),
+      ),
+    }),
+  }),
+});
+
+async function judge(model: string, caseId: string): Promise<JudgeCall> {
+  const started = Date.now();
+  try {
+    const result = await generateText({
+      model: gateway.languageModel(model),
+      maxRetries: 1,
+      abortSignal: AbortSignal.timeout(TIMEOUT_MS),
+      providerOptions: {
+        gateway: {
+          inferenceRegion: { scope: "zone", geoRegion: "eu" },
+          only: EU_PROVIDERS,
+        },
+      },
+      output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+      instructions: SOKO_BOT_JUDGE_RUBRIC,
+      prompt: JSON.stringify(payloads.get(caseId)),
+    });
+    const metadata = routingSchema.parse(result.providerMetadata);
+    const regions = metadata.gateway.routing.modelAttempts
+      .flatMap((attempt) => attempt.providerAttempts)
+      .flatMap((attempt) =>
+        attempt.inferenceEndpoint ? [attempt.inferenceEndpoint.geoRegion] : [],
+      );
+    const inEu =
+      regions.length > 0 && regions.every((region) => region === "eu");
+    return {
+      model,
+      caseId,
+      // Outside the EU the answer does not count, whatever it says.
+      verdict: inEu
+        ? sokoBotJudgeVerdictSchema.parse(result.output).verdict
+        : null,
+      costUsd: metadata.gateway.cost ?? 0,
+      ms: Date.now() - started,
+    };
+  } catch (error) {
+    console.warn(`${model} on ${caseId}: ${String(error).slice(0, 160)}`);
+    return {
+      model,
+      caseId,
+      verdict: null,
+      costUsd: 0,
+      ms: Date.now() - started,
+    };
+  }
+}
+
+const jobs = models.flatMap((model) =>
+  Array.from({ length: runs }, () =>
+    grades.map((grade) => () => judge(model, grade.caseId)),
+  ).flat(),
+);
+const calls: JudgeCall[] = [];
+let next = 0;
+await Promise.all(
+  Array.from({ length: CONCURRENCY }, async () => {
+    while (next < jobs.length) {
+      const job = jobs[next++];
+      if (job) calls.push(await job());
+    }
+  }),
+);
+
+const summary = summarizeJudgeRun(calls, grades);
+const stored = await prisma.sokoBotModelEvaluation.create({
+  data: {
+    kind: "JUDGE",
+    label: `Judge comparison · ${grades.length} graded turns × ${runs} runs`,
+    inUseModel: sokoBotJudgeModel(),
+    models: summary.models,
+    cases: summary.cases,
+  },
+  select: { id: true },
+});
+for (const row of summary.models)
+  console.log(
+    `${row.model}: ${row.matches}/${row.graded} match the grades, steady ${row.steady}/${row.repeated}, ${row.falseFails} false fails, $${row.costPerCallUsd.toFixed(3)}/call`,
+  );
+console.log(`Stored evaluation ${stored.id}.`);
 await prisma.$disconnect();

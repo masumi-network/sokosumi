@@ -3,18 +3,10 @@ import { generateText, NoOutputGeneratedError, Output } from "ai";
 import { MockLanguageModelV3 } from "ai/test";
 import { describe, expect, it, vi } from "vitest";
 
-const { captureExceptionMock } = vi.hoisted(() => ({
-  captureExceptionMock: vi.fn(),
-}));
-
 vi.mock("ai", async (importOriginal) => {
   const actual = await importOriginal<typeof import("ai")>();
   return { ...actual, generateText: vi.fn(actual.generateText) };
 });
-
-vi.mock("@sentry/node", () => ({
-  captureException: captureExceptionMock,
-}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -25,7 +17,6 @@ vi.mock("@/lib/db/prisma", () => ({
 
 import {
   generateSokoBotJudgeText,
-  reportFailedTurnJudge,
   SokoBotJudgeFailure,
   SokoBotLabJudgeError,
   sokoBotLabJudgeErrorKind,
@@ -142,19 +133,6 @@ describe("soko-bot judge failure reporting", () => {
       generateSokoBotJudgeText({ model: "typesafe-ai/jev", payload: {} }),
     ).rejects.toThrow("not approved");
   });
-  it("pages Sentry when a background turn judge fails", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const error = new Error("No output generated.");
-    await reportFailedTurnJudge("turn_1", error);
-    expect(captureExceptionMock).toHaveBeenCalledWith(
-      error,
-      expect.objectContaining({
-        tags: { error_type: "soko_bot_turn_judge_failed" },
-        extra: { turnId: "turn_1" },
-      }),
-    );
-  });
-
   it("treats a judge miss as miss even though it is also a lab-judge error", () => {
     const miss = new SokoBotJudgeFailure("No output generated.", {
       inputTokens: 0,

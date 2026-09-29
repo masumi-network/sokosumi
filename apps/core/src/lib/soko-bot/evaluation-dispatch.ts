@@ -65,7 +65,6 @@ export function evaluationBinding() {
     process.env.VERCEL_GIT_COMMIT_SHA !== binding.sourceSha ||
     process.env.VERCEL_GIT_COMMIT_REF !== binding.branch ||
     !getEnv().SOKO_BOT_PROACTIVE_PAUSED ||
-    getEnv().SOKO_BOT_TURN_JUDGE_ENABLED ||
     Date.parse(binding.expiresAt) <= Date.now()
   )
     throw new Error("Evaluation allowance unavailable");

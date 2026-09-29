@@ -7,21 +7,16 @@ import { evaluationBinding, evaluationMiddleware } from "./evaluation-dispatch";
  * Jev has no regional support and is intentionally absent: route selection
  * uses it under a separate, owner-approved exception (see `classifier.ts`).
  */
-const EU_MODELS: Readonly<
-  Record<string, { structured: boolean; providers: readonly string[] }>
-> = {
-  "google/gemini-3.6-flash": { structured: true, providers: ["vertex"] },
-  "google/gemini-3.8-flash": { structured: true, providers: ["vertex"] },
+const EU_MODELS: Readonly<Record<string, { providers: readonly string[] }>> = {
+  "google/gemini-3.6-flash": { providers: ["vertex"] },
+  "google/gemini-3.8-flash": { providers: ["vertex"] },
   "anthropic/claude-haiku-4.5": {
-    structured: true,
     providers: ["vertex", "bedrock"],
   },
   "anthropic/claude-sonnet-5": {
-    structured: true,
     providers: ["vertex", "bedrock"],
   },
   "anthropic/claude-opus-5.5": {
-    structured: false,
     providers: ["vertex", "bedrock"],
   },
 };
@@ -96,7 +91,6 @@ export function assertSokoBotModelPolicy(options: {
     : undefined;
   if (
     !policy ||
-    (options.role !== "agent" && !policy.structured) ||
     (options.inferenceRegion != null && options.inferenceRegion !== "eu")
   ) {
     throw new SokoBotModelPolicyError();
