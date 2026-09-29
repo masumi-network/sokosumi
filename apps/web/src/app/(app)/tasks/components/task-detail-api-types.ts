@@ -3,7 +3,7 @@ import {
   type TaskLinkRelation,
   type TaskListItem,
   TaskStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 export type { TaskStatus };

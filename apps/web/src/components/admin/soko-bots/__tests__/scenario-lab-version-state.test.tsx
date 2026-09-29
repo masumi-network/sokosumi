@@ -23,7 +23,7 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   startSokoBotTurnAction: vi.fn(),
 }));
 
-import type { SokoBot, SokoBotVersion } from "@/lib/clients/generated/core";
+import type { SokoBot, SokoBotVersion } from "@sokosumi/core-client";
 import { ScenarioLab } from "../scenario-lab.client";
 
 const VERSIONS: SokoBotVersion[] = [

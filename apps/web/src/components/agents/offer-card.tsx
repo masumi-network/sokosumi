@@ -1,5 +1,6 @@
 "use client";
 
+import type { Vendor } from "@sokosumi/core-client";
 import {
   AlignLeft,
   AppWindow,
@@ -20,7 +21,6 @@ import {
   Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DocumentTextPreview } from "@/components/ui/document-text-preview";
-import type { Vendor } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { isOfficeFile, officeViewerUrl } from "@/lib/utils/file-preview";

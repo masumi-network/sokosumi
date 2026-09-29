@@ -1,3 +1,4 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -14,7 +15,6 @@ import {
   CHAT_CHATS_LIST_PATH,
   chatRoomEditHref,
 } from "@/app/chat/utils/chat-route-base";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 

@@ -1,9 +1,9 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import {
   isBrowserOnlyNotification,
   isMentionNotification,
   isNeedsActionNotification,
 } from "@sokosumi/utils";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 
 /** Rows per request, in the panel and on the page alike. Core's own default. */
 export const NOTIFICATION_PAGE_SIZE = 20;

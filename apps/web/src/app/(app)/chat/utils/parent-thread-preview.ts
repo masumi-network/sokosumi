@@ -1,8 +1,8 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import {
   senderKey,
   THREAD_REPLY_FACE_CAP,
 } from "@/app/chat/components/room-helpers";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
  * Local preview after this client posts a thread reply. Core does not

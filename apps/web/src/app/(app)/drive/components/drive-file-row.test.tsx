@@ -1,8 +1,7 @@
+import type { FileResource } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
-import type { FileResource } from "@/lib/clients/generated/core";
 
 /**
  * What a file row says about a document, and where it says it.

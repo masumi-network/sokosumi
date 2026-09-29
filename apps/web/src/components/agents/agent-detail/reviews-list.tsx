@@ -1,5 +1,6 @@
 "use client";
 
+import type { AgentReview } from "@sokosumi/core-client";
 import {
   ChevronLeft,
   ChevronRight,
@@ -15,7 +16,6 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import type { AgentReview } from "@/lib/clients/generated/core";
 
 const PAGE_SIZE = 5;
 

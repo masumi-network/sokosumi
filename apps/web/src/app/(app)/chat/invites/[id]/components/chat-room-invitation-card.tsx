@@ -1,12 +1,12 @@
 "use client";
 
+import type { ChatRoomInvitation } from "@sokosumi/core-client";
 import { AlertCircle, CheckIcon, Loader2, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import {
   acceptChatRoomInvitationAction,
   declineChatRoomInvitationAction,
@@ -21,7 +21,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { ChatRoomInvitation } from "@/lib/clients/generated/core";
 
 interface ChatRoomInvitationCardProps {
   invitation: ChatRoomInvitation;

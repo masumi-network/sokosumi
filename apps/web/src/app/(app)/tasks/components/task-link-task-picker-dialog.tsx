@@ -1,10 +1,13 @@
 "use client";
 
+import type {
+  GetTasksResponse,
+  UserWritableTaskLinkRelation,
+} from "@sokosumi/core-client";
 import type { LucideIcon } from "lucide-react";
 import { Link2, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
-
 import {
   CommandDialog,
   CommandEmpty,
@@ -14,10 +17,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type {
-  GetTasksResponse,
-  UserWritableTaskLinkRelation,
-} from "@/lib/clients/generated/core";
 
 import {
   mapTaskListItemToTaskPickerTask,

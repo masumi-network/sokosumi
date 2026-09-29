@@ -1,10 +1,9 @@
 "use client";
 
+import type { HistoryItem } from "@sokosumi/core-client";
 import { ImagePlus, ListTodo } from "lucide-react";
-
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 /**

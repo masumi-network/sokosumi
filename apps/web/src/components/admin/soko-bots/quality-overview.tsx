@@ -1,6 +1,5 @@
+import type { AdminSokoBotQuality } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
-import type { AdminSokoBotQuality } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { QualityVersionFilter } from "./quality-version-filter.client";
 

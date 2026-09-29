@@ -110,8 +110,8 @@ import SwiftUI
     }
 
     /// Persisted mention shell (thinking or failed); nil for ordinary rows.
-    private var mentionShell: CoworkerMentionShell? {
-      CoworkerMentionShell(message: message)
+    private var mentionShell: MentionThoughtShell? {
+      MentionThoughtShell(message: message)
     }
 
     /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
@@ -239,7 +239,7 @@ import SwiftUI
           let mentionShell = mentionShell
           if case .failed? = mentionShell {
             failedMentionView
-          } else if isCoworkerMessage(message), message.deletedAt == nil {
+          } else if hasThoughtView(message) {
             // A persisted mention shell keeps the live Thought header until Core
             // fills the answer; its clock starts at `thought_timing_ms.start`.
             CoworkerThoughtView(thought: CoworkerThought(message: message),

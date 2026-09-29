@@ -1,7 +1,7 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import { useCallback, useEffect, useRef } from "react";
-
 import { markThreadReadAction } from "@/app/chat/actions";
 import {
   type RoomReadAttentionSnapshot,
@@ -14,7 +14,6 @@ import {
   beginRoomAttentionChange,
   settleRoomAttentionChange,
 } from "@/components/chat/room-read-overlay";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 interface RoomReadAttentionOptions {
   room: ChatRoom | null;

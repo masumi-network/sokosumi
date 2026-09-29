@@ -1,13 +1,12 @@
 "use client";
 
+import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { Check, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
-import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

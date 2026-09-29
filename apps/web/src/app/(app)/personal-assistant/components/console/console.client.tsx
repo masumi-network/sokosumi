@@ -1,5 +1,14 @@
 "use client";
 
+import type {
+  SokoBotAvatar,
+  SokoBotDailyStats,
+  SokoBotInstalledSkill,
+  SokoBotIntegrationCatalogEntry,
+  SokoBotIntegrations,
+  SokoBotUsage,
+  SokoBotVersion,
+} from "@sokosumi/core-client";
 import { MessageSquare, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,15 +29,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
-import type {
-  SokoBotAvatar,
-  SokoBotDailyStats,
-  SokoBotInstalledSkill,
-  SokoBotIntegrationCatalogEntry,
-  SokoBotIntegrations,
-  SokoBotUsage,
-  SokoBotVersion,
-} from "@/lib/clients/generated/core";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { describeCron } from "@/lib/soko-bot/describe-cron";

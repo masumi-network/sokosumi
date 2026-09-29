@@ -1,9 +1,9 @@
 "use client";
 
+import type { EnterpriseContractActivationBlocker } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { ActivationBlockerAlert } from "@/components/admin/enterprise-contracts/activation-blocker-alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { activateEnterpriseContractAction } from "@/lib/actions/enterprise-contract/action";
-import type { EnterpriseContractActivationBlocker } from "@/lib/clients/generated/core/types.gen";
 
 interface ActivateContractDialogProps {
   contractId: string;

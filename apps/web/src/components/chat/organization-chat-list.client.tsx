@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import {
   Archive,
   ArrowUpDown,
@@ -68,10 +69,6 @@ import {
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
 } from "@/components/ui/sidebar-classes";
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   getActiveRoomIdFromPathname,

@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
 import {
   getProjectsByIdCalendarResponseTransformer,
   getWorkspacesCalendarResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
+import { describe, expect, it } from "vitest";
 
 describe("calendar entry dates", () => {
   it.each([

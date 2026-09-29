@@ -225,7 +225,7 @@ import SwiftUI
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
                                  // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && CoworkerMentionShell(message: message) == nil
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
                                    ? { workspaces.openThread(message, auth: auth) } : nil,
                                  onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString

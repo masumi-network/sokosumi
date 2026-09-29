@@ -1,10 +1,9 @@
 import "server-only";
 
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-
 import { coreClient } from "@/lib/clients/core.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 export type InvoiceTargetType = "user" | "organization";
 

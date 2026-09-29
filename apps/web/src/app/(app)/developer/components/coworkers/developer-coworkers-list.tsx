@@ -1,10 +1,9 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 interface DeveloperCoworkersListProps {
   coworkers: Coworker[];

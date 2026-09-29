@@ -1,13 +1,13 @@
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
-import type {
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 import messages from "../../../../../messages/en.json";
 
 const fullCalendarMock = vi.hoisted(() => vi.fn());

@@ -1,14 +1,13 @@
 "use client";
 
+import type { FileResource } from "@sokosumi/core-client";
 import { X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { FileTypeIcon } from "@/components/ui/file-icon";
-import type { FileResource } from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 
