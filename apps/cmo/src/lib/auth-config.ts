@@ -23,7 +23,8 @@ function vercelHostUrl(name: string): string | undefined {
 export function readCmoAuthConfig(): CmoAuthConfig {
   const baseURL = resolveBetterAuthPublicBaseUrl({
     vercelEnv: process.env.VERCEL_ENV,
-    vercelUrl: vercelHostUrl("VERCEL_URL"),
+    // CI registers only the branch alias as a preview callback.
+    vercelUrl: undefined,
     vercelBranchUrl: vercelHostUrl("VERCEL_BRANCH_URL"),
     vercelProductionUrl: vercelHostUrl("VERCEL_PROJECT_PRODUCTION_URL"),
     fallbackUrl: process.env.BETTER_AUTH_URL ?? "",
