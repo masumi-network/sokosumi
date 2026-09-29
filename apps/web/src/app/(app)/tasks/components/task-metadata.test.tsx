@@ -1,11 +1,9 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import { TaskStatus } from "@/lib/clients/generated/core";
-import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -40,6 +38,7 @@ const baseStatusLabels = {
 } as Record<(typeof TaskStatus)[keyof typeof TaskStatus], string>;
 
 const baseStatusFieldLabels = {
+  status: "Status",
   statusLabels: baseStatusLabels,
   changeStatus: "Change status…",
   noStatusMatches: "No status matches",
@@ -60,43 +59,28 @@ const baseLabels = {
   status: "Status",
   statusLabels: baseStatusLabels,
   owner: "Owner",
-  creator: "Creator",
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
+  noProject: "No project",
   schedule: "Schedule",
-  coworker: "Coworker",
-  credits: "Credits",
-  created: "Created",
-  updated: "Updated",
+  assignee: "Assignee",
+  noAssignee: "No assignee",
   personalAssistantFallback: "Personal assistant",
-  formatSokoBotRole: ({ owner }: { owner: string }) =>
-    `${owner}'s personal assistant`,
 };
 
 type TaskMetadataTask = ComponentProps<typeof TaskMetadata>["task"];
 
 function createTask(
   overrides: {
-    credits?: number;
     assigneeName?: string | null;
     assignee?: TaskMetadataTask["assignee"];
-    creator?: Task["creator"];
     status?: TaskMetadataTask["status"];
     visibility?: TaskMetadataTask["visibility"];
+    organization?: TaskMetadataTask["organization"];
     selectableStatuses?: TaskMetadataTask["selectableStatuses"];
   } = {},
 ): TaskMetadataTask {
-  const creator: Task["creator"] = overrides.creator ?? {
-    type: "user",
-    id: "user_1",
-    user: {
-      id: "user_1",
-      name: "Andreas Osberghaus",
-      image: null,
-    },
-  };
-
   const assignee: TaskMetadataTask["assignee"] =
     overrides.assignee !== undefined
       ? overrides.assignee
@@ -122,10 +106,8 @@ function createTask(
       name: "Andreas Osberghaus",
       image: null,
     },
-    creator,
-    organization: null,
+    organization: overrides.organization ?? null,
     assignee,
-    credits: overrides.credits ?? 0,
   };
 }
 
@@ -142,9 +124,6 @@ function renderTaskMetadata(
       editable={false}
       task={task}
       project={null}
-      createdAtLabel="Jul 16, 10:28 AM"
-      updatedAtLabel="Jul 16, 10:29 AM"
-      creditsDisplay={String(task.credits)}
       labels={baseLabels}
       statusFieldLabels={baseStatusFieldLabels}
       {...rest}
@@ -168,102 +147,135 @@ describe("TaskMetadata", () => {
     expect(heading).not.toHaveClass("tracking-wider", "uppercase");
   });
 
-  it("shows visibility as the first property when the task is private", () => {
+  it("renders rows without left labels, each described as Label: value", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    expect(
+      screen.getByRole("group", { name: "Status: Running" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("group", { name: "Assignee: Hepha" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("group", { name: "Owner: Andreas Osberghaus" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("group", { name: "Organization: Personal" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("group", { name: "Project: No project" }),
+    ).toBeVisible();
+    expect(screen.queryByText("Status")).not.toBeInTheDocument();
+    expect(screen.queryByText("Assignee")).not.toBeInTheDocument();
+    expect(screen.queryByText("Organization")).not.toBeInTheDocument();
+    expect(screen.queryByText("Project")).not.toBeInTheDocument();
+  });
+
+  it("gives every row's leading visual the same fixed slot", () => {
     renderTaskMetadata({
+      task: createTask({ visibility: "PRIVATE", assigneeName: null }),
+      project: { id: "proj_1", name: "Launch" },
+      schedule: <span>Every Monday</span>,
+    });
+
+    const rows = screen.getAllByRole("group");
+    expect(rows).toHaveLength(7);
+    for (const row of rows) {
+      expect(row.firstElementChild).toHaveClass(
+        "flex",
+        "size-5",
+        "shrink-0",
+        "items-center",
+        "justify-center",
+      );
+    }
+  });
+
+  it("keeps the Owner word as the only visible label, right after the name", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    const owner = screen.getByRole("group", {
+      name: "Owner: Andreas Osberghaus",
+    });
+    const word = within(owner).getByText("Owner");
+    expect(word).toHaveClass("text-xs", "text-muted-foreground");
+    expect(word).not.toHaveClass("ml-auto");
+    expect(screen.getAllByText("Owner")).toHaveLength(1);
+  });
+
+  it("drops the Creator, Credits, Created and Updated rows", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    for (const label of ["Creator", "Credits", "Created", "Updated"]) {
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+  });
+
+  it("shows a Private row only when the task is private", () => {
+    const { unmount } = renderTaskMetadata({
       task: createTask({ visibility: "PRIVATE" }),
     });
 
-    const visibility = screen.getByText("Visibility");
-    const status = screen.getByText("Status");
     expect(
-      visibility.compareDocumentPosition(status) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+      screen.getByRole("group", { name: "Visibility: Private" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Private")).toBeInTheDocument();
-  });
-
-  it("hides visibility when the task is public", () => {
-    renderTaskMetadata({ task: createTask({ visibility: "PUBLIC" }) });
-
     expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
+    unmount();
+
+    renderTaskMetadata({ task: createTask({ visibility: "PUBLIC" }) });
     expect(screen.queryByText("Private")).not.toBeInTheDocument();
   });
 
-  it("shows credits after coworker when task has charged credits", () => {
-    renderTaskMetadata({ task: createTask({ credits: 12 }) });
-
-    expect(screen.getByText("Coworker")).toBeInTheDocument();
-    expect(screen.getByText("Credits")).toBeInTheDocument();
-    expect(screen.getByText("12")).toBeInTheDocument();
-  });
-
-  it("renders the locale-formatted credits display string", () => {
-    renderTaskMetadata({
-      task: createTask({ credits: 1500 }),
-      creditsDisplay: "1,500",
-    });
-
-    expect(screen.getByText("1,500")).toBeInTheDocument();
-  });
-
-  it("hides credits row when total is zero", () => {
-    renderTaskMetadata({ task: createTask({ credits: 0 }) });
-
-    expect(screen.queryByText("Credits")).not.toBeInTheDocument();
-  });
-
-  it("shows coworker creator when different from owner", () => {
+  it("shows the organization name when there is one", () => {
     renderTaskMetadata({
       task: createTask({
-        creator: {
-          type: "coworker",
-          id: "cow_creator",
-          coworker: {
-            id: "cow_creator",
-            name: "Creator Coworker",
-            image: null,
-            slug: "creator-coworker",
-          },
-        },
+        organization: { id: "org_1", name: "Masumi", slug: "masumi" },
       }),
     });
 
-    expect(screen.getByText("Creator")).toBeInTheDocument();
-    expect(screen.getByText("Creator Coworker")).toBeInTheDocument();
-  });
-
-  it("says whose personal assistant created the task", () => {
-    renderTaskMetadata({
-      task: createTask({
-        creator: {
-          type: "sokoBot",
-          id: "01960001-0001-7001-8001-000000000099",
-          sokoBot: {
-            id: "01960001-0001-7001-8001-000000000099",
-            name: "Hermes",
-            avatarSeed: null,
-            avatarImageUrl: null,
-            owner: {
-              id: "user_2",
-              name: "Ada Lovelace",
-              image: null,
-            },
-          },
-        },
-      }),
-    });
-
-    expect(screen.getByText("Creator")).toBeInTheDocument();
-    // The assistant's name reads as a person's, so the role line underneath is
-    // the only thing telling the reader what made this Task and for whom.
-    expect(screen.getByText("Hermes")).toBeInTheDocument();
     expect(
-      screen.getByText("Ada Lovelace's personal assistant"),
+      screen.getByRole("group", { name: "Organization: Masumi" }),
     ).toBeInTheDocument();
-    // Same fallback the sidebar uses, so the bot wears one face everywhere.
-    expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
-      "data-seed",
-      defaultOrbSeed("user_2"),
+  });
+
+  it("links the project name, or shows a muted No project", () => {
+    const { unmount } = renderTaskMetadata({
+      task: createTask(),
+      project: { id: "proj_1", name: "Launch" },
+    });
+
+    expect(screen.getByRole("link", { name: "Launch" })).toHaveAttribute(
+      "href",
+      "/projects/proj_1",
+    );
+    expect(screen.queryByText("No project")).not.toBeInTheDocument();
+    unmount();
+
+    renderTaskMetadata({ task: createTask() });
+    expect(screen.getByText("No project")).toHaveClass("text-muted-foreground");
+  });
+
+  it("renders the schedule row only when a schedule node is given", () => {
+    const { unmount } = renderTaskMetadata({
+      task: createTask(),
+      schedule: <span>Every Monday</span>,
+    });
+
+    expect(screen.getByText("Every Monday")).toBeInTheDocument();
+    unmount();
+
+    renderTaskMetadata({ task: createTask() });
+    expect(
+      screen.queryByRole("group", { name: /^Schedule/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows a muted No assignee when nobody is assigned", () => {
+    renderTaskMetadata({ task: createTask({ assigneeName: null }) });
+
+    expect(screen.getByText("No assignee")).toHaveClass(
+      "text-muted-foreground",
     );
   });
 
@@ -271,11 +283,11 @@ describe("TaskMetadata", () => {
     // Claimed mascot is the bot's face; the orb is only the fallback.
     renderTaskMetadata({
       task: createTask({
-        creator: {
+        assignee: {
           type: "sokoBot",
-          id: "01960001-0001-7001-8001-000000000099",
+          id: "bot-2",
           sokoBot: {
-            id: "01960001-0001-7001-8001-000000000099",
+            id: "bot-2",
             name: "Joseph",
             avatarSeed: null,
             avatarImageUrl: "https://blob.example/cat.png",
@@ -285,33 +297,8 @@ describe("TaskMetadata", () => {
       }),
     });
 
-    // Radix only swaps in the <img> once it loads, which never happens in
-    // jsdom, so the regression itself is the assertion: no orb stands in for
-    // a bot that has a face of its own.
     expect(screen.queryByTestId("assistant-orb")).not.toBeInTheDocument();
     expect(screen.getByText("Joseph")).toBeInTheDocument();
-  });
-
-  it("does not print the role twice when the bot is named after it", () => {
-    renderTaskMetadata({
-      task: createTask({
-        creator: {
-          type: "sokoBot",
-          id: "01960001-0001-7001-8001-000000000099",
-          sokoBot: {
-            id: "01960001-0001-7001-8001-000000000099",
-            name: "Ada Lovelace's personal assistant",
-            avatarSeed: null,
-            avatarImageUrl: null,
-            owner: { id: "user_2", name: "Ada Lovelace", image: null },
-          },
-        },
-      }),
-    });
-
-    expect(
-      screen.getAllByText("Ada Lovelace's personal assistant"),
-    ).toHaveLength(1);
   });
 
   it("renders an sokoBot assignee with the assistant orb", () => {
@@ -378,18 +365,18 @@ describe("TaskMetadata", () => {
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
     });
 
-    const trigger = screen.getByRole("combobox", { name: "Running" });
-    expect(trigger).toBeInTheDocument();
-
-    const pill = trigger.querySelector("span.inline-flex");
-    expect(pill).toHaveClass(
-      "bg-status-working-quaternary",
-      "rounded-sm",
-      "px-2.5",
-      "py-1",
-      "text-xs",
+    const trigger = screen.getByRole("combobox", { name: "Status: Running" });
+    expect(trigger).toHaveClass(
+      "h-8",
+      "w-[calc(100%+1rem)]",
+      "justify-start",
+      "px-2",
     );
-    expect(pill?.textContent).toContain("Running");
+    expect(trigger).toHaveTextContent("Running");
+    // A quiet row, not the coloured pill.
+    expect(trigger.querySelector("span.inline-flex")).toBeNull();
+    expect(trigger.firstElementChild).toHaveClass("size-5", "justify-center");
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
   });
 
   it("offers only the statuses Core marked selectable, in display order", async () => {
@@ -413,7 +400,7 @@ describe("TaskMetadata", () => {
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
     });
 
-    await user.click(screen.getByRole("combobox", { name: "Draft" }));
+    await user.click(screen.getByRole("combobox", { name: "Status: Draft" }));
 
     expect(
       screen.getAllByRole("option").map((option) => option.textContent),
@@ -435,7 +422,7 @@ describe("TaskMetadata", () => {
       statusFieldLabels: { ...baseStatusFieldLabels, statusLabels },
     });
 
-    await user.click(screen.getByRole("combobox", { name: "Failed" }));
+    await user.click(screen.getByRole("combobox", { name: "Status: Failed" }));
 
     expect(screen.getAllByRole("option")).toHaveLength(1);
     expect(screen.getByRole("option", { name: /Failed/ })).toHaveAttribute(
@@ -450,7 +437,6 @@ describe("TaskMetadata participants", () => {
     renderTaskMetadata({ task: createTask() });
 
     expect(screen.getByText("Owner")).toBeInTheDocument();
-    expect(screen.getByText("Coworker")).toBeInTheDocument();
     expect(screen.getByText("Hepha")).toBeInTheDocument();
     expect(screen.queryByText("Participants")).toBeNull();
   });

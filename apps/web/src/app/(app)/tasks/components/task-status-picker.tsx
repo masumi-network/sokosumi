@@ -48,6 +48,8 @@ interface TaskStatusPickerProps {
   /** Single letter that opens the picker from anywhere on the page, like Linear's S. */
   openShortcutKey?: string;
   align?: "start" | "end";
+  /** `row` is the quiet icon + label used in the task properties sidebar. */
+  variant?: "pill" | "row";
 }
 
 const DIGIT_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"] as const;
@@ -62,6 +64,7 @@ export function TaskStatusPicker({
   disabled = false,
   openShortcutKey,
   align = "end",
+  variant = "pill",
 }: TaskStatusPickerProps) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -119,6 +122,16 @@ export function TaskStatusPicker({
 
   const marker = getTaskStatusMarker(value);
   const style = getToneStyle(marker.tone);
+  const statusMarker = (
+    <StatusMarker
+      spec={
+        isPending
+          ? { tone: marker.tone, icon: MARKER_ICONS.running, spin: true }
+          : marker
+      }
+      tone={variant === "row" ? style.labelOnSurface : undefined}
+    />
+  );
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
@@ -129,29 +142,32 @@ export function TaskStatusPicker({
           aria-expanded={open}
           aria-label={labels.ariaLabel}
           disabled={disabled || isPending}
-          className="focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed"
+          className={cn(
+            "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+            variant === "row" &&
+              "hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm",
+          )}
         >
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
-              style.box,
-              style.label,
-            )}
-          >
-            <StatusMarker
-              spec={
-                isPending
-                  ? {
-                      tone: marker.tone,
-                      icon: MARKER_ICONS.running,
-                      spin: true,
-                    }
-                  : marker
-              }
-            />
-            <span>{labels.statusLabels[value]}</span>
-            <ChevronDown className="size-3 opacity-70" aria-hidden />
-          </span>
+          {variant === "row" ? (
+            <>
+              <span className="flex size-5 shrink-0 items-center justify-center">
+                {statusMarker}
+              </span>
+              <span className="truncate">{labels.statusLabels[value]}</span>
+            </>
+          ) : (
+            <span
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+                style.box,
+                style.label,
+              )}
+            >
+              {statusMarker}
+              <span>{labels.statusLabels[value]}</span>
+              <ChevronDown className="size-3 opacity-70" aria-hidden />
+            </span>
+          )}
         </button>
       </PopoverTrigger>
       <PopoverContent align={align} className="w-64 p-0">

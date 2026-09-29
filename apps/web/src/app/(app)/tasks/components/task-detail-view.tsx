@@ -5,7 +5,7 @@ import {
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import Link from "next/link";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 import {
   type MentionableUser,
@@ -54,7 +54,6 @@ import { organizationSeatService } from "@/lib/services/organization-seat.servic
 import { projectService } from "@/lib/services/project.service";
 import { taskService } from "@/lib/services/task.service";
 import { userService } from "@/lib/services/user.service";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import {
   buildWorkspaceApprovalReviewHref,
   canApproveWorkspaceAccess,
@@ -450,15 +449,13 @@ async function TaskMetadataSection({
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus, formatter] =
-    await Promise.all([
-      projectPromise,
-      hasAssignedSeatPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Filters.statusOptions"),
-      getFormatter(),
-    ]);
+  const [project, hasAssignedSeat, t, tTasks, tStatus] = await Promise.all([
+    projectPromise,
+    hasAssignedSeatPromise,
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
+  ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     forceReadOnly,
@@ -468,7 +465,6 @@ async function TaskMetadataSection({
 
   return (
     <div className="space-y-6">
-      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
       <TaskMetadata
         title={t("properties")}
         taskId={task.id}
@@ -480,8 +476,6 @@ async function TaskMetadataSection({
           owner: task.owner,
           organization: task.organization,
           assignee: task.assignee,
-          creator: task.creator,
-          credits: task.credits,
         }}
         project={project ? { id: project.id, name: project.name } : null}
         schedule={
@@ -491,28 +485,23 @@ async function TaskMetadataSection({
             </Suspense>
           ) : null
         }
-        createdAtLabel={formatter.dateTime(task.createdAt, "dateTime")}
-        updatedAtLabel={formatter.dateTime(task.updatedAt, "dateTime")}
-        creditsDisplay={formatter.number(formatCreditsForDisplay(task.credits))}
         labels={{
           visibility: t("visibility"),
           privateBadge: t("privateBadge"),
           status: t("status"),
           statusLabels,
           owner: t("owner"),
-          creator: t("creator"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
+          noProject: t("noProject"),
           schedule: t("schedule"),
-          coworker: t("assignee"),
-          credits: t("credits"),
-          created: t("created"),
-          updated: t("updated"),
+          assignee: t("assignee"),
+          noAssignee: t("noAssignee"),
           personalAssistantFallback: tTasks("personalAssistant"),
-          formatSokoBotRole: (values) => t("actorSokoBotRole", values),
         }}
         statusFieldLabels={{
+          status: t("status"),
           statusLabels,
           changeStatus: t("actions.changeStatus"),
           noStatusMatches: t("actions.noStatusMatches"),
@@ -531,6 +520,7 @@ async function TaskMetadataSection({
           updateStatusError: tTasks("Errors.updateStatus"),
         }}
       />
+      <TaskTagSection key={task.updatedAt.toString()} tags={task.tags} />
     </div>
   );
 }

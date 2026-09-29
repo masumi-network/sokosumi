@@ -16,6 +16,8 @@ import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusPicker } from "./task-status-picker";
 
 export interface TaskMetadataStatusFieldLabels {
+  /** Field name, prefixed to the trigger's accessible name: "Status: Running". */
+  status: string;
   statusLabels: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
@@ -124,13 +126,15 @@ export function TaskMetadataStatusField({
         options={selectableStatuses}
         labels={{
           statusLabels: labels.statusLabels,
-          ariaLabel: labels.statusLabels[displayStatus],
+          ariaLabel: `${labels.status}: ${labels.statusLabels[displayStatus]}`,
           searchPlaceholder: labels.changeStatus,
           noResults: labels.noStatusMatches,
         }}
         onSelect={handleStatusSelect}
         isPending={isPending}
         openShortcutKey="s"
+        align="start"
+        variant="row"
       />
 
       <TaskReopenToReadyDialog

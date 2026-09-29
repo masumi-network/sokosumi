@@ -74,6 +74,14 @@ describe("task detail layout contract", () => {
     );
   });
 
+  it("sidebar lists Properties first and the tags section below it", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+
+    expect(view.indexOf("<TaskTagSection")).toBeGreaterThan(
+      view.indexOf("<TaskMetadata"),
+    );
+  });
+
   it("single-column source order keeps metadata after description and before later sections", () => {
     const view = readTasks("components/task-detail-view.tsx");
     const descriptionIdx = view.indexOf("<TaskDescription");
