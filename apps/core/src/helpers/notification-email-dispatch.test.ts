@@ -1,3 +1,4 @@
+import * as nodeTimers from "node:timers";
 import { type Notification, NotificationKind } from "@sokosumi/database";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
@@ -86,6 +87,74 @@ vi.mock("@/lib/db/prisma", () => {
 const NOW = new Date("2026-09-19T10:00:00.000Z");
 const TEN_MINUTES_LATER = new Date("2026-09-19T10:10:00.000Z");
 
+/**
+ * A real event-loop turn. Copied at load, before `useFakeTimers` replaces
+ * `node:timers`. Sentry 11.1 keeps that original and schedules work on it.
+ */
+const nativeSetTimeout = nodeTimers.setTimeout.bind(nodeTimers);
+
+function nativeTick(): Promise<void> {
+  return new Promise((resolve) => {
+    nativeSetTimeout(resolve, 0);
+  });
+}
+
+function restoreTimers() {
+  if (vi.getTimerCount() > 0) {
+    vi.runOnlyPendingTimers();
+  }
+  vi.useRealTimers();
+}
+
+/**
+ * Drive a dispatch/resend/cancel to the end under fake timers.
+ *
+ * `runAllTimersAsync` waits for every pending promise, including the one
+ * that is itself waiting on a `sleep`. Sentry 11.1 queues that sleep on a
+ * timer captured before the fake clock, so the async runner returns (or
+ * deadlocks) and the sleep never fires. Pump one native 0-ms turn at a
+ * time, and only run fake timers that are already queued.
+ */
+async function flush(task: Promise<unknown>): Promise<void> {
+  let settled = false;
+  const tracked = Promise.resolve(task).finally(() => {
+    settled = true;
+  });
+
+  for (let i = 0; i < 10_000; i += 1) {
+    if (settled) {
+      await tracked;
+      if (vi.getTimerCount() > 0) {
+        vi.runOnlyPendingTimers();
+      }
+      return;
+    }
+    if (vi.getTimerCount() > 0) {
+      vi.runOnlyPendingTimers();
+      await Promise.resolve();
+      continue;
+    }
+    await Promise.resolve();
+    if (!settled) {
+      await nativeTick();
+    }
+  }
+
+  throw new Error("flush: task never settled");
+}
+
+/** Wait until `isReady` without firing queued fake timers (the Resend gap). */
+async function flushUntil(isReady: () => boolean): Promise<void> {
+  for (let i = 0; i < 10_000; i += 1) {
+    if (isReady()) return;
+    await Promise.resolve();
+    if (isReady()) return;
+    await nativeTick();
+  }
+
+  throw new Error("flushUntil: condition never became true");
+}
+
 function mention(overrides: Partial<Notification> = {}): Notification {
   return {
     id: "notification_1",
@@ -137,9 +206,7 @@ function finished(overrides: Partial<Notification> = {}): Notification {
 
 /** Run the dispatch to the end, through every wait it schedules. */
 async function dispatch(notification: Notification): Promise<void> {
-  const run = dispatchNotificationEmail(notification);
-  await vi.runAllTimersAsync();
-  await run;
+  await flush(dispatchNotificationEmail(notification));
 }
 
 /** A room row whose email is already scheduled, standing for `count` messages. */
@@ -163,9 +230,7 @@ function scheduledRoomRow(
 
 /** Run the resend to the end, through every wait it schedules. */
 async function resend(): Promise<void> {
-  const run = resendRoomMessageEmail("notification_1");
-  await vi.runAllTimersAsync();
-  await run;
+  await flush(resendRoomMessageEmail("notification_1"));
 }
 
 describe("resendRoomMessageEmail", () => {
@@ -185,7 +250,7 @@ describe("resendRoomMessageEmail", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    restoreTimers();
   });
 
   /**
@@ -296,7 +361,7 @@ describe("dispatchNotificationEmail", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    restoreTimers();
   });
 
   it("emails successful closure even when the failure email remains unread", async () => {
@@ -711,8 +776,7 @@ describe("dispatchNotificationEmail", () => {
     const second = dispatchNotificationEmail(
       mention({ id: "n2", eventId: "message_2" }),
     );
-    await vi.runAllTimersAsync();
-    await Promise.all([first, second]);
+    await flush(Promise.all([first, second]));
 
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
     expect(notificationUpdateManyMock).toHaveBeenCalledTimes(1);
@@ -791,16 +855,16 @@ describe("dispatchNotificationEmail", () => {
     );
 
     // Everything before the send is immediate; the second send waits its turn.
-    await vi.advanceTimersByTimeAsync(0);
+    await flushUntil(() => sendEmailMock.mock.calls.length >= 1);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(499);
+    vi.advanceTimersByTime(499);
     expect(sendEmailMock).toHaveBeenCalledTimes(1);
 
-    await vi.advanceTimersByTimeAsync(1);
+    vi.advanceTimersByTime(1);
+    await flushUntil(() => sendEmailMock.mock.calls.length >= 2);
     expect(sendEmailMock).toHaveBeenCalledTimes(2);
 
-    await vi.runAllTimersAsync();
     await Promise.all([first, second]);
   });
 });
@@ -818,15 +882,13 @@ describe("cancelNotificationEmails", () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    restoreTimers();
   });
 
   async function cancel(
     rows: Parameters<typeof cancelNotificationEmails>[0],
   ): Promise<void> {
-    const run = cancelNotificationEmails(rows);
-    await vi.runAllTimersAsync();
-    await run;
+    await flush(cancelNotificationEmails(rows));
   }
 
   it("cancels only the emails still waiting to leave, and clears them off the row", async () => {
@@ -862,16 +924,16 @@ describe("cancelNotificationEmails", () => {
    * than cancelled after the fact and reported as a refusal.
    */
   it("leaves an email alone that left while the row waited its turn", async () => {
-    const run = cancelNotificationEmails([
-      { id: "n1", emailId: "e1", emailScheduledAt: TEN_MINUTES_LATER },
-      {
-        id: "n_due",
-        emailId: "e_due",
-        emailScheduledAt: new Date(NOW.getTime() + 400),
-      },
-    ]);
-    await vi.runAllTimersAsync();
-    await run;
+    await flush(
+      cancelNotificationEmails([
+        { id: "n1", emailId: "e1", emailScheduledAt: TEN_MINUTES_LATER },
+        {
+          id: "n_due",
+          emailId: "e_due",
+          emailScheduledAt: new Date(NOW.getTime() + 400),
+        },
+      ]),
+    );
 
     expect(cancelEmailMock).toHaveBeenCalledTimes(1);
     expect(cancelEmailMock).toHaveBeenCalledWith("e1");
