@@ -5830,6 +5830,7 @@
         "uploading": "{count, plural, one {Uploading file} other {Uploading files}}",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
+        "uploaded": "{count, plural, one {File uploaded} other {Files uploaded}}",
         "uploadFailed": "File upload failed",
         "removeAttachment": "Remove {name}",
         "attachmentFallback": "file",
