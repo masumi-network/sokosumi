@@ -1,0 +1,25 @@
+import { describe, expect, it } from "vitest";
+
+import de from "../../messages/de.json";
+import en from "../../messages/en.json";
+import es from "../../messages/es.json";
+
+const NAMES = { en: "Transactions", de: "Transaktionen", es: "Transacciones" };
+
+describe("Transactions page name", () => {
+  it.each([
+    ["en", en],
+    ["de", de],
+    ["es", es],
+  ] as const)("is %s everywhere it is shown", (locale, messages) => {
+    const name = NAMES[locale];
+    const app = messages.App as unknown as {
+      TransactionHistory: { Metadata: { title: string } };
+    };
+
+    expect(app.TransactionHistory.Metadata.title).toBe(name);
+    // Nav item and the palette's "Go to" entry.
+    const raw = JSON.stringify(messages);
+    expect(raw.match(new RegExp(`"history":"${name}"`, "g"))).toHaveLength(2);
+  });
+});
