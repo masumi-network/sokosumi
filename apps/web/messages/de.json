@@ -1522,12 +1522,13 @@
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
-          "sinceLastActivity": "Seit deiner letzten Aktivität, {when}",
           "completed": "{count, plural, one {# Aufgabe erledigt} other {# Aufgaben erledigt}}",
           "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
-          "recent": "In den letzten 24 Stunden"
+          "recent": "In den letzten 24 Stunden",
+          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
+          "trendDown": "{count} weniger als in den vorherigen 24 Stunden"
         },
         "team": {
           "avatarAlt": "{name}",
