@@ -136,6 +136,24 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
+  it("puts Content Studio after Calendar and before Files", () => {
+    renderYouPage();
+
+    const calendar = screen.getByTestId("you-calendar");
+    const studio = screen.getByTestId("you-studio");
+    const files = screen.getByTestId("you-files");
+
+    expect(studio).toHaveAttribute("href", "/studio");
+    expect(studio).toHaveTextContent("contentStudio");
+    expect(
+      calendar.compareDocumentPosition(studio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      studio.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("lists Schedules", () => {
     renderYouPage();
 
