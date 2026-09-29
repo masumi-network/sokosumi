@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
+import { READER_FACE_COLOUR } from "@/components/chat/read-receipt-faces";
 import type {
   ChatRoom,
   ChatRoomUserParticipant,
@@ -200,11 +201,12 @@ describe("RoomSeenByLine", () => {
   });
 
   /**
-   * Mostly saturated, unringed, and the same in every state. Class tokens
-   * rather than computed styles, because filters only resolve in a real
-   * browser.
+   * Half colour at rest, and the list's colour once woken: a face and its row
+   * in the popover opened from it match. Class tokens rather than computed
+   * styles, because the variants only resolve in a real browser.
    */
-  it("keeps the faces in steady, slightly muted colour and unringed", () => {
+  it("mutes the faces at rest and lifts them to the list's colour when woken", async () => {
+    const user = userEvent.setup();
     render(<Probe members={[member("user-a", "2026-01-01T13:00:00.000Z")]} />);
 
     const face = screen
@@ -213,10 +215,29 @@ describe("RoomSeenByLine", () => {
     const tokens = face?.className.split(/\s+/) ?? [];
 
     expect(tokens).toContain("saturate-50");
+    // Named group: the message row is a bare `group`, and hovering it must
+    // not wake the faces.
+    expect(tokens).toContain(`group-hover/seen-by:${READER_FACE_COLOUR}`);
+    expect(tokens).toContain(
+      `group-focus-visible/seen-by:${READER_FACE_COLOUR}`,
+    );
+    expect(tokens).toContain(
+      `group-data-[state=open]/seen-by:${READER_FACE_COLOUR}`,
+    );
+    expect(tokens.some((token) => token.startsWith("group-hover:"))).toBe(
+      false,
+    );
+    // Colour, never the grey of the not-read rows.
     expect(tokens).not.toContain("grayscale");
-    expect(tokens.some((token) => token.startsWith("group-"))).toBe(false);
     // The ring is what made them read as three badges on the text.
     expect(tokens).not.toContain("ring-1");
+    expect(line()?.className.split(/\s+/)).toContain("group/seen-by");
+
+    await user.click(line() as HTMLElement);
+    const row = await screen.findByTestId("room-seen-by-reader-user-a");
+    expect(
+      row.querySelector("[data-slot='avatar']")?.className.split(/\s+/),
+    ).toContain(READER_FACE_COLOUR);
   });
 
   it("names every reader and when they read, newest first", async () => {

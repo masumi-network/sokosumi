@@ -47,17 +47,33 @@ const FACE = {
  *
  * `quiet` is for the faces under a message, where the receipt arrives the
  * instant you finish writing and has to not shout about it. The colour is
- * pulled back by half, still colour rather than disabled grey, and does not
- * change on hover, focus or open. Grey is kept for the popover's not-read
+ * pulled back by half, still colour rather than disabled grey, and lifts to
+ * the list's colour on hover, focus or open. Grey is kept for the popover's not-read
  * rows, so readers stay in colour. The ring goes too: without it they sit in the text lane rather than on it.
  *
  * The header stack stays `full`: nothing there competes with a sentence.
  */
 export type ReadReceiptFacesTone = "full" | "quiet";
 
+/**
+ * A reader's face in any Seen by list: the popover, the message menu flyout
+ * and the touch sheet. The quiet faces lift to it when woken, so a face and
+ * its row in the list opened from it are the same colour.
+ */
+export const READER_FACE_COLOUR = "saturate-75";
+
+/** The class the quiet faces' trigger carries so they can wake with it. */
+export const SEEN_BY_TRIGGER_GROUP = "group/seen-by";
+
 const TONE: Record<ReadReceiptFacesTone, string> = {
   full: "ring-border ring-1",
-  quiet: "saturate-50",
+  // Woken by the `group/seen-by` trigger around the faces, the one element
+  // that knows about hover, keyboard focus and an open popover all at once.
+  // Named: the message row is a bare `group`, and hovering the row must not
+  // wake them. Literal classes: Tailwind only emits what it finds spelled out.
+  // `SEEN_BY_TRIGGER_GROUP` names the trigger's side.
+  quiet:
+    "saturate-50 motion-safe:transition-[filter] group-hover/seen-by:saturate-75 group-focus-visible/seen-by:saturate-75 group-data-[state=open]/seen-by:saturate-75",
 };
 
 interface ReadReceiptFacesProps {

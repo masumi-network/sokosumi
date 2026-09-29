@@ -9,7 +9,9 @@ import type {
 import {
   ParticipantAvatar,
   participantName,
+  READER_FACE_COLOUR,
   ReadReceiptFaces,
+  SEEN_BY_TRIGGER_GROUP,
 } from "@/components/chat/read-receipt-faces";
 import {
   Popover,
@@ -121,7 +123,7 @@ export function SeenByDetail({
           >
             <ParticipantAvatar
               participant={participant}
-              className="size-5"
+              className={`size-5 ${READER_FACE_COLOUR}`}
               textClassName="text-[0.5rem]"
             />
             <span className="min-w-0 flex-1 truncate text-xs">
@@ -227,11 +229,15 @@ export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
+          // `group/seen-by`: the faces lift to the list's colour on hover,
+          // focus and open, and the trigger is the only element that knows
+          // all three.
+          //
           // 16px of faces is not a touch target, so the pseudo-element takes
           // it to 44. Out here in the corner it overlaps no words, which is
           // exactly what it could not have done on the last line of a
           // paragraph. Pointers do not need it, so it is gone above md.
-          className="relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden"
+          className={`${SEEN_BY_TRIGGER_GROUP} relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden`}
           aria-label={summary}
           title={summary}
           data-testid="room-seen-by-line"
