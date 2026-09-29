@@ -12,42 +12,58 @@ public enum UserFacingErrorMode: Sendable {
 /// unknown error, because bridging a wrapped `URLError` dumps the `NSError` chain.
 public func friendlyMessage(for error: Error, mode: UserFacingErrorMode = .window) -> String {
   if let serviceError = error as? ChatServiceError {
-    switch serviceError {
-    case let .unprocessable(statusCode, message):
-      switch mode {
-      case .coreMessage: return message
-      case .window: return "Core rejected the request (\(statusCode)): \(message)"
-      }
-    case let .unexpectedResponse(message):
-      return message
-    case let .unauthorized(message):
-      switch mode {
-      case .coreMessage: return message
-      case .window: return "Couldn't complete the request. Try again."
-      }
-    case .blocked:
-      return "Couldn't complete the request. Try again."
-    }
+    return chatServiceMessage(serviceError, mode: mode)
   }
   if let failure = error as? AttachmentUpload.Failure, let description = failure.errorDescription {
     return description
   }
   if let urlError = findURLError(in: error) {
-    // Explicit strings: a bare `URLError.localizedDescription` degrades to
-    // "The operation couldn't be completed. (NSURLErrorDomain error N.)",
-    // which is exactly the dump this replaces.
-    switch urlError.code {
-    case .notConnectedToInternet:
-      return "No network connection. Check your connection and try again."
-    case .networkConnectionLost:
-      return "The network connection was lost."
-    case .timedOut:
-      return "The request timed out. Please try again."
-    default:
-      return "Couldn't reach Core. Check your connection and try again."
-    }
+    return urlErrorMessage(urlError)
   }
   return "Couldn't reach Core. Check your connection and try again."
+}
+
+private func chatServiceMessage(_ error: ChatServiceError, mode: UserFacingErrorMode) -> String {
+  switch error {
+  case let .unprocessable(statusCode, message):
+    return unprocessableMessage(statusCode: statusCode, message: message, mode: mode)
+  case let .unexpectedResponse(message):
+    return message
+  case let .unauthorized(message):
+    return unauthorizedMessage(message, mode: mode)
+  case .blocked:
+    return "Couldn't complete the request. Try again."
+  }
+}
+
+private func unprocessableMessage(statusCode: Int, message: String, mode: UserFacingErrorMode) -> String {
+  switch mode {
+  case .coreMessage: return message
+  case .window: return "Core rejected the request (\(statusCode)): \(message)"
+  }
+}
+
+private func unauthorizedMessage(_ message: String, mode: UserFacingErrorMode) -> String {
+  switch mode {
+  case .coreMessage: return message
+  case .window: return "Couldn't complete the request. Try again."
+  }
+}
+
+private func urlErrorMessage(_ urlError: URLError) -> String {
+  // Explicit strings: a bare `URLError.localizedDescription` degrades to
+  // "The operation couldn't be completed. (NSURLErrorDomain error N.)",
+  // which is exactly the dump this replaces.
+  switch urlError.code {
+  case .notConnectedToInternet:
+    return "No network connection. Check your connection and try again."
+  case .networkConnectionLost:
+    return "The network connection was lost."
+  case .timedOut:
+    return "The request timed out. Please try again."
+  default:
+    return "Couldn't reach Core. Check your connection and try again."
+  }
 }
 
 /// `as? URLError` misses raw `NSError(NSURLErrorDomain)` values, which the
