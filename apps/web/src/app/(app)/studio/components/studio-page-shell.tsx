@@ -36,7 +36,7 @@ export function StudioPageShell({
   return (
     // No card: like the task board, the page is the lighter surface and the
     // components sitting on it (composer, images) are the darker ones.
-    <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "min-w-0 pt-2 md:pt-3")}>
+    <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "min-w-0")}>
       <h1 className="sr-only">{title}</h1>
       {children}
     </div>

@@ -31,8 +31,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: vi.fn(),
-  clearImageVersionReview: vi.fn(),
   requestImageJobCancel: vi.fn(),
 }));
 
@@ -69,7 +67,6 @@ vi.mock("./use-studio-state", () => ({
         initialState.assets.find((asset) => asset.id === selectedId) ?? null,
       selectAsset: vi.fn(),
       activeJobs: [],
-      applyAsset: vi.fn(),
       refresh: vi.fn().mockResolvedValue(undefined),
       loadOlder: vi.fn(),
       hasOlder: false,
@@ -94,7 +91,6 @@ function asset(id: string, version: number, prompt: string): StudioAsset {
     jobId: `job-${id}`,
     settings: { aspectRatio: "1:1", resolution: "1K", outputFormat: "png" },
     contentPath: `/${id}`,
-    review: null,
   } as unknown as StudioAsset;
 }
 

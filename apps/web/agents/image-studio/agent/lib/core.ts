@@ -415,7 +415,6 @@ export interface VersionSummary {
   width: number;
   height: number;
   createdAt: string;
-  review: "APPROVED" | "REJECTED" | "UNDECIDED";
 }
 
 export async function listVersions(identity: AgentIdentity): Promise<{
@@ -478,7 +477,6 @@ export async function readGeneration(
     lineageId: string;
     model: string;
     settings: unknown;
-    review: string;
   } | null;
 }> {
   return await call(identity, `/generations/${jobId}`, { method: "GET" });

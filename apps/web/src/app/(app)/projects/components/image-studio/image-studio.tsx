@@ -14,11 +14,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  clearImageVersionReview,
-  requestImageJobCancel,
-  reviewImageVersion,
-} from "@/lib/actions/image-studio/action";
+import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
 
 import {
@@ -27,7 +23,6 @@ import {
   resolveModel,
   settingsOf,
 } from "./catalog";
-import { STUDIO_PILL_CLASS } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
@@ -38,7 +33,6 @@ import {
   isActive,
   type StudioAsset,
   type StudioCatalog,
-  type StudioFilter,
   type StudioJob,
   type StudioLabels,
   type StudioState,
@@ -53,36 +47,6 @@ import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
-
-const FILTERS: readonly StudioFilter[] = [
-  "all",
-  "approved",
-  "rejected",
-  "undecided",
-];
-
-/**
- * Whether a keypress happened somewhere a single letter means something else.
- *
- * The review shortcuts are bare letters. A Radix menu or popover uses bare
- * letters for typeahead, so opening the model menu and typing "a" to jump to
- * a model also approved whatever was selected in the gallery.
- */
-function inTextOrMenu(node: HTMLElement | null): boolean {
-  if (!node) return false;
-  if (
-    node.tagName === "INPUT" ||
-    node.tagName === "TEXTAREA" ||
-    node.isContentEditable
-  ) {
-    return true;
-  }
-  return Boolean(
-    node.closest(
-      '[data-slot="dropdown-menu-content"], [data-slot="popover-content"]',
-    ),
-  );
-}
 
 /**
  * The studio.
@@ -127,7 +91,6 @@ export function ImageStudio({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const [filter, setFilter] = useState<StudioFilter>("all");
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   /**
    * Open on the version the URL names.
@@ -151,17 +114,6 @@ export function ImageStudio({
   const [cancelRequestedJobIds, setCancelRequestedJobIds] = useState<string[]>(
     [],
   );
-  /**
-   * Unsaved review notes, keyed by version and owned here rather than by the
-   * lightbox.
-   *
-   * Closing the lightbox unmounts it, so a note typed but not yet approved
-   * died the moment someone closed the details to look at the gallery, at
-   * another version, or pressed "Use as reference" — which closes it too.
-   * Holding the drafts above the thing that unmounts is what makes a
-   * half-written note survive ordinary navigation.
-   */
-  const [reviewDrafts, setReviewDrafts] = useState<Record<string, string>>({});
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
@@ -206,7 +158,6 @@ export function ImageStudio({
     selectAsset,
     state,
     activeJobs,
-    applyAsset,
     refresh,
     loadOlder,
     hasOlder,
@@ -227,39 +178,10 @@ export function ImageStudio({
       ?.scrollIntoView({ block: "center" });
   });
 
-  const setReviewDraft = useCallback((assetId: string, value: string) => {
-    setReviewDrafts((current) => ({ ...current, [assetId]: value }));
-  }, []);
-
-  const clearReviewDraft = useCallback((assetId: string) => {
-    setReviewDrafts((current) => {
-      if (!(assetId in current)) return current;
-      const { [assetId]: _saved, ...rest } = current;
-      return rest;
-    });
-  }, []);
-
   const queue = useGenerationQueue({
     projectId,
     onAccepted: useCallback(() => void refresh(), [refresh]),
   });
-
-  const visibleAssets = useMemo(() => {
-    switch (filter) {
-      case "approved":
-        return state.assets.filter(
-          (asset) => asset.review?.decision === "APPROVED",
-        );
-      case "rejected":
-        return state.assets.filter(
-          (asset) => asset.review?.decision === "REJECTED",
-        );
-      case "undecided":
-        return state.assets.filter((asset) => !asset.review);
-      default:
-        return state.assets;
-    }
-  }, [filter, state.assets]);
 
   const checkedAssets = useMemo(
     () => state.assets.filter((asset) => checkedIds.includes(asset.id)),
@@ -287,81 +209,6 @@ export function ImageStudio({
       : viewing?.mode === "single" && selectedAsset
         ? [selectedAsset]
         : [];
-
-  /**
-   * Record a decision, and keep the version that was decided on.
-   *
-   * The mutation's return value is the server's copy of the asset, and it is
-   * folded straight into state. Relying on the refresh instead only worked
-   * while reviews could target the selected version: the refresh pins that
-   * one version and returns the newest page, so a decision made from
-   * comparison on an older, unselected version came back in nothing, and its
-   * row kept the decision it had before the save — on its pane, its gallery
-   * badge, and its filter membership, through every later poll.
-   */
-  function handleReview(
-    assetId: string,
-    decision: "APPROVED" | "REJECTED",
-    feedback: string,
-  ) {
-    setActionError(null);
-    startTransition(async () => {
-      try {
-        const updated = await reviewImageVersion({
-          projectId,
-          assetId,
-          decision,
-          feedback: feedback.trim() === "" ? null : feedback.trim(),
-        });
-        applyAsset(updated);
-        // The note has been accepted, so the unsaved draft is no longer
-        // unsaved; dropping it lets the saved feedback show through.
-        clearReviewDraft(assetId);
-        await refresh();
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : labels.failed);
-      }
-    });
-  }
-
-  function handleClearReview(assetId: string) {
-    startTransition(async () => {
-      try {
-        const updated = await clearImageVersionReview({ projectId, assetId });
-        applyAsset(updated);
-        clearReviewDraft(assetId);
-        await refresh();
-      } catch (error) {
-        setActionError(error instanceof Error ? error.message : labels.failed);
-      }
-    });
-  }
-
-  // Keyboard review, deliberately inert while a text field or a menu has focus.
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      if (
-        !selectedAsset ||
-        event.metaKey ||
-        event.ctrlKey ||
-        event.altKey ||
-        inTextOrMenu(event.target as HTMLElement | null)
-      ) {
-        return;
-      }
-      if (event.key === "a") {
-        event.preventDefault();
-        handleReview(selectedAsset.id, "APPROVED", "");
-      }
-      if (event.key === "r") {
-        event.preventDefault();
-        handleReview(selectedAsset.id, "REJECTED", "");
-      }
-    }
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedAsset]);
 
   /**
    * Repeat a piece of work on its own terms.
@@ -484,13 +331,6 @@ export function ImageStudio({
     errorMessage(studio.error) ??
     null;
 
-  const filterLabel: Record<StudioFilter, string> = {
-    all: labels.filterAll,
-    approved: labels.filterApproved,
-    rejected: labels.filterRejected,
-    undecided: labels.filterUndecided,
-  };
-
   /**
    * How long each finished version took, from the jobs the state already
    * carries. No extra request: the studio polls jobs anyway, and the timings
@@ -507,10 +347,8 @@ export function ImageStudio({
    */
   const credits = useMemo(() => creditsByAssetId(state.jobs), [state.jobs]);
 
-  const hasWork =
-    state.assets.length > 0 || activeJobs.length > 0 || queue.queued.length > 0;
   const showsNothing =
-    visibleAssets.length === 0 &&
+    state.assets.length === 0 &&
     activeJobs.length === 0 &&
     queue.queued.length === 0;
 
@@ -556,7 +394,15 @@ export function ImageStudio({
 
   return (
     // One bounded column, chat-room shaped: feed scrolls, composer stays put.
-    <div className="flex h-[calc(100dvh-8rem)] min-h-[28rem] min-w-0 flex-col gap-3">
+    // The page already pads 1rem all round under a 4rem header, so 6rem is the
+    // whole of what is not ours. With nothing to show there is nothing to
+    // scroll, so the column shrinks to the empty note and the composer.
+    <div
+      className={cn(
+        "flex min-w-0 flex-col gap-3",
+        !showsNothing && "h-[calc(100dvh-6rem)] min-h-[28rem]",
+      )}
+    >
       {problem ? (
         <Notice
           closeLabel={labels.close}
@@ -580,32 +426,18 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="py-6">
-              <h3 className="text-sm font-medium">
-                {filter === "all" ? labels.emptyTitle : labels.noneMatchFilter}
-              </h3>
+            <div className="pb-2">
+              <h3 className="text-sm font-medium">{labels.emptyTitle}</h3>
               <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
                 {labels.emptyBody}
               </p>
-              {filter === "all" ? null : (
-                <Button
-                  className="mt-3"
-                  onClick={() => setFilter("all")}
-                  size="sm"
-                  variant="secondary"
-                >
-                  {labels.clearFilter}
-                </Button>
-              )}
             </div>
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
-              assets={visibleAssets}
+              assets={state.assets}
               cancelRequestedJobIds={cancelRequestedJobIds}
               catalog={catalog}
-              creditsByAssetId={credits}
-              elapsedByAssetId={elapsed}
               labels={labels}
               onCancelJob={handleCancelJob}
               onOpen={(assetId) => {
@@ -655,57 +487,25 @@ export function ImageStudio({
         </div>
       </div>
 
-      {hasWork ? (
+      {checkedIds.length > 0 ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <div className="flex flex-wrap items-center gap-1.5">
-            {FILTERS.map((value) => (
-              <button
-                aria-pressed={filter === value}
-                className={cn(
-                  STUDIO_PILL_CLASS,
-                  // `text-secondary-foreground`, never `text-foreground`:
-                  // --secondary is the inverse of the page in both themes.
-                  filter === value
-                    ? "bg-secondary text-secondary-foreground"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-                key={value}
-                onClick={() => setFilter(value)}
-                type="button"
-              >
-                {filterLabel[value]}
-              </button>
-            ))}
-          </div>
-
           <span className="grow" />
-
-          {checkedIds.length > 0 ? (
-            <>
-              <span className="text-muted-foreground text-xs tabular-nums">
-                {t("selectedCount", { count: checkedIds.length })}
-              </span>
-              <Button
-                disabled={checkedIds.length < 2}
-                onClick={() => setViewing({ mode: "compare" })}
-                size="sm"
-                title={
-                  checkedIds.length < 2 ? labels.compareNeedsTwo : undefined
-                }
-                variant="secondary"
-              >
-                <Columns2 aria-hidden />
-                {labels.compareSelected}
-              </Button>
-              <Button
-                onClick={() => setCheckedIds([])}
-                size="sm"
-                variant="ghost"
-              >
-                {labels.clearSelection}
-              </Button>
-            </>
-          ) : null}
+          <span className="text-muted-foreground text-xs tabular-nums">
+            {t("selectedCount", { count: checkedIds.length })}
+          </span>
+          <Button
+            disabled={checkedIds.length < 2}
+            onClick={() => setViewing({ mode: "compare" })}
+            size="sm"
+            title={checkedIds.length < 2 ? labels.compareNeedsTwo : undefined}
+            variant="secondary"
+          >
+            <Columns2 aria-hidden />
+            {labels.compareSelected}
+          </Button>
+          <Button onClick={() => setCheckedIds([])} size="sm" variant="ghost">
+            {labels.clearSelection}
+          </Button>
         </div>
       ) : null}
 
@@ -714,19 +514,11 @@ export function ImageStudio({
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
           assets={lightboxAssets}
-          busy={pending}
           catalog={catalog}
-          drafts={reviewDrafts}
+          creditsByAssetId={credits}
+          elapsedByAssetId={elapsed}
           labels={labels}
-          onApprove={(assetId, feedback) =>
-            handleReview(assetId, "APPROVED", feedback)
-          }
-          onDraftChange={setReviewDraft}
-          onClearReview={handleClearReview}
           onClose={() => setViewing(null)}
-          onReject={(assetId, feedback) =>
-            handleReview(assetId, "REJECTED", feedback)
-          }
           onRegenerate={(asset) => repeat(asset, "asset")}
           onSelect={selectAsset}
           onUseAsReference={(asset) => {
@@ -734,7 +526,7 @@ export function ImageStudio({
             setViewing(null);
           }}
           projectId={projectId}
-          siblings={visibleAssets}
+          siblings={state.assets}
         />
       ) : null}
     </div>

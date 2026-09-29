@@ -32,9 +32,8 @@ import { authorizeAgentGrant as authorize } from "./authorize";
  * immediately.
  *
  * Deliberately small. The agent can describe what exists, start a generation,
- * and read job state — it cannot review, cannot delete, and cannot read image
- * bytes. Approval is a human decision, and the bytes have one authorized
- * route which requires a browser session.
+ * and read job state — it cannot delete and cannot read image bytes. The
+ * bytes have one authorized route which requires a browser session.
  */
 
 const app = new Hono();
@@ -105,7 +104,6 @@ app.get("/versions", async (c) => {
       width: asset.width,
       height: asset.height,
       createdAt: asset.createdAt.toISOString(),
-      review: asset.review ? asset.review.decision : "UNDECIDED",
     })),
     activeJobs: jobs
       .filter((job) => job.assetId === null && job.settledAt === null)
@@ -216,7 +214,6 @@ app.get("/generations/:jobId", async (c) => {
           lineageId: asset.rootId,
           model: asset.model,
           settings: asset.settings,
-          review: asset.review ? asset.review.decision : "UNDECIDED",
         }
       : null,
   });
