@@ -6338,7 +6338,7 @@
       "copyToFilesDialogTitle": "In Dateien kopieren?",
       "copyToFilesDialogDescription": "{fileName} nach {workspace} kopieren.",
       "copyToFilesDialogConfirm": "Kopieren",
-      "tasksBreadcrumbLabel": "Aufgaben",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "Kein Projekt",
       "filterTitle": "Filtern",
       "filterSearchPlaceholder": "Suchen...",
