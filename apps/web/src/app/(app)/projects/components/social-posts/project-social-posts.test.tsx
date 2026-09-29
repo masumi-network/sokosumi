@@ -260,6 +260,8 @@ function buildConnection(
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -310,6 +312,8 @@ const SCHEDULED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
@@ -352,6 +356,8 @@ const FAILED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   lastError: "X rejected the post (403 forbidden)",
@@ -381,6 +387,8 @@ const PUBLISHING_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   attemptCount: 1,
@@ -1452,6 +1460,8 @@ describe("ProjectSocialPosts", () => {
             socialConnection: {
               id: "connection-1",
               externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,

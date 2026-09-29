@@ -5369,6 +5369,11 @@ export type ProjectSocialConnection = {
     id: string;
     provider: ProjectSocialProvider;
     externalHandle: string | null;
+    displayName: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
@@ -5477,6 +5482,11 @@ export type SocialPostStatus = typeof SocialPostStatus[keyof typeof SocialPostSt
 export type SocialPostSocialConnection = {
     id: string;
     externalHandle: string | null;
+    displayName: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
 } | null;
 

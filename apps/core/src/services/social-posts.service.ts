@@ -57,7 +57,13 @@ const RECONNECT_SENSITIVE_STATUSES: readonly SocialPostStatus[] = [
 
 const socialPostInclude = {
   socialConnection: {
-    select: { id: true, externalHandle: true, status: true },
+    select: {
+      id: true,
+      externalHandle: true,
+      displayName: true,
+      avatarUrl: true,
+      status: true,
+    },
   },
   creatorUser: { select: { id: true, name: true } },
   creatorCoworker: { select: { id: true, name: true } },
@@ -107,6 +113,8 @@ export interface SocialPostSummary {
   socialConnection: {
     id: string;
     externalHandle: string | null;
+    displayName: string | null;
+    avatarUrl: string | null;
     status: string;
   } | null;
   creator: SocialPostCreator;

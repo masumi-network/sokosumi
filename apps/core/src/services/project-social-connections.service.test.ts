@@ -6,6 +6,8 @@ import {
 } from "@/config/social-providers";
 
 const {
+  deleteSocialAccountAvatarIfOwnedMock,
+  snapshotSocialAccountAvatarMock,
   deleteProjectSocialConnectionIntentMock,
   getConnectedSocialIdentityMock,
   lockCalendarScopeMock,
@@ -29,6 +31,8 @@ const {
   socialConnectionUpdateMock,
   transactionMock,
 } = vi.hoisted(() => ({
+  deleteSocialAccountAvatarIfOwnedMock: vi.fn(),
+  snapshotSocialAccountAvatarMock: vi.fn(),
   deleteProjectSocialConnectionIntentMock: vi.fn(),
   getConnectedSocialIdentityMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
@@ -60,6 +64,11 @@ vi.mock("@/clients/composio.client", async (importOriginal) => ({
   getProjectSocialConnectedAccount: getProjectSocialConnectedAccountMock,
   initiateProjectSocialConnection: initiateProjectSocialConnectionMock,
   revokeProjectSocialConnection: revokeProjectSocialConnectionMock,
+}));
+
+vi.mock("@/lib/social-account-avatar", () => ({
+  deleteSocialAccountAvatarIfOwned: deleteSocialAccountAvatarIfOwnedMock,
+  snapshotSocialAccountAvatar: snapshotSocialAccountAvatarMock,
 }));
 
 vi.mock("@/config/env", () => ({
@@ -125,6 +134,8 @@ const socialConnection = {
   provider: "x",
   externalAccountId: "123",
   externalHandle: "sokosumi",
+  displayName: null as string | null,
+  avatarUrl: null as string | null,
   composioConnectedAccountId: "ca_old",
   status: "reauthorization_required",
   activeExternalAccountKey: "x:123",
@@ -173,7 +184,10 @@ describe("project social connections service", () => {
     getConnectedSocialIdentityMock.mockResolvedValue({
       id: "123",
       handle: "sokosumi",
+      displayName: null,
+      avatarUrl: null,
     });
+    snapshotSocialAccountAvatarMock.mockResolvedValue(null);
     socialConnectionCreateMock.mockResolvedValue({
       ...socialConnection,
       composioConnectedAccountId: CONNECTION_ID,
@@ -1084,6 +1098,7 @@ describe("project social connections service", () => {
         composioConnectedAccountId: CONNECTION_ID,
         connectorUserId: `sokosumi:user:${USER_ID}`,
         externalHandle: "sokosumi",
+        displayName: null,
         status: "active",
         activeExternalAccountKey: "x:123",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
@@ -1093,6 +1108,105 @@ describe("project social connections service", () => {
     expect(socialConnectionIntentDeleteMock).toHaveBeenCalledWith({
       where: { connectionId: CONNECTION_ID },
     });
+  });
+
+  it("stores the profile and replaces the previous avatar on reconnect", async () => {
+    const oldAvatar = "https://a.public.blob.vercel-storage.com/old.jpg";
+    const newAvatar = "https://a.public.blob.vercel-storage.com/new.jpg";
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "123",
+      handle: "sokosumi",
+      displayName: "Sokosumi",
+      avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
+    });
+    snapshotSocialAccountAvatarMock.mockResolvedValue(newAvatar);
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionFindFirstMock.mockResolvedValue({
+      ...socialConnection,
+      avatarUrl: oldAvatar,
+    });
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...socialConnection,
+      displayName: "Sokosumi",
+      avatarUrl: newAvatar,
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).resolves.toMatchObject({ displayName: "Sokosumi", avatarUrl: newAvatar });
+
+    expect(snapshotSocialAccountAvatarMock).toHaveBeenCalledWith({
+      projectId: PROJECT_ID,
+      provider: "x",
+      externalAccountId: "123",
+      avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
+    });
+    expect(socialConnectionUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          displayName: "Sokosumi",
+          avatarUrl: newAvatar,
+        }),
+      }),
+    );
+    expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
+      oldAvatar,
+      PROJECT_ID,
+    );
+  });
+
+  it("reconnects and keeps the previous avatar when the copy fails", async () => {
+    getConnectedSocialIdentityMock.mockResolvedValue({
+      id: "123",
+      handle: "sokosumi",
+      displayName: "Sokosumi",
+      avatarUrl: "https://pbs.twimg.com/a_400x400.jpg",
+    });
+    snapshotSocialAccountAvatarMock.mockResolvedValue(null);
+    socialConnectionIntentFindUniqueMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionIntentFindUniqueInTransactionMock.mockResolvedValue(
+      createIntent("reconnect"),
+    );
+    socialConnectionFindFirstMock.mockResolvedValue(socialConnection);
+    socialConnectionUpdateMock.mockResolvedValue({
+      ...socialConnection,
+      status: "active",
+    });
+    const { finalizeProjectSocialConnection } = await import(
+      "./project-social-connections.service"
+    );
+
+    await expect(
+      finalizeProjectSocialConnection({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        userId: USER_ID,
+        connectionId: CONNECTION_ID,
+      }),
+    ).resolves.toMatchObject({ status: "active" });
+    expect(
+      socialConnectionUpdateMock.mock.calls[0]?.[0].data,
+    ).not.toHaveProperty("avatarUrl");
+    expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
+      null,
+      PROJECT_ID,
+    );
   });
 
   it("rejects a reconnect to a different provider identity", async () => {
@@ -1403,6 +1517,8 @@ describe("project social connections service", () => {
         id: SOCIAL_CONNECTION_ID,
         provider: "x",
         externalHandle: "sokosumi",
+        displayName: null,
+        avatarUrl: null,
         status: "active",
         connectedAt: new Date("2026-09-03T10:00:00.000Z"),
         disconnectedAt: null,
