@@ -273,13 +273,13 @@ describe("what the ceiling actually counts", () => {
     expect(result.serialized).toContain("Aurora launch");
   });
 
-  it("keeps a full 30-label request inside its ceiling", () => {
+  it("keeps a full 40-label request inside its ceiling", () => {
     // The ceiling has to admit the largest request the feature can make.
     // Measured properly, the old 4,400 could not: every vocabulary above a
     // couple of labels was rejected as too large.
     const result = buildJevLabelRequest({
       documentExcerpt: "Findings about bicycle commuters. ".repeat(200),
-      vocabulary: Array.from({ length: 30 }, (_, index) => ({
+      vocabulary: Array.from({ length: 40 }, (_, index) => ({
         id: `label-${index}`,
         name: `A reasonably descriptive label name ${index}`,
         description:

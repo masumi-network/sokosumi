@@ -12,7 +12,6 @@ import {
 import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
 import Markdown from "@/components/markdown";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 // Wait for the current session and project access before rendering, as the
 // project's other areas do.
@@ -35,10 +34,7 @@ interface ProjectDesignPageProps {
 export default async function ProjectDesignPage({
   params,
 }: ProjectDesignPageProps) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserSocialBetaAccess(),
-    params,
-  ]);
+  const { projectId } = await params;
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
@@ -67,7 +63,6 @@ export default async function ProjectDesignPage({
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}
-      showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
       <ProjectBrandProvider

@@ -36,8 +36,8 @@ export function SubmitButton({
           aria-hidden="true"
           className={
             isStart
-              ? "absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin"
-              : "mr-2 size-4 animate-spin"
+              ? "absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
+              : "mr-2 size-4 animate-spin motion-reduce:animate-pulse"
           }
         />
       )}

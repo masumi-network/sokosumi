@@ -28,7 +28,6 @@ function asset(id: string, version: number) {
     createdAt: JOB_STARTED_AT,
     jobId: `job-${id}`,
     contentPath: `/v1/projects/project-1/image-studio/assets/${id}/content`,
-    review: null,
   } as unknown as StudioState["assets"][number];
 }
 

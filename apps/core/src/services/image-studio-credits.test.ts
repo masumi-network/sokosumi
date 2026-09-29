@@ -52,6 +52,9 @@ const {
   getBalanceMock: vi.fn(),
 }));
 
+vi.mock("@/services/image-studio-files.service", () => ({
+  publishImageToFiles: vi.fn(),
+}));
 vi.mock("@/config/env", () => ({
   getEnv: getEnvMock,
   getBetterAuthPublicBaseUrl: () => "http://localhost:3001",

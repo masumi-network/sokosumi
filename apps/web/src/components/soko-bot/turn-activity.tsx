@@ -50,9 +50,7 @@ const ROUTINE_EVENT_TYPES = new Set([
 
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
-    <h3 className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
-      {children}
-    </h3>
+    <h3 className="text-muted-foreground text-xs font-medium">{children}</h3>
   );
 }
 

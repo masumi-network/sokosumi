@@ -26,39 +26,6 @@ vi.mock("next-intl", () => ({
     values ? `${key}:${JSON.stringify(values)}` : key,
 }));
 
-vi.mock("@/components/ui/dropdown-menu", () => {
-  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
-    <div>{children}</div>
-  );
-  return {
-    DropdownMenu: Passthrough,
-    DropdownMenuTrigger: Passthrough,
-    DropdownMenuContent: Passthrough,
-    DropdownMenuLabel: Passthrough,
-    DropdownMenuCheckboxItem: ({
-      checked,
-      children,
-      disabled,
-      onSelect,
-    }: {
-      checked?: boolean;
-      children?: React.ReactNode;
-      disabled?: boolean;
-      onSelect?: (event: { preventDefault: () => void }) => void;
-    }) => (
-      <button
-        aria-checked={checked}
-        disabled={disabled}
-        onClick={() => onSelect?.({ preventDefault: () => {} })}
-        role="menuitemcheckbox"
-        type="button"
-      >
-        {children}
-      </button>
-    ),
-  };
-});
-
 vi.mock("@/components/ui/popover", () => {
   const Passthrough = ({ children }: { children?: React.ReactNode }) => (
     <div>{children}</div>
@@ -125,6 +92,7 @@ function Harness({
         busy={false}
         catalog={catalog}
         labels={LABELS}
+        onApplyTemplate={() => {}}
         onClearReferences={() => {}}
         onGenerate={onGenerate}
         onPromptChange={setPrompt}
@@ -180,14 +148,16 @@ function clickChip(text: string) {
  */
 function clickModel(label: string) {
   const entry = screen
-    .getAllByRole("menuitemcheckbox")
+    .getAllByRole("checkbox")
     .find((node) => node.textContent?.includes(label));
   if (!entry) throw new Error(`no model entry for ${label}`);
   fireEvent.click(entry);
 }
 
 function generate(prompt = "a calm product shot") {
-  fireEvent.change(screen.getByRole("textbox"), { target: { value: prompt } });
+  fireEvent.change(screen.getByRole("textbox", { name: "promptPlaceholder" }), {
+    target: { value: prompt },
+  });
   // By name rather than by an exact label: the button says "generateOne" for a
   // single image and "generateMany" with a count for a batch, which is the
   // whole point of it.
@@ -198,7 +168,7 @@ describe("choosing between 152 models", () => {
   it("prices every row, so the choice is not guesswork", () => {
     render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
 
-    const rows = screen.getAllByRole("menuitemcheckbox");
+    const rows = screen.getAllByRole("checkbox");
     // Model A is 4 credits an image at 1K and Model B is 10. Before this the
     // only figure anywhere was the aggregate after selection.
     expect(rows[0]).toHaveTextContent('creditsCount:{"count":4}');
@@ -213,7 +183,7 @@ describe("choosing between 152 models", () => {
     // Model A has a verified 2K figure; Model B falls through to its megapixel
     // unit price at 2048x2048. A row showing the 1K price at 2K would be the
     // picker disagreeing with the button.
-    const rows = screen.getAllByRole("menuitemcheckbox");
+    const rows = screen.getAllByRole("checkbox");
     expect(rows[0]).toHaveTextContent('creditsCount:{"count":8}');
     expect(rows[1]).toHaveTextContent('creditsCount:{"count":21}');
   });
@@ -246,7 +216,7 @@ describe("choosing between 152 models", () => {
       />,
     );
 
-    expect(screen.getAllByRole("menuitemcheckbox")[0]).toHaveTextContent(
+    expect(screen.getAllByRole("checkbox")[0]).toHaveTextContent(
       "creditsNoFigure",
     );
   });
@@ -556,6 +526,27 @@ describe("picking many models at once", () => {
     clickOption("selectAllModels");
 
     expect(screen.getByTestId("models").textContent).toBe("model-a,model-b");
+  });
+});
+
+describe("searching and clearing the model list", () => {
+  it("unselects everything in one click", () => {
+    render(<Harness initial={BOTH_MODELS} onGenerate={vi.fn()} />);
+
+    clickOption("unselectAllModels");
+
+    expect(screen.getByTestId("models").textContent).toBe("");
+  });
+
+  it("filters by search, and select all acts on what is shown", () => {
+    render(<Harness initial={targetFor([])} onGenerate={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("searchModels"), {
+      target: { value: "Model B" },
+    });
+    clickOption("selectAllModels");
+
+    expect(screen.getByTestId("models").textContent).toBe("model-b");
   });
 });
 

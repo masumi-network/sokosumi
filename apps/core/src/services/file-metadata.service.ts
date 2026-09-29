@@ -661,7 +661,7 @@ export async function decideFileSuggestion(input: {
   actor: FileActor;
   resourceId: string;
   suggestionId: string;
-  decision: "accept" | "reject";
+  decision: "accept" | "reject" | "restore";
   expectedMetadataRevision: number;
 }): Promise<MetadataEditOutcome> {
   const resource = await loadEditableResource({
@@ -686,7 +686,13 @@ export async function decideFileSuggestion(input: {
     },
   });
   if (!suggestion) throw notFound("Suggestion not found");
-  if (suggestion.state !== FileMetadataState.SUGGESTED) {
+  // `restore` is the only decision that wants an already-decided row, and it
+  // wants exactly the one this function wrote.
+  if (
+    input.decision === "restore"
+      ? suggestion.state !== FileMetadataState.REJECTED
+      : suggestion.state !== FileMetadataState.SUGGESTED
+  ) {
     throw conflict("This suggestion was already decided");
   }
   if (input.decision === "accept" && suggestion.label.archivedAt) {
@@ -709,6 +715,72 @@ export async function decideFileSuggestion(input: {
     });
   }
 
+  const field =
+    suggestion.label.kind === FileLabelKind.CATEGORY ? "category" : "tags";
+
+  /**
+   * Undo, which is not the same gesture as "let the model reconsider".
+   *
+   * `allowSuggestionsForLabelIds` already withdraws a veto, and it deletes the
+   * rejected assignment along with the tombstone — correctly, because it is
+   * saying there is no longer a decision on this label. But that leaves the
+   * label off the document until something evaluates it again, and nothing
+   * re-leases a SUCCEEDED suggestion job. As an Undo it would make the chip
+   * disappear twice.
+   *
+   * This puts the same row back to SUGGESTED, so the chip the reader just
+   * dismissed by accident reappears where it was. Both halves, or the label
+   * comes back and the model is still barred from ever proposing it again.
+   */
+  if (input.decision === "restore") {
+    if (resource.metadataRevision !== input.expectedMetadataRevision) {
+      return {
+        resourceId: input.resourceId,
+        status: "conflict",
+        metadataRevision: resource.metadataRevision,
+      };
+    }
+
+    const restoredRevision = resource.metadataRevision + 1;
+    await prisma.$transaction(async (tx) => {
+      const claimed = await tx.fileResource.updateMany({
+        where: {
+          id: resource.id,
+          metadataRevision: input.expectedMetadataRevision,
+        },
+        data: { metadataRevision: restoredRevision },
+      });
+      if (claimed.count !== 1) throw conflict("Updated elsewhere");
+
+      await tx.fileLabel.update({
+        where: { id: suggestion.id },
+        data: {
+          state: FileMetadataState.SUGGESTED,
+          decidedByUserId: null,
+          decidedAt: null,
+        },
+      });
+
+      // Both halves of the dismissal, undone. Leaving the tombstone would
+      // restore the label and still bar the model from proposing it, which
+      // is the harder half of the mistake to see.
+      await tx.fileFieldOverride.deleteMany({
+        where: {
+          resourceId: resource.id,
+          field,
+          labelId: suggestion.labelId,
+          evidenceScopeId: resource.evidenceScopeId,
+        },
+      });
+    });
+
+    return {
+      resourceId: input.resourceId,
+      status: "applied",
+      metadataRevision: restoredRevision,
+    };
+  }
+
   // Dismissal touches only the suggestion. A confirmed category the reader
   // already set must not be cleared because a different suggestion for the
   // same field was waved away.
@@ -721,8 +793,6 @@ export async function decideFileSuggestion(input: {
   }
 
   const nextRevision = resource.metadataRevision + 1;
-  const field =
-    suggestion.label.kind === FileLabelKind.CATEGORY ? "category" : "tags";
 
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.fileResource.updateMany({

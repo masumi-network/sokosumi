@@ -10,6 +10,7 @@ import {
   findPromptInputSchema,
   isRefineVariantEndpoint,
   normaliseFalCatalog,
+  oneLine,
 } from "./fal-catalog-fetch";
 import { creditsPerImage } from "./image-model";
 
@@ -567,5 +568,20 @@ describe("fetchFalPrices", () => {
       }),
     ).rejects.toThrow("400");
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+});
+
+describe("oneLine", () => {
+  it("keeps the first sentence and cuts a long one on a clause", () => {
+    expect(oneLine("Fast model. It does much more.")).toBe("Fast model");
+    expect(
+      oneLine(
+        "Generates images from a text prompt at resolutions up to 2048, with automatic prompt rewriting and more",
+      ),
+    ).toBe("Generates images from a text prompt at resolutions up to 2048");
+  });
+
+  it("marks a hard cut", () => {
+    expect(oneLine("word ".repeat(40)).endsWith("…")).toBe(true);
   });
 });

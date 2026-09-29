@@ -79,7 +79,7 @@ export default function ChatRoomInvitationCard({
           <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-success-quaternary">
             <CheckIcon className="size-8 text-semantic-success" />
           </div>
-          <h1 className="text-center text-2xl font-light">
+          <h1 className="text-center text-2xl font-light text-balance tracking-tight">
             {t("acceptedTitle", { roomName: invitation.roomName })}
           </h1>
           <p className="text-center text-sm">
@@ -126,7 +126,9 @@ export default function ChatRoomInvitationCard({
           <div className="mx-auto flex size-16 items-center justify-center rounded-full bg-semantic-destructive-quaternary">
             <XIcon className="size-8 text-semantic-destructive" />
           </div>
-          <h1 className="text-center text-2xl font-light">{t(titleKey)}</h1>
+          <h1 className="text-center text-2xl font-light text-balance tracking-tight">
+            {t(titleKey)}
+          </h1>
           <p className="text-muted-foreground text-center text-sm">
             {t(descriptionKey, {
               roomName: invitation.roomName,
@@ -171,13 +173,13 @@ export default function ChatRoomInvitationCard({
           disabled={loading}
         >
           {loading && action === "decline" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("Actions.decline")}
         </Button>
         <Button onClick={() => void handleAccept()} disabled={loading}>
           {loading && action === "accept" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("Actions.accept")}
         </Button>

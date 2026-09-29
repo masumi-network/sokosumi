@@ -54,7 +54,8 @@
       "copyError": "Failed to copy link"
     },
     "DefaultErrorBoundary": {
-      "error": "An unknown error occurred, please contact our support"
+      "error": "Something went wrong here. Try again, or contact support if it keeps happening.",
+      "tryAgain": "Try again"
     },
     "Agents": {
       "RiskClassification": {
@@ -537,7 +538,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
-        "emptyJobs": "No jobs yet.",
+        "emptyJobs": "No jobs yet. Hire this coworker to start one.",
         "loadMore": "Load more",
         "loading": "Loading...",
         "loadMoreError": "Failed to load more jobs"
@@ -1648,7 +1649,7 @@
         },
         "recentTitle": "Recent",
         "emptyRecent": "No recently finished jobs.",
-        "emptyList": "No jobs yet.",
+        "emptyList": "No jobs yet. Hire a coworker and your jobs show up here.",
         "emptySection": "No jobs in this status.",
         "untitled": "Untitled job",
         "unknownAgent": "Unknown agent"
@@ -1891,7 +1892,7 @@
         "hostingLabel": "Hosted in",
         "taskStepTitle": "What should {name} do?",
         "noAgentsFound": "No agents found.",
-        "tasksTitle": "Ready-To-Run Tasks",
+        "tasksTitle": "Ready-to-run tasks",
         "startFromScratch": "Start from scratch",
         "startFromScratchHint": "Write your own instructions",
         "previewExample": "Preview example",
@@ -2265,6 +2266,8 @@
         "description": "Connect social accounts to this project. Publishing is currently available for X.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
+        "connectHeading": "Connect an account",
+        "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
@@ -2323,12 +2326,16 @@
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",
-          "history": "History"
+          "attention": "Needs attention"
         },
+        "selectedPost": "Selected post",
         "empty": {
           "upcoming": "No scheduled posts yet.",
-          "drafts": "No drafts yet.",
-          "history": "No published, failed, or canceled posts yet."
+          "drafts": "No drafts yet."
+        },
+        "emptyHint": {
+          "upcoming": "Schedule a post and it shows up here and on the calendar.",
+          "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
           "DRAFT": "Draft",
@@ -2387,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "Cancel this post?",
-          "description": "The post will not be published. You can schedule it again later.",
+          "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
         "toasts": {
@@ -2473,7 +2480,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
+          "empty": "No jobs linked yet. Add one to keep its results here.",
           "add": "Add job",
           "remove": "Remove job",
           "viewAll": "View all jobs",
@@ -2487,7 +2494,7 @@
         },
         "tasks": {
           "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
+          "empty": "No tasks linked yet. Add one to keep it with this project.",
           "add": "Add task",
           "pickerTitle": "Add task",
           "pickerDescription": "Choose an unassigned task to link to this project.",
@@ -2564,7 +2571,6 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "social": "Social",
           "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
@@ -2578,20 +2584,15 @@
       "back": "Back to project",
       "updated": "Updated",
       "emptyTitle": "No images yet",
-      "emptyBody": "Write a prompt above and pick the models to try it on. You will get versions back to compare, refine and approve.",
+      "emptyBody": "Write a prompt below and pick the models to try it on. You will get versions back to compare and refine.",
       "promptPlaceholder": "Describe the image…",
       "generate": "Generate",
       "refine": "Refine",
       "regenerate": "New variation",
+      "reroll": "Re-roll",
+      "reusePrompt": "Reuse prompt",
       "download": "Download",
       "compare": "Compare",
-      "approve": "Approve",
-      "reject": "Reject",
-      "undecided": "Undecided",
-      "approved": "Approved",
-      "rejected": "Rejected",
-      "clearReview": "Clear decision",
-      "feedbackPlaceholder": "Optional note for this version",
       "version": "Version",
       "generating": "Generating",
       "queued": "Queued at the provider",
@@ -2603,9 +2604,6 @@
       "tryAgain": "Try again",
       "cancel": "Cancel",
       "cancelRequested": "Cancellation requested. The provider may already have finished.",
-      "clearFilter": "Show all",
-      "filterAll": "All",
-      "filterApproved": "Approved",
       "lineage": "Lineage",
       "from": "Prompt",
       "loadOlder": "Load older versions",
@@ -2642,9 +2640,6 @@
         "mockup": "Mockup"
       },
       "gallery": "Images",
-      "filterRejected": "Rejected",
-      "filterUndecided": "Undecided",
-      "noneMatchFilter": "Nothing matches that filter",
       "select": "Select",
       "deselect": "Deselect",
       "selectedCount": "{count, plural, one {# selected} other {# selected}}",
@@ -2674,6 +2669,9 @@
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
+      "unselectAllModels": "Unselect all",
+      "searchModels": "Search models…",
+      "noModelsMatch": "No model matches.",
       "noModelSelected": "Choose at least one model. The frame, resolution and format on offer are whatever every chosen model can honour.",
       "generationTime": "Generation time",
       "runPlan": "Will run {copies}x on {models, plural, one {# model} other {# models}}",
@@ -2715,6 +2713,17 @@
       },
       "creditsCheckedOn": "Price checked {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Pick a project",
+      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "calendar": {
+        "title": "Posting schedule",
+        "description": "Every scheduled post for this project, and nothing else."
+      }
+    },
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
@@ -2741,7 +2750,7 @@
       },
       "Content": {
         "MenuItems": {
-          "newTask": "New Task",
+          "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
@@ -2755,7 +2764,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
-          "schedules": "Schedules"
+          "schedules": "Schedules",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -5316,7 +5326,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Start a new task for {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5331,7 +5341,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Ready-to-run tasks",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5364,7 +5374,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -5713,7 +5723,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
-      "directMessages": "Direct Messages",
+      "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",
@@ -6238,6 +6248,8 @@
       "uploadError": "Failed to upload file",
       "renameError": "Failed to rename file",
       "renameFileToFolderConflictError": "A folder with this name already exists",
+      "renameFolderAction": "Rename “{name}”",
+      "renameFolderButton": "Rename folder",
       "renameFolderToFileConflictError": "A file with this name already exists",
       "renameConflictError": "A file or folder with this name already exists",
       "deleteError": "Failed to delete file",
@@ -6256,6 +6268,7 @@
       "createFolderDialogDescription": "Enter a name for the new folder",
       "createFolderDialogConfirm": "Create",
       "deleteFolderDialogTitle": "Delete folder",
+      "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
       "moveDialogTitle": "Move {itemName}",
@@ -6267,6 +6280,7 @@
       "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
+      "moveFolderAction": "Move folder",
       "moveFileError": "Failed to move file",
       "tasksFolder": "Tasks",
       "tasksEmptyTitle": "No task files yet",
@@ -6319,7 +6333,7 @@
         "noMatchesTitle": "No accessible matches",
         "noMatchesDescription": "Try a different wording, or clear the filters.",
         "statusLoading": "Loading files",
-        "statusShown": "Showing {shown} of {window} in this result window",
+        "statusMatches": "{count} results",
         "statusRestarted": "This list was refreshed. Showing it from the start.",
         "statusTruncated": "More may match — refine your search",
         "statusProcessing": "{count} still processing",
@@ -6329,6 +6343,8 @@
         "filterSheetDescription": "Nothing is fetched until you apply.",
         "filterApply": "Apply",
         "filterClear": "Clear filters",
+        "filterFolder": "Folder",
+        "filterFolderAll": "All folders",
         "filterCategory": "Category",
         "filterTags": "Tags",
         "filterTagsAny": "Any of these",
@@ -6338,13 +6354,8 @@
         "filterStatus": "Processing",
         "filenameMatch": "Filename match",
         "suggestedChip": "Suggested: {name}",
-        "badgeProcessing": "Processing",
-        "badgeFilenameOnly": "Filename only",
-        "badgePartial": "Partly indexed",
         "selectFile": "Select {name}",
-        "bulkSelectPage": "Select this page",
         "bulkSelected": "{count} selected",
-        "bulkSelectWindow": "Select all {count} in this result window",
         "bulkWindowSelected": "{count} files selected from this result window",
         "bulkWindowChanged": "This window changed — {count} files still match. Confirm again.",
         "bulkSelectionExpired": "That result window expired. Search again.",
@@ -6352,6 +6363,7 @@
         "bulkClear": "Clear selection",
         "bulkApplied": "Updated {count} files",
         "bulkPartial": "{applied} updated, {failed} failed and stay selected",
+        "bulkSelectAllMatches": "Select all {count} matches",
         "bulkError": "Those changes could not be applied.",
         "detailLoading": "Loading file",
         "detailProcessing": "Processing",
@@ -6368,10 +6380,13 @@
         "processingUnsupported": "Only the filename is searchable for this format.",
         "processingPending": "Processing — the filename is already searchable.",
         "uncategorized": "Uncategorized",
+        "undo": "Undo",
         "noTags": "No tags yet",
         "noProjects": "No projects yet",
         "removeTag": "Remove {name}",
         "tagRemoved": "Tag removed. It will not be suggested again.",
+        "tagRemoveFailed": "That tag could not be removed.",
+        "tagRestoreFailed": "That tag could not be put back.",
         "saveConflict": "Updated elsewhere — review the changes.",
         "suggestedLabel": "Suggested",
         "suggestionStale": "Based on an older version",
@@ -6415,8 +6430,6 @@
         "collectionUpdated": "Updated “{name}”",
         "collectionSaveFailed": "That collection could not be saved.",
         "collectionDeleteFailed": "That collection could not be deleted.",
-        "collectionsLoading": "Loading collections",
-        "collectionsEmpty": "No saved collections yet",
         "collectionsUnavailable": "Collections could not be loaded.",
         "labelsUnavailable": "Categories and tags could not be loaded.",
         "collectionActions": "Actions for {name}",
@@ -6436,6 +6449,15 @@
         "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read.",
         "sheetOpenAsPage": "Open as page",
         "sheetDescription": "Details for this file",
+        "viewerDetails": "Details",
+        "viewerClose": "Close",
+        "viewerNoPreview": "No preview for this file type. Download it to open it.",
+        "searchButton": "Search",
+        "searchClear": "Clear search",
+        "typeAll": "All",
+        "foldersLabel": "Folders",
+        "foldersRoot": "All files",
+        "folderEmptyTitle": "Nothing in this folder yet",
         "detailRejected": "Removed labels",
         "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
         "allowAgain": "Let the model reconsider {name}",
@@ -6922,7 +6944,8 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -6947,6 +6970,9 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+      },
+      "socialOnly": {
+        "label": "Social posts only"
       }
     },
     "You": {

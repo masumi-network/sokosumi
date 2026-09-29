@@ -268,7 +268,7 @@ export function CreateDirectDialog() {
               </span>
               <button
                 type="button"
-                className="hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
+                className="press hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
@@ -311,7 +311,10 @@ export function CreateDirectDialog() {
           >
             {!rosterLoaded ? (
               <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
                 {t("loading")}
               </div>
             ) : rosterError ? (
@@ -362,7 +365,10 @@ export function CreateDirectDialog() {
             onClick={handleCreate}
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : null}
             {isPending ? t("CreateWizard.creating") : t("Dialog.create")}
           </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { ListFilter } from "lucide-react";
+import { BookmarkPlus, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -73,6 +73,18 @@ export interface DriveFileFiltersProps {
   filters: FileSearchFilterState;
   labels: WorkspaceLabel[];
   onApply: (filters: FileSearchFilterState) => void;
+  /**
+   * Keep this filter set, under a name.
+   *
+   * It used to be a button on a shelf above the list, beside "No saved
+   * collections yet" — an empty shelf offering to save nothing, shown to a
+   * reader who had not searched for anything. Saving belongs where the thing
+   * being saved is assembled.
+   */
+  onSaveCollection?: (filters: FileSearchFilterState) => void;
+  /** True when a query is applied, so saving is worth offering. */
+  hasQuery?: boolean;
+  saveDisabled?: boolean;
   /** Mobile sheet is controlled by the panel's own chip row. */
   sheetOpen?: boolean;
   onSheetOpenChange?: (open: boolean) => void;
@@ -89,6 +101,9 @@ export function DriveFileFilters({
   filters,
   labels,
   onApply,
+  onSaveCollection,
+  hasQuery = false,
+  saveDisabled = false,
   sheetOpen,
   onSheetOpenChange,
   hideDesktopTrigger,
@@ -102,10 +117,10 @@ export function DriveFileFilters({
     if (open || sheetOpen) setDraft(filters);
   }, [open, sheetOpen, filters]);
 
-  const activeCount = countActiveFileFilters(filters);
+  // The folder is the trail's, not a filter.
+  const activeCount = countActiveFileFilters({ ...filters, folder: "" });
   const categories = labels.filter((label) => label.kind === "CATEGORY");
   const tags = labels.filter((label) => label.kind === "TAG");
-
   function apply(next: FileSearchFilterState) {
     onApply(next);
     setOpen(false);
@@ -256,10 +271,29 @@ export function DriveFileFilters({
   // surface, and the page colour left it a shade off the panel it belongs to.
   const footer = (
     <div className="bg-popover sticky bottom-0 flex items-center justify-between gap-2 border-t pt-3">
-      <Button variant="ghost" onClick={() => apply({ ...EMPTY_FILE_FILTERS })}>
+      <Button
+        variant="ghost"
+        onClick={() => apply({ ...EMPTY_FILE_FILTERS, folder: filters.folder })}
+      >
         {t("filterClear")}
       </Button>
-      <Button onClick={() => apply(draft)}>{t("filterApply")}</Button>
+      <div className="flex items-center gap-2">
+        {/* Nothing applied and nothing typed is nothing to save. */}
+        {onSaveCollection && (hasQuery || countActiveFileFilters(draft) > 0) ? (
+          <Button
+            variant="ghost"
+            disabled={saveDisabled}
+            onClick={() => {
+              apply(draft);
+              onSaveCollection(draft);
+            }}
+          >
+            <BookmarkPlus className="size-4" />
+            {t("collectionSave")}
+          </Button>
+        ) : null}
+        <Button onClick={() => apply(draft)}>{t("filterApply")}</Button>
+      </div>
     </div>
   );
 

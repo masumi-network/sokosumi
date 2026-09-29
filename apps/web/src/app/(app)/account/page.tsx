@@ -92,7 +92,7 @@ async function AccountPageContent() {
   }
 
   return (
-    <div className="min-h-full w-full">
+    <div className="content-in min-h-full w-full">
       <BillingPortalErrorToast generalMessage={tBilling("Errors.general")} />
       <div className="mx-auto max-w-4xl px-4">
         <AccountSettings

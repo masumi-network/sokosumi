@@ -27,8 +27,6 @@ vi.mock("next-intl", () => ({
 }));
 
 vi.mock("@/lib/actions/image-studio/action", () => ({
-  reviewImageVersion: vi.fn(),
-  clearImageVersionReview: vi.fn(),
   requestImageJobCancel: vi.fn(),
 }));
 
@@ -38,7 +36,6 @@ vi.mock("./use-studio-state", () => ({
     selectedAsset: null,
     selectAsset: vi.fn(),
     activeJobs: [],
-    applyAsset: vi.fn(),
     refresh: vi.fn().mockResolvedValue(undefined),
     loadOlder: vi.fn(),
     hasOlder: false,
@@ -93,7 +90,7 @@ describe("starting from a template", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "poster" }));
 
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     expect(prompt).toHaveValue(POSTER.prompt);
     expect(screen.getByText("2:3 · 1K · png")).toBeInTheDocument();
   });
@@ -103,7 +100,7 @@ describe("starting from a template", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "headshot" }));
 
-    const prompt = screen.getByRole("textbox");
+    const prompt = screen.getByRole("textbox", { name: "promptPlaceholder" });
     // Editable text in a focused box, not a request: the whole point of a
     // template is what gets typed over it.
     expect(prompt).toHaveFocus();

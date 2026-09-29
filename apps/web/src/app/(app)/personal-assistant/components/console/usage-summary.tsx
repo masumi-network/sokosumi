@@ -50,7 +50,7 @@ export function UsageSummary({ usage }: { usage: SokoBotUsage }) {
       {cells.map((cell) => (
         <div key={cell.label}>
           <p className="text-muted-foreground text-xs">{cell.label}</p>
-          <p className="text-foreground text-2xl font-medium tabular-nums">
+          <p className="text-foreground text-2xl font-medium tabular-nums tracking-tight">
             {cell.value}
           </p>
           <p className="text-muted-foreground text-xs">{cell.hint}</p>

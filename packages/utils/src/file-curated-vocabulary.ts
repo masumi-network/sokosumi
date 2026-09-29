@@ -27,10 +27,11 @@ import {
  * label it has to guess the meaning of. Tags carry one for the same reason:
  * the shortlist sends descriptions to the model, and a bare word is a guess.
  *
- * **Size.** `SUGGESTION_VOCABULARY_MAX` is 30 across both kinds, with a floor
- * of 10 each. At 8 + 12 the whole set always reaches the model and nothing is
- * ever truncated, with ten slots spare for labels a workspace made by hand
- * before this existed.
+ * **Size.** `SUGGESTION_VOCABULARY_MAX` is 40 across both kinds, with a floor
+ * of 10 each. At 13 + 24 the whole set always reaches the model and nothing is
+ * ever truncated, with three slots spare for labels a workspace made by hand.
+ * It was 8 + 12, and on mainnet one of three text-bearing files got any label:
+ * twenty labels left most documents with nothing to match.
  *
  * **Not in the list, on purpose.** "Image or media" is absent because an image
  * has no extracted text, so the model can never assign it — a label that
@@ -104,6 +105,36 @@ const CURATED_CATEGORIES: readonly CuratedFileLabel[] = [
     displayName: "Reference material",
     description:
       "Something kept to be consulted later: documentation, guides, handbooks, policies, style guides, glossaries, FAQs. Choose this when the document is written to be returned to rather than read once.",
+  },
+  {
+    kind: "CATEGORY",
+    displayName: "Proposal or quote",
+    description:
+      "An offer put to someone for a decision: proposals, quotes, estimates, pitches, tenders, bids. Choose this when the document asks the reader to accept, buy or approve something.",
+  },
+  {
+    kind: "CATEGORY",
+    displayName: "Presentation",
+    description:
+      "Slides made to be presented: decks, pitch decks, keynotes, workshop slides, training slides. Choose this when the document is structured as a sequence of slides.",
+  },
+  {
+    kind: "CATEGORY",
+    displayName: "Plan or roadmap",
+    description:
+      "What will happen and when: project plans, roadmaps, timelines, schedules, OKRs, checklists. Choose this when the document sets out future work rather than recording past work.",
+  },
+  {
+    kind: "CATEGORY",
+    displayName: "Correspondence",
+    description:
+      "A message between people: emails, letters, chat exports, memos, announcements. Choose this when the document is addressed to a reader rather than written for the record.",
+  },
+  {
+    kind: "CATEGORY",
+    displayName: "Template or form",
+    description:
+      "A document meant to be filled in or copied: templates, forms, checklists to complete, questionnaires, boilerplate. Choose this when the substance is blanks to be completed.",
   },
 ];
 
@@ -180,6 +211,78 @@ const CURATED_TAGS: readonly CuratedFileLabel[] = [
     displayName: "Research",
     description:
       "Gathering evidence before deciding: market research, interviews, literature reviews, experiments.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Customer support",
+    description:
+      "Helping existing customers: tickets, complaints, help-desk answers, escalations, satisfaction, troubleshooting.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Data and analytics",
+    description:
+      "Measuring and analysing: metrics, dashboards, SQL, experiments, tracking, statistics, reporting on numbers.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Partnerships",
+    description:
+      "Working with other organisations: partners, integrations, resellers, agencies, joint ventures, sponsorship.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Investors",
+    description:
+      "Raising and reporting to funders: fundraising, cap tables, investor updates, grants, valuation.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Compliance",
+    description:
+      "Meeting rules: audits, certifications, GDPR, policies, regulatory filings, risk registers.",
+  },
+  {
+    kind: "TAG",
+    displayName: "AI and machine learning",
+    description:
+      "Models and agents: LLMs, prompts, training data, evaluation, AI agents, automation with AI.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Content",
+    description:
+      "Making things to publish: articles, blog posts, video, copywriting, editorial calendars, social media.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Community",
+    description:
+      "People around the product: users, forums, Discord, ambassadors, feedback, events for members.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Documentation",
+    description:
+      "Explaining how things work: guides, manuals, READMEs, runbooks, API references, onboarding docs.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Events",
+    description:
+      "Gatherings: conferences, meetups, webinars, workshops, trade shows, travel and logistics.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Training",
+    description:
+      "Teaching and learning: courses, tutorials, curricula, coaching, certification, learning material.",
+  },
+  {
+    kind: "TAG",
+    displayName: "Blockchain",
+    description:
+      "Distributed ledgers: Cardano, wallets, tokens, smart contracts, NFTs, staking, on-chain payments.",
   },
 ];
 

@@ -76,7 +76,7 @@ export function CreateState() {
             />
           ) : null}
         </div>
-        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl">
+        <h1 className="animate-in fade-in slide-in-from-bottom-2 fill-mode-both text-foreground mt-8 text-center text-2xl font-light delay-300 duration-500 md:text-3xl text-balance tracking-tight">
           {t("successTitle", { name: created.name })}
         </h1>
         <p className="animate-in fade-in fill-mode-both text-muted-foreground mt-3 text-sm delay-700 duration-500">
@@ -88,7 +88,7 @@ export function CreateState() {
 
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col items-center px-4 py-12 md:py-20">
-      <h1 className="text-foreground text-center text-2xl font-light text-balance md:text-3xl">
+      <h1 className="text-foreground text-center text-2xl font-light text-balance md:text-3xl tracking-tight">
         {t("title")}
       </h1>
       <p className="text-muted-foreground mt-3 max-w-md text-center text-sm leading-relaxed text-pretty md:text-base">

@@ -45,7 +45,9 @@ export function StartChatButton({
       disabled={isBusy}
       onClick={() => openCoworkerRoom(coworkerId)}
     >
-      {isBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+      {isBusy ? (
+        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+      ) : null}
       {isBusy ? t("cta.opening") : t("cta.button", { name: coworkerName })}
     </Button>
   );
