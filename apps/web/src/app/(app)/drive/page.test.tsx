@@ -247,11 +247,13 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     initialFolder,
     onFolderChange,
     folderActions,
+    virtualFolder,
   }: {
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
     folderActions?: React.ReactNode;
+    virtualFolder?: { label: string; onOpen: () => void };
   }) => (
     <div
       data-testid="drive-all-files"
@@ -270,6 +272,15 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       {/* The page's own folder controls, which the real panel seats beside
           the folder trail. */}
       {folderActions}
+      {virtualFolder ? (
+        <button
+          type="button"
+          data-testid="drive-virtual-folder"
+          onClick={virtualFolder.onOpen}
+        >
+          {virtualFolder.label}
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -1084,11 +1095,8 @@ describe("DrivePage files view mode", () => {
       within(header).getByRole("button", { name: "moreActions" }),
     );
 
-    // The Tasks view was reachable only through a card in the grid, so without
-    // this the grid's removal would have orphaned a whole view.
-    expect(
-      await screen.findByTestId("files-mobile-tasks-outputs"),
-    ).toBeVisible();
+    // Sokosumi Projects is a folder row now, not a menu item.
+    expect(screen.queryByTestId("files-mobile-tasks-outputs")).toBeNull();
     expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
       "createFolder",
     );
@@ -1644,8 +1652,8 @@ describe("one catalog, not two", () => {
     expect(screen.getByTestId("files-rename-folder")).toBeInTheDocument();
     expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
     expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
-    // And the Tasks view, which was reachable only through a card in the grid.
-    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+    // The Tasks button is gone; Sokosumi Projects is a folder row at the root.
+    expect(screen.queryByTestId("files-tasks-outputs")).toBeNull();
   });
 
   it("lands in a folder it just created, so the folder is not lost", async () => {
@@ -1725,7 +1733,11 @@ describe("one catalog, not two", () => {
     });
     expect(screen.queryByTestId("files-rename-folder")).toBeNull();
     expect(screen.queryByTestId("files-delete-folder")).toBeNull();
-    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+    expect(screen.queryByTestId("files-tasks-outputs")).toBeNull();
+    // Sokosumi Projects is handed to the panel to list beside the real folders.
+    expect(screen.getByTestId("drive-virtual-folder")).toHaveTextContent(
+      "tasksFolder",
+    );
   });
 
   it("keeps the catalog inside a folder, narrowed rather than replaced", async () => {
