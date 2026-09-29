@@ -44,7 +44,7 @@ Key directories:
 ### TypeScript Standards
 - Use interfaces over types
 - Avoid enums; use maps instead
-- Use generated Core DTOs (`@/lib/clients/generated/core`); web does not import Prisma
+- Use generated Core DTOs (`@sokosumi/core-client`); web does not import Prisma
 - Use descriptive variable names with auxiliary verbs (isLoading, hasError)
 
 ### Styling Rules

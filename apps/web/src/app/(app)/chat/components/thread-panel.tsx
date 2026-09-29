@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomSokoBotParticipant,
+  ChatRoomUserParticipant,
+} from "@sokosumi/core-client";
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { ChevronLeft, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -24,12 +30,6 @@ import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-r
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomMessage,
-  ChatRoomSokoBotParticipant,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
 import { type RoomComposerHandle } from "./room-composer";

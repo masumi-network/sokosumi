@@ -1,10 +1,10 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   GetTransactionsData,
   TransactionHistoryItem,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
 type TransactionQuery = NonNullable<GetTransactionsData["query"]>;
 

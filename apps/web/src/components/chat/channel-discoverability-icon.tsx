@@ -1,6 +1,6 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { Globe2, Hash, Lock } from "lucide-react";
 import type { ComponentProps } from "react";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 type Discoverability = ChatRoom["discoverability"];

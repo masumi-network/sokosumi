@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectDesignMd } from "@sokosumi/core-client";
 import {
   ExternalLink,
   FileText,
@@ -24,7 +25,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
   clearPendingProjectBrandJob,
@@ -55,7 +55,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { removeProjectDesignMd } from "@/lib/actions/project/action";
-import type { ProjectDesignMd } from "@/lib/clients/generated/core/types.gen";
 
 interface ProjectBrandProviderProps {
   children: ReactNode;

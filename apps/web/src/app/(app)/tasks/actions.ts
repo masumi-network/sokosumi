@@ -1,5 +1,6 @@
 "use server";
 
+import type { Task, TaskScheduleState } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { KanbanColumnId } from "@/app/tasks/types/task-board";
 import { buildAgentNameById } from "@/app/tasks/utils/agent-names";
@@ -17,7 +18,6 @@ import {
 } from "@/app/tasks/utils/tasks-filters";
 import { TASKS_COLUMN_PAGE_LIMIT } from "@/app/tasks/utils/tasks-pagination";
 import { getSession } from "@/lib/auth/auth.server";
-import type { Task, TaskScheduleState } from "@/lib/clients/generated/core";
 import { getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";

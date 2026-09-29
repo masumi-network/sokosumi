@@ -1,5 +1,6 @@
 "use client";
 
+import type { DriveFile } from "@sokosumi/core-client";
 import {
   Bold,
   Code,
@@ -45,7 +46,6 @@ import {
   UNKNOWN_MENTION_CLASSNAME,
   VIEWPORT_PADDING_PX,
 } from "@/components/ui/mention-textarea-utils";
-import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { clearComposerFormat } from "@/lib/utils/composer-clear-format";
 import {

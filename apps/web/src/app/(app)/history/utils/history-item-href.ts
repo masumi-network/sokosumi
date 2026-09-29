@@ -1,7 +1,7 @@
 import {
   NotificationKind,
   type TransactionHistoryItem,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 
 /**

@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   userTaskStatusTransitionRequiresComment,
@@ -7,10 +8,8 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusPicker } from "./task-status-picker";

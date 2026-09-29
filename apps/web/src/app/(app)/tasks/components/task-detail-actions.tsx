@@ -1,5 +1,11 @@
 "use client";
 
+import type { MemberWithOrganization, TaskShare } from "@sokosumi/core-client";
+import {
+  type TaskLink,
+  TaskLinkRelation,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
@@ -33,7 +39,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
@@ -69,15 +74,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type {
-  MemberWithOrganization,
-  TaskShare,
-} from "@/lib/clients/generated/core";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";

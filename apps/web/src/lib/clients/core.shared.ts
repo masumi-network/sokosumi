@@ -1,5 +1,5 @@
+import { suggestTaskTags as coreSuggestTaskTags } from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
-import { suggestTaskTags as coreSuggestTaskTags } from "@/lib/clients/generated/core";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
 export type TaskScheduleStateAction = "pause" | "resume" | "end";
@@ -118,7 +118,7 @@ import type {
   UpdateSokoBotScheduleRequest,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import {
   addAdminMatchedChannelParticipant as coreAddAdminMatchedChannelParticipant,
   addAdminMatchedChannelParticipantsFromOrganization as coreAddAdminMatchedChannelParticipantsFromOrganization,
@@ -467,7 +467,7 @@ import {
   updateMySokoBotSchedule as coreUpdateMySokoBotSchedule,
   updateMySokoBotVersion as coreUpdateMySokoBotVersion,
   NoticeKind,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import {
   CoreApiRequestError,
   executeCoreOperation,

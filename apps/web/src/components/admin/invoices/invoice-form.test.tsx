@@ -1,9 +1,8 @@
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { InvoiceForm } from "@/components/admin/invoices/invoice-form";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import type { CreditPriceOption } from "@/lib/services/invoice-admin.service";
 
 const getBillingMock = vi.fn();

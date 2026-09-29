@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  FileCollection,
+  FileResource,
+  FileSearchMeta,
+  WorkspaceLabel,
+} from "@sokosumi/core-client";
 import {
   Bookmark,
   Loader2,
@@ -36,12 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type {
-  FileCollection,
-  FileResource,
-  FileSearchMeta,
-  WorkspaceLabel,
-} from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {

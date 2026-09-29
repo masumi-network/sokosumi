@@ -61,7 +61,7 @@ On approve/unpark, if `grantResumeStatus` is missing (legacy row), Core defaults
 to **`READY`**.
 
 **OpenAPI:** descriptions live in `apps/core/src/schemas/task.schema.ts` and
-propagate to the generated web client via `pnpm --filter web generate:core:snapshot`.
+propagate to the generated Core client via `pnpm --filter @sokosumi/core-client generate:snapshot`.
 
 ---
 

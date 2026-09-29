@@ -1,4 +1,10 @@
 "use client";
+import type {
+  DataTable,
+  TableColumn,
+  TableRow,
+  TableView,
+} from "@sokosumi/core-client";
 import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MoreHorizontal, Plus, Sparkles } from "lucide-react";
@@ -39,12 +45,6 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth/auth.client";
-import type {
-  DataTable,
-  TableColumn,
-  TableRow,
-  TableView,
-} from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";

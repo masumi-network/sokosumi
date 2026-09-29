@@ -1,13 +1,12 @@
-import Link from "next/link";
-import { getFormatter, getTranslations } from "next-intl/server";
-import type { ReactNode } from "react";
-
 import type {
   SokoBotDelegation,
   SokoBotEvent,
   SokoBotPendingDecision,
   SokoBotToolCall,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import Link from "next/link";
+import { getFormatter, getTranslations } from "next-intl/server";
+import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 import { DecisionProposal } from "./decision-proposal";

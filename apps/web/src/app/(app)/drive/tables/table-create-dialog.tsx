@@ -1,4 +1,6 @@
 "use client";
+
+import type { TableColumn } from "@sokosumi/core-client";
 import {
   createDataTableSchema,
   parseTableCsv,
@@ -25,8 +27,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-
-import type { TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";

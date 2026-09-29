@@ -1,6 +1,5 @@
+import { StripeSubscriptionStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import { StripeSubscriptionStatus } from "@/lib/clients/generated/core";
 
 import type { SidebarCreditsSubscription } from "../index";
 import { mapAccountCreditsChrome, resolveCreditUsage } from "../index";

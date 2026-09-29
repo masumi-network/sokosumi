@@ -2,9 +2,9 @@
  * Get suggestions based on coworker ID
  */
 
+import type { Coworker as CoreCoworker } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import type { ChatComposeKind, Coworker } from "@/app/chat/utils/types";
-import type { Coworker as CoreCoworker } from "@/lib/clients/generated/core";
 
 export type CoworkerCapability = "chat" | "tasks";
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { DriveItem, DriveRecentsItem } from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import {
   Copy,
@@ -19,7 +20,6 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import {
   DriveFilePreview,
   DriveItemCard,
@@ -45,7 +45,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { Input } from "@/components/ui/input";
-import type { DriveItem, DriveRecentsItem } from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";

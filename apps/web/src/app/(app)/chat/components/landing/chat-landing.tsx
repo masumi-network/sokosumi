@@ -1,8 +1,7 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-
 import type { Coworker } from "@/app/chat/utils/types";
 import { SokosumiIcon } from "@/components/masumi-logos";
-import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import { ActivityTrend } from "./activity-trend";
 import { buildActivityStats, resolveFeaturedCoworker } from "./landing-content";

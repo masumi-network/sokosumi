@@ -1,6 +1,15 @@
 "use server";
 
 import {
+  type CreateTaskContext,
+  type Task,
+  type TaskEvent,
+  type TaskLink,
+  TaskLinkRelation,
+  TaskStatus,
+  type UserWritableTaskLinkRelation,
+} from "@sokosumi/core-client";
+import {
   buildAdHocDesignMdPrefix,
   taskContextSelectionAttachesAnything,
   userTaskStatusTransitionRequiresComment,
@@ -16,15 +25,6 @@ import {
   CoreApiRequestError,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import {
-  type CreateTaskContext,
-  type Task,
-  type TaskEvent,
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-  type UserWritableTaskLinkRelation,
-} from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 import { normalizeOptionalProjectId } from "@/lib/utils/project";
 import {

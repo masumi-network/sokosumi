@@ -1,5 +1,3 @@
-import { useTranslations } from "next-intl";
-
 import type {
   SokoBotDelegation,
   SokoBotPendingDecision,
@@ -8,7 +6,8 @@ import type {
   SokoBotToolCall,
   SokoBotTurnRoute,
   SokoBotTurnStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { useTranslations } from "next-intl";
 
 import { StatusBadge, type StatusTone } from "./status-badge";
 

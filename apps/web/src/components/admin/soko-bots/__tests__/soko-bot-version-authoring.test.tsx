@@ -88,7 +88,7 @@ import type {
   AdminSokoBotQuality,
   SokoBotLabRun,
   SokoBotVersionDetail as VersionDetail,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import { SokoBotVersionActions } from "../soko-bot-version-actions.client";
 import { SokoBotVersionDetail } from "../soko-bot-version-detail";
 import { SokoBotVersionForm } from "../soko-bot-version-form.client";

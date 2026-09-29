@@ -1,10 +1,13 @@
 "use client";
 
+import type {
+  SokoBotIntegrationCatalogEntry,
+  SokoBotIntegrations,
+} from "@sokosumi/core-client";
 import { Search } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,10 +15,6 @@ import {
   disconnectSokoBotIntegrationAction,
   searchSokoBotIntegrationCatalogAction,
 } from "@/lib/actions/soko-bot/action";
-import type {
-  SokoBotIntegrationCatalogEntry,
-  SokoBotIntegrations,
-} from "@/lib/clients/generated/core";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

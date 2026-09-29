@@ -1,8 +1,8 @@
+import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 import { createFormats } from "@/i18n/time-format";
-import type { SocialPostCalendarItem } from "@/lib/clients/generated/core";
 import messages from "../../../../../messages/en.json";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 
