@@ -24,7 +24,7 @@ function readTasks(...segments: string[]): string {
 }
 
 describe("task detail layout contract", () => {
-  it("auth view and loading skeleton share the max-w-6xl shell constant", () => {
+  it("auth view and loading skeleton share the max-w-[80rem] shell constant", () => {
     const loading = readTasks("[taskId]/loading.tsx");
     const view = readTasks("components/task-detail-view.tsx");
 
@@ -32,7 +32,7 @@ describe("task detail layout contract", () => {
     expect(view).toContain("TASK_DETAIL_SHELL_CLASS");
     expect(loading).not.toMatch(/className="[^"]*max-w-4xl/);
     expect(view).not.toMatch(/className="[^"]*max-w-4xl/);
-    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-6xl");
+    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-[80rem]");
   });
 
   it("auth and share layouts share the xl two-column grid tokens", () => {
@@ -42,7 +42,7 @@ describe("task detail layout contract", () => {
     expect(view).toContain("TASK_DETAIL_GRID_CLASS");
     expect(share).toContain("TASK_DETAIL_GRID_CLASS");
     expect(TASK_DETAIL_GRID_CLASS).toContain(
-      "xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]",
+      "xl:grid-cols-[minmax(0,1fr)_clamp(18rem,32%,25rem)]",
     );
   });
 

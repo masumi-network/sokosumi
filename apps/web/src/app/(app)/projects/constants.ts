@@ -12,16 +12,6 @@ export const PROJECTS_PAGE_LIMIT = 20;
 export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
- * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
- *
- * No route draws it any more — the tabbed project areas use
- * `PROJECTS_WORKSPACE_SHELL_CLASS`, and project edit is a modal. It survives as
- * the reference width that `TASK_DETAIL_SHELL_CLASS` is pinned against, which
- * is the one thing still asking what a detail page is as wide as.
- */
-export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
-
-/**
  * The tabbed project workspace: overview, design, memory, social.
  *
  * Full available width, deliberately. The application shell's own `p-4`

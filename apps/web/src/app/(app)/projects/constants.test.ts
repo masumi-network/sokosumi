@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
-  PROJECTS_DETAIL_SHELL_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -49,18 +48,6 @@ describe("projects mobile padding shells", () => {
     expect(tokens).not.toContain("-mx-4");
     expect(tokens).not.toContain("px-4");
     expect(PROJECTS_PAGE_SHELL_CLASS).not.toContain("calc(100%");
-  });
-
-  it("detail shell is a centered max-w-6xl container", () => {
-    const shell = PROJECTS_DETAIL_SHELL_CLASS.split(/\s+/);
-
-    expect(shell).toContain("mx-auto");
-    expect(shell).toContain("w-full");
-    expect(shell).toContain("max-w-6xl");
-    expect(shell).toContain("py-6");
-    expect(shell).not.toContain("-mx-4");
-    expect(shell).not.toContain("w-[calc(100%+2rem)]");
-    expect(shell).not.toContain("md:px-6");
   });
 });
 
