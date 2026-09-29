@@ -65,7 +65,7 @@ describe("a version whose bytes did not arrive", () => {
     // picture on screen and no claim about storage.
     vi.stubGlobal("fetch", head(200));
     const view = render(
-      <StudioImage asset={asset("flaky")} labels={LABEL_KEYS} projectId="p" />,
+      <StudioImage asset={asset("flaky")} labels={LABEL_KEYS} />,
     );
 
     const first = view.getByRole("img");
@@ -88,11 +88,7 @@ describe("a version whose bytes did not arrive", () => {
     const fetchMock = head(404);
     vi.stubGlobal("fetch", fetchMock);
     const view = render(
-      <StudioImage
-        asset={asset("deleted")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
+      <StudioImage asset={asset("deleted")} labels={LABEL_KEYS} />,
     );
 
     await act(async () => {
@@ -118,11 +114,7 @@ describe("a version whose bytes did not arrive", () => {
     // is not gone, and telling somebody it was deleted is the false claim.
     vi.stubGlobal("fetch", head(503));
     const view = render(
-      <StudioImage
-        asset={asset("unreadable")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
+      <StudioImage asset={asset("unreadable")} labels={LABEL_KEYS} />,
     );
 
     await act(async () => {
@@ -145,11 +137,7 @@ describe("a version whose bytes did not arrive", () => {
   it("does not make the next version look unavailable too", async () => {
     vi.stubGlobal("fetch", head(404));
     const view = render(
-      <StudioImage
-        asset={asset("missing")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
+      <StudioImage asset={asset("missing")} labels={LABEL_KEYS} />,
     );
 
     await act(async () => {
@@ -164,13 +152,7 @@ describe("a version whose bytes did not arrive", () => {
 
     // The lightbox's arrows reuse this component rather than remounting it,
     // so the failure has to belong to the version that failed.
-    view.rerender(
-      <StudioImage
-        asset={asset("healthy")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
-    );
+    view.rerender(<StudioImage asset={asset("healthy")} labels={LABEL_KEYS} />);
 
     const img = view.getByRole("img");
     expect(img.getAttribute("src")).toContain("healthy");
@@ -180,11 +162,7 @@ describe("a version whose bytes did not arrive", () => {
   it("still reports the broken one as broken when you step back to it", async () => {
     vi.stubGlobal("fetch", head(404));
     const view = render(
-      <StudioImage
-        asset={asset("missing")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
+      <StudioImage asset={asset("missing")} labels={LABEL_KEYS} />,
     );
     await act(async () => {
       fireEvent.error(view.getByRole("img"));
@@ -195,22 +173,10 @@ describe("a version whose bytes did not arrive", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
 
-    view.rerender(
-      <StudioImage
-        asset={asset("healthy")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
-    );
+    view.rerender(<StudioImage asset={asset("healthy")} labels={LABEL_KEYS} />);
     expect(view.getByRole("img")).toBeTruthy();
 
-    view.rerender(
-      <StudioImage
-        asset={asset("missing")}
-        labels={LABEL_KEYS}
-        projectId="p"
-      />,
-    );
+    view.rerender(<StudioImage asset={asset("missing")} labels={LABEL_KEYS} />);
     // Remembered, not re-fetched-and-failed-again: the state is keyed by id.
     expect(view.getByText("bytesUnavailable")).toBeTruthy();
   });

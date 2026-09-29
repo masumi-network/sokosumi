@@ -2,11 +2,18 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
+  ImageStudioWorkspaceState,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
+
+interface StudioStateQuery {
+  assetId?: string;
+  before?: string;
+  beforeId?: string;
+}
 
 /**
  * Web's view of the image studio.
@@ -28,9 +35,24 @@ export const imageStudioService = {
     return result.data;
   },
 
+  /** Every project's images in the workspace, for the no-project view. */
+  async getWorkspaceState(
+    query: StudioStateQuery = {},
+  ): Promise<ImageStudioWorkspaceState> {
+    // Same wire-vs-generated `Date` mismatch as `getState` below.
+    const result = await coreClient.getImageStudioState(
+      query as unknown as {
+        assetId?: string;
+        before?: Date;
+        beforeId?: string;
+      },
+    );
+    return result.data;
+  },
+
   async getState(
     projectId: string,
-    query: { assetId?: string; before?: string; beforeId?: string } = {},
+    query: StudioStateQuery = {},
   ): Promise<ProjectImageStudioState> {
     // The generated client types `before` as the transformed `Date`; on the
     // wire it is the ISO string the caller already holds.
