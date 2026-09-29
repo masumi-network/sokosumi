@@ -8,6 +8,7 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { socialPostProviderSchema } from "@/schemas/social-post.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -210,6 +211,7 @@ export const socialPostCalendarItemSchema = z
     kind: z.literal("socialPost"),
     id: z.string(),
     postId: z.uuid(),
+    provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
     externalHandle: z.string().nullable(),
@@ -217,6 +219,15 @@ export const socialPostCalendarItemSchema = z
     scheduledByName: z.string().nullable(),
     scheduledByImage: z.string().nullable(),
     attachmentCount: z.number().int().nonnegative(),
+    previewMedia: z
+      .object({
+        fileUrl: z.string(),
+        kind: z.enum(["image", "gif", "video"]),
+      })
+      .nullable()
+      .openapi({
+        description: "The post's first attachment, for a thumbnail.",
+      }),
     scheduledAt: dateTimeSchema,
     sourceId: z.string(),
     sourceProjectId: z.uuid(),
