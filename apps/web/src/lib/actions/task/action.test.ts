@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Task } from "@/lib/clients/generated/core";
-import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
+import {
+  TaskLinkRelation,
+  TaskPriority,
+  TaskStatus,
+} from "@/lib/clients/generated/core";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),
@@ -1209,4 +1213,35 @@ describe("draft task tag actions", () => {
       );
     },
   );
+});
+
+describe("setTaskPriority", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+  });
+
+  it("patches only the priority", async () => {
+    const { setTaskPriority } = await import("./action");
+
+    const result = await setTaskPriority({
+      taskId: "task-1",
+      priority: TaskPriority.URGENT,
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith("task-1", {
+      priority: TaskPriority.URGENT,
+    });
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+  });
+
+  it("surfaces a Core failure instead of swallowing it", async () => {
+    taskServiceMock.patchTask.mockRejectedValue(new Error("Core down"));
+    const { setTaskPriority } = await import("./action");
+
+    await expect(
+      setTaskPriority({ taskId: "task-1", priority: TaskPriority.LOW }),
+    ).rejects.toThrow();
+  });
 });

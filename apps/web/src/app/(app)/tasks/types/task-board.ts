@@ -1,6 +1,7 @@
 import type {
   ProjectSummary,
   TaskEvent,
+  TaskPriority,
   TaskShare,
   TaskTags,
   TaskVisibility,
@@ -26,6 +27,7 @@ export interface TaskWithCoworker {
   id: string;
   name: string;
   status: TaskStatus;
+  priority: TaskPriority;
   visibility: TaskVisibility;
   ownerId: string;
   owner: UserSummary;

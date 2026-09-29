@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -62,6 +63,10 @@ export function TaskCard({
             compact ? "line-clamp-1" : "line-clamp-2",
           )}
         >
+          <TaskPriorityMark
+            priority={task.priority}
+            className="mr-1.5 inline-block align-[-2px]"
+          />
           <TaskDetailLink
             href={`/tasks/${task.id}`}
             title={task.name}

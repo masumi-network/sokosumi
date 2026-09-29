@@ -11,6 +11,7 @@ function buildTask(
     name: "Task",
     description: "Description",
     status: "QUEUED",
+    priority: "NONE",
     visibility: "PUBLIC",
     ownerId: "user-1",
     owner: { id: "user-1", name: "Test User", image: null },

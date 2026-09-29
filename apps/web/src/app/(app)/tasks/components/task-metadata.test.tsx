@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskPriority, TaskStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -18,8 +18,15 @@ vi.mock("@/components/modals/global-modals-context", () => ({
   }),
 }));
 
+const setTaskPriorityMock = vi.hoisted(() => vi.fn());
+
 vi.mock("@/lib/actions/task/action", () => ({
   setTaskStatusFromDrag: vi.fn(),
+  setTaskPriority: setTaskPriorityMock,
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), success: vi.fn() },
 }));
 
 vi.mock("next-intl", () => ({
@@ -53,6 +60,20 @@ const baseStatusFieldLabels = {
   updateStatusError: "Failed to update task status",
 };
 
+const basePriorityLabels = {
+  priority: "Priority",
+  levels: {
+    URGENT: "Urgent",
+    HIGH: "High",
+    MEDIUM: "Medium",
+    LOW: "Low",
+    NONE: "No priority",
+  },
+  changePriority: "Change priority",
+  noPriorityMatches: "No priority matches",
+  updateError: "Failed to update priority",
+};
+
 const baseLabels = {
   visibility: "Visibility",
   privateBadge: "Private",
@@ -77,6 +98,7 @@ function createTask(
     assignee?: TaskMetadataTask["assignee"];
     status?: TaskMetadataTask["status"];
     visibility?: TaskMetadataTask["visibility"];
+    priority?: TaskMetadataTask["priority"];
     organization?: TaskMetadataTask["organization"];
     selectableStatuses?: TaskMetadataTask["selectableStatuses"];
   } = {},
@@ -99,6 +121,7 @@ function createTask(
 
   return {
     status: overrides.status ?? TaskStatus.RUNNING,
+    priority: overrides.priority ?? TaskPriority.NONE,
     visibility: overrides.visibility,
     selectableStatuses: overrides.selectableStatuses ?? [],
     owner: {
@@ -126,6 +149,7 @@ function renderTaskMetadata(
       project={null}
       labels={baseLabels}
       statusFieldLabels={baseStatusFieldLabels}
+      priorityLabels={basePriorityLabels}
       {...rest}
     />,
   );
@@ -179,7 +203,7 @@ describe("TaskMetadata", () => {
     });
 
     const rows = screen.getAllByRole("group");
-    expect(rows).toHaveLength(7);
+    expect(rows).toHaveLength(8);
     for (const row of rows) {
       expect(row.firstElementChild).toHaveClass(
         "flex",
@@ -429,6 +453,89 @@ describe("TaskMetadata", () => {
       "data-current",
       "true",
     );
+  });
+});
+
+describe("TaskMetadata priority", () => {
+  it("puts Priority directly under Status", () => {
+    renderTaskMetadata({ task: createTask({ priority: TaskPriority.HIGH }) });
+
+    const rows = screen.getAllByRole("group");
+    expect(rows[0]).toHaveAccessibleName("Status: Running");
+    expect(rows[1]).toHaveAccessibleName("Priority: High");
+    expect(within(rows[1] as HTMLElement).getByText("High")).toBeVisible();
+  });
+
+  it("shows a muted No priority for NONE when read-only", () => {
+    renderTaskMetadata({ task: createTask() });
+
+    expect(
+      screen.getByRole("group", { name: "Priority: No priority" }),
+    ).toBeVisible();
+    expect(screen.getByText("No priority")).toHaveClass(
+      "text-muted-foreground",
+    );
+  });
+
+  it("offers the levels in order and saves the choice optimistically", async () => {
+    const user = userEvent.setup();
+    setTaskPriorityMock.mockResolvedValue({ ok: true, value: { taskId: "t" } });
+
+    renderTaskMetadata({ task: createTask(), editable: true });
+
+    await user.click(
+      screen.getByRole("combobox", { name: "Priority: No priority" }),
+    );
+    expect(
+      screen.getAllByRole("option").map((option) => option.textContent),
+    ).toEqual(["Urgent", "High", "Medium", "Low", "No priority"]);
+
+    await user.click(screen.getByRole("option", { name: "Urgent" }));
+
+    expect(setTaskPriorityMock).toHaveBeenCalledWith({
+      taskId: "task-1",
+      priority: TaskPriority.URGENT,
+    });
+    expect(
+      screen.getByRole("combobox", { name: "Priority: Urgent" }),
+    ).toBeInTheDocument();
+  });
+
+  it("rolls back and reports when saving fails", async () => {
+    const user = userEvent.setup();
+    setTaskPriorityMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "unknown" },
+    });
+
+    renderTaskMetadata({
+      task: createTask({ priority: TaskPriority.LOW }),
+      editable: true,
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Priority: Low" }));
+    await user.click(screen.getByRole("option", { name: "High" }));
+
+    expect(
+      await screen.findByRole("combobox", { name: "Priority: Low" }),
+    ).toBeInTheDocument();
+    const { toast } = await import("sonner");
+    expect(toast.error).toHaveBeenCalledWith("Failed to update priority");
+  });
+
+  it("does not call Core when the same level is picked", async () => {
+    const user = userEvent.setup();
+    setTaskPriorityMock.mockClear();
+
+    renderTaskMetadata({
+      task: createTask({ priority: TaskPriority.LOW }),
+      editable: true,
+    });
+
+    await user.click(screen.getByRole("combobox", { name: "Priority: Low" }));
+    await user.click(screen.getByRole("option", { name: "Low" }));
+
+    expect(setTaskPriorityMock).not.toHaveBeenCalled();
   });
 });
 

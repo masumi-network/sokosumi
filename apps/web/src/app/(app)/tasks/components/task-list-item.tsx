@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -52,6 +53,7 @@ export function TaskListItem({
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
+          <TaskPriorityMark priority={task.priority} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <span className="text-foreground line-clamp-1 text-sm font-medium">
               {task.name}

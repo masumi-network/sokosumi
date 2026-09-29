@@ -39,6 +39,7 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    priority: "NONE",
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     scheduleId: null,

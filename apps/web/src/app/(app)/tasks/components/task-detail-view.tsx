@@ -453,13 +453,15 @@ async function TaskMetadataSection({
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus] = await Promise.all([
-    projectPromise,
-    hasAssignedSeatPromise,
-    getTranslations("App.Tasks.Detail"),
-    getTranslations("App.Tasks"),
-    getTranslations("App.Tasks.Filters.statusOptions"),
-  ]);
+  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
+    await Promise.all([
+      projectPromise,
+      hasAssignedSeatPromise,
+      getTranslations("App.Tasks.Detail"),
+      getTranslations("App.Tasks"),
+      getTranslations("App.Tasks.Filters.statusOptions"),
+      getTranslations("App.Tasks.Priority"),
+    ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     forceReadOnly,
@@ -475,6 +477,7 @@ async function TaskMetadataSection({
         editable={!isReadOnly}
         task={{
           status: task.status,
+          priority: task.priority,
           visibility: task.visibility,
           selectableStatuses: task.selectableStatuses,
           owner: task.owner,
@@ -503,6 +506,19 @@ async function TaskMetadataSection({
           assignee: t("assignee"),
           noAssignee: t("noAssignee"),
           personalAssistantFallback: tTasks("personalAssistant"),
+        }}
+        priorityLabels={{
+          priority: tPriority("title"),
+          levels: {
+            URGENT: tPriority("levels.URGENT"),
+            HIGH: tPriority("levels.HIGH"),
+            MEDIUM: tPriority("levels.MEDIUM"),
+            LOW: tPriority("levels.LOW"),
+            NONE: tPriority("levels.NONE"),
+          },
+          changePriority: tPriority("change"),
+          noPriorityMatches: tPriority("noResults"),
+          updateError: tPriority("updateError"),
         }}
         statusFieldLabels={{
           status: t("status"),

@@ -37,6 +37,7 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     id: "task-1",
     name: "Ship filter",
     status: TaskStatus.READY,
+    priority: "NONE",
     visibility,
     description: null,
     descriptionPlain: null,
@@ -74,6 +75,29 @@ describe("TaskListItem privacy cue", () => {
     render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
 
     expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskListItem priority", () => {
+  it("shows the priority icon before the name", () => {
+    render(
+      <TaskListItem
+        task={{ ...buildTask(TaskVisibility.PUBLIC), priority: "URGENT" }}
+      />,
+    );
+
+    const icon = screen.getByRole("img", { name: "URGENT" });
+    const name = screen.getByText("Ship filter");
+    expect(
+      icon.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides the priority icon when there is none", () => {
+    render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(screen.queryByRole("img", { name: "NONE" })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-priority]")).toBeNull();
   });
 });
 

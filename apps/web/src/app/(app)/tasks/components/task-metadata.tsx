@@ -15,11 +15,16 @@ import {
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
+import { cn } from "@/lib/utils";
+import {
+  TaskMetadataPriorityField,
+  type TaskPriorityLabels,
+} from "./task-metadata-priority-field";
 import {
   TaskMetadataStatusField,
   type TaskMetadataStatusFieldLabels,
 } from "./task-metadata-status-field";
+import { TaskPriorityIcon } from "./task-priority-icon";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
@@ -40,6 +45,7 @@ interface TaskMetadataLabels {
 
 interface TaskMetadataTask {
   status: Task["status"];
+  priority: Task["priority"];
   visibility?: Task["visibility"];
   selectableStatuses: Task["selectableStatuses"];
   owner: Task["owner"];
@@ -95,6 +101,7 @@ interface TaskMetadataProps {
   schedule?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
+  priorityLabels: TaskPriorityLabels;
   editable: boolean;
 }
 
@@ -110,6 +117,7 @@ export function TaskMetadata({
   schedule,
   labels,
   statusFieldLabels,
+  priorityLabels,
   editable,
 }: TaskMetadataProps) {
   const owner: PersonDisplay = {
@@ -150,6 +158,30 @@ export function TaskMetadata({
             }
           >
             <span className="truncate">{statusLabel}</span>
+          </PropertyRow>
+        )}
+
+        {editable ? (
+          <TaskMetadataPriorityField
+            key={`${taskId}-${task.priority}`}
+            taskId={taskId}
+            priority={task.priority}
+            labels={priorityLabels}
+          />
+        ) : (
+          <PropertyRow
+            label={priorityLabels.priority}
+            value={priorityLabels.levels[task.priority]}
+            icon={<TaskPriorityIcon priority={task.priority} />}
+          >
+            <span
+              className={cn(
+                "truncate",
+                task.priority === "NONE" && "text-muted-foreground",
+              )}
+            >
+              {priorityLabels.levels[task.priority]}
+            </span>
           </PropertyRow>
         )}
 

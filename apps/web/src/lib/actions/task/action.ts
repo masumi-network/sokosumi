@@ -22,6 +22,7 @@ import {
   type TaskEvent,
   type TaskLink,
   TaskLinkRelation,
+  type TaskPriority,
   TaskStatus,
   type UserWritableTaskLinkRelation,
 } from "@/lib/clients/generated/core";
@@ -118,6 +119,11 @@ interface SetTaskStatusFromDragParameters extends AuthenticatedRequest {
   desiredStatus: TaskStatus;
   /** Required by Core when reopening CANCELED/COMPLETED → READY (SOK-631). */
   comment?: string;
+}
+
+interface SetTaskPriorityParameters extends AuthenticatedRequest {
+  taskId: string;
+  priority: TaskPriority;
 }
 
 interface DeleteTaskParameters extends AuthenticatedRequest {
@@ -683,6 +689,29 @@ export const setTaskStatusFromDrag = withSession<
       error,
       "Failed to update task status",
       "Failed to update task status",
+    );
+  }
+});
+
+export const setTaskPriority = withSession<
+  SetTaskPriorityParameters,
+  TaskMutationActionResult<{ taskId: string }>
+>(async ({ taskId, priority }) => {
+  try {
+    await taskService.patchTask(taskId, { priority });
+
+    revalidatePath("/tasks");
+    revalidatePath(`/tasks/${taskId}`);
+    return taskMutationSuccess({ taskId });
+  } catch (error) {
+    const mutationErrorKind = toTaskMutationErrorKind(error);
+    if (mutationErrorKind) {
+      return taskMutationFailure(mutationErrorKind);
+    }
+    rethrowTaskActionError(
+      error,
+      "Failed to update task priority",
+      "Failed to update task priority",
     );
   }
 });

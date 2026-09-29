@@ -90,6 +90,7 @@ it("opens card tag overflow without following the task link", async () => {
     id: "task-1",
     name: "Review findings",
     status: TaskStatus.READY,
+    priority: "NONE",
     visibility: TaskVisibility.PUBLIC,
     description: null,
     descriptionPlain: null,

@@ -178,6 +178,7 @@ export function mapTaskToTaskWithCoworker(
     id: task.id,
     name: stripInlineMarkdown(task.name),
     status: task.status,
+    priority: task.priority,
     visibility: task.visibility,
     ownerId: task.ownerId,
     owner: task.owner,
