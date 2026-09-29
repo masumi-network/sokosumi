@@ -151,12 +151,12 @@ export async function runRuntimeCommand({
 }): Promise<void> {
   const [, command, taskId, ...rest] = positionals;
   if (
-    !["start", "complete", "run", "key-import"].includes(command) ||
+    !["start", "complete", "run", "key-import", "receipt"].includes(command) ||
     (command === "key-import" ? taskId !== undefined : !taskId) ||
     rest.length
   ) {
     throw new Error(
-      "Use runtime start, complete, or run with TASK_ID; key-import takes no Task ID",
+      "Use runtime start, complete, run, or receipt with TASK_ID; key-import takes no Task ID",
     );
   }
   const commandOptions =
@@ -181,8 +181,9 @@ export async function runRuntimeCommand({
     );
   }
   const coworkerId = requiredOption(options, "coworker-id");
-  const organizationId =
-    command === "key-import" ? "" : requiredOption(options, "organization-id");
+  const organizationId = ["key-import", "receipt"].includes(command)
+    ? ""
+    : requiredOption(options, "organization-id");
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
@@ -251,6 +252,26 @@ export async function runRuntimeCommand({
       return text;
     };
     if (resultText !== undefined) rejectCredentialInResult(resultText);
+    if (command === "receipt") {
+      const response = record(
+        await client.get(
+          `/v1/tasks/${encodeURIComponent(taskId)}/receipt`,
+          signal,
+        ),
+      );
+      const receipt = record(response.data);
+      const safe = redactSensitive(receipt, [apiKey]);
+      if (options.json) {
+        writeJson(stdout, safe);
+      } else {
+        const message =
+          receipt.settled === true
+            ? `Seller receipt confirmed. onChainState=Withdrawn. txHash=${String(receipt.txHash ?? "unknown")}\n`
+            : `Seller receipt not settled. onChainState=${String(receipt.onChainState ?? "unknown")}.\n`;
+        stdout.write(redactErrorMessage(message, [apiKey]));
+      }
+      return;
+    }
     if (command === "key-import") {
       const response = record(await client.get("/v1/coworkers/me", signal));
       const coworker = record(response.data);

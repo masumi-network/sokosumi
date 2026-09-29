@@ -468,13 +468,13 @@ test("unavailable runtime commands reject before credentials or network access",
     };
     await assert.rejects(
       runCli(["runtime", command, "task-1", ...baseArgs], f.dependencies),
-      /Use runtime start, complete, or run/,
+      /Use runtime start, complete, run, or receipt/,
     );
     assert.equal(f.calls.length, 0);
     assert.equal(f.output.length, 1);
     assert.match(
       JSON.parse(f.output[0]).error,
-      /Use runtime start, complete, or run/,
+      /Use runtime start, complete, run, or receipt/,
     );
   }
 });
@@ -625,4 +625,87 @@ test("Hermes preflight failure occurs before key input or any Task state write",
     /Hermes executable is unavailable/,
   );
   assert.equal(f.calls.length, 0);
+});
+
+function receiptDependencies(receipt: unknown): {
+  dependencies: CliDependencies;
+  paths: string[];
+} {
+  const output: string[] = [];
+  const paths: string[] = [];
+  const dependencies: CliDependencies = {
+    stdout: { write: (value) => output.push(value) },
+    readStdin: () => key,
+    runtime: {
+      fetchImpl: async (input, init) => {
+        const url = new URL(String(input));
+        assert.equal(
+          new Headers(init?.headers).get("Authorization"),
+          `Bearer ${key}`,
+        );
+        paths.push(url.pathname);
+        return Response.json({ data: receipt });
+      },
+    },
+  };
+  return { dependencies, paths, output } as unknown as {
+    dependencies: CliDependencies;
+    paths: string[];
+    output: string[];
+  };
+}
+
+test("runtime receipt reports a proven seller settlement", async () => {
+  const { dependencies, paths, output } = receiptDependencies({
+    blockchainIdentifier: "bc_1",
+    claimStatus: "PURCHASED",
+    onChainState: "Withdrawn",
+    settled: true,
+    txHash: "tx_withdrawn",
+    withdrawnForSeller: [{ unit: "lovelace", amount: "500000" }],
+  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  await runCli(
+    [
+      "runtime",
+      "receipt",
+      "task-1",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
+      "--json",
+    ],
+    dependencies,
+  );
+  assert.ok(paths.includes("/v1/tasks/task-1/receipt"));
+  const result = JSON.parse(output.join("")) as {
+    settled: boolean;
+    txHash: string;
+  };
+  assert.equal(result.settled, true);
+  assert.equal(result.txHash, "tx_withdrawn");
+});
+
+test("runtime receipt reports an unsettled payment as not proven", async () => {
+  const { dependencies, output } = receiptDependencies({
+    blockchainIdentifier: "bc_1",
+    claimStatus: "PURCHASED",
+    onChainState: "FundsLocked",
+    settled: false,
+    txHash: null,
+    withdrawnForSeller: [],
+  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  await runCli(
+    [
+      "runtime",
+      "receipt",
+      "task-1",
+      "--coworker-id",
+      "cw-1",
+      "--api-key-stdin",
+      "--json",
+    ],
+    dependencies,
+  );
+  const result = JSON.parse(output.join("")) as { settled: boolean };
+  assert.equal(result.settled, false);
 });

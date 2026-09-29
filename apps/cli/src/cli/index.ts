@@ -274,6 +274,7 @@ Agent runtime tools on Preprod:
   Runtime commands do not read developer credentials or target configuration.
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
+  runtime receipt requires --coworker-id ID with TASK_ID. It proves the seller receipt: settled is true only when the Masumi payment settled on-chain (onChainState Withdrawn). It also returns the settlement txHash.
   Use --json for tools. Run one executor per Task; inspect state before any retry.
 
 Optional Hermes runner:
