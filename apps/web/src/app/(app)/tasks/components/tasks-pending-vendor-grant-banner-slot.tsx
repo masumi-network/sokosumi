@@ -1,5 +1,5 @@
+import type { VendorGrant } from "@sokosumi/core-client";
 import { getSession } from "@/lib/auth/auth.server";
-import type { VendorGrant } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import {

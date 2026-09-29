@@ -1,6 +1,6 @@
+import type { EnterpriseContract } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { ActivateContractDialog } from "@/components/admin/enterprise-contracts/activate-contract-dialog";
 import { CancelContractDialog } from "@/components/admin/enterprise-contracts/cancel-contract-dialog";
 import { ContractPeriodsTable } from "@/components/admin/enterprise-contracts/contract-periods-table";
@@ -9,7 +9,6 @@ import { PreviewSchedulePanel } from "@/components/admin/enterprise-contracts/pr
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { EnterpriseContract } from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 function formatDateTime(

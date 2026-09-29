@@ -1,4 +1,4 @@
-import { TaskScheduleState } from "@/lib/clients/generated/core";
+import { TaskScheduleState } from "@sokosumi/core-client";
 
 export const TASK_SCHEDULE_STATE_PARAM = "scheduleState";
 

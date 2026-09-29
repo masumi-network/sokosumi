@@ -1,8 +1,7 @@
+import type { Task, TaskEvent } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-
-import type { Task, TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 import {
   buildTaskActivityActors,

@@ -1,5 +1,6 @@
 "use client";
 
+import type { NotificationItem } from "@sokosumi/core-client";
 import { CoworkerAccessNotificationActions } from "@/components/notifications/coworker-access-notification-actions";
 import { NotificationReadToggle } from "@/components/notifications/notification-read-toggle";
 import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
@@ -8,7 +9,6 @@ import {
   NotificationUnreadRail,
 } from "@/components/notifications/notification-unread-signal";
 import { VendorGrantNotificationActions } from "@/components/notifications/vendor-grant-notification-actions";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,

@@ -1,12 +1,12 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateProjectImageJobRequest,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
 /**
  * Web's view of the image studio.

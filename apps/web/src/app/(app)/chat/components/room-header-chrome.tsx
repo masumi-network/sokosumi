@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  ChatRoom,
+  ChatRoomMessage,
+  Coworker,
+  Member,
+} from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
@@ -9,12 +15,6 @@ import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverab
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Coworker,
-  Member,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";

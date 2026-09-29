@@ -1,5 +1,9 @@
 "use server";
 
+import type {
+  PersonalWorkspaceCreated,
+  PersonalWorkspaceDeleted,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -11,10 +15,6 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type {
-  PersonalWorkspaceCreated,
-  PersonalWorkspaceDeleted,
-} from "@/lib/clients/generated/core";
 import {
   clearPendingOrganizationJoinToken,
   getPendingOrganizationJoinToken,

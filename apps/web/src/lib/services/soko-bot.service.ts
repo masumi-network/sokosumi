@@ -1,6 +1,5 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
@@ -26,7 +25,8 @@ import type {
   SokoBotVersion,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 import {
   type SokoBotChatState,
   toSokoBotChatState,

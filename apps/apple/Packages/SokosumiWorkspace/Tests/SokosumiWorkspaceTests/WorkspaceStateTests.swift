@@ -2886,7 +2886,7 @@ extension WorkspaceStateTests {
     let source = try #require(state.timeline.messages.first)
     let shell = try #require(state.timeline.messages.last)
     #expect(!state.canRetryMention(source))
-    #expect(!state.canRetryMention(CoworkerMentionShell.retrying(shell, startedAt: source.createdAt)))
+    #expect(!state.canRetryMention(MentionThoughtShell.retrying(shell, startedAt: source.createdAt)))
 
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
@@ -2928,7 +2928,7 @@ extension WorkspaceStateTests {
       state.thread.timeline.messages = [shell]
     }
     #expect(state.canRetryMention(shell))
-    #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
+    #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
 
     transport.pauseMentionRetry = true
     let now = Date(timeIntervalSince1970: 1_700_000_123.456)
@@ -2937,7 +2937,7 @@ extension WorkspaceStateTests {
       await Task.yield()
     }
     let inFlight = reply ? state.thread.timeline.messages.first : state.timeline.messages.last
-    #expect(try CoworkerMentionShell(message: #require(inFlight)) == .thinking(startedAt: now))
+    #expect(try MentionThoughtShell(message: #require(inFlight)) == .thinking(startedAt: now))
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
@@ -2951,9 +2951,9 @@ extension WorkspaceStateTests {
     #expect(state.timeline.messages.first?.mentions.first?.status == .pending)
     if reply {
       #expect(state.thread.parent?.mentions.first?.status == .pending)
-      #expect(try CoworkerMentionShell(message: #require(state.thread.timeline.messages.first))?.isThinking == true)
+      #expect(try MentionThoughtShell(message: #require(state.thread.timeline.messages.first))?.isThinking == true)
     } else {
-      #expect(try CoworkerMentionShell(message: #require(state.timeline.messages.last))?.isThinking == true)
+      #expect(try MentionThoughtShell(message: #require(state.timeline.messages.last))?.isThinking == true)
     }
     #expect(transport.remainingStubs == 0)
   }
@@ -2966,12 +2966,12 @@ extension WorkspaceStateTests {
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
-    #expect(try CoworkerMentionShell(message: #require(state.timeline.messages.last))?.isThinking == true)
+    #expect(try MentionThoughtShell(message: #require(state.timeline.messages.last))?.isThinking == true)
     transport.releasePausedRequest()
     let error = await #expect(throws: ChatServiceError.self) { try await retry.value }
     #expect(error == .unprocessable(statusCode: 409, message: "Mention is not failed"))
     #expect(try friendlyMessage(for: #require(error)) == "Core rejected the request (409): Mention is not failed")
-    #expect(try CoworkerMentionShell(message: #require(state.timeline.messages.last)) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
+    #expect(try MentionThoughtShell(message: #require(state.timeline.messages.last)) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
     #expect(state.pendingMentionRetries.isEmpty)
     #expect(state.canRetryMention(shell))
   }
@@ -2996,7 +2996,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await mentionRetryFixture(sourceSenderId: "user_2", retryResponses: [])
     let shell = try #require(state.timeline.messages.last)
     #expect(!state.canRetryMention(shell))
-    #expect(CoworkerMentionShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
+    #expect(MentionThoughtShell(message: shell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
     // The coordinator still refuses a source it cannot see, without a request.
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])

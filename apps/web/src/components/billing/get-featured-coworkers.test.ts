@@ -1,5 +1,5 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { describe, expect, it, vi } from "vitest";
-import type { Coworker } from "@/lib/clients/generated/core";
 
 const listCoworkersMock = vi.fn();
 

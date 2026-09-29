@@ -1,10 +1,9 @@
+import type { TaskFileStatus as TaskFileStatusType } from "@sokosumi/core-client";
+import { BlobStatus } from "@sokosumi/core-client";
 import { FileIcon } from "lucide-react";
-
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Favicon } from "@/components/ui/favicon";
-import { BlobStatus } from "@/lib/clients/generated/core";
-import type { TaskFileStatus as TaskFileStatusType } from "@/lib/clients/generated/core/types.gen";
 import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";

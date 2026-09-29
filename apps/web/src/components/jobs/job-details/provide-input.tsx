@@ -1,5 +1,6 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
 import {
   type InputSchemaSchemaType,
   normalizeAndValidateInputSchema,
@@ -14,7 +15,6 @@ import {
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
-
 import { JobInputsFlatForm } from "@/components/job-input/job-inputs-flat-form";
 import type { FormFooterProps } from "@/components/job-input/job-inputs-form-builder";
 import { JobInputsGroupedForm } from "@/components/job-input/job-inputs-grouped-form";
@@ -22,7 +22,6 @@ import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
-import type { Job } from "@/lib/clients/generated/core";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 import { getJobQueryKey } from "@/queries/jobs";

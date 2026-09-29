@@ -1,14 +1,14 @@
 import "server-only";
 
-import { cacheLife, cacheTag } from "next/cache";
-import { cache } from "react";
-import { coreCatalogClient } from "@/lib/clients/core.catalog.client";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AgentListItem,
   AgentDetail as CoreAgentDetail,
   Category as CoreCategory,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { cacheLife, cacheTag } from "next/cache";
+import { cache } from "react";
+import { coreCatalogClient } from "@/lib/clients/core.catalog.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 const AGENTS_PAGE_SIZE = 100;
 

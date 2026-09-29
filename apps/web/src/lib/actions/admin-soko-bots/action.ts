@@ -1,9 +1,16 @@
 "use server";
 
+import type {
+  AdminSokoBotDetail,
+  AdminSokoBotList,
+  AdminSokoBotVersionMigrationResult,
+  SokoBotAvailability,
+  SokoBotDeletionResult,
+  SokoBotVersionDetail,
+} from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
-
 import {
   type ActionResultDto,
   toActionResult,
@@ -13,14 +20,6 @@ import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import type {
-  AdminSokoBotDetail,
-  AdminSokoBotList,
-  AdminSokoBotVersionMigrationResult,
-  SokoBotAvailability,
-  SokoBotDeletionResult,
-  SokoBotVersionDetail,
-} from "@/lib/clients/generated/core";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 import {
   ADMIN_SOKO_BOT_ACTIONS,

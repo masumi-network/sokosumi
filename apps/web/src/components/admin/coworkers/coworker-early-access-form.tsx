@@ -1,11 +1,11 @@
 "use client";
 
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -29,7 +29,6 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 

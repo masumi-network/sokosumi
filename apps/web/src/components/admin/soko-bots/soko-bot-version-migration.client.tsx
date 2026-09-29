@@ -1,10 +1,10 @@
 "use client";
 
+import type { AdminSokoBotVersionMigrationResult } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { migrateAdminSokoBotVersionsAction } from "@/lib/actions/admin-soko-bots/action";
-import type { AdminSokoBotVersionMigrationResult } from "@/lib/clients/generated/core";
 
 interface SokoBotVersionMigrationProps {
   versions: { id: string; name: string }[];

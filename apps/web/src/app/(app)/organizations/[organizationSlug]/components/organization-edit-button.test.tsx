@@ -1,3 +1,4 @@
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -10,7 +11,6 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { uploadOrganizationLogoDirect } from "@/lib/utils/organization-logo-upload.client";
 import OrganizationEditButton from "./organization-edit-button";
 import { OrganizationMetadataProvider } from "./organization-metadata-context";

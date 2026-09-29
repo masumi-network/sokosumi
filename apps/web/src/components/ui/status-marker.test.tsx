@@ -15,7 +15,7 @@ import {
   type StatusTone,
   type StatusWeight,
 } from "@/components/ui/status-marker";
-import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
+import { SokosumiJobStatus, TaskStatus } from "@sokosumi/core-client";
 
 const HUES: StatusHue[] = [
   "dormant",

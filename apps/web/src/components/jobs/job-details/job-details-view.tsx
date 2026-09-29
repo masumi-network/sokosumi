@@ -1,5 +1,6 @@
 "use client";
 
+import type { Job, MemberWithOrganization } from "@sokosumi/core-client";
 import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -20,7 +21,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";

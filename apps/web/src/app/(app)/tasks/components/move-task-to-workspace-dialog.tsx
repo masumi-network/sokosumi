@@ -1,5 +1,6 @@
 "use client";
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { Loader2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -19,7 +20,6 @@ import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { moveTaskToWorkspace } from "@/lib/actions/task/action";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { buildWorkspaceMoveTargets } from "./workspace-move-targets";

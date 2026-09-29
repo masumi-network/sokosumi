@@ -1,7 +1,4 @@
-import {
-  type TaskLinkRelation,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
+import { type TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 
 import { TaskRelationRow } from "./task-relation-row";
 

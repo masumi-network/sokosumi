@@ -1,40 +1,44 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
-  GetHistoryData,
-  HistoryItem,
-} from "@/lib/clients/generated/core/types.gen";
+  GetTransactionsData,
+  TransactionHistoryItem,
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
-type HistoryQuery = NonNullable<GetHistoryData["query"]>;
+type TransactionQuery = NonNullable<GetTransactionsData["query"]>;
 
 export interface ListHistoryParams {
   cursor?: string | null;
   limit?: number;
-  projectId?: HistoryQuery["projectId"];
-  q?: HistoryQuery["q"];
-  scope?: HistoryQuery["scope"];
-  status?: HistoryQuery["status"];
-  types?: HistoryQuery["types"];
+  projectId?: TransactionQuery["projectId"];
+  q?: TransactionQuery["q"];
+  scope?: TransactionQuery["scope"];
+  types?: TransactionQuery["types"];
 }
 
-export type { HistoryItem };
+export type { TransactionHistoryItem };
 
 function toHistoryDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);
 }
 
-function mapHistoryItem(item: HistoryItem): HistoryItem {
+function mapHistoryItem(item: TransactionHistoryItem): TransactionHistoryItem {
   return {
     ...item,
-    updatedAt: toHistoryDate(item.updatedAt),
-    archivedAt: item.archivedAt ? toHistoryDate(item.archivedAt) : null,
+    consumedAt: toHistoryDate(item.consumedAt),
   };
 }
 
+/**
+ * The credit ledger behind Transactions.
+ *
+ * `GET /v1/transactions`, not `GET /v1/history`: the feed endpoint still backs
+ * the Cmd+K palette, which has to find a task or a job that never charged.
+ */
 export const historyService = (() => {
   async function listHistory(params: ListHistoryParams = {}): Promise<{
-    history: HistoryItem[];
+    history: TransactionHistoryItem[];
     pagination: {
       cursor: string | null;
       limit: number;
@@ -42,13 +46,12 @@ export const historyService = (() => {
       nextCursor: string | null;
     } | null;
   }> {
-    const result = await coreClient.getHistory({
+    const result = await coreClient.getTransactions({
       cursor: params.cursor ?? undefined,
       limit: params.limit,
       projectId: params.projectId,
       q: params.q,
       scope: params.scope,
-      status: params.status,
       types: params.types,
     });
 
@@ -58,7 +61,22 @@ export const historyService = (() => {
     };
   }
 
+  /** Credits spent per UTC day over the last 30 days, under the list's filters. */
+  async function listDailySpend(
+    params: Omit<ListHistoryParams, "cursor" | "limit"> = {},
+  ): Promise<Array<{ date: string; credits: number }>> {
+    const result = await coreClient.getTransactionsDaily({
+      projectId: params.projectId,
+      q: params.q,
+      scope: params.scope,
+      types: params.types,
+    });
+
+    return result.data;
+  }
+
   return {
     listHistory,
+    listDailySpend,
   };
 })();
