@@ -131,7 +131,7 @@ private struct DriveItemRow: View {
     switch item {
     case let .folder(folder): onFolder(folder.path)
     case let .file(file):
-      onFile(ComposeAttachment(url: file.value1.fileUrl, fileName: file.value1.name, mediaType: ""))
+      onFile(ComposeAttachment(url: file.value1.fileUrl, fileName: file.value1.name, mediaType: "", size: file.value1.size))
     }
   }
 }
