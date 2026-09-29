@@ -102,6 +102,8 @@ export async function fetchFileSearchPage(input: {
   sortBy: "relevance" | "modified" | "name";
   sortOrder: "asc" | "desc";
   cursor?: string | null;
+  /** Only files filed directly in `filters.folder` (or the root): browsing. */
+  directOnly?: boolean;
   signal?: AbortSignal;
 }): Promise<FileSearchPage> {
   const response = await getDriveSearch({
@@ -117,6 +119,7 @@ export async function fetchFileSearchPage(input: {
       typeFamilies: csv(input.filters.typeFamilies),
       extractionStates: csv(input.filters.extractionStates),
       folder: input.filters.folder || undefined,
+      directOnly: input.directOnly ? "true" : undefined,
       sortBy: input.sortBy,
       sortOrder: input.sortOrder,
       cursor: input.cursor ?? undefined,

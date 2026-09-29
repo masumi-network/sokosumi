@@ -9,13 +9,23 @@ import {
   X,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { DriveBulkCategoryPicker } from "@/app/drive/components/drive-bulk-category-picker";
 import { DriveFileFilters } from "@/app/drive/components/drive-file-filters";
 import { DriveFileRow } from "@/app/drive/components/drive-file-row";
-import { DriveFileSheet } from "@/app/drive/components/drive-file-sheet";
+import { DriveFileViewer } from "@/app/drive/components/drive-file-viewer";
+import {
+  childFolders,
+  DriveFolderNav,
+} from "@/app/drive/components/drive-folder-nav";
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -70,6 +80,40 @@ import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 
 const SEARCH_DEBOUNCE_MS = 250;
 
+/**
+ * One surface, two states: no query and no filter is browsing, anything else is
+ * searching.
+ *
+ * Browsing shows the current folder — its folders and the files filed directly
+ * in it. Searching shows results from the whole workspace and leaves the folder
+ * out, so a query typed inside a folder is not silently limited to it. Clearing
+ * the query returns to the folder the reader was in.
+ */
+function isBrowsing(query: string, filters: FileSearchFilterState): boolean {
+  return (
+    query.trim().length === 0 &&
+    countActiveFileFilters({ ...filters, folder: "" }) === 0
+  );
+}
+
+/** What the request should carry for the state the reader is in. */
+function requestFor(query: string, filters: FileSearchFilterState) {
+  const browsing = isBrowsing(query, filters);
+  return {
+    browsing,
+    filters: browsing ? filters : { ...filters, folder: "" },
+    sortBy: browsing
+      ? ("name" as const)
+      : query.trim()
+        ? ("relevance" as const)
+        : ("modified" as const),
+    sortOrder: browsing ? ("asc" as const) : ("desc" as const),
+  };
+}
+
+/** Types offered as one-tap chips; the popover still carries them all. */
+const TYPE_CHIPS = ["document", "image", "data", "video", "audio"] as const;
+
 export interface DriveAllFilesPanelProps {
   store: FileStore;
   viewMode: FilesViewMode;
@@ -92,6 +136,11 @@ export interface DriveAllFilesPanelProps {
    * to know which folder that is, and this is the whole of what it needs.
    */
   onFolderChange?: (folder: string) => void;
+  /**
+   * Controls for the folder the reader is standing in, shown beside the trail.
+   * The page owns rename, move and delete, so it passes them in.
+   */
+  folderActions?: ReactNode;
   /**
    * Bumped when the page changed the files behind this list — an upload, a
    * folder rename, a delete.
@@ -126,6 +175,7 @@ export function DriveAllFilesPanel({
   initialQuery = "",
   initialFolder = "",
   onFolderChange,
+  folderActions,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -160,14 +210,15 @@ export function DriveAllFilesPanel({
   );
   const [filterSheetOpen, setFilterSheetOpen] = useState(false);
   /**
-   * The file the reader opened beside the list, if any.
+   * The file the reader opened in the viewer, if any.
    *
-   * The name is carried alongside the id so the sheet's accessible name is
-   * right on the first frame, before the document has loaded.
+   * The name and type ride along with the id, so the viewer can choose how to
+   * show it on the first frame.
    */
   const [openFile, setOpenFile] = useState<{
     id: string;
     displayName: string;
+    mimeType: string | null;
   } | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [selectionToken, setSelectionToken] = useState<string | null>(null);
@@ -237,12 +288,14 @@ export function DriveAllFilesPanel({
       setState((current) => ({ ...current, loading: true, error: null }));
 
       try {
+        const request = requestFor(input.query, input.filters);
         const page = await fetchFileSearchPage({
           store,
           query: input.query,
-          filters: input.filters,
-          sortBy: input.query.trim().length > 0 ? "relevance" : "modified",
-          sortOrder: "desc",
+          filters: request.filters,
+          directOnly: request.browsing,
+          sortBy: request.sortBy,
+          sortOrder: request.sortOrder,
           signal: controller.signal,
         });
         // A response from a superseded request is dropped, not rendered.
@@ -379,12 +432,14 @@ export function DriveAllFilesPanel({
 
     setState((current) => ({ ...current, loadingMore: true }));
     try {
+      const request = requestFor(appliedQuery, filters);
       const page = await fetchFileSearchPage({
         store,
         query: appliedQuery,
-        filters,
-        sortBy: appliedQuery.trim().length > 0 ? "relevance" : "modified",
-        sortOrder: "desc",
+        filters: request.filters,
+        directOnly: request.browsing,
+        sortBy: request.sortBy,
+        sortOrder: request.sortOrder,
         cursor,
       });
       setState((current) => {
@@ -656,7 +711,8 @@ export function DriveAllFilesPanel({
     }
   }
 
-  const activeFilterCount = countActiveFileFilters(filters);
+  // The folder is the trail's job, not a filter chip's, so it does not count.
+  const activeFilterCount = countActiveFileFilters({ ...filters, folder: "" });
   const labelName = (id: string) =>
     labels.find((label) => label.id === id)?.displayName ?? id;
 
@@ -669,15 +725,6 @@ export function DriveAllFilesPanel({
    * row sat below the fold on a list of ten files.
    */
   const appliedFacets: { key: string; label: string; remove: () => void }[] = [
-    ...(filters.folder
-      ? [
-          {
-            key: `folder:${filters.folder}`,
-            label: filters.folder,
-            remove: () => applyFilters({ ...filters, folder: "" }),
-          },
-        ]
-      : []),
     ...filters.categoryLabelIds.map((id) => ({
       key: `category:${id}`,
       label: labelName(id),
@@ -707,17 +754,6 @@ export function DriveAllFilesPanel({
           sourceKinds: current.sourceKinds.filter((entry) => entry !== kind),
         })),
     })),
-    ...filters.typeFamilies.map((family) => ({
-      key: `type:${family}`,
-      label: t(`type.${family}` as "type.document"),
-      remove: () =>
-        setFilters((current) => ({
-          ...current,
-          typeFamilies: current.typeFamilies.filter(
-            (entry) => entry !== family,
-          ),
-        })),
-    })),
     ...filters.extractionStates.map((state) => ({
       key: `status:${state}`,
       label: t(`status.${state}` as "status.INDEXED"),
@@ -731,19 +767,28 @@ export function DriveAllFilesPanel({
     })),
   ];
 
+  const browsing = isBrowsing(appliedQuery, filters);
   const selectionCount = selectionToken
     ? (state.meta?.windowCount ?? selectedIds.length)
     : selectedIds.length;
 
   return (
     <div className="flex flex-col gap-4" data-testid="drive-all-files">
-      <DriveFileSheet
-        resourceId={openFile?.id ?? null}
-        displayName={openFile?.displayName}
+      <DriveFileViewer
+        file={openFile}
+        store={store}
         onClose={() => setOpenFile(null)}
       />
 
-      <div className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center">
+      <form
+        role="search"
+        className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center"
+        onSubmit={(event) => {
+          event.preventDefault();
+          debouncedSearch.cancel();
+          setAppliedQuery(query);
+        }}
+      >
         <div className="relative flex-1">
           <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
           <Input
@@ -756,23 +801,60 @@ export function DriveAllFilesPanel({
               setQuery(event.target.value);
               debouncedSearch(event.target.value);
             }}
-            className="w-full pl-8"
+            // The browser's own clear control is inconsistent and hidden in
+            // some engines; ours is always the same and always there.
+            className="w-full pl-8 pr-9 [&::-webkit-search-cancel-button]:hidden"
             data-testid="drive-all-files-search"
           />
+          {query ? (
+            <button
+              type="button"
+              aria-label={t("searchClear")}
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
+              onClick={() => {
+                debouncedSearch.cancel();
+                setQuery("");
+                setAppliedQuery("");
+              }}
+              data-testid="drive-all-files-search-clear"
+            >
+              <X className="size-4" aria-hidden />
+            </button>
+          ) : null}
         </div>
 
-        {isMobile ? (
-          <Button
-            variant="outline"
-            className="gap-2 self-start"
-            onClick={() => setFilterSheetOpen(true)}
-          >
-            <SlidersHorizontal className="size-4" />
-            {activeFilterCount > 0
-              ? t("filterButtonWithCount", { count: activeFilterCount })
-              : t("filterButton")}
+        <div className="flex items-center gap-2">
+          <Button type="submit" className="gap-2">
+            <Search className="size-4" aria-hidden />
+            {t("searchButton")}
           </Button>
-        ) : null}
+
+          {isMobile ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => setFilterSheetOpen(true)}
+            >
+              <SlidersHorizontal className="size-4" />
+              {activeFilterCount > 0
+                ? t("filterButtonWithCount", { count: activeFilterCount })
+                : t("filterButton")}
+            </Button>
+          ) : null}
+
+          <DriveFileFilters
+            filters={filters}
+            labels={labels}
+            onApply={applyFilters}
+            onSaveCollection={(applied) => void saveCollection(applied)}
+            hasQuery={appliedQuery.trim().length > 0}
+            saveDisabled={collectionBusy}
+            sheetOpen={filterSheetOpen}
+            onSheetOpenChange={setFilterSheetOpen}
+            hideDesktopTrigger={isMobile}
+          />
+        </div>
 
         {labelsState === "failed" ? (
           // Named for what actually failed, with a retry that retries it.
@@ -787,20 +869,62 @@ export function DriveAllFilesPanel({
             </button>
           </span>
         ) : null}
+      </form>
 
-        <DriveFileFilters
-          filters={filters}
-          labels={labels}
-          folders={folders}
-          onApply={applyFilters}
-          onSaveCollection={(applied) => void saveCollection(applied)}
-          hasQuery={appliedQuery.trim().length > 0}
-          saveDisabled={collectionBusy}
-          sheetOpen={filterSheetOpen}
-          onSheetOpenChange={setFilterSheetOpen}
-          hideDesktopTrigger={isMobile}
-        />
+      {/**
+       * The types, one tap each.
+       *
+       * The same `typeFamilies` the filter popover sets, promoted because
+       * "just the images" or "just the spreadsheets" is the commonest thing to
+       * ask of a file list and it was three clicks deep.
+       */}
+      <div
+        className="flex flex-wrap items-center gap-2"
+        role="group"
+        aria-label={t("filterType")}
+        data-testid="drive-all-files-types"
+      >
+        <Button
+          type="button"
+          size="sm"
+          variant={filters.typeFamilies.length === 0 ? "secondary" : "outline"}
+          aria-pressed={filters.typeFamilies.length === 0}
+          onClick={() => applyFilters({ ...filters, typeFamilies: [] })}
+        >
+          {t("typeAll")}
+        </Button>
+        {TYPE_CHIPS.map((family) => {
+          const pressed = filters.typeFamilies.includes(family);
+          return (
+            <Button
+              key={family}
+              type="button"
+              size="sm"
+              variant={pressed ? "secondary" : "outline"}
+              aria-pressed={pressed}
+              onClick={() =>
+                applyFilters({
+                  ...filters,
+                  typeFamilies: pressed
+                    ? filters.typeFamilies.filter((entry) => entry !== family)
+                    : [...filters.typeFamilies, family],
+                })
+              }
+            >
+              {t(`type.${family}`)}
+            </Button>
+          );
+        })}
       </div>
+
+      {browsing ? (
+        <DriveFolderNav
+          folders={folders}
+          current={filters.folder}
+          onSelect={(folder) => applyFilters({ ...filters, folder })}
+          actions={filters.folder ? folderActions : null}
+        />
+      ) : null}
 
       {appliedFacets.length > 0 ? (
         <div
@@ -825,7 +949,9 @@ export function DriveAllFilesPanel({
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => applyFilters({ ...EMPTY_FILE_FILTERS })}
+            onClick={() =>
+              applyFilters({ ...EMPTY_FILE_FILTERS, folder: filters.folder })
+            }
           >
             {t("filterClear")}
           </Button>
@@ -1006,12 +1132,17 @@ export function DriveAllFilesPanel({
             {t("retry")}
           </Button>
         </div>
-      ) : state.items.length === 0 ? (
+      ) : state.items.length === 0 &&
+        browsing &&
+        childFolders(folders, filters.folder).length > 0 ? null : state.items
+          .length === 0 ? (
         <div className="bg-card-background motion-safe:animate-in motion-safe:fade-in-0 duration-200 rounded-lg border p-10 text-center">
           <p className="text-sm font-medium">
             {appliedQuery || activeFilterCount > 0
               ? t("noMatchesTitle")
-              : t("emptyTitle")}
+              : filters.folder
+                ? t("folderEmptyTitle")
+                : t("emptyTitle")}
           </p>
           <p className="text-muted-foreground mt-1 text-sm">
             {appliedQuery || activeFilterCount > 0
@@ -1054,7 +1185,11 @@ export function DriveAllFilesPanel({
                 selected={selectedIds.includes(item.id)}
                 onToggle={(shiftKey) => toggleRow(index, item.id, shiftKey)}
                 onOpen={() =>
-                  setOpenFile({ id: item.id, displayName: item.displayName })
+                  setOpenFile({
+                    id: item.id,
+                    displayName: item.displayName,
+                    mimeType: item.mimeType,
+                  })
                 }
                 onDismissLabel={(label) => void dismissLabel(item, label.id)}
               />

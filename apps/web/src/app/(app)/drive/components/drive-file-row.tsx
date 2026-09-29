@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
@@ -78,10 +78,11 @@ export function DriveFileRow({
   onDismissLabel,
 }: DriveFileRowProps) {
   const t = useTranslations("App.Drive.Files");
-  const format = useFormatter();
 
   const tags = item.tags.slice(0, VISIBLE_TAGS);
   const hiddenTagCount = item.tags.length - tags.length;
+  const matchedSnippet =
+    item.snippet && item.snippet.highlights.length > 0 ? item.snippet : null;
   const confirmedProjects = item.projects.filter(
     (link) => link.state === "CONFIRMED",
   );
@@ -201,42 +202,23 @@ export function DriveFileRow({
           <span className="text-muted-foreground text-xs">
             {t("filenameMatch")}
           </span>
-        ) : item.snippet ? (
-          <DriveFileSnippet snippet={item.snippet} />
+        ) : matchedSnippet ? (
+          <DriveFileSnippet snippet={matchedSnippet} />
         ) : null}
 
         {/**
-         * Where the file is filed, which project it belongs to, and when it
-         * last changed.
+         * Which project it belongs to and where it came from.
          *
          * Kept apart from the labels above: a label is what the document is
          * about, and these are facts about the file itself.
          */}
         <div
-          className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs"
+          className="text-muted-foreground mt-1 flex flex-wrap empty:hidden items-center gap-x-2 gap-y-1 text-xs"
           data-testid="drive-file-provenance"
         >
-          {/**
-           * The folder, which the catalog showed nowhere at all.
-           *
-           * Nine of ten files in production are filed in a nested folder and
-           * the list said nothing about any of them. The last segment, because
-           * paths here run three deep and a full path would crowd out
-           * everything beside it; the whole path is on hover.
-           */}
-          {item.folderPath ? (
-            <span
-              title={item.folderPath}
-              data-testid="drive-file-folder"
-              className="truncate"
-            >
-              {item.folderPath.split("/").at(-1)}
-            </span>
-          ) : null}
           {confirmedProjects.map((link) => (
             <span key={link.id}>{link.projectName}</span>
           ))}
-          <span>{format.relativeTime(new Date(item.updatedAt))}</span>
           {/**
            * Only when a person did not put it here.
            *

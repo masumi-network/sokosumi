@@ -22,18 +22,18 @@ describe("the curated Files vocabulary", () => {
   });
 
   it("fits the suggestion shortlist window with room to spare", () => {
-    // SUGGESTION_VOCABULARY_MAX is 30 across both kinds with a floor of 10
+    // SUGGESTION_VOCABULARY_MAX is 40 across both kinds with a floor of 10
     // each, so at 20 nothing is ever truncated and a workspace can still hand-
-    // make ten labels before the model stops seeing all of them.
+    // make three labels before the model stops seeing all of them.
     const categories = CURATED_FILE_VOCABULARY.filter(
       (label) => label.kind === "CATEGORY",
     );
     const tags = CURATED_FILE_VOCABULARY.filter(
       (label) => label.kind === "TAG",
     );
-    expect(categories).toHaveLength(8);
-    expect(tags).toHaveLength(12);
-    expect(CURATED_FILE_VOCABULARY.length).toBeLessThanOrEqual(30);
+    expect(categories).toHaveLength(13);
+    expect(tags).toHaveLength(24);
+    expect(CURATED_FILE_VOCABULARY.length).toBeLessThanOrEqual(40);
   });
 
   it("gives every entry a rubric, categories and tags alike", () => {

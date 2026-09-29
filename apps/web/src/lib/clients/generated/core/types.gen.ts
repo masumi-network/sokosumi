@@ -25264,6 +25264,7 @@ export type GetDriveSearchData = {
         tagMatch?: 'any' | 'all';
         projectIds?: string;
         folder?: string;
+        directOnly?: 'true' | 'false';
         sourceKinds?: string;
         typeFamilies?: string;
         extractionStates?: string;
