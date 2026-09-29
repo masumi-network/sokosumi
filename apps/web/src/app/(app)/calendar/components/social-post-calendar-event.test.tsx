@@ -23,9 +23,13 @@ const item: SocialPostCalendarItem = {
   scheduledByName: "Albina",
   scheduledByImage: null,
   attachmentCount: 2,
+  previewMedia: null,
 };
 
-function renderCard(overrides: Partial<SocialPostCalendarItem> = {}) {
+function renderCard(
+  overrides: Partial<SocialPostCalendarItem> = {},
+  variant: "compact" | "preview" = "preview",
+) {
   return render(
     <NextIntlClientProvider
       locale="en"
@@ -36,12 +40,59 @@ function renderCard(overrides: Partial<SocialPostCalendarItem> = {}) {
       <SocialPostCalendarEvent
         timeZone="UTC"
         item={{ ...item, ...overrides }}
+        variant={variant}
       />
     </NextIntlClientProvider>,
   );
 }
 
 describe("Social post calendar event", () => {
+  it.each([
+    [
+      {
+        provider: "linkedin",
+        previewMedia: { fileUrl: "v.mp4", kind: "video" },
+        attachmentCount: 1,
+      },
+      "LinkedIn post with video",
+    ],
+    [
+      {
+        provider: "instagram",
+        previewMedia: { fileUrl: "a.png", kind: "image" },
+        attachmentCount: 3,
+      },
+      "Instagram post with 3 images",
+    ],
+    [{ provider: "x", previewMedia: null, attachmentCount: 0 }, "X post"],
+  ] as const)(
+    "sums a post up in one line on the workspace calendar",
+    (overrides, label) => {
+      renderCard(overrides, "compact");
+      expect(
+        screen.getByRole("button", { name: new RegExp(label) }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    },
+  );
+  it("previews the first image attachment", () => {
+    const { container } = renderCard({
+      previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
+    });
+    expect(container.querySelector("img")).toHaveAttribute(
+      "src",
+      "https://example.com/a.png",
+    );
+  });
+  it("previews a video attachment by its first frame", () => {
+    const { container } = renderCard({
+      previewMedia: { fileUrl: "https://example.com/a.mp4", kind: "video" },
+    });
+    expect(container.querySelector("video")).toHaveAttribute(
+      "src",
+      "https://example.com/a.mp4",
+    );
+  });
   it.each([
     ["SCHEDULED", "Scheduled"],
     ["PUBLISHING", "Publishing"],
@@ -64,9 +115,11 @@ describe("Social post calendar event", () => {
     renderCard();
     expect(screen.getByRole("link")).toHaveAttribute(
       "href",
-      "/projects/project/social?postId=post#social-post-post",
+      "/social?projectId=project&postId=post#social-post-post",
     );
     expect(screen.getByRole("img", { name: "X · @team" })).toBeInTheDocument();
+    // Which account it goes out on is visible, not only in the icon's label.
+    expect(screen.getByText("@team")).toBeVisible();
     expect(screen.queryByText("Social post")).not.toBeInTheDocument();
     expect(screen.getByText("12:00 PM")).toBeInTheDocument();
     expect(screen.getByText("Launch news")).toBeInTheDocument();
@@ -94,9 +147,20 @@ describe("Social post calendar event", () => {
     expect(screen.getByText("Media post")).toBeInTheDocument();
     expect(screen.queryByText(/attachments/)).not.toBeInTheDocument();
     expect(screen.queryByText("@team")).not.toBeInTheDocument();
+    expect(screen.getByText("X")).toBeVisible();
   });
-  it("labels a single attachment", () => {
-    renderCard({ attachmentCount: 1 });
-    expect(screen.getByText("1 attachment")).toBeInTheDocument();
+  it("encodes the ids it puts in the post link", () => {
+    renderCard({ sourceProjectId: "a&b", postId: "c d" });
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/social?projectId=a%26b&postId=c+d#social-post-c%20d",
+    );
+  });
+  it("lets the thumbnail stand for a single attachment", () => {
+    renderCard({
+      attachmentCount: 1,
+      previewMedia: { fileUrl: "https://example.com/a.png", kind: "image" },
+    });
+    expect(screen.queryByText("1 attachment")).not.toBeInTheDocument();
   });
 });

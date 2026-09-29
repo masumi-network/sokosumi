@@ -2724,14 +2724,35 @@
     },
     "Social": {
       "title": "Social",
-      "pickTitle": "Elige un proyecto",
-      "pickBody": "Social funciona dentro de un proyecto: las cuentas desde las que publica le pertenecen. Elige un proyecto para planificar sus publicaciones.",
       "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "calendar": {
         "title": "Calendario de publicación",
         "description": "Todas las publicaciones programadas de este proyecto, y nada más."
-      }
+      },
+      "newPost": {
+        "label": "Nueva publicación",
+        "options": "Opciones de nueva publicación",
+        "manual": "Escribirla yo",
+        "manualHint": "Elige la cuenta, los medios y la hora.",
+        "sokoBot": "Publicar con Soko Bot",
+        "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",
+        "sokoBotSetup": "Configura Soko Bot primero",
+        "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
+        "sokoBotPrompt": "Ayúdame a crear una publicación social para el proyecto {project}.",
+        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación social.",
+        "chooseProjectTitle": "Elige un proyecto para esta publicación",
+        "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
+      },
+      "allProjectsCalendar": {
+        "title": "Calendario de publicaciones",
+        "description": "Publicaciones programadas de todos los proyectos de este espacio de trabajo."
+      },
+      "accountsNeedProject": {
+        "title": "Cuentas sociales",
+        "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+      },
+      "loading": "Cargando Social…"
     },
     "Error": {
       "title": "Algo salió mal",
@@ -6978,7 +6999,8 @@
         "projectLabel": "Proyecto: ",
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
-        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
+        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}"
       },
       "socialOnly": {
         "label": "Solo publicaciones sociales"

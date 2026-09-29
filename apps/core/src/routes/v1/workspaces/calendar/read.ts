@@ -539,8 +539,9 @@ export async function readWorkspaceCalendar(
         prisma.socialPost.count({ where: socialBaseWhere }),
       ])
     : [[], 0];
-  const socialItems = posts.map((post) =>
-    socialPostCalendarItemSchema.parse({
+  const socialItems = posts.map((post) => {
+    const media = parseSocialPostMedia(post.media, post.id);
+    return socialPostCalendarItemSchema.parse({
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
@@ -551,14 +552,17 @@ export async function readWorkspaceCalendar(
       projectName: post.project.name,
       scheduledByName: post.scheduledByUser?.name ?? null,
       scheduledByImage: post.scheduledByUser?.image ?? null,
-      attachmentCount: parseSocialPostMedia(post.media, post.id).length,
+      attachmentCount: media.length,
+      previewMedia: media[0]
+        ? { fileUrl: media[0].fileUrl, kind: media[0].kind }
+        : null,
       scheduledAt: post.scheduledAt?.toISOString(),
       sourceId: `project:${post.projectId}`,
       sourceProjectId: post.projectId,
       sourceWorkspaceId: post.workspaceId,
       sourceType: "PROJECT",
-    }),
-  );
+    });
+  });
   const merged: z.infer<typeof workspaceCalendarEntrySchema>[] = [
     ...runItems,
     ...runAtItems,

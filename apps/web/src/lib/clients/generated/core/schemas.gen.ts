@@ -17483,6 +17483,30 @@ export const SocialPostCalendarItemSchema = {
             type: 'integer',
             minimum: 0
         },
+        previewMedia: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                fileUrl: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'image',
+                        'gif',
+                        'video'
+                    ]
+                }
+            },
+            required: [
+                'fileUrl',
+                'kind'
+            ],
+            description: 'The post\'s first attachment, for a thumbnail.'
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',
@@ -17518,6 +17542,7 @@ export const SocialPostCalendarItemSchema = {
         'scheduledByName',
         'scheduledByImage',
         'attachmentCount',
+        'previewMedia',
         'scheduledAt',
         'sourceId',
         'sourceProjectId',

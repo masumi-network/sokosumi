@@ -2724,14 +2724,35 @@
     },
     "Social": {
       "title": "Social",
-      "pickTitle": "Projekt auswählen",
-      "pickBody": "Social arbeitet innerhalb eines Projekts: die Konten, aus denen gepostet wird, gehören dazu. Wähle ein Projekt, um seine Beiträge zu planen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "calendar": {
         "title": "Veröffentlichungsplan",
         "description": "Alle geplanten Beiträge dieses Projekts – und nichts anderes."
-      }
+      },
+      "newPost": {
+        "label": "Neuer Post",
+        "options": "Optionen für neuen Post",
+        "manual": "Selbst schreiben",
+        "manualHint": "Konto, Medien und Zeitpunkt wählen.",
+        "sokoBot": "Mit Soko Bot posten",
+        "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
+        "sokoBotSetup": "Richte zuerst Soko Bot ein",
+        "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
+        "sokoBotPrompt": "Hilf mir, einen Social-Post für das Projekt {project} zu erstellen.",
+        "sokoBotPromptAnyProject": "Hilf mir, einen Social-Post zu erstellen.",
+        "chooseProjectTitle": "Projekt für diesen Post wählen",
+        "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
+      },
+      "allProjectsCalendar": {
+        "title": "Veröffentlichungsplan",
+        "description": "Geplante Posts aller Projekte in diesem Workspace."
+      },
+      "accountsNeedProject": {
+        "title": "Social-Konten",
+        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+      },
+      "loading": "Social wird geladen…"
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
@@ -6978,7 +6999,8 @@
         "projectLabel": "Projekt: ",
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
-        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
+        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
+        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
