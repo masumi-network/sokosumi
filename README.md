@@ -79,7 +79,7 @@ pnpm portless:cmo     # CMO only
 
 Grok/Cursor copies under `.grok/worktrees/` are not git worktrees, so portless cannot prefix the branch. `pnpm portless:dev` prefixes the directory basename (`https://3877.web.sokosumi.localhost`) and uses `--force` so a leftover process cannot keep Core from starting. Restarting kills the previous process for that name. Linked `git worktree add` checkouts (including `.worktrees/`) keep Portless's branch prefix only — do not stack a second basename. Always print URLs with `pnpm portless:url web` / `core` (bare `portless get web.sokosumi` skips the Grok basename).
 
-Single-app commands still wire `WEB_APP_BASE_URL` / `BETTER_AUTH_URL` / `CORE_APP_BASE_URL` from those named URLs. Start the other named host separately; classic `:3000` / `:8787` is not in play.
+`portless:web` and `portless:core` still wire `WEB_APP_BASE_URL` / `BETTER_AUTH_URL` / `CORE_APP_BASE_URL` from those named URLs; `portless:cmo` passes none of them. Start the other named host separately; classic `:3000` / `:8787` is not in play.
 
 Classic single-checkout ports still work:
 

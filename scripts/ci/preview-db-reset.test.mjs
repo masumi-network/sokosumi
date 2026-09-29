@@ -695,7 +695,7 @@ describe("runDeployWithResetComment", () => {
     });
   }
 
-  it("resets each network's preview branch, then deploys web and Core", async () => {
+  it("resets each network's preview branch, then deploys like /deploy", async () => {
     const { options, posted, reactions, created, neonCalls } = deployReset();
     const result = await runDeployWithResetComment(options);
 
@@ -718,7 +718,7 @@ describe("runDeployWithResetComment", () => {
       ],
     );
     assert.deepEqual(posted, [
-      "Reset `preview/gh-99-pr-7` to its parent on mainnet, preprod and deployed web and Core. The Core build ran `prisma migrate deploy` on the clean branch.",
+      "Reset `preview/gh-99-pr-7` to its parent on mainnet, preprod and deployed the previews. The Core build ran `prisma migrate deploy` on the clean branch.",
     ]);
     assert.deepEqual(reactions, ["eyes", "rocket"]);
   });
@@ -756,11 +756,11 @@ describe("runDeployWithResetComment", () => {
     await assert.rejects(() => runDeployWithResetComment(options));
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "Preview deploy failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/gh-99-pr-7` was reset on mainnet without a web and Core deploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/deploy preprod --reset-db` once the cause is fixed.",
+      "Preview deploy failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/gh-99-pr-7` was reset on mainnet without a preview deploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/deploy preprod --reset-db` once the cause is fixed.",
     ]);
   });
 
-  it("says the reset happened when the web and Core deploy fails", async () => {
+  it("says the reset happened when the preview deploy fails", async () => {
     for (const [failedApp, next] of [
       [
         "web",
@@ -782,7 +782,7 @@ describe("runDeployWithResetComment", () => {
       await assert.rejects(() => runDeployWithResetComment(options));
       assert.equal(posted.length, 1);
       const prefix =
-        "Preview deploy failed: `preview/gh-99-pr-7` was reset on mainnet, but the web and Core deploy failed: ";
+        "Preview deploy failed: `preview/gh-99-pr-7` was reset on mainnet, but the preview deploy failed: ";
       assert.ok(posted[0].startsWith(prefix), posted[0]);
       assert.match(posted[0].slice(prefix.length), /^\S+ \(ERROR\)\. /);
       assert.ok(posted[0].endsWith(` (ERROR). ${next}`), posted[0]);
@@ -815,7 +815,7 @@ describe("runDeployWithResetComment", () => {
       assert.equal(posted.length, 1);
       assert.ok(
         posted[0].startsWith(
-          "Preview deploy failed: `preview/gh-99-pr-7` was reset on mainnet, preprod, but the web and Core deploy failed: ",
+          "Preview deploy failed: `preview/gh-99-pr-7` was reset on mainnet, preprod, but the preview deploy failed: ",
         ),
         posted[0],
       );

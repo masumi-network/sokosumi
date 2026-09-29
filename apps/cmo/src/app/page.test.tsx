@@ -14,5 +14,6 @@ describe("signed-out page", () => {
     expect(html).toMatch(
       /<button type="button" disabled="">Sign in with Sokosumi<\/button>/,
     );
+    expect(html).toContain("Sign in opens soon.");
   });
 });
