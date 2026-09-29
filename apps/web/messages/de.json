@@ -284,7 +284,7 @@
       "connections": "Verbindungen",
       "developer": "Entwickler",
       "personal-assistant": "Persönlicher Assistent",
-      "history": "Transaktionen",
+      "history": "Kreditverlauf",
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
@@ -1330,7 +1330,7 @@
     "save": "Speichern",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transaktionen",
+        "title": "Kreditverlauf",
         "description": "Jeder Credit-Verbrauch deines Kontos, neueste zuerst."
       },
       "Search": {
@@ -2793,7 +2793,7 @@
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
-          "history": "Transaktionen",
+          "history": "Kreditverlauf",
           "drive": "Dateien",
           "admin": "Administration",
           "settings": "Einstellungen",
@@ -6325,7 +6325,7 @@
       "moveFolderError": "Ordner konnte nicht verschoben werden",
       "moveFolderAction": "Ordner verschieben",
       "moveFileError": "Datei konnte nicht verschoben werden",
-      "tasksFolder": "Aufgaben",
+      "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Noch keine Aufgabendateien",
       "tasksEmptyDescription": "Aufgabendateien werden hier angezeigt, wenn du Aufgaben abschließt",
       "loadTasksError": "Laden der Aufgaben fehlgeschlagen",
@@ -6338,7 +6338,7 @@
       "copyToFilesDialogTitle": "In Dateien kopieren?",
       "copyToFilesDialogDescription": "{fileName} nach {workspace} kopieren.",
       "copyToFilesDialogConfirm": "Kopieren",
-      "tasksBreadcrumbLabel": "Aufgaben",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "Kein Projekt",
       "filterTitle": "Filtern",
       "filterSearchPlaceholder": "Suchen...",

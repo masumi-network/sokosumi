@@ -122,6 +122,18 @@ describe("YouPageClient", () => {
     expect(pushMock).toHaveBeenCalledWith("/billing?tab=credits");
   });
 
+  it("links Credit History right after the buy credits button", () => {
+    renderYouPage();
+
+    const history = screen.getByTestId("you-history");
+
+    expect(history).toHaveAttribute("href", "/history");
+    expect(
+      screen.getByTestId("you-buy-credits").compareDocumentPosition(history) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("groups Calendar and Files in the first nav section", () => {
     renderYouPage();
 

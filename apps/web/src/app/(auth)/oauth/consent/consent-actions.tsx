@@ -39,12 +39,13 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
       }
 
       toast.success(t("authorizeSuccess"));
-      const { redirect, url } = result.data;
-      const targetUrl = redirect && url ? url : "/";
-      // Do not reset isAuthorizing — keep buttons disabled until redirect (avoids double-submit in 300ms window)
-      setTimeout(() => {
-        window.location.href = targetUrl;
-      }, 300);
+      // Keep the buttons disabled until the page leaves. Better Auth's client
+      // already follows `{ redirect: true, url }`; navigating again would
+      // deliver the code twice, and a confidential client such as CMO would
+      // exchange it twice, which makes Core revoke the tokens.
+      if (!(result.data.redirect && result.data.url)) {
+        window.location.href = "/";
+      }
     } catch (error) {
       console.error("OAuth authorization error:", error);
       toast.error(t("authorizeErrorGeneric"));
@@ -54,22 +55,24 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
 
   async function handleDeny() {
     setIsDenying(true);
-    const result = await authClient.oauth2.consent({
-      accept: false,
-      ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
-    });
+    try {
+      const result = await authClient.oauth2.consent({
+        accept: false,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      });
 
-    if (result.error) {
-      toast.error(result.error.message || t("denyError"));
-      setIsDenying(false);
-      return;
-    }
+      if (result.error) {
+        toast.error(result.error.message || t("denyError"));
+        setIsDenying(false);
+        return;
+      }
 
-    const { redirect, url } = result.data;
-
-    if (redirect && url) {
-      window.location.href = url;
-      return;
+      // Better Auth's client follows the redirect back to the client.
+      if (result.data.redirect && result.data.url) {
+        return;
+      }
+    } catch (error) {
+      console.error("OAuth deny error:", error);
     }
 
     toast.error(t("denyError"));
