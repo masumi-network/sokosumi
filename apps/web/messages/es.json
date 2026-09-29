@@ -2324,12 +2324,16 @@
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
-          "history": "Historial"
+          "attention": "Requiere atención"
         },
+        "selectedPost": "Publicación seleccionada",
         "empty": {
           "upcoming": "Aún no hay publicaciones programadas.",
-          "drafts": "Aún no hay borradores.",
-          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+          "drafts": "Aún no hay borradores."
+        },
+        "emptyHint": {
+          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
+          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2388,7 +2392,7 @@
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
-          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "description": "La publicación no se publicará. Esta acción no se puede deshacer.",
           "confirm": "Cancelar publicación"
         },
         "toasts": {

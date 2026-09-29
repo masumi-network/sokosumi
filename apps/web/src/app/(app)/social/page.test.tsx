@@ -60,11 +60,13 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
     posts: { id: string }[];
     projectId: string;
+    selectedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
+      data-selected={props.selectedPostId}
     />
   ),
 }));
@@ -193,7 +195,8 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
-    // One read per section: upcoming, drafts and history.
+    // One read per tab: upcoming, drafts and needs attention. Published and
+    // canceled posts are left to the calendar.
     expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
   });
 
@@ -240,6 +243,11 @@ describe("SocialPage", () => {
         ?.split(",")
         .filter((id) => id === "post-deep"),
     ).toHaveLength(1);
+    // Named, too, so the list opens the tab that holds it.
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-selected",
+      "post-deep",
+    );
   });
 
   it("does not fetch a post when the URL names none", async () => {

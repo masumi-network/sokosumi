@@ -2324,12 +2324,16 @@
         "sections": {
           "upcoming": "Anstehend",
           "drafts": "Entwürfe",
-          "history": "Verlauf"
+          "attention": "Braucht Aufmerksamkeit"
         },
+        "selectedPost": "Ausgewählter Beitrag",
         "empty": {
           "upcoming": "Noch keine geplanten Beiträge.",
-          "drafts": "Noch keine Entwürfe.",
-          "history": "Noch keine veröffentlichten, fehlgeschlagenen oder abgebrochenen Beiträge."
+          "drafts": "Noch keine Entwürfe."
+        },
+        "emptyHint": {
+          "upcoming": "Plane einen Beitrag, dann erscheint er hier und im Kalender.",
+          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
         },
         "status": {
           "DRAFT": "Entwurf",
@@ -2388,7 +2392,7 @@
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
-          "description": "Der Beitrag wird nicht veröffentlicht. Du kannst ihn später erneut planen.",
+          "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
         "toasts": {

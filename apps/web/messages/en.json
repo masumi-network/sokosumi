@@ -2324,12 +2324,16 @@
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",
-          "history": "History"
+          "attention": "Needs attention"
         },
+        "selectedPost": "Selected post",
         "empty": {
           "upcoming": "No scheduled posts yet.",
-          "drafts": "No drafts yet.",
-          "history": "No published, failed, or canceled posts yet."
+          "drafts": "No drafts yet."
+        },
+        "emptyHint": {
+          "upcoming": "Schedule a post and it shows up here and on the calendar.",
+          "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
           "DRAFT": "Draft",
@@ -2388,7 +2392,7 @@
         },
         "cancelDialog": {
           "title": "Cancel this post?",
-          "description": "The post will not be published. You can schedule it again later.",
+          "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
         "toasts": {

@@ -146,6 +146,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
           )}
           posts={posts}
           projectId={project.id}
+          selectedPostId={selectedPost?.id}
         />
         <ProjectSocialAccounts
           projectId={project.id}
