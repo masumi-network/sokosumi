@@ -29,6 +29,19 @@ const CONTRACT_ID = "01900000-0000-7000-8000-000000000001";
 const PERIOD_ID = "01900000-0000-7000-8000-000000000101";
 const OWNER_ID = "owner-1";
 
+// The active-subscription resolver reads the current period with findMany.
+// Serve it from the same findFirst mock so queued answers keep their order.
+function subscriptionClient(findFirst: (args: unknown) => Promise<unknown>) {
+  const subscription = {
+    findFirst,
+    findMany: async (args: unknown) => {
+      const row = await subscription.findFirst(args);
+      return row ? [row] : [];
+    },
+  };
+  return subscription;
+}
+
 function createGrantClient(params?: { existingBucketReferenceIds?: string[] }) {
   const findUniqueBucketMock = vi.fn().mockImplementation(
     ({
@@ -236,9 +249,7 @@ function createLifecycleClient(params?: {
         findMany: findManyMembersMock,
         update: updateMemberMock,
       },
-      subscription: {
-        findFirst: resolveActiveSubscriptionMock,
-      },
+      subscription: subscriptionClient(resolveActiveSubscriptionMock),
       transaction: grantClient.tx.transaction,
     } as unknown as PrismaType.TransactionClient,
   };
@@ -374,9 +385,7 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       member: {
         findMany: findManyMembersMock,
       },
-      subscription: {
-        findFirst: vi.fn().mockResolvedValue(null),
-      },
+      subscription: subscriptionClient(vi.fn().mockResolvedValue(null)),
     } as unknown as PrismaType.TransactionClient;
 
     const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
@@ -409,9 +418,7 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
-      subscription: {
-        findFirst: resolveActiveSubscriptionMock,
-      },
+      subscription: subscriptionClient(resolveActiveSubscriptionMock),
     } as unknown as PrismaType.TransactionClient;
 
     const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
@@ -442,9 +449,7 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
-      subscription: {
-        findFirst: resolveActiveSubscriptionMock,
-      },
+      subscription: subscriptionClient(resolveActiveSubscriptionMock),
     } as unknown as PrismaType.TransactionClient;
 
     const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(
@@ -464,13 +469,13 @@ describe("findPaidSubscriptionsBlockingEnterpriseActivation", () => {
       member: {
         findMany: vi.fn().mockResolvedValue([{ userId: "member-1" }]),
       },
-      subscription: {
-        findFirst: vi.fn().mockResolvedValue({
+      subscription: subscriptionClient(
+        vi.fn().mockResolvedValue({
           id: "sub-org",
           plan: "starter",
           stripeSubscriptionId: "sub_stripe_org",
         }),
-      },
+      ),
     } as unknown as PrismaType.TransactionClient;
 
     const blocker = await findPaidSubscriptionsBlockingEnterpriseActivation(

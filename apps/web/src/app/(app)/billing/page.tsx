@@ -14,10 +14,12 @@ import CreditsSection from "@/components/billing/credits-section";
 import { EnterpriseContractSummary } from "@/components/billing/enterprise-contract-summary";
 import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
+import { PersonalPlanNotice } from "@/components/billing/personal-plan-notice";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
 import { SubscriptionCheckoutReturn } from "@/components/billing/subscription-checkout-return";
 import {
   getPlanTranslationKey,
+  resolveScheduledCancelDate,
   type SubscriptionPlanView,
 } from "@/components/billing/subscription-plan-utils";
 import { SubscriptionSuccessModal } from "@/components/billing/subscription-success-modal";
@@ -97,17 +99,39 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const canPurchaseOnFreePlan = creditPricing.canPurchaseOnFreePlan;
 
   if (activeOrganization) {
-    const [member, subscriptionCatalog] = await Promise.all([
-      userService.getMyMemberInOrganization(activeOrganization.id),
-      coreClient.getSubscriptionCatalog().then((response) => response.data),
-    ]);
+    const [member, subscriptionCatalog, personalSubscription, workspaceAccess] =
+      await Promise.all([
+        userService.getMyMemberInOrganization(activeOrganization.id),
+        coreClient.getSubscriptionCatalog().then((response) => response.data),
+        // The personal plan only feeds a notice, so a failed read hides the
+        // notice instead of failing the organization billing page.
+        coreClient
+          .getMyActiveSubscription()
+          .then((response) => response.data.subscription)
+          .catch(() => null),
+        userService.getWorkspaceAccess(),
+      ]);
     const isOwnerOrAdmin =
       member?.role === MemberRole.OWNER || member?.role === MemberRole.ADMIN;
+    const personalPlan = parseSelfServeSubscriptionPlanName(
+      personalSubscription?.plan,
+    );
+    const personalPlanNotice =
+      personalPlan && personalPlan !== "free" ? (
+        <PersonalPlanNotice
+          canSwitchToPersonal={workspaceAccess?.hasPersonalWorkspace ?? false}
+          planName={tSubscriptions(
+            `Plans.${getPlanTranslationKey(personalPlan)}.name`,
+          )}
+          scheduledCancelDate={resolveScheduledCancelDate(personalSubscription)}
+        />
+      ) : null;
 
     if (!isOwnerOrAdmin) {
       return (
         <div className="min-h-full w-full">
-          <div className="mx-auto max-w-4xl px-4 py-6">
+          <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
+            {personalPlanNotice}
             <Card>
               <CardHeader>
                 <CardTitle>{t("orgAccessRestrictedTitle")}</CardTitle>
@@ -211,6 +235,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           unauthorizedMessage={t("Errors.unauthorized")}
         />
         <div className="mx-auto max-w-4xl space-y-8 px-4 py-6">
+          {personalPlanNotice}
           {enterpriseContractSummary ? (
             <EnterpriseContractSummary summary={enterpriseContractSummary} />
           ) : (
@@ -241,9 +266,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             showCreditsTab
             subscriptionContent={
               <OrganizationSubscriptionSection
-                cancelAtPeriodEnd={billingPlan.cancelAtPeriodEnd}
                 currentPlan={currentPlan}
-                currentPeriodEnd={billingPlan.periodEnd}
                 currentSeats={currentSeats}
                 isEnterpriseConsumable={isEnterpriseConsumable}
                 isEnterpriseContract={isEnterpriseContract}
@@ -251,6 +274,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 organizationId={activeOrganization.id}
                 plans={orgPlans}
                 returnPath="/billing?tab=subscription"
+                scheduledCancelDate={resolveScheduledCancelDate(billingPlan)}
               />
             }
             creditsContent={
@@ -357,12 +381,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           showCreditsTab
           subscriptionContent={
             <PersonalSubscriptionSection
-              cancelAtPeriodEnd={
-                latestPersonalSubscription?.cancelAtPeriodEnd ?? false
-              }
-              currentPeriodEnd={latestPersonalSubscription?.periodEnd ?? null}
               plans={personalPlans}
               returnPath="/billing?tab=subscription"
+              scheduledCancelDate={resolveScheduledCancelDate(
+                latestPersonalSubscription,
+              )}
               status={subscriptionStatus}
             />
           }

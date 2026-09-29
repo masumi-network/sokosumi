@@ -2003,6 +2003,9 @@ export const getUsersByIdBillingDetailsResponseTransformer = async (data: any): 
 
 const activeSubscriptionResponseSchemaResponseTransformer = (data: any) => {
     if (data.subscription) {
+        if (data.subscription.cancelAt) {
+            data.subscription.cancelAt = new Date(data.subscription.cancelAt);
+        }
         if (data.subscription.periodStart) {
             data.subscription.periodStart = new Date(data.subscription.periodStart);
         }
@@ -2179,6 +2182,9 @@ export const getOrganizationsByIdSeatSummaryResponseTransformer = async (data: a
 };
 
 const organizationBillingPlanSchemaResponseTransformer = (data: any) => {
+    if (data.cancelAt) {
+        data.cancelAt = new Date(data.cancelAt);
+    }
     if (data.periodEnd) {
         data.periodEnd = new Date(data.periodEnd);
     }
