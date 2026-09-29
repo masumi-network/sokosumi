@@ -119,6 +119,7 @@ function setup({
   const posted = [];
   const reactions = [];
   const created = [];
+  const registered = [];
   const stub = neonStub({
     branches: {
       "prj-mainnet": [
@@ -148,6 +149,9 @@ function setup({
       return { id: `dpl_${input.target.name}`, readyState: "READY" };
     },
     pollDeployment: async (deployment) => deployment,
+    registerCmoCallback: async (input) => {
+      registered.push(input);
+    },
     postComment: async (body) => {
       posted.push(body);
     },
@@ -156,7 +160,14 @@ function setup({
     },
     ...overrides,
   };
-  return { options, posted, reactions, created, neonCalls: stub.calls };
+  return {
+    options,
+    posted,
+    reactions,
+    created,
+    registered,
+    neonCalls: stub.calls,
+  };
 }
 
 function restoreCalls(neonCalls) {
@@ -276,7 +287,7 @@ describe("runPreviewDbResetComment", () => {
     assert.deepEqual(slept, [5000, 5000]);
   });
 
-  it("resets each network's exact preview branch, then redeploys Core only", async (t) => {
+  it("resets each network's exact preview branch, then redeploys Core, plus CMO on mainnet", async (t) => {
     const timeout = t.mock.method(AbortSignal, "timeout");
     const { options, posted, reactions, created, neonCalls } = setup();
     const result = await runPreviewDbResetComment(options);
@@ -328,11 +339,12 @@ describe("runPreviewDbResetComment", () => {
       created.map((input) => [input.target.name, input.ref, input.sha]),
       [
         ["sokosumi-core-mainnet", "feat/x", "deadbeef"],
+        ["sokosumi-cmo", "feat/x", "deadbeef"],
         ["sokosumi-core-preprod", "feat/x", "deadbeef"],
       ],
     );
     assert.deepEqual(posted, [
-      "Reset `preview/gh-99-pr-7` to its parent on mainnet, preprod and redeployed Core. The Core build ran `prisma migrate deploy` on the clean branch.",
+      "Reset `preview/gh-99-pr-7` to its parent on mainnet, preprod and redeployed Core and CMO. The Core build ran `prisma migrate deploy` on the clean branch.",
     ]);
     assert.deepEqual(reactions, ["eyes", "rocket"]);
   });
@@ -363,8 +375,56 @@ describe("runPreviewDbResetComment", () => {
     await run;
     assert.deepEqual(
       created.map((input) => input.target.name),
-      ["sokosumi-core-mainnet"],
+      ["sokosumi-core-mainnet", "sokosumi-cmo"],
     );
+  });
+
+  it("adds CMO's preview callback again after the redeploy", async () => {
+    const { options, posted, registered } = setup({
+      commentBody: "/reset-db mainnet",
+      createDeployment: async (input) => ({
+        id: `dpl_${input.target.name}`,
+        alias: [`${input.target.name}-git-feat-x-masumi.preview.sokosumi.com`],
+        readyState: "READY",
+      }),
+    });
+    await runPreviewDbResetComment(options);
+    assert.deepEqual(
+      registered.map(({ repoId, pullNumber, previewUrl }) => ({
+        repoId,
+        pullNumber,
+        previewUrl,
+      })),
+      [
+        {
+          repoId: 99,
+          pullNumber: 7,
+          previewUrl:
+            "https://sokosumi-cmo-git-feat-x-masumi.preview.sokosumi.com",
+        },
+      ],
+    );
+    assert.equal(posted.length, 1);
+  });
+
+  it("leaves CMO alone on a preprod reset", async () => {
+    const { options, registered } = setup({ commentBody: "/reset-db preprod" });
+    await runPreviewDbResetComment(options);
+    assert.deepEqual(registered, []);
+  });
+
+  it("says the reset and deploy happened when the CMO callback fails", async () => {
+    const { options, posted, reactions } = setup({
+      commentBody: "/reset-db mainnet",
+      registerCmoCallback: async () => {
+        throw new Error("CMO's OAuth client `cmo` is not in `x`");
+      },
+    });
+    await assert.rejects(() => runPreviewDbResetComment(options));
+    assert.deepEqual(posted, [
+      "`/reset-db` failed: `preview/gh-99-pr-7` was reset on mainnet and redeployed Core and CMO, but CMO's preview cannot sign in: CMO's OAuth client `cmo` is not in `x`.",
+    ]);
+    assert.deepEqual(reactions, ["eyes"]);
   });
 
   it("resets nothing when the Neon key is missing", async () => {
@@ -459,11 +519,11 @@ describe("runPreviewDbResetComment", () => {
     });
     await assert.rejects(
       () => runPreviewDbResetComment(options),
-      /was reset on mainnet without a Core redeploy/,
+      /was reset on mainnet without a redeploy/,
     );
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/gh-99-pr-7` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/reset-db preprod` once the cause is fixed.",
+      "`/reset-db` failed: preprod: the restore failed: Neon answered 409: restore failed 409. `preview/gh-99-pr-7` was reset on mainnet without a redeploy. Comment `/deploy mainnet` to run the migrations. Neon refused the reset on preprod. Comment `/reset-db preprod` once the cause is fixed.",
     ]);
   });
 
@@ -523,7 +583,7 @@ describe("runPreviewDbResetComment", () => {
     );
     assert.deepEqual(created, []);
     assert.deepEqual(posted, [
-      "`/reset-db` failed: preprod: waiting for the restore failed: Neon operation op-prj-preprod ended failed. `preview/gh-99-pr-7` was reset on mainnet without a Core redeploy. Comment `/deploy mainnet` to run the migrations. The reset on preprod may not have finished. Comment `/reset-db preprod` to try again.",
+      "`/reset-db` failed: preprod: waiting for the restore failed: Neon operation op-prj-preprod ended failed. `preview/gh-99-pr-7` was reset on mainnet without a redeploy. Comment `/deploy mainnet` to run the migrations. The reset on preprod may not have finished. Comment `/reset-db preprod` to try again.",
     ]);
   });
 
@@ -592,7 +652,7 @@ describe("runPreviewDbResetComment", () => {
     const result = await runPreviewDbResetComment(options);
     assert.equal(result.kind, "reset");
     assert.deepEqual(posted, [
-      "Reset `preview/gh-99-pr-7` to its parent on mainnet and redeployed Core. The Core build ran `prisma migrate deploy` on the clean branch.",
+      "Reset `preview/gh-99-pr-7` to its parent on mainnet and redeployed Core and CMO. The Core build ran `prisma migrate deploy` on the clean branch.",
     ]);
     assert.equal(warn.mock.callCount(), 1);
   });
@@ -614,21 +674,21 @@ describe("runPreviewDbResetComment", () => {
     );
   });
 
-  it("says the reset happened when the Core redeploy fails", async () => {
+  it("says the reset happened when the redeploy fails", async () => {
     const { options, posted, reactions } = setup({
       commentBody: "/reset-db mainnet",
       prepareResources: async () => {},
       createDeployment: async (input) => ({
         id: `dpl_${input.target.name}`,
-        readyState: "ERROR",
+        readyState: input.target.app === "core" ? "ERROR" : "READY",
       }),
     });
     await assert.rejects(
       () => runPreviewDbResetComment(options),
-      /but the Core redeploy failed: sokosumi-core-mainnet \(ERROR\)/,
+      /but the redeploy failed: sokosumi-core-mainnet \(ERROR\)/,
     );
     assert.deepEqual(posted, [
-      "`/reset-db` failed: `preview/gh-99-pr-7` was reset on mainnet, but the Core redeploy failed: sokosumi-core-mainnet (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy mainnet` to run the migrations.",
+      "`/reset-db` failed: `preview/gh-99-pr-7` was reset on mainnet, but the redeploy failed: sokosumi-core-mainnet (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy mainnet` to run the migrations.",
     ]);
     assert.deepEqual(reactions, ["eyes"]);
   });
@@ -644,7 +704,7 @@ describe("runPreviewDbResetComment", () => {
     });
     await assert.rejects(() => runPreviewDbResetComment(options));
     assert.deepEqual(posted, [
-      "`/reset-db` failed: `preview/gh-99-pr-7` was reset on mainnet, preprod, but the Core redeploy failed: sokosumi-core-preprod (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy preprod` to run the migrations.",
+      "`/reset-db` failed: `preview/gh-99-pr-7` was reset on mainnet, preprod, but the redeploy failed: sokosumi-core-preprod (ERROR). If `prisma migrate deploy` failed in the build log, fix the migration first. Then comment `/deploy preprod` to run the migrations.",
     ]);
   });
 
@@ -660,7 +720,7 @@ describe("runPreviewDbResetComment", () => {
     assert.equal(posted.length, 1);
     assert.match(
       posted[0],
-      /^`\/reset-db` failed: `preview\/gh-99-pr-7` was reset on mainnet, preprod, but the Core redeploy failed: Vercel 500\. .* Then comment `\/deploy mainnet preprod` to run the migrations\.$/,
+      /^`\/reset-db` failed: `preview\/gh-99-pr-7` was reset on mainnet, preprod, but the redeploy failed: Vercel 500\. .* Then comment `\/deploy mainnet preprod` to run the migrations\.$/,
     );
   });
 });
@@ -844,7 +904,8 @@ describe("runResetDbJobComment", () => {
     for (const [commentBody, restores, apps] of [
       ["/deploy mainnet --reset-db", 1, ["web", "core", "cmo"]],
       ["/deploy mainnet\n--reset-db", 0, ["web", "core", "cmo"]],
-      ["/reset-db mainnet", 1, ["core"]],
+      ["/reset-db mainnet", 1, ["core", "cmo"]],
+      ["/reset-db preprod", 1, ["core"]],
     ]) {
       const { options, created, neonCalls } = setup({
         commentBody,

@@ -66,6 +66,9 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
           NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          # CMO's mainnet OAuth client. Its row in the PR's preview database
+          # gets the CMO preview's callback (scripts/ci/cmo-preview-callback.ts).
+          CMO_OAUTH_CLIENT_ID_MAINNET: ${{ vars.CMO_OAUTH_CLIENT_ID_MAINNET }}
         run: node scripts/ci/vercel-deploy.mjs preview
 
   reset-db:
@@ -98,9 +101,11 @@ jobs:
     # minutes for two networks with one operation each: each request stops
     # after 30 seconds, a restore tries up to 5 times, and each network polls
     # for up to 5 minutes. An operation still running then gets one more poll
-    # of up to 35 seconds. The Vercel deployments (Core, or web and Core for
-    # `/deploy --reset-db`) are polled together and add up to 15 minutes.
-    # Vercel and GitHub requests have no time limit of their own.
+    # of up to 35 seconds. The Vercel deployments (Core and CMO on mainnet,
+    # or every preview app for `/deploy --reset-db`) are polled together and
+    # add up to 15 minutes. Adding CMO's preview callback takes up to four
+    # 30-second requests. Vercel and GitHub requests have no time limit of
+    # their own.
     timeout-minutes: 40
     steps:
       - name: Checkout repository
@@ -124,6 +129,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CMO_OAUTH_CLIENT_ID_MAINNET: ${{ vars.CMO_OAUTH_CLIENT_ID_MAINNET }}
         run: node scripts/ci/preview-db-reset.mjs
 
   closed:

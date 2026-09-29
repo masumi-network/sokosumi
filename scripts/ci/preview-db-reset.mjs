@@ -31,6 +31,7 @@ import {
   parseNetworkCommand,
   previewGitSource,
   readActionsContext,
+  registerCmoPreview,
   runPreviewDeployComment,
   runPullRequestCommand,
   settlePreviewDeployments,
@@ -78,7 +79,7 @@ export function resetUsageMessage() {
     "`/reset-db preprod`",
     "`/reset-db all`",
     "",
-    `Resets this PR's Neon preview branch (\`preview/gh-<repo-id>-pr-<number>\`) to a copy of its parent, then redeploys Core for the named network(s). The build applies every migration the parent lacks, this PR's included. Data written only to that preview database is lost.`,
+    `Resets this PR's Neon preview branch (\`preview/gh-<repo-id>-pr-<number>\`) to a copy of its parent, then redeploys Core for the named network(s), plus CMO on mainnet so its preview can sign in again. The build applies every migration the parent lacks, this PR's included. Data written only to that preview database is lost.`,
   ].join("\n");
 }
 
@@ -109,13 +110,20 @@ async function neonStep(step, request) {
   }
 }
 
-/** The `/reset-db` command: reset, then redeploy Core only. */
+/**
+ * The `/reset-db` command: reset, then redeploy Core, plus CMO on mainnet.
+ * The reset drops CMO's preview callback, and CI adds it again after CMO's
+ * deploy.
+ */
 const RESET_DB_COMMAND = {
   name: "/reset-db",
   subject: "`/reset-db`",
-  apps: ["core"],
-  redeploy: "Core redeploy",
-  deployed: "redeployed Core",
+  apps: ["core", "cmo"],
+  redeploy: "redeploy",
+  deployed: (networks) =>
+    networks.includes("mainnet")
+      ? "redeployed Core and CMO"
+      : "redeployed Core",
   retry: (networks) => `/reset-db ${networks.join(" ")}`,
 };
 
@@ -125,7 +133,7 @@ const DEPLOY_RESET_COMMAND = {
   subject: "Preview deploy",
   apps: undefined,
   redeploy: "preview deploy",
-  deployed: "deployed the previews",
+  deployed: () => "deployed the previews",
   retry: (networks) => `/deploy ${networks.join(" ")} ${RESET_DB_FLAG}`,
 };
 
@@ -303,11 +311,25 @@ async function runResetCommand(options, command, usage) {
         );
       }
 
+      try {
+        await registerCmoPreview(options, {
+          networks,
+          apps: command.apps,
+          pullRequest,
+          repoId,
+          deployments,
+        });
+      } catch (error) {
+        throw new Error(
+          `\`${branchName}\` was reset on ${networks.join(", ")} and ${command.deployed(networks)}, but ${error.message}`,
+        );
+      }
+
       // The work is done, so a failed reply or reaction must not become a
       // "failed" reply that invites a second reset.
       try {
         await comment(
-          `Reset \`${branchName}\` to its parent on ${networks.join(", ")} and ${command.deployed}. The Core build ran \`prisma migrate deploy\` on the clean branch.`,
+          `Reset \`${branchName}\` to its parent on ${networks.join(", ")} and ${command.deployed(networks)}. The Core build ran \`prisma migrate deploy\` on the clean branch.`,
         );
       } catch (error) {
         console.warn(`Success reply failed: ${errorSentence(error)}`);

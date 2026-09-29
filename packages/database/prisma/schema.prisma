@@ -1557,6 +1557,8 @@ enum ShareAccessType {
   RESTRICTED // Only the recipient can access
 }
 
+// scripts/ci/cmo-preview-callback.ts writes "oauthClient"."redirectUris" by
+// "clientId" (and "updatedAt") in PR preview databases. Renaming them breaks it.
 model OauthClient {
   id        String    @id @default(uuid(7))
   createdAt DateTime? @default(now())
