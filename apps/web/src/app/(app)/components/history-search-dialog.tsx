@@ -2,15 +2,15 @@
 
 import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
+import {
+  HistorySearchItemIcon,
+  HistorySearchItemOwner,
+  HistorySearchItemTime,
+} from "@/app/components/history-search-item";
+import { getHistorySearchItemHref } from "@/app/components/history-search-item-href";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
 import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
-import {
-  HistoryMetaTime,
-  HistoryOwnerAvatar,
-} from "@/app/history/components/history-meta";
-import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
-import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import {
   CommandDialog,
   CommandEmpty,
@@ -32,7 +32,7 @@ interface HistorySearchDialogLabels {
   empty: string;
   loading: string;
   error: string;
-  updated: string;
+  created: string;
   filesGroup: string;
   filesSeeAll: string;
   filesFilenameMatch: string;
@@ -52,7 +52,7 @@ export function HistorySearchDialog({
   activeOrganizationId,
 }: HistorySearchDialogProps) {
   const router = useRouter();
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const { formatDateWithYear } = useLocalizedDateTime();
   const showOwner = activeOrganizationId !== null;
   const { query, setQuery, history, error, isLoading, reset } =
     useHistorySearchCorpus({
@@ -89,7 +89,7 @@ export function HistorySearchDialog({
   }
 
   function handleSelect(item: HistoryItem) {
-    const href = getHistoryItemHref(item);
+    const href = getHistorySearchItemHref(item);
     // Use the same close path as the dialog itself so we reset state
     // and ignore any in-flight history requests.
     handleOpenChange(false);
@@ -135,19 +135,19 @@ export function HistorySearchDialog({
                 onSelect={() => handleSelect(item)}
                 className="flex items-start gap-2"
               >
-                <HistoryTypeIcon item={item} className="mt-0.5 size-4" />
+                <HistorySearchItemIcon item={item} className="mt-0.5 size-4" />
                 <div className="min-w-0 flex-1">
                   <span className="block truncate">{item.title}</span>
-                  <HistoryMetaTime
-                    updatedAt={item.updatedAt}
-                    formatTimeAgo={formatTimeAgo}
-                    updatedLabel={labels.updated}
+                  <HistorySearchItemTime
+                    createdAt={item.createdAt}
+                    formatShortDate={formatDateWithYear}
+                    createdLabel={labels.created}
                     className="text-muted-foreground mt-0.5 block text-left text-xs sm:text-left"
                   />
                 </div>
                 <div className="flex shrink-0 items-center gap-2 self-center">
                   {showOwner && (
-                    <HistoryOwnerAvatar
+                    <HistorySearchItemOwner
                       owner={item.owner}
                       className="hidden sm:inline-flex"
                     />
