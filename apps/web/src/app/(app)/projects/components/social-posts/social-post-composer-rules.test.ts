@@ -2,6 +2,7 @@ import type { SocialPostMediaRef } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   socialPostComposerAccept,
+  socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
 } from "./social-post-composer-rules";
@@ -76,5 +77,15 @@ describe("socialPostComposerAccept", () => {
       "image/png",
     );
     expect(socialPostComposerAccept(["x", "tiktok"])).toBe("video/mp4");
+  });
+});
+
+describe("socialPostComposerFormat", () => {
+  it("names what each provider publishes", () => {
+    expect(socialPostComposerFormat("x")).toBe("post");
+    expect(socialPostComposerFormat("linkedin")).toBe("post");
+    expect(socialPostComposerFormat("instagram")).toBe("mediaPost");
+    expect(socialPostComposerFormat("youtube")).toBe("video");
+    expect(socialPostComposerFormat("tiktok")).toBe("video");
   });
 });

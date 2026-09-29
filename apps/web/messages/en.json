@@ -2425,6 +2425,13 @@
             "yours": "Times are in your time zone, {zone}.",
             "goesOut": "Goes out {date}, your time ({zone}).",
             "postZone": "Scheduled as {date} in {zone}."
+          },
+          "platforms": "Limits per platform",
+          "platformLimit": "{provider} {format} · {count} / {limit}",
+          "formats": {
+            "post": "post",
+            "mediaPost": "image or video post",
+            "video": "video (text is the title and description)"
           }
         },
         "cancelDialog": {
