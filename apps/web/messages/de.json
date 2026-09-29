@@ -2445,7 +2445,9 @@
         "back": "Zurück zu Projekten",
         "header": {
           "updated": "Aktualisiert",
-          "created": "Erstellt"
+          "created": "Erstellt",
+          "properties": "Eigenschaften",
+          "website": "Website"
         },
         "briefing": "Briefing",
         "latestUpdate": "Letztes Update",
@@ -2481,7 +2483,8 @@
           "empty": "Wächst mit abgeschlossenen Tasks",
           "modelLine": "{model} · gehostet in der EU 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Nicht konfiguriert (AI_GATEWAY_API_KEY)",
+          "offHint": "Abgeschlossene Aufgaben ergänzen das Gedächtnis nicht.",
+          "off": "Gedächtnis ist aus",
           "title": "Projektgedächtnis",
           "copyLink": "Link kopieren",
           "openRaw": "Rohdatei öffnen",
@@ -2587,12 +2590,10 @@
           "overview": "Übersicht",
           "design": "Design",
           "memory": "Gedächtnis",
-          "backToProjects": "Alle Projekte",
           "ariaLabel": "Projektbereiche"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "Noch keine DESIGN.md. Erzeuge sie aus der Projekt-Website oder lade eine Datei hoch."
+          "document": "DESIGN.md"
         }
       }
     },

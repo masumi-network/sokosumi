@@ -2445,7 +2445,9 @@
         "back": "Volver a proyectos",
         "header": {
           "updated": "Actualizado",
-          "created": "Creado"
+          "created": "Creado",
+          "properties": "Propiedades",
+          "website": "Sitio web"
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
@@ -2481,7 +2483,8 @@
           "empty": "Crece al completar tareas",
           "modelLine": "{model} · alojada en la UE 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Sin configurar (AI_GATEWAY_API_KEY)",
+          "offHint": "Las tareas completadas no se añadirán a la memoria.",
+          "off": "La memoria está desactivada",
           "title": "Memoria del proyecto",
           "copyLink": "Copiar enlace",
           "openRaw": "Abrir original",
@@ -2587,12 +2590,10 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "backToProjects": "Todos los proyectos",
           "ariaLabel": "Secciones del proyecto"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "Todavía no hay DESIGN.md. Genérala desde el sitio web del proyecto o sube un archivo."
+          "document": "DESIGN.md"
         }
       }
     },
