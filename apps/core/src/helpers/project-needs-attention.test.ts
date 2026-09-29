@@ -10,6 +10,7 @@ import { PROJECT_NEEDS_ATTENTION_LIMIT } from "@/schemas/project.schema";
 import { humanProjectReaderVisibility } from "@/types/project";
 
 import {
+  type AttentionCandidate,
   compareNeedsAttention,
   getProjectNeedsAttention,
   jobAttentionUpdatedAt,
@@ -37,28 +38,35 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+/**
+ * `updatedAt` here is the attention timestamp the list ranks by, which is
+ * deliberately not the item's own `createdAt` — the date a reader sees.
+ */
 function task(
   overrides: Partial<HistoryItem> & {
     status: TaskStatus;
     updatedAt?: string;
     id?: string;
   },
-): HistoryItem {
+): AttentionCandidate {
   const { status, id, updatedAt, ...rest } = overrides;
   return {
-    kind: "task",
-    id: id ?? "task-default",
-    title: "Task",
-    description: null,
-    status,
-    updatedAt: updatedAt ?? "2026-09-01T00:00:00.000Z",
-    archivedAt: null,
-    credits: null,
-    projectId: "project-1",
-    coworkerId: null,
-    sokoBotId: null,
-    owner: null,
-    ...rest,
+    item: {
+      kind: "task",
+      id: id ?? "task-default",
+      title: "Task",
+      description: null,
+      status,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      archivedAt: null,
+      credits: null,
+      projectId: "project-1",
+      coworkerId: null,
+      sokoBotId: null,
+      owner: null,
+      ...rest,
+    },
+    attentionAt: new Date(updatedAt ?? "2026-09-01T00:00:00.000Z"),
   };
 }
 
@@ -68,23 +76,26 @@ function job(
     updatedAt?: string;
     id?: string;
   },
-): HistoryItem {
+): AttentionCandidate {
   const { status, id, updatedAt, ...rest } = overrides;
   return {
-    kind: "job",
-    id: id ?? "job-default",
-    title: "Job",
-    description: null,
-    status,
-    updatedAt: updatedAt ?? "2026-09-01T00:00:00.000Z",
-    archivedAt: null,
-    credits: null,
-    projectId: "project-1",
-    agentId: "agent-1",
-    agentName: null,
-    agentIcon: null,
-    owner: null,
-    ...rest,
+    item: {
+      kind: "job",
+      id: id ?? "job-default",
+      title: "Job",
+      description: null,
+      status,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      archivedAt: null,
+      credits: null,
+      projectId: "project-1",
+      agentId: "agent-1",
+      agentName: null,
+      agentIcon: null,
+      owner: null,
+      ...rest,
+    },
+    attentionAt: new Date(updatedAt ?? "2026-09-01T00:00:00.000Z"),
   };
 }
 
