@@ -2327,7 +2327,6 @@
         "loadMore": "Cargar más",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
-        "description": "Redacta, programa y publica en las cuentas de redes sociales conectadas a este proyecto.",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
@@ -2335,17 +2334,16 @@
           "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
         },
         "sections": {
-          "upcoming": "Próximas",
+          "calendar": "Calendario",
           "drafts": "Borradores",
-          "attention": "Requiere atención"
+          "attention": "Requiere atención",
+          "accounts": "Cuentas"
         },
         "selectedPost": "Publicación seleccionada",
         "empty": {
-          "upcoming": "Aún no hay publicaciones programadas.",
           "drafts": "Aún no hay borradores."
         },
         "emptyHint": {
-          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
           "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
@@ -2735,10 +2733,6 @@
       "title": "Social",
       "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
-      "calendar": {
-        "title": "Calendario de publicación",
-        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
-      },
       "newPost": {
         "label": "Nueva publicación",
         "options": "Opciones de nueva publicación",
