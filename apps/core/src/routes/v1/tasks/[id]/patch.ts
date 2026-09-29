@@ -207,11 +207,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
 
       const task = await requireMutableTaskWriteAccess(userContext, id, tx);
-      await requireAssignedOrganizationSeat(
-        userContext.userId,
-        task.organizationId,
-        tx,
-      );
+      // Non-owners are seated inside write access, on the workspace org.
+      // The owner check stays on the billing organizationId.
+      if (task.ownerId === userContext.userId) {
+        await requireAssignedOrganizationSeat(
+          userContext.userId,
+          task.organizationId,
+          tx,
+        );
+      }
       if (task.workspaceId !== taskSnapshot.workspaceId) {
         throw conflict("Task changed during update");
       }

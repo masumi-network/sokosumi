@@ -189,13 +189,25 @@ describe("requireTaskWriteAccess", () => {
     requireAssignedOrganizationSeatMock.mockReset();
   });
 
+  function mockMemberTask(
+    tx: Prisma.TransactionClient,
+    task: { id?: string; organizationId?: string | null },
+    placementOrganizationId: string | null,
+  ) {
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: task.id ?? "tsk_123",
+      ownerId: "user_other",
+      workspaceId,
+      organizationId: task.organizationId ?? null,
+    } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+      organizationId: placementOrganizationId,
+    } as never);
+  }
+
   it("lets a seated org member act on another member's public task", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      ownerId: "user_other",
-      organizationId: "org_123",
-    } as never);
+    mockMemberTask(tx, { organizationId: "org_billing" }, "org_placement");
 
     await expect(
       requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
@@ -204,20 +216,45 @@ describe("requireTaskWriteAccess", () => {
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: { id: "tsk_123", archivedAt: null, ...writeAccessWhere },
     });
+    expect(tx.workspace.findUnique).toHaveBeenCalledWith({
+      where: { id: workspaceId },
+      select: { organizationId: true },
+    });
     expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
       "user_123",
-      "org_123",
+      "org_placement",
       tx,
     );
   });
 
+  it("seats a moved-in task on the workspace org when billing org is null", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: null }, "org_placement");
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_placement",
+      tx,
+    );
+  });
+
+  it("does not skip the seat when the task workspace has no organization", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: null }, null);
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).rejects.toMatchObject({ status: 404, message: "Task not found" });
+    expect(requireAssignedOrganizationSeatMock).not.toHaveBeenCalled();
+  });
+
   it("rejects an unseated member who does not own the task", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      ownerId: "user_other",
-      organizationId: "org_123",
-    } as never);
+    mockMemberTask(tx, { organizationId: "org_billing" }, "org_placement");
     requireAssignedOrganizationSeatMock.mockRejectedValueOnce(
       new HTTPException(403, { message: "Seat required" }),
     );
@@ -246,11 +283,21 @@ describe("requireTaskWriteAccess", () => {
       id: "tsk_parked",
       status: TaskStatus.GRANT_PENDING,
       ownerId: "user_other",
+      workspaceId,
+      organizationId: null,
+    } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+      organizationId: "org_placement",
     } as never);
 
     await expect(
       requireTaskWriteAccess(sessionUserContext, "tsk_parked", tx),
     ).resolves.toMatchObject({ id: "tsk_parked" });
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_placement",
+      tx,
+    );
   });
 
   it("returns not found when no task matches", async () => {
@@ -269,6 +316,7 @@ describe("requireMutableTaskWriteAccess", () => {
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       status: TaskStatus.GRANT_PENDING,
+      ownerId: "user_123",
     } as never);
 
     await expect(
@@ -286,6 +334,7 @@ describe("requireMutableTaskWriteAccess", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      ownerId: "user_123",
       pendingVendorGrantId: null,
     } as never);
 
@@ -300,6 +349,7 @@ describe("requireTaskCollaboration", () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      ownerId: "user_123",
     } as never);
 
     await requireTaskCollaboration(userAuthContext, "tsk_123", tx);

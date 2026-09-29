@@ -306,9 +306,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         const assignedSeatUserId = isAgent
           ? task.ownerId
           : requireUserContext(authContext).userId;
+        // Agents spend the task billing org. A person acts in the workspace
+        // the task currently lives in (move does not rewrite billing org).
+        let seatOrganizationId = task.organizationId;
+        if (!isAgent) {
+          const placement = await tx.workspace.findUnique({
+            where: { id: task.workspaceId },
+            select: { organizationId: true },
+          });
+          if (placement) {
+            seatOrganizationId = placement.organizationId;
+          }
+        }
         await requireAssignedOrganizationSeat(
           assignedSeatUserId,
-          task.organizationId,
+          seatOrganizationId,
           tx,
         );
       }

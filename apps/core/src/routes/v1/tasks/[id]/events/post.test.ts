@@ -9,6 +9,7 @@ import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { LIMITS } from "@/config/constants";
 import { errorHandler } from "@/helpers/error-handler";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
@@ -3290,6 +3291,53 @@ describe("POST /{id}/events", () => {
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
+  it("seats a person on the task workspace, not the billing organization", async () => {
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
+      createTask({
+        status: TaskStatus.RUNNING,
+        ownerId: "user_owner",
+        organizationId: null,
+        workspaceId: "ws_placed",
+      }),
+    );
+    const findUnique = vi
+      .fn()
+      .mockResolvedValue({ organizationId: "org_placement" });
+    const tx: TransactionMock = {
+      taskEvent: { create: vi.fn() },
+      task: { updateMany: vi.fn() },
+      workspace: { findUnique },
+    };
+    mockTransaction(tx);
+    vi.mocked(requireAssignedOrganizationSeat).mockClear();
+
+    const app = createApp({
+      actor: "user",
+      userId: "user_member",
+      organizationId: "org_billing",
+      role: "user",
+    });
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        status: TaskStatus.CANCELED,
+        credits: 5,
+      }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(findUnique).toHaveBeenCalledWith({
+      where: { id: "ws_placed" },
+      select: { organizationId: true },
+    });
+    expect(requireAssignedOrganizationSeat).toHaveBeenCalledWith(
+      "user_member",
+      "org_placement",
+      expect.anything(),
+    );
   });
 
   it("rejects masumiPayment from a delegated coworker", async () => {

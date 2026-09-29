@@ -114,10 +114,27 @@ export function buildTaskWriteAccessWhere(
 }
 
 /**
+ * Organization whose workspace holds the task. `Task.organizationId` is the
+ * billing org and stays put when the task moves, so a seat check against it
+ * misses the workspace the member is acting in.
+ */
+async function readTaskWorkspaceOrganizationId(
+  workspaceId: string,
+  tx: Prisma.TransactionClient,
+): Promise<string | null> {
+  const placement = await tx.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { organizationId: true },
+  });
+  return placement?.organizationId ?? null;
+}
+
+/**
  * Validates that the task exists, is not archived, and the user may act on it
  * ({@link buildTaskWriteAccessWhere}). A member who is not the owner also needs
- * an assigned seat. Parked (`GRANT_PENDING`) Tasks pass; mutations that must
- * not run on them use {@link requireMutableTaskWriteAccess}.
+ * an assigned seat in the task's workspace organization. Parked
+ * (`GRANT_PENDING`) Tasks pass; mutations that must not run on them use
+ * {@link requireMutableTaskWriteAccess}.
  *
  * @throws {notFound} If the task does not exist or the user may not act on it
  * @throws {forbidden} If a non-owner member has no assigned seat
@@ -140,9 +157,16 @@ export async function requireTaskWriteAccess(
   }
 
   if (task.ownerId !== userContext.userId) {
+    const placementOrganizationId = await readTaskWorkspaceOrganizationId(
+      task.workspaceId,
+      tx,
+    );
+    if (!placementOrganizationId) {
+      throw notFound("Task not found");
+    }
     await requireAssignedOrganizationSeat(
       userContext.userId,
-      task.organizationId,
+      placementOrganizationId,
       tx,
     );
   }
