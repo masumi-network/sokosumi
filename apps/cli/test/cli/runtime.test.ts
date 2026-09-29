@@ -630,6 +630,7 @@ test("Hermes preflight failure occurs before key input or any Task state write",
 function receiptDependencies(receipt: unknown): {
   dependencies: CliDependencies;
   paths: string[];
+  output: string[];
 } {
   const output: string[] = [];
   const paths: string[] = [];
@@ -648,11 +649,7 @@ function receiptDependencies(receipt: unknown): {
       },
     },
   };
-  return { dependencies, paths, output } as unknown as {
-    dependencies: CliDependencies;
-    paths: string[];
-    output: string[];
-  };
+  return { dependencies, paths, output };
 }
 
 test("runtime receipt reports a proven seller settlement", async () => {
@@ -663,7 +660,7 @@ test("runtime receipt reports a proven seller settlement", async () => {
     settled: true,
     txHash: "tx_withdrawn",
     withdrawnForSeller: [{ unit: "lovelace", amount: "500000" }],
-  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  });
   await runCli(
     [
       "runtime",
@@ -693,7 +690,7 @@ test("runtime receipt reports an unsettled payment as not proven", async () => {
     settled: false,
     txHash: null,
     withdrawnForSeller: [],
-  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  });
   await runCli(
     [
       "runtime",
@@ -718,7 +715,7 @@ test("runtime receipt text mode confirms a settled seller receipt", async () => 
     settled: true,
     txHash: "tx_withdrawn",
     withdrawnForSeller: [],
-  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  });
   await runCli(
     [
       "runtime",
@@ -743,7 +740,7 @@ test("runtime receipt text mode reports an unsettled payment as not settled", as
     settled: false,
     txHash: null,
     withdrawnForSeller: [],
-  }) as { dependencies: CliDependencies; paths: string[]; output: string[] };
+  });
   await runCli(
     [
       "runtime",
@@ -761,11 +758,7 @@ test("runtime receipt text mode reports an unsettled payment as not settled", as
 });
 
 test("runtime receipt rejects --organization-id like key-import", async () => {
-  const { dependencies } = receiptDependencies({}) as {
-    dependencies: CliDependencies;
-    paths: string[];
-    output: string[];
-  };
+  const { dependencies } = receiptDependencies({});
   await assert.rejects(
     runCli(
       [
