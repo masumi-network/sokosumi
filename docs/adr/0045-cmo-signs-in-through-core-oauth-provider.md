@@ -13,3 +13,5 @@ CMO lives on its own registrable domain (cmo.xyz), so it cannot share Sokosumi's
 - OAuth redirect URIs must match exactly. CMO has one hand-registered client per environment, like the CLI. PR previews sign in against that PR's mainnet Core preview: after deploy, CI adds the preview's callback URL to CMO's client row in the throwaway preview database. Production clients never accept wildcard redirects.
 - Every user sees the consent screen once, because Core's `/v1` bearer check requires a stored consent that grants `sokosumi:api`.
 - Sign-in, sign-up, and consent pages carry Sokosumi's branding. Signing out of CMO does not sign out of Sokosumi.
+- CMO runs Better Auth statelessly with the generic OAuth plugin; its callback is `/api/auth/callback/sokosumi`. Stateless mode stores and renews Core's rotating refresh token in the encrypted account cookie, so no separate OIDC client library is needed.
+- Core grants no `profile` or `email` scope, so its ID token and userinfo carry only `sub`. CMO reads the name and email from `GET /v1/users/me` at sign in, which also refuses users Core bans or deletes.
