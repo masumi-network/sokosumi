@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   ComposioApiError,
   ComposioConfigError,
+  ComposioIdentityError,
 } from "@/clients/composio.client";
 import {
   badRequest,
@@ -14,6 +15,9 @@ export function mapProjectSocialConnectionServiceError(error: unknown): never {
   if (error instanceof HTTPException) throw error;
   if (error instanceof ComposioConfigError) {
     throw serviceUnavailable("Integrations are not configured on this server.");
+  }
+  if (error instanceof ComposioIdentityError) {
+    throw badRequest(error.message);
   }
   if (error instanceof ComposioApiError) {
     if (

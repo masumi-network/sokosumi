@@ -44,6 +44,19 @@ export function socialPostComposerIssue(
   return validation.ok ? null : validation.reason;
 }
 
+/**
+ * The provider the composer validates against: the connection the user has
+ * selected wins, because Core re-derives the provider from that connection on
+ * save and schedule; an edited post without a selected connection keeps its
+ * own provider, and a new post with no connections falls back to X.
+ */
+export function socialPostComposerProvider(
+  postProvider: SocialPostProvider | null | undefined,
+  selectedConnectionProvider: SocialPostProvider | null | undefined,
+): SocialPostProvider {
+  return selectedConnectionProvider ?? postProvider ?? "x";
+}
+
 /** The file picker's accept list for the selected provider's media rules. */
 export function socialPostComposerAccept(provider: SocialPostProvider): string {
   const rules = SOCIAL_POST_MEDIA_RULES[provider];

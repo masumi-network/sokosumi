@@ -70,7 +70,7 @@ const MESSAGES: Record<string, string> = {
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
-  viewOnX: "View on X",
+  viewPost: "View post",
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
   attempts: "{count} attempts",
@@ -1287,7 +1287,7 @@ describe("ProjectSocialPosts", () => {
     const row = within(selected).getByTestId("social-post-post-published");
     expect(within(row).getByText("Published")).toBeVisible();
     expect(within(row).getByText("Soko Bot")).toBeVisible();
-    const link = within(row).getByRole("link", { name: "View on X" });
+    const link = within(row).getByRole("link", { name: "View post" });
     expect(link).toHaveAttribute(
       "href",
       "https://x.com/sokosumi/status/1234567890",

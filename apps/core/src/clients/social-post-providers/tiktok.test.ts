@@ -203,6 +203,21 @@ describe("publishTikTokVideo", () => {
     ).rejects.toBeInstanceOf(ComposioPublishOutcomeUnknownError);
   });
 
+  it("marks the outcome unknown when the publish call times out upstream", async () => {
+    stubSession((call) =>
+      call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO"
+        ? toolResponse({ privacy_level_options: ["SELF_ONLY"] })
+        : new Response("unavailable", { status: 503 }),
+    );
+
+    const { ComposioPublishOutcomeUnknownError } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    await expect(publishTikTokVideo(context)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
   it("raises a tool error when the publish call is refused", async () => {
     stubSession((call) =>
       call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO"

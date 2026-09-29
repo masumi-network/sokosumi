@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   socialPostComposerAccept,
   socialPostComposerIssue,
+  socialPostComposerProvider,
 } from "./social-post-composer-rules";
 
 function ref(kind: "image" | "video", mimeType: string): SocialPostMediaRef {
@@ -43,6 +44,16 @@ describe("socialPostComposerIssue", () => {
       );
     },
   );
+});
+
+describe("socialPostComposerProvider", () => {
+  it("prefers the selected connection over the stored post provider", () => {
+    expect(socialPostComposerProvider("x", "linkedin")).toBe("linkedin");
+    expect(socialPostComposerProvider("instagram", undefined)).toBe(
+      "instagram",
+    );
+    expect(socialPostComposerProvider(undefined, undefined)).toBe("x");
+  });
 });
 
 describe("socialPostComposerAccept", () => {

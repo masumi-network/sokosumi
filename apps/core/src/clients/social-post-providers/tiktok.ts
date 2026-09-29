@@ -8,6 +8,7 @@ import {
   ComposioToolError,
   createSocialPublishSession,
   executeSocialPublishTool,
+  guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
   SocialPostPublishContext,
@@ -99,19 +100,21 @@ export async function publishTikTokVideo(
       : [];
     const privacyLevel = pickTikTokPrivacyLevel(options);
 
-    const published = await executeSocialPublishTool({
-      sessionId,
-      toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
-      arguments: {
-        video_url: video?.fileUrl,
-        caption: context.text,
-        privacy_level: privacyLevel,
-      },
-      context: "publish TikTok video",
-      refused: "TikTok refused the video",
-      timeoutMs: 60_000,
-      signal: context.signal,
-    });
+    const published = await guardSocialCreateOutcome(label, () =>
+      executeSocialPublishTool({
+        sessionId,
+        toolSlug: TIKTOK_PUBLISH_TOOL_SLUG,
+        arguments: {
+          video_url: video?.fileUrl,
+          caption: context.text,
+          privacy_level: privacyLevel,
+        },
+        context: "publish TikTok video",
+        refused: "TikTok refused the video",
+        timeoutMs: 60_000,
+        signal: context.signal,
+      }),
+    );
     const publishId =
       stringOf(published?.publish_id) ?? stringOf(published?.id);
     if (!publishId) throw new ComposioPublishOutcomeUnknownError(label);
