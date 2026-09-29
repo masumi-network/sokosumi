@@ -124,8 +124,12 @@ _Avoid_: Integration, Project account
 A Project's authorization to publish through one Social account. A Project may have multiple connections, including to different accounts on the same provider.
 _Avoid_: Social account (when meaning the Project authorization), integration account
 
+**Social**:
+The workspace page (`/social`) where a Project's Social posts are planned, scoped to one Project by `?projectId=`. It is not one area of a Project's own page: like the Calendar it is a destination of its own that happens to be read one Project at a time.
+_Avoid_: Social module page, Project social tab, Social media page
+
 **Social accounts**:
-The section of a Project's Social module page (`/projects/{id}/social`) where Social connection managers view and manage a Project's Social connections. It is not a Project settings surface and not a Calendar surface.
+The section of Social where Social connection managers view and manage the scoped Project's Social connections. It is not a Project settings surface and not a Calendar surface.
 _Avoid_: Social account (when meaning the external publishing identity), integrations page
 
 **Social connection manager**:

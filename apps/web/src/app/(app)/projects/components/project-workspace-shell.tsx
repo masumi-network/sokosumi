@@ -18,7 +18,6 @@ export interface ProjectWorkspaceLabels {
   design: string;
   memory: string;
   overview: string;
-  social: string;
 }
 
 /**
@@ -39,7 +38,6 @@ export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabel
     design: t("design"),
     memory: t("memory"),
     overview: t("overview"),
-    social: t("social"),
   };
 }
 
@@ -51,8 +49,6 @@ interface ProjectWorkspaceShellProps {
   projectId: string;
   projectLogo?: string | null;
   projectName: string;
-  /** The social tab exists only for workspaces in the social beta. */
-  showSocialTab: boolean;
   websiteUrl?: string | null;
 }
 
@@ -79,21 +75,17 @@ export function ProjectWorkspaceShell({
   projectId,
   projectLogo,
   projectName,
-  showSocialTab,
   websiteUrl,
 }: ProjectWorkspaceShellProps) {
   /**
    * What a project *is*, in three views.
    *
-   * The image studio and the calendar used to be tabs here. Neither is part of
-   * a project's own record: both are workspace surfaces that happen to be
-   * scoped to one, and they are top-level destinations now. What is left are
-   * the three things that only exist because this project exists — what it is,
-   * how it should look, and what has been learned about it.
-   *
-   * Social is not one of the three. It is still a separate area with its own
-   * route, and this row is its only navigation, so it keeps its tab where the
-   * workspace is in the beta.
+   * The image studio, the calendar and Social used to be tabs here. None of
+   * them is part of a project's own record: all three are workspace surfaces
+   * that happen to be scoped to one, and they are top-level destinations now.
+   * What is left are the three things that only exist because this project
+   * exists — what it is, how it should look, and what has been learned about
+   * it.
    */
   const tabs: ProjectTab[] = [
     {
@@ -113,15 +105,6 @@ export function ProjectWorkspaceShell({
       href: `/projects/${projectId}/memory`,
       label: labels.memory,
     },
-    ...(showSocialTab
-      ? [
-          {
-            id: "social",
-            href: `/projects/${projectId}/social`,
-            label: labels.social,
-          },
-        ]
-      : []),
   ];
 
   return (
