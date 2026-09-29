@@ -130,7 +130,69 @@ describe("project actions", () => {
       websiteUrl: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
-    expect(result.projectId).toBe("project-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.objectContaining({ projectId: "project-1" }),
+      }),
+    );
+  });
+
+  it("passes an uppercased identifier through on create", async () => {
+    projectServiceMock.createProject.mockResolvedValue(buildProject());
+
+    const { createProject } = await import("./action");
+    await createProject({ name: "Launch plan", identifier: " web1 " });
+
+    expect(projectServiceMock.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: "WEB1" }),
+    );
+  });
+
+  it("omits the identifier on create when it is blank so Core derives one", async () => {
+    projectServiceMock.createProject.mockResolvedValue(buildProject());
+
+    const { createProject } = await import("./action");
+    await createProject({ name: "Launch plan", identifier: "  " });
+
+    expect(
+      projectServiceMock.createProject.mock.calls.at(-1)?.[0],
+    ).not.toHaveProperty("identifier");
+  });
+
+  it("rejects an identifier Core would refuse before calling it", async () => {
+    const { createProject, updateProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "1AB" }),
+    ).rejects.toThrow("Invalid project identifier");
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "A" }),
+    ).rejects.toThrow("Invalid project identifier");
+    expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
+  });
+
+  it("returns identifier_taken when Core answers 409 on create and update", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    projectServiceMock.createProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier already in use", {
+        status: 409,
+      }),
+    );
+    projectServiceMock.patchProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier already in use", {
+        status: 409,
+      }),
+    );
+
+    const { createProject, updateProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "SOK" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "SOK" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
   });
 
   it("omits briefing from the patch when the caller did not pass it", async () => {
@@ -222,7 +284,7 @@ describe("project actions", () => {
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
-    expect(result).toEqual({ projectId: "project-1" });
+    expect(result).toEqual({ ok: true, value: { projectId: "project-1" } });
   });
 
   it("closes a project with normalized input and revalidates calendar routes", async () => {

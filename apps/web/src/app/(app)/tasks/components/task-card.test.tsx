@@ -179,7 +179,12 @@ describe("TaskCard project navigation", () => {
   it("keeps project navigation separate from the full-card task link", () => {
     const task = {
       ...buildTask(TaskVisibility.PUBLIC),
-      project: { id: "project-1", name: "Long project name", logo: null },
+      project: {
+        id: "project-1",
+        name: "Long project name",
+        identifier: "SOK",
+        logo: null,
+      },
     };
     render(<TaskCard task={task} />);
     const project = screen.getByRole("link", { name: "openProject" });
@@ -227,6 +232,7 @@ describe("TaskCard density", () => {
         project: {
           id: "project-1",
           name: "A very long project name with international campaign details",
+          identifier: "SOK",
           logo: null,
         },
         tags: {
@@ -312,7 +318,12 @@ describe("Compact board card wiring", () => {
     ({ isDragEnabled, canDrag }) => {
       const task: TaskWithCoworker = {
         ...buildTask(TaskVisibility.PUBLIC),
-        project: { id: "project-1", name: "Launch project", logo: null },
+        project: {
+          id: "project-1",
+          name: "Launch project",
+          identifier: "SOK",
+          logo: null,
+        },
         tags: { manual: ["design"], automatic: [], rejected: [] },
       };
       const { container } = render(

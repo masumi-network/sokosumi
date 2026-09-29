@@ -124,6 +124,11 @@ export function CreateProjectWizard({
         briefing: briefing.trim() || null,
         websiteUrl: normalizedWebsite,
       });
+      // The wizard never sends an identifier, so Core has nothing to reject.
+      if (!result.ok) {
+        throw new Error("Failed to create project");
+      }
+      const { projectId, project } = result.value;
 
       if (creationSource) {
         track("Project created", {
@@ -133,12 +138,12 @@ export function CreateProjectWizard({
       }
 
       if (normalizedWebsite) {
-        setCreatedProjectId(result.projectId);
-        storeCreatedProject(result.project);
+        setCreatedProjectId(projectId);
+        storeCreatedProject(project);
         return;
       }
 
-      onSuccess?.(result.projectId, trimmedName, result.project);
+      onSuccess?.(projectId, trimmedName, project);
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to create project", error);

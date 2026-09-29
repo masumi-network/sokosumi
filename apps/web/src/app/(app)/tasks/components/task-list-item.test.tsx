@@ -106,7 +106,12 @@ describe("TaskListItem description preview", () => {
     const task = {
       ...buildTask(TaskVisibility.PRIVATE),
       descriptionPlain: "Full instructions remain in task detail.",
-      project: { id: "project-1", name: "Launch project", logo: null },
+      project: {
+        id: "project-1",
+        name: "Launch project",
+        identifier: "SOK",
+        logo: null,
+      },
     };
     const { rerender } = render(<TaskListItem task={task} />);
     expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();

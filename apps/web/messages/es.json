@@ -2229,7 +2229,12 @@
           "subtitle": "Un título corto para la campaña o iniciativa.",
           "websiteLabel": "Sitio web",
           "websitePlaceholder": "example.com",
-          "websiteHint": "Opcional. Se usa para el logo y la guía de marca."
+          "websiteHint": "Opcional. Se usa para el logo y la guía de marca.",
+          "identifierLabel": "Identificador",
+          "identifierPlaceholder": "Automático",
+          "identifierHint": "Se usa en los ID de tareas, p. ej. {example}",
+          "identifierInvalid": "Usa de 2 a 7 letras o dígitos, empezando por una letra.",
+          "identifierTaken": "Este identificador ya se usa en este espacio de trabajo."
         },
         "briefing": {
           "title": "Escribe el briefing",

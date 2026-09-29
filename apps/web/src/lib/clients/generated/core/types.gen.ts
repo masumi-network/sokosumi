@@ -1201,6 +1201,10 @@ export type OrganizationSummary = {
 export type ProjectSummary = {
     id: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     logo: string | null;
 };
 
@@ -5040,6 +5044,10 @@ export type Project = {
     id: string;
     workspaceId: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     briefing: string | null;
     briefingUrl: string | null;
     /**
@@ -5088,6 +5096,10 @@ export type CreateProjectRequest = {
      */
     description?: string | null;
     websiteUrl?: string | null;
+    /**
+     * Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.
+     */
+    identifier?: string;
 };
 
 export type ProjectStatsBatch = {
@@ -5563,6 +5575,10 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
+    /**
+     * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
+     */
+    identifier?: string;
 };
 
 export type Job = {
@@ -35708,6 +35724,21 @@ export type PostProjectsErrors = {
             method: string;
         };
     };
+    /**
+     * Project identifier already in use
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsError = PostProjectsErrors[keyof PostProjectsErrors];
@@ -39595,6 +39626,21 @@ export type PatchProjectsByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project identifier already in use
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

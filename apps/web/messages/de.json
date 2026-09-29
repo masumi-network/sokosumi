@@ -2229,7 +2229,12 @@
           "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative.",
           "websiteLabel": "Website",
           "websitePlaceholder": "example.com",
-          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet."
+          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet.",
+          "identifierLabel": "Kennung",
+          "identifierPlaceholder": "Automatisch",
+          "identifierHint": "Wird in Task-IDs verwendet, z. B. {example}",
+          "identifierInvalid": "2-7 Buchstaben oder Ziffern, beginnend mit einem Buchstaben.",
+          "identifierTaken": "Diese Kennung wird in diesem Workspace bereits verwendet."
         },
         "briefing": {
           "title": "Briefing schreiben",

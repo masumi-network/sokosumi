@@ -211,6 +211,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     const project = {
       id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       name: "Autumn",
+      identifier: "SOK",
       logo: "https://example.com/logo.png",
     };
     const task = buildTask(TaskStatus.READY, { project });
