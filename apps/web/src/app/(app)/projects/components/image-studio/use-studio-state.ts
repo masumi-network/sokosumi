@@ -58,7 +58,8 @@ export type StudioErrorCode =
   | "load_older_failed";
 
 export function useStudioState(options: {
-  projectId: string;
+  /** Null for the workspace view: every project's images at once. */
+  projectId: string | null;
   initialState: StudioState;
   initialSelectedAssetId: string | null;
   onSelectionChange?: (assetId: string | null) => void;
@@ -188,10 +189,10 @@ export function useStudioState(options: {
       // image 101.
       const selected = selectionRef.current.assetId;
       const query = selected ? `?assetId=${encodeURIComponent(selected)}` : "";
-      const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state${query}`,
-        { credentials: "same-origin", cache: "no-store" },
-      );
+      const response = await fetch(`${stateUrl(projectId)}${query}`, {
+        credentials: "same-origin",
+        cache: "no-store",
+      });
       // Abandoned: the reader has moved to another project since this went
       // out. Neither its rows nor its failure belongs to what is on screen.
       if (projectId !== shownProjectIdRef.current) return;
@@ -249,7 +250,7 @@ export function useStudioState(options: {
         beforeId: cursor.id,
       });
       const response = await fetch(
-        `/api/projects/${projectId}/image-studio/state?${query.toString()}`,
+        `${stateUrl(projectId)}?${query.toString()}`,
         { credentials: "same-origin", cache: "no-store" },
       );
       if (!response.ok) return;
@@ -300,6 +301,12 @@ export function useStudioState(options: {
     isRefreshing: switching ? false : isRefreshing,
     error: switching ? null : error,
   };
+}
+
+function stateUrl(projectId: string | null): string {
+  return projectId
+    ? `/api/projects/${projectId}/image-studio/state`
+    : "/api/image-studio/state";
 }
 
 /**

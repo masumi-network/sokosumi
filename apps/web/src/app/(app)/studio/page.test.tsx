@@ -2,7 +2,11 @@ import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { imageStudioServiceMock, projectServiceMock } = vi.hoisted(() => ({
-  imageStudioServiceMock: { getCatalog: vi.fn(), getState: vi.fn() },
+  imageStudioServiceMock: {
+    getCatalog: vi.fn(),
+    getState: vi.fn(),
+    getWorkspaceState: vi.fn(),
+  },
   projectServiceMock: { getProjectById: vi.fn() },
 }));
 
@@ -25,12 +29,12 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
   ImageStudio: (props: {
     catalog: { models: unknown[] };
     initialSelectedAssetId: string | null;
-    projectId: string;
+    projectId: string | null;
   }) => (
     <div
       data-testid="image-studio"
       data-catalog-models={props.catalog.models.length}
-      data-project={props.projectId}
+      data-project={props.projectId ?? "workspace"}
       data-selected={props.initialSelectedAssetId ?? ""}
     />
   ),
@@ -70,26 +74,35 @@ describe("StudioPage", () => {
     imageStudioServiceMock.getCatalog.mockResolvedValue(CATALOG);
   });
 
-  it("asks which project to work in when no scope is set", async () => {
+  it("opens the workspace studio when no scope is set", async () => {
+    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
     const { default: StudioPage } = await import("./page");
 
     render(await StudioPage({ searchParams: Promise.resolve({}) }));
 
-    expect(screen.getByTestId("studio-no-project")).toBeInTheDocument();
-    expect(screen.queryByTestId("image-studio")).not.toBeInTheDocument();
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "workspace",
+    );
+    expect(screen.queryByTestId("studio-no-project")).not.toBeInTheDocument();
     // Nothing is loaded for a project nobody named.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(imageStudioServiceMock.getState).not.toHaveBeenCalled();
+    expect(imageStudioServiceMock.getWorkspaceState).toHaveBeenCalledWith({});
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
+    imageStudioServiceMock.getWorkspaceState.mockResolvedValue(studioState());
     const { default: StudioPage } = await import("./page");
 
     render(
       await StudioPage({ searchParams: Promise.resolve({ projectId: " " }) }),
     );
 
-    expect(screen.getByTestId("studio-no-project")).toBeInTheDocument();
+    expect(screen.getByTestId("image-studio")).toHaveAttribute(
+      "data-project",
+      "workspace",
+    );
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
@@ -197,10 +210,15 @@ describe("StudioPage", () => {
     );
   });
 
-  it("does not read the catalog before a project is chosen", async () => {
+  it("does not read the catalog for a scope this workspace lost", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(null);
     const { default: StudioPage } = await import("./page");
 
-    render(await StudioPage({ searchParams: Promise.resolve({}) }));
+    render(
+      await StudioPage({
+        searchParams: Promise.resolve({ projectId: "project-gone" }),
+      }),
+    );
 
     // Nothing to show it against, so nothing is downloaded for it.
     expect(imageStudioServiceMock.getCatalog).not.toHaveBeenCalled();
