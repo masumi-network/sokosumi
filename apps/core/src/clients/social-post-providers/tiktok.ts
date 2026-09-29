@@ -120,6 +120,7 @@ export async function publishTikTokVideo(
     if (!publishId) throw new ComposioPublishOutcomeUnknownError(label);
 
     let waitMs = POLL_START_MS;
+    let refusal: ComposioToolError | null = null;
     try {
       for (;;) {
         context.signal?.throwIfAborted();
@@ -145,16 +146,20 @@ export async function publishTikTokVideo(
           };
         }
         if (state === "FAILED") {
-          throw new ComposioToolError({
+          refusal = new ComposioToolError({
             message: "TikTok refused the video",
             providerMessage: stringOf(status?.fail_reason),
           });
+          throw refusal;
         }
         await delay(waitMs, undefined, { signal: context.signal });
         waitMs = Math.min(waitMs * 2, POLL_CAP_MS);
       }
     } catch (error) {
-      if (error instanceof ComposioToolError) throw error;
+      // Only TikTok's own FAILED verdict is a refusal. Any other error here,
+      // including a transient status-check failure, comes after the video was
+      // handed over, so a retry could publish it twice.
+      if (error === refusal) throw error;
       throw new ComposioPublishOutcomeUnknownError(label);
     }
   } finally {

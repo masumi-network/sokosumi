@@ -218,6 +218,32 @@ describe("publishTikTokVideo", () => {
     );
   });
 
+  // The video is already with TikTok once the publish call returns an id, so a
+  // status-check error — even a transient 429 — must not read as retryable:
+  // a retry would post the video a second time.
+  it("marks the outcome unknown when a status check errors after the publish call", async () => {
+    stubSession((call) => {
+      if (call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO") {
+        return toolResponse({ privacy_level_options: ["SELF_ONLY"] });
+      }
+      if (call.tool_slug === "TIKTOK_PUBLISH_VIDEO") {
+        return toolResponse({ publish_id: "pub_5" });
+      }
+      return Response.json({
+        data: null,
+        error: { message: "rate limited, try again later", status: 429 },
+        successful: false,
+      });
+    });
+
+    const { ComposioPublishOutcomeUnknownError } = await import(
+      "@/clients/social-post-providers/tools"
+    );
+    await expect(publishTikTokVideo(context)).rejects.toBeInstanceOf(
+      ComposioPublishOutcomeUnknownError,
+    );
+  });
+
   it("raises a tool error when the publish call is refused", async () => {
     stubSession((call) =>
       call.tool_slug === "TIKTOK_QUERY_CREATOR_INFO"
