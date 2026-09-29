@@ -89,7 +89,7 @@ describe("ProjectListItem", () => {
     );
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
-    // The row sits inside PROJECTS_BROWSE_LAYOUT_CLASS, which is
+    // The row sits inside PROJECTS_BROWSE_CARD_CLASS, which is
     // --card-background, so the hover has to be the step past it. Pinned
     // exactly: "hover:bg-card-background" is a substring of the correct
     // class, so a toContain on the shorter name passes either way.
@@ -101,12 +101,13 @@ describe("ProjectListItem", () => {
     expect(row?.className.split(/\s+/)).toContain(
       "hover:bg-card-background-hover",
     );
-    // Square at every breakpoint: the row is full-bleed inside the card, so a
-    // radius of its own would round the hover fill between straight dividers.
-    expect(link.className).toContain("rounded-none");
-    expect(link.className).not.toContain("rounded-lg");
-    expect(link.className).not.toContain("border-border");
-    expect(link.className).not.toContain("bg-overlay");
+    // The row is its own bordered card, as in the task list. The link rounds
+    // too, so its focus ring follows the card's left corners; the Pin button
+    // sits outside the link, on the right.
+    expect(row?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["bg-background", "border", "rounded-lg"]),
+    );
+    expect(link.className.split(/\s+/)).toContain("rounded-lg");
     expect(link.className.split(/\s+/)).not.toContain("border");
 
     const article = link.closest("article");

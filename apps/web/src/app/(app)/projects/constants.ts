@@ -48,11 +48,17 @@ export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
   "flex items-center justify-end gap-3";
 
 /**
- * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
- * No horizontal padding: the rows carry their own `px-4`, so both the dividers
- * and the row hover run the full width of the card, as the tasks list does.
+ * Card around the browse rows. Shared by live list and Instant skeleton.
+ * Same `p-2` inset as the task list, Files and Transactions cards.
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
+export const PROJECTS_BROWSE_CARD_CLASS =
+  "bg-card-background overflow-hidden rounded-xl p-2";
+
+/**
+ * Stack of browse rows inside the card: separate row cards with a `gap-2`,
+ * as the task list, Files and Transactions draw them.
+ */
+export const PROJECTS_BROWSE_LIST_CLASS = "flex flex-col gap-2";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
@@ -60,6 +66,13 @@ export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
  */
 export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
+
+/**
+ * Bordered row card shared by live `ProjectListItem` and the Instant skeleton,
+ * as the task list draws its rows.
+ */
+export const PROJECTS_LIST_ROW_CARD_CLASS =
+  "bg-background border-border rounded-lg border";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

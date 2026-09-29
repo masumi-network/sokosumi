@@ -9,8 +9,9 @@ import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
@@ -137,12 +138,12 @@ export function ProjectsView({
           <div
             data-testid="projects-browse"
             className={cn(
-              "bg-card-background overflow-hidden rounded-xl",
+              PROJECTS_BROWSE_CARD_CLASS,
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
             {hasLoadedProjects ? (
-              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+              <div className={PROJECTS_BROWSE_LIST_CLASS}>
                 {items.map((project) => (
                   <ProjectListItem
                     key={project.id}
