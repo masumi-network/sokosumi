@@ -132,6 +132,9 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "composer.publishNow": "Post now",
+  "composer.shortcut": "⌘↵ posts or schedules",
+  "toasts.publishedMany": "Post published.",
   "composer.platforms": "Limits per platform",
   "composer.platformLimit": "{provider} {format} · {count} / {limit}",
   "composer.formats.post": "post",
@@ -789,6 +792,123 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+  });
+
+  it("posts to X in one go: open, type, Post now", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({ id: "post-now", text: "Shipping today", revision: 0 }),
+    });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...PUBLISHED_POST, id: "post-now", text: "Shipping today" },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    // The account is picked already, so typing starts in the text.
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Text")).toHaveFocus(),
+    );
+    await user.keyboard("Shipping today");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    await user.click(postNow);
+
+    await waitFor(() => {
+      expect(publishProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-now",
+        revision: 0,
+      });
+    });
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        socialConnectionId: "connection-1",
+        text: "Shipping today",
+      }),
+    );
+    expect(createProjectSocialPost).not.toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAt: expect.anything() }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps a post that fails to publish now, with the reason", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({ id: "post-now", text: "Hi", revision: 0 }),
+    });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        id: "post-now",
+        lastError: "X rejected the post",
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hi");
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Publishing failed: X rejected the post",
+      );
+    });
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("posts now with ⌘Enter, and schedules with it once a time is picked", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: SCHEDULED_POST,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Later");
+    await pickInAnHour(user, dialog);
+    fireEvent.keyDown(within(dialog).getByLabelText("Text"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ scheduledAt: IN_AN_HOUR.toISOString() }),
+      );
+    });
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
   });
 
   it("saves one draft per account picked", async () => {
