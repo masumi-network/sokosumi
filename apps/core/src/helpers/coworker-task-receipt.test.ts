@@ -164,4 +164,45 @@ describe("resolveTaskSellerReceipt", () => {
       message: "Resolved purchase does not match the task payment",
     });
   });
+
+  it("reports a claim refunded for a mismatch as not settled", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({ kind: "mismatch", message: "mismatch" }),
+    );
+    const receipt = await resolveTaskSellerReceipt(
+      "tsk_1",
+      dbWith(claim("REFUNDED")),
+    );
+    expect(receipt.settled).toBe(false);
+    expect(receipt.claimStatus).toBe("REFUNDED");
+  });
+
+  it("throws a plain 500 when the stored payload cannot be read", async () => {
+    await expect(
+      resolveTaskSellerReceipt(
+        "tsk_1",
+        dbWith({ ...claim("PURCHASED"), purchasePayload: { bad: true } }),
+      ),
+    ).rejects.toMatchObject({
+      status: 500,
+      message: "Stored task payment cannot be read",
+    });
+    expect(resolveMasumiTaskPaymentPurchase).not.toHaveBeenCalled();
+  });
+
+  it("passes the caller's abort signal to the payment node", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      ok({ onChainState: "FundsLocked", CurrentTransaction: null }),
+    );
+    const controller = new AbortController();
+    await resolveTaskSellerReceipt("tsk_1", dbWith(claim("PURCHASED")), {
+      signal: controller.signal,
+    });
+    const { signal } = resolveMasumiTaskPaymentPurchase.mock.calls[0][1] as {
+      signal: AbortSignal;
+    };
+    expect(signal.aborted).toBe(false);
+    controller.abort();
+    expect(signal.aborted).toBe(true);
+  });
 });

@@ -1,5 +1,5 @@
 import { paymentClient } from "@/clients/masumi-payment.client";
-import { badGateway } from "@/helpers/error";
+import { badGateway, internalServerError } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { parsePurchasePayload } from "@/services/task-payment-claim.service";
 
@@ -34,6 +34,7 @@ const NO_CLAIM: TaskSellerReceipt = {
 export async function resolveTaskSellerReceipt(
   taskId: string,
   db: Pick<typeof prisma, "taskPaymentClaim"> = prisma,
+  options: { signal?: AbortSignal } = {},
 ): Promise<TaskSellerReceipt> {
   // The pilot has one payment per task, so the newest claim is the one to
   // prove. Known limitation: if a task is later re-charged (a second claim),
@@ -54,15 +55,36 @@ export async function resolveTaskSellerReceipt(
     claimStatus: claim.status,
   };
 
+  let payload: ReturnType<typeof parsePurchasePayload>;
+  try {
+    payload = parsePurchasePayload(claim.purchasePayload);
+  } catch {
+    // The claim sync already sends such claims to review. Answer with a plain
+    // 500 so each read does not raise a fatal validation event.
+    throw internalServerError("Stored task payment cannot be read");
+  }
+
+  const timeout = AbortSignal.timeout(RECEIPT_REQUEST_TIMEOUT_MS);
   const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
-    parsePurchasePayload(claim.purchasePayload),
-    { signal: AbortSignal.timeout(RECEIPT_REQUEST_TIMEOUT_MS) },
+    payload,
+    {
+      signal: options.signal
+        ? AbortSignal.any([options.signal, timeout])
+        : timeout,
+    },
   );
   if (resolved.isErr()) {
-    // No purchase on the node yet is a real "not settled" answer. A node
-    // failure or a purchase that does not match the claim is not: reporting
-    // settled:false there would read as a proven non-payment.
-    if (resolved.error.kind === "not_found") return base;
+    // No purchase on the node yet is a real "not settled" answer. So is a
+    // mismatch on a claim the sync already refunded for that mismatch: it
+    // never changes, and a 5xx would invite retries. Any other node failure
+    // or mismatch is not: settled:false there would read as a proven
+    // non-payment.
+    if (
+      resolved.error.kind === "not_found" ||
+      (resolved.error.kind === "mismatch" && claim.status === "REFUNDED")
+    ) {
+      return base;
+    }
     throw badGateway(
       resolved.error.kind === "mismatch"
         ? "Resolved purchase does not match the task payment"

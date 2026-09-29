@@ -14,12 +14,12 @@ So the minimal change resolves the Task claim's purchase on demand through the s
 
 ## Change
 
-### Core (reuses `paymentClient` + `purchase.ts`)
+### Core (reuses `paymentClient` and the claim payload parser)
 
 1. Helper `apps/core/src/helpers/coworker-task-receipt.ts`:
    - `resolveTaskSellerReceipt(taskId, db)`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().resolveMasumiTaskPaymentPurchase(parsePurchasePayload(claim.purchasePayload))` with a 20 s timeout.
    - Return `{ blockchainIdentifier, claimStatus, onChainState, settled, txHash, withdrawnForSeller }`, where `settled` is `Withdrawn`, or `DisputedWithdrawn` with a non-empty `WithdrawnForSeller`.
-   - No purchase on the node (`not_found`) returns `settled: false`. A node failure or a terms mismatch throws 502, so an outage never reads as a proven non-payment.
+   - No purchase on the node (`not_found`) returns `settled: false`, and so does a mismatch on a claim the sync already refunded. Any other node failure or terms mismatch throws 502, so an outage never reads as a proven non-payment. An unreadable stored payload returns 500.
    - Limitation: the pilot assumes one payment per task. If a task is re-charged (a second claim), only the newest claim is reported; an older settled claim would then read as `settled: false`.
 2. Route `GET /v1/tasks/{id}/receipt` (`apps/core/src/routes/v1/tasks/[id]/receipt/get.ts`), coworker-readable via `requireTaskReadForRouteVars`, returns the helper output through a Zod/OpenAPI schema. Mount before `/{id}` dynamic routes.
 

@@ -105,6 +105,7 @@ describe("GET /tasks/{id}/receipt", () => {
     expect(resolveTaskSellerReceipt).toHaveBeenCalledWith(
       "tsk_a",
       expect.anything(),
+      { signal: expect.any(AbortSignal) },
     );
   });
 

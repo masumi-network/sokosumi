@@ -34,7 +34,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/receipt",
   description:
-    "Prove the intended seller receipt for a Coworker Task payment. Resolves the task's payment claim through the Masumi Payment Service; settled is true only when the escrow paid the seller on-chain: onChainState Withdrawn, or DisputedWithdrawn with a seller payout. Returns 502 when the payment node fails or its purchase does not match the task payment.",
+    "Prove the intended seller receipt for a Coworker Task payment. Resolves the task's payment claim through the Masumi Payment Service; settled is true only when the escrow paid the seller on-chain: onChainState Withdrawn, or DisputedWithdrawn with a seller payout. Returns 502 when the payment node fails, or when its purchase does not match a task payment that was not refunded.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -53,7 +53,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireTaskReadForRouteVars(c.var, id, prisma);
 
-    const receipt = await resolveTaskSellerReceipt(id, prisma);
+    const receipt = await resolveTaskSellerReceipt(id, prisma, {
+      signal: c.req.raw.signal,
+    });
 
     return ok(c, taskSellerReceiptSchema.parse(receipt));
   });
