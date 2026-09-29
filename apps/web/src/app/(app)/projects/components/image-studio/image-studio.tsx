@@ -23,7 +23,10 @@ import {
   resolveModel,
   settingsOf,
 } from "./catalog";
-import { STUDIO_COLUMN_FEED_HEIGHT_CLASS } from "./studio-classes";
+import {
+  STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+  STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+} from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
@@ -394,12 +397,10 @@ export function ImageStudio({
   );
 
   return (
-    // One bounded column, chat-room shaped: feed scrolls, composer stays put.
-    // With a gallery, fill leftover chrome (header + mobile tab spacer).
-    // Empty studio shrinks to the note and the composer.
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-3",
+        "flex min-h-0 min-w-0 flex-col gap-3",
+        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
         !showsNothing && STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >

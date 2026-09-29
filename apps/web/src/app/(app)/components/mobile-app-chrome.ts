@@ -5,21 +5,20 @@ import {
   isChatShellPathname,
 } from "@/app/chat/utils/chat-route-base";
 
-/**
- * Bottom-nav tab list roots: exact matches get the mobile tab bar; nested
- * paths get a back control to the list root (no back at the root itself).
- */
+/** Exact paths that show the mobile tab bar. */
 const MOBILE_TAB_LIST_PATHS = [
   "/tasks",
   "/agents",
   "/drive",
   "/calendar",
   "/schedules",
-  "/studio",
   "/projects",
   "/you",
   "/history",
 ] as const;
+
+/** List roots with no tab bar. The header leads with back. */
+const MOBILE_FULLSCREEN_LIST_PATHS = ["/studio"] as const;
 
 /**
  * Non-tab hub list roots (PA / admin / notifications): tab bar at root;
@@ -33,6 +32,7 @@ const MOBILE_NON_TAB_HUB_LIST_PATHS = [
 
 const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_TAB_LIST_PATHS,
+  ...MOBILE_FULLSCREEN_LIST_PATHS,
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
@@ -43,6 +43,10 @@ const MAIN_APP_MOBILE_LIST_PATH_SET = new Set<string>(
 );
 
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
+
+const MOBILE_NON_TAB_HUB_LIST_PATH_SET = new Set<string>(
+  MOBILE_NON_TAB_HUB_LIST_PATHS,
+);
 
 type SearchParamsLike =
   | URLSearchParams
@@ -57,7 +61,7 @@ export interface MobileAppBackTarget {
   labelKey: MobileAppBackLabelKey;
 }
 
-/** True for exact main list routes that show the mobile bottom tab bar. */
+/** True for exact main list routes. */
 export function isMainAppMobileChromePathname(
   pathname: string | null | undefined,
 ): boolean {
@@ -110,7 +114,8 @@ export function resolveMobileAppBackTarget(
 
 /**
  * Fixed tab bar: Welcome home / chats list / other chat shell (except
- * rooms) + main list routes. `/` is home chrome, not a chat shell path.
+ * rooms) + tab list roots and non-tab hubs. `/` is home chrome, not a
+ * chat shell path.
  */
 export function shouldShowMobileBottomNav(
   pathname: string | null | undefined,
@@ -129,7 +134,10 @@ export function shouldShowMobileBottomNav(
   if (isChatShellPathname(pathname)) {
     return true;
   }
-  return isMainAppMobileChromePathname(pathname);
+  return (
+    MOBILE_TAB_LIST_PATH_SET.has(pathname) ||
+    MOBILE_NON_TAB_HUB_LIST_PATH_SET.has(pathname)
+  );
 }
 
 /**

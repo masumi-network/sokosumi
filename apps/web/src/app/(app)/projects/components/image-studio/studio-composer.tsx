@@ -843,6 +843,7 @@ export function StudioComposer({
           </>
         }
         withOuterPadding={false}
+        withSafeAreaPadding
       >
         <Textarea
           aria-label={labels.promptPlaceholder}
