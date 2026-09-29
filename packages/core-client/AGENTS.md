@@ -10,7 +10,7 @@
 
 ## Layout
 
-`src/generated/` is entirely `@hey-api/openapi-ts` output from `openapi-ts.config.ts`. `prepare` compiles it to `dist/`. Never hand-edit it; change Core's Zod/OpenAPI schemas and regenerate.
+`src/generated/` is entirely `@hey-api/openapi-ts` output from `openapi-ts.config.ts`. Consumers read the compiled `dist/`: `prepare`, Turbo's `^build`, and both generate scripts rebuild it. Never hand-edit `src/generated/`; change Core's Zod/OpenAPI schemas and regenerate.
 
 ## Entry Points
 

@@ -1,6 +1,9 @@
 {
   "name": "@sokosumi/core-client",
   "version": "0.1.0",
+  "engines": {
+    "node": "24.x"
+  },
   "private": true,
   "type": "module",
   "main": "./dist/generated/index.js",
@@ -35,8 +38,8 @@
     "check": "biome check .",
     "typecheck": "tsc --noEmit",
     "format": "biome format --write .",
-    "generate": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.config.ts",
-    "generate:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot && NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.config.ts -i openapi-core.snapshot.json"
+    "generate": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.config.ts && pnpm build",
+    "generate:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot && NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.config.ts -i openapi-core.snapshot.json && pnpm build"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.99.0",
