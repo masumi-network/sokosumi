@@ -343,6 +343,19 @@ describe("WorkspaceCalendar Social-only view", () => {
       }
     });
 
+    it("offers month and week, and no agenda list", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=agenda",
+      );
+
+      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+        "view.month",
+        "view.week",
+      ]);
+    });
+
     it("keeps a view the reader picked", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },

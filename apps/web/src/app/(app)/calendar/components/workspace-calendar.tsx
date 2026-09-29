@@ -107,6 +107,9 @@ import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
+// Social lists its drafts and failures in tabs of its own, and the month grid
+// already shows what is coming up, so its calendar has no agenda list.
+const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
@@ -783,15 +786,19 @@ export function WorkspaceCalendar({
   // Social plans a feed a month at a time, so its own calendar opens on the
   // month, and on the week on a phone, where a month of posts is too small to
   // read; the workspace calendar plans the week's runs.
+  const views: readonly CalendarView[] = socialPostsOnly
+    ? SOCIAL_CALENDAR_VIEWS
+    : CALENDAR_VIEWS;
   const view =
-    state.view ??
-    (socialPostsOnly
-      ? isMobile
-        ? "week"
-        : "month"
-      : isMobile
-        ? "agenda"
-        : "week");
+    state.view && views.includes(state.view)
+      ? state.view
+      : socialPostsOnly
+        ? isMobile
+          ? "week"
+          : "month"
+        : isMobile
+          ? "agenda"
+          : "week";
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1211,9 +1218,7 @@ export function WorkspaceCalendar({
             className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
-              const nextView = CALENDAR_VIEWS.find(
-                (candidate) => candidate === value,
-              );
+              const nextView = views.find((candidate) => candidate === value);
               if (nextView) {
                 handleViewChange(nextView);
               }
@@ -1226,7 +1231,7 @@ export function WorkspaceCalendar({
               )}
               data-testid="calendar-views"
             >
-              {CALENDAR_VIEWS.map((calendarView) => (
+              {views.map((calendarView) => (
                 <TabsTrigger
                   className={cn(
                     SEGMENTED_TAB_TRIGGER_CLASS_NAME,
