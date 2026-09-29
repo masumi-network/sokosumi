@@ -21,14 +21,15 @@ function subscriptionPeriodStartedAtOrBefore(
 /**
  * Active subscription whose billing period contains `now`
  * (`periodStart <= now < periodEnd`). Use when credits/UI must reflect the
- * period the customer is in, not a pre-created successor row.
+ * period the customer is in, not a pre-created successor row. A Stripe-backed
+ * row wins over a local free row in the same period.
  */
 async function getCurrentInPeriodActiveSubscriptionByReferenceId(
   referenceId: string,
   tx: Prisma.TransactionClient,
   now: Date,
 ): Promise<Subscription | null> {
-  return await tx.subscription.findFirst({
+  const rows = await tx.subscription.findMany({
     where: {
       referenceId,
       ...activeSubscriptionStatusWhere(),
@@ -41,6 +42,8 @@ async function getCurrentInPeriodActiveSubscriptionByReferenceId(
     },
     orderBy: [{ updatedAt: "desc" }],
   });
+
+  return rows.find((row) => row.stripeSubscriptionId) ?? rows[0] ?? null;
 }
 
 /**
