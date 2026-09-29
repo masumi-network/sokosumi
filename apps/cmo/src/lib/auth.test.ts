@@ -9,7 +9,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type CmoAuth, createCmoAuth, renewSession } from "./auth";
 
-const CMO = "https://cmo.test";
+const CMO = "https://cmo.xyz";
+const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
+const PROXY_SECRET = "a-proxy-secret-shared-by-production-and-previews";
 const CORE = "https://core.test";
 const ISSUER = `${CORE}/auth`;
 const CLIENT_ID = "cmo-client";
@@ -213,6 +215,8 @@ async function createFakeCore(): Promise<FakeCore> {
 class CookieJar {
   private cookies = new Map<string, string>();
 
+  constructor(readonly origin = CMO) {}
+
   store(response: Response) {
     for (const header of response.headers.getSetCookie()) {
       const [pair, ...attributes] = header.split(";");
@@ -247,9 +251,9 @@ function browserRequest(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Request {
-  const headers = new Headers({ cookie: jar.header(), origin: CMO });
+  const headers = new Headers({ cookie: jar.header(), origin: jar.origin });
   if (init.body !== undefined) headers.set("content-type", "application/json");
-  return new Request(`${CMO}${path}`, {
+  return new Request(`${jar.origin}${path}`, {
     method: init.method ?? "GET",
     headers,
     body: init.body === undefined ? undefined : JSON.stringify(init.body),
@@ -277,13 +281,13 @@ async function startSignIn(auth: CmoAuth, jar: CookieJar): Promise<string> {
   return url;
 }
 
+function callbackPath({ code, state }: { code: string; state: string }) {
+  return `/api/auth/callback/sokosumi?code=${code}&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(ISSUER)}`;
+}
+
 async function signIn(auth: CmoAuth, jar: CookieJar, core: FakeCore) {
-  const { code, state } = core.approve(await startSignIn(auth, jar));
-  return send(
-    auth,
-    jar,
-    `/api/auth/callback/sokosumi?code=${code}&state=${state}&iss=${encodeURIComponent(ISSUER)}`,
-  );
+  const approval = core.approve(await startSignIn(auth, jar));
+  return send(auth, jar, callbackPath(approval));
 }
 
 async function sessionUser(auth: CmoAuth, jar: CookieJar) {
@@ -312,12 +316,14 @@ describe("CMO auth handler", () => {
     });
     core = await createFakeCore();
     vi.stubGlobal("fetch", core.fetch);
+    // Production runs the proxy for previews and skips it for itself.
     auth = createCmoAuth({
       baseURL: CMO,
       coreBaseUrl: CORE,
       clientId: CLIENT_ID,
       clientSecret: CLIENT_SECRET,
       secret: "a-cookie-secret-that-is-at-least-32-characters",
+      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
     });
     jar = new CookieJar();
   });
@@ -454,5 +460,49 @@ describe("CMO auth handler", () => {
 
     expect(response.headers.get("location")).toMatch(/^\/\?error=/);
     expect(await sessionUser(auth, jar)).toBeNull();
+  });
+
+  it("signs a preview in through production CMO's proxy", async () => {
+    const preview = createCmoAuth({
+      baseURL: PREVIEW,
+      coreBaseUrl: CORE,
+      clientId: CLIENT_ID,
+      clientSecret: CLIENT_SECRET,
+      secret: "a-preview-cookie-secret-of-at-least-32-characters",
+      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
+    });
+    const previewJar = new CookieJar(PREVIEW);
+
+    const authorizeUrl = await startSignIn(preview, previewJar);
+    expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
+      CALLBACK,
+    );
+
+    // Core sends the browser to production, which hands off to the preview.
+    const handoff = await send(
+      auth,
+      jar,
+      callbackPath(core.approve(authorizeUrl)),
+    );
+    const location = new URL(handoff.headers.get("location") ?? "");
+    expect(location.origin).toBe(PREVIEW);
+    expect(jar.names()).toEqual([]);
+
+    const done = await send(
+      preview,
+      previewJar,
+      `${location.pathname}${location.search}`,
+    );
+    expect(done.headers.get("location")).toBe("/");
+    expect(await sessionUser(preview, previewJar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+
+    // The preview received the refresh token and renews on its own.
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(preview, previewJar);
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(preview, previewJar)).not.toBeNull();
   });
 });

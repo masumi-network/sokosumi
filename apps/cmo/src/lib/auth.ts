@@ -7,6 +7,7 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { decryptOAuthToken } from "better-auth/oauth2";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
+import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
 
 import { readCmoAuthConfig } from "./auth-config";
 import { SOKOSUMI_OAUTH_PROVIDER_ID } from "./sokosumi-oauth";
@@ -20,6 +21,12 @@ export interface CmoAuthConfig {
   clientSecret: string;
   /** Encrypts CMO's session and token cookies. */
   secret: string;
+  /**
+   * On Vercel: Core only knows production CMO's callback, so production
+   * exchanges the code and hands a preview its tokens, encrypted with a
+   * secret both share (ADR 0045). Production skips the proxy for itself.
+   */
+  oauthProxy?: { productionURL: string; secret: string };
 }
 
 /** Core's refresh tokens last 90 days; the session never outlives them. */
@@ -120,6 +127,16 @@ export function createCmoAuth(config: CmoAuthConfig) {
           },
         ],
       }),
+      ...(config.oauthProxy
+        ? [
+            oAuthProxy({
+              productionURL: config.oauthProxy.productionURL,
+              // Server actions carry no request URL; name the origin.
+              currentURL: config.baseURL,
+              secret: config.oauthProxy.secret,
+            }),
+          ]
+        : []),
       nextCookies(),
     ],
   });
