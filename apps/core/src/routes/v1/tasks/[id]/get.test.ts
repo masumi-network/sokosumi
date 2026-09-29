@@ -138,6 +138,7 @@ function createTask(
     status: overrides?.status ?? TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
     priority: TaskPriority.NONE,
+    number: null,
     runAt: overrides?.runAt ?? null,
     events: [],
     jobs: [],

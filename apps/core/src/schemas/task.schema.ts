@@ -321,6 +321,16 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   tags: taskTagsSchema.optional(),
+  number: z.number().int().positive().nullable().openapi({
+    example: 123,
+    description:
+      "Sequence number within the project. Null when the task has no project.",
+  }),
+  identifier: z.string().nullable().openapi({
+    example: "SOK-123",
+    description:
+      "Project identifier and number, e.g. SOK-123. Null when the task has no project.",
+  }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({

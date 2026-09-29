@@ -158,6 +158,8 @@ function createTaskApi(projectId: string | null = null) {
     status: TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
     priority: TaskPriority.NONE,
+    number: null,
+    identifier: null,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     credits: 0,
