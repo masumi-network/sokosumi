@@ -488,6 +488,33 @@ export function RoomComposer({
     );
   }, []);
 
+  // Keep toasts just above the composer (incl. mobile keyboard).
+  useEffect(() => {
+    const form = formRef.current;
+    if (!form) {
+      return;
+    }
+    const root = document.documentElement;
+    const update = () => {
+      const top = form.getBoundingClientRect().top;
+      root.style.setProperty(
+        "--toast-bottom-offset",
+        `${Math.max(0, window.innerHeight - top) + 8}px`,
+      );
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(form);
+    window.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("resize", update);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", update);
+      window.visualViewport?.removeEventListener("resize", update);
+      root.style.removeProperty("--toast-bottom-offset");
+    };
+  }, []);
+
   // Re-run when focusOnMount flips true (e.g. progressive history ready).
   useEffect(() => {
     if (!focusOnMount) {
