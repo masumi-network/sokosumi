@@ -417,7 +417,7 @@ struct ConversationSidebarView: View {
       } catch is CancellationError {
         // The workspace changed underneath the request; nothing to report.
       } catch {
-        invitationFailure = .init(action: action, message: chatErrorMessage(error))
+        invitationFailure = .init(action: action, message: friendlyMessage(for: error, mode: .coreMessage))
       }
     }
   }
