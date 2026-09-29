@@ -36,6 +36,7 @@ const route = createRoute({
             plan: "starter",
             status: "active",
             cancelAtPeriodEnd: false,
+            cancelAt: null,
             periodStart: "2025-01-01T00:00:00.000Z",
             periodEnd: "2025-02-01T00:00:00.000Z",
             seats: 3,

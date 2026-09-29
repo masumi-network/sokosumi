@@ -4719,6 +4719,10 @@ export type ActiveSubscriptionResponse = {
         plan: string;
         status: StripeSubscriptionStatus;
         cancelAtPeriodEnd?: boolean | null;
+        /**
+         * When a scheduled cancellation takes effect. Stripe flexible billing mode sets this instead of cancelAtPeriodEnd
+         */
+        cancelAt?: Date | null;
         periodStart?: Date | null;
         periodEnd?: Date | null;
         seats?: number | null;
@@ -4850,6 +4854,10 @@ export type OrganizationBillingPlan = {
      * Whether the self-serve subscription cancels at the period end (always false for enterprise contracts)
      */
     cancelAtPeriodEnd: boolean;
+    /**
+     * When a scheduled self-serve cancellation takes effect (null when none is scheduled). Stripe flexible billing mode sets this instead of cancelAtPeriodEnd
+     */
+    cancelAt: Date | null;
     /**
      * End of the current self-serve billing period (null for enterprise contracts or when unknown)
      */
