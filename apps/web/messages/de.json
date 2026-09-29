@@ -2472,6 +2472,25 @@
           "title": "Verbinde ein Konto, um zu posten",
           "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
           "action": "X, YouTube, LinkedIn … verbinden"
+        },
+        "preview": {
+          "label": "{provider}-Vorschau",
+          "now": "jetzt",
+          "accountFallback": "Dein Konto",
+          "open": "Vorschau",
+          "dialogTitle": "Beitragsvorschau",
+          "linkedin": {
+            "like": "Gefällt mir",
+            "comment": "Kommentieren",
+            "repost": "Reposten",
+            "send": "Senden",
+            "seeMore": "…mehr anzeigen",
+            "public": "Für alle sichtbar"
+          },
+          "instagram": {
+            "more": "mehr",
+            "mediaRequired": "Instagram braucht ein Bild oder Video."
+          }
         }
       },
       "Detail": {
