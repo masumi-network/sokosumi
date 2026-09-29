@@ -2751,7 +2751,8 @@
       "accountsNeedProject": {
         "title": "Social accounts",
         "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
-      }
+      },
+      "loading": "Loading Social…"
     },
     "Error": {
       "title": "Something went wrong",

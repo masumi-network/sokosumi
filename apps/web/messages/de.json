@@ -2751,7 +2751,8 @@
       "accountsNeedProject": {
         "title": "Social-Konten",
         "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
-      }
+      },
+      "loading": "Social wird geladen…"
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",

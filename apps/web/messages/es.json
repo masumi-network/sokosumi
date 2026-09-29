@@ -2751,7 +2751,8 @@
       "accountsNeedProject": {
         "title": "Cuentas sociales",
         "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
-      }
+      },
+      "loading": "Cargando Social…"
     },
     "Error": {
       "title": "Algo salió mal",
