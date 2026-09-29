@@ -20,7 +20,9 @@ import { OUTBOUND_PENDING_SPINNER_DELAY_MS } from "@/app/chat/utils/outbound-roo
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomMessage,
+  ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
+import { type SeenBySource, seenByListFor } from "./message-seen-by";
 import { ChatMessageRow } from "./room-message-row";
 
 const { routerPushMock } = vi.hoisted(() => ({ routerPushMock: vi.fn() }));
@@ -42,6 +44,9 @@ vi.mock("next-intl", () => ({
       }
       if (key === "Reactions.andMore" && values) {
         return `and ${values.count} more`;
+      }
+      if (key === "count" && values?.total != null) {
+        return `${String(values.read)} of ${String(values.total)}`;
       }
       if (key === "jump" && values) {
         return `Jump to message from ${values.author}`;
@@ -244,8 +249,10 @@ function renderRow({
   coworkersById = new Map(),
   usersById,
   isPinned,
+  seenBySource,
 }: {
   message?: ChatRoomMessage;
+  seenBySource?: SeenBySource;
   isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
@@ -300,8 +307,51 @@ function renderRow({
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
       isPinned={isPinned}
+      seenByFor={
+        seenBySource
+          ? (createdAt, authorId) =>
+              seenByListFor(seenBySource, createdAt, authorId)
+          : undefined
+      }
     />,
   );
+}
+
+function reader(id: string): ChatRoomUserParticipant {
+  return {
+    id,
+    name: id,
+    email: `${id}@example.com`,
+    image: null,
+    presence: "offline",
+    access: "member",
+    lastReadAt: null,
+  };
+}
+
+/**
+ * Anna read after the default message was sent, Ben read before it, Mia never
+ * opened the room: one reader, two not yet.
+ */
+function twoOfThreeNotYet(): SeenBySource {
+  const readers = [
+    {
+      participant: reader("user-anna"),
+      lastReadAt: new Date("2026-07-01T15:00:00.000Z"),
+    },
+    {
+      participant: reader("user-ben"),
+      lastReadAt: new Date("2026-07-01T14:00:00.000Z"),
+    },
+  ];
+  return {
+    readers,
+    nonReaders: [reader("user-mia")],
+    readersAsOf: (at) =>
+      readers.filter(
+        (entry) => entry.lastReadAt.getTime() >= new Date(at).getTime(),
+      ),
+  };
 }
 
 function renderContinuation(message: ChatRoomMessage = userMessage()) {
@@ -692,6 +742,167 @@ describe("ChatMessageRow", () => {
     );
 
     expect(onSendToSelf).toHaveBeenCalledExactlyOnceWith(message);
+  });
+
+  it("shows who has read a message from the sheet, then goes back", async () => {
+    const user = userEvent.setup();
+    renderRow({ seenBySource: twoOfThreeNotYet() });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    const sheet = screen.getByRole("dialog");
+    await user.click(
+      within(sheet).getByRole("button", { name: "action 1 of 3" }),
+    );
+
+    expect(
+      within(sheet).getByRole("heading", { name: "SeenBy.action" }),
+    ).toBeVisible();
+    // The row that was clicked is gone; focus lands on its replacement.
+    expect(
+      within(sheet).getByRole("button", { name: "SeenBy.back" }),
+    ).toHaveFocus();
+    expect(
+      within(sheet).getByTestId("room-seen-by-reader-user-anna"),
+    ).toBeInTheDocument();
+    // Ben read the room, but not this far; Mia never opened it.
+    expect(
+      within(sheet).getByTestId("room-seen-by-pending-user-ben"),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).getByTestId("room-seen-by-pending-user-mia"),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).queryByRole("button", { name: "Copy.link" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      within(sheet).getByRole("button", { name: "SeenBy.back" }),
+    );
+
+    expect(
+      within(sheet).getByRole("button", { name: "Copy.link" }),
+    ).toBeInTheDocument();
+    expect(
+      within(sheet).queryByTestId("message-seen-by-detail"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sheet).getByRole("button", { name: "action 1 of 3" }),
+    ).toHaveFocus();
+  });
+
+  // Posting moves the author's own read mark past the message, so without
+  // this they would always count as a reader of what they wrote.
+  it("leaves the author out of who has read their message", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      message: userMessage({
+        sender: {
+          type: "user",
+          user: {
+            id: "user-anna",
+            name: "Anna",
+            email: "anna@example.com",
+            image: null,
+            presence: "offline",
+          },
+        },
+      }),
+      seenBySource: twoOfThreeNotYet(),
+    });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    const sheet = screen.getByRole("dialog");
+    await user.click(
+      within(sheet).getByRole("button", { name: "action 0 of 2" }),
+    );
+
+    expect(
+      within(sheet).queryByTestId("room-seen-by-reader-user-anna"),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sheet).queryByTestId("room-seen-by-pending-user-anna"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("reopens the sheet on the actions after closing it on Seen by", async () => {
+    const user = userEvent.setup();
+    renderRow({ seenBySource: twoOfThreeNotYet() });
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "action 1 of 3",
+      }),
+    );
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+
+    const reopened = screen.getByRole("dialog");
+    expect(
+      within(reopened).getByRole("button", { name: "Copy.link" }),
+    ).toBeInTheDocument();
+    // Only Back returns focus to the row; a fresh open leaves it alone.
+    expect(
+      within(reopened).getByRole("button", { name: "action 1 of 3" }),
+    ).not.toHaveFocus();
+  });
+
+  it("shows who has read a message from the hover overflow", async () => {
+    const user = userEvent.setup();
+    renderRow({ seenBySource: twoOfThreeNotYet() });
+    await user.hover(screen.getByRole("article"));
+
+    await user.click(
+      within(hoverPill() as HTMLElement).getByRole("button", {
+        name: "Actions.overflow",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("menuitem", { name: "action 1 of 3" }),
+    );
+
+    const detail = await screen.findByTestId("message-seen-by-detail");
+    expect(
+      within(detail).getByTestId("room-seen-by-reader-user-anna"),
+    ).toBeInTheDocument();
+    expect(
+      within(detail).getByTestId("room-seen-by-pending-user-mia"),
+    ).toBeInTheDocument();
+  });
+
+  it("hides Seen by without receipts, with nobody to read, and on a streaming overlay", async () => {
+    const user = userEvent.setup();
+    const cases: { message?: ChatRoomMessage; seenBySource?: SeenBySource }[] =
+      [
+        {},
+        {
+          seenBySource: {
+            readers: [],
+            nonReaders: [],
+            readersAsOf: () => [],
+          },
+        },
+        {
+          message: coworkerMessage({
+            id: "stream:turn-1",
+            content: "Still streaming",
+          }),
+          seenBySource: twoOfThreeNotYet(),
+        },
+      ];
+    for (const props of cases) {
+      renderRow(props);
+      await user.click(screen.getByRole("button", { name: "Actions.more" }));
+      expect(
+        within(screen.getByRole("dialog")).queryByTestId(
+          "message-seen-by-trigger",
+        ),
+      ).not.toBeInTheDocument();
+      cleanup();
+    }
   });
 
   it("hides Send to yourself without a handler and on a streaming overlay", async () => {

@@ -19,6 +19,7 @@ vi.mock("next-intl", () => ({
 
 import {
   RoomSeenByLine,
+  SeenByDetail,
   seenByPendingFor,
   seenByReadersFor,
 } from "./room-seen-by-line";
@@ -145,6 +146,24 @@ describe("RoomSeenByLine", () => {
     );
 
     expect(line()).not.toBeInTheDocument();
+  });
+
+  // The message menu shows the list for any message, where nobody may have
+  // read yet: the grey rows stand alone, with no heading and no divider.
+  it("lists only the not-read rows when nobody has read", () => {
+    render(
+      <SeenByDetail
+        readers={[]}
+        pending={[member("user-a", null), member("user-b", null)]}
+      />,
+    );
+
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+    const pending = screen.getByTestId("room-seen-by-pending");
+    expect(pending.className.split(/\s+/)).not.toContain("border-t");
+    expect(
+      screen.getByTestId("room-seen-by-pending-user-b"),
+    ).toBeInTheDocument();
   });
 
   it("renders nothing when nobody has read that far", () => {

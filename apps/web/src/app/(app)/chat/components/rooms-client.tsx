@@ -189,6 +189,7 @@ import {
   type ChatRoomMessageLink,
   chatRoomMessageHref,
 } from "@/lib/utils/notification-href";
+import { seenByListFor } from "./message-seen-by";
 import {
   canOpenHumanDirectFromSelectedRoom,
   openDirectWithParticipant,
@@ -1016,6 +1017,21 @@ function RoomView({
     setRosterOpen(false);
   }
   const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
+  // Seen by on any message's actions. Read through a ref so the function
+  // stays the same across read events: rows are memoized, and a new one per
+  // event would re-render every row. A guest sees no read times, and the Self
+  // Direct has nobody else to read it.
+  const readReceiptsRef = useRef(readReceipts);
+  readReceiptsRef.current = readReceipts;
+  const stableSeenByFor = useCallback(
+    (createdAt: Date | string, authorId?: string) =>
+      seenByListFor(readReceiptsRef.current, createdAt, authorId),
+    [],
+  );
+  const seenByFor =
+    isGuestInSelectedRoom || selectedRoom?.isSelfDirect
+      ? undefined
+      : stableSeenByFor;
   // Matched channels are roster-managed only from the admin hub.
   const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
@@ -3166,6 +3182,7 @@ function RoomView({
                   />
                 ) : undefined
               }
+              seenByFor={seenByFor}
             />
           )}
         </div>

@@ -6073,7 +6073,10 @@
         "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
         "readersTitle": "Gelesen von",
         "readAt": "Zuletzt gelesen {time}",
-        "notRead": "Noch nicht gelesen"
+        "notRead": "Noch nicht gelesen",
+        "action": "Gesehen von",
+        "count": "{read} von {total}",
+        "back": "Zurück"
       },
       "UnreadThreads": {
         "open": "Threads",

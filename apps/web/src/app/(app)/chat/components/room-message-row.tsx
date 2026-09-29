@@ -8,6 +8,7 @@ import {
 import {
   AlertCircle,
   Check,
+  ChevronLeft,
   Copy,
   Ellipsis,
   Link2,
@@ -133,6 +134,11 @@ import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 import { getInitials } from "@/lib/utils/text";
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { MessageEditComposer } from "./message-edit-composer";
+import {
+  type SeenByList,
+  SeenBySheetRow,
+  SeenBySubmenu,
+} from "./message-seen-by";
 import { participantDirectKey } from "./open-direct-with-participant";
 import { AiCoworkerAvatarBadge } from "./room-draft-shared";
 import {
@@ -147,6 +153,7 @@ import {
   type UserMentionLookup,
 } from "./room-helpers";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
+import { SeenByDetail } from "./room-seen-by-line";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
@@ -977,6 +984,7 @@ function MessageActionControls({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  getSeenBy,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1001,6 +1009,8 @@ function MessageActionControls({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent without a Seen by entry; null when nobody else could read. */
+  getSeenBy?: () => SeenByList | null;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1025,6 +1035,7 @@ function MessageActionControls({
     (showPin ||
       showCopyLink ||
       Boolean(onSendToSelf) ||
+      Boolean(getSeenBy) ||
       showCopy ||
       showDelete);
   const reactedEmojis = readerReactedEmojis(message);
@@ -1240,6 +1251,8 @@ function MessageActionControls({
                 {t("Copy.action")}
               </DropdownMenuItem>
             ) : null}
+            {/* Menu content mounts on open, so the list is read then. */}
+            {getSeenBy ? <SeenBySubmenu getList={getSeenBy} /> : null}
             {showDelete ? (
               <DropdownMenuItem
                 variant="destructive"
@@ -1300,6 +1313,7 @@ function MessageActions({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  getSeenBy,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1321,6 +1335,8 @@ function MessageActions({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent without a Seen by entry; null when nobody else could read. */
+  getSeenBy?: () => SeenByList | null;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1382,6 +1398,7 @@ function MessageActions({
         onCopy={onCopy}
         onCopyLink={onCopyLink}
         onSendToSelf={onSendToSelf}
+        getSeenBy={getSeenBy}
         onEdit={onEdit}
         onDelete={onDelete}
         showThreadButton={showThreadButton}
@@ -1535,6 +1552,7 @@ function TouchMessageActionsSheet({
   onCopy,
   onCopyLink,
   onSendToSelf,
+  getSeenBy,
   onEdit,
   onDelete,
   showThreadButton,
@@ -1557,6 +1575,8 @@ function TouchMessageActionsSheet({
   onCopyLink?: () => void;
   /** Absent when the message cannot be sent to the Self Direct. */
   onSendToSelf?: () => void;
+  /** Absent without a Seen by entry; null when nobody else could read. */
+  getSeenBy?: () => SeenByList | null;
   onEdit?: (message: ChatRoomMessage) => void;
   onDelete?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
@@ -1593,6 +1613,34 @@ function TouchMessageActionsSheet({
     SHEET_QUICK_REACTION_COUNT,
   );
   const reactedEmojis = readerReactedEmojis(message);
+  // Seen by swaps the sheet's body rather than stacking a second sheet on
+  // it. A closed sheet stays mounted, so it opens on the actions again. The
+  // reset waits for the next open: on close, the list stays put while the
+  // sheet slides out.
+  const [view, setView] = useState<"actions" | "seenBy">("actions");
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) {
+      setView("actions");
+    }
+  }
+  // The button that switched the view unmounts with it, so focus moves to
+  // the control that takes its place: Back on the list, the row on return.
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const seenByRowRef = useRef<HTMLButtonElement>(null);
+  const returningFromSeenByRef = useRef(false);
+  useEffect(() => {
+    if (view === "seenBy") {
+      backButtonRef.current?.focus();
+    } else if (returningFromSeenByRef.current) {
+      returningFromSeenByRef.current = false;
+      seenByRowRef.current?.focus();
+    }
+  }, [view]);
+  // The sheet mounts on first open, so only rows opened once pay for this.
+  const seenByList = getSeenBy?.() ?? null;
+  const shownSeenBy = view === "seenBy" ? seenByList : null;
 
   function runAndClose(action: () => void) {
     action();
@@ -1618,184 +1666,232 @@ function TouchMessageActionsSheet({
               aria-hidden
             />
           </div>
-          <SheetTitle>{t("Actions.more")}</SheetTitle>
+          <div className="relative flex w-full items-center justify-center">
+            {shownSeenBy ? (
+              <Button
+                ref={backButtonRef}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute start-1 size-11 rounded-full"
+                aria-label={t("SeenBy.back")}
+                onClick={() => {
+                  returningFromSeenByRef.current = true;
+                  setView("actions");
+                }}
+              >
+                <ChevronLeft className="size-5" aria-hidden />
+              </Button>
+            ) : null}
+            <SheetTitle>
+              {shownSeenBy ? t("SeenBy.action") : t("Actions.more")}
+            </SheetTitle>
+          </div>
           <SheetDescription className="sr-only">
-            {t("Actions.more")}
+            {shownSeenBy ? t("SeenBy.action") : t("Actions.more")}
           </SheetDescription>
         </SheetHeader>
-        <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
-          {quickReactions.map((emoji) => (
-            <Button
-              key={emoji}
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "size-11 rounded-full text-xl",
-                reactedEmojis.has(emoji) &&
-                  "bg-primary-quinary hover:bg-primary-quaternary",
-              )}
-              aria-label={t("Reactions.toggle", { emoji })}
-              aria-pressed={reactedEmojis.has(emoji)}
-              onClick={() => {
-                runAndClose(() => {
-                  onToggleReaction(message, emoji);
-                });
-              }}
-            >
-              <span aria-hidden>{emoji}</span>
-            </Button>
-          ))}
-          <EmojiPicker
-            title={t("Reactions.add")}
-            ariaLabel={t("Reactions.add")}
-            align="center"
-            triggerClassName="size-11 rounded-full"
-            portalContainer={portalHost}
-            onPick={(emoji) => {
-              runAndClose(() => {
-                onToggleReaction(message, emoji);
-              });
-            }}
-          />
-        </div>
-        {whoReactedRows.length > 0 ? (
-          <ul
-            aria-label={t("Reactions.whoReactedList")}
-            className="border-border space-y-2 border-t px-4 py-3"
+        {shownSeenBy ? (
+          <div
+            className="border-border border-t px-2 py-2"
+            data-testid="message-seen-by-detail"
           >
-            {whoReactedRows.map((row) => (
-              <li key={row.emoji} className="flex items-start gap-2 text-sm">
-                <span className="text-base leading-none" aria-hidden>
-                  {row.emoji}
-                </span>
-                <span className="text-muted-foreground min-w-0 flex-1">
-                  {row.whoReactedLabel}
-                </span>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
-          {showEditButton && onEdit ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(() => {
-                  onEdit(message);
-                });
-              }}
-            >
-              <Pencil className="size-4 shrink-0" aria-hidden />
-              {t("Edit.action")}
-            </Button>
-          ) : null}
-          {showQuoteButton && onQuote ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(() => {
-                  onQuote(message);
-                });
-              }}
-            >
-              <Quote className="size-4 shrink-0" aria-hidden />
-              {t("Quote.action")}
-            </Button>
-          ) : null}
-          {showPinButton && onPin ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(() => {
-                  onPin(message);
-                });
-              }}
-            >
-              {isPinned ? (
-                <PinOff className="size-4 shrink-0" aria-hidden />
-              ) : (
-                <Pin className="size-4 shrink-0" aria-hidden />
-              )}
-              {isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
-            </Button>
-          ) : null}
-          {showCopyLinkButton && onCopyLink ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(onCopyLink);
-              }}
-            >
-              <Link2 className="size-4 shrink-0" aria-hidden />
-              {t("Copy.link")}
-            </Button>
-          ) : null}
-          {onSendToSelf ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(onSendToSelf);
-              }}
-            >
-              <Send className="size-4 shrink-0" aria-hidden />
-              {t("Copy.sendToSelf")}
-            </Button>
-          ) : null}
-          {showCopyButton && onCopy ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(onCopy);
-              }}
-            >
-              <Copy className="size-4 shrink-0" aria-hidden />
-              {t("Copy.action")}
-            </Button>
-          ) : null}
-          {showThreadButton && onOpenThread ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(() => {
-                  onOpenThread(message);
-                });
-              }}
-            >
-              <MessageCircle className="size-4 shrink-0" aria-hidden />
-              {t("Thread.open")}
-            </Button>
-          ) : null}
-          {showDeleteButton && onDelete ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
-              onClick={() => {
-                runAndClose(() => {
-                  onDelete(message);
-                });
-              }}
-            >
-              <Trash2 className="size-4 shrink-0" aria-hidden />
-              {t("Message.delete")}
-            </Button>
-          ) : null}
-        </div>
+            <SeenByDetail
+              readers={shownSeenBy.readers}
+              pending={shownSeenBy.pending}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
+              {quickReactions.map((emoji) => (
+                <Button
+                  key={emoji}
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "size-11 rounded-full text-xl",
+                    reactedEmojis.has(emoji) &&
+                      "bg-primary-quinary hover:bg-primary-quaternary",
+                  )}
+                  aria-label={t("Reactions.toggle", { emoji })}
+                  aria-pressed={reactedEmojis.has(emoji)}
+                  onClick={() => {
+                    runAndClose(() => {
+                      onToggleReaction(message, emoji);
+                    });
+                  }}
+                >
+                  <span aria-hidden>{emoji}</span>
+                </Button>
+              ))}
+              <EmojiPicker
+                title={t("Reactions.add")}
+                ariaLabel={t("Reactions.add")}
+                align="center"
+                triggerClassName="size-11 rounded-full"
+                portalContainer={portalHost}
+                onPick={(emoji) => {
+                  runAndClose(() => {
+                    onToggleReaction(message, emoji);
+                  });
+                }}
+              />
+            </div>
+            {whoReactedRows.length > 0 ? (
+              <ul
+                aria-label={t("Reactions.whoReactedList")}
+                className="border-border space-y-2 border-t px-4 py-3"
+              >
+                {whoReactedRows.map((row) => (
+                  <li
+                    key={row.emoji}
+                    className="flex items-start gap-2 text-sm"
+                  >
+                    <span className="text-base leading-none" aria-hidden>
+                      {row.emoji}
+                    </span>
+                    <span className="text-muted-foreground min-w-0 flex-1">
+                      {row.whoReactedLabel}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            <div className="border-border flex flex-col gap-1 border-t px-2 py-2">
+              {showEditButton && onEdit ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(() => {
+                      onEdit(message);
+                    });
+                  }}
+                >
+                  <Pencil className="size-4 shrink-0" aria-hidden />
+                  {t("Edit.action")}
+                </Button>
+              ) : null}
+              {showQuoteButton && onQuote ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(() => {
+                      onQuote(message);
+                    });
+                  }}
+                >
+                  <Quote className="size-4 shrink-0" aria-hidden />
+                  {t("Quote.action")}
+                </Button>
+              ) : null}
+              {showPinButton && onPin ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(() => {
+                      onPin(message);
+                    });
+                  }}
+                >
+                  {isPinned ? (
+                    <PinOff className="size-4 shrink-0" aria-hidden />
+                  ) : (
+                    <Pin className="size-4 shrink-0" aria-hidden />
+                  )}
+                  {isPinned
+                    ? t("PinnedMessages.unpin")
+                    : t("PinnedMessages.pin")}
+                </Button>
+              ) : null}
+              {showCopyLinkButton && onCopyLink ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(onCopyLink);
+                  }}
+                >
+                  <Link2 className="size-4 shrink-0" aria-hidden />
+                  {t("Copy.link")}
+                </Button>
+              ) : null}
+              {onSendToSelf ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(onSendToSelf);
+                  }}
+                >
+                  <Send className="size-4 shrink-0" aria-hidden />
+                  {t("Copy.sendToSelf")}
+                </Button>
+              ) : null}
+              {showCopyButton && onCopy ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(onCopy);
+                  }}
+                >
+                  <Copy className="size-4 shrink-0" aria-hidden />
+                  {t("Copy.action")}
+                </Button>
+              ) : null}
+              {showThreadButton && onOpenThread ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(() => {
+                      onOpenThread(message);
+                    });
+                  }}
+                >
+                  <MessageCircle className="size-4 shrink-0" aria-hidden />
+                  {t("Thread.open")}
+                </Button>
+              ) : null}
+              {seenByList ? (
+                <SeenBySheetRow
+                  ref={seenByRowRef}
+                  list={seenByList}
+                  onOpen={() => {
+                    setView("seenBy");
+                  }}
+                />
+              ) : null}
+              {showDeleteButton && onDelete ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="text-destructive hover:text-destructive h-11 justify-start gap-3 px-3"
+                  onClick={() => {
+                    runAndClose(() => {
+                      onDelete(message);
+                    });
+                  }}
+                >
+                  <Trash2 className="size-4 shrink-0" aria-hidden />
+                  {t("Message.delete")}
+                </Button>
+              ) : null}
+            </div>
+          </>
+        )}
       </SheetContent>
     </Sheet>
   );
@@ -2323,6 +2419,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation = false,
   isFirstOfDay = false,
   seenBy,
+  seenByFor,
 }: {
   message: ChatRoomMessage;
   coworkersById: Map<string, ChatRoomCoworkerParticipant>;
@@ -2374,6 +2471,16 @@ export const ChatMessageRow = memo(function ChatMessageRow({
    * message only.
    */
   seenBy?: ReactNode;
+  /**
+   * Who has read a message as of its time, for the Seen by entry in its
+   * actions. Absent where a room last-read says nothing about the message
+   * (thread replies) or read times are not shown (guests, the Self Direct).
+   * Stable across renders, so a read event does not re-render every row.
+   */
+  seenByFor?: (
+    createdAt: Date | string,
+    authorId?: string,
+  ) => SeenByList | null;
 }) {
   const tChat = useTranslations("App.Chat.Chat");
   const tChannels = useTranslations("App.Channels");
@@ -2514,6 +2621,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const canCopy = isDurableRoomMessage && message.content.trim().length > 0;
   const canCopyLink = isDurableRoomMessage;
   const canSendToSelf = isDurableRoomMessage && onSendToSelf != null;
+  const getSeenBy =
+    isDurableRoomMessage && seenByFor != null
+      ? () =>
+          seenByFor(
+            message.createdAt,
+            message.sender.type === "user" ? message.sender.user.id : undefined,
+          )
+      : undefined;
 
   function handleCopy() {
     void copyTextWithToast(message.content, {
@@ -2887,6 +3002,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              getSeenBy={getSeenBy}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}
@@ -2912,6 +3028,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
               onCopy={handleCopy}
               onCopyLink={handleCopyLink}
               onSendToSelf={canSendToSelf ? handleSendToSelf : undefined}
+              getSeenBy={getSeenBy}
               onEdit={onStartEdit}
               onDelete={requestDelete}
               showThreadButton={showThreadButton}

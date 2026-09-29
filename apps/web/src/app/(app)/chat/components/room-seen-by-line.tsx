@@ -91,8 +91,11 @@ export function seenByPendingFor({
  * Minuten" is five things to parse; five clock times line up in a column and
  * read as one shape. The roster shows one member at a time, where an interval
  * is the friendlier answer.
+ *
+ * The message menu shows it for any message, where nobody may have read yet:
+ * then the heading goes too, and the grey rows stand alone.
  */
-function SeenByDetail({
+export function SeenByDetail({
   readers,
   pending,
 }: {
@@ -104,9 +107,11 @@ function SeenByDetail({
 
   return (
     <div className="app-scrollbar max-h-64 overflow-y-auto">
-      <h3 className="text-muted-foreground px-2 pt-1 pb-0.5 text-xs font-medium">
-        {t("readersTitle")}
-      </h3>
+      {readers.length > 0 ? (
+        <h3 className="text-muted-foreground px-2 pt-1 pb-0.5 text-xs font-medium">
+          {t("readersTitle")}
+        </h3>
+      ) : null}
       <ul>
         {readers.map(({ participant, lastReadAt }) => (
           <li
@@ -128,7 +133,9 @@ function SeenByDetail({
           </li>
         ))}
       </ul>
-      {pending.length > 0 ? <SeenByPending pending={pending} /> : null}
+      {pending.length > 0 ? (
+        <SeenByPending pending={pending} divided={readers.length > 0} />
+      ) : null}
     </div>
   );
 }
@@ -143,15 +150,18 @@ function SeenByDetail({
  */
 function SeenByPending({
   pending,
+  divided,
 }: {
   pending: readonly ChatRoomUserParticipant[];
+  /** False when there are no reader rows above to divide from. */
+  divided: boolean;
 }) {
   const t = useTranslations("App.Channels.SeenBy");
 
   return (
     <ul
       aria-label={t("notRead")}
-      className="mt-0.5 border-t pt-0.5"
+      className={divided ? "mt-0.5 border-t pt-0.5" : undefined}
       data-testid="room-seen-by-pending"
     >
       {pending.map((participant) => (
