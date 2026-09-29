@@ -111,6 +111,68 @@ Account types and setup requirements:
 Live OAuth requires configured provider apps and accounts. Unit tests use
 provider-response fixtures and do not replace a live authorization check.
 
+#### Vercel environment for Social publishing
+
+Set these on the **Core** Vercel project, for Production and for Preview.
+Preview may point at a separate Composio project, but every auth-config ID must
+come from the same Composio project as that environment's API key. Redeploy
+Core after changing them. The **Web** project needs no new variables.
+
+| Variable | Required | Value |
+| --- | --- | --- |
+| `COMPOSIO_API_KEY` | Yes | Composio project API key (starts with `ak_`). Mark it sensitive. |
+| `COMPOSIO_X_AUTH_CONFIG_ID` | Per provider | Composio auth-config ID (`ac_…`) for X. |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup). |
+| `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Instagram. |
+| `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | Per provider | Auth-config ID for LinkedIn. |
+| `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Facebook. |
+| `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | Per provider | Auth-config ID for YouTube. |
+| `COMPOSIO_API_BASE_URL` | No | Leave unset to use Composio's default API. |
+| `CRON_SECRET` | Yes | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
+| `BLOB_READ_WRITE_TOKEN` | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public. |
+
+A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
+the connect menu, and choosing it returns "This integration is not configured
+yet" without starting OAuth. Social itself is still gated to members of the
+beta organization (`SOCIAL_BETA_ORGANIZATION_SLUG` in `@sokosumi/utils`); that
+is code, not an environment variable.
+
+#### TikTok setup
+
+TikTok has no Composio-managed OAuth app, so each environment needs its own
+TikTok developer app.
+
+1. In the [TikTok for Developers](https://developers.tiktok.com/) portal, create
+   an app under your organization and add the **Login Kit** and **Content
+   Posting API** products. Turn on **Direct Post** in Content Posting API.
+2. Request the scopes `user.info.basic`, `video.upload`, and `video.publish`.
+3. In [Composio](https://docs.composio.dev/toolkits/tiktok), create an auth
+   config for the `tiktok` toolkit that uses your own developer app. Enter the
+   app's client key and client secret and the same scopes. Copy the redirect
+   URI Composio shows into the TikTok app's Login Kit redirect URIs.
+4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
+   Core Vercel project for that environment, then redeploy Core.
+5. While the app is in sandbox, only TikTok accounts added as target users can
+   authorize it. Add the accounts you test with.
+6. Connect the account: open **Social**, choose a project, then **Connect
+   account → TikTok**.
+7. Post a test: a TikTok post needs exactly one MP4 video, and its caption is
+   at most 2,200 characters. Photos, GIFs, and a second video are rejected
+   before scheduling.
+
+Until TikTok approves the app's Content Posting audit, TikTok only offers the
+`SELF_ONLY` privacy level, so posts publish as private to the creator. Core
+always picks the most permissive level the account offers and records it on the
+attempt, so approved audits take effect without a code change. Submit the app
+for review (Login Kit) and the Content Posting audit before inviting accounts
+outside the sandbox.
+
+TikTok pulls the video from its URL. TikTok's Content Posting API only pulls
+from URL prefixes verified in the app's **URL properties**. Check that a test
+post publishes before relying on it. If TikTok rejects the Blob host
+(`*.public.blob.vercel-storage.com`, which cannot be verified), serve Drive
+media from a domain you control and verify that prefix.
+
 ### Turnstile protection for authentication email
 
 Set `TURNSTILE_SECRET_KEY` as a sensitive environment variable on each Core
