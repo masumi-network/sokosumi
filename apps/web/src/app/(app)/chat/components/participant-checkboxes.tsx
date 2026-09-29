@@ -1,5 +1,6 @@
 "use client";
 
+import type { Coworker, Member } from "@sokosumi/core-client";
 import { Bot, Search, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -8,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { AiCoworkerIcon, MembersRosterLoadFailed } from "./room-draft-shared";

@@ -1,15 +1,15 @@
 import "server-only";
 
-import { nanoid } from "nanoid";
-import slugify from "slugify";
-import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   OrganizationInviteLink,
   PendingInvitation,
   UserPendingOrganizationInvitation,
-} from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
+import { nanoid } from "nanoid";
+import slugify from "slugify";
+import { inviteOrganizationMemberViaCore } from "@/lib/auth/core-auth-http.server";
+import { coreClient } from "@/lib/clients/core.client";
 
 export type BulkInviteResultRow = {
   email: string;

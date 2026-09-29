@@ -1,15 +1,15 @@
+import type {
+  Coworker,
+  Task,
+  TaskEvent,
+  TaskListItem,
+} from "@sokosumi/core-client";
 import { removeTaskContextAttachmentLinks } from "@sokosumi/utils";
 import type {
   TaskAssigneeView,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import { getColumnId } from "@/app/tasks/utils/task-column";
-import type { Coworker } from "@/lib/clients/generated/core";
-import type {
-  Task,
-  TaskEvent,
-  TaskListItem,
-} from "@/lib/clients/generated/core/types.gen";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 import { parseMentions } from "@/lib/utils/mention-parser";
 import {

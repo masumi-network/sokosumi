@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  DriveFile,
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import {
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
@@ -13,7 +19,6 @@ import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,12 +50,6 @@ import {
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
-import type {
-  DriveFile,
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {

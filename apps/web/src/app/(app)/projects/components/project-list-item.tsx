@@ -1,3 +1,4 @@
+import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { ProjectPinButton } from "@/app/projects/components/project-pin-button";
@@ -7,7 +8,6 @@ import {
 } from "@/app/projects/components/project-resource-count-pills";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
 import { TimeAgo } from "@/components/time-ago";
-import { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 

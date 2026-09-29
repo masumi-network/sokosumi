@@ -254,8 +254,19 @@ function normalizeLocalFreeSubscriptionPeriod(
 
 function buildNextLocalFreePeriod(subscription: {
   createdAt: Date;
+  endedAt: Date | null;
   periodEnd: Date;
 }): NextLocalFreePeriod {
+  // A subscription canceled immediately keeps its old periodEnd. Cover the
+  // rest of that period with a short free period so the user is on Free now,
+  // and later renewals keep the old boundary.
+  if (subscription.endedAt && subscription.endedAt < subscription.periodEnd) {
+    return {
+      periodEnd: new Date(subscription.periodEnd.getTime()),
+      periodStart: new Date(subscription.endedAt.getTime()),
+    };
+  }
+
   const periodStart = new Date(subscription.periodEnd.getTime());
   return {
     periodEnd: getNextMonthlyPeriodEnd(periodStart, subscription.createdAt),
@@ -302,6 +313,7 @@ export async function ensureNextLocalFreeSubscriptionPeriod(
 
   const { periodEnd, periodStart } = buildNextLocalFreePeriod({
     createdAt: subscription.createdAt,
+    endedAt: subscription.endedAt,
     periodEnd: subscription.periodEnd,
   });
   const activatesAt =
@@ -394,6 +406,7 @@ export async function transitionToNextLocalFreeSubscriptionPeriod(
 
   const { periodStart } = buildNextLocalFreePeriod({
     createdAt: subscription.createdAt,
+    endedAt: subscription.endedAt,
     periodEnd: subscription.periodEnd,
   });
 

@@ -1,5 +1,21 @@
 "use server";
 
+import type {
+  AcceptChatRoomGuestInviteLink,
+  ChatRoom,
+  ChatRoomGuestInviteLink,
+  ChatRoomInvitation,
+  ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
+  ChatRoomThread,
+  ChatRoomThreadReadState,
+  ChatRoomThreadsMarkAll,
+  ChatRoomThreadUnreadReplyCount,
+  Coworker,
+  DiscoverableChatRoom,
+  Member,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -16,22 +32,6 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type {
-  AcceptChatRoomGuestInviteLink,
-  ChatRoom,
-  ChatRoomGuestInviteLink,
-  ChatRoomInvitation,
-  ChatRoomMessage,
-  ChatRoomPinnedMessageListItem,
-  ChatRoomPinnedMessageMutation,
-  ChatRoomThread,
-  ChatRoomThreadReadState,
-  ChatRoomThreadsMarkAll,
-  ChatRoomThreadUnreadReplyCount,
-  Coworker,
-  DiscoverableChatRoom,
-  Member,
-} from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type ChatUnreadRoomRead,

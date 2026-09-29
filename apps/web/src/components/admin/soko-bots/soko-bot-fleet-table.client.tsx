@@ -1,11 +1,14 @@
 "use client";
 
+import type {
+  AdminSokoBotList,
+  AdminSokoBotListItem,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
 import { Input } from "@/components/ui/input";
@@ -20,10 +23,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { listAdminSokoBotsAction } from "@/lib/actions/admin-soko-bots/action";
-import type {
-  AdminSokoBotList,
-  AdminSokoBotListItem,
-} from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

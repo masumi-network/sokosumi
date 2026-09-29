@@ -1,6 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   type ClassicOutboundJob,

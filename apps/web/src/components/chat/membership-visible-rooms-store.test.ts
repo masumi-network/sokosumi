@@ -1,12 +1,11 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { afterEach, describe, expect, it } from "vitest";
-
 import {
   clearMembershipVisibleRoomsSnapshot,
   getLatestMembershipVisibleRoomsSnapshot,
   getMembershipVisibleRooms,
   publishMembershipVisibleRooms,
 } from "@/components/chat/membership-visible-rooms-store";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 function room(id: string): ChatRoom {
   return { id } as ChatRoom;

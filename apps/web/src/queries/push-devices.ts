@@ -1,6 +1,6 @@
+import type { PushDevice } from "@sokosumi/core-client";
 import { type QueryClient, queryOptions } from "@tanstack/react-query";
 import { readAblyPushDeviceId } from "@/lib/ably/release-push-device.client";
-import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { listPushDevices } from "@/lib/services/push-devices.service";
 
 export interface PushDevicesData {

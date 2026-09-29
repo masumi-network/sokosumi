@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import {
   Bell,
   BellOff,
@@ -90,7 +91,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 

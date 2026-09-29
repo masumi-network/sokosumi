@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoomPresence, Coworker, Member } from "@sokosumi/core-client";
 import { Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,11 +12,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type {
-  ChatRoomPresence,
-  Coworker,
-  Member,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 

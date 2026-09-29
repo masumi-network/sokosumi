@@ -1,13 +1,12 @@
-import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
-import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type {
   Coworker,
   SokoBot,
   TaskAssigneeCoworker,
   TaskAssigneeSokoBot,
   TaskAssigneeUser,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { defaultOrbSeed } from "@/lib/aurora-orb";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { COWORKER_FALLBACK_IMAGES } from "./coworker-fallback-images";

@@ -26,8 +26,8 @@ vi.mock("@/components/analytics/cookie-banner", () => ({
   openConsentPreferences: vi.fn(),
 }));
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { YouPageClient } from "@/app/you/components/you-page.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const sessionUser: SessionUser = {
   id: "user_1",
@@ -133,6 +133,24 @@ describe("YouPageClient", () => {
     expect(
       calendar.compareDocumentPosition(files) &
         Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("puts Content Studio after Calendar and before Files", () => {
+    renderYouPage();
+
+    const calendar = screen.getByTestId("you-calendar");
+    const studio = screen.getByTestId("you-studio");
+    const files = screen.getByTestId("you-files");
+
+    expect(studio).toHaveAttribute("href", "/studio");
+    expect(studio).toHaveTextContent("contentStudio");
+    expect(
+      calendar.compareDocumentPosition(studio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      studio.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 

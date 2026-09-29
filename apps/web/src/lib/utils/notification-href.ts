@@ -1,9 +1,8 @@
+import type { NotificationKind } from "@sokosumi/core-client";
 import {
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
 } from "@sokosumi/utils";
-
-import type { NotificationKind } from "@/lib/clients/generated/core";
 import {
   buildWorkspaceApprovalReviewHref,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,

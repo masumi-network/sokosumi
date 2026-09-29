@@ -10,6 +10,11 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import {
+  AgentJobStatus,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
+import {
   CORE_API_ERROR_KINDS,
   makeAgentJobsChannelName,
   makeUserTasksChannelName,
@@ -80,18 +85,12 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import {
   jobStatusDataSchema,
   type TaskEventData,
   taskEventDataSchema,
 } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import {
-  AgentJobStatus,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
   serializeTasksDensityCookie,

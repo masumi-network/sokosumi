@@ -1,9 +1,5 @@
+import type { FileResource, FileSearchMeta } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type {
-  FileResource,
-  FileSearchMeta,
-} from "@/lib/clients/generated/core";
 
 import { mergeLoadedFilePage } from "./drive-all-files-panel.utils";
 

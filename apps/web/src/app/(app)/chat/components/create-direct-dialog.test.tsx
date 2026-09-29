@@ -1,3 +1,4 @@
+import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactElement } from "react";
@@ -5,7 +6,6 @@ import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomActionResult } from "@/app/chat/actions";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
 
 const {

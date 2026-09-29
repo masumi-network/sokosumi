@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import type {
   ChatRoom,
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
 import {
   getDirectRoomParticipants,
   getRoomDisplayName,
