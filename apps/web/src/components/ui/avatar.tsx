@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  createContext,
-  use,
   useLayoutEffect,
   useRef,
   useState,
@@ -13,27 +11,16 @@ import { cn } from "@/lib/utils";
 
 type ImageLoadingStatus = "idle" | "loading" | "loaded" | "error";
 
-interface AvatarContextValue {
-  imageStatus: ImageLoadingStatus;
-  setImageStatus: (status: ImageLoadingStatus) => void;
-}
-
-const AvatarContext = createContext<AvatarContextValue | null>(null);
-
 function Avatar({ className, ...props }: ComponentProps<"span">) {
-  const [imageStatus, setImageStatus] = useState<ImageLoadingStatus>("idle");
-
   return (
-    <AvatarContext value={{ imageStatus, setImageStatus }}>
-      <span
-        data-slot="avatar"
-        className={cn(
-          "relative flex size-8 shrink-0 overflow-hidden rounded-full",
-          className,
-        )}
-        {...props}
-      />
-    </AvatarContext>
+    <span
+      data-slot="avatar"
+      className={cn(
+        "group/avatar relative flex size-8 shrink-0 overflow-hidden rounded-full",
+        className,
+      )}
+      {...props}
+    />
   );
 }
 
@@ -50,7 +37,6 @@ function AvatarImage({
   crossOrigin,
   ...props
 }: AvatarImageProps) {
-  const context = use(AvatarContext);
   const [status, setStatus] = useState<ImageLoadingStatus>(() =>
     typeof src === "string" && src !== "" ? "idle" : "error",
   );
@@ -61,15 +47,12 @@ function AvatarImage({
   }
 
   const onStatusRef = useRef(onLoadingStatusChange);
-  const setImageStatusRef = useRef(context?.setImageStatus);
   useLayoutEffect(() => {
     onStatusRef.current = onLoadingStatusChange;
-    setImageStatusRef.current = context?.setImageStatus;
   });
 
   useLayoutEffect(() => {
     if (typeof src !== "string" || src === "") {
-      setImageStatusRef.current?.("error");
       onStatusRef.current?.("error");
       return;
     }
@@ -83,7 +66,6 @@ function AvatarImage({
       // limit when chat unmounted avatar stacks (seen-by / Activity).
       if (cancelled) return;
       setStatus(next);
-      setImageStatusRef.current?.(next);
       onStatusRef.current?.(next);
     };
 
@@ -144,7 +126,6 @@ function AvatarFallback({
   delayMs,
   ...props
 }: AvatarFallbackProps) {
-  const context = use(AvatarContext);
   const [canRender, setCanRender] = useState(delayMs === undefined);
 
   useLayoutEffect(() => {
@@ -155,7 +136,7 @@ function AvatarFallback({
     return () => window.clearTimeout(timerId);
   }, [delayMs]);
 
-  if (!canRender || context?.imageStatus === "loaded") {
+  if (!canRender) {
     return null;
   }
 
@@ -163,7 +144,10 @@ function AvatarFallback({
     <span
       data-slot="avatar-fallback"
       className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
+        // Hide via :has when the loaded <img> is mounted — no shared React
+        // status, so AvatarImage unmount cannot leave a stale "loaded" flag
+        // that blanks {image && <AvatarImage />} callers.
+        "bg-muted flex size-full items-center justify-center rounded-full group-has-[[data-slot=avatar-image]]/avatar:hidden",
         className,
       )}
       {...props}

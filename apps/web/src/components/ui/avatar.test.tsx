@@ -88,7 +88,7 @@ describe("Avatar SOKOSUMI-S9", () => {
 });
 
 describe("Avatar image load", () => {
-  it("renders the image once the probe reports loaded", () => {
+  function stubCompleteImage(natural = 64) {
     const complete = Object.getOwnPropertyDescriptor(
       HTMLImageElement.prototype,
       "complete",
@@ -103,9 +103,24 @@ describe("Avatar image load", () => {
     });
     Object.defineProperty(HTMLImageElement.prototype, "naturalWidth", {
       configurable: true,
-      get: () => 64,
+      get: () => natural,
     });
+    return () => {
+      if (complete) {
+        Object.defineProperty(HTMLImageElement.prototype, "complete", complete);
+      }
+      if (naturalWidth) {
+        Object.defineProperty(
+          HTMLImageElement.prototype,
+          "naturalWidth",
+          naturalWidth,
+        );
+      }
+    };
+  }
 
+  it("renders the image once the probe reports loaded", () => {
+    const restore = stubCompleteImage();
     try {
       render(
         <Avatar>
@@ -117,20 +132,37 @@ describe("Avatar image load", () => {
         "src",
         "https://cdn.example.com/ada.png",
       );
-      // Hide fallback once loaded so transparent PNG/WebP/GIF avatars do not
-      // bleed initials/icons through the photo (Radix Avatar behavior).
-      expect(screen.queryByText("AD")).not.toBeInTheDocument();
+      // Fallback stays mounted but is CSS-hidden while the loaded img is present
+      // (group-has), so transparent avatars do not bleed initials through.
+      const fallback = screen.getByText("AD");
+      expect(fallback.className).toContain(
+        "group-has-[[data-slot=avatar-image]]/avatar:hidden",
+      );
     } finally {
-      if (complete) {
-        Object.defineProperty(HTMLImageElement.prototype, "complete", complete);
-      }
-      if (naturalWidth) {
-        Object.defineProperty(
-          HTMLImageElement.prototype,
-          "naturalWidth",
-          naturalWidth,
-        );
-      }
+      restore();
+    }
+  });
+
+  it("shows fallback again when AvatarImage unmounts", () => {
+    const restore = stubCompleteImage();
+    try {
+      const { rerender } = render(
+        <Avatar>
+          <AvatarImage src="https://cdn.example.com/ada.png" alt="Ada" />
+          <AvatarFallback>AD</AvatarFallback>
+        </Avatar>,
+      );
+      expect(screen.getByRole("img", { name: "Ada" })).toBeInTheDocument();
+
+      rerender(
+        <Avatar>
+          <AvatarFallback>AD</AvatarFallback>
+        </Avatar>,
+      );
+      expect(screen.queryByRole("img", { name: "Ada" })).not.toBeInTheDocument();
+      expect(screen.getByText("AD")).toBeInTheDocument();
+    } finally {
+      restore();
     }
   });
 });
