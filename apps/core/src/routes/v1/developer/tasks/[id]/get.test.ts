@@ -145,6 +145,7 @@ function createTask() {
     pendingVendorGrantId: null,
     pendingVendorGrant: null,
     grantResumeStatus: null,
+    priority: "NONE",
   };
 }
 

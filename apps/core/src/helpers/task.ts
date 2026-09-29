@@ -478,6 +478,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     description: task.description,
     tags: mapTaskTags(task),
     status: task.status,
+    priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
     visibility: task.visibility ?? TaskVisibility.PUBLIC,
     // Grant parking fields are intentional API surface while GRANT_PENDING so

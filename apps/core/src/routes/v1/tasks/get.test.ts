@@ -1,4 +1,4 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { TaskPriority, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -170,6 +170,7 @@ function createTask() {
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
+    priority: TaskPriority.NONE,
     _count: {
       events: 0,
       jobs: 0,
@@ -624,6 +625,31 @@ describe("GET /tasks", () => {
 
     expect(response.status).toBe(422);
     expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("sorts by priority, then most recently updated, with sort=priority", async () => {
+    const response = await createApp().request(
+      "http://localhost/?sort=priority",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ priority: "asc" }, { updatedAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("returns the priority of each Task", async () => {
+    taskFindManyMock.mockResolvedValue([
+      { ...createTask(), priority: TaskPriority.HIGH },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await createApp().request("http://localhost/");
+    const body = await response.json();
+
+    expect(body.data[0].priority).toBe(TaskPriority.HIGH);
   });
 
   it("no longer sorts by the removed nextRunAt", async () => {

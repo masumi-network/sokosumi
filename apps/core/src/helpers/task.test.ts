@@ -1,4 +1,9 @@
-import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  GrantResumeStatus,
+  TaskPriority,
+  TaskStatus,
+} from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -458,6 +463,45 @@ describe("mapTask", () => {
     const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("exposes the stored priority", () => {
+    const task = {
+      id: "tsk_priority",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Prioritised",
+      description: null,
+      status: TaskStatus.READY,
+      priority: TaskPriority.URGENT,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH).priority).toBe(TaskPriority.URGENT);
   });
 
   it("exposes grant fields only while status is GRANT_PENDING", () => {

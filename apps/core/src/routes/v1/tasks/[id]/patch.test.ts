@@ -1,4 +1,9 @@
-import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import {
+  Channel,
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import {
   buildAdHocDesignMdPrefix,
   CORE_API_ERROR_KINDS,
@@ -150,6 +155,7 @@ function createTaskApi(projectId: string | null = null) {
     description: null,
     status: TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
+    priority: TaskPriority.NONE,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     credits: 0,
@@ -285,6 +291,20 @@ describe("patchTaskRequestSchema", () => {
     const result = patchTaskRequestSchema.parse({ runAt: null });
 
     expect(result.runAt).toBeNull();
+  });
+
+  it("accepts priority as the only patch field", () => {
+    const result = patchTaskRequestSchema.parse({
+      priority: TaskPriority.HIGH,
+    });
+
+    expect(result.priority).toBe(TaskPriority.HIGH);
+  });
+
+  it("rejects an unknown priority", () => {
+    expect(() => {
+      patchTaskRequestSchema.parse({ priority: "HUGE" });
+    }).toThrow();
   });
 
   it("rejects coworker and user assignees together", () => {
@@ -472,6 +492,32 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
+  });
+
+  it("updates priority alone", async () => {
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority: TaskPriority.URGENT }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
+      }),
+    );
+  });
+
+  it("rejects an invalid priority", async () => {
+    const response = await createApp().request("http://localhost/tsk_123", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ priority: "HUGE" }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("updates fields of a queued task", async () => {

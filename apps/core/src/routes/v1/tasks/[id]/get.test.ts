@@ -1,4 +1,9 @@
-import { TaskLinkType, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import {
+  TaskLinkType,
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
@@ -132,6 +137,7 @@ function createTask(
     description: null,
     status: overrides?.status ?? TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
+    priority: TaskPriority.NONE,
     runAt: overrides?.runAt ?? null,
     events: [],
     jobs: [],

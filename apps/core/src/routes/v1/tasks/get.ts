@@ -96,12 +96,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt"])
+  .enum(["createdAt", "priority"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt: newest created first. Omitted: most recently updated first.",
+      "createdAt: newest created first. priority: urgent first, none last, then most recently updated. Omitted: most recently updated first.",
     example: "createdAt",
   });
 
@@ -339,7 +339,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const orderBy =
       sort === "createdAt"
         ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
-        : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
+        : sort === "priority"
+          ? ([
+              { priority: "asc" as const },
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const)
+          : ([
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.
