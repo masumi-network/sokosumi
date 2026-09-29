@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
 import {
-  requireMutableTaskOwnership,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
+  requireTaskOwnership,
 } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { lockCalendarScope, lockTaskRows } from "@/helpers/calendar-locks";
@@ -13,6 +13,7 @@ import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
+import { requireTaskNotParked } from "@/helpers/vendor-grants";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
@@ -63,7 +64,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { organizationId: targetOrganizationId } = c.req.valid("json");
 
     const result = await serializableTransaction(async (tx) => {
-      const ownedTask = await requireMutableTaskOwnership(userContext, id, tx);
+      // Owner-only, unlike other Task writes: a member moving the Task to
+      // another organization would take it away from its owner.
+      const ownedTask = await requireTaskOwnership(userContext, id, tx);
+      requireTaskNotParked(ownedTask);
 
       const workspace = await tx.workspace.findUniqueOrThrow({
         where: { id: ownedTask.workspaceId },

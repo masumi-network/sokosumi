@@ -9,7 +9,7 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import {
-  requireMutableTaskOwnership,
+  requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
@@ -174,7 +174,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } = c.req.valid("json");
 
     const result = await prisma.$transaction(async (tx) => {
-      const taskSnapshot = await requireMutableTaskOwnership(
+      const taskSnapshot = await requireMutableTaskWriteAccess(
         userContext,
         id,
         tx,
@@ -206,12 +206,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during update");
       }
 
-      const task = await requireMutableTaskOwnership(userContext, id, tx);
-      await requireAssignedOrganizationSeat(
-        userContext.userId,
-        task.organizationId,
-        tx,
-      );
+      const task = await requireMutableTaskWriteAccess(userContext, id, tx);
+      // Non-owners are seated inside write access, on the workspace org.
+      // The owner check stays on the billing organizationId.
+      if (task.ownerId === userContext.userId) {
+        await requireAssignedOrganizationSeat(
+          userContext.userId,
+          task.organizationId,
+          tx,
+        );
+      }
       if (task.workspaceId !== taskSnapshot.workspaceId) {
         throw conflict("Task changed during update");
       }
@@ -313,6 +317,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
           ownerId: task.ownerId,
+          actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,
           tx,
@@ -327,7 +332,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let updatedTask = await tx.task.update({
         where: {
           id,
-          ownerId: userContext.userId,
           archivedAt: null,
           status: {
             in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],

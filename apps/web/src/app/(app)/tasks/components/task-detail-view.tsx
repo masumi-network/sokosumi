@@ -214,7 +214,6 @@ export async function TaskDetailView({
                 task={task}
                 forceReadOnly={forceReadOnly}
                 hasAssignedSeatPromise={hasAssignedSeatPromise}
-                sessionPromise={sessionPromise}
                 projectPromise={projectPromise}
               />
             </Suspense>
@@ -444,19 +443,16 @@ async function TaskMetadataSection({
   task,
   forceReadOnly,
   hasAssignedSeatPromise,
-  sessionPromise,
   projectPromise,
 }: {
   task: Task;
   forceReadOnly: boolean;
   hasAssignedSeatPromise: Promise<boolean>;
-  sessionPromise: Promise<SessionResult>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, session, hasAssignedSeat, t, tTasks, tStatus, formatter] =
+  const [project, hasAssignedSeat, t, tTasks, tStatus, formatter] =
     await Promise.all([
       projectPromise,
-      sessionPromise,
       hasAssignedSeatPromise,
       getTranslations("App.Tasks.Detail"),
       getTranslations("App.Tasks"),
@@ -465,9 +461,6 @@ async function TaskMetadataSection({
     ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
-    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskOwnerId: task.ownerId,
-    sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
     hasAssignedSeat,
@@ -600,9 +593,6 @@ async function TaskDetailActionsSlot({
     tTasks("personalAssistant"),
   );
   const isReadOnlyWorkspaceView = isReadOnlyForViewer({
-    taskWorkspaceOrganizationId: task.workspace.organizationId ?? null,
-    taskOwnerId: task.ownerId,
-    sessionUserId: session?.user.id,
     forceReadOnly,
     taskStatus: task.status,
     hasAssignedSeat,
@@ -614,13 +604,6 @@ async function TaskDetailActionsSlot({
     forceReadOnly,
     taskStatus: task.status,
   });
-  const orgId = task.workspace.organizationId ?? null;
-  const viewerMembership =
-    orgId === null
-      ? undefined
-      : members.find((member) => member.organizationId === orgId);
-  const isOrgOwnerOrAdmin =
-    viewerMembership?.role === "owner" || viewerMembership?.role === "admin";
   const personalWorkspaceMoveLabel =
     session?.user?.name?.trim() ||
     session?.user?.email?.trim() ||
@@ -647,7 +630,7 @@ async function TaskDetailActionsSlot({
       canCancel={canCancelTask}
       forceReadOnly={forceReadOnly}
       isTaskOwner={session?.user.id === task.ownerId}
-      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+      hasAssignedSeat={hasAssignedSeat}
       repeatBlueprint={
         !forceReadOnly && hasAssignedSeat
           ? {

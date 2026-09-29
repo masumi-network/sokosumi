@@ -1,7 +1,7 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import { requireMutableTaskWriteAccess } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -49,7 +49,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
-    const task = await requireMutableTaskOwnership(userContext, id, prisma);
+    const task = await requireMutableTaskWriteAccess(userContext, id, prisma);
 
     if (task.visibility === TaskVisibility.PRIVATE) {
       throw badRequest("Private tasks cannot be shared publicly");

@@ -156,7 +156,7 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
-  isOrgOwnerOrAdmin?: boolean;
+  hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
    * viewer cannot create a schedule; the Task itself is never changed.
@@ -186,7 +186,7 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
-  isOrgOwnerOrAdmin = false,
+  hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
@@ -263,7 +263,8 @@ export function TaskDetailActions({
     forceReadOnly,
     taskStatus: status,
     isTaskOwner,
-    isOrgOwnerOrAdmin,
+    isOrganizationTask: currentOrganizationId != null,
+    hasAssignedSeat,
   });
   const canArchiveTask =
     canArchiveParked ||
@@ -273,8 +274,11 @@ export function TaskDetailActions({
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
+  // Move stays owner-only: a member moving the task would take it away from
+  // its owner.
   const canMove =
     canMutateTask &&
+    isTaskOwner &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
