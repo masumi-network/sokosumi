@@ -4,8 +4,8 @@
  *
  * Commands:
  *   node scripts/local-env/portless-dev.mjs proxy
- *   node scripts/local-env/portless-dev.mjs url web|core
- *   node scripts/local-env/portless-dev.mjs run
+ *   node scripts/local-env/portless-dev.mjs url web|core|cmo
+ *   node scripts/local-env/portless-dev.mjs run [web|core|cmo]
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -16,6 +16,14 @@ import { bootstrapLocalEnv } from "./bootstrap.mjs";
 
 export const PORTLESS_WEB_NAME = "web.sokosumi";
 export const PORTLESS_CORE_NAME = "core.sokosumi";
+export const PORTLESS_CMO_NAME = "cmo.sokosumi";
+
+const PORTLESS_NAMES = {
+  web: PORTLESS_WEB_NAME,
+  core: PORTLESS_CORE_NAME,
+  cmo: PORTLESS_CMO_NAME,
+};
+const PACKAGE_FILTERS = { web: "web", core: "@sokosumi/core", cmo: "cmo" };
 
 const repoRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -62,10 +70,10 @@ export function runPortless(args, opts = {}) {
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {"web" | "core" | "cmo"} app
  */
 export function portlessNameFor(app) {
-  return app === "core" ? PORTLESS_CORE_NAME : PORTLESS_WEB_NAME;
+  return PORTLESS_NAMES[app];
 }
 
 /**
@@ -139,7 +147,7 @@ export function portlessInstancePrefix(root = repoRoot, options = {}) {
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {"web" | "core" | "cmo"} app
  * @param {string} [root]
  */
 export function portlessAppName(app, root = repoRoot) {
@@ -167,24 +175,30 @@ export function portlessSpawnArgs(name, filter) {
 }
 
 /**
+ * CMO is not part of the default stack: it is a separate product that does
+ * not share Sokosumi's cookie.
+ *
  * @param {string} [selector]
- * @returns {Array<"web" | "core">}
+ * @returns {Array<"web" | "core" | "cmo">}
  */
 export function parseRunApps(selector) {
   if (selector == null || selector === "") {
     return ["core", "web"];
   }
-  if (selector === "web" || selector === "core") {
+  if (selector === "web" || selector === "core" || selector === "cmo") {
     return [selector];
   }
-  throw new Error("usage: portless-dev.mjs run [web|core]");
+  throw new Error("usage: portless-dev.mjs run [web|core|cmo]");
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {"web" | "core" | "cmo"} app
  * @param {{ webUrl: string, coreUrl: string }} urls
  */
 export function envForDevApp(app, urls) {
+  if (app === "cmo") {
+    return {};
+  }
   const shared = {
     WEB_APP_BASE_URL: urls.webUrl,
     BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.localhost",
@@ -210,13 +224,13 @@ export function spawnPlan(selector, urls, root = repoRoot) {
   return parseRunApps(selector).map((app) => ({
     app,
     name: portlessAppName(app, root),
-    filter: app === "core" ? "@sokosumi/core" : "web",
+    filter: PACKAGE_FILTERS[app],
     env: envForDevApp(app, urls),
   }));
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {"web" | "core" | "cmo"} app
  */
 export function getPortlessUrl(app) {
   return runPortless(["get", portlessAppName(app)]);
@@ -298,6 +312,11 @@ async function runStack(selector) {
 
   console.log(`web  ${webUrl}`);
   console.log(`core ${coreUrl}`);
+  if (apps.includes("cmo")) {
+    const cmoUrl = getPortlessUrl("cmo");
+    assertHttps443(cmoUrl);
+    console.log(`cmo  ${cmoUrl}`);
+  }
   if (apps.length === 1) {
     console.log(`starting ${apps[0]} only`);
   }
@@ -355,8 +374,8 @@ if (isMain) {
     console.log("portless proxy ok");
   } else if (command === "url") {
     const app = process.argv[3];
-    if (app !== "web" && app !== "core") {
-      console.error("usage: portless-dev.mjs url web|core");
+    if (!Object.hasOwn(PORTLESS_NAMES, app ?? "")) {
+      console.error("usage: portless-dev.mjs url web|core|cmo");
       process.exit(1);
     }
     console.log(getPortlessUrl(app));
@@ -370,7 +389,7 @@ if (isMain) {
     await runStack(process.argv[3]);
   } else {
     console.error(
-      "usage: portless-dev.mjs [run [web|core]|proxy|url web|url core]",
+      "usage: portless-dev.mjs [run [web|core|cmo]|proxy|url web|core|cmo]",
     );
     process.exit(1);
   }

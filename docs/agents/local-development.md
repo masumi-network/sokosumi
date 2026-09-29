@@ -30,6 +30,7 @@ Full list is in root `package.json`. Agents typically need:
 | ---------------------- | ----------------------------- |
 | `pnpm portless:dev` | Web + Core via portless (worktree-safe named URLs) |
 | `pnpm portless:web` / `core` | One app via portless (still injects both named URLs) |
+| `pnpm portless:cmo` | CMO via portless (`cmo.sokosumi`) |
 | `pnpm portless:proxy` | Start portless HTTPS proxy on 443 |
 | `pnpm portless:url web` / `core` | Print this checkout's named HTTPS URL |
 | `pnpm check` | Repo-wide Biome (`biome check .`) |

@@ -712,6 +712,7 @@ describe("runDeployWithResetComment", () => {
       [
         ["mainnet", "web"],
         ["mainnet", "core"],
+        ["mainnet", "cmo"],
         ["preprod", "web"],
         ["preprod", "core"],
       ],
@@ -831,7 +832,7 @@ describe("runDeployWithResetComment", () => {
     assert.deepEqual(neonCalls, []);
     assert.deepEqual(
       created.map((input) => input.target.app),
-      ["web", "core"],
+      ["web", "core", "cmo"],
     );
     assert.deepEqual(posted, []);
     assert.deepEqual(reactions, ["eyes", "rocket"]);
@@ -841,8 +842,8 @@ describe("runDeployWithResetComment", () => {
 describe("runResetDbJobComment", () => {
   it("sends /deploy comments to the deploy flow and the rest to /reset-db", async () => {
     for (const [commentBody, restores, apps] of [
-      ["/deploy mainnet --reset-db", 1, ["web", "core"]],
-      ["/deploy mainnet\n--reset-db", 0, ["web", "core"]],
+      ["/deploy mainnet --reset-db", 1, ["web", "core", "cmo"]],
+      ["/deploy mainnet\n--reset-db", 0, ["web", "core", "cmo"]],
       ["/reset-db mainnet", 1, ["core"]],
     ]) {
       const { options, created, neonCalls } = setup({

@@ -17,7 +17,7 @@ import {
 } from "./preview-resources.ts";
 
 const NETWORKS = ["mainnet", "preprod"];
-const APPS = ["web", "core"];
+const APPS = ["web", "core", "cmo"];
 const WRITE_PERMISSIONS = new Set(["admin", "maintain", "write"]);
 
 export const VERCEL_TEAM_ID = "team_vDNcRyOgTGZegIQbMw4QXF0n";
@@ -31,6 +31,11 @@ export const VERCEL_PROJECTS = {
     core: {
       id: "prj_GrqmJbIxWe0I6aYiZHZC2hiJYLiH",
       name: "sokosumi-core-mainnet",
+    },
+    // CMO has no preprod project; it signs in against mainnet Core only.
+    cmo: {
+      id: "prj_CMO_MAINNET_PROJECT_ID_PENDING",
+      name: "sokosumi-cmo-mainnet",
     },
   },
   preprod: {
@@ -99,7 +104,7 @@ export function usageMessage() {
     "`/deploy mainnet preprod`",
     "`/deploy all`",
     "",
-    "Deploys web + core for the named network(s) at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
+    "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
     "",
     "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
@@ -113,6 +118,9 @@ export function deployTargets(networks, apps = APPS) {
     }
     for (const app of apps) {
       const project = VERCEL_PROJECTS[network][app];
+      if (!project) {
+        continue;
+      }
       targets.push({
         network,
         app,
@@ -125,14 +133,15 @@ export function deployTargets(networks, apps = APPS) {
 }
 
 /**
- * Repo paths that can change a web/core preview build: the two Vercel apps
- * plus every workspace package (the transitive dependency closure of web and
- * core — currently all of `packages/`). The `/deploy` comment flow checks
+ * Repo paths that can change a preview build: the Vercel apps plus every
+ * workspace package (the transitive dependency closure of web and core —
+ * currently all of `packages/`). The `/deploy` comment flow checks
  * these prefixes via the PR files API. PR-close cleanup has no path filter.
  */
 export const PREVIEW_RELEVANT_PREFIXES = [
   "apps/web/",
   "apps/core/",
+  "apps/cmo/",
   "packages/",
 ];
 
@@ -157,9 +166,9 @@ export function hasPreviewRelevantChanges(files) {
 
 export function noPreviewChangesMessage() {
   return [
-    "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, or `packages/`.",
+    "No preview deployment: this pull request has no changes under `apps/web/`, `apps/core/`, `apps/cmo/`, or `packages/`.",
     "",
-    "Previews only build web/core and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
+    "Previews only build web, core, CMO, and their package dependencies. If you still need a preview, push a change under one of those paths and comment `/deploy <network>` again.",
   ].join("\n");
 }
 
