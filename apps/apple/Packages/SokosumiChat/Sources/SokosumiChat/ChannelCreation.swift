@@ -100,7 +100,7 @@ public final class ChannelCreation: ObservableObject {
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
     }
   }
 
@@ -158,23 +158,9 @@ public final class ChannelCreation: ObservableObject {
         step = .details
         availability = .taken
       } else {
-        errorMessage = chatErrorMessage(error)
+        errorMessage = friendlyMessage(for: error, mode: .coreMessage)
       }
       return false
     }
   }
-}
-
-/// Core's chat room error messages are user-facing; everything else falls back to the shared network wording.
-public func chatErrorMessage(_ error: Error) -> String {
-  if case let ChatServiceError.unauthorized(message) = error {
-    return message
-  }
-  if case let ChatServiceError.unprocessable(_, message) = error {
-    return message
-  }
-  if case let ChatServiceError.unexpectedResponse(message) = error {
-    return message
-  }
-  return friendlyMessage(for: error)
 }
