@@ -45,6 +45,10 @@ export function createCmoAuth(config: CmoAuthConfig) {
       .then((response) => response.json())
       .then((document: { revocation_endpoint?: string }) => {
         return document.revocation_endpoint;
+      })
+      .catch((error: unknown) => {
+        revocationEndpoint = undefined;
+        throw error;
       });
     const endpoint = await revocationEndpoint;
     if (!endpoint) return;
@@ -75,6 +79,8 @@ export function createCmoAuth(config: CmoAuthConfig) {
     advanced: {
       // Locally CMO shares the sokosumi.localhost cookie domain with Web.
       cookiePrefix: "cmo",
+      // Better Auth skips its CSRF origin check under test; keep it on.
+      disableOriginCheck: false,
     },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
@@ -169,7 +175,9 @@ export async function renewSession(
   auth: CmoAuth,
   request: Request,
 ): Promise<Response> {
-  const { origin } = new URL(request.url);
+  // An internal call: address CMO by its own origin, since the page request
+  // may arrive on an internal host that Better Auth's CSRF check refuses.
+  const origin = auth.options.baseURL;
   const headers = {
     cookie: request.headers.get("cookie") ?? "",
     origin,

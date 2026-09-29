@@ -385,6 +385,23 @@ describe("CMO auth handler", () => {
     expect(core.refreshCount()).toBe(0);
   });
 
+  it("renews when the page request arrives on an internal host", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+
+    // Behind a local proxy, Next.js can see its own host, not CMO's origin.
+    const response = await renewSession(
+      auth,
+      new Request("http://cmo-internal:3100/", {
+        headers: { cookie: jar.header() },
+      }),
+    );
+    jar.store(response);
+
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
   it("renews an expired access token silently and keeps the rotated refresh token", async () => {
     await signIn(auth, jar, core);
 
