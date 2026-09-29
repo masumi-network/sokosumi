@@ -51,15 +51,18 @@ function Probe({
   members,
   messageId = NEWEST_ID,
   createdAt = NEWEST_AT,
+  kind = "channel",
 }: {
   members: ChatRoomUserParticipant[];
   messageId?: string;
   createdAt?: string;
+  kind?: ChatRoom["kind"];
 }) {
   // Only what the hook reads, but checked against the real DTO so a rename
   // breaks here rather than sliding past a cast.
   const partialRoom: Partial<ChatRoom> = {
     id: "room-1",
+    kind,
     myAccess: "member",
     userMembers: members,
     coworkerMembers: [],
@@ -166,6 +169,24 @@ describe("RoomSeenByLine", () => {
     ).toBeInTheDocument();
   });
 
+  // Receipts count people in any room: a Direct and a group Direct are
+  // `kind: "direct"`, and nothing on the way to the faces reads the kind.
+  it("shows the faces in a group Direct as in a channel", () => {
+    render(
+      <Probe
+        kind="direct"
+        members={[
+          member("user-a", "2026-01-01T13:00:00.000Z"),
+          member("user-b", "2026-01-01T12:30:00.000Z"),
+        ]}
+      />,
+    );
+
+    expect(line()).toHaveAccessibleName("Seen by 2 people");
+    expect(screen.getByTestId("read-receipt-face-user-a")).toBeInTheDocument();
+    expect(screen.getByTestId("read-receipt-face-user-b")).toBeInTheDocument();
+  });
+
   it("renders nothing when nobody has read that far", () => {
     render(<Probe members={[member("user-a", "2026-01-01T11:00:00.000Z")]} />);
 
@@ -179,11 +200,11 @@ describe("RoomSeenByLine", () => {
   });
 
   /**
-   * Idea 2 and 4 in one assertion: grey and unringed until the group around
-   * them is hovered, focused or open. Class tokens rather than computed
-   * styles, because the variants only resolve in a real browser.
+   * Mostly saturated, unringed, and the same in every state. Class tokens
+   * rather than computed styles, because filters only resolve in a real
+   * browser.
    */
-  it("keeps the faces grey and unringed until the trigger wakes", () => {
+  it("keeps the faces in steady, slightly muted colour and unringed", () => {
     render(<Probe members={[member("user-a", "2026-01-01T13:00:00.000Z")]} />);
 
     const face = screen
@@ -191,10 +212,9 @@ describe("RoomSeenByLine", () => {
       .querySelector("[data-slot='avatar']");
     const tokens = face?.className.split(/\s+/) ?? [];
 
-    expect(tokens).toContain("grayscale");
-    expect(tokens).toContain("opacity-70");
-    expect(tokens).toContain("group-hover:grayscale-0");
-    expect(tokens).toContain("group-data-[state=open]:opacity-100");
+    expect(tokens).toContain("saturate-75");
+    expect(tokens).not.toContain("grayscale");
+    expect(tokens.some((token) => token.startsWith("group-"))).toBe(false);
     // The ring is what made them read as three badges on the text.
     expect(tokens).not.toContain("ring-1");
   });
