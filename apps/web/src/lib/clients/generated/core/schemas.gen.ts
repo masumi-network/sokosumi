@@ -17432,6 +17432,17 @@ export const SocialPostCalendarItemSchema = {
             type: 'string',
             format: 'uuid'
         },
+        provider: {
+            type: 'string',
+            enum: [
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
+            ]
+        },
         text: {
             type: 'string'
         },
@@ -17472,6 +17483,30 @@ export const SocialPostCalendarItemSchema = {
             type: 'integer',
             minimum: 0
         },
+        previewMedia: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                fileUrl: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'image',
+                        'gif',
+                        'video'
+                    ]
+                }
+            },
+            required: [
+                'fileUrl',
+                'kind'
+            ],
+            description: 'The post\'s first attachment, for a thumbnail.'
+        },
         scheduledAt: {
             type: 'string',
             format: 'date-time',
@@ -17499,6 +17534,7 @@ export const SocialPostCalendarItemSchema = {
         'kind',
         'id',
         'postId',
+        'provider',
         'text',
         'status',
         'externalHandle',
@@ -17506,6 +17542,7 @@ export const SocialPostCalendarItemSchema = {
         'scheduledByName',
         'scheduledByImage',
         'attachmentCount',
+        'previewMedia',
         'scheduledAt',
         'sourceId',
         'sourceProjectId',
@@ -17915,7 +17952,12 @@ export const SocialPostSchema = {
         provider: {
             type: 'string',
             enum: [
-                'x'
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
             ]
         },
         text: {
@@ -18305,7 +18347,7 @@ export const CreateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 280,
+            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         media: {
@@ -18314,7 +18356,7 @@ export const CreateSocialPostRequestSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
             maxItems: 4,
-            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
+            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -18340,7 +18382,7 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            maxLength: 280,
+            maxLength: 63206,
             example: 'Shipping the new Calendar today.'
         },
         media: {
@@ -18349,7 +18391,7 @@ export const UpdateSocialPostRequestSchema = {
                 $ref: '#/components/schemas/SocialPostMediaRef'
             },
             maxItems: 4,
-            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
+            description: 'Drive files to attach: up to four images, or one video, according to the provider\'s rules. Never mixed.'
         },
         socialConnectionId: {
             type: [

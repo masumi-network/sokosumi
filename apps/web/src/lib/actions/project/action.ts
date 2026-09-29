@@ -1,6 +1,6 @@
 "use server";
 
-import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
+import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
 
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -544,7 +544,7 @@ const socialPostMediaRefSchema = z.object({
 
 const socialPostMediaSchema = z
   .array(socialPostMediaRefSchema)
-  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages);
+  .max(SOCIAL_POST_MEDIA_MAX);
 
 const createProjectSocialPostSchema = z
   .object({
