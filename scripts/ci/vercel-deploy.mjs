@@ -11,7 +11,6 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { registerCmoPreviewCallback } from "./cmo-preview-callback.ts";
 import {
   preparePreviewResources,
   previewMetadata,
@@ -105,7 +104,7 @@ export function usageMessage() {
     "`/deploy mainnet preprod`",
     "`/deploy all`",
     "",
-    "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again. On mainnet, CMO's preview callback is then added to CMO's OAuth client in this PR's preview database, so the CMO preview can sign in.",
+    "Deploys web + core for the named network(s), plus CMO on mainnet, at this PR's current HEAD. Later pushes stay undeployed until you comment again.",
     "",
     "Add `--reset-db` on the first line (for example `/deploy preprod --reset-db`) to first reset this PR's Neon preview database to its parent. The Core build then applies every migration the parent lacks, this PR's included.",
   ].join("\n");
@@ -451,37 +450,6 @@ export async function settlePreviewDeployments(options) {
 }
 
 /**
- * When `apps` deployed CMO, add its preview's callback to CMO's OAuth client
- * in the PR's mainnet preview database, so the preview can sign in.
- * `deployments` is settlePreviewDeployments' result, in deployTargets order.
- */
-export async function registerCmoPreview(
-  options,
-  { networks, apps, pullRequest, repoId, deployments },
-) {
-  const index = deployTargets(networks, apps).findIndex(
-    (target) => target.app === "cmo",
-  );
-  if (index === -1) {
-    return;
-  }
-  try {
-    await (options.registerCmoCallback ?? registerCmoPreviewCallback)({
-      neonEnv: options.neonEnv,
-      neonFetchImpl: options.neonFetchImpl,
-      repoId: repoId ?? pullRequest.base.repo.id,
-      pullNumber: pullRequest.number,
-      previewUrl: pickPreviewUrl(deployments[index]),
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(
-      `CMO's preview cannot sign in: ${message.endsWith(".") ? message : `${message}.`}`,
-    );
-  }
-}
-
-/**
  * Shared flow for PR comment commands: parse `command.name`, require write
  * access and a same-repository PR, react with eyes, then call `command.run`.
  * `run` reacts with rocket itself on success. A thrown error becomes a
@@ -659,16 +627,6 @@ export async function runPreviewDeployComment(options) {
         createDeployment,
         pollDeployment,
       });
-      try {
-        await registerCmoPreview(options, {
-          networks,
-          pullRequest,
-          repoId,
-          deployments: result.deployments,
-        });
-      } catch (error) {
-        throw new Error(`The previews are deployed, but ${error.message}`);
-      }
       await react("rocket");
       return result;
     },
