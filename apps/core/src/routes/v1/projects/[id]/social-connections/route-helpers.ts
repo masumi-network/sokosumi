@@ -17,7 +17,7 @@ export function mapProjectSocialConnectionServiceError(error: unknown): never {
     throw serviceUnavailable("Integrations are not configured on this server.");
   }
   if (error instanceof ComposioIdentityError) {
-    throw badRequest(error.message);
+    throw badRequest(error.message, error.kind ? { kind: error.kind } : {});
   }
   if (error instanceof ComposioApiError) {
     if (

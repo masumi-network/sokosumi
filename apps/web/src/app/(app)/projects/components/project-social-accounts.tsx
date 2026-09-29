@@ -1,5 +1,6 @@
 "use client";
 
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Loader2,
   MoreHorizontal,
@@ -172,7 +173,8 @@ export function ProjectSocialAccounts({
             ? t("errors.duplicate")
             : message?.includes("reconnect must match")
               ? t("errors.reconnectMismatch")
-              : message?.includes("exactly one page")
+              : error.kind ===
+                  CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
                 ? t("errors.facebookPage")
                 : fallback,
     });

@@ -1,4 +1,5 @@
 import { Composio } from "@composio/core";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import {
@@ -45,7 +46,11 @@ export class ComposioConfigError extends Error {
 
 /** The provider's identity lookup succeeded but cannot be used as-is. */
 export class ComposioIdentityError extends Error {
-  constructor(message: string) {
+  constructor(
+    message: string,
+    /** Stable kind for clients to match on, when the reason has one. */
+    readonly kind?: (typeof CORE_API_ERROR_KINDS)[keyof typeof CORE_API_ERROR_KINDS],
+  ) {
     super(message);
     this.name = "ComposioIdentityError";
   }
@@ -591,6 +596,7 @@ export async function getConnectedSocialIdentity(input: {
       if (payload && input.provider === "facebook") {
         throw new ComposioIdentityError(
           "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+          CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED,
         );
       }
       throw new ComposioApiError(

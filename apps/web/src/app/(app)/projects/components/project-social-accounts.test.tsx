@@ -687,8 +687,9 @@ describe("ProjectSocialAccounts", () => {
       ok: false,
       error: {
         code: "BAD_REQUEST",
-        message:
-          "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
+        kind: "social_facebook_page_required",
+        // Copy Core is free to change; the kind is what the page matches.
+        message: "Facebook identity rejected",
       },
     });
 

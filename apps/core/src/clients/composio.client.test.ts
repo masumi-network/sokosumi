@@ -549,12 +549,14 @@ describe("getConnectedSocialIdentity", () => {
           connectedAccountId: "ca_selected",
           executorUserId: input.executorUserId,
         }),
-      ).rejects.toMatchObject({
-        name:
-          provider === "facebook"
-            ? "ComposioIdentityError"
-            : "ComposioApiError",
-      });
+      ).rejects.toMatchObject(
+        provider === "facebook"
+          ? {
+              name: "ComposioIdentityError",
+              kind: "social_facebook_page_required",
+            }
+          : { name: "ComposioApiError" },
+      );
       expect(fetchMock).toHaveBeenCalledTimes(3);
     },
   );
