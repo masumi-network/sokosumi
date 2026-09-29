@@ -29,7 +29,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { toast } from "sonner";
 import {
   getFormatToolbarOpenPreference,
   resolveFormatToolbarOpenOnMount,
@@ -568,9 +567,6 @@ export function RoomComposer({
 
         // Chip-only. Markdown links are stitched into content on send.
         onAttachmentsChange((current) => [...current, ...uploadedAttachments]);
-        toast.success(
-          tToolbar("uploaded", { count: uploadedAttachments.length }),
-        );
         return uploadedAttachments.length > 0;
       } catch {
         // Error toast is handled by uploadComposeAttachments.
