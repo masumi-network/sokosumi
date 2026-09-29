@@ -1,9 +1,9 @@
+import type { Job } from "@sokosumi/core-client";
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { act } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import JobDetails from "@/components/jobs/job-details/job-details";
-import type { Job } from "@/lib/clients/generated/core";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const useQueryMock = vi.fn();
@@ -174,6 +174,7 @@ describe("JobDetails", () => {
         readOnly
         className="w-full"
         showAgentHeader={false}
+        hasPersonalWorkspace
       />,
     );
 
@@ -185,12 +186,10 @@ describe("JobDetails", () => {
     });
     expect(jobDetailsViewMock).toHaveBeenCalledWith({
       job: refreshedJob,
-      organizations: undefined,
-      personalWorkspaceLabel: undefined,
       readOnly: true,
       className: "w-full",
       showAgentHeader: false,
-      publicJobLayout: false,
+      hasPersonalWorkspace: true,
     });
     expect(screen.getByTestId("channel-provider")).toBeInTheDocument();
   });

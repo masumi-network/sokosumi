@@ -7,37 +7,31 @@ import {
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
-import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
-import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
+import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import {
   getProjectWorkspaceLabels,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 export default async function ProjectDetailPage({
   params,
 }: {
   params: Promise<{ projectId: string }>;
 }) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserSocialBetaAccess(),
-    params,
-  ]);
+  const { projectId } = await params;
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
     notFound();
   }
 
-  const [closeStatus, t, tList, formatter] = await Promise.all([
+  const [closeStatus, t, formatter] = await Promise.all([
     project.closingAt || project.closedAt
       ? projectService.getProjectCloseStatus(project.id)
       : Promise.resolve(null),
     getTranslations("App.Projects.Detail"),
-    getTranslations("App.Projects.list"),
     getFormatter(),
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
@@ -45,66 +39,25 @@ export default async function ProjectDetailPage({
   return (
     <ProjectWorkspaceShell
       actions={
-        <div className="flex items-center gap-1">
-          <ProjectDetailPinButton
-            projectId={project.id}
-            isClosed={Boolean(project.closingAt || project.closedAt)}
-            labels={{
-              pin: tList("pin"),
-              unpin: tList("unpin"),
-              error: tList("pinError"),
-            }}
-          />
-          <ProjectDetailActions
-            projectId={project.id}
-            projectRevision={project.projectRevision}
-            isClosingOrClosed={Boolean(project.closingAt || project.closedAt)}
-            labels={{
-              moreActions: t("actions.moreActions"),
-              edit: t("actions.edit"),
-              close: t("actions.close"),
-              closeDialog: {
-                title: t("close.dialog.title"),
-                description: t("close.dialog.description"),
-                reasonLabel: t("close.dialog.reasonLabel"),
-                reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
-                confirm: t("close.dialog.confirm"),
-                cancel: t("close.dialog.cancel"),
-                success: t("close.dialog.success"),
-                error: t("close.dialog.error"),
-              },
-            }}
-          />
-        </div>
+        <ProjectHeaderActions
+          closedAt={project.closedAt}
+          closingAt={project.closingAt}
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+        />
       }
-      metadata={[
-        {
-          label: t("header.updated"),
-          value: formatter.dateTime(project.updatedAt, "dateTime"),
-        },
-        {
-          label: t("header.created"),
-          value: formatter.dateTime(project.createdAt, "dateTime"),
-        },
-      ]}
+      createdAt={formatter.dateTime(project.createdAt, "dateTime")}
+      updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}
-      showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
       {/*
-        One column, not a grid.
-        Overview used to be a two-column grid with a third region under it,
-        because there was enough on the page to need columns: a needs-attention
-        list, a panel of module tiles, memory in an aside. Memory has a tab of
-        its own now and the other two are gone, so what is left is three or four
-        blocks that are all *about* the project and all read top to bottom. A
-        grid over that leaves an aside with one card in it beside a column of
-        empty space, which is exactly the "stack of loose things" this card was
-        drawn to replace. The width is capped for the same reason a paragraph is:
-        the briefing is prose.
+        One column of sections with the quiet heading a task section uses;
+        the close status stays a card because it is an alert. The width is
+        capped because the briefing is prose.
       */}
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
@@ -136,8 +89,6 @@ export default async function ProjectDetailPage({
 
           <ProjectBrandCard
             projectId={project.id}
-            projectName={project.name}
-            logo={project.logo}
             websiteUrl={project.websiteUrl}
           />
         </div>

@@ -218,23 +218,6 @@ export async function readAssetBytes(
   return bytes;
 }
 
-/**
- * One lineage, oldest first, so a comparison view can walk it.
- */
-export async function listLineage(options: {
-  rootId: string;
-  projectId: string;
-  workspaceId: string;
-  userId: string;
-}): Promise<AssetView[]> {
-  await requireProjectAccess(options);
-  return await prisma.projectImageAsset.findMany({
-    where: { rootId: options.rootId, projectId: options.projectId },
-    orderBy: { version: "asc" },
-    select: assetSelect,
-  });
-}
-
 export interface JobView {
   id: string;
   status: ProjectImageJobStatus;

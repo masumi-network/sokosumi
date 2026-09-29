@@ -1,5 +1,6 @@
 "use client";
 
+import type { AdminMatchedChannelOption } from "@sokosumi/core-client";
 import {
   CHANNEL_SLUG_MAX_LENGTH,
   CORE_API_ERROR_KINDS,
@@ -12,7 +13,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,7 +22,6 @@ import {
   createAdminMatchedChannelAction,
   listAdminMatchedChannelsAction,
 } from "@/lib/actions/admin-matched-channels/action";
-import type { AdminMatchedChannelOption } from "@/lib/clients/generated/core";
 
 const CHANNEL_NAME_MAX = 80;
 

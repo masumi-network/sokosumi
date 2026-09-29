@@ -117,12 +117,33 @@ private class AttachmentBlobProtocol: URLProtocol, @unchecked Sendable {
   let uploaded = try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
   #expect(uploaded.url == "https://blob.example/uploaded.txt")
   #expect(uploaded.fileName == "hello.txt")
+  #expect(uploaded.size == 5, "The draft chip names the uploaded size (row 14a2).")
   for path in ["missing", "malformed"] {
     grant.uploadUrl = "https://blob.example/" + path
     await #expect(throws: AttachmentUpload.Failure.self) {
       try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
     }
   }
+}
+
+@Test @MainActor func composeUploadsReportUsesSharedMapperNotDump() throws {
+  let name = UUID().uuidString
+  let defaults = try #require(UserDefaults(suiteName: name))
+  defer { defaults.removePersistentDomain(forName: name) }
+  let uploads = ComposeUploads(
+    savedDraft: SavedComposeDraft(userId: "me", organizationId: nil, roomId: "room", defaults: defaults)
+  )
+  uploads.report(ChatServiceError.unprocessable(statusCode: 422, message: "too big"))
+  #expect(uploads.errorMessage == "too big")
+  uploads.report(AttachmentUpload.Failure.unsupportedType)
+  #expect(uploads.errorMessage == "This file type is not supported.")
+  uploads.report(URLError(.networkConnectionLost))
+  #expect(uploads.errorMessage == "The network connection was lost.")
+  struct Mystery: Error {}
+  uploads.report(Mystery())
+  let generic = try #require(uploads.errorMessage)
+  #expect(!generic.contains("NSUnderlying"))
+  #expect(generic.count < 120)
 }
 
 @Test @MainActor func driveSelectionDeduplicatesAndPersists() throws {

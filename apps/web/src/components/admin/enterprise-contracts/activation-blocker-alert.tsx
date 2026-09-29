@@ -1,5 +1,5 @@
+import type { EnterpriseContractActivationBlocker } from "@sokosumi/core-client";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import type { EnterpriseContractActivationBlocker } from "@/lib/clients/generated/core/types.gen";
 
 interface ActivationBlockerAlertProps {
   message: string;

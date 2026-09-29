@@ -1,5 +1,11 @@
 "use client";
 
+import type { MemberWithOrganization, TaskShare } from "@sokosumi/core-client";
+import {
+  type TaskLink,
+  TaskLinkRelation,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
@@ -33,7 +39,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
@@ -69,15 +74,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type {
-  MemberWithOrganization,
-  TaskShare,
-} from "@/lib/clients/generated/core";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
@@ -156,7 +152,7 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
-  isOrgOwnerOrAdmin?: boolean;
+  hasAssignedSeat?: boolean;
   /**
    * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
    * viewer cannot create a schedule; the Task itself is never changed.
@@ -186,7 +182,7 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
-  isOrgOwnerOrAdmin = false,
+  hasAssignedSeat = false,
   repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
@@ -263,7 +259,8 @@ export function TaskDetailActions({
     forceReadOnly,
     taskStatus: status,
     isTaskOwner,
-    isOrgOwnerOrAdmin,
+    isOrganizationTask: currentOrganizationId != null,
+    hasAssignedSeat,
   });
   const canArchiveTask =
     canArchiveParked ||
@@ -273,8 +270,11 @@ export function TaskDetailActions({
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
+  // Move stays owner-only: a member moving the task would take it away from
+  // its owner.
   const canMove =
     canMutateTask &&
+    isTaskOwner &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,

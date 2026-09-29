@@ -1,17 +1,15 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
-  vi.hoisted(() => ({
-    hasCurrentUserSocialBetaAccessMock: vi.fn(),
-    projectServiceMock: {
-      getProjectById: vi.fn(),
-      getProjectContextMd: vi.fn(),
-    },
-    notFoundMock: vi.fn(() => {
-      throw new Error("NOT_FOUND");
-    }),
-  }));
+const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+  projectServiceMock: {
+    getProjectById: vi.fn(),
+    getProjectContextMd: vi.fn(),
+  },
+  notFoundMock: vi.fn(() => {
+    throw new Error("NOT_FOUND");
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -27,8 +25,10 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
+// Stubbed: the header actions are tested on their own and read the reader's
+// Pin list through react-query.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => <div>Project actions</div>,
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -83,7 +83,6 @@ function buildProject(overrides: Record<string, unknown> = {}) {
 describe("ProjectMemoryPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
   });
 
   it("calls notFound when the project is missing", async () => {
@@ -176,6 +175,8 @@ describe("ProjectMemoryPage", () => {
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.memory" }),
     ).toHaveAttribute("aria-current", "page");
+    // The header keeps its actions on every tab.
+    expect(screen.getByText("Project actions")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();

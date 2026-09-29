@@ -4,8 +4,8 @@
  *
  * Commands:
  *   node scripts/local-env/portless-dev.mjs proxy
- *   node scripts/local-env/portless-dev.mjs url web|core
- *   node scripts/local-env/portless-dev.mjs run
+ *   node scripts/local-env/portless-dev.mjs url web|core|cmo
+ *   node scripts/local-env/portless-dev.mjs run [web|core|cmo]
  */
 import { execFileSync, spawn, spawnSync } from "node:child_process";
 import fs from "node:fs";
@@ -16,6 +16,16 @@ import { bootstrapLocalEnv } from "./bootstrap.mjs";
 
 export const PORTLESS_WEB_NAME = "web.sokosumi";
 export const PORTLESS_CORE_NAME = "core.sokosumi";
+export const PORTLESS_CMO_NAME = "cmo.sokosumi";
+
+/** @typedef {"web" | "core" | "cmo"} DevApp */
+
+/** Portless name and pnpm filter for each app `run` can start. */
+const DEV_APPS = {
+  web: { name: PORTLESS_WEB_NAME, filter: "web" },
+  core: { name: PORTLESS_CORE_NAME, filter: "@sokosumi/core" },
+  cmo: { name: PORTLESS_CMO_NAME, filter: "cmo" },
+};
 
 const repoRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -62,10 +72,10 @@ export function runPortless(args, opts = {}) {
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {DevApp} app
  */
 export function portlessNameFor(app) {
-  return app === "core" ? PORTLESS_CORE_NAME : PORTLESS_WEB_NAME;
+  return DEV_APPS[app].name;
 }
 
 /**
@@ -139,7 +149,7 @@ export function portlessInstancePrefix(root = repoRoot, options = {}) {
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {DevApp} app
  * @param {string} [root]
  */
 export function portlessAppName(app, root = repoRoot) {
@@ -167,24 +177,30 @@ export function portlessSpawnArgs(name, filter) {
 }
 
 /**
+ * The default stack is Core and Web. CMO is a separate product and starts
+ * only when named.
+ *
  * @param {string} [selector]
- * @returns {Array<"web" | "core">}
+ * @returns {DevApp[]}
  */
 export function parseRunApps(selector) {
   if (selector == null || selector === "") {
     return ["core", "web"];
   }
-  if (selector === "web" || selector === "core") {
+  if (Object.hasOwn(DEV_APPS, selector)) {
     return [selector];
   }
-  throw new Error("usage: portless-dev.mjs run [web|core]");
+  throw new Error("usage: portless-dev.mjs run [web|core|cmo]");
 }
 
 /**
- * @param {"web" | "core"} app
- * @param {{ webUrl: string, coreUrl: string }} urls
+ * @param {DevApp} app
+ * @param {{ webUrl?: string, coreUrl?: string }} urls
  */
 export function envForDevApp(app, urls) {
+  if (app === "cmo") {
+    return {};
+  }
   const shared = {
     WEB_APP_BASE_URL: urls.webUrl,
     BETTER_AUTH_COOKIE_DOMAIN: "sokosumi.localhost",
@@ -210,13 +226,13 @@ export function spawnPlan(selector, urls, root = repoRoot) {
   return parseRunApps(selector).map((app) => ({
     app,
     name: portlessAppName(app, root),
-    filter: app === "core" ? "@sokosumi/core" : "web",
+    filter: DEV_APPS[app].filter,
     env: envForDevApp(app, urls),
   }));
 }
 
 /**
- * @param {"web" | "core"} app
+ * @param {DevApp} app
  */
 export function getPortlessUrl(app) {
   return runPortless(["get", portlessAppName(app)]);
@@ -291,18 +307,21 @@ async function runStack(selector) {
   const apps = parseRunApps(selector);
   await bootstrapLocalEnv(repoRoot);
   ensureProxy();
-  const webUrl = getPortlessUrl("web");
-  const coreUrl = getPortlessUrl("core");
-  assertHttps443(webUrl);
-  assertHttps443(coreUrl);
-
-  console.log(`web  ${webUrl}`);
-  console.log(`core ${coreUrl}`);
+  // Web and Core each receive both named URLs; CMO needs neither.
+  const urls = {};
+  for (const app of apps.includes("cmo") ? ["cmo"] : ["web", "core"]) {
+    urls[app] = getPortlessUrl(app);
+    assertHttps443(urls[app]);
+    console.log(`${app.padEnd(4)} ${urls[app]}`);
+  }
   if (apps.length === 1) {
     console.log(`starting ${apps[0]} only`);
   }
 
-  const children = spawnPlan(selector, { webUrl, coreUrl }).map((item) =>
+  const children = spawnPlan(selector, {
+    webUrl: urls.web,
+    coreUrl: urls.core,
+  }).map((item) =>
     spawnDev({
       name: item.name,
       filter: item.filter,
@@ -355,8 +374,8 @@ if (isMain) {
     console.log("portless proxy ok");
   } else if (command === "url") {
     const app = process.argv[3];
-    if (app !== "web" && app !== "core") {
-      console.error("usage: portless-dev.mjs url web|core");
+    if (!Object.hasOwn(DEV_APPS, app ?? "")) {
+      console.error("usage: portless-dev.mjs url web|core|cmo");
       process.exit(1);
     }
     console.log(getPortlessUrl(app));
@@ -370,7 +389,7 @@ if (isMain) {
     await runStack(process.argv[3]);
   } else {
     console.error(
-      "usage: portless-dev.mjs [run [web|core]|proxy|url web|url core]",
+      "usage: portless-dev.mjs [run [web|core|cmo]|proxy|url web|core|cmo]",
     );
     process.exit(1);
   }

@@ -1,6 +1,6 @@
+import { MemberRole } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
-import { MemberRole } from "@/lib/clients/generated/core";
 import { InvitationDisplayStatus } from "@/lib/constants/invitation-display-status";
 
 export function OrganizationRoleBadge({ role }: { role: string | null }) {

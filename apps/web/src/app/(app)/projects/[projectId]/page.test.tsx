@@ -1,18 +1,17 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
 
-const { hasCurrentUserSocialBetaAccessMock, projectServiceMock, notFoundMock } =
-  vi.hoisted(() => ({
-    hasCurrentUserSocialBetaAccessMock: vi.fn(),
-    projectServiceMock: {
-      getProjectCloseStatus: vi.fn(),
-      getProjectById: vi.fn(),
-      getProjectsStats: vi.fn(),
-    },
-    notFoundMock: vi.fn(() => {
-      throw new Error("NOT_FOUND");
-    }),
-  }));
+const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
+  projectServiceMock: {
+    getProjectCloseStatus: vi.fn(),
+    getProjectById: vi.fn(),
+    getProjectsStats: vi.fn(),
+  },
+  notFoundMock: vi.fn(() => {
+    throw new Error("NOT_FOUND");
+  }),
+}));
 
 vi.mock("next/navigation", () => ({
   notFound: notFoundMock,
@@ -29,22 +28,19 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
-vi.mock("@/lib/social-beta-access.server", () => ({
-  hasCurrentUserSocialBetaAccess: () => hasCurrentUserSocialBetaAccessMock(),
-}));
-
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
-vi.mock("@/app/projects/components/project-detail-actions", () => ({
-  ProjectDetailActions: () => <div>Project actions</div>,
-}));
-
-// Stubbed like its sibling above: it reads the reader's Pin list through
-// react-query, and this file is about the page, not about Pin state.
-vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
-  ProjectDetailPinButton: () => <div>Pin project</div>,
+// Stubbed: the pin reads the reader's Pin list through react-query, and this
+// file is about the page, not about Pin state.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => (
+    <div>
+      <div>Pin project</div>
+      <div>Project actions</div>
+    </div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/project-close-status", () => ({
@@ -90,7 +86,6 @@ function buildProject() {
 describe("ProjectDetailPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(true);
   });
 
   it("calls notFound when the project is missing", async () => {
@@ -126,9 +121,11 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { container } = render(html);
-    expect(container.firstChild).toHaveClass("w-full", "min-w-0");
-    expect(container.firstChild).not.toHaveClass("max-w-6xl");
-    expect(container.firstChild).not.toHaveClass("mx-auto");
+    // The task detail shell: same width and gutter as a task page.
+    const shell = container.firstChild as HTMLElement;
+    for (const cls of TASK_DETAIL_SHELL_CLASS.split(/\s+/)) {
+      expect(shell.classList).toContain(cls);
+    }
     expect(container.firstChild).not.toHaveClass("-mx-4");
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
@@ -166,10 +163,15 @@ describe("ProjectDetailPage", () => {
       expect(container.querySelector(`a[href="${href}"]`)).toBeNull();
     }
 
-    // The grid and its aside are gone with the things that filled them: what
-    // is left reads top to bottom in one capped column.
-    expect(container.querySelector("aside")).toBeNull();
-    expect(container.querySelector('[class*="xl:grid-cols-"]')).toBeNull();
+    // The one aside is the Properties rail; the sections read top to bottom
+    // in one capped column.
+    const asides = container.querySelectorAll("aside");
+    expect(asides).toHaveLength(1);
+    expect(
+      asides[0]?.contains(
+        screen.getByText("App.Projects.Detail.header.properties"),
+      ),
+    ).toBe(true);
     const column = screen.getByTestId("project-briefing").closest(".space-y-8");
     expect(column?.className).toContain("max-w-3xl");
     expect(column?.contains(screen.getByTestId("brand-card"))).toBe(true);
@@ -184,7 +186,7 @@ describe("ProjectDetailPage", () => {
     ).toBeTruthy();
   });
 
-  it("navigates Overview, Design and Memory, plus Social inside the beta", async () => {
+  it("navigates Overview, Design and Memory, and nothing else", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(buildProject());
 
     const { default: ProjectDetailPage } = await import("./page");
@@ -195,6 +197,8 @@ describe("ProjectDetailPage", () => {
     );
 
     const tabs = screen.getByRole("navigation");
+    // Social is a destination in the sidebar now, scoped by `?projectId=`, so
+    // it is no longer a tab of the project it posts for.
     expect(
       Array.from(tabs.querySelectorAll("a")).map((link) =>
         link.getAttribute("href"),
@@ -203,34 +207,11 @@ describe("ProjectDetailPage", () => {
       "/projects/project-1",
       "/projects/project-1/design-md",
       "/projects/project-1/memory",
-      "/projects/project-1/social",
     ]);
     // Overview is the default tab, and it is the one that is open.
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.overview" }),
     ).toHaveAttribute("aria-current", "page");
-  });
-
-  it("drops the Social tab outside the beta", async () => {
-    hasCurrentUserSocialBetaAccessMock.mockResolvedValue(false);
-    projectServiceMock.getProjectById.mockResolvedValue(buildProject());
-
-    const { default: ProjectDetailPage } = await import("./page");
-    render(
-      await ProjectDetailPage({
-        params: Promise.resolve({ projectId: "project-1" }),
-      }),
-    );
-
-    expect(
-      Array.from(screen.getByRole("navigation").querySelectorAll("a")).map(
-        (link) => link.getAttribute("href"),
-      ),
-    ).toEqual([
-      "/projects/project-1",
-      "/projects/project-1/design-md",
-      "/projects/project-1/memory",
-    ]);
   });
 
   it("loads and renders close status only after closing starts", async () => {

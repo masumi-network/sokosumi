@@ -1,3 +1,4 @@
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   applyProjectIdSearchParam,
@@ -6,15 +7,12 @@ import {
   getTasksFiltersFromSearchParams,
   getTasksFiltersResetKey,
   hasActiveTasksFilters,
-  isTaskDraggableForViewFilters,
-  isTaskOwnerEditable,
   parseTasksFilters,
   sanitizeProjectIdFilterInput,
   sanitizeTasksScopeInput,
   sanitizeTasksStatusInput,
   sanitizeTasksVisibilityInput,
 } from "@/app/tasks/utils/tasks-filters";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
@@ -363,59 +361,6 @@ describe("tasks-filters", () => {
     );
   });
 
-  it("allows only owners to edit tasks in workspace scope", () => {
-    const task = { ownerId: "user-1" };
-
-    expect(
-      isTaskOwnerEditable(
-        task,
-        "user-1",
-        {
-          scope: "workspace",
-          assigneeId: null,
-          assigneeSokoBotId: null,
-          assigneeUserId: null,
-          status: null,
-          projectId: null,
-          visibility: null,
-        },
-        "org-1",
-      ),
-    ).toBe(true);
-    expect(
-      isTaskOwnerEditable(
-        task,
-        "user-2",
-        {
-          scope: "workspace",
-          assigneeId: null,
-          assigneeSokoBotId: null,
-          assigneeUserId: null,
-          status: null,
-          projectId: null,
-          visibility: null,
-        },
-        "org-1",
-      ),
-    ).toBe(false);
-    expect(
-      isTaskOwnerEditable(
-        task,
-        "user-2",
-        {
-          scope: "owned",
-          assigneeId: null,
-          assigneeSokoBotId: null,
-          assigneeUserId: null,
-          status: null,
-          projectId: null,
-          visibility: null,
-        },
-        null,
-      ),
-    ).toBe(true);
-  });
-
   describe("hasActiveTasksFilters", () => {
     const defaultFilters = {
       scope: "owned" as const,
@@ -487,134 +432,6 @@ describe("tasks-filters", () => {
     });
   });
 
-  describe("isTaskDraggableForViewFilters", () => {
-    const workspaceFilters = {
-      scope: "workspace" as const,
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: null,
-      projectId: null,
-      visibility: null,
-    };
-    const ownedFilters = {
-      scope: "owned" as const,
-      assigneeId: null,
-      assigneeSokoBotId: null,
-      assigneeUserId: null,
-      status: null,
-      projectId: null,
-      visibility: null,
-    };
-
-    it("disallows drag when the URL implies owned but the server list was still workspace (coworker task)", () => {
-      const coworkerTask = { ownerId: "user-2" };
-
-      expect(
-        isTaskDraggableForViewFilters(
-          coworkerTask,
-          "user-1",
-          ownedFilters,
-          workspaceFilters,
-          "org-1",
-        ),
-      ).toBe(false);
-    });
-
-    it("gives a valid soko bot filter precedence over a valid coworker filter", () => {
-      const params = new URLSearchParams({
-        assigneeId: "coworker-1",
-        assigneeSokoBotId: "bot-1",
-      });
-
-      expect(
-        getTasksFiltersFromSearchParams(params, "org-1", [
-          { id: "coworker-1" },
-          { id: "bot-1", kind: "sokoBot" },
-        ]),
-      ).toEqual({
-        scope: "workspace",
-        assigneeId: null,
-        assigneeSokoBotId: "bot-1",
-        assigneeUserId: null,
-        status: null,
-        projectId: null,
-        visibility: null,
-      });
-    });
-
-    it("rejects a personal-assistant id in assigneeId and keeps soko bot filter", () => {
-      const params = new URLSearchParams({
-        assigneeId: "bot-1",
-        assigneeSokoBotId: "bot-1",
-      });
-
-      expect(
-        getTasksFiltersFromSearchParams(params, "org-1", [
-          { id: "coworker-1" },
-          { id: "bot-1", kind: "sokoBot" },
-        ]),
-      ).toEqual({
-        scope: "workspace",
-        assigneeId: null,
-        assigneeSokoBotId: "bot-1",
-        assigneeUserId: null,
-        status: null,
-        projectId: null,
-        visibility: null,
-      });
-    });
-
-    it("serializes soko bot assignee filters onto assigneeSokoBotId", () => {
-      const nextSearchParams = buildTasksFiltersSearchParams(
-        new URLSearchParams(),
-        {
-          scope: "workspace",
-          assigneeId: null,
-          assigneeSokoBotId: "bot-1",
-          assigneeUserId: null,
-          status: null,
-          projectId: null,
-          visibility: null,
-        },
-        "org-1",
-      );
-
-      expect(nextSearchParams.toString()).toBe("assigneeSokoBotId=bot-1");
-    });
-
-    it("serializes user assignee filters onto assigneeUserId (SOK-868)", () => {
-      const nextSearchParams = buildTasksFiltersSearchParams(
-        new URLSearchParams(),
-        {
-          scope: "workspace",
-          assigneeId: null,
-          assigneeSokoBotId: null,
-          assigneeUserId: "user-1",
-          status: null,
-          projectId: null,
-          visibility: null,
-        },
-        "org-1",
-      );
-
-      expect(nextSearchParams.toString()).toBe("assigneeUserId=user-1");
-    });
-
-    it("allows drag when route and initial filters agree for the viewer's task", () => {
-      const myTask = { ownerId: "user-1" };
-
-      expect(
-        isTaskDraggableForViewFilters(
-          myTask,
-          "user-1",
-          ownedFilters,
-          ownedFilters,
-          "org-1",
-        ),
-      ).toBe(true);
-    });
-  });
   describe("sanitizeTasksVisibilityInput", () => {
     it("defaults to null for non-strings, unknown labels, and personal context", () => {
       expect(sanitizeTasksVisibilityInput(undefined, "org-1")).toBe(null);

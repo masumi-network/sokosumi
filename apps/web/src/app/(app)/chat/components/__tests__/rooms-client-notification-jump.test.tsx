@@ -1,4 +1,5 @@
 import "./rooms-client-harness";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -10,7 +11,6 @@ import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
-import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
 import {

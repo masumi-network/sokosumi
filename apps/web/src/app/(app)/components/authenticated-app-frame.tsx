@@ -1,3 +1,4 @@
+import type { Notice } from "@sokosumi/core-client";
 import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -12,9 +13,9 @@ import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
-import type { Notice } from "@/lib/clients/generated/core";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
+import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
@@ -70,12 +71,17 @@ export default async function AuthenticatedAppFrame({
   );
 
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
-  const hasAssignedSeat = await organizationSeatService
-    .hasAssignedSeat(activeOrganizationId)
-    .catch((error) => {
-      console.error("Failed to resolve assigned organization seat", error);
-      return activeOrganizationId == null;
-    });
+  // In parallel: the sidebar's Social row and the seat gate are both single
+  // reads the frame already has to finish before it paints nav.
+  const [hasAssignedSeat, socialMenuEnabled] = await Promise.all([
+    organizationSeatService
+      .hasAssignedSeat(activeOrganizationId)
+      .catch((error) => {
+        console.error("Failed to resolve assigned organization seat", error);
+        return activeOrganizationId == null;
+      }),
+    hasCurrentUserSocialBetaAccess(),
+  ]);
 
   // AuthSessionHydrator must be an earlier sibling, not a wrapper.
   // Wrapping chrome would flush Header/Drive layout effects first.
@@ -112,6 +118,7 @@ export default async function AuthenticatedAppFrame({
                           sessionUser={session.user}
                           activeOrganizationId={activeOrganizationId}
                           adminMenuEnabled={adminMenuEnabled}
+                          socialMenuEnabled={socialMenuEnabled}
                         />
                         <Suspense fallback={null}>
                           <AppShellOverlays />

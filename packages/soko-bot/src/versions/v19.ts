@@ -1,8 +1,9 @@
 import type { SokoBotVersion } from "./types.js";
-import { v17 } from "./v17.js";
+import { v18 } from "./v18.js";
 
 /**
- * v17 on GPT-6 Luna, with the behaviour lab's findings written in.
+ * v18 (every social provider) on GPT-6 Luna, with the behaviour lab's findings
+ * written in.
  *
  * Luna matched Gemini 3.8 on the lab's checks at a tenth of the cost and half
  * the latency (owner-approved to run outside the EU, see `model-policy.ts`).
@@ -14,15 +15,15 @@ import { v17 } from "./v17.js";
  * and marketplace tools added alongside.
  */
 export const v19: SokoBotVersion = {
-  ...v17,
+  ...v18,
   id: "v19",
   name: "v19 · Luna, answers Coworkers, cites what it opened",
   createdAt: "2026-09-29",
   model: "openai/gpt-6-luna",
   inferenceRegion: undefined,
   summary:
-    "v17 on GPT-6 Luna: does quick research itself and cites only pages it opened, answers Coworkers on the Task with stated defaults, treats Coworker reports as reports, stays quiet when there is nothing to add, assigns research to the research Coworker, asks for a go-ahead in plain words, and uses the board, Drive, image and marketplace tools.",
-  systemPrompt: `${v17.systemPrompt}
+    "v18 on GPT-6 Luna: does quick research itself and cites only pages it opened, answers Coworkers on the Task with stated defaults, treats Coworker reports as reports, stays quiet when there is nothing to add, assigns research to the research Coworker, asks for a go-ahead in plain words, and uses the board, Drive, image and marketplace tools.",
+  systemPrompt: `${v18.systemPrompt}
 M. You have the web and a workspace of your own. Look-ups, fact checks, comparisons, calculations and small drafts are yours: do them in this turn and answer with what you found. Create a Task for a Coworker only when the owner asks for one, or the work needs a person's judgement or more than a few minutes of research. When you both research and act — "find the dates and post them" — do the research yourself first. When the owner asks you to create a Task or post a message, do it, even if a similar one exists or was posted earlier: mention the earlier one, but do what they asked.
 
 N. Cite only pages you opened or found this turn: every link must be a URL your web_search returned or your web_fetch loaded with content. A link you cannot back is removed before the owner sees it. Every number comes from a result or a calculation you ran. What you could not confirm, say so plainly; never fill a gap from memory.

@@ -284,7 +284,7 @@
       "connections": "Conexiones",
       "developer": "Desarrollador",
       "personal-assistant": "Asistente personal",
-      "history": "Historial",
+      "history": "Transacciones",
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
@@ -1328,13 +1328,13 @@
     "delete": "Eliminar",
     "cancel": "Cancelar",
     "save": "Guardar",
-    "History": {
+    "TransactionHistory": {
       "Metadata": {
-        "title": "Historial",
-        "description": "Consulta tareas, jobs y chats en una sola línea de tiempo."
+        "title": "Transacciones",
+        "description": "Cada consumo de créditos de tu cuenta, del más reciente al más antiguo."
       },
       "Search": {
-        "placeholder": "Buscar en el historial...",
+        "placeholder": "Buscar transacciones...",
         "clear": "Borrar búsqueda"
       },
       "ResultsCount": {
@@ -1346,54 +1346,60 @@
         "emptyResults": "No se encontraron resultados.",
         "all": "Todos",
         "scopeLabel": "Ámbito",
-        "scopeOwned": "Mi historial",
+        "scopeOwned": "Mis transacciones",
         "scopeWorkspace": "Workspace",
-        "typeLabel": "Tipo",
-        "statusLabel": "Estado",
+        "typeLabel": "Origen",
         "projectLabel": "Proyecto",
         "typeOptions": {
+          "job": "Job de agente",
+          "image": "Imagen",
           "task": "Tarea",
-          "job": "Job",
-          "image": "Imagen"
-        },
-        "statusOptions": {
-          "archived": "Archivado",
-          "DRAFT": "Borrador",
-          "QUEUED": "Programado",
-          "READY": "Listo",
-          "GRANT_PENDING": "Aprobación pendiente",
-          "INPUT_REQUIRED": "Entrada requerida",
-          "APPROVAL_REQUIRED": "Aprobación requerida",
-          "AUTHENTICATION_REQUIRED": "Autenticación requerida",
-          "OUT_OF_CREDITS": "Sin créditos",
-          "CREDITS_TOPPED_UP": "Créditos recargados",
-          "RUNNING": "En ejecución",
-          "AWAITING_EXTERNAL": "Esperando externo",
-          "COMPLETED": "Completado",
-          "FAILED": "Fallido",
-          "CANCELED": "Cancelado"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Recarga",
+          "unattributed": "Otros"
         }
       },
       "Empty": {
-        "title": "Aún no hay historial",
-        "description": "Tus tareas, jobs y chats aparecerán aquí cuando haya actividad."
+        "title": "Aún no hay transacciones",
+        "description": "Cada ejecución de job, generación de imagen, demás consumos de créditos y recargas aparecerán aquí."
       },
       "List": {
         "loadMore": "Cargar más",
-        "loading": "Cargando historial...",
-        "loadMoreError": "No se pudo cargar más historial"
+        "loading": "Cargando transacciones...",
+        "loadMoreError": "No se pudieron cargar más transacciones"
       },
       "Row": {
         "credit": "crédito",
         "credits": "créditos",
-        "creditsUnavailable": "—",
         "noDescription": "Sin descripción",
-        "updated": "Actualizado",
+        "consumed": "Consumido",
         "kind": {
+          "job": "Job de agente",
+          "image": "Imagen",
           "task": "Tarea",
-          "job": "Job",
-          "image": "Imagen"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Recarga",
+          "unattributed": "Otros"
         }
+      },
+      "Export": {
+        "button": "Exportar CSV",
+        "title": "Exportar transacciones",
+        "lastMonth": "Mes pasado",
+        "thisMonth": "Este mes",
+        "last30Days": "Últimos 30 días",
+        "month": "Mes",
+        "from": "Desde",
+        "to": "Hasta",
+        "download": "Descargar CSV",
+        "filtersNote": "Usa los filtros de arriba. Las fechas son UTC."
+      },
+      "Chart": {
+        "label": "Créditos gastados por día, últimos 30 días",
+        "total": "{count} créditos gastados en los últimos 30 días",
+        "day": "{date}: {count} créditos"
       }
     },
     "Chat": {
@@ -1516,12 +1522,13 @@
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
-          "sinceLastActivity": "Desde tu última actividad, {when}",
           "completed": "{count, plural, one {# tarea completada} other {# tareas completadas}}",
           "worked": "{minutes, plural, one {# minuto trabajado} other {# minutos trabajados}}",
           "awaiting": "{count, plural, one {# tarea necesita tu respuesta} other {# tareas necesitan tu respuesta}}",
           "byTeammates": "{count, plural, one {# tarea de tu equipo} other {# tareas de tu equipo}}",
-          "recent": "En las últimas 24 horas"
+          "recent": "En las últimas 24 horas",
+          "trendUp": "{count} más que en las 24 horas anteriores",
+          "trendDown": "{count} menos que en las 24 horas anteriores"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -2263,9 +2270,11 @@
       },
       "ProjectSocialAccounts": {
         "title": "Cuentas sociales",
-        "description": "Conecta cuentas de redes sociales a este proyecto. Actualmente se puede publicar en X.",
+        "description": "Conecta cuentas de redes sociales a este proyecto. Redacta, programa y publica en cualquier plataforma conectada.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
+        "connectAccount": "Conectar cuenta",
+        "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
@@ -2296,6 +2305,7 @@
           "providerRevocationFailed": "Esta cuenta está desconectada del proyecto, pero el proveedor puede seguir autorizando esta aplicación. Revoca el acceso en la configuración de tu cuenta."
         },
         "errors": {
+          "facebookPage": "Publicar en Facebook requiere una cuenta que gestione exactamente una página. Usa una cuenta con una sola página gestionable.",
           "inFlight": "Ya hay otra acción de cuenta en curso.",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
@@ -2308,13 +2318,15 @@
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
           "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla."
-        }
+        },
+        "comingSoon": "Próximamente",
+        "connectComingSoon": "{provider} (próximamente)"
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
-        "description": "Redacta publicaciones de texto para X y prográmalas desde este proyecto.",
+        "description": "Redacta, programa y publica en las cuentas de redes sociales conectadas a este proyecto.",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
@@ -2324,12 +2336,16 @@
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
-          "history": "Historial"
+          "attention": "Requiere atención"
         },
+        "selectedPost": "Publicación seleccionada",
         "empty": {
           "upcoming": "Aún no hay publicaciones programadas.",
-          "drafts": "Aún no hay borradores.",
-          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+          "drafts": "Aún no hay borradores."
+        },
+        "emptyHint": {
+          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
+          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2359,23 +2375,29 @@
             "upload": "Subir",
             "uploading": "Subiendo…",
             "remove": "Quitar {name}",
-            "hint": "Hasta 4 imágenes, o un GIF, o un vídeo.",
-            "unsupported": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
+            "hint": "Adjunta imágenes o un vídeo, dentro de los límites de {provider}.",
+            "unsupported": "Usa un tipo de archivo que {provider} acepte.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
             "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
             "uploadFailed": "La subida falló. Inténtalo de nuevo.",
             "errors": {
-              "too_many_images": "X permite como máximo 4 imágenes por publicación.",
-              "too_many_gifs": "X permite un GIF por publicación.",
-              "too_many_videos": "X permite un vídeo por publicación.",
-              "mixed_media": "Usa imágenes, un GIF o un vídeo, no una mezcla.",
-              "unsupported_type": "Usa un archivo JPG, PNG, WebP, GIF o MP4.",
-              "too_large": "Un archivo es demasiado grande para X."
+              "too_many_images": "{provider} permite como máximo {max} imágenes por publicación.",
+              "too_many_gifs": "{provider} permite un GIF por publicación.",
+              "too_many_videos": "{provider} permite un vídeo por publicación.",
+              "mixed_media": "{provider} no permite mezclar imágenes, un GIF o un vídeo.",
+              "unsupported_type": "{provider} no acepta este tipo de archivo.",
+              "too_large": "Un archivo es demasiado grande para {provider}."
             }
+          },
+          "requirements": {
+            "text_or_media_required": "Añade texto o contenido multimedia.",
+            "text_required": "{provider} requiere texto.",
+            "media_required": "{provider} requiere al menos una imagen o un vídeo.",
+            "video_required": "{provider} requiere un vídeo."
           },
           "account": "Cuenta",
           "noAccount": "Elige una cuenta",
-          "unknownHandle": "Cuenta de X desconocida",
+          "unknownHandle": "Cuenta desconocida",
           "scheduledAt": "Hora programada",
           "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
           "saveDraft": "Guardar borrador",
@@ -2388,7 +2410,7 @@
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
-          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "description": "La publicación no se publicará. Esta acción no se puede deshacer.",
           "confirm": "Cancelar publicación"
         },
         "toasts": {
@@ -2405,7 +2427,7 @@
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
-        "viewOnX": "Ver en X",
+        "viewPost": "Ver publicación",
         "publishedAt": "Publicada {date}",
         "failedAt": "Falló {date}",
         "attempts": "{count, plural, one {# intento} other {# intentos}}",
@@ -2415,7 +2437,7 @@
         },
         "publishDialog": {
           "title": "¿Publicar esta publicación ahora?",
-          "description": "La publicación saldrá en X de inmediato en lugar de esperar a la hora programada.",
+          "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
         }
       },
@@ -2423,7 +2445,9 @@
         "back": "Volver a proyectos",
         "header": {
           "updated": "Actualizado",
-          "created": "Creado"
+          "created": "Creado",
+          "properties": "Propiedades",
+          "website": "Sitio web"
         },
         "briefing": "Briefing",
         "latestUpdate": "Última actualización",
@@ -2459,7 +2483,8 @@
           "empty": "Crece al completar tareas",
           "modelLine": "{model} · alojada en la UE 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Sin configurar (AI_GATEWAY_API_KEY)",
+          "offHint": "Las tareas completadas no se añadirán a la memoria.",
+          "off": "La memoria está desactivada",
           "title": "Memoria del proyecto",
           "copyLink": "Copiar enlace",
           "openRaw": "Abrir original",
@@ -2565,13 +2590,10 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "social": "Social",
-          "backToProjects": "Todos los proyectos",
           "ariaLabel": "Secciones del proyecto"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "Todavía no hay DESIGN.md. Genérala desde el sitio web del proyecto o sube un archivo."
+          "document": "DESIGN.md"
         }
       }
     },
@@ -2708,6 +2730,38 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickAction": "Elegir un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "calendar": {
+        "title": "Calendario de publicación",
+        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
+      },
+      "newPost": {
+        "label": "Nueva publicación",
+        "options": "Opciones de nueva publicación",
+        "manual": "Escribirla yo",
+        "manualHint": "Elige la cuenta, los medios y la hora.",
+        "sokoBot": "Publicar con Soko Bot",
+        "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",
+        "sokoBotSetup": "Configura Soko Bot primero",
+        "sokoBotFailed": "No se pudo abrir el chat de Soko Bot. Inténtalo de nuevo.",
+        "sokoBotPrompt": "Ayúdame a crear una publicación social para el proyecto {project}.",
+        "sokoBotPromptAnyProject": "Ayúdame a crear una publicación social.",
+        "chooseProjectTitle": "Elige un proyecto para esta publicación",
+        "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
+      },
+      "allProjectsCalendar": {
+        "title": "Calendario de publicaciones",
+        "description": "Publicaciones programadas de todos los proyectos de este espacio de trabajo."
+      },
+      "accountsNeedProject": {
+        "title": "Cuentas sociales",
+        "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+      },
+      "loading": "Cargando Social…"
+    },
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
@@ -2739,7 +2793,7 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "history": "Historial",
+          "history": "Transacciones",
           "drive": "Archivos",
           "admin": "Administración",
           "settings": "Configuración",
@@ -2748,7 +2802,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
-          "schedules": "Programaciones"
+          "schedules": "Programaciones",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -2765,11 +2820,12 @@
     },
     "HistorySearchDialog": {
       "title": "Buscar",
-      "description": "Buscar tareas, trabajos o imágenes",
+      "description": "Buscar tareas, trabajos, resultados de trabajos, imágenes o archivos",
       "searchPlaceholder": "Buscar...",
       "empty": "No se encontraron resultados",
       "loading": "Cargando...",
       "error": "Error al cargar los resultados",
+      "created": "Creado",
       "filesGroup": "Archivos",
       "filesSeeAll": "Ver todos los archivos",
       "filesFilenameMatch": "Coincide el nombre"
@@ -2814,6 +2870,10 @@
       "upgradePlanCta": "Elegir plan",
       "cancelSubscriptionCta": "Cancelar suscripción",
       "cancelsOnDate": "Se cancela el {date}",
+      "personalPlanNotice": "Tu plan personal: {plan}",
+      "personalPlanNoticeCancels": "Tu plan personal: {plan}, se cancela el {date}",
+      "switchToPersonalWorkspace": "Cambiar al espacio de trabajo personal",
+      "switchToPersonalWorkspaceError": "No se pudo cambiar a tu espacio de trabajo personal. Inténtalo de nuevo.",
       "statusCancellationScheduled": "La cancelación de la suscripción fue programada.",
       "billingPortalTitle": "Portal de Billing",
       "billingPortalDescription": "Abre el portal de Billing de Stripe para gestionar tus suscripciones y facturas.",
@@ -6931,7 +6991,8 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -6955,7 +7016,11 @@
         "projectLabel": "Proyecto: ",
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
-        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
+        "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}",
+        "compactLabel": "{media, select, image {{count, plural, one {Publicación de {provider} con imagen} other {Publicación de {provider} con # imágenes}}} gif {Publicación de {provider} con GIF} video {Publicación de {provider} con vídeo} other {Publicación de {provider}}}"
+      },
+      "socialOnly": {
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {

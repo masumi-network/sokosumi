@@ -1,19 +1,18 @@
 "use server";
 
+import type {
+  AcceptOrganizationInviteLink,
+  OrganizationInviteLink,
+} from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type {
-  AcceptOrganizationInviteLink,
-  OrganizationInviteLink,
-} from "@/lib/clients/generated/core";
 import {
   type AuthenticatedRequest,
   withSession,

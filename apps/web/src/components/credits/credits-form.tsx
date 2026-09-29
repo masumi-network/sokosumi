@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { CreditTopUpPricing, Organization } from "@sokosumi/core-client";
 import {
   getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
@@ -34,10 +35,6 @@ import { Input } from "@/components/ui/input";
 import { purchaseCredits } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
-import type {
-  CreditTopUpPricing,
-  Organization,
-} from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { cn } from "@/lib/utils";
 

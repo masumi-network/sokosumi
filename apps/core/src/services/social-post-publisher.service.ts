@@ -1,14 +1,25 @@
 import { randomUUID } from "node:crypto";
 import type { Prisma, SocialPostStatus } from "@sokosumi/database";
-import type { SocialPostMediaRef } from "@sokosumi/utils";
+import {
+  SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaRef,
+  type SocialPostProvider,
+  socialPostProviderLabel,
+  validateSocialPostMedia,
+} from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
-import { publishXPost } from "@/clients/composio.client";
+import {
+  publishSocialPostToProvider,
+  SOCIAL_POST_ATTEMPT_TOOL_SLUGS,
+} from "@/clients/social-post-providers";
+import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
+import type { SocialPostPublishResult } from "@/clients/social-post-providers/types";
 import { badRequest, conflict, notFound } from "@/helpers/error";
 import { SOCIAL_BETA_USER_WHERE } from "@/helpers/social-beta-access";
 import { requireSocialPostPublishingAccess } from "@/helpers/social-post-access";
 import {
-  downloadSocialPostMedia,
   requireSocialPostMedia,
+  SocialPostMediaError,
 } from "@/helpers/social-post-media";
 import { classifyPublishError } from "@/helpers/social-post-publish-errors";
 import prisma from "@/lib/db/prisma";
@@ -31,7 +42,6 @@ export const RETRY_BACKOFF_MS = [60_000, 180_000] as const;
 const PUBLISH_BUDGET_MS = 240_000;
 const SETTLEMENT_RESERVE_MS = 20_000;
 
-const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
 const REVISION_CONFLICT_MESSAGE = "Social post was modified, reload and retry";
 const CONNECTION_INACTIVE_ERROR = "Social connection needs reconnecting";
 const AUTHORIZATION_REVOKED_ERROR =
@@ -75,6 +85,7 @@ const publisherInclude = {
       id: true,
       status: true,
       composioConnectedAccountId: true,
+      externalAccountId: true,
       externalHandle: true,
     },
   },
@@ -88,6 +99,7 @@ type PublisherPostRecord = Prisma.SocialPostGetPayload<{
 interface ClaimedPost {
   id: string;
   projectId: string;
+  provider: string;
   text: string;
   /** Raw `media` Json column; parsed strictly at publish time. */
   media: unknown;
@@ -111,10 +123,8 @@ interface AttemptOptions {
   execution?: PublishDueSocialPostsInput;
 }
 
-function publishedUrl(handle: string | null, externalId: string): string {
-  return handle
-    ? `https://x.com/${encodeURIComponent(handle)}/status/${externalId}`
-    : `https://x.com/i/web/status/${externalId}`;
+function isSocialPostProvider(value: string): value is SocialPostProvider {
+  return value in SOCIAL_POST_TEXT_LIMITS;
 }
 
 function minutesLate(scheduledAt: Date, now: Date): number {
@@ -234,6 +244,14 @@ async function attemptPublish(
   post: ClaimedPost,
   options: AttemptOptions,
 ): Promise<AttemptOutcome> {
+  if (!isSocialPostProvider(post.provider)) {
+    const settled = await settle(post, {
+      status: "FAILED",
+      lastError: `Unsupported social provider: ${post.provider}`,
+    });
+    return settled ? "failed" : "skipped";
+  }
+  const provider = post.provider;
   const now = new Date();
 
   if (post.recoveringLease) {
@@ -255,7 +273,8 @@ async function attemptPublish(
             status: "PUBLISHED",
             publishedAt: previous.finishedAt,
             publishedExternalId: previous.externalId,
-            publishedUrl: publishedUrl(
+            publishedUrl: socialPostPublishedUrl(
+              provider,
               post.socialConnection?.externalHandle ?? null,
               previous.externalId,
             ),
@@ -310,8 +329,7 @@ async function attemptPublish(
     }
     const settled = await settle(post, {
       status: "FAILED",
-      lastError:
-        "The previous publishing attempt could not be confirmed. Check X before retrying to avoid a duplicate post.",
+      lastError: `The previous publishing attempt could not be confirmed. Check ${socialPostProviderLabel(provider)} before retrying to avoid a duplicate post.`,
     });
     return settled ? "failed" : "skipped";
   }
@@ -361,7 +379,7 @@ async function attemptPublish(
       attempt: await nextAttemptNumber(post.id),
       trigger: options.trigger,
       actorUserId: options.actorUserId ?? null,
-      toolSlug: X_CREATE_POST_TOOL_SLUG,
+      toolSlug: SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
     },
     select: { id: true },
   });
@@ -379,30 +397,39 @@ async function attemptPublish(
   const signal = options.execution
     ? AbortSignal.any([options.execution.abortSignal, timeoutSignal])
     : timeoutSignal;
-  let published: { externalId: string };
+  let published: SocialPostPublishResult;
   let media: SocialPostMediaRef[] = [];
   try {
     if (Date.now() >= deadlineMs)
       throw new DOMException("Publish deadline exceeded", "TimeoutError");
     signal.throwIfAborted();
     media = requireSocialPostMedia(post.media, post.id);
-    const downloadedMedia = await downloadSocialPostMedia(media, signal);
+    const mediaValidation = validateSocialPostMedia(provider, media);
+    if (!mediaValidation.ok) {
+      throw new SocialPostMediaError(
+        "media_type_mismatch",
+        `The attached media no longer matches ${socialPostProviderLabel(provider)} publishing rules`,
+      );
+    }
     const accessOutcome = await checkSchedulingCoworkerAccess(
       post,
       options,
       attempt.id,
     );
     if (accessOutcome) return accessOutcome;
-    published = await publishXPost({
+    published = await publishSocialPostToProvider({
+      provider,
       connectedAccountId: connection.composioConnectedAccountId,
       executorUserId: projectExecutorUserId(post.projectId),
+      externalAccountId: connection.externalAccountId,
+      externalHandle: connection.externalHandle,
       text: post.text,
-      media: downloadedMedia,
+      media,
       signal,
     });
   } catch (error) {
     const finishedAt = new Date();
-    const classified = classifyPublishError(error);
+    const classified = classifyPublishError(error, provider);
     const backoff = RETRY_BACKOFF_MS[post.attemptCount];
     const retryAt =
       backoff === undefined ? null : new Date(finishedAt.getTime() + backoff);
@@ -450,8 +477,10 @@ async function attemptPublish(
       finishedAt,
       outcome: "succeeded",
       errorKind: null,
+      toolSlug: published.toolSlug ?? SOCIAL_POST_ATTEMPT_TOOL_SLUGS[provider],
       providerOutcome:
-        media.length > 0 ? `201 created, ${media.length} media` : "201 created",
+        published.providerOutcome ??
+        (media.length > 0 ? `published, ${media.length} media` : "published"),
       externalId: published.externalId,
     },
   });
@@ -459,7 +488,7 @@ async function attemptPublish(
     status: "PUBLISHED",
     publishedAt: finishedAt,
     publishedExternalId: published.externalId,
-    publishedUrl: publishedUrl(connection.externalHandle, published.externalId),
+    publishedUrl: published.publishedUrl,
     lastError: null,
     attemptCount,
   });
@@ -517,6 +546,7 @@ async function claimDuePost(): Promise<ClaimResult> {
     post: {
       id: candidate.id,
       projectId: candidate.projectId,
+      provider: candidate.provider,
       text: candidate.text,
       media: candidate.media,
       scheduledAt: candidate.scheduledAt,
@@ -635,6 +665,7 @@ export async function publishSocialPostNow(
     {
       id: post.id,
       projectId: post.projectId,
+      provider: post.provider,
       text: post.text,
       media: post.media,
       scheduledAt: now,

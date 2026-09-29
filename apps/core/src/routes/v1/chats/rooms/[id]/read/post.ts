@@ -4,6 +4,10 @@ import { waitUntil } from "@vercel/functions";
 
 import { publishChatRoomReadRealtime } from "@/helpers/chat-room-read-realtime";
 import {
+  findUnreadThreadReplyRows,
+  markCoveredThreadReplyRowsRead,
+} from "@/helpers/chat-thread-reply-notifications";
+import {
   cancelNotificationEmails,
   EMAILED_NOTIFICATION_COLUMNS,
   type EmailedNotificationRow,
@@ -40,7 +44,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/read",
     description:
-      "Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.",
+      "Mark an organization chat room as read for the current user. Advances room lastReadAt and clears CHAT notifications, except mention and direct-message notifications for replies in Threads the user Participates in that no Thread look covers yet. Does not clear per-thread look state — remaining unread thread replies still contribute to unreadCount.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -81,6 +85,25 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
+      // A Thread reply's row belongs to the Thread, which only a Look reads
+      // (SOK-1217). A row written after its Look already covers it is
+      // cleared here, or it would wait for the next Look.
+      const threadReplyRows = await findUnreadThreadReplyRows(
+        [room.id],
+        userContext.userId,
+        tx,
+      );
+      const lookedRows = await markCoveredThreadReplyRowsRead(
+        threadReplyRows,
+        userContext.userId,
+        tx,
+        readAt,
+      );
+      const lookedIds = new Set(lookedRows.map((row) => row.id));
+      const threadReplyRowIds = threadReplyRows
+        .map((row) => row.id)
+        .filter((id) => !lookedIds.has(id));
+
       // Written and read back in one statement, so the rows named below are
       // exactly the ones this write cleared: an email handed over between a
       // read and a separate write would be on no row this route saw. The
@@ -88,12 +111,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       // in the notification center now, and a badge that only ever heard
       // about rows being written would keep counting rows this room no
       // longer has.
-      clearedRows = await tx.notification.updateManyAndReturn({
+      const roomRows = await tx.notification.updateManyAndReturn({
         where: {
           userId: userContext.userId,
           kind: NotificationKind.CHAT,
           referenceId: room.id,
           isRead: false,
+          ...(threadReplyRowIds.length > 0
+            ? { id: { notIn: threadReplyRowIds } }
+            : {}),
         },
         data: {
           isRead: true,
@@ -101,6 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
         select: EMAILED_NOTIFICATION_COLUMNS,
       });
+      clearedRows = [...lookedRows, ...roomRows];
 
       return room;
     });
@@ -134,8 +161,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     // Top-level unreads are cleared by lastReadAt; thread replies still use
     // look baseline. Return the real dual-baseline count so the sidebar does
-    // not optimistically hide unlooked threads. Mention badges are cleared
-    // with the CHAT notifications above.
+    // not optimistically hide unlooked threads. The mention badge is 0: the
+    // top-level rows were cleared above, and the Thread-reply rows left unread
+    // drop out of it once lastReadAt has passed them, which it now has.
     const unreadCounts = await getChatRoomUnreadCounts(
       [room.id],
       userContext.userId,

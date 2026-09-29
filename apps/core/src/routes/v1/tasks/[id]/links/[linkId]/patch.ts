@@ -1,6 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import {
+  buildTaskWriteAccessWhere,
+  requireMutableTaskWriteAccess,
+} from "@/helpers/access-control";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -70,15 +73,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      await requireMutableTaskOwnership(userContext, id, tx);
+      await requireMutableTaskWriteAccess(userContext, id, tx);
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          ownerId: userContext.userId,
           workspaceId: workspaceContext.workspaceId,
+          ...buildTaskWriteAccessWhere(userContext.userId),
         },
         select: taskLinkPeerTaskSelect,
       });

@@ -72,6 +72,23 @@ describe("versions", () => {
     expect(version.systemPrompt).toMatch(/list_tasks/);
   });
 
+  it("keep the v17 prompt frozen while v18 covers every provider", () => {
+    const v17Prompt = composeSystemPrompt(getSokoBotVersion("v17"));
+    expect(v17Prompt).toMatch(/X only/);
+    const v18Prompt = composeSystemPrompt(getSokoBotVersion("v18"));
+    expect(v18Prompt).not.toMatch(/X only/);
+  });
+
+  it("tell the default version it can publish to every provider", () => {
+    const prompt = composeSystemPrompt(
+      getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+    );
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v19");
+    expect(prompt).toMatch(/Instagram/);
+    expect(prompt).toMatch(/TikTok/);
+    expect(prompt).not.toMatch(/X only/);
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);

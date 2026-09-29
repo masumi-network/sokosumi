@@ -1,6 +1,6 @@
+import type { Task } from "@sokosumi/core-client";
+import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Task } from "@/lib/clients/generated/core";
-import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

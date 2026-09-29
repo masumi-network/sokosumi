@@ -41,8 +41,8 @@ vi.mock("@/components/ui/popover", async (importOriginal) => {
   return createAccountSummaryPopoverMock(actual);
 });
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import { SidebarAccountChip } from "@/app/components/sidebar/components/sidebar-account-chip.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import {
   accountSummaryPopoverTestFlags,

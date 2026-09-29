@@ -80,19 +80,26 @@ struct CreateChannelView: View {
 
   private var details: some View {
     Form {
-      TextField("Channel handle", text: Binding(get: { model.draft.slug }, set: { model.draft.setSlug($0) }))
+      TextField("Channel handle", text: Binding(get: { model.draft.slug }, set: { model.draft.setSlug($0) }), prompt: Text("welcome"))
         .focused($slugFocused)
         .task { slugFocused = true }
         .autocorrectionDisabled()
       HStack {
-        Text(slugStatus).font(.caption).foregroundStyle(.secondary)
+        Text(handleStatus).font(.caption).foregroundStyle(model.handleStatus.isError ? AnyShapeStyle(.red) : AnyShapeStyle(.secondary))
         if model.availability == .failed {
           Button("Retry") { slugRetry += 1 }
         }
       }
-      TextField("Display name", text: Binding(get: { model.draft.name }, set: { model.draft.setName($0) }))
-      TextField("Topic (optional)", text: Binding(get: { model.draft.topic }, set: { model.draft.setTopic($0) }), axis: .vertical)
+      TextField("Display name", text: Binding(get: { model.draft.name }, set: { model.draft.setName($0) }), prompt: Text("e.g. Welcome"))
+      HStack(alignment: .firstTextBaseline) {
+        Text("Shown in the sidebar. It starts from the handle; you can change it here.").font(.caption).foregroundStyle(.secondary)
+        Spacer(minLength: 12)
+        RemainingCharacters(count: model.draft.remainingNameCharacters)
+      }
+      TextField("Topic (optional)", text: Binding(get: { model.draft.topic }, set: { model.draft.setTopic($0) }), prompt: Text("What is this channel about?"), axis: .vertical)
         .lineLimit(3 ... 5)
+      RemainingCharacters(count: model.draft.remainingTopicCharacters)
+        .frame(maxWidth: .infinity, alignment: .trailing)
       Picker("Visibility", selection: $model.draft.visibility) {
         Text("Public").tag(ChannelDraft.Visibility.public)
         Text("Private").tag(ChannelDraft.Visibility.private)
@@ -103,31 +110,47 @@ struct CreateChannelView: View {
       Text(model.draft.visibility.help).font(.caption).foregroundStyle(.secondary)
     }
     .formStyle(.grouped)
-    .frame(height: 320)
+    .frame(height: 420)
   }
 
   private var participants: some View {
     VStack(alignment: .leading, spacing: 12) {
       Picker("Add people", selection: $model.draft.addAllMembers) {
-        Text("Everyone in \(organizationName)").tag(true)
-        Text("Specific people or AI coworkers").tag(false)
+        Text("Add all \(model.roster?.organizationMemberCount ?? 0) members of \(organizationName)").tag(true)
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Add specific people")
+          Text("Select people and AI coworkers to add to this channel.").font(.caption).foregroundStyle(.secondary)
+        }
+        .tag(false)
       }
       .pickerStyle(.radioGroup)
       if !model.draft.addAllMembers {
         RecipientSelectionList(sections: model.sections, currentUserId: currentUserId, query: $model.query, selection: $model.draft.recipients)
-      } else {
-        Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
       }
     }
   }
 
-  private var slugStatus: String {
-    switch model.availability {
-    case .invalid: "Choose a channel handle."
-    case .checking: "Checking availability…"
-    case .free: "This handle is available."
-    case .taken: "This handle is already taken."
-    case .failed: "Couldn’t check availability."
+  /// Web's single line under the handle: help unless the check runs or failed.
+  private var handleStatus: LocalizedStringKey {
+    switch model.handleStatus {
+    case .help: "Unique among channels. You cannot change it after creating."
+    case .checking: "Checking handle…"
+    case .invalid: "Enter a valid handle."
+    case .taken: "This channel handle already exists. Browse channels to find it."
+    case .failed: "Could not check this handle. Try again."
     }
+  }
+}
+
+/// Web's live counter beside a length-limited field: the characters still left, never below 0. Hidden from VoiceOver as on web.
+private struct RemainingCharacters: View {
+  let count: Int
+
+  var body: some View {
+    Text(count, format: .number)
+      .font(.caption)
+      .monospacedDigit()
+      .foregroundStyle(.secondary)
+      .accessibilityHidden(true)
   }
 }

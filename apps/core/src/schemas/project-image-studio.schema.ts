@@ -203,13 +203,6 @@ export const createImageJobRequestSchema = z
   })
   .openapi("CreateProjectImageJobRequest");
 
-export const bindImageSessionRequestSchema = z
-  .object({
-    eveSessionId: z.string().trim().min(1).max(200),
-    title: z.string().trim().max(200).nullable().default(null),
-  })
-  .openapi("BindProjectImageSessionRequest");
-
 export const imageStudioStateQuerySchema = z.object({
   /**
    * A version the caller is looking at. It is returned whatever its age, so a

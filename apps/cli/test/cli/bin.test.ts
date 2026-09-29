@@ -12,6 +12,7 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
+import { formatUnknownCommandUsage } from "../../src/cli/commands/discover.js";
 
 const binPath = fileURLToPath(
   new URL("../../bin/sokosumi.ts", import.meta.url),
@@ -135,9 +136,12 @@ test("direct JSON headless errors do not add a stderr copy", () => {
   );
 
   assert.equal(result.status, 1);
+  const error = formatUnknownCommandUsage();
+  assert.match(error, /\bskills\b/);
+  assert.match(error, /\bruntime run\b/);
+  assert.match(error, /\bcoworkers list\b/);
   assert.deepEqual(JSON.parse(result.stdout), {
-    error:
-      "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | runtime key-import|start|complete | tasks | jobs | auth login|status|whoami|logout",
+    error,
     code: "UNKNOWN",
   });
   assert.equal(result.stderr, "");

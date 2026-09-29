@@ -84,6 +84,12 @@ _Avoid_: Coworker developer (when meaning this)
 The in-repo command-line client for Coworker developers and Agent developers. Complements web `/developer`; does not replace it.
 _Avoid_: Treating `/developer` as deprecated, a second CLI per persona
 
+### CMO
+
+**CMO**:
+The product at cmo.xyz: an AI agent that runs a business's marketing end to end (social media, content, ads, SEO, graphics), built on Sokosumi. People use it with their Sokosumi account and Workspaces; it holds no accounts or product data of its own. Its brand guide lives in the CMO.XYZ-Style-Guide repository.
+_Avoid_: Sokosumi marketing module, second Web app, CMO account
+
 ### Tasks
 
 **Task Manager**:
@@ -124,8 +130,12 @@ _Avoid_: Integration, Project account
 A Project's authorization to publish through one Social account. A Project may have multiple connections, including to different accounts on the same provider.
 _Avoid_: Social account (when meaning the Project authorization), integration account
 
+**Social**:
+The workspace page (`/social`) where a Project's Social posts are planned, scoped to one Project by `?projectId=`. It is not one area of a Project's own page: like the Calendar it is a destination of its own that happens to be read one Project at a time.
+_Avoid_: Social module page, Project social tab, Social media page
+
 **Social accounts**:
-The section of a Project's Social module page (`/projects/{id}/social`) where Social connection managers view and manage a Project's Social connections. It is not a Project settings surface and not a Calendar surface.
+The section of Social where Social connection managers view and manage the scoped Project's Social connections. It is not a Project settings surface and not a Calendar surface.
 _Avoid_: Social account (when meaning the external publishing identity), integrations page
 
 **Social connection manager**:
@@ -207,6 +217,10 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 **Security check**:
 The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
+
+**Sign in with Sokosumi**:
+Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
+_Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
 
 **Impersonation**:
 A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).

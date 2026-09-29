@@ -1,8 +1,10 @@
 import { z } from "@hono/zod-openapi";
 import {
   isValidTimezone,
-  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
+  type SocialPostProvider,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -11,6 +13,13 @@ import {
   projectSocialConnectionProjectParamsSchema,
   projectSocialConnectionSchema,
 } from "@/schemas/project-social-connection.schema";
+
+const SOCIAL_POST_PROVIDER_KEYS = Object.keys(SOCIAL_POST_TEXT_LIMITS) as [
+  SocialPostProvider,
+  ...SocialPostProvider[],
+];
+
+export const socialPostProviderSchema = z.enum(SOCIAL_POST_PROVIDER_KEYS);
 
 export const SOCIAL_POST_STATUSES = [
   "DRAFT",
@@ -43,7 +52,7 @@ export const socialPostStatusSchema = z
 const socialPostTextSchema = z
   .string()
   .trim()
-  .max(SOCIAL_POST_TEXT_LIMITS.x)
+  .max(SOCIAL_POST_TEXT_MAX)
   .openapi({ example: "Shipping the new Calendar today." });
 
 export const socialPostMediaRefSchema = z
@@ -66,10 +75,10 @@ export const socialPostMediaRefSchema = z
 
 const socialPostMediaRequestSchema = z
   .array(socialPostMediaRefSchema)
-  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages)
+  .max(SOCIAL_POST_MEDIA_MAX)
   .openapi({
     description:
-      "Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.",
+      "Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.",
   });
 
 const socialPostTimezoneSchema = z
@@ -130,7 +139,7 @@ export const socialPostSchema = z
     projectId: z.string().uuid().openapi({
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     }),
-    provider: z.literal("x"),
+    provider: socialPostProviderSchema,
     text: z.string(),
     media: z.array(socialPostMediaRefSchema),
     status: socialPostStatusSchema,

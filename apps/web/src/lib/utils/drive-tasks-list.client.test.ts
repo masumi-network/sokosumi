@@ -1,5 +1,5 @@
+import type { DriveTasksListItem } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { DriveTasksListItem } from "@/lib/clients/generated/core";
 import {
   DRIVE_TASKS_PAGE_LIMIT,
   fetchDriveTasksPage,
@@ -7,7 +7,7 @@ import {
 
 const getDriveTasksMock = vi.fn();
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   getDriveTasks: (...args: unknown[]) => getDriveTasksMock(...args),
 }));
 

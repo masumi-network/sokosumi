@@ -1,10 +1,17 @@
 "use client";
 
+import type {
+  DriveFile,
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import {
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
   type SocialPostMediaValidationReason,
+  socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { format } from "date-fns";
@@ -12,7 +19,6 @@ import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Button } from "@/components/ui/button";
 import {
@@ -44,18 +50,17 @@ import {
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
-import type {
-  DriveFile,
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   isDriveFileUploadDuplicate,
   uploadDriveFile,
 } from "@/lib/utils/drive-file-upload.client";
+import {
+  socialPostComposerAccept,
+  socialPostComposerIssue,
+  socialPostComposerProvider,
+} from "./social-post-composer-rules";
 import {
   buildSocialPostMediaRef,
   hasSocialPostMedia,
@@ -83,12 +88,6 @@ type PendingSubmit = "save" | "schedule" | null;
 
 const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
 const DATETIME_LOCAL_STEP_MS = 60 * 1000;
-
-const DRIVE_PICKER_ACCEPT = [
-  ...SOCIAL_POST_MEDIA_RULES.x.imageMimeTypes,
-  ...SOCIAL_POST_MEDIA_RULES.x.gifMimeTypes,
-  ...SOCIAL_POST_MEDIA_RULES.x.videoMimeTypes,
-].join(",");
 
 function toDateTimeLocalValue(date: Date | null): string {
   return date ? format(date, DATETIME_LOCAL_FORMAT) : "";
@@ -120,8 +119,6 @@ export function SocialPostComposerDialog({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
-  const provider = post?.provider ?? "x";
-  const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
   const { data: session } = useSession();
   const driveStore = driveStoreForActiveWorkspace(
     session?.session.activeOrganizationId ?? null,
@@ -143,12 +140,27 @@ export function SocialPostComposerDialog({
 
   const isScheduleOnly = mode.kind === "schedule";
   const isBusy = pending !== null || uploadPending;
+  const selectedConnection = connections.find(
+    (connection) => connection.id === connectionId,
+  );
+  const provider = socialPostComposerProvider(
+    post?.provider,
+    selectedConnection?.provider,
+  );
+  const textLimit = SOCIAL_POST_TEXT_LIMITS[provider];
+  const accept = socialPostComposerAccept(provider);
+  const composerIssue = socialPostComposerIssue(provider, text, media);
   const trimmedText = text.trim();
   const overLimit = text.length > textLimit;
   const mediaValid = validateSocialPostMedia(provider, media).ok;
-  const textValid =
-    isScheduleOnly ||
-    ((trimmedText.length > 0 || media.length > 0) && !overLimit);
+  const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
+  const requirementHint =
+    composerIssue === "text_required" ||
+    composerIssue === "text_or_media_required" ||
+    composerIssue === "media_required" ||
+    composerIssue === "video_required"
+      ? composerIssue
+      : null;
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
   const minScheduledAt = toDateTimeLocalValue(
     new Date(
@@ -172,7 +184,7 @@ export function SocialPostComposerDialog({
     connectionId !== "" &&
     scheduledAtValid &&
     !isBusy;
-  const canSave = textValid && mediaValid && !isBusy;
+  const canSave = textValid && !isBusy;
   const isReschedule = post?.status === "SCHEDULED";
   const selectedConnectionExists = connections.some(
     (connection) => connection.id === connectionId,
@@ -188,7 +200,10 @@ export function SocialPostComposerDialog({
           : t("composer.scheduleTitle");
 
   function mediaErrorText(reason: SocialPostMediaValidationReason): string {
-    return t(`composer.media.errors.${reason}`);
+    return t(`composer.media.errors.${reason}`, {
+      provider: socialPostProviderLabel(provider),
+      max: SOCIAL_POST_MEDIA_RULES[provider].maxImages,
+    });
   }
 
   function attachMedia(ref: SocialPostMediaRef): void {
@@ -207,7 +222,11 @@ export function SocialPostComposerDialog({
   function handleSelectDriveFile(file: DriveFile): void {
     const ref = socialPostMediaRefFromDriveFile(file);
     if (!ref) {
-      toast.error(t("composer.media.unsupported"));
+      toast.error(
+        t("composer.media.unsupported", {
+          provider: socialPostProviderLabel(provider),
+        }),
+      );
       return;
     }
     attachMedia(ref);
@@ -226,7 +245,11 @@ export function SocialPostComposerDialog({
       fileUrl: "",
     });
     if (!candidate) {
-      toast.error(t("composer.media.unsupported"));
+      toast.error(
+        t("composer.media.unsupported", {
+          provider: socialPostProviderLabel(provider),
+        }),
+      );
       return;
     }
     const precheck = validateSocialPostMedia(provider, [...media, candidate]);
@@ -480,7 +503,7 @@ export function SocialPostComposerDialog({
                   </Button>
                   <input
                     ref={fileInputRef}
-                    accept={DRIVE_PICKER_ACCEPT}
+                    accept={accept}
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0];
@@ -492,9 +515,21 @@ export function SocialPostComposerDialog({
                     type="file"
                   />
                   <span className="text-muted-foreground text-xs">
-                    {t("composer.media.hint")}
+                    {t("composer.media.hint", {
+                      provider: socialPostProviderLabel(provider),
+                    })}
                   </span>
                 </div>
+                {requirementHint ? (
+                  <p
+                    className="text-muted-foreground text-xs"
+                    data-testid="social-post-requirement-hint"
+                  >
+                    {t(`composer.requirements.${requirementHint}`, {
+                      provider: socialPostProviderLabel(provider),
+                    })}
+                  </p>
+                ) : null}
               </div>
             </>
           )}
@@ -512,8 +547,10 @@ export function SocialPostComposerDialog({
               <SelectContent>
                 {connections.map((connection) => (
                   <SelectItem key={connection.id} value={connection.id}>
-                    {formatHandle(connection.externalHandle) ||
-                      t("composer.unknownHandle")}
+                    {`${socialPostProviderLabel(connection.provider)} · ${
+                      formatHandle(connection.externalHandle) ||
+                      t("composer.unknownHandle")
+                    }`}
                   </SelectItem>
                 ))}
               </SelectContent>

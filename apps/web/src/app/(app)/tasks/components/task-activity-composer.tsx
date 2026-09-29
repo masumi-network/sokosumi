@@ -1,5 +1,6 @@
 "use client";
 
+import type { DriveFile } from "@sokosumi/core-client";
 import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
 import { ALargeSmall, AtSign, Loader2, Paperclip } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -30,7 +31,6 @@ import {
 } from "@/components/ui/file-upload";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,

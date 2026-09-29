@@ -1,6 +1,5 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 import {
   canOpenHumanDirectFromSelectedRoom,

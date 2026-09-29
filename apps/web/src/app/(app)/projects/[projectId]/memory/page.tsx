@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
-import { getFormatter, getTranslations } from "next-intl/server";
-
+import { getFormatter } from "next-intl/server";
+import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectMemoryPanel } from "@/app/projects/components/project-memory-panel";
 import {
   getProjectWorkspaceLabels,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
 import { projectService } from "@/lib/services/project.service";
-import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 // Wait for the current session and project access before rendering, as the
 // project's other areas do.
@@ -28,40 +27,39 @@ interface ProjectMemoryPageProps {
 export default async function ProjectMemoryPage({
   params,
 }: ProjectMemoryPageProps) {
-  const [socialBetaEnabled, { projectId }] = await Promise.all([
-    hasCurrentUserSocialBetaAccess(),
-    params,
-  ]);
+  const { projectId } = await params;
   const project = await projectService.getProjectById(projectId);
 
   if (!project) {
     notFound();
   }
 
-  const [contextMd, t, formatter] = await Promise.all([
+  const [contextMd, formatter] = await Promise.all([
     // Null when this project has never had a memory written; the metadata on
     // the project record says whether to expect one.
     project.contextMd
       ? projectService.getProjectContextMd(project.id)
       : Promise.resolve(null),
-    getTranslations("App.Projects.Detail"),
     getFormatter(),
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
 
   return (
     <ProjectWorkspaceShell
-      metadata={[
-        {
-          label: t("header.updated"),
-          value: formatter.dateTime(project.updatedAt, "dateTime"),
-        },
-      ]}
+      actions={
+        <ProjectHeaderActions
+          closedAt={project.closedAt}
+          closingAt={project.closingAt}
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+        />
+      }
+      createdAt={formatter.dateTime(project.createdAt, "dateTime")}
+      updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}
-      showSocialTab={socialBetaEnabled}
       websiteUrl={project.websiteUrl}
     >
       <ProjectMemoryPanel

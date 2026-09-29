@@ -1,15 +1,16 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { ProjectWorkspaceShell } from "@/app/projects/components/project-workspace-shell";
+import {
+  TASK_DETAIL_GRID_CLASS,
+  TASK_DETAIL_SHELL_CLASS,
+  TASK_DETAIL_SIDEBAR_CLASS,
+} from "@/app/tasks/constants";
 
 /**
- * The project as one surface.
- *
- * The page used to be a stack of things floating in the app gutter: a title,
- * then a rule with tabs on it, then content, then panels nested inside that.
- * These pin the composition that replaced it — identity, navigation and the
- * active area inside a single card that matches the projects index and Drive.
+ * A project page laid out like a task page: the task detail shell and grid,
+ * a main column with the name, tabs and content, and a Properties rail.
  */
 
 vi.mock("next/navigation", () => ({
@@ -18,65 +19,109 @@ vi.mock("next/navigation", () => ({
 
 const LABELS = {
   ariaLabel: "Project sections",
-  backToProjects: "All projects",
   design: "Design",
   memory: "Memory",
   overview: "Overview",
-  social: "Social",
+  properties: {
+    title: "Properties",
+    website: "Website",
+    updated: "Updated",
+    created: "Created",
+  },
 };
 
 function renderShell() {
   return render(
     <ProjectWorkspaceShell
+      createdAt="Yesterday"
       labels={LABELS}
-      metadata={[{ label: "Updated", value: "Today" }]}
       projectId="p1"
       projectName="Example project"
-      showSocialTab={false}
+      updatedAt="Today"
+      websiteUrl="https://example.com"
     >
       <p>area content</p>
     </ProjectWorkspaceShell>,
   );
 }
 
-describe("the project workspace surface", () => {
-  it("puts identity, tabs and content inside one card", () => {
+function tabLinks() {
+  const nav = screen.getByRole("navigation", { name: "Project sections" });
+  return within(nav).getAllByRole("link");
+}
+
+describe("the project detail layout", () => {
+  it("uses the task detail shell and grid, with no card", () => {
     const { container } = renderShell();
 
-    const card = container.querySelector(".bg-card-background");
-    expect(card).not.toBeNull();
-    // The same card the projects index and Drive draw: hairline border and a
-    // radius from `md`, full-bleed and border-free below it.
-    expect(card?.className).toContain("md:rounded-xl");
-    expect(card?.className).toContain("md:border");
-    expect(card?.className).toContain("-mx-4");
-
-    // All three live inside it, which is the whole point.
-    expect(card?.contains(screen.getByRole("heading", { level: 1 }))).toBe(
-      true,
-    );
-    expect(card?.contains(screen.getByRole("navigation"))).toBe(true);
-    expect(card?.contains(screen.getByText("area content"))).toBe(true);
+    const shell = container.firstElementChild as HTMLElement;
+    for (const cls of TASK_DETAIL_SHELL_CLASS.split(/\s+/)) {
+      expect(shell.classList).toContain(cls);
+    }
+    // Room above the name, on top of the app's own 16px padding.
+    expect(shell.classList).toContain("pt-2");
+    expect(shell.classList).toContain("md:pt-6");
+    const grid = shell.firstElementChild as HTMLElement;
+    for (const cls of TASK_DETAIL_GRID_CLASS.split(/\s+/)) {
+      expect(grid.classList).toContain(cls);
+    }
+    expect(container.querySelector(".bg-card-background")).toBeNull();
   });
 
-  it("does not clip its own overflow, so a sticky child can still stick", () => {
+  it("spaces the name, rail, tabs and content as groups", () => {
     const { container } = renderShell();
 
-    // The studio's assistant column is `position: sticky`, and an ancestor
-    // with a clipped overflow silently turns sticky into static.
-    expect(
-      container.querySelector(".bg-card-background")?.className,
-    ).not.toContain("overflow-hidden");
+    const grid = container.firstElementChild?.firstElementChild as HTMLElement;
+    // 16px rows join the name to what follows it; 56px keeps the header's
+    // actions clear of the rail.
+    expect(grid.classList).toContain("gap-y-4");
+    expect(grid.classList).toContain("xl:gap-x-14");
+    // In one column the tabs start a new group: 32px after the Properties.
+    const tabsBlock = screen.getByRole("navigation", {
+      name: "Project sections",
+    }).parentElement as HTMLElement;
+    expect(tabsBlock.classList).toContain("max-xl:mt-4");
+    expect(tabsBlock.classList).toContain("space-y-8");
   });
 
-  it("hangs the tab strip on the card's own divider", () => {
+  it("puts the Properties rail in the task sidebar slot", () => {
     renderShell();
 
+    const aside = screen.getByRole("complementary");
+    for (const cls of TASK_DETAIL_SIDEBAR_CLASS.split(/\s+/)) {
+      expect(aside.classList).toContain(cls);
+    }
+    expect(
+      within(aside).getByRole("heading", { name: "Properties" }),
+    ).toBeInTheDocument();
+    expect(within(aside).getByText("Today")).toBeInTheDocument();
+    expect(within(aside).getByText("Yesterday")).toBeInTheDocument();
+    expect(
+      within(aside).getByRole("link", { name: /example\.com/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("orders name, rail, tabs, content, so the tabs touch their content", () => {
+    renderShell();
+
+    const heading = screen.getByRole("heading", { level: 1 });
+    const aside = screen.getByRole("complementary");
     const nav = screen.getByRole("navigation", { name: "Project sections" });
-    // The rule under the tabs is the divider between header and content, not
-    // a rule the tabs float above.
-    expect(nav.className).toContain("border-b");
-    expect(nav.className).not.toContain("-mx-4");
+    const content = screen.getByText("area content");
+    const follows = (a: Node, b: Node) =>
+      Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+
+    expect(follows(heading, aside)).toBe(true);
+    expect(follows(aside, nav)).toBe(true);
+    expect(follows(nav, content)).toBe(true);
+    // Tabs and content share one block; the rail is never between them.
+    expect(nav.parentElement?.contains(content)).toBe(true);
+    expect(nav.parentElement?.contains(aside)).toBe(false);
+  });
+
+  it("marks the current tab", () => {
+    renderShell();
+
     expect(screen.getByRole("link", { name: "Memory" })).toHaveAttribute(
       "aria-current",
       "page",
@@ -86,50 +131,15 @@ describe("the project workspace surface", () => {
   it("navigates the three views a project actually has, and nothing else", () => {
     renderShell();
 
-    // The studio and the calendar are top-level destinations now: neither is
-    // an area *of* a project, so neither is a tab here.
-    const tabs = screen
-      .getAllByRole("link")
-      .map((link) => [link.textContent, link.getAttribute("href")]);
-    expect(tabs).toEqual([
+    // The studio, the calendar and Social are top-level destinations now: none
+    // of them is an area *of* a project, so none of them is a tab here.
+    expect(
+      tabLinks().map((link) => [link.textContent, link.getAttribute("href")]),
+    ).toEqual([
       ["Overview", "/projects/p1"],
       ["Design", "/projects/p1/design-md"],
       ["Memory", "/projects/p1/memory"],
     ]);
-  });
-
-  it("adds Social as a fourth tab only inside the beta", () => {
-    render(
-      <ProjectWorkspaceShell
-        labels={LABELS}
-        metadata={[]}
-        projectId="p1"
-        projectName="Example project"
-        showSocialTab
-      >
-        <p>area content</p>
-      </ProjectWorkspaceShell>,
-    );
-
-    // This row is Social's only navigation, so dropping the tab would strand
-    // the route rather than tidy the page.
-    expect(screen.getByRole("link", { name: "Social" })).toHaveAttribute(
-      "href",
-      "/projects/p1/social",
-    );
-  });
-
-  it("gives the header, the tabs and the content one shared inset", () => {
-    const { container } = renderShell();
-
-    const card = container.querySelector(".bg-card-background");
-    const insets = [...(card?.children ?? [])].map((child) =>
-      (child.className || "").toString(),
-    );
-    expect(insets).toHaveLength(3);
-    for (const cls of insets) {
-      expect(cls).toContain("px-4");
-      expect(cls).toContain("md:px-6");
-    }
+    expect(screen.queryByRole("link", { name: "Social" })).toBeNull();
   });
 });

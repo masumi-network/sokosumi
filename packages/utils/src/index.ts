@@ -155,13 +155,10 @@ export {
   createDataTableSchema,
   tableBatchSchema,
   tableColumnInputSchema,
-  tableColumnTypeSchema,
   tableEvidenceSchema,
-  tableFilterSchema,
   tableInsertRowSchema,
   tableMutationSchema,
   tableQuerySchema,
-  tableValueSchema,
   tableValuesSchema,
   tableViewDefinitionSchema,
 } from "./data-table.js";
@@ -202,8 +199,6 @@ export { isVercelBlobPublicHost } from "./entity-image-upload.js";
 export {
   CURATED_FILE_VOCABULARY,
   CURATED_VOCABULARY_VERSION,
-  type CuratedFileLabel,
-  curatedFileVocabularyProblems,
   curatedFileVocabularyRows,
 } from "./file-curated-vocabulary.js";
 export {
@@ -218,38 +213,24 @@ export {
 } from "./file-url.js";
 export {
   checkFileLabelName,
-  countGraphemes,
-  displayFileLabelName,
   FILE_LABEL_DESCRIPTION_MAX_LENGTH,
   FILE_LABEL_NAME_MAX_GRAPHEMES,
-  FILE_SUGGESTIONS_VISIBLE_MAX,
   FILE_TAGS_PER_RESOURCE_MAX,
-  type FileLabelNameCheck,
-  type FileLabelNameProblem,
-  normalizeFileLabelName,
   normalizeFileResourceName,
 } from "./file-vocabulary.js";
 export {
-  githubBlobDownloadUrl,
-  isHtmlContentType,
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
 } from "./github-file-url.js";
 export {
   creditsPerImageCents,
   IMAGE_PRICE_UNITS,
-  type ImageFrame,
   type ImagePriceFigures,
   type ImagePriceUnit,
   imageOutputDimensions,
-  imageOutputMegapixels,
   isAreaPricedUnit,
-  isPerImageDerivableUnit,
 } from "./image-credits.js";
-export {
-  type ImagePixelSize,
-  readImageDimensionsFromBytes,
-} from "./image-dimensions.js";
+export { readImageDimensionsFromBytes } from "./image-dimensions.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -386,16 +367,22 @@ export {
 } from "./project-logo-path.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_MEDIA_MAX,
+  SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
+  SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
-  type SocialPostMediaValidation,
+  type SocialPostMediaRequirement,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
+  socialPostProviderLabel,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";

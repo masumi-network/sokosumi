@@ -1,16 +1,25 @@
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
-  render,
+  render as renderUi,
   screen,
   waitFor,
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import {
+  SocialComposeProvider,
+  useSocialCompose,
+} from "@/app/social/components/social-compose-context";
 import {
   cancelProjectSocialPost,
   createProjectSocialPost,
@@ -18,11 +27,6 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 
 import { loadMoreSocialPosts } from "./actions";
 
@@ -70,7 +74,7 @@ const MESSAGES: Record<string, string> = {
   noAccount: "No account",
   needsReconnect: "Account needs reconnecting",
   needsReconnectLink: "Reconnect the account",
-  viewOnX: "View on X",
+  viewPost: "View post",
   publishedAt: "Published {date}",
   failedAt: "Failed {date}",
   attempts: "{count} attempts",
@@ -78,10 +82,13 @@ const MESSAGES: Record<string, string> = {
   "actions.retry": "Retry",
   "sections.upcoming": "Upcoming",
   "sections.drafts": "Drafts",
-  "sections.history": "History",
+  "sections.attention": "Needs attention",
+  selectedPost: "Selected post",
   "empty.upcoming": "No scheduled posts yet.",
   "empty.drafts": "No drafts yet.",
-  "empty.history": "No published, failed, or canceled posts yet.",
+  "emptyHint.upcoming":
+    "Schedule a post and it shows up here and on the calendar.",
+  "emptyHint.drafts": "Save a post as a draft to finish it later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
   "status.PUBLISHING": "Publishing…",
@@ -133,7 +140,7 @@ const MESSAGES: Record<string, string> = {
   "composer.close": "Close",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
-    "The post will not be published. You can schedule it again later.",
+    "The post will not be published. This cannot be undone.",
   "cancelDialog.confirm": "Cancel post",
   "publishDialog.title": "Publish this post now?",
   "publishDialog.description":
@@ -387,6 +394,44 @@ async function openRowMenu(
   await user.click(within(row).getByRole("button", { name: "Post actions" }));
 }
 
+/** Tabs carry a count after the label, so match on how the name starts. */
+function getTab(label: string) {
+  return screen.getByRole("tab", { name: new RegExp(`^${label}`) });
+}
+
+async function openTab(
+  user: ReturnType<typeof userEvent.setup>,
+  label: string,
+) {
+  await user.click(getTab(label));
+}
+
+// Social's top-level New post menu stands in as a plain button here; it opens
+// the composer through the same context.
+function NewPostButton() {
+  const compose = useSocialCompose();
+  return (
+    <button type="button" onClick={() => compose?.setOpen(true)}>
+      New post
+    </button>
+  );
+}
+
+function ComposeHarness({ children }: { children: React.ReactNode }) {
+  return (
+    <NuqsTestingAdapter>
+      <SocialComposeProvider>
+        <NewPostButton />
+        {children}
+      </SocialComposeProvider>
+    </NuqsTestingAdapter>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return renderUi(ui, { wrapper: ComposeHarness });
+}
+
 describe("ProjectSocialPosts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -412,7 +457,8 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
-  it("renders Upcoming, Drafts, and History sections with their rows", () => {
+  it("lists scheduled posts and drafts in tabs and leaves published posts to the calendar", async () => {
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -421,36 +467,78 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Upcoming 1",
+      "Drafts 1",
+    ]);
+    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
+
     const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    expect(
-      within(upcoming).getByRole("heading", { name: "Upcoming" }),
-    ).toBeVisible();
     const scheduledRow = within(upcoming).getByTestId(
       "social-post-post-scheduled",
     );
     expect(within(scheduledRow).getByText("Scheduled text")).toBeVisible();
     expect(within(scheduledRow).getByText("@sokosumi")).toBeVisible();
-    expect(within(scheduledRow).getByText("Scheduled")).toBeVisible();
     expect(within(scheduledRow).getByText("Coworker · Scout")).toBeVisible();
     expect(within(scheduledRow).getByText("Oct 1, 10:00 AM")).toBeVisible();
+    // The tab already says these posts are scheduled.
+    expect(
+      within(scheduledRow).queryByText("Scheduled"),
+    ).not.toBeInTheDocument();
 
+    await openTab(user, "Drafts");
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(within(draftRow).getByText("No account")).toBeVisible();
     expect(within(draftRow).getByText("User · Alice")).toBeVisible();
+    expect(within(draftRow).queryByText("Draft")).not.toBeInTheDocument();
 
-    const history = screen.getByTestId("social-posts-section-history");
-    const publishedRow = within(history).getByTestId(
-      "social-post-post-published",
-    );
-    expect(within(publishedRow).getByText("Published")).toBeVisible();
-    expect(within(publishedRow).getByText("Soko Bot")).toBeVisible();
     expect(
-      within(publishedRow).queryByRole("button", { name: "Post actions" }),
+      screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
 
-    expect(screen.getAllByRole("list")).toHaveLength(3);
+  it("tells an empty tab how it fills", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const upcoming = screen.getByTestId("social-posts-section-upcoming");
+    expect(within(upcoming).getByText("No scheduled posts yet.")).toBeVisible();
+    expect(
+      within(upcoming).getByText(
+        "Schedule a post and it shows up here and on the calendar.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the composer when Social links here with ?compose=new", () => {
+    renderUi(
+      <NuqsTestingAdapter searchParams="?compose=new">
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            connections={[buildConnection()]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "New post",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {
@@ -544,6 +632,8 @@ describe("ProjectSocialPosts", () => {
     await waitFor(() => {
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
+    // The list follows the new draft to its tab.
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
     expect(
       within(screen.getByTestId("social-post-post-new")).getByText("Fresh"),
     ).toBeVisible();
@@ -553,7 +643,7 @@ describe("ProjectSocialPosts", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[buildPost({ id: "post-media", media: [IMAGE_REF] })]}
+        posts={[{ ...SCHEDULED_POST, id: "post-media", media: [IMAGE_REF] }]}
         projectId={PROJECT_ID}
       />,
     );
@@ -757,6 +847,7 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
 
@@ -928,9 +1019,12 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    expect(
-      screen.getByTestId("social-posts-section-history"),
-    ).toHaveTextContent("Scheduled text");
+    // A canceled post has nothing left to do, so it leaves the list.
+    await waitFor(() => {
+      expect(
+        screen.queryByTestId("social-post-post-scheduled"),
+      ).not.toBeInTheDocument();
+    });
     expect(screen.getByText("No scheduled posts yet.")).toBeVisible();
   });
 
@@ -1023,18 +1117,24 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    const history = screen.getByTestId("social-posts-section-history");
-    const row = within(history).getByTestId("social-post-post-failed");
+    expect(getTab("Needs attention")).toHaveTextContent("Needs attention 1");
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-section-attention");
+    const row = within(attention).getByTestId("social-post-post-failed");
     expect(
       within(row).getByText("X rejected the post (403 forbidden)"),
     ).toBeVisible();
     expect(within(row).getByText("Failed Sep 10, 10:05 AM")).toBeVisible();
     expect(within(row).getByText("3 attempts")).toBeVisible();
     expect(within(row).getByText("Failed")).toBeVisible();
+    // Retry is the one thing left to do, so it sits on the row.
+    expect(within(row).getByRole("button", { name: "Retry" })).toBeVisible();
 
     await openRowMenu(user, "post-failed");
-    expect(screen.getByRole("menuitem", { name: "Retry" })).toBeVisible();
     expect(screen.getByRole("menuitem", { name: "Reschedule" })).toBeVisible();
+    expect(
+      screen.queryByRole("menuitem", { name: "Retry" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("menuitem", { name: "Publish now" }),
     ).not.toBeInTheDocument();
@@ -1043,7 +1143,8 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the missed reason on a MISSED row", () => {
+  it("shows the missed reason on a MISSED row", async () => {
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -1059,6 +1160,7 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    await openTab(user, "Needs attention");
     const row = screen.getByTestId("social-post-post-missed");
     expect(
       within(row).getByText("Scheduled time passed more than an hour ago"),
@@ -1090,8 +1192,13 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await openRowMenu(user, "post-failed");
-    await user.click(screen.getByRole("menuitem", { name: "Retry" }));
+    await openTab(user, "Needs attention");
+    await user.click(
+      within(screen.getByTestId("social-post-post-failed")).getByRole(
+        "button",
+        { name: "Retry" },
+      ),
+    );
     expect(publishProjectSocialPost).not.toHaveBeenCalled();
 
     const alert = screen.getByRole("alertdialog");
@@ -1113,13 +1220,14 @@ describe("ProjectSocialPosts", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    const row = screen.getByTestId("social-post-post-failed");
-    expect(within(row).getByText("Published")).toBeVisible();
+    // Nothing needs attention any more, so the tab goes and the list falls
+    // back to Upcoming; the published post lives on the calendar.
     expect(
-      within(row).getByRole("link", { name: "View on X" }),
-    ).toHaveAttribute("href", "https://x.com/sokosumi/status/42");
+      screen.queryByRole("tab", { name: /^Needs attention/ }),
+    ).not.toBeInTheDocument();
+    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
     expect(
-      within(row).queryByText("X rejected the post (403 forbidden)"),
+      screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
   });
 
@@ -1145,6 +1253,7 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
     await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
     await user.click(
@@ -1164,9 +1273,13 @@ describe("ProjectSocialPosts", () => {
       "Publishing failed: X is unavailable",
     );
     expect(toastSuccessMock).not.toHaveBeenCalled();
-    const history = screen.getByTestId("social-posts-section-history");
-    const row = within(history).getByTestId("social-post-post-draft");
+    // The failed post takes the list with it to Needs attention.
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+    const attention = screen.getByTestId("social-posts-section-attention");
+    const row = within(attention).getByTestId("social-post-post-draft");
     expect(within(row).getByText("X is unavailable")).toBeVisible();
+
+    await openTab(user, "Drafts");
     expect(screen.getByText("No drafts yet.")).toBeVisible();
   });
 
@@ -1188,6 +1301,7 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    await openTab(user, "Drafts");
     await openRowMenu(user, "post-draft");
     await user.click(screen.getByRole("menuitem", { name: "Publish now" }));
     await user.click(
@@ -1205,17 +1319,25 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
-  it("renders the external link and publish time on a PUBLISHED row", () => {
+  it("shows a linked published post above the tabs, with its link and publish time", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[PUBLISHED_POST]}
+        posts={[PUBLISHED_POST, SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-published"
       />,
     );
 
-    const row = screen.getByTestId("social-post-post-published");
-    const link = within(row).getByRole("link", { name: "View on X" });
+    // No tab lists a published post, so a link from the calendar lands here.
+    const selected = screen.getByTestId("social-posts-selected");
+    expect(
+      within(selected).getByRole("heading", { name: "Selected post" }),
+    ).toBeVisible();
+    const row = within(selected).getByTestId("social-post-post-published");
+    expect(within(row).getByText("Published")).toBeVisible();
+    expect(within(row).getByText("Soko Bot")).toBeVisible();
+    const link = within(row).getByRole("link", { name: "View post" });
     expect(link).toHaveAttribute(
       "href",
       "https://x.com/sokosumi/status/1234567890",
@@ -1245,7 +1367,8 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("orders History by publish, cancel, then update time, newest first", () => {
+  it("orders Needs attention by latest change and leaves canceled posts out", async () => {
+    const user = userEvent.setup();
     const canceled = buildPost({
       id: "post-canceled",
       status: "CANCELED",
@@ -1259,28 +1382,53 @@ describe("ProjectSocialPosts", () => {
       ...FAILED_POST,
       updatedAt: new Date("2026-09-10T10:05:00.000Z"),
     };
+    const missed = {
+      ...FAILED_POST,
+      id: "post-missed",
+      status: "MISSED" as const,
+      updatedAt: new Date("2026-09-12T10:00:00.000Z"),
+    };
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[PUBLISHED_POST, canceled, failed]}
+        posts={[PUBLISHED_POST, canceled, failed, missed]}
         projectId={PROJECT_ID}
       />,
     );
 
-    const history = screen.getByTestId("social-posts-section-history");
-    const rows = within(history).getAllByRole("listitem");
+    await openTab(user, "Needs attention");
+    const attention = screen.getByTestId("social-posts-section-attention");
+    const rows = within(attention).getAllByRole("listitem");
     expect(rows.map((row) => row.getAttribute("data-testid"))).toEqual([
+      "social-post-post-missed",
       "social-post-post-failed",
-      "social-post-post-canceled",
-      "social-post-post-published",
     ]);
+    expect(
+      screen.queryByTestId("social-post-post-canceled"),
+    ).not.toBeInTheDocument();
   });
-  it("loads more history without replacing drafts or upcoming posts", async () => {
+
+  it("opens the tab that lists the post a link names", () => {
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost(), SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-draft"
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-posts-selected"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("loads more drafts without replacing upcoming posts", async () => {
     const user = userEvent.setup();
     vi.mocked(loadMoreSocialPosts).mockResolvedValue({
-      posts: [
-        buildPost({ id: "older", status: "CANCELED", text: "Older history" }),
-      ],
+      posts: [buildPost({ id: "older", text: "Older draft" })],
       nextCursor: null,
     });
     render(
@@ -1288,25 +1436,30 @@ describe("ProjectSocialPosts", () => {
         projectId={PROJECT_ID}
         connections={[buildConnection()]}
         posts={[buildPost(), SCHEDULED_POST]}
-        nextCursors={{ history: "history-cursor" }}
+        nextCursors={{ drafts: "drafts-cursor" }}
       />,
     );
+    // More drafts wait on the server, so the count says so.
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 1+");
+
+    await openTab(user, "Drafts");
     await user.click(screen.getByRole("button", { name: "Load more" }));
-    await waitFor(() =>
-      expect(screen.getByText("Older history")).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.getByText("Older draft")).toBeVisible());
     expect(loadMoreSocialPosts).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
-      section: "history",
-      cursor: "history-cursor",
+      section: "drafts",
+      cursor: "drafts-cursor",
     });
     expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
-    expect(
-      screen.getByTestId(`social-post-${SCHEDULED_POST.id}`),
-    ).toBeVisible();
+    expect(getTab("Drafts")).toHaveTextContent("Drafts 2");
     expect(
       screen.queryByRole("button", { name: "Load more" }),
     ).not.toBeInTheDocument();
+
+    await openTab(user, "Upcoming");
+    expect(
+      screen.getByTestId(`social-post-${SCHEDULED_POST.id}`),
+    ).toBeVisible();
   });
 
   it("closes a conflicted editor and uses the refreshed revision when reopened", async () => {
@@ -1327,6 +1480,7 @@ describe("ProjectSocialPosts", () => {
         posts={[original]}
       />,
     );
+    await openTab(user, "Drafts");
     await openRowMenu(user, original.id);
     await user.click(screen.getByRole("menuitem", { name: "Edit" }));
     await user.click(screen.getByRole("button", { name: "Save draft" }));
@@ -1358,12 +1512,12 @@ describe("ProjectSocialPosts", () => {
     render(
       <ProjectSocialPosts
         connections={[]}
-        posts={[PUBLISHED_POST]}
+        posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
       />,
     );
 
-    expect(screen.getByText("Published text")).not.toHaveClass("line-clamp-2");
+    expect(screen.getByText("Scheduled text")).not.toHaveClass("line-clamp-2");
   });
 
   it("requires the shared schedule lead time and rounds the input minimum up", () => {
@@ -1523,7 +1677,8 @@ describe("ProjectSocialPosts", () => {
     );
   });
 
-  it("localizes a revoked scheduling authorization failure", () => {
+  it("localizes a revoked scheduling authorization failure", async () => {
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -1541,6 +1696,7 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
+    await openTab(user, "Needs attention");
     const row = screen.getByTestId("social-post-post-failed");
     expect(
       within(row).getByText(

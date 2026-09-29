@@ -2,23 +2,26 @@ import { getTranslations } from "next-intl/server";
 
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 import {
+  ProjectProperties,
+  type ProjectPropertiesLabels,
+} from "@/app/projects/components/project-properties";
+import {
   type ProjectTab,
   ProjectTabs,
 } from "@/app/projects/components/project-tabs";
 import {
-  PROJECTS_WORKSPACE_CARD_CLASS,
-  PROJECTS_WORKSPACE_GUTTER_CLASS,
-  PROJECTS_WORKSPACE_SHELL_CLASS,
-} from "@/app/projects/constants";
+  TASK_DETAIL_GRID_CLASS,
+  TASK_DETAIL_SHELL_CLASS,
+  TASK_DETAIL_SIDEBAR_CLASS,
+} from "@/app/tasks/constants";
 import { cn } from "@/lib/utils";
 
 export interface ProjectWorkspaceLabels {
   ariaLabel: string;
-  backToProjects: string;
   design: string;
   memory: string;
   overview: string;
-  social: string;
+  properties: ProjectPropertiesLabels;
 }
 
 /**
@@ -32,14 +35,18 @@ export interface ProjectWorkspaceLabels {
  * than an async boundary in the tree.
  */
 export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabels> {
-  const t = await getTranslations("App.Projects.Detail.tabs");
+  const t = await getTranslations("App.Projects.Detail");
   return {
-    ariaLabel: t("ariaLabel"),
-    backToProjects: t("backToProjects"),
-    design: t("design"),
-    memory: t("memory"),
-    overview: t("overview"),
-    social: t("social"),
+    ariaLabel: t("tabs.ariaLabel"),
+    design: t("tabs.design"),
+    memory: t("tabs.memory"),
+    overview: t("tabs.overview"),
+    properties: {
+      title: t("header.properties"),
+      website: t("header.website"),
+      updated: t("header.updated"),
+      created: t("header.created"),
+    },
   };
 }
 
@@ -47,53 +54,48 @@ interface ProjectWorkspaceShellProps {
   actions?: React.ReactNode;
   children: React.ReactNode;
   labels: ProjectWorkspaceLabels;
-  metadata: { label: string; value: string }[];
+  /** Formatted by the page, which already holds a formatter. */
+  createdAt: string;
+  updatedAt: string;
   projectId: string;
   projectLogo?: string | null;
   projectName: string;
-  /** The social tab exists only for workspaces in the social beta. */
-  showSocialTab: boolean;
   websiteUrl?: string | null;
 }
 
 /**
- * A project, as one object on the page.
+ * A project page, laid out like a task page.
  *
- * Identity, navigation and the active area share a single card — the same
- * card the projects index and Drive already draw — so the tab strip reads as
- * the top edge of the thing it navigates rather than as a rule floating above
- * unrelated content. Before this, a project page was four surfaces stacked in
- * the app gutter with nothing holding them together, and each area then added
- * containers of its own inside that, which is how a panel of tiles ended up
- * nested in a page that had no panel around it.
+ * Same shell, grid and columns as the task detail (`TASK_DETAIL_*`), so the
+ * two detail pages share one width and one rhythm and move together when the
+ * task layout changes. The header, tabs and active area form the main column;
+ * the Properties rail sits in the right column from `xl` up. Below `xl` the
+ * rail follows the header, so the website and dates stay near the name and
+ * the tabs stay against the content they switch.
  *
- * Everything inside shares one horizontal inset, one border weight, one
- * radius. Areas render their content directly onto this surface and should
- * not re-draw it.
+ * No card: content sits on the page ground, as it does on a task. Areas render
+ * their sections with the quiet heading the task sections use.
  */
 export function ProjectWorkspaceShell({
   actions,
   children,
   labels,
-  metadata,
+  createdAt,
+  updatedAt,
   projectId,
   projectLogo,
   projectName,
-  showSocialTab,
   websiteUrl,
 }: ProjectWorkspaceShellProps) {
   /**
    * What a project *is*, in three views.
    *
-   * The image studio and the calendar used to be tabs here. Neither is part of
-   * a project's own record: both are workspace surfaces that happen to be
-   * scoped to one, and they are top-level destinations now. What is left are
-   * the three things that only exist because this project exists — what it is,
-   * how it should look, and what has been learned about it.
-   *
-   * Social is not one of the three. It is still a separate area with its own
-   * route, and this row is its only navigation, so it keeps its tab where the
-   * workspace is in the beta.
+   * The image studio, the calendar and Social used to be tabs here. None of
+   * them is part of a project's own record: all three are workspace surfaces
+   * that happen to be scoped to one, and they are top-level destinations now.
+   * What is left are the three things that only exist because this project
+   * exists — what it is, how it should look, and what has been learned about
+   * it.
    */
   const tabs: ProjectTab[] = [
     {
@@ -113,41 +115,40 @@ export function ProjectWorkspaceShell({
       href: `/projects/${projectId}/memory`,
       label: labels.memory,
     },
-    ...(showSocialTab
-      ? [
-          {
-            id: "social",
-            href: `/projects/${projectId}/social`,
-            label: labels.social,
-          },
-        ]
-      : []),
   ];
 
   return (
-    <div className={PROJECTS_WORKSPACE_SHELL_CLASS}>
-      <div className={PROJECTS_WORKSPACE_CARD_CLASS}>
+    // The app's 16px main padding alone puts the name against the header
+    // rule; the extra top space gives the page a clear start.
+    <div className={cn(TASK_DETAIL_SHELL_CLASS, "pt-2 md:pt-6")}>
+      {/* Rows sit 16px apart: on a wide screen that joins the name to its
+          tabs, and in one column it joins the name to its Properties. The
+          tabs block adds 16px in one column, so the Properties close their
+          group before the tabs start. The 56px column gap keeps the header's
+          actions clear of the rail. */}
+      <div className={cn(TASK_DETAIL_GRID_CLASS, "gap-y-4 xl:gap-x-14")}>
         <ProjectDetailHeader
           actions={actions}
-          backHref="/projects"
-          backLabel={labels.backToProjects}
-          className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "pt-4 md:pt-5")}
-          metadata={metadata}
           projectLogo={projectLogo}
           projectName={projectName}
-          websiteUrl={websiteUrl}
         />
 
-        {/* The tab strip is the card's own divider, with the labels on it.
-            That is the whole difference between navigation that belongs to a
-            surface and navigation that floats above one. */}
-        <ProjectTabs
-          ariaLabel={labels.ariaLabel}
-          className={PROJECTS_WORKSPACE_GUTTER_CLASS}
-          tabs={tabs}
-        />
+        {/* Capped so a row's qualifier stays near its value while the rail
+            runs the full width of a single column. */}
+        <aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm")}>
+          <ProjectProperties
+            createdAt={createdAt}
+            labels={labels.properties}
+            updatedAt={updatedAt}
+            websiteUrl={websiteUrl}
+          />
+        </aside>
 
-        <div className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "min-w-0 py-5")}>
+        {/* The tabs open the block they switch, so nothing (not the rail,
+            which comes before this on a phone) sits between a tab and its
+            content. */}
+        <div className="min-w-0 space-y-8 max-xl:mt-4">
+          <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
           {children}
         </div>
       </div>

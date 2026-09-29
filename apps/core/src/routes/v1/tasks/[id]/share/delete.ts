@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
+import { requireMutableTaskWriteAccess } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -41,7 +41,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
-    await requireMutableTaskOwnership(userContext, id, prisma);
+    await requireMutableTaskWriteAccess(userContext, id, prisma);
     await prisma.publicShare.deleteMany({
       where: { taskId: id },
     });

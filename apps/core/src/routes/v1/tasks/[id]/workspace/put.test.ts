@@ -23,7 +23,7 @@ const {
   jobUpdateManyMock,
   mapTaskMock,
   prismaTransactionMock,
-  requireMutableTaskOwnershipMock,
+  requireTaskOwnershipMock,
   requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBotMock,
   resolveWorkspaceForContextMock,
@@ -39,7 +39,7 @@ const {
   jobUpdateManyMock: vi.fn(),
   mapTaskMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireMutableTaskOwnershipMock: vi.fn(),
+  requireTaskOwnershipMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
   requireTaskAssignableSokoBotMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
@@ -56,7 +56,7 @@ vi.mock("@/helpers/calendar-invalidation", () => ({
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: requireMutableTaskOwnershipMock,
+  requireTaskOwnership: requireTaskOwnershipMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBot: requireTaskAssignableSokoBotMock,
 }));
@@ -301,7 +301,7 @@ describe("PUT /tasks/{id}/workspace", () => {
 
     const defaultTask = createTaskRecord();
     taskFindFirstMock.mockResolvedValue(defaultTask);
-    requireMutableTaskOwnershipMock.mockImplementation(async () => {
+    requireTaskOwnershipMock.mockImplementation(async () => {
       const task = await taskFindFirstMock();
       if (!task) {
         const { notFound } = await import("@/helpers/error");
@@ -981,6 +981,6 @@ describe("PUT /tasks/{id}/workspace", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
+    expect(requireTaskOwnershipMock).not.toHaveBeenCalled();
   });
 });
