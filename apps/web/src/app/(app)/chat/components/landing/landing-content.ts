@@ -125,29 +125,68 @@ type StatsTranslator = (
   values?: Record<string, number | string>,
 ) => string;
 
+export interface ActivityStat {
+  label: string;
+  /** Change vs the previous 24h. Null when flat or not a flow metric. */
+  trend: { delta: number; direction: "down" | "up"; label: string } | null;
+}
+
 /**
  * Chip labels for the landing activity row, in display order.
  *
  * Always returns chips — including zeros — so the first viewport keeps a
  * reserved stats footer even when the account has no activity yet (or Core
  * could not be reached). Teammates chip stays org-only.
+ *
+ * Trend is vs the previous 24h. Awaiting has none: it is a point-in-time
+ * backlog, so "more" is not a flow and no past value exists.
  */
 export function buildActivityStats(
   summary: TaskActivitySummary | null,
   isOrganizationWorkspace: boolean,
   t: StatsTranslator,
-): string[] {
+): ActivityStat[] {
   const completed = summary?.completed ?? 0;
   const workedMinutes = summary?.workedMinutes ?? 0;
   const awaitingInput = summary?.awaitingInput ?? 0;
   const createdByOtherHumans = summary?.createdByOtherHumans ?? 0;
+  const previous = summary?.previous;
+  const trend = (
+    current: number,
+    before: number | undefined,
+  ): ActivityStat["trend"] => {
+    const change = before === undefined ? 0 : current - before;
+    if (change === 0) {
+      return null;
+    }
+    const direction = change > 0 ? "up" : "down";
+    const delta = Math.abs(change);
+    return {
+      delta,
+      direction,
+      label: t(direction === "up" ? "stats.trendUp" : "stats.trendDown", {
+        count: delta,
+      }),
+    };
+  };
 
   return [
-    t("stats.completed", { count: completed }),
-    t("stats.worked", { minutes: workedMinutes }),
-    t("stats.awaiting", { count: awaitingInput }),
+    {
+      label: t("stats.completed", { count: completed }),
+      trend: trend(completed, previous?.completed),
+    },
+    {
+      label: t("stats.worked", { minutes: workedMinutes }),
+      trend: trend(workedMinutes, previous?.workedMinutes),
+    },
+    { label: t("stats.awaiting", { count: awaitingInput }), trend: null },
     ...(isOrganizationWorkspace
-      ? [t("stats.byTeammates", { count: createdByOtherHumans })]
+      ? [
+          {
+            label: t("stats.byTeammates", { count: createdByOtherHumans }),
+            trend: trend(createdByOtherHumans, previous?.createdByOtherHumans),
+          },
+        ]
       : []),
   ];
 }

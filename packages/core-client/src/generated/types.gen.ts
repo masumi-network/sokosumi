@@ -6586,7 +6586,7 @@ export type TaskListItem = {
 
 export type TaskActivitySummary = {
     /**
-     * Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.
+     * Start of the reporting window (now minus 24h), echoed back.
      */
     since: Date;
     /**
@@ -6602,17 +6602,17 @@ export type TaskActivitySummary = {
      */
     createdByOtherHumans: number;
     /**
-     * Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.
-     */
-    lastVisitAt: Date | null;
-    /**
-     * Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.
-     */
-    basis: 'lastVisit' | 'recent';
-    /**
      * Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.
      */
     workedMinutes: number;
+    /**
+     * Same counters for the 24h before the window (48h to 24h ago), for trend arrows. `awaitingInput` is point-in-time and has no previous value.
+     */
+    previous: {
+        completed: number;
+        createdByOtherHumans: number;
+        workedMinutes: number;
+    };
 };
 
 export type TaskTagSuggestion = {

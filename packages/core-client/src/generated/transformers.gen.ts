@@ -3355,9 +3355,6 @@ export const postTasksResponseTransformer = async (data: any): Promise<PostTasks
 
 const taskActivitySummarySchemaResponseTransformer = (data: any) => {
     data.since = new Date(data.since);
-    if (data.lastVisitAt) {
-        data.lastVisitAt = new Date(data.lastVisitAt);
-    }
     return data;
 };
 
