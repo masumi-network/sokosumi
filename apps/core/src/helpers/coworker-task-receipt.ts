@@ -1,4 +1,5 @@
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { getEnv } from "@/config/env";
 import { badGateway, internalServerError } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 import { parsePurchasePayload } from "@/services/task-payment-claim.service";
@@ -43,7 +44,9 @@ export async function resolveTaskSellerReceipt(
   // (taskEventId set null) is not found either. Revisit with a status-aware
   // selection if re-charging Coworker tasks becomes a real flow.
   const claim = await db.taskPaymentClaim.findFirst({
-    where: { taskEvent: { taskId } },
+    // Same network scope as the claim sync: only this deployment's node can
+    // resolve the claim.
+    where: { network: getEnv().NETWORK, taskEvent: { taskId } },
     orderBy: { createdAt: "desc" },
     select: { blockchainIdentifier: true, purchasePayload: true, status: true },
   });
@@ -74,13 +77,14 @@ export async function resolveTaskSellerReceipt(
     },
   );
   if (resolved.isErr()) {
-    // No purchase on the node yet is a real "not settled" answer. So is a
-    // mismatch on a claim the sync already refunded for that mismatch: it
-    // never changes, and a 5xx would invite retries. Any other node failure
-    // or mismatch is not: settled:false there would read as a proven
-    // non-payment.
+    // No purchase on the node yet is a real "not settled" answer, unless the
+    // sync already confirmed the purchase: then a 404 is a node or proxy
+    // fault. A mismatch on a claim the sync already refunded for that
+    // mismatch never changes, and a 5xx would invite retries. Any other node
+    // failure or mismatch is not an answer: settled:false there would read as
+    // a proven non-payment.
     if (
-      resolved.error.kind === "not_found" ||
+      (resolved.error.kind === "not_found" && claim.status !== "PURCHASED") ||
       (resolved.error.kind === "mismatch" && claim.status === "REFUNDED")
     ) {
       return base;
@@ -103,16 +107,19 @@ export async function resolveTaskSellerReceipt(
       amount: entry.amount == null ? null : String(entry.amount),
     }),
   );
+  // MPS treats the seller as paid on "Withdrawn", or on "DisputedWithdrawn"
+  // when the seller actually received funds (WithdrawnForSeller non-empty).
+  // A refund ("RefundWithdrawn") is never a seller receipt.
+  const settled =
+    onChainState === "Withdrawn" ||
+    (onChainState === "DisputedWithdrawn" && withdrawnForSeller.length > 0);
   return {
     ...base,
     onChainState,
-    // MPS treats the seller as paid on "Withdrawn", or on "DisputedWithdrawn"
-    // when the seller actually received funds (WithdrawnForSeller non-empty).
-    // A refund ("RefundWithdrawn") is never a seller receipt.
-    settled:
-      onChainState === "Withdrawn" ||
-      (onChainState === "DisputedWithdrawn" && withdrawnForSeller.length > 0),
-    txHash: purchase.CurrentTransaction?.txHash ?? null,
+    settled,
+    // Only a settled purchase carries a settlement transaction. Otherwise the
+    // current transaction is a lock or a refund, which proves nothing.
+    txHash: settled ? (purchase.CurrentTransaction?.txHash ?? null) : null,
     withdrawnForSeller,
   };
 }

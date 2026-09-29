@@ -25,7 +25,7 @@ const purchasePayload = {
 function dbWith(claim: unknown) {
   return {
     taskPaymentClaim: { findFirst: vi.fn().mockResolvedValue(claim) },
-  } as unknown as Parameters<typeof resolveTaskSellerReceipt>[1];
+  } as unknown as NonNullable<Parameters<typeof resolveTaskSellerReceipt>[1]>;
 }
 
 function claim(status: string) {
@@ -40,6 +40,20 @@ describe("resolveTaskSellerReceipt", () => {
     expect(receipt.settled).toBe(false);
     expect(receipt.blockchainIdentifier).toBeNull();
     expect(resolveMasumiTaskPaymentPurchase).not.toHaveBeenCalled();
+  });
+
+  it("reads the newest claim of this task on this deployment's network", async () => {
+    const db = dbWith(null);
+    await resolveTaskSellerReceipt("tsk_1", db);
+    expect(db.taskPaymentClaim.findFirst).toHaveBeenCalledWith({
+      where: { network: "Preprod", taskEvent: { taskId: "tsk_1" } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        blockchainIdentifier: true,
+        purchasePayload: true,
+        status: true,
+      },
+    });
   });
 
   it("resolves the purchase against the claim's stored terms", async () => {
@@ -125,6 +139,8 @@ describe("resolveTaskSellerReceipt", () => {
       dbWith(claim("REFUNDED")),
     );
     expect(receipt.settled).toBe(false);
+    // The refund transaction must not read as a settlement transaction.
+    expect(receipt.txHash).toBeNull();
   });
 
   it("returns claim state without settlement when the node has no purchase", async () => {
@@ -218,5 +234,18 @@ describe("resolveTaskSellerReceipt", () => {
       { signal: controller.signal },
     );
     expect(receipt.settled).toBe(false);
+  });
+
+  it("throws 502 when the node cannot find a purchase the sync confirmed", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({
+        kind: "not_found",
+        message: "Task purchase not found",
+        status: 404,
+      }),
+    );
+    await expect(
+      resolveTaskSellerReceipt("tsk_1", dbWith(claim("PURCHASED"))),
+    ).rejects.toMatchObject({ status: 502 });
   });
 });
