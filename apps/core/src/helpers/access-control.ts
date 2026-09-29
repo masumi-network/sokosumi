@@ -783,7 +783,8 @@ export async function requireTaskCommentAccess(
  * org-workspace member for a task in that workspace, whoever the assignee is,
  * so assignment is routing, not a lock. Personal-workspace non-owners are
  * denied. Coworker actors use the same rules as
- * {@link requireTaskCollaboration}.
+ * {@link requireTaskCollaboration}. No seat check here: the events route seats
+ * every write except a cancel-only one.
  */
 export async function requireTaskStatusWriteAccess(
   vars: EnvVariables["Variables"],
