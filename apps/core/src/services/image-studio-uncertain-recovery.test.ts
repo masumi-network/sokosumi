@@ -40,6 +40,9 @@ const {
   submitToQueueMock: vi.fn(),
 }));
 
+vi.mock("@/services/image-studio-files.service", () => ({
+  publishImageToFiles: vi.fn(),
+}));
 vi.mock("@/config/env", () => ({
   getEnv: () => ({
     FAL_KEY: "k",

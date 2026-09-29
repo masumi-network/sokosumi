@@ -3,11 +3,9 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateProjectImageJobRequest,
-  ProjectImageAsset,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
-  ReviewProjectImageAssetRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 /**
@@ -66,32 +64,6 @@ export const imageStudioService = {
       await coreClient.postProjectsByIdImageStudioJobsByJobIdCancel(
         projectId,
         jobId,
-      );
-    return result.data;
-  },
-
-  async reviewAsset(
-    projectId: string,
-    assetId: string,
-    input: ReviewProjectImageAssetRequest,
-  ): Promise<ProjectImageAsset> {
-    const result =
-      await coreClient.postProjectsByIdImageStudioAssetsByAssetIdReview(
-        projectId,
-        assetId,
-        input,
-      );
-    return result.data;
-  },
-
-  async clearAssetReview(
-    projectId: string,
-    assetId: string,
-  ): Promise<ProjectImageAsset> {
-    const result =
-      await coreClient.deleteProjectsByIdImageStudioAssetsByAssetIdReview(
-        projectId,
-        assetId,
       );
     return result.data;
   },

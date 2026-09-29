@@ -3,7 +3,10 @@
 import { Check, ChevronDown, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
-
+import {
+  ROOM_COMPOSER_TEXTAREA_CLASSNAME,
+  RoomMessageComposer,
+} from "@/components/chat/room-message-composer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -393,26 +396,454 @@ export function StudioComposer({
     .join(" · ");
 
   return (
-    <section
-      aria-label={labels.composerTitle}
-      // `bg-background` on the workspace card, not `bg-card-background`: the
-      // card already paints that, and a panel the same colour as the surface
-      // under it is either invisible or a seam. As an input well it wants to
-      // read slightly recessed anyway.
-      // Docked: once there are results the studio renders the composer below
-      // them, and it rides the bottom of the viewport so the next generation
-      // is always one keystroke away from the last one.
-      className="bg-card-background shrink-0 rounded-xl"
-    >
-      <div className="px-3 pt-3 sm:px-4 sm:pt-4">
+    <section aria-label={labels.composerTitle} className="shrink-0">
+      {/* The chat room's own composer card, minus the formatting toolbar: same
+          border, radius, padding and text size, so the two read as one. */}
+      <RoomMessageComposer
+        attachments={[]}
+        belowEditor={
+          <>
+            {references.length > 0 ? (
+              <div className="flex flex-wrap items-center gap-2 px-4 pt-1 pb-2">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {labels.lineage}
+                </span>
+                {references.map((asset) => (
+                  <span
+                    className="border-border flex items-center gap-1.5 rounded-md border py-0.5 pr-2 pl-0.5 text-xs"
+                    key={asset.id}
+                  >
+                    <img
+                      alt=""
+                      className="size-5 rounded-sm object-cover"
+                      src={assetContentUrl(projectId, asset.id)}
+                    />
+                    v{asset.version}
+                  </span>
+                ))}
+                <Button
+                  className="size-6"
+                  onClick={onClearReferences}
+                  size="icon"
+                  variant="ghost"
+                >
+                  <X aria-hidden className="size-3.5" />
+                  <span className="sr-only">{labels.clearSelection}</span>
+                </Button>
+              </div>
+            ) : null}
+
+            {/* Templates live in the box and leave as soon as there is text: they
+          are a way to start, and a way to start is noise once you have. */}
+            {prompt === "" ? (
+              <div
+                aria-label={labels.templates}
+                className="app-scrollbar flex gap-2 overflow-x-auto px-4 pt-1 pb-1"
+                role="group"
+              >
+                {STUDIO_TEMPLATES.map((template) => (
+                  <button
+                    className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
+                    key={template.id}
+                    onClick={() => onApplyTemplate(template)}
+                    type="button"
+                  >
+                    <img
+                      alt=""
+                      className="bg-muted size-8 rounded-md object-cover"
+                      loading="lazy"
+                      src={`/studio/templates/${template.id}.jpg`}
+                    />
+                    <span className="text-xs font-medium">
+                      {labels.templateLabels[template.id]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+          </>
+        }
+        isSending={busy}
+        onRemoveAttachment={() => undefined}
+        onSubmit={(event) => {
+          event.preventDefault();
+          submit();
+        }}
+        removeAttachmentLabel={() => ""}
+        sendAriaLabel={labels.generateOne}
+        sendDisabled={!canGenerate}
+        submitControl={
+          <Button
+            disabled={!canGenerate}
+            onClick={submit}
+            size="sm"
+            variant="primary"
+          >
+            {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
+            {totalJobs > 1
+              ? t("generateMany", { count: totalJobs })
+              : labels.generateOne}
+          </Button>
+        }
+        toolbarStart={
+          <>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+                  <TriggerLabel label={labels.model}>
+                    {modelSummary}
+                  </TriggerLabel>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="start"
+                className="w-96 max-w-[calc(100vw-2rem)] p-2"
+                onOpenAutoFocus={(event) => {
+                  event.preventDefault();
+                  searchRef.current?.focus();
+                }}
+              >
+                <div className="flex items-center justify-between gap-2 pb-2">
+                  {/* One brief on every model is the thing this composer is for,
+                  so it is one click rather than one click per model. Both
+                  act on what the search shows, so "select all" after typing
+                  "flux" means every FLUX, not the whole catalog. */}
+                  <span className="text-muted-foreground px-1 text-xs font-medium">
+                    {labels.model}
+                  </span>
+                  <div className="flex gap-1">
+                    <Button
+                      className="h-7 px-2 text-xs"
+                      disabled={shownModels.every((model) =>
+                        selectedModelIds.includes(model.id),
+                      )}
+                      onClick={() => setShown(true)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {labels.selectAllModels}
+                    </Button>
+                    <Button
+                      className="h-7 px-2 text-xs"
+                      disabled={
+                        !shownModels.some((model) =>
+                          selectedModelIds.includes(model.id),
+                        )
+                      }
+                      onClick={() => setShown(false)}
+                      size="sm"
+                      variant="ghost"
+                    >
+                      {labels.unselectAllModels}
+                    </Button>
+                  </div>
+                </div>
+                <Input
+                  aria-label={labels.searchModels}
+                  ref={searchRef}
+                  className="mb-2 h-8 text-sm"
+                  onChange={(event) => setModelQuery(event.currentTarget.value)}
+                  placeholder={labels.searchModels}
+                  value={modelQuery}
+                />
+                <div
+                  className="app-scrollbar max-h-80 overflow-y-auto"
+                  role="group"
+                  aria-label={labels.model}
+                >
+                  {shownModels.length === 0 ? (
+                    <p className="text-muted-foreground px-2 py-3 text-xs">
+                      {labels.noModelsMatch}
+                    </p>
+                  ) : null}
+                  {shownModels.map((model) => {
+                    const credits = creditsForImage(
+                      model,
+                      clampToModel(model, settings),
+                    );
+                    const checked = selectedModelIds.includes(model.id);
+                    return (
+                      <button
+                        aria-checked={checked}
+                        className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                        key={model.id}
+                        onClick={() => toggleModel(model)}
+                        role="checkbox"
+                        type="button"
+                      >
+                        <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
+                          {checked ? (
+                            <Check aria-hidden className="size-4" />
+                          ) : null}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex min-w-0 items-baseline gap-2">
+                            <span className="min-w-0 flex-1 truncate text-sm font-medium">
+                              {model.label}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                              {credits === null
+                                ? labels.creditsNoFigure
+                                : t("creditsCount", { count: credits })}
+                            </span>
+                          </span>
+                          <span className="text-muted-foreground block truncate text-xs">
+                            {model.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
+                  <TriggerLabel label={labels.moreOptions}>
+                    {optionSummary}
+                  </TriggerLabel>
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-80 space-y-3">
+                {/* Every row below reads its options from the chosen models, so
+                with none chosen they are all empty. Saying so beats three
+                labelled rows with nothing in them. */}
+                {selectedModels.length === 0 ? (
+                  <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                    {labels.noModelSelected}
+                  </p>
+                ) : null}
+
+                <Row label={labels.aspectRatio}>
+                  {shared.aspectRatios.map((ratio) => (
+                    <button
+                      aria-pressed={settings.aspectRatio === ratio}
+                      className={chipClass(settings.aspectRatio === ratio)}
+                      key={ratio}
+                      onClick={() =>
+                        setSettings((current) => ({
+                          ...current,
+                          aspectRatio: ratio as StudioSettings["aspectRatio"],
+                        }))
+                      }
+                      type="button"
+                    >
+                      {ratio}
+                    </button>
+                  ))}
+                </Row>
+
+                <Row label={labels.resolution}>
+                  {shared.resolutions.map((resolution) => (
+                    <button
+                      aria-pressed={settings.resolution === resolution}
+                      className={chipClass(settings.resolution === resolution)}
+                      key={resolution}
+                      onClick={() =>
+                        setSettings((current) => ({
+                          ...current,
+                          resolution:
+                            resolution as StudioSettings["resolution"],
+                        }))
+                      }
+                      type="button"
+                    >
+                      {resolution}
+                    </button>
+                  ))}
+                </Row>
+
+                {/* Hidden rather than empty when every chosen model picks its own
+                format — an `outputFormats: []` row in Core's catalog means the
+                model decides, and a labelled row with no chips in it reads as
+                a control that is broken. */}
+                {modelChoosesFormat ? null : (
+                  <Row label={labels.outputFormat}>
+                    {shared.outputFormats.map((format) => (
+                      <button
+                        aria-pressed={settings.outputFormat === format}
+                        className={chipClass(settings.outputFormat === format)}
+                        key={format}
+                        onClick={() =>
+                          setSettings((current) => ({
+                            ...current,
+                            outputFormat:
+                              format as StudioSettings["outputFormat"],
+                          }))
+                        }
+                        type="button"
+                      >
+                        {format}
+                      </button>
+                    ))}
+                  </Row>
+                )}
+
+                <Row label={labels.copies}>
+                  {COPY_CHOICES.map((count) => {
+                    // Against the models that will actually run, and against the
+                    // plan rather than the raw choice: this is where the ceiling
+                    // becomes visible, so `plan.copies` is what reads as pressed.
+                    const overCeiling =
+                      selectedModels.length * count > MAX_BATCH && count > 1;
+                    /**
+                     * Why this one is unavailable, in its own arithmetic.
+                     *
+                     * The ceiling is unchanged; only the explaining is new. A
+                     * dimmed "3" beside a footnote about a limit left a sighted
+                     * reader to do the multiplication and a screen-reader user with
+                     * "3, dimmed" and nothing at all.
+                     */
+                    const reason = overCeiling
+                      ? t("copiesOverCeiling", {
+                          models: selectedModels.length,
+                          copies: count,
+                          images: selectedModels.length * count,
+                          limit: MAX_BATCH,
+                        })
+                      : undefined;
+                    return (
+                      <button
+                        // `aria-disabled`, not `disabled`: a natively disabled
+                        // control is not focusable, so the reason could never be
+                        // read out — which is the whole point of having one. The
+                        // press is blocked below instead.
+                        aria-describedby={
+                          reason ? `studio-copies-${count}-reason` : undefined
+                        }
+                        aria-disabled={overCeiling || undefined}
+                        aria-pressed={plan.copies === count}
+                        className={chipClass(
+                          plan.copies === count,
+                          overCeiling,
+                        )}
+                        key={count}
+                        onClick={() => {
+                          if (overCeiling) return;
+                          setCopies(count);
+                        }}
+                        title={reason}
+                        type="button"
+                      >
+                        {count}
+                        {reason ? (
+                          <span
+                            className="sr-only"
+                            id={`studio-copies-${count}-reason`}
+                          >
+                            {reason}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </Row>
+                <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                  {t("batchCeiling", { count: MAX_BATCH })}
+                </p>
+              </PopoverContent>
+            </Popover>
+
+            {totalJobs > 0 ? (
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
+                    size="sm"
+                    variant="ghost"
+                  >
+                    <span className="min-w-0 truncate tabular-nums">
+                      {batchCredits === null
+                        ? t("runPlan", {
+                            copies: plan.copies,
+                            models: plan.models.length,
+                          })
+                        : t("runPlanCredits", {
+                            copies: plan.copies,
+                            models: plan.models.length,
+                            credits: batchCredits,
+                          })}
+                    </span>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{labels.creditsTitle}</p>
+                    <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
+                      {labels.creditsCharged}
+                    </p>
+                  </div>
+
+                  {batchCredits === null ? (
+                    <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+                      {labels.creditsUnderivable}
+                    </p>
+                  ) : null}
+
+                  <ul className="space-y-2">
+                    {plan.models.map((model) => {
+                      const credits = creditsForImage(
+                        model,
+                        clampToModel(model, settings),
+                      );
+                      return (
+                        <li key={model.id}>
+                          <div className="flex min-w-0 items-baseline gap-2">
+                            <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
+                              {model.label}
+                            </span>
+                            <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
+                              {credits === null
+                                ? labels.creditsNoFigure
+                                : t("creditsEach", {
+                                    credits,
+                                    count: plan.copies,
+                                  })}
+                            </span>
+                          </div>
+                          {/* Composed here rather than rendered from Core's
+                          `price.basis`. That string is built as "fal lists
+                          $0.03 per images for this endpoint" — fal's pricing
+                          API answers in plurals because it is describing a
+                          rate, and a sentence about one image then reads "per
+                          images". Web holds the same two figures separately,
+                          so it can say it once, correctly, and in the reader's
+                          language. */}
+                          <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
+                            {t("priceBasis", {
+                              price: `$${model.price.unitPriceUsd}`,
+                              unit: priceUnitLabel(model.price.unit),
+                            })}
+                          </p>
+                          <a
+                            className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
+                            href={model.price.sourceUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            {t("creditsCheckedOn", {
+                              date: model.price.verifiedAt,
+                            })}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </PopoverContent>
+              </Popover>
+            ) : null}
+          </>
+        }
+        withOuterPadding={false}
+      >
         <Textarea
           aria-label={labels.promptPlaceholder}
-          // `dark:bg-transparent` as well as `bg-transparent`: the Textarea
-          // primitive paints its own dark-mode fill, and a `dark:` variant is
-          // a different utility group, so it survives the class merge. In
-          // dark mode the prompt read as an inset panel inside the card
-          // rather than as the card.
-          className="max-h-48 min-h-16 resize-none border-0 bg-transparent p-0 text-base shadow-none focus-visible:ring-0 md:text-sm dark:bg-transparent"
+          className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
@@ -424,434 +855,7 @@ export function StudioComposer({
           ref={promptRef}
           value={prompt}
         />
-
-        {references.length > 0 ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-muted-foreground text-xs font-medium">
-              {labels.lineage}
-            </span>
-            {references.map((asset) => (
-              <span
-                className="border-border flex items-center gap-1.5 rounded-md border py-0.5 pr-2 pl-0.5 text-xs"
-                key={asset.id}
-              >
-                <img
-                  alt=""
-                  className="size-5 rounded-sm object-cover"
-                  src={assetContentUrl(projectId, asset.id)}
-                />
-                v{asset.version}
-              </span>
-            ))}
-            <Button
-              className="size-6"
-              onClick={onClearReferences}
-              size="icon"
-              variant="ghost"
-            >
-              <X aria-hidden className="size-3.5" />
-              <span className="sr-only">{labels.clearSelection}</span>
-            </Button>
-          </div>
-        ) : null}
-      </div>
-
-      {/* Templates live in the box and leave as soon as there is text: they
-          are a way to start, and a way to start is noise once you have. */}
-      {prompt === "" ? (
-        <div
-          aria-label={labels.templates}
-          className="app-scrollbar flex gap-2 overflow-x-auto px-3 pt-2 pb-1 sm:px-4"
-          role="group"
-        >
-          {STUDIO_TEMPLATES.map((template) => (
-            <button
-              className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
-              key={template.id}
-              onClick={() => onApplyTemplate(template)}
-              type="button"
-            >
-              <img
-                alt=""
-                className="bg-muted size-8 rounded-md object-cover"
-                loading="lazy"
-                src={`/studio/templates/${template.id}.jpg`}
-              />
-              <span className="text-xs font-medium">
-                {labels.templateLabels[template.id]}
-              </span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {/* One row, three summaries and the one action. No dividers: the card is
-          a single object, and a rule between the prompt and the thing that
-          qualifies it made two. */}
-      <div className="flex flex-wrap items-center gap-2 p-2 sm:px-3 sm:pb-3">
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
-              <TriggerLabel label={labels.model}>{modelSummary}</TriggerLabel>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="start"
-            className="w-96 max-w-[calc(100vw-2rem)] p-2"
-            onOpenAutoFocus={(event) => {
-              event.preventDefault();
-              searchRef.current?.focus();
-            }}
-          >
-            <div className="flex items-center justify-between gap-2 pb-2">
-              {/* One brief on every model is the thing this composer is for,
-                  so it is one click rather than one click per model. Both
-                  act on what the search shows, so "select all" after typing
-                  "flux" means every FLUX, not the whole catalog. */}
-              <span className="text-muted-foreground px-1 text-xs font-medium">
-                {labels.model}
-              </span>
-              <div className="flex gap-1">
-                <Button
-                  className="h-7 px-2 text-xs"
-                  disabled={shownModels.every((model) =>
-                    selectedModelIds.includes(model.id),
-                  )}
-                  onClick={() => setShown(true)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {labels.selectAllModels}
-                </Button>
-                <Button
-                  className="h-7 px-2 text-xs"
-                  disabled={
-                    !shownModels.some((model) =>
-                      selectedModelIds.includes(model.id),
-                    )
-                  }
-                  onClick={() => setShown(false)}
-                  size="sm"
-                  variant="ghost"
-                >
-                  {labels.unselectAllModels}
-                </Button>
-              </div>
-            </div>
-            <Input
-              aria-label={labels.searchModels}
-              ref={searchRef}
-              className="mb-2 h-8 text-sm"
-              onChange={(event) => setModelQuery(event.currentTarget.value)}
-              placeholder={labels.searchModels}
-              value={modelQuery}
-            />
-            <div
-              className="app-scrollbar max-h-80 overflow-y-auto"
-              role="group"
-              aria-label={labels.model}
-            >
-              {shownModels.length === 0 ? (
-                <p className="text-muted-foreground px-2 py-3 text-xs">
-                  {labels.noModelsMatch}
-                </p>
-              ) : null}
-              {shownModels.map((model) => {
-                const credits = creditsForImage(
-                  model,
-                  clampToModel(model, settings),
-                );
-                const checked = selectedModelIds.includes(model.id);
-                return (
-                  <button
-                    aria-checked={checked}
-                    className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
-                    key={model.id}
-                    onClick={() => toggleModel(model)}
-                    role="checkbox"
-                    type="button"
-                  >
-                    <span className="mt-0.5 flex size-4 shrink-0 items-center justify-center">
-                      {checked ? (
-                        <Check aria-hidden className="size-4" />
-                      ) : null}
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="flex min-w-0 items-baseline gap-2">
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                          {model.label}
-                        </span>
-                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                          {credits === null
-                            ? labels.creditsNoFigure
-                            : t("creditsCount", { count: credits })}
-                        </span>
-                      </span>
-                      <span className="text-muted-foreground block truncate text-xs">
-                        {model.description}
-                      </span>
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button className={TRIGGER_CLASS} size="sm" variant="ghost">
-              <TriggerLabel label={labels.moreOptions}>
-                {optionSummary}
-              </TriggerLabel>
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-80 space-y-3">
-            {/* Every row below reads its options from the chosen models, so
-                with none chosen they are all empty. Saying so beats three
-                labelled rows with nothing in them. */}
-            {selectedModels.length === 0 ? (
-              <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                {labels.noModelSelected}
-              </p>
-            ) : null}
-
-            <Row label={labels.aspectRatio}>
-              {shared.aspectRatios.map((ratio) => (
-                <button
-                  aria-pressed={settings.aspectRatio === ratio}
-                  className={chipClass(settings.aspectRatio === ratio)}
-                  key={ratio}
-                  onClick={() =>
-                    setSettings((current) => ({
-                      ...current,
-                      aspectRatio: ratio as StudioSettings["aspectRatio"],
-                    }))
-                  }
-                  type="button"
-                >
-                  {ratio}
-                </button>
-              ))}
-            </Row>
-
-            <Row label={labels.resolution}>
-              {shared.resolutions.map((resolution) => (
-                <button
-                  aria-pressed={settings.resolution === resolution}
-                  className={chipClass(settings.resolution === resolution)}
-                  key={resolution}
-                  onClick={() =>
-                    setSettings((current) => ({
-                      ...current,
-                      resolution: resolution as StudioSettings["resolution"],
-                    }))
-                  }
-                  type="button"
-                >
-                  {resolution}
-                </button>
-              ))}
-            </Row>
-
-            {/* Hidden rather than empty when every chosen model picks its own
-                format — an `outputFormats: []` row in Core's catalog means the
-                model decides, and a labelled row with no chips in it reads as
-                a control that is broken. */}
-            {modelChoosesFormat ? null : (
-              <Row label={labels.outputFormat}>
-                {shared.outputFormats.map((format) => (
-                  <button
-                    aria-pressed={settings.outputFormat === format}
-                    className={chipClass(settings.outputFormat === format)}
-                    key={format}
-                    onClick={() =>
-                      setSettings((current) => ({
-                        ...current,
-                        outputFormat: format as StudioSettings["outputFormat"],
-                      }))
-                    }
-                    type="button"
-                  >
-                    {format}
-                  </button>
-                ))}
-              </Row>
-            )}
-
-            <Row label={labels.copies}>
-              {COPY_CHOICES.map((count) => {
-                // Against the models that will actually run, and against the
-                // plan rather than the raw choice: this is where the ceiling
-                // becomes visible, so `plan.copies` is what reads as pressed.
-                const overCeiling =
-                  selectedModels.length * count > MAX_BATCH && count > 1;
-                /**
-                 * Why this one is unavailable, in its own arithmetic.
-                 *
-                 * The ceiling is unchanged; only the explaining is new. A
-                 * dimmed "3" beside a footnote about a limit left a sighted
-                 * reader to do the multiplication and a screen-reader user with
-                 * "3, dimmed" and nothing at all.
-                 */
-                const reason = overCeiling
-                  ? t("copiesOverCeiling", {
-                      models: selectedModels.length,
-                      copies: count,
-                      images: selectedModels.length * count,
-                      limit: MAX_BATCH,
-                    })
-                  : undefined;
-                return (
-                  <button
-                    // `aria-disabled`, not `disabled`: a natively disabled
-                    // control is not focusable, so the reason could never be
-                    // read out — which is the whole point of having one. The
-                    // press is blocked below instead.
-                    aria-describedby={
-                      reason ? `studio-copies-${count}-reason` : undefined
-                    }
-                    aria-disabled={overCeiling || undefined}
-                    aria-pressed={plan.copies === count}
-                    className={chipClass(plan.copies === count, overCeiling)}
-                    key={count}
-                    onClick={() => {
-                      if (overCeiling) return;
-                      setCopies(count);
-                    }}
-                    title={reason}
-                    type="button"
-                  >
-                    {count}
-                    {reason ? (
-                      <span
-                        className="sr-only"
-                        id={`studio-copies-${count}-reason`}
-                      >
-                        {reason}
-                      </span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </Row>
-            <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-              {t("batchCeiling", { count: MAX_BATCH })}
-            </p>
-          </PopoverContent>
-        </Popover>
-
-        <span className="grow" />
-
-        {/* What the press will spend, said before the press: how many runs,
-            across how many models, and how many credits that is. A button
-            rather than a caption because this is a charge, and a charge nobody
-            can interrogate is the wrong way to talk about money — so it opens
-            and shows its working, model by model. */}
-        {totalJobs > 0 ? (
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                className="text-muted-foreground hover:text-foreground h-8 min-w-0 px-2 text-sm font-medium"
-                size="sm"
-                variant="ghost"
-              >
-                <span className="min-w-0 truncate tabular-nums">
-                  {batchCredits === null
-                    ? t("runPlan", {
-                        copies: plan.copies,
-                        models: plan.models.length,
-                      })
-                    : t("runPlanCredits", {
-                        copies: plan.copies,
-                        models: plan.models.length,
-                        credits: batchCredits,
-                      })}
-                </span>
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              align="end"
-              className="w-88 max-w-[calc(100vw-2rem)] space-y-3"
-            >
-              <div>
-                <p className="text-sm font-medium">{labels.creditsTitle}</p>
-                <p className="text-muted-foreground mt-1 text-xs leading-relaxed text-pretty">
-                  {labels.creditsCharged}
-                </p>
-              </div>
-
-              {batchCredits === null ? (
-                <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-                  {labels.creditsUnderivable}
-                </p>
-              ) : null}
-
-              <ul className="space-y-2">
-                {plan.models.map((model) => {
-                  const credits = creditsForImage(
-                    model,
-                    clampToModel(model, settings),
-                  );
-                  return (
-                    <li key={model.id}>
-                      <div className="flex min-w-0 items-baseline gap-2">
-                        <span className="min-w-0 flex-1 text-xs font-medium text-pretty">
-                          {model.label}
-                        </span>
-                        <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                          {credits === null
-                            ? labels.creditsNoFigure
-                            : t("creditsEach", {
-                                credits,
-                                count: plan.copies,
-                              })}
-                        </span>
-                      </div>
-                      {/* Composed here rather than rendered from Core's
-                          `price.basis`. That string is built as "fal lists
-                          $0.03 per images for this endpoint" — fal's pricing
-                          API answers in plurals because it is describing a
-                          rate, and a sentence about one image then reads "per
-                          images". Web holds the same two figures separately,
-                          so it can say it once, correctly, and in the reader's
-                          language. */}
-                      <p className="text-muted-foreground mt-0.5 text-xs leading-relaxed text-pretty">
-                        {t("priceBasis", {
-                          price: `$${model.price.unitPriceUsd}`,
-                          unit: priceUnitLabel(model.price.unit),
-                        })}
-                      </p>
-                      <a
-                        className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo mt-0.5 inline-block rounded text-xs underline underline-offset-2 outline-none focus-visible:ring-[3px]"
-                        href={model.price.sourceUrl}
-                        rel="noreferrer"
-                        target="_blank"
-                      >
-                        {t("creditsCheckedOn", {
-                          date: model.price.verifiedAt,
-                        })}
-                      </a>
-                    </li>
-                  );
-                })}
-              </ul>
-            </PopoverContent>
-          </Popover>
-        ) : null}
-
-        <Button
-          disabled={!canGenerate}
-          onClick={submit}
-          size="sm"
-          variant="primary"
-        >
-          {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
-          {totalJobs > 1
-            ? t("generateMany", { count: totalJobs })
-            : labels.generateOne}
-        </Button>
-      </div>
+      </RoomMessageComposer>
     </section>
   );
 }
