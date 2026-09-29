@@ -77,7 +77,7 @@ export async function ChatLandingMobile({
         <div className="flex flex-wrap items-center justify-center gap-2">
           {stats.map((stat) => (
             <span
-              className="bg-card text-muted-foreground rounded-full border px-2.5 py-1 text-xs tabular-nums"
+              className="bg-card text-muted-foreground inline-flex items-center rounded-full border px-2.5 py-1 text-xs tabular-nums"
               key={stat.label}
             >
               {stat.label}
