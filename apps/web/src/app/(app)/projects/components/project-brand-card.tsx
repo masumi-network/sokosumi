@@ -216,7 +216,7 @@ export function ProjectBrandCard({
     <>
       <section
         id="project-brand-card"
-        className="scroll-mt-4 self-start space-y-4"
+        className="scroll-mt-4 self-start space-y-2"
         data-testid="project-brand-card"
       >
         <div className="flex items-center justify-between gap-3">
@@ -229,7 +229,10 @@ export function ProjectBrandCard({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="size-8"
+                // Negative margin: the 32px button must not make this row
+                // taller than its heading, or the heading sits lower than
+                // every other section heading on the page.
+                className="-my-2 size-8"
                 aria-label={t("brandCard.moreActions")}
               >
                 <MoreHorizontal className="size-4" aria-hidden />

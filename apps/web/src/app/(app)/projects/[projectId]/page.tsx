@@ -41,7 +41,7 @@ export default async function ProjectDetailPage({
   return (
     <ProjectWorkspaceShell
       actions={
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-2">
           <ProjectDetailPinButton
             projectId={project.id}
             isClosed={Boolean(project.closingAt || project.closedAt)}

@@ -119,9 +119,12 @@ export function ProjectWorkspaceShell({
 
   return (
     <div className={TASK_DETAIL_SHELL_CLASS}>
-      {/* The name and its tabs are one unit on a wide screen, so the row gap
-          between them is tighter than the grid's section gap. */}
-      <div className={cn(TASK_DETAIL_GRID_CLASS, "xl:gap-y-5")}>
+      {/* Rows sit 16px apart: on a wide screen that joins the name to its
+          tabs, and in one column it joins the name to its Properties. The
+          tabs block adds 16px in one column, so the Properties close their
+          group before the tabs start. The 56px column gap keeps the header's
+          actions clear of the rail. */}
+      <div className={cn(TASK_DETAIL_GRID_CLASS, "gap-y-4 xl:gap-x-14")}>
         <ProjectDetailHeader
           actions={actions}
           projectLogo={projectLogo}
@@ -142,7 +145,7 @@ export function ProjectWorkspaceShell({
         {/* The tabs open the block they switch, so nothing (not the rail,
             which comes before this on a phone) sits between a tab and its
             content. */}
-        <div className="min-w-0 space-y-6">
+        <div className="min-w-0 space-y-8 max-xl:mt-4">
           <ProjectTabs ariaLabel={labels.ariaLabel} tabs={tabs} />
           {children}
         </div>

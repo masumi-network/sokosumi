@@ -32,7 +32,7 @@ export function ProjectProperties({
   const websiteHostname = websiteUrl ? getHostname(websiteUrl) : null;
 
   return (
-    <section className="space-y-3">
+    <section className="space-y-2">
       <h2 className="text-muted-foreground text-xs font-medium">
         {labels.title}
       </h2>

@@ -63,6 +63,22 @@ describe("the project detail layout", () => {
     expect(container.querySelector(".bg-card-background")).toBeNull();
   });
 
+  it("spaces the name, rail, tabs and content as groups", () => {
+    const { container } = renderShell();
+
+    const grid = container.firstElementChild?.firstElementChild as HTMLElement;
+    // 16px rows join the name to what follows it; 56px keeps the header's
+    // actions clear of the rail.
+    expect(grid.classList).toContain("gap-y-4");
+    expect(grid.classList).toContain("xl:gap-x-14");
+    // In one column the tabs start a new group: 32px after the Properties.
+    const tabsBlock = screen.getByRole("navigation", {
+      name: "Project sections",
+    }).parentElement as HTMLElement;
+    expect(tabsBlock.classList).toContain("max-xl:mt-4");
+    expect(tabsBlock.classList).toContain("space-y-8");
+  });
+
   it("puts the Properties rail in the task sidebar slot", () => {
     renderShell();
 

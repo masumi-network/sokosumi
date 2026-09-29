@@ -34,7 +34,9 @@ export function ProjectDetailHeader({
         </h1>
       </div>
 
-      {actions ? <div className="shrink-0">{actions}</div> : null}
+      {/* 32px controls on a 28px line: pull up by half the difference so
+          they centre on the name's first line. */}
+      {actions ? <div className="-mt-0.5 shrink-0">{actions}</div> : null}
     </div>
   );
 }
