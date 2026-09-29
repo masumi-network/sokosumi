@@ -123,7 +123,7 @@ function TriggerLabel({
  * `ghost` and Generate is `primary`.
  */
 const TRIGGER_CLASS =
-  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 shrink-0 gap-1.5 px-2 text-sm font-medium";
+  "text-muted-foreground hover:text-foreground h-8 max-w-[16rem] min-w-0 gap-1.5 px-2 text-sm font-medium";
 
 /**
  * Where a generation is described and bought.
