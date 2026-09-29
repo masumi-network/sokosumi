@@ -57,6 +57,48 @@ describe("resolveTaskSellerReceipt", () => {
     expect(receipt.onChainState).toBe("FundsLocked");
   });
 
+  it("treats DisputedWithdrawn with a seller payout as settled", async () => {
+    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+      ok({
+        onChainState: "DisputedWithdrawn",
+        CurrentTransaction: { txHash: "tx_dispute" },
+        WithdrawnForSeller: [{ unit: "lovelace", amount: "250000" }],
+      }),
+    );
+    const receipt = await resolveTaskSellerReceipt(
+      "tsk_1",
+      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+    );
+    expect(receipt.settled).toBe(true);
+    expect(receipt.onChainState).toBe("DisputedWithdrawn");
+  });
+
+  it("does not treat DisputedWithdrawn without a seller payout as settled", async () => {
+    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+      ok({ onChainState: "DisputedWithdrawn", WithdrawnForSeller: [] }),
+    );
+    const receipt = await resolveTaskSellerReceipt(
+      "tsk_1",
+      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+    );
+    expect(receipt.settled).toBe(false);
+  });
+
+  it("does not treat a refund (RefundWithdrawn) as a seller receipt", async () => {
+    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+      ok({
+        onChainState: "RefundWithdrawn",
+        CurrentTransaction: { txHash: "tx_refund" },
+        WithdrawnForSeller: [],
+      }),
+    );
+    const receipt = await resolveTaskSellerReceipt(
+      "tsk_1",
+      dbWith({ blockchainIdentifier: "bc_1", status: "REFUNDED" }),
+    );
+    expect(receipt.settled).toBe(false);
+  });
+
   it("returns claim state without settlement when the purchase cannot be resolved", async () => {
     getPurchaseByBlockchainIdentifier.mockResolvedValue(err("node down"));
     const receipt = await resolveTaskSellerReceipt(

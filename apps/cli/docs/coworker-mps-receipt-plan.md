@@ -1,6 +1,6 @@
 # Coworker MPS Seller Receipt (SOK-1132)
 
-Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano Preprod. A `PURCHASED`/`FundsLocked` state or a mock receipt does not count; the proof is `onChainState == "Withdrawn"` plus the settlement transaction hash. `WithdrawnForSeller` is best-effort node metadata and can be empty even for a settled purchase (see Verified on Preprod), so `settled` keys off `onChainState` alone.
+Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano Preprod. A `PURCHASED`/`FundsLocked`/`RefundWithdrawn` state or a mock receipt does not count. `settled` matches the Masumi Payment Service definition (`billing.ts` / `income`): true on `onChainState == "Withdrawn"`, or on `DisputedWithdrawn` when `WithdrawnForSeller` is non-empty. A plain `Withdrawn` reports the settlement transaction hash; `WithdrawnForSeller` is best-effort node metadata and is empty for a plain `Withdrawn` (see Verified on Preprod).
 
 ## Why this reuses existing infra
 
@@ -43,6 +43,15 @@ No new MPS HTTP, no new settlement mapping, no CLI dependency on the private `@s
 - A real `RefundWithdrawn` purchase → `settled: false` (a refund is correctly not a seller receipt).
 - `WithdrawnForSeller` came back **empty** on this node even for `Withdrawn` purchases, confirming `settled` must key off `onChainState`, not that array. The settlement `txHash` came from `CurrentTransaction.txHash`.
 
+## Follow-ups (from a masumi-cli / MPS cross-reference)
+
+Deferred; not needed for the pilot, and none over-claims a receipt.
+
+- **txHash source hardening.** `txHash` reads `CurrentTransaction.txHash`, which MPS documents as the *active* transaction and can be null after settlement. MPS itself reads the confirmed hash from `TransactionHistory`. A durable fix needs `@sokosumi/masumi` to request `includeHistory` on resolve, then pick the history entry whose `newOnChainState == "Withdrawn"`. Live Preprod reads returned a non-null `txHash`, so the happy path holds today.
+- **Surface the paid amount.** For a plain `Withdrawn`, MPS reports the amount from `PaidFunds`/`RequestedFunds`, not `WithdrawnForSeller` (empty). The receipt proves `settled` but carries no amount in the common case; surface `PaidFunds` if the receipt should state how much the seller received.
+- **Defense-in-depth (optional).** Reuse `doesResolvedPurchaseSellerMatch` to confirm the resolved purchase's seller vkey matches the task's agent, and gate on a confirmed on-chain tx, both of which MPS applies. The blockchainIdentifier + API-key wallet scope already bind the record, so these are not correctness bugs.
+- **Multi-claim.** See the helper limitation above (one payment per task assumed).
+
 ## References
 
-SOK-1132, SOK-909, SOK-1180.
+SOK-1132, SOK-909, SOK-1180. masumi-cli has no seller-receipt equivalent; the authoritative "seller paid" definition lives in MPS (`billing.ts`, `payments/income`).

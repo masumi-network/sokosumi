@@ -64,7 +64,12 @@ export async function resolveTaskSellerReceipt(
   return {
     ...base,
     onChainState,
-    settled: onChainState === "Withdrawn",
+    // MPS treats the seller as paid on "Withdrawn", or on "DisputedWithdrawn"
+    // when the seller actually received funds (WithdrawnForSeller non-empty).
+    // A refund ("RefundWithdrawn") is never a seller receipt.
+    settled:
+      onChainState === "Withdrawn" ||
+      (onChainState === "DisputedWithdrawn" && withdrawnForSeller.length > 0),
     txHash: purchase.CurrentTransaction?.txHash ?? null,
     withdrawnForSeller,
   };
