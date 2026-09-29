@@ -5,6 +5,7 @@ import {
 import { publishFacebookPost } from "@/clients/social-post-providers/facebook";
 import { publishInstagramPost } from "@/clients/social-post-providers/instagram";
 import { publishLinkedInPost } from "@/clients/social-post-providers/linkedin";
+import { publishTikTokVideo } from "@/clients/social-post-providers/tiktok";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import type {
   SocialPostPublishContext,
@@ -40,6 +41,8 @@ export async function publishSocialPostToProvider(
       return publishInstagramPost(context);
     case "youtube":
       return publishYouTubeVideo(context);
+    case "tiktok":
+      return publishTikTokVideo(context);
     default:
       throw new ComposioToolError({
         message: `${socialPostProviderLabel(context.provider)} publishing is not available yet`,
