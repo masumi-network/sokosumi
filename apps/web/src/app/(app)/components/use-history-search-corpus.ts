@@ -4,9 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import {
-  getDefaultHistoryScope,
-  resolveHistoryApiTypes,
-} from "@/app/history/utils/history-filters";
+  getHistorySearchScope,
+  HISTORY_SEARCH_KINDS,
+} from "@/app/components/history-search-corpus-filters";
 import { coreClient } from "@/lib/clients/core.browser.client";
 
 export const HISTORY_SEARCH_PAGE_SIZE = 50;
@@ -22,7 +22,7 @@ export function historySearchCorpusQueryKey(
   activeOrganizationId: string | null,
   searchQuery: string,
 ) {
-  const scope = getDefaultHistoryScope(activeOrganizationId);
+  const scope = getHistorySearchScope(activeOrganizationId);
   return [
     "history-search-corpus",
     activeOrganizationId,
@@ -60,8 +60,8 @@ export function useHistorySearchCorpus({
       const response = await coreClient.getHistory({
         q: debouncedQuery || undefined,
         limit: HISTORY_SEARCH_PAGE_SIZE,
-        scope: getDefaultHistoryScope(activeOrganizationId),
-        types: resolveHistoryApiTypes(null),
+        scope: getHistorySearchScope(activeOrganizationId),
+        types: [...HISTORY_SEARCH_KINDS],
       });
       return response.data;
     },
