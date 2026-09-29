@@ -47,9 +47,9 @@ const FACE = {
  *
  * `quiet` is for the faces under a message, where the receipt arrives the
  * instant you finish writing and has to not shout about it. The colour is
- * pulled back a little and does not change on hover, focus or open. Grey is
- * kept for the popover's not-read rows, so readers stay in colour. The ring
- * goes too: without it they sit in the text lane rather than on it.
+ * pulled back by half, still colour rather than disabled grey, and does not
+ * change on hover, focus or open. Grey is kept for the popover's not-read
+ * rows, so readers stay in colour. The ring goes too: without it they sit in the text lane rather than on it.
  *
  * The header stack stays `full`: nothing there competes with a sentence.
  */
@@ -57,7 +57,7 @@ export type ReadReceiptFacesTone = "full" | "quiet";
 
 const TONE: Record<ReadReceiptFacesTone, string> = {
   full: "ring-border ring-1",
-  quiet: "saturate-75",
+  quiet: "saturate-50",
 };
 
 interface ReadReceiptFacesProps {

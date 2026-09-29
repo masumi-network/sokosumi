@@ -212,7 +212,7 @@ describe("RoomSeenByLine", () => {
       .querySelector("[data-slot='avatar']");
     const tokens = face?.className.split(/\s+/) ?? [];
 
-    expect(tokens).toContain("saturate-75");
+    expect(tokens).toContain("saturate-50");
     expect(tokens).not.toContain("grayscale");
     expect(tokens.some((token) => token.startsWith("group-"))).toBe(false);
     // The ring is what made them read as three badges on the text.

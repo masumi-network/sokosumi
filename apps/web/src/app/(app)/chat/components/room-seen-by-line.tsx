@@ -205,7 +205,7 @@ interface RoomSeenByLineProps {
  * the same faces, cap and order as the header stack, so the two surfaces never
  * disagree.
  *
- * Quiet and named on demand. Small, unringed faces in slightly muted colour
+ * Quiet and named on demand. Small, unringed faces in half-muted colour
  * read as chrome rather than as the end of the sentence; clicking them answers the
  * question the count only gestures at, without sending anyone to the Members
  * panel to get it.
