@@ -121,3 +121,4 @@ export function driveItemActionsClass(viewMode: FilesViewMode): string {
 export function driveItemNameClass(): string {
   return "text-foreground line-clamp-1 text-sm font-medium";
 }
+// before-state preview
