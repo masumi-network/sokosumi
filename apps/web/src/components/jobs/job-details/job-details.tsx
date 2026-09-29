@@ -7,7 +7,6 @@ import { MarkNotificationsRead } from "@/components/notifications/mark-notificat
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { useSession } from "@/lib/auth/auth.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getJobQueryKey, getJobQueryOptions } from "@/queries/jobs";
 import JobDetailsView, { type JobDetailsViewProps } from "./job-details-view";
 
@@ -15,18 +14,8 @@ const JOB_STATUS_EVENT_NAME = "job_status_data";
 
 export default function JobDetails({
   job: initialJob,
-  organizations,
-  personalWorkspaceLabel,
-  projectName,
-  readOnly = false,
-  className,
-  showAgentHeader = true,
-  publicJobLayout = false,
-}: JobDetailsViewProps & {
-  organizations?: MemberWithOrganization[];
-  personalWorkspaceLabel?: string;
-  projectName?: string | null;
-}) {
+  ...viewProps
+}: JobDetailsViewProps) {
   const { data: session } = useSession();
   const queryClient = useQueryClient();
 
@@ -46,18 +35,7 @@ export default function JobDetails({
     });
   }
 
-  const detailsContent = (
-    <JobDetailsView
-      job={job}
-      organizations={organizations}
-      personalWorkspaceLabel={personalWorkspaceLabel}
-      projectName={projectName}
-      readOnly={readOnly}
-      className={className}
-      showAgentHeader={showAgentHeader}
-      publicJobLayout={publicJobLayout}
-    />
-  );
+  const detailsContent = <JobDetailsView job={job} {...viewProps} />;
 
   if (!channelName) {
     return detailsContent;

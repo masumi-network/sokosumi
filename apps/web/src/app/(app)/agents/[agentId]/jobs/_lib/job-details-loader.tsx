@@ -18,7 +18,7 @@ export interface JobDetailsPresentationProps {
   readOnly: boolean;
 }
 
-export async function JobDetailsView({
+export async function JobDetailsLoader({
   agentId,
   jobId,
   children,
