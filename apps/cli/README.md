@@ -215,7 +215,7 @@ Run one executor per Task. Inspect the Task before retrying an uncertain result;
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `../core/src/helpers/coworker-task-receipt.ts`]
 Receipt reads the Task's payment claim through Core. `settled` is true only when the payment reached the seller on-chain.
-That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`.
+That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`, and even then it can be null.
 `settled: false` is a valid answer and exits 0. Core answers 502 when the payment node fails, so an outage never reads as unpaid.
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]

@@ -121,7 +121,7 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
    sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
    ```
 
-   Report payment only when `settled` is `true`, and quote its `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
+   Report payment only when `settled` is `true`, and quote its `txHash` when present. A settled receipt can still have a null `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
 
 [VERIFIED: `apps/cli/src/coworker/runtime-task.ts`, `apps/cli/src/api/http-client.ts`] Runtime calls use only the Coworker credential on Preprod. Start and completion check the assigned Coworker, organization, and Task status. Run one executor per Task. This flow does not create a worker lease, poll for automatic work, or install an agent host. An MCP-only host needs a separate transport adapter.
 
