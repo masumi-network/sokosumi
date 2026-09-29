@@ -8,7 +8,6 @@ struct MessageAttachmentView: View {
   var compact = false
   /// The message's image viewer; an image opens it on itself.
   @Environment(MessageImageViewerPresentation.self) private var imageViewer: MessageImageViewerPresentation?
-  @State private var previewPresented = false
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -26,16 +25,7 @@ struct MessageAttachmentView: View {
       case .audio, .video:
         AttachmentMediaView(url: attachment.url, audioOnly: attachment.kind == .audio)
       case .file:
-        Button { previewPresented = true } label: {
-          AttachmentFileIcon(filename: attachment.filename, url: attachment.url)
-            .frame(width: 64, height: 64)
-            .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 16))
-            .overlay(RoundedRectangle(cornerRadius: 16).stroke(.secondary.opacity(0.25)))
-            .contentShape(.rect(cornerRadius: 16))
-        }
-        .buttonStyle(.plain)
-        .help(attachment.filename)
-        .accessibilityLabel("Preview \(attachment.filename)")
+        AttachmentDocumentButton(attachment: attachment)
       }
       if attachment.kind == .audio || attachment.kind == .video {
         HStack(spacing: 8) {
@@ -52,6 +42,27 @@ struct MessageAttachmentView: View {
       }
     }
     .frame(maxWidth: compact ? (attachment.kind == .image || attachment.kind == .file ? 64 : 384) : .infinity, alignment: .leading)
+  }
+}
+
+/// A 64 pt file-type tile that opens the document viewer; a file it cannot preview offers Open and Save there.
+/// `help` replaces the file-name tooltip (a draft adds its size).
+struct AttachmentDocumentButton: View {
+  let attachment: MessageAttachment
+  var help: String?
+  @State private var previewPresented = false
+
+  var body: some View {
+    Button { previewPresented = true } label: {
+      AttachmentFileIcon(filename: attachment.filename, url: attachment.url)
+        .frame(width: 64, height: 64)
+        .background(.secondary.opacity(0.08), in: .rect(cornerRadius: 16))
+        .overlay(RoundedRectangle(cornerRadius: 16).stroke(.secondary.opacity(0.25)))
+        .contentShape(.rect(cornerRadius: 16))
+    }
+    .buttonStyle(.plain)
+    .help(help ?? attachment.filename)
+    .accessibilityLabel("Preview \(attachment.filename)")
     .sheet(isPresented: $previewPresented) {
       VStack(spacing: 16) {
         AttachmentViewerToolbar(attachment: attachment) { previewPresented = false }

@@ -117,6 +117,7 @@ private class AttachmentBlobProtocol: URLProtocol, @unchecked Sendable {
   let uploaded = try await AttachmentUpload.put(file: file, filename: "hello.txt", contentType: "text/plain", size: 5, grant: grant, session: session)
   #expect(uploaded.url == "https://blob.example/uploaded.txt")
   #expect(uploaded.fileName == "hello.txt")
+  #expect(uploaded.size == 5, "The draft chip names the uploaded size (row 14a2).")
   for path in ["missing", "malformed"] {
     grant.uploadUrl = "https://blob.example/" + path
     await #expect(throws: AttachmentUpload.Failure.self) {
