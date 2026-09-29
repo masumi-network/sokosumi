@@ -1,5 +1,3 @@
-import { createClient } from "@/lib/clients/generated/core/client";
-import { getNotificationsPushDevicesResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 import type {
   DeleteNotificationsPushDevicesByIdData,
   DeleteNotificationsPushDevicesByIdErrors,
@@ -42,7 +40,9 @@ import type {
   PutNotificationsPushDevicesByIdSubscriptionErrors,
   PutNotificationsPushDevicesByIdSubscriptionResponse,
   PutNotificationsPushDevicesByIdSubscriptionResponses,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { createClient } from "@sokosumi/core-client/client";
+import { getNotificationsPushDevicesResponseTransformer } from "@sokosumi/core-client/transformers";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 import { attachCoreRequestIdInterceptor } from "@/lib/clients/utils/core-request-id";

@@ -1,12 +1,11 @@
 "use client";
 
+import type { Coworker } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-
 import { CoworkerDisplayForm } from "@/components/coworkers/coworker-display-form";
 import { updateDeveloperCoworkerDisplayAction } from "@/lib/actions/coworkers/update-display.action";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 interface DeveloperCoworkerEditFormProps {
   coworker: Coworker;

@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Job } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { type UseFormReturn, useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { updateJobName } from "@/lib/actions/job/action";
-import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,

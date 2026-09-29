@@ -1,8 +1,7 @@
+import type { SokoBotQualityVerdict } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-
 import { MetaGrid } from "@/components/soko-bot/meta-grid";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
-import type { SokoBotQualityVerdict } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /** The four dimensions, in the order the rubric lists them. */

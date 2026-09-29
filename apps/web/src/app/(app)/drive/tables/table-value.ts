@@ -1,4 +1,4 @@
-import type { TableColumn, TableRow } from "@/lib/clients/generated/core";
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
 
 const INPUT_ERRORS = {
   "A row is limited to 64 KB of values and sources": "errors.rowSize",

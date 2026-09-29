@@ -1,14 +1,14 @@
 "use client";
 
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@sokosumi/core-client";
 import { Trash } from "lucide-react";
 import { useTranslations } from "next-intl";
 import OrganizationRemoveModal from "@/components/organizations/organization-remove/modal";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import type {
-  OrganizationDeletionEvaluation,
-  OrganizationRecord,
-} from "@/lib/clients/generated/core";
 
 interface OrganizationRemoveButtonProps {
   organization: OrganizationRecord;

@@ -1,16 +1,15 @@
 "use client";
 
+import type {
+  ProjectContextMdMetadata,
+  ProjectMemoryModel,
+} from "@sokosumi/core-client";
 import { Check } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import type {
-  ProjectContextMdMetadata,
-  ProjectMemoryModel,
-} from "@/lib/clients/generated/core/types.gen";
 
 import {
   ProjectMemoryHistory,

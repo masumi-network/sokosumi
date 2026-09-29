@@ -1,5 +1,5 @@
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
-import { getChatsRoomsByIdMessagesResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
+import { getChatsRoomsByIdMessagesResponseTransformer } from "@sokosumi/core-client/transformers";
 
 import { fetchBackgroundJson } from "./fetch-background-json";
 

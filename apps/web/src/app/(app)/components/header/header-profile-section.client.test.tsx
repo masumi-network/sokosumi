@@ -1,9 +1,8 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const headerWorkspaceSwitchMock = vi.fn();

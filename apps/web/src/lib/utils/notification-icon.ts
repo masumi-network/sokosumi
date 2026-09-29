@@ -1,3 +1,4 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import { CHAT_MENTION_MESSAGE_KEY } from "@sokosumi/utils";
 import {
   AtSign,
@@ -9,8 +10,6 @@ import {
   MessageCircle,
   TriangleAlert,
 } from "lucide-react";
-
-import type { NotificationItem } from "@/lib/clients/generated/core";
 
 const FAILURE_SUFFIXES = ["failed", "Failed", "outOfCredits", "canceled"];
 

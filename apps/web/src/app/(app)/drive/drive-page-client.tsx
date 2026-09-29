@@ -1,5 +1,18 @@
 "use client";
 
+import type { DriveItem, DriveTasksListItem } from "@sokosumi/core-client";
+import {
+  deleteDriveFilesDelete,
+  deleteDriveFoldersDelete,
+  getProjectsById,
+  getTasksById,
+  getUsersByIdOrganizations,
+  patchDriveFilesMove,
+  patchDriveFilesRename,
+  patchDriveFoldersRename,
+  postDriveFolders,
+  postDriveTasksCopy,
+} from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -103,22 +116,6 @@ import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-co
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type {
-  DriveItem,
-  DriveTasksListItem,
-} from "@/lib/clients/generated/core";
-import {
-  deleteDriveFilesDelete,
-  deleteDriveFoldersDelete,
-  getProjectsById,
-  getTasksById,
-  getUsersByIdOrganizations,
-  patchDriveFilesMove,
-  patchDriveFilesRename,
-  patchDriveFoldersRename,
-  postDriveFolders,
-  postDriveTasksCopy,
-} from "@/lib/clients/generated/core";
 import {
   effectiveFilesViewMode,
   type FilesViewMode,

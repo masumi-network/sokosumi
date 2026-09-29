@@ -167,7 +167,7 @@ publish time.
 
 Core OpenAPI: the `provider` enum widens to all six; no other request/response
 shape changes. Regenerate the Web Core client afterwards
-(`pnpm --filter web generate:core:snapshot`).
+(`pnpm --filter @sokosumi/core-client generate:snapshot`).
 
 ## Web
 

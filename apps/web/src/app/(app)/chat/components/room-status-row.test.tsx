@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { RoomStatusRow } from "./room-status-row";
 

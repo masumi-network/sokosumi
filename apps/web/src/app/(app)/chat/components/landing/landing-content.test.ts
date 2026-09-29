@@ -1,7 +1,6 @@
+import type { TaskActivitySummary } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import type { Coworker } from "@/app/chat/utils/types";
-import type { TaskActivitySummary } from "@/lib/clients/generated/core";
 
 import {
   buildActivityStats,
@@ -35,19 +34,16 @@ describe("resolveLandingGreetingName", () => {
   });
 });
 
-const RETURNING_VISIT_AT = new Date("2026-08-10T09:00:00.000Z");
-
 function buildSummary(
   overrides: Partial<TaskActivitySummary> = {},
 ): TaskActivitySummary {
   return {
     awaitingInput: 0,
-    basis: "lastVisit",
     completed: 0,
     createdByOtherHumans: 0,
-    lastVisitAt: RETURNING_VISIT_AT,
-    since: RETURNING_VISIT_AT,
+    since: new Date("2026-08-10T09:00:00.000Z"),
     workedMinutes: 0,
+    previous: { completed: 0, createdByOtherHumans: 0, workedMinutes: 0 },
     ...overrides,
   };
 }
@@ -278,33 +274,22 @@ describe("orderStripCoworkers", () => {
 });
 
 describe("buildActivityStats", () => {
+  const labels = (stats: ReturnType<typeof buildActivityStats>) =>
+    stats.map((stat) => stat.label);
+
   it("still emits zero chips in a personal workspace with no activity", () => {
     const stats = buildActivityStats(buildSummary(), false, fakeTranslator);
-    expect(stats).toEqual([
+    expect(labels(stats)).toEqual([
       'stats.completed:{"count":0}',
       'stats.worked:{"minutes":0}',
       'stats.awaiting:{"count":0}',
     ]);
-  });
-
-  it("lists completed, worked, and awaiting in display order", () => {
-    const stats = buildActivityStats(
-      buildSummary({ awaitingInput: 2, completed: 4, workedMinutes: 47 }),
-      false,
-      fakeTranslator,
-    );
-
-    expect(stats).toEqual([
-      'stats.completed:{"count":4}',
-      'stats.worked:{"minutes":47}',
-      'stats.awaiting:{"count":2}',
-    ]);
+    expect(stats.every((stat) => stat.trend === null)).toBe(true);
   });
 
   it("keeps the teammates chip at zero inside an organization", () => {
-    // "what my teammates added" is a question the row should answer, not omit.
     const stats = buildActivityStats(buildSummary(), true, fakeTranslator);
-    expect(stats).toEqual([
+    expect(labels(stats)).toEqual([
       'stats.completed:{"count":0}',
       'stats.worked:{"minutes":0}',
       'stats.awaiting:{"count":0}',
@@ -313,7 +298,7 @@ describe("buildActivityStats", () => {
   });
 
   it("still emits zero chips when the summary could not be loaded", () => {
-    expect(buildActivityStats(null, true, fakeTranslator)).toEqual([
+    expect(labels(buildActivityStats(null, true, fakeTranslator))).toEqual([
       'stats.completed:{"count":0}',
       'stats.worked:{"minutes":0}',
       'stats.awaiting:{"count":0}',
@@ -321,24 +306,23 @@ describe("buildActivityStats", () => {
     ]);
   });
 
-  it("still lists metrics when lastVisitAt is null (no sessions)", () => {
-    // Window is session-derived; null lastVisitAt only means no sessions, not
-    // "hide chips". Chips always render, including zeros for idle metrics.
+  it("derives trends vs the previous 24h and never for awaiting", () => {
     const stats = buildActivityStats(
       buildSummary({
-        awaitingInput: 3,
-        completed: 2,
-        lastVisitAt: null,
-        basis: "recent",
-        since: new Date("2026-08-10T09:00:00.000Z"),
+        awaitingInput: 9,
+        completed: 4,
+        createdByOtherHumans: 1,
+        workedMinutes: 30,
+        previous: { completed: 1, createdByOtherHumans: 3, workedMinutes: 30 },
       }),
-      false,
+      true,
       fakeTranslator,
     );
-    expect(stats).toEqual([
-      'stats.completed:{"count":2}',
-      'stats.worked:{"minutes":0}',
-      'stats.awaiting:{"count":3}',
+    expect(stats.map((stat) => stat.trend)).toEqual([
+      { delta: 3, direction: "up", label: 'stats.trendUp:{"count":3}' },
+      null,
+      null,
+      { delta: 2, direction: "down", label: 'stats.trendDown:{"count":2}' },
     ]);
   });
 });

@@ -1,7 +1,7 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RoomSearchPanel } from "@/app/chat/components/room-search-panel";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 const getChatRoomMessagesMock = vi.fn();
 

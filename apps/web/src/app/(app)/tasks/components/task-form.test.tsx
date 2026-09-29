@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -11,7 +12,6 @@ import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 

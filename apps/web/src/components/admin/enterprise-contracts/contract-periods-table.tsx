@@ -1,7 +1,10 @@
 "use client";
 
+import type {
+  EnterpriseContractPeriod,
+  EnterpriseContractPreviewPeriod,
+} from "@sokosumi/core-client";
 import { useFormatter } from "next-intl";
-
 import {
   Table,
   TableBody,
@@ -10,10 +13,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type {
-  EnterpriseContractPeriod,
-  EnterpriseContractPreviewPeriod,
-} from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 type PeriodRow = EnterpriseContractPeriod | EnterpriseContractPreviewPeriod;

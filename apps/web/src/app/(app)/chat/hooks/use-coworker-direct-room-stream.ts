@@ -1,6 +1,12 @@
 "use client";
 
 import { useChat } from "@ai-sdk/react";
+import type {
+  ChatRoom,
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomUserParticipant,
+} from "@sokosumi/core-client";
 import { DefaultChatTransport, type FileUIPart, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -8,12 +14,6 @@ import { CHAT_API_PATH } from "@/app/chat/utils/chat-route-base";
 import { reasoningStepsForMetadata } from "@/app/chat/utils/coworker-thought";
 import { extractMessageContent } from "@/app/chat/utils/message-utils";
 import { clearPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
-import type {
-  ChatRoom,
-  ChatRoomCoworkerParticipant,
-  ChatRoomMessage,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 const CHAT_NO_RESUMABLE_STREAM_PATH = "/api/chat/no-resumable-stream";

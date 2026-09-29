@@ -1,13 +1,12 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
-
-import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   CreateProjectImageJobRequest,
   ProjectImageJob,
   ProjectImageSettings,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { revalidatePath } from "next/cache";
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import {
   type AuthenticatedRequest,

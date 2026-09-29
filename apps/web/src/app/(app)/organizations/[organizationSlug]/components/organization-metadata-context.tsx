@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import {
   buildOrganizationMetadataWithDesignMd,
   parseOrganizationMetadata,
@@ -13,7 +14,6 @@ import {
   useState,
 } from "react";
 import type { DesignMdProfileValue } from "@/components/design-md/types";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 interface OrganizationMetadataContextValue {
   metadata: string | null;

@@ -1,3 +1,4 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { QueryClient } from "@tanstack/react-query";
 import type { RoomsClientProps } from "@/app/chat/components/rooms-client";
 import type { TranscriptPosition } from "@/app/chat/components/transcript-viewport";
@@ -7,7 +8,6 @@ import {
 } from "@/components/chat/fetch-room-messages";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { chatReadThrottleResumeInMs } from "@/lib/chat/chat-read-throttle";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { isOutboundLocalMessage } from "./outbound-room-message";
 import {
   emptyRoomTranscript,

@@ -1,6 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -32,10 +36,6 @@ import {
   UNSETTLED_ON_CHAIN_JOB_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
-import type {
-  OrganizationDeletionEvaluation,
-  OrganizationRecord,
-} from "@/lib/clients/generated/core";
 import {
   type RemoveOrganizationSchemaType,
   removeOrganizationSchema,

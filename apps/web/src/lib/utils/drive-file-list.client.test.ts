@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const getDriveFilesMock = vi.fn();
 const getBrowserCoreClientMock = vi.fn(() => ({ id: "browser-core-client" }));
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   getDriveFiles: (...args: unknown[]) => getDriveFilesMock(...args),
 }));
 

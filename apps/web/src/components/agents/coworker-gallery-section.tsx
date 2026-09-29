@@ -1,5 +1,6 @@
 "use client";
 
+import type { Coworker } from "@sokosumi/core-client";
 import {
   ArrowRight,
   ChevronDown,
@@ -27,7 +28,6 @@ import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import { canUseNextImageSrc } from "@/config/next-image";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
-import type { Coworker } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { regionFlag } from "@/lib/utils/region-flag";
