@@ -12,11 +12,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useRef, useState } from "react";
-import { SiX } from "react-icons/si";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -347,7 +347,7 @@ export function ProjectSocialPosts({
           aria-hidden
           className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
         >
-          <SiX className="size-5" />
+          <SocialPostProviderIcon provider={post.provider} className="size-5" />
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
