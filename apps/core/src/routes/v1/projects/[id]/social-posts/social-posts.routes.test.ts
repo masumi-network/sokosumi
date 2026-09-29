@@ -150,6 +150,8 @@ const scheduledPost = {
   socialConnection: {
     id: SOCIAL_CONNECTION_ID,
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   scheduledByUserId: USER_ID,
