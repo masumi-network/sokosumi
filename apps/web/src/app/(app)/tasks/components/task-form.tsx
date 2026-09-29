@@ -1,5 +1,7 @@
 "use client";
 
+import type { Project } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   formatTaskAttachmentMarkdown,
   isAgentOnlyTaskStatus,
@@ -62,8 +64,6 @@ import {
   updateTask,
 } from "@/lib/actions/task/action";
 import { useSession } from "@/lib/auth/auth.client";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { Project } from "@/lib/clients/generated/core/types.gen";
 import type { EffectiveDesignMdAttachment } from "@/lib/services/design-md.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";

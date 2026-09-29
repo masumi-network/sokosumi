@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { raceWithTimeout } from "@/lib/utils/race-with-timeout";
 
 const CLASSIC_OUTBOUND_SEND_TIMEOUT_MS = 30_000;

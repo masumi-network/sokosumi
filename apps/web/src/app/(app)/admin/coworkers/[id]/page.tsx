@@ -1,13 +1,12 @@
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
 import { CoworkerForm } from "@/components/admin/coworkers/coworker-form";
 import { CoworkerLoadError } from "@/components/admin/coworkers/coworker-load-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { adminCoworkerService } from "@/lib/services/admin-coworker.service";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 

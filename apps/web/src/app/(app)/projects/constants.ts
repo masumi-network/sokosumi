@@ -1,7 +1,4 @@
-import type {
-  GetJobsData,
-  GetTasksData,
-} from "@/lib/clients/generated/core/types.gen";
+import type { GetJobsData, GetTasksData } from "@sokosumi/core-client";
 
 export const PROJECTS_PAGE_LIMIT = 20;
 
@@ -14,44 +11,22 @@ export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 /**
  * Project detail outer shell: centered max-w-6xl container inside main `p-4`.
  *
- * No route draws it any more — the tabbed project areas use
- * `PROJECTS_WORKSPACE_SHELL_CLASS`, and project edit is a modal. It survives as
+ * No route draws it any more — the project pages use `TASK_DETAIL_SHELL_CLASS`
+ * itself, and project edit is a modal. It survives as
  * the reference width that `TASK_DETAIL_SHELL_CLASS` is pinned against, which
  * is the one thing still asking what a detail page is as wide as.
  */
 export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 
 /**
- * The tabbed project workspace: overview, design, memory, social.
+ * Full-width shell for the studio and Social pages. The project detail pages
+ * use the task detail shell (`TASK_DETAIL_SHELL_CLASS`) instead.
  *
  * Full available width, deliberately. The application shell's own `p-4`
- * remains the only horizontal padding; each tab caps its own reading column
+ * remains the only horizontal padding; each page caps its own reading column
  * where its content is prose, rather than the shell capping all of them.
  */
 export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
-
-/**
- * The project workspace as one surface. Shared with the image studio, which is
- * its own destination now but draws the same card.
- *
- * Deliberately the same card the projects index and Drive already draw —
- * `bg-card-background`, hairline border, `rounded-xl` from `md`, full-bleed
- * and border-free below it. The project page used to be a stack of things
- * floating on the page background: a title, then a rule with tabs on it, then
- * content, then a panel of tiles nested inside. Putting the identity, the tab
- * strip and the active area inside one container is what makes it read as a
- * page of this product rather than as a pile of components.
- *
- * No `overflow-hidden`, unlike the browse card. The studio's assistant column
- * is `position: sticky`, and an ancestor with a clipped overflow silently
- * turns sticky into static. Nothing here needs clipping: the tab rule is
- * straight and the content is inset by its own padding.
- */
-export const PROJECTS_WORKSPACE_CARD_CLASS =
-  "bg-card-background border-border -mx-4 rounded-none border-0 md:mx-0 md:rounded-xl md:border";
-
-/** Horizontal inset shared by the card's header, tab strip and content. */
-export const PROJECTS_WORKSPACE_GUTTER_CLASS = "px-4 md:px-6";
 
 /**
  * Shared list card min-height for Instant skeleton, loaded list, and empty state

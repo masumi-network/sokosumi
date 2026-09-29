@@ -1,4 +1,4 @@
-import type { DeveloperCoworkerRef } from "@/lib/clients/generated/core/types.gen";
+import type { DeveloperCoworkerRef } from "@sokosumi/core-client";
 
 export function formatDeveloperTaskCoworkerNames(
   assignee: DeveloperCoworkerRef,

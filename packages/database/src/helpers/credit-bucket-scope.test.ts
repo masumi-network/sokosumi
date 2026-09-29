@@ -76,6 +76,7 @@ describe("resolveCreditBucketScopeContext", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
     getMemberMock.mockResolvedValue({
@@ -106,6 +107,7 @@ describe("resolveCreditBucketScopeContext", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
     getMemberMock.mockResolvedValue({
@@ -134,6 +136,7 @@ describe("resolveCreditBucketScopeContext", () => {
       purchasedSeats: 0,
       subscriptionId: "sub-free",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({
@@ -161,6 +164,7 @@ describe("resolveCreditBucketScopeContext", () => {
       purchasedSeats: 5,
       subscriptionId: "sub-paid",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({
@@ -191,6 +195,7 @@ describe("resolveCreditBucketScopeContext", () => {
       endsAt: new Date("2026-02-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
     getMemberMock.mockResolvedValue({
@@ -218,6 +223,7 @@ describe("resolveCreditBucketScopeContext", () => {
       purchasedSeats: 5,
       subscriptionId: "sub-paid",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({
@@ -245,6 +251,7 @@ describe("resolveCreditBucketScopeContext", () => {
       purchasedSeats: 0,
       subscriptionId: "sub-free",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue(null);
@@ -287,6 +294,7 @@ describe("hasAssignedOrganizationSeat", () => {
       purchasedSeats: 0,
       subscriptionId: "sub-free",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({
@@ -306,6 +314,7 @@ describe("hasAssignedOrganizationSeat", () => {
       purchasedSeats: 0,
       subscriptionId: "sub-free",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue(null);
@@ -323,6 +332,7 @@ describe("hasAssignedOrganizationSeat", () => {
       purchasedSeats: 5,
       subscriptionId: "sub-paid",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({

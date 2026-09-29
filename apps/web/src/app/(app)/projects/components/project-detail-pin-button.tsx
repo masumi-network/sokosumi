@@ -45,6 +45,9 @@ export function ProjectDetailPinButton({
 
   return (
     <ProjectPinButton
+      // The ghost "More" button beside it is square-cornered; a circle next
+      // to a rounded square reads as two unrelated controls.
+      className="rounded-md"
       projectId={projectId}
       isPinned={Boolean(
         pinned.data?.some((project) => project.id === projectId),

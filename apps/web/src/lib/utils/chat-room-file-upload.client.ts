@@ -1,11 +1,11 @@
 "use client";
 
+import type { BlobFile } from "@sokosumi/core-client";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
-import type { BlobFile } from "@/lib/clients/generated/core";
 import {
   type UploadUserFileDirectOptions,
   UserFileUploadError,

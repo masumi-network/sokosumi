@@ -1,14 +1,13 @@
 "use client";
 
+import type { Coworker } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
 import { getCoworkersTableColumns } from "@/components/admin/coworkers/coworkers-table-columns";
 import DataTable from "@/components/data-table/data-table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 interface CoworkersTableProps {
   coworkers: Coworker[];

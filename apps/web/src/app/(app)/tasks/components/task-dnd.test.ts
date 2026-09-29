@@ -1,5 +1,5 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 import {
   isDnDDragColumn,

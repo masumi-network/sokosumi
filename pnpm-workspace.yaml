@@ -54,6 +54,7 @@ allowBuilds:
   # pnpm 11+: workspace prepare scripts are blocked unless listed (strictDepBuilds).
   # These packages compile to dist/ on install; without them, Next/Turbopack cannot resolve exports.
   "@sokosumi/ai-provider": true
+  "@sokosumi/core-client": true
   "@sokosumi/email": true
   "@sokosumi/masumi": true
   "@sokosumi/net": true

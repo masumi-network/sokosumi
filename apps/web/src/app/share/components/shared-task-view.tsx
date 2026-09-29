@@ -1,4 +1,11 @@
 import {
+  BlobStatus,
+  Channel,
+  type PublicSharedTask,
+  SokosumiJobStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
+import {
   extractFileLikeLinks,
   extractHttpLinks,
   removeTaskContextAttachmentLinks,
@@ -27,13 +34,6 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { SourcesGrid } from "@/components/sources/sources-grid";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import {
-  BlobStatus,
-  Channel,
-  type PublicSharedTask,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,

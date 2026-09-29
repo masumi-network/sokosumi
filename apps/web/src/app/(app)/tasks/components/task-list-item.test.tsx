@@ -1,7 +1,7 @@
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 import { TaskListItem } from "./task-list-item";
 

@@ -328,6 +328,50 @@ describe("SignUpForm OAuth workflow", () => {
     expect(consentUrl).toContain("sig=signed-value");
   });
 
+  it("links to sign-in without a query when there is no OAuth request", () => {
+    render(<SignUpForm />);
+
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
+      "href",
+      "/signin",
+    );
+  });
+
+  it("carries the signed OAuth consent query on the sign-in link", () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "test-client",
+      redirect_uri: "https://consumer.example.com/callback",
+      code_challenge: "test-challenge",
+      exp: "1772367377",
+      sig: "abc+def/ghi=",
+    });
+
+    render(<SignUpForm />);
+
+    const href = screen
+      .getByRole("link", { name: "Login.link" })
+      .getAttribute("href");
+    const signInUrl = new URL(href ?? "", "http://localhost");
+
+    expect(signInUrl.pathname).toBe("/signin");
+    expect(signInUrl.searchParams.get("returnUrl")).toBe(
+      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
+  it("keeps the returnUrl on the sign-in link", () => {
+    mockSearchParams = new URLSearchParams({
+      returnUrl: "/accept-invitation/invite_123",
+    });
+
+    render(<SignUpForm />);
+
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
+      "href",
+      "/signin?returnUrl=%2Faccept-invitation%2Finvite_123",
+    );
+  });
+
   it("keeps a left-edge submit spinner after credential signup succeeds", async () => {
     mockSignUpEmail.mockResolvedValue({
       data: {

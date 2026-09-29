@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import { Loader2, MegaphoneOff, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -20,10 +21,6 @@ import {
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
-import type {
-  ChatRoomMessage,
-  ChatRoomThread,
-} from "@/lib/clients/generated/core";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface ThreadListPanelLabels {

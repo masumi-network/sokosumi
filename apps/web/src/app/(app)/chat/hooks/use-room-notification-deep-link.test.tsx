@@ -1,9 +1,8 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { act, render, waitFor } from "@testing-library/react";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { getRoomMessageAction } from "@/app/chat/message-actions";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { useRoomNotificationDeepLink } from "./use-room-notification-deep-link";
 

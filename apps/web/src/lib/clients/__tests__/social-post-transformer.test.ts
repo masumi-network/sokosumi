@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import {
   getProjectsByIdSocialPostsByPostIdResponseTransformer,
   getProjectsByIdSocialPostsResponseTransformer,
@@ -8,7 +6,8 @@ import {
   postProjectsByIdSocialPostsByPostIdPublishResponseTransformer,
   postProjectsByIdSocialPostsByPostIdScheduleResponseTransformer,
   postProjectsByIdSocialPostsResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
+import { describe, expect, it } from "vitest";
 
 const timestamp = "2026-09-23T10:00:00.000Z";
 

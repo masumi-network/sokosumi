@@ -1,0 +1,56 @@
+/*
+ * TEMPORARY theme. The CMO.XYZ style guide (DESIGN.md) still lists colours,
+ * logo, and PP Mori font files as open, and says not to invent brand values.
+ * Until design locks them, these tokens use CSS system colours and the system
+ * font stack, which follow the visitor's light or dark setting. Replace the
+ * tokens here, not at call sites.
+ */
+:root {
+  color-scheme: light dark;
+  --background: Canvas;
+  --foreground: CanvasText;
+  --muted: GrayText;
+  /* TEMPORARY font: PP Mori is the locked typeface; its files are not delivered yet. */
+  --font-sans: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans);
+}
+
+main {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+  max-width: 560px;
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: 16px;
+  justify-content: center;
+}
+
+h1 {
+  margin: 0;
+  font-size: 40px;
+}
+
+p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.5;
+}
+
+button {
+  font: inherit;
+  padding: 12px 20px;
+}
+
+.note {
+  color: var(--muted);
+  font-size: 14px;
+}

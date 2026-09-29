@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import {
   buildOrganizationMetadataWithUrl,
   getOrganizationMetadata,
@@ -36,7 +37,6 @@ import {
 } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   type OrganizationInformationFormSchemaType,

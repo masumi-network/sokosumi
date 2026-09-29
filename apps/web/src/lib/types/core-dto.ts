@@ -7,7 +7,7 @@ import type {
   MemberRecord,
   OrganizationRecord,
   Task,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /** Agent list or detail payload from Core. */
 export type CoreAgentDto = Agent | AgentDetail;
@@ -23,7 +23,7 @@ export type OrganizationMembershipSelf = Pick<MemberRecord, "id" | "role">;
 
 /** Core API enum unions derived from generated entity fields.
  * Prefer generated const maps for runtime values
- * (`TaskStatus.RUNNING` from `@/lib/clients/generated/core`). */
+ * (`TaskStatus.RUNNING` from `@sokosumi/core-client`). */
 export type TaskStatus = Task["status"];
 export type SokosumiJobStatus = JobSummary["status"];
 export type JobType = Job["jobType"];
