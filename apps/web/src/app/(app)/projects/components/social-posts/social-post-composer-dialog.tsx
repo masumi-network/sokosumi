@@ -50,6 +50,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import {
   socialPostComposerAccept,
+  socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
 } from "./social-post-composer-rules";
@@ -582,6 +583,44 @@ export function SocialPostComposerDialog({
                     })}
                   </span>
                 </div>
+                {providers.length > 1 || selectedConnections.length > 0 ? (
+                  <ul
+                    aria-label={t("composer.platforms")}
+                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                    data-testid="social-post-platforms"
+                  >
+                    {providers.map((candidate) => {
+                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
+                      const over = text.length > limit;
+                      return (
+                        <li
+                          className={cn(
+                            "inline-flex items-center gap-1.5",
+                            over ? "text-destructive" : "text-muted-foreground",
+                          )}
+                          data-testid={`social-post-platform-${candidate}`}
+                          key={candidate}
+                        >
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={candidate}
+                          />
+                          <span>
+                            {t("composer.platformLimit", {
+                              provider: socialPostProviderLabel(candidate),
+                              format: t(
+                                `composer.formats.${socialPostComposerFormat(candidate)}`,
+                              ),
+                              count: text.length,
+                              limit,
+                            })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
                 <Textarea
                   id={textId}
                   aria-invalid={overLimit || undefined}
@@ -650,7 +689,7 @@ export function SocialPostComposerDialog({
                     data-testid="social-post-requirement-hint"
                   >
                     {t(`composer.requirements.${requirementHint}`, {
-                      provider: socialPostProviderLabel(provider),
+                      provider: socialPostProviderLabel(issueProvider),
                     })}
                   </p>
                 ) : null}

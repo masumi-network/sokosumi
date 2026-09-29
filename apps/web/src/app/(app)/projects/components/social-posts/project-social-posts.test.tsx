@@ -132,6 +132,11 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "composer.platforms": "Limits per platform",
+  "composer.platformLimit": "{provider} {format} · {count} / {limit}",
+  "composer.formats.post": "post",
+  "composer.formats.mediaPost": "image or video post",
+  "composer.formats.video": "video",
   "composer.accountOption": "{provider} {handle}",
   "composer.noAccounts": "No accounts connected yet.",
   "composer.unknownHandle": "Unknown X account",
@@ -760,6 +765,46 @@ describe("ProjectSocialPosts", () => {
         name: "LinkedIn @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("counts the text against each picked platform's own limit", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+
+    const x = within(dialog).getByTestId("social-post-platform-x");
+    const linkedIn = within(dialog).getByTestId(
+      "social-post-platform-linkedin",
+    );
+    expect(x).toHaveTextContent("X post · 300 / 280");
+    expect(x).toHaveClass("text-destructive");
+    expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
+    expect(linkedIn).not.toHaveClass("text-destructive");
+    // One text goes to both, so the stricter limit blocks saving.
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
   });
 
   it("retries only the accounts that failed after a partial save", async () => {
