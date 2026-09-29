@@ -14,7 +14,6 @@ import {
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-import { format } from "date-fns";
 import { ImagePlus, Loader2, Upload } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
@@ -31,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -61,6 +59,10 @@ import {
   sameSocialPostMedia,
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
+import {
+  SocialPostSchedulePicker,
+  toScheduleValue,
+} from "./social-post-schedule-picker";
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
@@ -79,13 +81,6 @@ interface SocialPostComposerDialogProps {
 }
 
 type PendingSubmit = "save" | "schedule" | null;
-
-const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
-const DATETIME_LOCAL_STEP_MS = 60 * 1000;
-
-function toDateTimeLocalValue(date: Date | null): string {
-  return date ? format(date, DATETIME_LOCAL_FORMAT) : "";
-}
 
 function formatHandle(handle: string | null): string {
   if (!handle) return "";
@@ -130,7 +125,7 @@ export function SocialPostComposerDialog({
     return initial ? [initial] : [];
   });
   const [scheduledAt, setScheduledAt] = useState(
-    toDateTimeLocalValue(post?.scheduledAt ?? null),
+    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
   );
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
@@ -173,13 +168,6 @@ export function SocialPostComposerDialog({
       ? composerIssue
       : null;
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
-  const minScheduledAt = toDateTimeLocalValue(
-    new Date(
-      Math.floor(earliestScheduledAt / DATETIME_LOCAL_STEP_MS) *
-        DATETIME_LOCAL_STEP_MS +
-        DATETIME_LOCAL_STEP_MS,
-    ),
-  );
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
     scheduledDate !== null &&
@@ -652,17 +640,16 @@ export function SocialPostComposerDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor={scheduledAtId}>{t("composer.scheduledAt")}</Label>
-            <Input
-              id={scheduledAtId}
-              aria-describedby={
-                scheduledAtTooSoon ? scheduledAtErrorId : undefined
-              }
-              aria-invalid={scheduledAtTooSoon || undefined}
+            <p className="text-sm font-medium" id={scheduledAtId}>
+              {t("composer.scheduledAt")}
+            </p>
+            <SocialPostSchedulePicker
+              describedBy={scheduledAtTooSoon ? scheduledAtErrorId : undefined}
               disabled={isBusy}
-              min={minScheduledAt}
-              onChange={(event) => setScheduledAt(event.target.value)}
-              type="datetime-local"
+              earliest={new Date(earliestScheduledAt)}
+              invalid={scheduledAtTooSoon}
+              labelledBy={scheduledAtId}
+              onChange={setScheduledAt}
               value={scheduledAt}
             />
             {scheduledAtTooSoon ? (
