@@ -42,7 +42,9 @@ const route = createRoute({
   responses: {
     200: jsonSuccessResponse(taskSellerReceiptSchema, "Task seller receipt"),
     401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden - coworker lacks the tasks capability"),
     404: jsonErrorResponse("Not Found"),
+    500: jsonErrorResponse("Stored task payment cannot be read"),
     502: jsonErrorResponse("Bad Gateway - payment node failed or mismatched"),
   },
 });

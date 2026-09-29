@@ -205,4 +205,18 @@ describe("resolveTaskSellerReceipt", () => {
     controller.abort();
     expect(signal.aborted).toBe(true);
   });
+
+  it("does not report a 502 when the caller aborted the request", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({ kind: "ambiguous", message: "aborted" }),
+    );
+    const controller = new AbortController();
+    controller.abort();
+    const receipt = await resolveTaskSellerReceipt(
+      "tsk_1",
+      dbWith(claim("PURCHASED")),
+      { signal: controller.signal },
+    );
+    expect(receipt.settled).toBe(false);
+  });
 });

@@ -85,6 +85,9 @@ export async function resolveTaskSellerReceipt(
     ) {
       return base;
     }
+    // The caller went away, so nobody reads this answer. Skip the 502 so a
+    // dropped connection does not report as a payment node fault.
+    if (options.signal?.aborted) return base;
     throw badGateway(
       resolved.error.kind === "mismatch"
         ? "Resolved purchase does not match the task payment"
