@@ -1,10 +1,9 @@
-import { SsrfError } from "@sokosumi/net";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { ComposioApiError } from "@/clients/composio.client";
 import {
-  ComposioApiError,
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-} from "@/clients/composio.client";
+} from "@/clients/social-post-providers/tools";
 import { forbidden } from "@/helpers/error";
 
 const {
@@ -55,9 +54,9 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
-vi.mock("@/clients/composio.client", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/clients/composio.client")>()),
-  publishXPost: publishXPostMock,
+vi.mock("@/clients/social-post-providers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/clients/social-post-providers")>()),
+  publishSocialPostToProvider: publishXPostMock,
 }));
 
 vi.mock("@/services/social-posts.service", () => ({
@@ -77,6 +76,7 @@ const activeConnection = {
   id: SOCIAL_CONNECTION_ID,
   status: "active",
   composioConnectedAccountId: "ca_123",
+  externalAccountId: "x_account",
   externalHandle: "sokosumi",
 };
 
@@ -114,6 +114,7 @@ const duePost = {
   id: POST_ID,
   projectId: PROJECT_ID,
   workspaceId: WORKSPACE_ID,
+  provider: "x",
   text: "Hello world",
   media: [],
   status: "SCHEDULED",
@@ -159,7 +160,11 @@ describe("social post publisher service", () => {
     attemptAggregateMock.mockResolvedValue({ _max: { attempt: null } });
     attemptCreateMock.mockResolvedValue({ id: ATTEMPT_ID });
     attemptUpdateMock.mockResolvedValue({ id: ATTEMPT_ID });
-    publishXPostMock.mockResolvedValue({ externalId: "1907" });
+    publishXPostMock.mockResolvedValue({
+      externalId: "1907",
+      publishedUrl: "https://x.com/sokosumi/status/1907",
+      toolSlug: "TWITTER_CREATION_OF_A_POST",
+    });
     getSocialPostMock.mockResolvedValue({ id: POST_ID, status: "PUBLISHED" });
     ssrfSafeFetchMock.mockImplementation(async () =>
       mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
@@ -198,22 +203,17 @@ describe("social post publisher service", () => {
     expect(socialPostFindFirstMock).not.toHaveBeenCalled();
   });
 
-  it("cancels a media download without publishing and durably settles the attempt", async () => {
+  it("cancels provider work without publishing and durably settles the attempt", async () => {
     const controller = new AbortController();
-    socialPostFindFirstMock
-      .mockReset()
-      .mockResolvedValueOnce({ ...duePost, media: [IMAGE_REF] })
-      .mockResolvedValue(null);
-    ssrfSafeFetchMock.mockImplementation(async (_url, options) => {
+    publishXPostMock.mockImplementation(async () => {
       controller.abort();
-      options.signal.throwIfAborted();
+      throw new DOMException("Aborted", "AbortError");
     });
     const { publishDueSocialPosts } = await loadService();
     await publishDueSocialPosts({
       ...syncContext,
       abortSignal: controller.signal,
     });
-    expect(publishXPostMock).not.toHaveBeenCalled();
     expect(settleCall().data.leaseToken).toBeNull();
     expect(settleCall().data.status).not.toBe("PUBLISHING");
   });
@@ -280,8 +280,11 @@ describe("social post publisher service", () => {
       select: { id: true },
     });
     expect(publishXPostMock).toHaveBeenCalledWith({
+      provider: "x",
       connectedAccountId: "ca_123",
       executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+      externalAccountId: "x_account",
+      externalHandle: "sokosumi",
       text: "Hello world",
       media: [],
       signal: expect.any(AbortSignal),
@@ -293,7 +296,8 @@ describe("social post publisher service", () => {
         finishedAt: NOW,
         outcome: "succeeded",
         errorKind: null,
-        providerOutcome: "201 created",
+        toolSlug: "TWITTER_CREATION_OF_A_POST",
+        providerOutcome: "published",
         externalId: "1907",
       },
     });
@@ -314,14 +318,12 @@ describe("social post publisher service", () => {
     });
   });
 
-  it("falls back to the generic X URL when the handle is unknown", async () => {
-    socialPostFindFirstMock.mockReset();
-    socialPostFindFirstMock
-      .mockResolvedValueOnce({
-        ...duePost,
-        socialConnection: { ...activeConnection, externalHandle: null },
-      })
-      .mockResolvedValue(null);
+  it("stores the published URL the adapter returned", async () => {
+    publishXPostMock.mockResolvedValue({
+      externalId: "1907",
+      publishedUrl: "https://x.com/i/web/status/1907",
+      toolSlug: "TWITTER_CREATION_OF_A_POST",
+    });
     const { publishDueSocialPosts } = await loadService();
 
     await publishDueSocialPosts(syncContext);
@@ -527,7 +529,7 @@ describe("social post publisher service", () => {
 
   it("does not retry an ambiguous create-post timeout", async () => {
     publishXPostMock.mockRejectedValue(
-      new ComposioPublishOutcomeUnknownError(),
+      new ComposioPublishOutcomeUnknownError("X"),
     );
     const { publishDueSocialPosts } = await loadService();
     expect(await publishDueSocialPosts(syncContext)).toMatchObject({
@@ -826,56 +828,21 @@ describe("social post publisher service", () => {
         .mockResolvedValue(null);
     }
 
-    it("downloads each Drive file server-side and hands the bytes to X", async () => {
-      claimWithMedia([IMAGE_REF, { ...IMAGE_REF, name: "second.png" }]);
-      ssrfSafeFetchMock
-        .mockResolvedValueOnce(
-          mediaResponse(new Uint8Array([1, 2, 3]), "image/png"),
-        )
-        .mockResolvedValueOnce(
-          mediaResponse(new Uint8Array([4, 5, 6]), "image/png; charset=binary"),
-        );
+    it("passes the stored media refs to the adapter without downloading them", async () => {
+      const second = { ...IMAGE_REF, name: "second.png" };
+      claimWithMedia([IMAGE_REF, second]);
       const { publishDueSocialPosts } = await loadService();
 
       const result = await publishDueSocialPosts(syncContext);
 
       expect(result).toMatchObject({ published: 1 });
-      expect(ssrfSafeFetchMock).toHaveBeenCalledTimes(2);
-      expect(ssrfSafeFetchMock).toHaveBeenNthCalledWith(
-        1,
-        IMAGE_REF.fileUrl,
-        expect.objectContaining({ maxResponseBytes: 5 * 1024 * 1024 }),
+      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
+      expect(publishXPostMock).toHaveBeenCalledWith(
+        expect.objectContaining({ media: [IMAGE_REF, second] }),
       );
-      expect(publishXPostMock).toHaveBeenCalledWith({
-        connectedAccountId: "ca_123",
-        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
-        text: "Hello world",
-        media: [
-          {
-            bytes: new Uint8Array([1, 2, 3]),
-            name: IMAGE_REF.name,
-            mimeType: "image/png",
-            kind: "image",
-          },
-          {
-            bytes: new Uint8Array([4, 5, 6]),
-            name: "second.png",
-            mimeType: "image/png",
-            kind: "image",
-          },
-        ],
-        signal: expect.any(AbortSignal),
-      });
-      expect(attemptUpdateMock).toHaveBeenCalledWith({
-        where: { id: ATTEMPT_ID },
-        data: expect.objectContaining({
-          outcome: "succeeded",
-          providerOutcome: "201 created, 2 media",
-        }),
-      });
     });
 
-    it("does not contact X when coworker access is revoked during media download", async () => {
+    it("does not contact the provider when coworker access is revoked before dispatch", async () => {
       socialPostFindFirstMock
         .mockReset()
         .mockResolvedValueOnce({
@@ -894,7 +861,6 @@ describe("social post publisher service", () => {
       const result = await publishDueSocialPosts(syncContext);
 
       expect(result).toMatchObject({ failed: 1, published: 0 });
-      expect(ssrfSafeFetchMock).toHaveBeenCalledOnce();
       expect(publishingAccessMock).toHaveBeenCalledTimes(2);
       expect(publishXPostMock).not.toHaveBeenCalled();
       expect(attemptUpdateMock).toHaveBeenCalledWith({
@@ -913,11 +879,8 @@ describe("social post publisher service", () => {
       });
     });
 
-    it("fails permanently when a Drive file is gone", async () => {
-      claimWithMedia([IMAGE_REF]);
-      ssrfSafeFetchMock.mockResolvedValue(
-        mediaResponse(new Uint8Array(), null, 404),
-      );
+    it("fails permanently when stored media violates the provider rules", async () => {
+      claimWithMedia([IMAGE_REF, CLIP_REF]);
       const { publishDueSocialPosts } = await loadService();
 
       const result = await publishDueSocialPosts(syncContext);
@@ -926,62 +889,14 @@ describe("social post publisher service", () => {
       expect(publishXPostMock).not.toHaveBeenCalled();
       expect(attemptUpdateMock).toHaveBeenCalledWith({
         where: { id: ATTEMPT_ID },
-        data: {
-          finishedAt: NOW,
-          outcome: "failed_permanent",
-          errorKind: "media_missing",
-          providerOutcome: 'Media file "launch.png" is no longer available',
-          externalId: null,
-        },
-      });
-      expect(settleCall().data).toMatchObject({
-        status: "FAILED",
-        lastError: 'Media file "launch.png" is no longer available',
-        attemptCount: 1,
-      });
-    });
-
-    it("fails permanently when the served content type does not match the kind", async () => {
-      claimWithMedia([CLIP_REF]);
-      ssrfSafeFetchMock.mockResolvedValue(
-        mediaResponse(new Uint8Array([1]), "text/html"),
-      );
-      const { publishDueSocialPosts } = await loadService();
-
-      const result = await publishDueSocialPosts(syncContext);
-
-      expect(result).toMatchObject({ failed: 1 });
-      expect(publishXPostMock).not.toHaveBeenCalled();
-      expect(attemptUpdateMock).toHaveBeenCalledWith({
-        where: { id: ATTEMPT_ID },
         data: expect.objectContaining({
           outcome: "failed_permanent",
           errorKind: "media_type_mismatch",
-          providerOutcome: 'Media file "clip.mp4" is not a video',
+          providerOutcome:
+            "The attached media no longer matches X publishing rules",
         }),
       });
       expect(settleCall().data.status).toBe("FAILED");
-    });
-
-    it("fails permanently when a Drive file exceeds the X byte cap", async () => {
-      claimWithMedia([IMAGE_REF]);
-      ssrfSafeFetchMock.mockRejectedValue(
-        new SsrfError("Response body exceeds maxResponseBytes (5242880)"),
-      );
-      const { publishDueSocialPosts } = await loadService();
-
-      const result = await publishDueSocialPosts(syncContext);
-
-      expect(result).toMatchObject({ failed: 1 });
-      expect(publishXPostMock).not.toHaveBeenCalled();
-      expect(attemptUpdateMock).toHaveBeenCalledWith({
-        where: { id: ATTEMPT_ID },
-        data: expect.objectContaining({
-          outcome: "failed_permanent",
-          errorKind: "media_too_large",
-          providerOutcome: 'Media file "launch.png" is too large for X',
-        }),
-      });
     });
 
     it("fails permanently when the stored media cannot be read", async () => {
@@ -991,31 +906,12 @@ describe("social post publisher service", () => {
       const result = await publishDueSocialPosts(syncContext);
 
       expect(result).toMatchObject({ failed: 1 });
-      expect(ssrfSafeFetchMock).not.toHaveBeenCalled();
       expect(publishXPostMock).not.toHaveBeenCalled();
       expect(attemptUpdateMock).toHaveBeenCalledWith({
         where: { id: ATTEMPT_ID },
         data: expect.objectContaining({
           outcome: "failed_permanent",
           errorKind: "media_missing",
-        }),
-      });
-    });
-
-    it("retries when the Drive download fails transiently", async () => {
-      claimWithMedia([IMAGE_REF]);
-      ssrfSafeFetchMock.mockRejectedValue(new Error("socket hang up"));
-      const { publishDueSocialPosts } = await loadService();
-
-      const result = await publishDueSocialPosts(syncContext);
-
-      expect(result).toMatchObject({ retried: 1 });
-      expect(publishXPostMock).not.toHaveBeenCalled();
-      expect(attemptUpdateMock).toHaveBeenCalledWith({
-        where: { id: ATTEMPT_ID },
-        data: expect.objectContaining({
-          outcome: "failed_transient",
-          errorKind: "unknown",
         }),
       });
     });
