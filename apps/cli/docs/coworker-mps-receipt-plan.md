@@ -19,13 +19,14 @@ So the minimal change resolves the Task claim's purchase on demand through the s
 1. Helper `apps/core/src/helpers/coworker-task-receipt.ts`:
    - `resolveTaskSellerReceipt(taskId, db, { signal })`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().resolveMasumiTaskPaymentPurchase(parsePurchasePayload(claim.purchasePayload))` with a 20 s timeout combined with the request abort signal.
    - Return `{ blockchainIdentifier, claimStatus, onChainState, settled, txHash, withdrawnForSeller }`, where `settled` is `Withdrawn`, or `DisputedWithdrawn` with a non-empty `WithdrawnForSeller`.
-   - No purchase on the node (`not_found`) returns `settled: false`, and so does a mismatch on a claim the sync already refunded. Any other node failure or terms mismatch throws 502, so an outage never reads as a proven non-payment. An unreadable stored payload returns 500.
+   - The claim read is scoped to this deployment's `NETWORK`, like the claim sync.
+   - No purchase on the node (`not_found`) returns `settled: false` unless the claim is `PURCHASED`; then the 404 is a node fault and returns 502. A mismatch on a claim the sync already refunded also returns `settled: false`. Any other node failure or terms mismatch throws 502, so an outage never reads as a proven non-payment. An unreadable stored payload returns 500.
    - Limitation: the pilot assumes one payment per task. If a task is re-charged (a second claim), only the newest claim is reported; an older settled claim would then read as `settled: false`.
-2. Route `GET /v1/tasks/{id}/receipt` (`apps/core/src/routes/v1/tasks/[id]/receipt/get.ts`), coworker-readable via `requireTaskReadForRouteVars`, returns the helper output through a Zod/OpenAPI schema. Mount before `/{id}` dynamic routes.
+2. Route `GET /v1/tasks/{id}/receipt` (`apps/core/src/routes/v1/tasks/[id]/receipt/get.ts`), coworker-readable via `requireTaskReadForRouteVars`, returns the helper output through a Zod/OpenAPI schema. It mounts after `GET /{id}`, which cannot match `/{id}/receipt`.
 
 ### CLI (reads existing coworker client)
 
-3. `runtime receipt --coworker-id ID TASK_ID`: `GET /v1/tasks/{id}/receipt`, print `{ onChainState, settled, txHash, withdrawnForSeller }` (`--json`), surface `txHash` for independent Preprod verification. `settled: false` is a valid result (exit 0); the agent branches on the field. `--organization-id` is not accepted.
+3. `runtime receipt --coworker-id ID TASK_ID`: `GET /v1/tasks/{id}/receipt`, print the whole receipt (`blockchainIdentifier`, `claimStatus`, `onChainState`, `settled`, `txHash`, `withdrawnForSeller`) with `--json`, and surface `txHash` for independent Preprod verification. `txHash` is set only when `settled` is true. `settled: false` is a valid result (exit 0); the agent branches on the field. `--organization-id` is not accepted.
 
 No new MPS HTTP, no new settlement mapping, no CLI dependency on the private `@sokosumi/masumi` package (the published CLI stays standalone; the settlement read lives in Core).
 

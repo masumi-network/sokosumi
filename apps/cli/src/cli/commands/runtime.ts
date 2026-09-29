@@ -172,7 +172,9 @@ export async function runRuntimeCommand({
         name === "organization-id")
     ) {
       throw new Error(
-        `runtime ${command} does not accept --${name}; runtime uses Preprod only`,
+        command === "receipt" && name === "organization-id"
+          ? "runtime receipt does not accept --organization-id; the Task ID selects the Task"
+          : `runtime ${command} does not accept --${name}; runtime uses Preprod only`,
       );
     }
   }

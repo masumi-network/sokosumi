@@ -773,6 +773,6 @@ test("runtime receipt rejects --organization-id like key-import", async () => {
       ],
       dependencies,
     ),
-    /does not accept --organization-id/,
+    /does not accept --organization-id; the Task ID selects the Task/,
   );
 });
