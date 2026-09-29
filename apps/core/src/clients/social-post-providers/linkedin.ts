@@ -11,6 +11,7 @@ import {
   ComposioToolError,
   createSocialPublishSession,
   executeSocialPublishTool,
+  guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
   SocialPostMediaBytes,
@@ -90,29 +91,6 @@ async function registerLinkedInImage(input: {
 }
 
 /** Wrap create-post transport failures: the post may exist even without a response. */
-async function guardCreateOutcome<T>(
-  label: string,
-  run: () => Promise<T>,
-): Promise<T> {
-  try {
-    return await run();
-  } catch (error) {
-    if (error instanceof ComposioApiError && error.httpStatus < 500)
-      throw error;
-    if (
-      error instanceof ComposioToolError &&
-      (error.providerStatus === 429 ||
-        (error.providerStatus !== null && error.providerStatus < 500) ||
-        (!/time.?out|timed out|temporarily|\b5\d\d\b/i.test(
-          error.providerMessage ?? "",
-        ) &&
-          error.providerStatus === null))
-    ) {
-      throw error;
-    }
-    throw new ComposioPublishOutcomeUnknownError(label);
-  }
-}
 
 /**
  * Publishes a LinkedIn post through a restricted tool-router session pinned to
@@ -154,7 +132,7 @@ export async function publishLinkedInPost(
         });
       }
       toolSlug = LINKEDIN_CREATE_VIDEO_TOOL_SLUG;
-      const post = await guardCreateOutcome(label, () =>
+      const post = await guardSocialCreateOutcome(label, () =>
         executeSocialPublishTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_VIDEO_TOOL_SLUG,
@@ -186,7 +164,7 @@ export async function publishLinkedInPost(
           }),
         );
       }
-      const post = await guardCreateOutcome(label, () =>
+      const post = await guardSocialCreateOutcome(label, () =>
         executeSocialPublishTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
@@ -204,7 +182,7 @@ export async function publishLinkedInPost(
       );
       externalId = externalIdOf(post);
     } else {
-      const post = await guardCreateOutcome(label, () =>
+      const post = await guardSocialCreateOutcome(label, () =>
         executeSocialPublishTool({
           sessionId,
           toolSlug: LINKEDIN_CREATE_POST_TOOL_SLUG,
