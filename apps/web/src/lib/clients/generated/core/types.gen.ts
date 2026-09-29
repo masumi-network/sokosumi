@@ -3565,6 +3565,7 @@ export type FileResource = {
         provenance: 'MANUAL' | 'MODEL' | 'RULE';
         evidenceSnippet: string | null;
     }>;
+    folderPath: string | null;
     /**
      * Extracted passage plus highlight offsets. Plain text: the client escapes at render.
      */
@@ -3604,7 +3605,7 @@ export type UpdateFileMetadataRequest = {
 };
 
 export type FileSuggestionDecisionRequest = {
-    decision: 'accept' | 'reject';
+    decision: 'accept' | 'reject' | 'restore';
     expectedMetadataRevision: number;
 };
 
@@ -5473,7 +5474,6 @@ export type ProjectImageAsset = {
     jobId: string;
     settings: ProjectImageSettings;
     contentPath: string;
-    review?: ProjectImageReview;
 };
 
 export type ProjectImageSettings = {
@@ -5481,13 +5481,6 @@ export type ProjectImageSettings = {
     resolution?: '0.5K' | '1K' | '2K';
     outputFormat?: 'png' | 'jpeg' | 'webp';
     seed?: number | null;
-};
-
-export type ProjectImageReview = {
-    decision: 'APPROVED' | 'REJECTED';
-    feedback: string | null;
-    decidedAt: Date;
-    decidedByUserId: string;
 };
 
 export type ProjectImageJob = {
@@ -5532,11 +5525,6 @@ export type CreateProjectImageJobRequest = {
 
 export type CancelProjectImageJobResponse = {
     accepted: boolean;
-};
-
-export type ReviewProjectImageAssetRequest = {
-    decision: 'APPROVED' | 'REJECTED';
-    feedback?: string | null;
 };
 
 export type PatchProjectRequest = {
@@ -23960,6 +23948,70 @@ export type PatchDriveLabelsByIdResponses = {
 
 export type PatchDriveLabelsByIdResponse = PatchDriveLabelsByIdResponses[keyof PatchDriveLabelsByIdResponses];
 
+export type GetDriveFoldersData = {
+    body?: never;
+    path?: never;
+    query: {
+        /**
+         * Drive file owner scope: 'me' for personal, 'org' for organization
+         */
+        scope: 'me' | 'org';
+        organizationId?: string;
+    };
+    url: '/drive/folders';
+};
+
+export type GetDriveFoldersErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetDriveFoldersError = GetDriveFoldersErrors[keyof GetDriveFoldersErrors];
+
+export type GetDriveFoldersResponses = {
+    /**
+     * Folder paths
+     */
+    200: {
+        data: Array<string>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetDriveFoldersResponse = GetDriveFoldersResponses[keyof GetDriveFoldersResponses];
+
 export type PostDriveFoldersData = {
     body: CreateDriveFolderRequest;
     path?: never;
@@ -25211,6 +25263,8 @@ export type GetDriveSearchData = {
         tagLabelIds?: string;
         tagMatch?: 'any' | 'all';
         projectIds?: string;
+        folder?: string;
+        directOnly?: 'true' | 'false';
         sourceKinds?: string;
         typeFamilies?: string;
         extractionStates?: string;
@@ -39310,170 +39364,6 @@ export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponses = {
 };
 
 export type GetProjectsByIdImageStudioAssetsByAssetIdContentResponse = GetProjectsByIdImageStudioAssetsByAssetIdContentResponses[keyof GetProjectsByIdImageStudioAssetsByAssetIdContentResponses];
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewData = {
-    body?: never;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-        assetId: string;
-    };
-    query?: never;
-    url: '/projects/{id}/image-studio/assets/{assetId}/review';
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewError = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
-    /**
-     * Undecided version
-     */
-    200: {
-        data: ProjectImageAsset;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponse = DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof DeleteProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewData = {
-    body: ReviewProjectImageAssetRequest;
-    headers?: {
-        /**
-         * Optional organization slug to set the organization context.
-         */
-        'X-Organization-Slug'?: string;
-    };
-    path: {
-        id: string;
-        assetId: string;
-    };
-    query?: never;
-    url: '/projects/{id}/image-studio/assets/{assetId}/review';
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors = {
-    /**
-     * Unauthorized
-     */
-    401: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Forbidden
-     */
-    403: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-    /**
-     * Not Found
-     */
-    404: {
-        error: string;
-        message: string;
-        kind?: string;
-        retryAfterSeconds?: number;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            path: string;
-            method: string;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewError = PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewErrors];
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses = {
-    /**
-     * Reviewed version
-     */
-    200: {
-        data: ProjectImageAsset;
-        meta: {
-            timestamp: Date;
-            requestId: string;
-            pagination?: PaginationMetadata;
-        };
-    };
-};
-
-export type PostProjectsByIdImageStudioAssetsByAssetIdReviewResponse = PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses[keyof PostProjectsByIdImageStudioAssetsByAssetIdReviewResponses];
 
 export type DeleteProjectsByIdData = {
     body?: never;

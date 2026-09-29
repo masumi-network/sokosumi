@@ -227,14 +227,17 @@ export function TaskStatusInline({
   return (
     <span
       className={cn(
-        "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium",
+        "inline-flex shrink-0 items-center gap-1.5 text-xs font-medium transition-colors duration-200",
         style.labelOnSurface,
         className,
       )}
     >
       <span
         aria-hidden
-        className={cn("size-2 shrink-0 rounded-full", style.dot)}
+        className={cn(
+          "size-2 shrink-0 rounded-full transition-colors duration-200",
+          style.dot,
+        )}
       />
       <span>{label ?? getTaskStatusLabel(status)}</span>
     </span>

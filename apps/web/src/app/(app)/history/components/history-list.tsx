@@ -4,12 +4,14 @@ import { Loader2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
 import { loadMoreHistory } from "@/app/history/actions";
 import {
   HistoryListItem,
   type HistoryListItemLabels,
 } from "@/app/history/components/history-list-item";
 import type { HistoryFilters } from "@/app/history/utils/history-filters";
+import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 import type { HistoryItem } from "@/lib/services/history.service";
 
@@ -90,7 +92,10 @@ export function HistoryList({
           >
             {isPending ? (
               <>
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
                 {labels.loading}
               </>
             ) : (
@@ -105,15 +110,12 @@ export function HistoryList({
 
 function HistoryEmptyState({ labels }: { labels: HistoryListLabels["empty"] }) {
   return (
-    <div className="bg-card-background flex min-h-[320px] flex-col items-center justify-center rounded-xl px-6 py-12 text-center">
-      <div className="max-w-sm">
-        <h2 className="text-foreground text-lg font-semibold">
-          {labels.title}
-        </h2>
-        <p className="text-muted-foreground mt-2 text-sm">
-          {labels.description}
-        </p>
-      </div>
+    <div className="bg-card-background flex min-h-[320px] flex-col justify-center rounded-xl">
+      <EmptyState
+        title={labels.title}
+        description={labels.description}
+        action={<NewTaskEmptyAction />}
+      />
     </div>
   );
 }

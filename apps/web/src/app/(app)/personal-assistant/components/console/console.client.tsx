@@ -184,7 +184,7 @@ export function SokoBotConsole({
             <AssistantAvatar size="lg" className="ring-ring-halo ring-4" />
             <div className="min-w-0 flex-1 space-y-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-foreground truncate text-2xl font-light md:text-3xl">
+                <h1 className="text-foreground truncate text-2xl font-light md:text-3xl tracking-tight">
                   {botName}
                 </h1>
                 <SokoBotStatusBadge status={bot.status} />
@@ -201,7 +201,7 @@ export function SokoBotConsole({
                       {version.model.replace(/^[a-z]+\//, "")}
                     </span>
                     {version.inferenceRegion ? (
-                      <span className="bg-primary-quinary text-primary rounded px-1 uppercase">
+                      <span className="bg-primary-quinary text-primary rounded px-1">
                         {version.inferenceRegion}
                       </span>
                     ) : null}
@@ -375,7 +375,7 @@ export function SokoBotConsole({
                                     {schedule.name}
                                   </span>
                                   {schedule.systemKey ? (
-                                    <span className="text-muted-foreground shrink-0 text-[0.6875rem] tracking-wide uppercase">
+                                    <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
                                       {t("Schedules.builtIn")}
                                     </span>
                                   ) : null}

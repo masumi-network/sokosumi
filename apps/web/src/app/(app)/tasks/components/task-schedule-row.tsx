@@ -88,7 +88,7 @@ export function TaskScheduleRow({
   return (
     <li
       className={cn(
-        "bg-background hover:bg-card-background-hover relative flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 transition-colors",
+        "bg-background press hover:bg-card-background-hover relative flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 transition-colors",
         viewMode === "list" && "lg:flex-row lg:items-center",
       )}
       data-testid="schedule-row"

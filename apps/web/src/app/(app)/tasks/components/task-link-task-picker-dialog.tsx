@@ -235,7 +235,10 @@ export function TaskLinkTaskPickerDialog({
                   }}
                 >
                   {isLinkPending && pendingLinkTaskId === taskOption.id ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
                   ) : (
                     <PickerIcon className="size-4" aria-hidden />
                   )}
@@ -259,7 +262,10 @@ export function TaskLinkTaskPickerDialog({
             onSelect={handleLoadMoreTaskOptions}
           >
             {isTaskPickerLoadingMore ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : (
               <Link2 className="size-4" aria-hidden />
             )}

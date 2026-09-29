@@ -183,7 +183,10 @@ export function NoticeDialog({
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {actionLabel ?? t("actions.openLink")}
             </Button>
@@ -196,7 +199,10 @@ export function NoticeDialog({
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {t("actions.confirm")}
             </Button>

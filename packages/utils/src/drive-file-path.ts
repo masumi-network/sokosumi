@@ -139,6 +139,42 @@ export function buildOrganizationDriveFolderMarkerPathname(
   return `${folderPrefix}${DRIVE_FOLDER_MARKER_BASENAME}`;
 }
 
+/**
+ * The `drive/<users|organizations>/<ownerId>/` head of a stored pathname, as a
+ * POSIX regular expression.
+ *
+ * For SQL, which has to strip the same head to read a folder out of
+ * `FileResource.sourceId` and cannot call the function below. Both sites — the
+ * folder facet's list and the folder filter — read it from here, so they cannot
+ * disagree with each other or with `driveFolderPathFromSourceId`.
+ *
+ * The owner-kind segment is named rather than matched as `[^/]+`: a source id
+ * that is not a drive pathname must not have a folder read out of it, and a
+ * loose pattern turns the first segment of some other id into one.
+ */
+export const DRIVE_OWNER_PREFIX_PATTERN = "^drive/(users|organizations)/[^/]+/";
+
+/**
+ * The folder a stored drive blob lives in, or null when it sits at the root.
+ *
+ * `FileResource.sourceId` is the blob pathname for an upload, so the folder a
+ * reader filed a file under is already recorded and the catalog simply never
+ * read it. The first three segments are `drive/<users|organizations>/<ownerId>`
+ * and the last is the filename; everything between them is the folder.
+ *
+ * Null for anything that is not a drive blob path — a task output's source id
+ * is a task id, and reading a folder out of that would be an invention.
+ */
+export function driveFolderPathFromSourceId(sourceId: string): string | null {
+  const segments = sourceId.split("/");
+  if (segments[0] !== DRIVE_DIR) return null;
+  if (segments[1] !== USERS_SUBDIR && segments[1] !== ORGANIZATIONS_SUBDIR) {
+    return null;
+  }
+  const folders = segments.slice(3, -1);
+  return folders.length > 0 ? folders.join("/") : null;
+}
+
 export function isDriveFolderMarker(pathname: string): boolean {
   return pathname.endsWith(`/${DRIVE_FOLDER_MARKER_BASENAME}`);
 }

@@ -187,7 +187,9 @@ export function OrganizationInviteLinkForm({
           </span>
         ) : null}
         <Button type="submit" size="sm" disabled={loading}>
-          {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+          {loading ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          ) : null}
           {t("submit")}
         </Button>
       </div>

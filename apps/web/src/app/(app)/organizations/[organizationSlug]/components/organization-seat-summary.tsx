@@ -38,7 +38,7 @@ export async function OrganizationSeatSummaryCard({
               <dt className="text-muted-foreground text-xs font-medium">
                 {item.label}
               </dt>
-              <dd className="text-2xl font-medium tabular-nums md:text-3xl">
+              <dd className="text-2xl font-medium tabular-nums md:text-3xl tracking-tight">
                 {item.value}
               </dd>
             </div>

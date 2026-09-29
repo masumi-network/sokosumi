@@ -131,7 +131,7 @@ export function DesignMdAdHocDialog({
         {generation.isRunning ? (
           <div className="space-y-3" aria-live="polite">
             <div className="text-muted-foreground flex items-center gap-2 text-sm">
-              <RefreshCw className="size-4 animate-spin" />
+              <RefreshCw className="size-4 animate-spin motion-reduce:animate-pulse" />
               <span>{statusText}</span>
             </div>
             <Progress value={generation.status === "finalizing" ? 85 : 45} />

@@ -156,7 +156,7 @@ export function FullPageMarkdownEditor({
             </Button>
             <Button type="button" disabled={!canSave} onClick={onSave}>
               {isSaving ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {isSaving ? labels.saving : labels.save}
             </Button>

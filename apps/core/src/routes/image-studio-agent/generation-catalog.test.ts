@@ -141,7 +141,6 @@ describe("agent catalog and generation HTTP contract", () => {
       rootId: "asset",
       model: "fal-ai/flux-2-pro",
       settings,
-      review: null,
     });
     const response = await app.request("/generations/job");
     expect(await response.json()).toMatchObject({
@@ -165,7 +164,6 @@ describe("agent catalog and generation HTTP contract", () => {
           width: 768,
           height: 1376,
           createdAt: new Date(),
-          review: null,
         },
       ],
     });

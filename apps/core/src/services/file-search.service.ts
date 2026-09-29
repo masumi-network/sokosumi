@@ -5,7 +5,10 @@ import {
   FileResultWindowKind,
 } from "@sokosumi/database";
 import { PrismaRaw } from "@sokosumi/database/client";
-import { normalizeFileResourceName } from "@sokosumi/utils";
+import {
+  driveFolderPathFromSourceId,
+  normalizeFileResourceName,
+} from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -422,6 +425,7 @@ export interface LiveResource {
   mimeType: string | null;
   sizeBytes: number | null;
   sourceKind: FileResourceDto["sourceKind"];
+  sourceId: string;
   sourceTaskId: string | null;
   sourceProjectId: string | null;
   updatedAt: Date;
@@ -474,6 +478,7 @@ export async function loadLiveResources(input: {
       fr."mimeType",
       fr."sizeBytes",
       fr."sourceKind",
+      fr."sourceId",
       fr."sourceTaskId",
       fr."sourceProjectId",
       fr."updatedAt",
@@ -605,9 +610,31 @@ export async function hydrateResources(input: {
           label.vocabularyVersion !== label.label.vocabularyVersion),
     });
 
-    const confirmed = resourceLabels.filter(
-      (label) => label.state === FileMetadataState.CONFIRMED,
-    );
+    /**
+     * What a reader may see as a label on this document.
+     *
+     * `retrieval.ts` made SUGGESTED findable — by the search box, by a tag
+     * filter and by a category filter — and this partition then kept it out
+     * of `tags`, so the row rendered every automatic label as one dashed
+     * "Suggested:" chip and the rest not at all. Nothing promotes a label to
+     * CONFIRMED any more, so that was the permanent rendering of every tag
+     * the product produces.
+     *
+     * CONFIRMED first, so a category a person agreed with wins the single
+     * category slot over one the model proposed for the same document.
+     *
+     * The state is still on every entry. Ranking weight, the `stale` marker
+     * and the dismissal all read it; only the display stopped depending on it.
+     */
+    const findable = resourceLabels
+      .filter((label) => label.state !== FileMetadataState.REJECTED)
+      .sort((left, right) =>
+        left.state === right.state
+          ? 0
+          : left.state === FileMetadataState.CONFIRMED
+            ? -1
+            : 1,
+      );
 
     const snippet = resource.bestChunkText
       ? buildFileSnippet({ text: resource.bestChunkText, query: input.query })
@@ -629,17 +656,17 @@ export async function hydrateResources(input: {
       extractionCoverage: resource.extractionCoverage,
       extractionReason: resource.extractionReason,
       category:
-        confirmed
+        findable
           .filter((label) => label.label.kind === FileLabelKind.CATEGORY)
           .map(toDto)[0] ?? null,
-      tags: confirmed
+      tags: findable
         .filter((label) => label.label.kind === FileLabelKind.TAG)
         .map(toDto),
+      // Still the SUGGESTED subset, for the file detail page's accept and
+      // dismiss controls. The row reads `tags` and `category` instead.
       suggestions: resourceLabels
         .filter((label) => label.state === FileMetadataState.SUGGESTED)
         .map(toDto),
-      // A third partition of the same rows, not a change to the other two:
-      // `tags` stays CONFIRMED-only and `suggestions` stays SUGGESTED-only.
       rejected: resourceLabels
         .filter((label) => label.state === FileMetadataState.REJECTED)
         .map(toDto),
@@ -651,6 +678,7 @@ export async function hydrateResources(input: {
         provenance: link.provenance,
         evidenceSnippet: link.evidenceSnippet,
       })),
+      folderPath: driveFolderPathFromSourceId(resource.sourceId),
       snippet,
       relatedReason: null,
       filenameMatch:

@@ -938,7 +938,7 @@ export const MarkdownEditor = forwardRef<
           {isAttachmentUploading ? (
             <div className="ml-auto inline-flex items-center pr-1">
               <Loader2
-                className="text-muted-foreground size-3.5 animate-spin"
+                className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-pulse"
                 aria-hidden
               />
             </div>

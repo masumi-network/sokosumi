@@ -54,6 +54,7 @@ import {
 } from "@/lib/image-studio/fal-client";
 import { creditsPerImage } from "@/lib/image-studio/image-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
+import { publishImageToFiles } from "@/services/image-studio-files.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -1248,6 +1249,17 @@ export async function settleWithImage(
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
+  // Only the settler that stored the asset gets here, so this runs once per job.
+  await publishImageToFiles({
+    jobId: job.id,
+    projectId: project.id,
+    workspaceId: project.workspaceId,
+    organizationId: project.organizationId,
+    userId: job.requestedByUserId,
+    prompt: job.prompt,
+    bytes: downloaded.bytes,
+    contentType: downloaded.contentType,
+  });
   // The outage this dependency was in ends here, not earlier: publishing the
   // asset clears every clock in the same transaction that records the success.
 }

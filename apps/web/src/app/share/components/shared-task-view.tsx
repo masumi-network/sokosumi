@@ -134,7 +134,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             className={cn("space-y-4 md:pt-4", APP_MAIN_MOBILE_PT_CLASS)}
           >
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
+              <span className="text-muted-foreground text-xs font-medium">
                 {tTaskShare("eyebrow")}
               </span>
               <TaskStatusBadge
@@ -175,7 +175,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
 
           {task.jobs.length > 0 ? (
             <div>
-              <h2 className="text-muted-foreground mb-4 text-xs font-medium tracking-[0.24em] uppercase">
+              <h2 className="text-muted-foreground mb-4 text-xs font-medium">
                 {tTaskDetail("jobs")}
               </h2>
               <ul className="space-y-3">

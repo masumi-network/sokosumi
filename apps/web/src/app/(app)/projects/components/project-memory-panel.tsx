@@ -1,5 +1,6 @@
 "use client";
 
+import { Check } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -127,7 +128,14 @@ export function ProjectMemoryPanel({
                 size="sm"
                 onClick={() => void handleCopyLink()}
               >
-                {copied ? t("memory.copied") : t("memory.copyLink")}
+                {copied ? (
+                  <>
+                    <Check aria-hidden className="check-pop" />
+                    {t("memory.copied")}
+                  </>
+                ) : (
+                  t("memory.copyLink")
+                )}
               </Button>
               <Button type="button" variant="outline" size="sm" asChild>
                 <a
@@ -145,7 +153,7 @@ export function ProjectMemoryPanel({
         {content ? (
           <Markdown className="text-foreground">{content}</Markdown>
         ) : (
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 text-sm text-pretty duration-200">
             {contextMd ? t("errors.contextMd") : t("memory.emptyBody")}
           </p>
         )}

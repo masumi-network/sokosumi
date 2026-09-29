@@ -20,6 +20,7 @@ vi.mock("next-intl", () => ({
   // translation quietly falling back to something readable.
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values && "name" in values ? `${key}:${values.name}` : key,
+  useFormatter: () => ({ relativeTime: () => "2 weeks ago" }),
 }));
 
 type Label = FileResource["tags"][number];
@@ -53,6 +54,7 @@ function resource(overrides: Partial<FileResource> = {}): FileResource {
     extractionState: "INDEXED",
     extractionCoverage: 1,
     extractionReason: null,
+    folderPath: null,
     category: null,
     tags: [],
     suggestions: [],
@@ -106,6 +108,7 @@ describe("the label chips", () => {
           label("Legal"),
           label("Design"),
           label("Product"),
+          label("Ops"),
         ],
       }),
     );
@@ -113,33 +116,75 @@ describe("the label chips", () => {
     const nameRow = screen.getByTestId("drive-file-name-row");
     expect(within(nameRow).getByText("Finance")).toBeVisible();
     expect(within(nameRow).getByText("Legal")).toBeVisible();
+    expect(within(nameRow).getByText("Design")).toBeVisible();
     expect(within(nameRow).getByText("+2")).toBeVisible();
     // Not rendered and not silently dropped: the count is the promise that the
     // other two exist.
-    expect(within(nameRow).queryByText("Design")).toBeNull();
+    expect(within(nameRow).queryByText("Product")).toBeNull();
   });
 
-  it("marks a suggested label as suggested rather than as a fact", () => {
+  it("shows a model's tag as a tag, not as a dashed suggestion", () => {
+    /**
+     * The whole point of the change. Nothing promotes a label to CONFIRMED any
+     * more, so a dashed "Suggested: X" treatment was the permanent rendering of
+     * every tag the product produces — and only the first one, with the rest
+     * invisible.
+     */
     renderRow(
       resource({
-        suggestions: [
-          label("Contract", { kind: "CATEGORY", state: "SUGGESTED" }),
+        category: label("Contract", { kind: "CATEGORY", state: "SUGGESTED" }),
+        tags: [
+          label("Finance", { state: "SUGGESTED" }),
+          label("Legal", { state: "SUGGESTED" }),
         ],
       }),
     );
 
     const nameRow = screen.getByTestId("drive-file-name-row");
-    expect(within(nameRow).getByText("suggestedChip:Contract")).toBeVisible();
+    expect(within(nameRow).getByText("Contract")).toBeVisible();
+    expect(within(nameRow).getByText("Finance")).toBeVisible();
+    expect(within(nameRow).getByText("Legal")).toBeVisible();
+    expect(within(nameRow).queryByText("suggestedChip:Finance")).toBeNull();
+  });
+
+  it("offers a dismissal only where there is a way back, and only for a model's label", () => {
+    const onDismissLabel = vi.fn();
+    const { unmount } = render(
+      <ul>
+        <DriveFileRow
+          item={resource({
+            tags: [
+              label("Finance", { state: "SUGGESTED" }),
+              label("Legal", { state: "CONFIRMED" }),
+            ],
+          })}
+          viewMode="list"
+          selected={false}
+          onToggle={() => undefined}
+          onDismissLabel={onDismissLabel}
+        />
+      </ul>,
+    );
+
+    // A label a person agreed with is not the model's to take back.
+    expect(screen.queryByLabelText("removeTag:Legal")).toBeNull();
+    screen.getByLabelText("removeTag:Finance").click();
+    expect(onDismissLabel).toHaveBeenCalledTimes(1);
+    unmount();
+
+    // And no X at all where the caller cannot undo it. A dismissal also bars
+    // the model from proposing the label again, so an unrecoverable one is
+    // worse than none.
+    renderRow(resource({ tags: [label("Finance", { state: "SUGGESTED" })] }));
+    expect(screen.queryByLabelText("removeTag:Finance")).toBeNull();
   });
 });
 
 describe("where the document came from", () => {
-  it("names each of the five source kinds", () => {
-    // Upload and task output are the two that were asked for. The other three
-    // are real source kinds, and reporting a table, a studio asset or a project
-    // document as an "upload" would be a quiet lie about the reader's file.
+  it("names every source except the one that is the default", () => {
+    // Reporting a table, a studio asset or a project document as an "upload"
+    // would be a quiet lie about the reader's file, so each of those is named.
     for (const kind of [
-      "DRIVE_UPLOAD",
       "TASK_OUTPUT",
       "PROJECT_DOCUMENT",
       "NATIVE_TABLE",
@@ -151,6 +196,14 @@ describe("where the document came from", () => {
       );
       unmount();
     }
+  });
+
+  it("says nothing when a person put the file there", () => {
+    // `Upload` was on nine of ten rows in production and told the reader
+    // nothing they had not just done themselves. An empty space where a badge
+    // would be means a person uploaded it.
+    renderRow(resource({ sourceKind: "DRIVE_UPLOAD" }));
+    expect(screen.queryByTestId("drive-file-origin")).toBeNull();
   });
 
   it("states a confirmed project and marks a suggested one", () => {
@@ -212,13 +265,21 @@ describe("where the document came from", () => {
     expect(within(nameRow).queryByText("Aurora")).toBeNull();
   });
 
-  it("says when only the filename is searchable", () => {
-    renderRow(resource({ extractionState: "UNSUPPORTED" }));
-    expect(
-      within(screen.getByTestId("drive-file-provenance")).getByText(
-        "badgeFilenameOnly",
-      ),
-    ).toBeVisible();
+  it("says nothing about the parser", () => {
+    /**
+     * `Filename only` and `Partly indexed` are facts about what extraction
+     * managed, not about the document — and they showed with no query, where no
+     * retrieval had run for them to describe. Seven of ten production rows
+     * carried one. The file detail page still explains it, which is where a
+     * reader asking why search cannot see inside a file actually is.
+     */
+    for (const state of ["UNSUPPORTED", "PARTIAL", "PENDING"] as const) {
+      const { unmount } = renderRow(resource({ extractionState: state }));
+      const provenance = screen.getByTestId("drive-file-provenance");
+      expect(provenance).not.toHaveTextContent("badge");
+      expect(provenance).not.toHaveTextContent("Filename");
+      unmount();
+    }
   });
 });
 
@@ -332,5 +393,39 @@ describe("opening a file", () => {
       .dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("what a row says", () => {
+  it("has no description: no summary, no document opening, no date", () => {
+    renderRow(
+      resource({
+        snippet: {
+          text: "Copyright 2026 Acme. All rights reserved.",
+          highlights: [],
+          truncatedStart: false,
+          truncatedEnd: true,
+        },
+      }),
+    );
+
+    expect(screen.queryByText(/Copyright 2026/)).toBeNull();
+    expect(screen.queryByText("2 weeks ago")).toBeNull();
+    expect(screen.queryByText(/PDF ·/)).toBeNull();
+  });
+
+  it("shows the matching passage only when a query matched", () => {
+    renderRow(
+      resource({
+        snippet: {
+          text: "revenue grew in the third quarter",
+          highlights: [{ start: 0, end: 7 }],
+          truncatedStart: false,
+          truncatedEnd: false,
+        },
+      }),
+    );
+
+    expect(screen.getByText("revenue")).toBeVisible();
   });
 });

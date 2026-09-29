@@ -11,7 +11,11 @@ import {
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
 import type { BrowserLoginOptions } from "../../src/auth/oauth.js";
-import { CLI_COMMANDS } from "../../src/cli/commands/discover.js";
+import {
+  CLI_COMMANDS,
+  formatCliCommandHelpLines,
+  formatUnknownCommandUsage,
+} from "../../src/cli/commands/discover.js";
 import {
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
@@ -302,6 +306,7 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   const escape = (value: string) =>
     value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  assert.ok(help.includes(formatCliCommandHelpLines()));
   for (const command of CLI_COMMANDS) {
     assert.match(help, new RegExp(`^  sokosumi ${escape(command)}`, "m"));
   }
@@ -359,6 +364,24 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   assert.equal(parsed.options["oauth-port"], "53682");
   assert.equal(parsed.options["oauth-timeout-ms"], "180000");
   assert.equal(parsed.options["create-api-key"], true);
+});
+
+test("unknown command usage comes from the command catalog", async () => {
+  const output: string[] = [];
+  await assert.rejects(
+    () =>
+      runCli(["not-a-command", "--json"], {
+        stdout: { write: (value) => output.push(value) },
+        tuiFn: async () => {
+          throw new Error("TUI should not launch");
+        },
+      }),
+    { message: formatUnknownCommandUsage() },
+  );
+  assert.deepEqual(JSON.parse(output.join("")), {
+    error: formatUnknownCommandUsage(),
+    code: "UNKNOWN",
+  });
 });
 
 test("parses coworker registration vendor ID", () => {

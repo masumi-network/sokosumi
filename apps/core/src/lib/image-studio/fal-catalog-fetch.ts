@@ -34,6 +34,25 @@ import {
  *   on the fal.ai host, no auth, needs an ordinary User-Agent.
  */
 
+/**
+ * One line for the model picker: the first sentence, cut at a word boundary if
+ * it is still long. fal's descriptions run to a paragraph of marketing copy.
+ */
+export function oneLine(text: string, max = 90): string {
+  const first =
+    text
+      .replace(/\s+/g, " ")
+      .trim()
+      .split(/(?<=[.!?])\s/)[0] ?? "";
+  const sentence = first.replace(/\.$/, "");
+  if (sentence.length <= max) return sentence;
+  const head = sentence.slice(0, max);
+  // Prefer ending on a clause, so the line never stops mid-phrase.
+  const clause = head.lastIndexOf(", ");
+  if (clause >= 30) return head.slice(0, clause);
+  return `${head.replace(/\s+\S*$/, "")}…`;
+}
+
 const MODELS_URL = "https://api.fal.ai/v1/models";
 const PRICING_URL = "https://api.fal.ai/v1/models/pricing";
 const OPENAPI_URL = "https://fal.ai/api/openapi/queue/openapi.json";
@@ -620,7 +639,7 @@ export function normaliseFalCatalog(
     models.push({
       id,
       label,
-      description: (row.metadata?.description ?? "").trim().slice(0, 400),
+      description: oneLine(row.metadata?.description ?? ""),
       generateEndpoint: endpointId,
       editEndpoint,
       aspectRatios: frameRatios,

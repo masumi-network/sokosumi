@@ -467,7 +467,10 @@ export function SocialPostComposerDialog({
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {uploadPending ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <Upload className="size-4" aria-hidden />
                     )}
@@ -558,7 +561,10 @@ export function SocialPostComposerDialog({
               }}
             >
               {pending === "save" ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {mode.kind === "edit" && mode.post.status !== "DRAFT"
                 ? t("composer.save")
@@ -573,7 +579,10 @@ export function SocialPostComposerDialog({
             }}
           >
             {pending === "schedule" ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : null}
             {isReschedule ? t("composer.reschedule") : t("composer.schedule")}
           </Button>

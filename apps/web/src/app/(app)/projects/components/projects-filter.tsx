@@ -83,7 +83,7 @@ export function ProjectsFilter({ labels }: ProjectsFilterProps) {
           type="button"
           aria-label={labels.clear}
           onClick={handleClear}
-          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
+          className="text-muted-foreground press hover:text-foreground focus-visible:ring-ring focus-visible:ring-2 absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
         >
           <X className="size-4" />
         </button>

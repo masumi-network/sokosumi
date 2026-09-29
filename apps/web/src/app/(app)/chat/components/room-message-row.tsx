@@ -407,7 +407,7 @@ function MessageQuoteBlock({
     <div className="border-border bg-card-background mb-1.5 w-full rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-1.5">
       <button
         type="button"
-        className="hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
+        className="press hover:bg-senary focus-visible:ring-ring -mx-1 w-[calc(100%+0.5rem)] rounded-sm px-1 text-left outline-none transition-colors focus-visible:ring-2"
         aria-label={t("jump", { author: quote.authorName })}
         onClick={() => {
           // Sent to yourself from another room: this transcript does not hold
@@ -455,7 +455,7 @@ function MessageQuoteBlock({
       {expanded || overflows ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary press hover:text-primary-hover mt-0.5 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -533,12 +533,12 @@ function MessageUnfurlCard({
         href={unfurl.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="border-border bg-card-background hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
+        className="border-border bg-card-background press hover:bg-card-background-hover focus-visible:ring-ring inline-block w-fit max-w-[min(100%,25rem)] overflow-hidden rounded-md border-l-2 border-l-primary-tertiary px-2.5 py-2 outline-none transition-colors focus-visible:ring-2"
         aria-label={t("openLink", { title: unfurl.title })}
         data-testid="room-message-unfurl"
       >
         {siteLabel ? (
-          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium tracking-wide uppercase">
+          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium">
             {siteLabel}
           </div>
         ) : null}
@@ -876,7 +876,7 @@ function ChannelMessageBody({
       {!skipBodyClamp && (expanded || overflows) ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
+          className="text-primary press hover:text-primary-hover mt-1 text-xs font-medium outline-none focus-visible:underline"
           onClick={toggleExpanded}
         >
           {expanded ? t("showLess") : t("showMore")}
@@ -2030,7 +2030,7 @@ function FailedMentionActions({
     >
       <button
         type="button"
-        className="text-primary hover:text-primary-hover font-medium"
+        className="text-primary press hover:text-primary-hover font-medium"
         data-testid="coworker-mention-retry"
         onClick={onRetryMention}
       >
@@ -2066,7 +2066,7 @@ function OutboundFailedActions({
       {onRetryOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover font-medium"
+          className="text-primary press hover:text-primary-hover font-medium"
           onClick={() => onRetryOutbound(message)}
         >
           {t("Outbound.retry")}
@@ -2075,7 +2075,7 @@ function OutboundFailedActions({
       {onRemoveOutbound ? (
         <button
           type="button"
-          className="text-primary hover:text-primary-hover font-medium"
+          className="text-primary press hover:text-primary-hover font-medium"
           onClick={() => onRemoveOutbound(message)}
         >
           {t("Outbound.remove")}
@@ -2157,7 +2157,7 @@ function ThreadReplyBar({
       aria-label={countLabel}
       aria-describedby={message.threadLastReplyAt ? ageId : undefined}
       className={cn(
-        "text-primary hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
+        "text-primary press hover:text-primary-hover -mx-1 mt-1 inline-flex min-h-9 items-center gap-1.5 px-1 text-xs font-medium sm:mt-1 sm:min-h-0",
         // Unread reads as a bar, not a badge: the tint plus an inset left
         // rule gives the count an edge to sit against without adding a
         // second mark to a row that already carries reactions. The rule
@@ -2251,7 +2251,7 @@ function MessageMetaFooter({
                     type="button"
                     onClick={() => onToggleReaction(message, reaction.emoji)}
                     className={cn(
-                      "border-border bg-background hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      "border-border bg-background press hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
                       reaction.reactedByCurrentUser &&
                         "border-primary-tertiary bg-primary-quinary text-primary",
                     )}

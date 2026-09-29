@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type {
   CreateProjectImageJobRequest,
-  ProjectImageAsset,
   ProjectImageJob,
   ProjectImageSettings,
 } from "@/lib/clients/generated/core/types.gen";
@@ -62,18 +61,6 @@ export type StartGenerationResult =
   | { ok: true; job: ProjectImageJob }
   | { ok: false; kind: string | null; message: string };
 
-interface ReviewParameters extends AuthenticatedRequest {
-  projectId: string;
-  assetId: string;
-  decision: "APPROVED" | "REJECTED";
-  feedback: string | null;
-}
-
-interface ClearReviewParameters extends AuthenticatedRequest {
-  projectId: string;
-  assetId: string;
-}
-
 interface CancelParameters extends AuthenticatedRequest {
   projectId: string;
   jobId: string;
@@ -113,35 +100,6 @@ export const startImageGeneration = withSession<
       };
     }
     throw error;
-  }
-});
-
-export const reviewImageVersion = withSession<
-  ReviewParameters,
-  ProjectImageAsset
->(async ({ projectId, assetId, decision, feedback }) => {
-  try {
-    const asset = await imageStudioService.reviewAsset(projectId, assetId, {
-      decision,
-      feedback,
-    });
-    revalidatePath(`/projects/${projectId}/studio`);
-    return asset;
-  } catch (error) {
-    rethrow(error, "Could not record the review.");
-  }
-});
-
-export const clearImageVersionReview = withSession<
-  ClearReviewParameters,
-  ProjectImageAsset
->(async ({ projectId, assetId }) => {
-  try {
-    const asset = await imageStudioService.clearAssetReview(projectId, assetId);
-    revalidatePath(`/projects/${projectId}/studio`);
-    return asset;
-  } catch (error) {
-    rethrow(error, "Could not clear the review.");
   }
 });
 

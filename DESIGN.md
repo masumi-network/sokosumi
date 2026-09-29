@@ -43,7 +43,6 @@ typography:
     fontWeight: 400
     fontSize: 12px
     lineHeight: 16px
-    textColor: muted-foreground
 rounded:
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
@@ -100,7 +99,6 @@ components:
     padding: 2px 8px
     typography: "{typography.caption}"
   focusRing:
-    ring: ring-ring-halo
     width: 3px
 ---
 
@@ -286,10 +284,15 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   **`ease-out` at 0.2–0.25s** for UI transitions. `transition-colors` is the hover workhorse;
   feedback should stay **≤200ms**.
 - **What animates:** `transform`, `opacity`, `blur` — **never layout** (width/height/top/margin).
-  Active state nudges with `scale(0.995)`; overlays use `animate-in/out` + `fade` + `zoom-95` +
+  Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`
+  (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
 - **Tokens:** animations are `--animate-*` aliases (accordion 0.2s, roll-up/down 0.2s,
   rotate-once 0.6s, reasoning-* shimmer/step/cursor). Add new keyframes there.
+- **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
+  arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
+  transform only. Under reduced motion overlays cross-fade in place and `prefers-reduced-transparency`
+  drops the blur on scrims and glass chrome.
 - **Reduced motion:** respected — heavy/ambient motion slows rather than dies;
   `agent-card-roll-up` disables under `prefers-reduced-motion`. Use `motion-safe:`/`motion-reduce:`
   for flourishes. Never animate a focus ring's appearance.
@@ -315,6 +318,9 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 - **Decorative grid** lines may appear subtly on calm backgrounds; never compete with ink.
 - In product: offer previews are **content-aware mocks** (slide/doc/chart/checklist/code/
   wireframe/video/text), not fake content; coworker avatars are shown whole.
+- **Release announcements** ("New in Sokosumi" images) share one template, whose colours come
+  from `globals.css`. Run `/create-new-in-sokosumi` with a PR or any context to get one;
+  see [the skill](.agents/skills/create-new-in-sokosumi/SKILL.md).
 
 ## Accessibility
 

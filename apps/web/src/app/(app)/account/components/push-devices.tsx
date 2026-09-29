@@ -87,7 +87,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
           >
             {query.isFetching ? (
               <Loader2
-                className="size-3.5 motion-safe:animate-spin"
+                className="size-3.5 motion-safe:animate-spin motion-reduce:animate-pulse"
                 aria-hidden="true"
               />
             ) : (
@@ -277,7 +277,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
             >
               {query.isRemoving ? (
                 <Loader2
-                  className="size-4 motion-safe:animate-spin"
+                  className="size-4 motion-safe:animate-spin motion-reduce:animate-pulse"
                   aria-hidden="true"
                 />
               ) : null}

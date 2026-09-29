@@ -55,7 +55,7 @@ export const SearchAgentsStripAction = forwardRef<
       aria-selected={isSelected}
       aria-label={t("searchAgents.label")}
       className={cn(
-        "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity outline-none",
+        "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity press outline-none",
         "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2",
         scale.itemWidth,
       )}

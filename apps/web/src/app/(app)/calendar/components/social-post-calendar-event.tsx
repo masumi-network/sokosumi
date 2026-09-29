@@ -25,7 +25,7 @@ export function SocialPostCalendarEvent({
   return (
     <Link
       href={`/projects/${item.sourceProjectId}/social?postId=${item.postId}#social-post-${item.postId}`}
-      className="bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
+      className="bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
       data-testid="calendar-social-post"
     >
       <span className="flex w-full min-w-0 items-center gap-1">

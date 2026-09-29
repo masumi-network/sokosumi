@@ -37,7 +37,7 @@ export function AppSidebarFallback() {
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex w-full flex-col gap-0">
-          {/* Soko Bot's nav and the Calendar row are beta-gated on membership
+          {/* Soko Bot's nav and the Social row are beta-gated on membership
               this frame has not loaded yet, so both are left out rather than
               guessed: a row that appears once is cheaper than one that
               appears and then goes away. */}

@@ -54,7 +54,8 @@
       "copyError": "No se pudo copiar el enlace"
     },
     "DefaultErrorBoundary": {
-      "error": "Ocurrió un error desconocido. Por favor, contacta con nuestro soporte"
+      "error": "Algo salió mal aquí. Inténtalo de nuevo o contacta con soporte si sigue pasando.",
+      "tryAgain": "Intentar de nuevo"
     },
     "Agents": {
       "RiskClassification": {
@@ -521,7 +522,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
-        "emptyJobs": "Aún sin jobs.",
+        "emptyJobs": "Aún sin jobs. Contrata a este coworker para empezar uno.",
         "loadMore": "Cargar más",
         "loading": "Cargando...",
         "loadMoreError": "No se pudieron cargar más jobs"
@@ -1648,7 +1649,7 @@
         },
         "recentTitle": "Recientes",
         "emptyRecent": "No hay jobs completados recientemente.",
-        "emptyList": "Aún sin jobs.",
+        "emptyList": "Aún sin jobs. Contrata a un coworker y tus jobs aparecerán aquí.",
         "emptySection": "No hay jobs en este estado.",
         "untitled": "Job sin título",
         "unknownAgent": "Agent desconocido"
@@ -2265,6 +2266,8 @@
         "description": "Conecta cuentas de redes sociales a este proyecto. Actualmente se puede publicar en X.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
+        "connectHeading": "Conectar una cuenta",
+        "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
@@ -2323,12 +2326,16 @@
         "sections": {
           "upcoming": "Próximas",
           "drafts": "Borradores",
-          "history": "Historial"
+          "attention": "Requiere atención"
         },
+        "selectedPost": "Publicación seleccionada",
         "empty": {
           "upcoming": "Aún no hay publicaciones programadas.",
-          "drafts": "Aún no hay borradores.",
-          "history": "Aún no hay publicaciones publicadas, fallidas o canceladas."
+          "drafts": "Aún no hay borradores."
+        },
+        "emptyHint": {
+          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
+          "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
           "DRAFT": "Borrador",
@@ -2387,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
-          "description": "La publicación no se publicará. Puedes programarla de nuevo más tarde.",
+          "description": "La publicación no se publicará. Esta acción no se puede deshacer.",
           "confirm": "Cancelar publicación"
         },
         "toasts": {
@@ -2473,7 +2480,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "Aún no hay jobs vinculados a este proyecto.",
+          "empty": "Aún no hay jobs vinculados. Añade uno para reunir sus resultados aquí.",
           "add": "Añadir job",
           "remove": "Quitar job",
           "viewAll": "Ver todos los jobs",
@@ -2487,7 +2494,7 @@
         },
         "tasks": {
           "title": "Tareas",
-          "empty": "Aún no hay tareas vinculadas a este proyecto.",
+          "empty": "Aún no hay tareas vinculadas. Añade una para mantenerla con este proyecto.",
           "add": "Añadir tarea",
           "pickerTitle": "Añadir tarea",
           "pickerDescription": "Elige una tarea sin asignar para vincularla a este proyecto.",
@@ -2564,7 +2571,6 @@
           "overview": "Resumen",
           "design": "Diseño",
           "memory": "Memoria",
-          "social": "Social",
           "backToProjects": "Todos los proyectos",
           "ariaLabel": "Secciones del proyecto"
         },
@@ -2578,20 +2584,15 @@
       "back": "Volver al proyecto",
       "updated": "Actualizado",
       "emptyTitle": "Aún no hay imágenes",
-      "emptyBody": "Escribe un prompt arriba y elige los modelos con los que probarlo. Recibirás versiones para comparar, refinar y aprobar.",
+      "emptyBody": "Escribe un prompt abajo y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",
       "regenerate": "Nueva variante",
+      "reroll": "Repetir",
+      "reusePrompt": "Reutilizar prompt",
       "download": "Descargar",
       "compare": "Comparar",
-      "approve": "Aprobar",
-      "reject": "Rechazar",
-      "undecided": "Sin decidir",
-      "approved": "Aprobada",
-      "rejected": "Rechazada",
-      "clearReview": "Borrar decisión",
-      "feedbackPlaceholder": "Nota opcional para esta versión",
       "version": "Versión",
       "generating": "Generando",
       "queued": "En cola en el proveedor",
@@ -2603,9 +2604,6 @@
       "tryAgain": "Intentar de nuevo",
       "cancel": "Cancelar",
       "cancelRequested": "Cancelación solicitada. Puede que el proveedor ya haya terminado.",
-      "clearFilter": "Mostrar todas",
-      "filterAll": "Todas",
-      "filterApproved": "Aprobadas",
       "lineage": "Linaje",
       "from": "Prompt",
       "loadOlder": "Cargar versiones anteriores",
@@ -2642,9 +2640,6 @@
         "mockup": "Maqueta"
       },
       "gallery": "Imágenes",
-      "filterRejected": "Rechazadas",
-      "filterUndecided": "Sin decidir",
-      "noneMatchFilter": "Nada coincide con ese filtro",
       "select": "Seleccionar",
       "deselect": "Quitar selección",
       "selectedCount": "{count, plural, one {# imagen seleccionada} other {# imágenes seleccionadas}}",
@@ -2674,6 +2669,9 @@
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
+      "unselectAllModels": "Deseleccionar todos",
+      "searchModels": "Buscar modelos…",
+      "noModelsMatch": "Ningún modelo coincide.",
       "noModelSelected": "Elige al menos un modelo. El encuadre, la resolución y el formato que se ofrecen son los que todos los modelos elegidos admiten.",
       "generationTime": "Tiempo de generación",
       "runPlan": "Se ejecutará {copies}x en {models, plural, one {# modelo} other {# modelos}}",
@@ -2715,6 +2713,17 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Social funciona dentro de un proyecto: las cuentas desde las que publica le pertenecen. Elige un proyecto para planificar sus publicaciones.",
+      "pickAction": "Elegir un proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "calendar": {
+        "title": "Calendario de publicación",
+        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
+      }
+    },
     "Error": {
       "title": "Algo salió mal",
       "description": "Ocurrió un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando en solucionarlo.",
@@ -2755,7 +2764,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
-          "schedules": "Programaciones"
+          "schedules": "Programaciones",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -5280,7 +5290,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Iniciar una tarea nueva para {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5295,7 +5305,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Tareas listas para ejecutar",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5328,7 +5338,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas."
       },
       "Jobs": {
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
@@ -5713,7 +5723,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
-      "directMessages": "Direct Messages",
+      "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
       "reorderPinnedDone": "Terminar de reordenar",
@@ -6238,6 +6248,8 @@
       "uploadError": "No se pudo subir el archivo",
       "renameError": "No se pudo renombrar el archivo",
       "renameFileToFolderConflictError": "Ya existe una carpeta con este nombre",
+      "renameFolderAction": "Cambiar el nombre de «{name}»",
+      "renameFolderButton": "Renombrar carpeta",
       "renameFolderToFileConflictError": "Ya existe un archivo con este nombre",
       "renameConflictError": "Ya existe un archivo o carpeta con este nombre",
       "deleteError": "No se pudo eliminar el archivo",
@@ -6256,6 +6268,7 @@
       "createFolderDialogDescription": "Escribe un nombre para la nueva carpeta",
       "createFolderDialogConfirm": "Crear",
       "deleteFolderDialogTitle": "Eliminar carpeta",
+      "deleteFolderAction": "Eliminar carpeta",
       "deleteFolderDialogDescription": "¿Seguro que quieres eliminar {folderName} y todo su contenido? Esta acción no se puede deshacer.",
       "moveAction": "Mover",
       "moveDialogTitle": "Mover {itemName}",
@@ -6267,6 +6280,7 @@
       "createFolderDuplicateError": "Ya existe una carpeta con este nombre. Elige un nombre diferente.",
       "deleteFolderError": "Error al eliminar carpeta",
       "moveFolderError": "Error al mover carpeta",
+      "moveFolderAction": "Mover carpeta",
       "moveFileError": "Error al mover archivo",
       "tasksFolder": "Tareas",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
@@ -6319,7 +6333,7 @@
         "noMatchesTitle": "Sin coincidencias accesibles",
         "noMatchesDescription": "Prueba con otras palabras o quita los filtros.",
         "statusLoading": "Cargando archivos",
-        "statusShown": "Mostrando {shown} de {window} en esta ventana de resultados",
+        "statusMatches": "{count} resultados",
         "statusRestarted": "This list was refreshed. Showing it from the start.",
         "statusTruncated": "Puede haber más: precisa la búsqueda",
         "statusProcessing": "{count} aún en proceso",
@@ -6329,6 +6343,8 @@
         "filterSheetDescription": "No se consulta nada hasta que apliques.",
         "filterApply": "Aplicar",
         "filterClear": "Quitar filtros",
+        "filterFolder": "Carpeta",
+        "filterFolderAll": "Todas las carpetas",
         "filterCategory": "Categoría",
         "filterTags": "Etiquetas",
         "filterTagsAny": "Cualquiera de estas",
@@ -6338,13 +6354,8 @@
         "filterStatus": "Procesamiento",
         "filenameMatch": "Coincide el nombre",
         "suggestedChip": "Sugerido: {name}",
-        "badgeProcessing": "En proceso",
-        "badgeFilenameOnly": "Solo el nombre",
-        "badgePartial": "Indexado en parte",
         "selectFile": "Seleccionar {name}",
-        "bulkSelectPage": "Seleccionar esta página",
         "bulkSelected": "{count} seleccionados",
-        "bulkSelectWindow": "Seleccionar los {count} de esta ventana de resultados",
         "bulkWindowSelected": "{count} archivos seleccionados de esta ventana",
         "bulkWindowChanged": "Esta ventana cambió: {count} archivos siguen coincidiendo. Confirma de nuevo.",
         "bulkSelectionExpired": "Esa ventana de resultados caducó. Busca de nuevo.",
@@ -6352,6 +6363,7 @@
         "bulkClear": "Quitar selección",
         "bulkApplied": "{count} archivos actualizados",
         "bulkPartial": "{applied} actualizados, {failed} fallaron y siguen seleccionados",
+        "bulkSelectAllMatches": "Seleccionar los {count} resultados",
         "bulkError": "No se pudieron aplicar esos cambios.",
         "detailLoading": "Cargando archivo",
         "detailProcessing": "Procesamiento",
@@ -6368,10 +6380,13 @@
         "processingUnsupported": "En este formato solo se puede buscar el nombre.",
         "processingPending": "En proceso: el nombre ya se puede buscar.",
         "uncategorized": "Sin categoría",
+        "undo": "Deshacer",
         "noTags": "Todavía sin etiquetas",
         "noProjects": "Todavía sin proyectos",
         "removeTag": "Quitar {name}",
         "tagRemoved": "Etiqueta quitada. No se volverá a sugerir.",
+        "tagRemoveFailed": "No se pudo quitar esa etiqueta.",
+        "tagRestoreFailed": "No se pudo restaurar esa etiqueta.",
         "saveConflict": "Se actualizó en otro sitio: revisa los cambios.",
         "suggestedLabel": "Sugerido",
         "suggestionStale": "Basado en una versión anterior",
@@ -6415,8 +6430,6 @@
         "collectionUpdated": "Se actualizó «{name}»",
         "collectionSaveFailed": "No se pudo guardar esa colección.",
         "collectionDeleteFailed": "No se pudo eliminar esa colección.",
-        "collectionsLoading": "Cargando colecciones",
-        "collectionsEmpty": "Aún no hay colecciones guardadas",
         "collectionsUnavailable": "No se pudieron cargar las colecciones.",
         "labelsUnavailable": "No se pudieron cargar las categorías ni las etiquetas.",
         "collectionActions": "Acciones para {name}",
@@ -6436,6 +6449,15 @@
         "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
         "sheetOpenAsPage": "Abrir como página",
         "sheetDescription": "Detalles de este archivo",
+        "viewerDetails": "Detalles",
+        "viewerClose": "Cerrar",
+        "viewerNoPreview": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+        "searchButton": "Buscar",
+        "searchClear": "Borrar búsqueda",
+        "typeAll": "Todos",
+        "foldersLabel": "Carpetas",
+        "foldersRoot": "Todos los archivos",
+        "folderEmptyTitle": "Aún no hay nada en esta carpeta",
         "detailRejected": "Etiquetas eliminadas",
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",
@@ -6922,7 +6944,8 @@
         "label": "Zona horaria"
       },
       "empty": {
-        "title": "Ninguna ejecución programada coincide con estos filtros."
+        "title": "Ninguna ejecución programada coincide con estos filtros.",
+        "socialOnly": "No hay publicaciones sociales programadas en este periodo."
       },
       "schedules": {
         "link": "Programaciones"
@@ -6947,6 +6970,9 @@
         "scheduledBy": "Programado por {name}",
         "unknownScheduler": "usuario desconocido",
         "attachments": "{count, plural, one {# archivo adjunto} other {# archivos adjuntos}}"
+      },
+      "socialOnly": {
+        "label": "Solo publicaciones sociales"
       }
     },
     "You": {

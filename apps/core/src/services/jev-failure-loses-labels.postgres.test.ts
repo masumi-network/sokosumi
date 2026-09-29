@@ -538,7 +538,7 @@ describe.skipIf(!enabled)(
      * currently **unreachable** on this path: with the worst legal
      * shortlist — `SUGGESTION_VOCABULARY_MAX` labels at maximum name and
      * description length, against a 500,000-character excerpt — the request
-     * measures 11,747 tokens against a 12,000 ceiling. The assertion below
+     * measures under the 16,000 ceiling. The assertion below
      * pins that, so if the vocabulary cap or the ceiling moves and the
      * branch becomes live, this test says so and the branch gets its own
      * case rather than being assumed covered.

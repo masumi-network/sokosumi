@@ -47,7 +47,9 @@ export function isActive(job: StudioJob): boolean {
  * deployment. The rest of this folder already casts these to `string` for the
  * same reason; this accepts either and says so.
  */
-function epochMs(value: Date | string | null | undefined): number | null {
+export function epochMs(
+  value: Date | string | null | undefined,
+): number | null {
   if (!value) return null;
   const ms = value instanceof Date ? value.getTime() : Date.parse(value);
   return Number.isFinite(ms) ? ms : null;
@@ -148,9 +150,6 @@ export interface StudioTarget {
   settings: StudioSettings;
 }
 
-/** What the gallery is narrowed to. Mirrors the review decisions plus "all". */
-export type StudioFilter = "all" | "approved" | "rejected" | "undecided";
-
 /**
  * Every visible string, resolved on the server.
  *
@@ -170,15 +169,10 @@ export interface StudioLabels {
   generate: string;
   refine: string;
   regenerate: string;
+  reroll: string;
+  reusePrompt: string;
   download: string;
   compare: string;
-  approve: string;
-  reject: string;
-  undecided: string;
-  approved: string;
-  rejected: string;
-  clearReview: string;
-  feedbackPlaceholder: string;
   version: string;
   generating: string;
   queued: string;
@@ -190,9 +184,6 @@ export interface StudioLabels {
   tryAgain: string;
   cancel: string;
   cancelRequested: string;
-  clearFilter: string;
-  filterAll: string;
-  filterApproved: string;
   lineage: string;
   from: string;
   loadOlder: string;
@@ -210,6 +201,9 @@ export interface StudioLabels {
   outputFormat: string;
   copies: string;
   selectAllModels: string;
+  unselectAllModels: string;
+  searchModels: string;
+  noModelsMatch: string;
   noModelSelected: string;
   generateOne: string;
   moreOptions: string;
@@ -228,9 +222,6 @@ export interface StudioLabels {
 
   // Gallery, selection and comparison.
   gallery: string;
-  filterRejected: string;
-  filterUndecided: string;
-  noneMatchFilter: string;
   select: string;
   deselect: string;
   compareSelected: string;

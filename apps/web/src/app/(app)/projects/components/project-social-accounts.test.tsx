@@ -42,6 +42,8 @@ const MESSAGES: Record<string, string> = {
     "Connect social accounts to this project. Publishing is currently available for X.",
   account: "{provider} account",
   connect: "Connect {provider} account",
+  connectHeading: "Connect an account",
+  actions: "Actions for {account}",
   reconnect: "Reconnect",
   replace: "Replace",
   disconnect: "Disconnect",
@@ -158,6 +160,17 @@ function buildDisconnectResult(
   };
 }
 
+async function chooseAccountAction(
+  user: ReturnType<typeof userEvent.setup>,
+  action: "Replace" | "Disconnect",
+  account = "@sokosumi",
+): Promise<void> {
+  await user.click(
+    screen.getByRole("button", { name: `Actions for ${account}` }),
+  );
+  await user.click(screen.getByRole("menuitem", { name: action }));
+}
+
 describe("ProjectSocialAccounts", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -262,7 +275,8 @@ describe("ProjectSocialAccounts", () => {
     expect(screen.getByText("YouTube account")).toBeVisible();
   });
 
-  it("shows connected and reauthorization-required X account lifecycle controls", () => {
+  it("shows connected and reauthorization-required X account lifecycle controls", async () => {
+    const user = userEvent.setup();
     render(
       <ProjectSocialAccounts
         projectId={PROJECT_ID}
@@ -288,14 +302,16 @@ describe("ProjectSocialAccounts", () => {
     expect(within(connectedRow).getByText("@sokosumi")).toBeVisible();
     expect(within(connectedRow).getByText("Connected")).toBeVisible();
     expect(
-      within(connectedRow).getByRole("button", { name: "Replace" }),
-    ).toBeVisible();
-    expect(
-      within(connectedRow).getByRole("button", { name: "Disconnect" }),
-    ).toBeVisible();
-    expect(
       within(connectedRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    await user.click(
+      within(connectedRow).getByRole("button", {
+        name: "Actions for @sokosumi",
+      }),
+    );
+    expect(screen.getByRole("menuitem", { name: "Replace" })).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
+    await user.keyboard("{Escape}");
 
     const reauthorizationRow = screen.getByTestId(
       "project-social-connection-connection-2",
@@ -318,12 +334,15 @@ describe("ProjectSocialAccounts", () => {
     expect(
       within(pendingRow).queryByRole("button", { name: "Reconnect" }),
     ).not.toBeInTheDocument();
+    await user.click(
+      within(pendingRow).getByRole("button", {
+        name: "Actions for @pending-auth",
+      }),
+    );
     expect(
-      within(pendingRow).queryByRole("button", { name: "Replace" }),
+      screen.queryByRole("menuitem", { name: "Replace" }),
     ).not.toBeInTheDocument();
-    expect(
-      within(pendingRow).getByRole("button", { name: "Disconnect" }),
-    ).toBeVisible();
+    expect(screen.getByRole("menuitem", { name: "Disconnect" })).toBeVisible();
   });
 
   it.each([null, "ca_known"])(
@@ -728,7 +747,7 @@ describe("ProjectSocialAccounts", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await chooseAccountAction(user, "Disconnect");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Disconnect account",
@@ -757,7 +776,7 @@ describe("ProjectSocialAccounts", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await chooseAccountAction(user, "Disconnect");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Disconnect account",
@@ -790,7 +809,7 @@ describe("ProjectSocialAccounts", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Replace" }));
+    await chooseAccountAction(user, "Replace");
     const replaceDialog = screen.getByRole("alertdialog");
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
@@ -804,7 +823,7 @@ describe("ProjectSocialAccounts", () => {
       });
     });
 
-    await user.click(screen.getByRole("button", { name: "Disconnect" }));
+    await chooseAccountAction(user, "Disconnect");
     const disconnectDialog = screen.getByRole("alertdialog");
     expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
     await user.click(
@@ -821,6 +840,67 @@ describe("ProjectSocialAccounts", () => {
     expect(toastSuccessMock).toHaveBeenCalledWith("Account disconnected.");
   });
 
+  it("returns focus to the account menu when a confirmation is canceled", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+
+    await chooseAccountAction(user, "Disconnect");
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("button", { name: "Actions for @sokosumi" }),
+      ).toHaveFocus();
+    });
+    expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
+  });
+
+  it("returns focus to the section heading when a confirmed action leaves the menu disabled", async () => {
+    const user = userEvent.setup();
+    const pendingDisconnect =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof disconnectProjectSocialConnection>>
+      >();
+    vi.mocked(disconnectProjectSocialConnection).mockReturnValueOnce(
+      pendingDisconnect.promise,
+    );
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+
+    await chooseAccountAction(user, "Disconnect");
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Disconnect account",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Social accounts" }),
+      ).toHaveFocus();
+    });
+
+    await act(async () => {
+      pendingDisconnect.resolve({
+        ok: true,
+        value: buildDisconnectResult(),
+      });
+    });
+  });
+
   it("refreshes after a replacement initiation failure retires the active connection", async () => {
     const user = userEvent.setup();
     vi.mocked(initiateProjectSocialConnection).mockResolvedValueOnce({
@@ -834,7 +914,7 @@ describe("ProjectSocialAccounts", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Replace" }));
+    await chooseAccountAction(user, "Replace");
     await user.click(
       within(screen.getByRole("alertdialog")).getByRole("button", {
         name: "Replace account",

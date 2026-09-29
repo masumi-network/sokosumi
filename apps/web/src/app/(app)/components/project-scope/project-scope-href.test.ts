@@ -103,7 +103,19 @@ describe("switchScopeHref", () => {
   });
 
   it("leaves a project page for the list when the workspace is chosen", () => {
-    expect(switchScopeHref("/projects/p1/social", null)).toBe("/projects");
+    expect(switchScopeHref("/projects/p1/memory", null)).toBe("/projects");
+  });
+
+  it("scopes Social the way the studio is scoped", () => {
+    // Social's accounts belong to one project, so like the studio it has no
+    // workspace version: the switcher's "Everything" lands on the ask-for-one
+    // state rather than on a page that cannot exist.
+    expect(scopedHref("/social", "p1")).toBe("/social?projectId=p1");
+    expect(switchScopeHref("/social", "p2")).toBe("/social?projectId=p2");
+    expect(switchScopeHref("/social", null)).toBe("/social");
+    expect(
+      readProjectScope("/social", new URLSearchParams("projectId=p1")),
+    ).toBe("p1");
   });
 
   it("opens the project from an unscoped page", () => {

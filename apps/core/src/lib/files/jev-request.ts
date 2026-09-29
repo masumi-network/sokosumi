@@ -35,8 +35,12 @@ import {
  * `rubricEnvelopeTokens` now serializes the real envelope and counts it, so
  * the figure follows the rubrics automatically when one is reworded. Live
  * reconciliation against reported usage still needs calls we are not
- * authorized to make, so `FILES_JEV_ENABLED` stays off by default — but the
- * ceiling it would be reconciled against is now the whole request.
+ * authorized to make, so the ceiling stays an estimate — but it is now an
+ * estimate of the whole request rather than of the rubrics alone.
+ *
+ * This used to say `FILES_JEV_ENABLED` stays off by default. `env.ts` defaults
+ * it to `"true"` and mainnet does not set it, so evaluation is on in
+ * production: the docstring contradicted the schema it described.
  */
 
 /**
@@ -79,7 +83,7 @@ const LABEL_NAME_TOKEN_BUDGET = 40;
  * It has to cover the state — context, a 2,048-token excerpt and the
  * bounded vocabulary — *and* the question map, which is one boolean
  * question per label carrying that label's name and description. At the
- * `SUGGESTION_VOCABULARY_MAX` of 30 that envelope alone measures ~7,300
+ * `SUGGESTION_VOCABULARY_MAX` of 40 that envelope alone measures ~9,700
  * tokens, so the previous 4,400 was not a ceiling a full request could ever
  * have met: it was set against a two-rung rubric that is not sent on this
  * path.
@@ -89,7 +93,7 @@ const LABEL_NAME_TOKEN_BUDGET = 40;
  * a workspace with five labels measures around a third of it.
  */
 export const LABEL_EVALUATION_CEILINGS: TokenCeilings = {
-  total: 12_000,
+  total: 16_000,
   components: { excerpt: 2_048, vocabulary: 1_536 },
 };
 

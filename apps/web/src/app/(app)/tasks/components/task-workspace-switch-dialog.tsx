@@ -119,7 +119,9 @@ export function TaskWorkspaceSwitchDialog({
             {t("cancel")}
           </AlertDialogCancel>
           <Button disabled={isPending} onClick={handleSwitchWorkspace}>
-            {isPending ? <Loader2 className="size-4 animate-spin" /> : null}
+            {isPending ? (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+            ) : null}
             {t("confirm")}
           </Button>
         </AlertDialogFooter>
