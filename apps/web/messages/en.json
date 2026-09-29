@@ -2327,7 +2327,6 @@
         "loadMore": "Load more",
         "loading": "Loading…",
         "title": "Social posts",
-        "description": "Draft, schedule, and publish posts on this Project’s connected social accounts.",
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
@@ -2335,17 +2334,16 @@
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
         },
         "sections": {
-          "upcoming": "Upcoming",
+          "calendar": "Calendar",
           "drafts": "Drafts",
-          "attention": "Needs attention"
+          "attention": "Needs attention",
+          "accounts": "Accounts"
         },
         "selectedPost": "Selected post",
         "empty": {
-          "upcoming": "No scheduled posts yet.",
           "drafts": "No drafts yet."
         },
         "emptyHint": {
-          "upcoming": "Schedule a post and it shows up here and on the calendar.",
           "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
@@ -2735,10 +2733,6 @@
       "title": "Social",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "calendar": {
-        "title": "Posting schedule",
-        "description": "Every scheduled post for this project, and nothing else."
-      },
       "newPost": {
         "label": "New post",
         "options": "New post options",

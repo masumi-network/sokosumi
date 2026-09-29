@@ -122,37 +122,33 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
   return (
     <SocialPageShell title={t("title")}>
       <SocialComposeProvider>
-        <div className="space-y-8">
-          <SocialCalendarSection
-            calendar={calendar}
-            description={t("calendar.description")}
-            lockedProjectId={project.id}
-            newPost={
-              <SocialNewPostMenu
-                project={{ id: project.id, name: project.name }}
-                sokoBotId={sokoBot?.id ?? null}
-              />
-            }
-            title={t("calendar.title")}
-          />
-
-          <ProjectSocialPosts
-            connections={activeConnections}
-            nextCursors={Object.fromEntries(
-              SECTION_ORDER.map((section, index) => [
-                section,
-                pages[index].nextCursor,
-              ]),
-            )}
-            posts={posts}
-            projectId={project.id}
-            selectedPostId={selectedPost?.id}
-          />
-          <ProjectSocialAccounts
-            projectId={project.id}
-            connections={connections}
-          />
-        </div>
+        <ProjectSocialPosts
+          accounts={
+            <ProjectSocialAccounts
+              projectId={project.id}
+              connections={connections}
+            />
+          }
+          actions={
+            <SocialNewPostMenu
+              project={{ id: project.id, name: project.name }}
+              sokoBotId={sokoBot?.id ?? null}
+            />
+          }
+          calendar={
+            <SocialCalendar calendar={calendar} lockedProjectId={project.id} />
+          }
+          connections={activeConnections}
+          nextCursors={Object.fromEntries(
+            SECTION_ORDER.map((section, index) => [
+              section,
+              pages[index].nextCursor,
+            ]),
+          )}
+          posts={posts}
+          projectId={project.id}
+          selectedPostId={selectedPost?.id}
+        />
       </SocialComposeProvider>
     </SocialPageShell>
   );
@@ -161,13 +157,11 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 function SocialCalendarSection({
   calendar,
   description,
-  lockedProjectId,
   newPost,
   title,
 }: {
   calendar: LoadedWorkspaceCalendarPage;
   description: string;
-  lockedProjectId?: string;
   newPost: React.ReactNode;
   title: string;
 }) {
@@ -182,25 +176,37 @@ function SocialCalendarSection({
         </div>
         {newPost}
       </div>
-      <WorkspaceCalendar
-        activeOrganizationId={calendar.activeOrganizationId}
-        coworkers={calendar.coworkerOptions}
-        currentUserId={calendar.currentUserId}
-        includeSocialPosts={calendar.includeSocialPosts}
-        initialDate={calendar.initialDate}
-        items={calendar.items}
-        key={calendar.calendarKey}
-        latestDate={calendar.latestDate}
-        lockedProjectId={lockedProjectId}
-        pagination={calendar.pagination}
-        range={calendar.range}
-        // Nothing but Social posts belongs on Social's own calendar, so task
-        // runs are left out here rather than behind a toggle the reader would
-        // have to find.
-        socialPostsOnly
-        sources={calendar.sources}
-        workspaceId={calendar.workspaceId}
-      />
+      <SocialCalendar calendar={calendar} />
     </section>
+  );
+}
+
+function SocialCalendar({
+  calendar,
+  lockedProjectId,
+}: {
+  calendar: LoadedWorkspaceCalendarPage;
+  lockedProjectId?: string;
+}) {
+  return (
+    <WorkspaceCalendar
+      activeOrganizationId={calendar.activeOrganizationId}
+      coworkers={calendar.coworkerOptions}
+      currentUserId={calendar.currentUserId}
+      includeSocialPosts={calendar.includeSocialPosts}
+      initialDate={calendar.initialDate}
+      items={calendar.items}
+      key={calendar.calendarKey}
+      latestDate={calendar.latestDate}
+      lockedProjectId={lockedProjectId}
+      pagination={calendar.pagination}
+      range={calendar.range}
+      // Nothing but Social posts belongs on Social's own calendar, so task
+      // runs are left out here rather than behind a toggle the reader would
+      // have to find.
+      socialPostsOnly
+      sources={calendar.sources}
+      workspaceId={calendar.workspaceId}
+    />
   );
 }

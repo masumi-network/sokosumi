@@ -60,6 +60,9 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
+    accounts?: React.ReactNode;
+    actions?: React.ReactNode;
+    calendar?: React.ReactNode;
     posts: { id: string }[];
     connections: { id: string }[];
     projectId: string;
@@ -71,7 +74,11 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
-    />
+    >
+      {props.actions}
+      {props.calendar}
+      {props.accounts}
+    </div>
   ),
 }));
 
@@ -268,9 +275,9 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
-    // One read per tab: upcoming, drafts and needs attention. Published and
-    // canceled posts are left to the calendar.
-    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
+    // One read per list: drafts and needs attention. Scheduled, published
+    // and canceled posts are left to the calendar tab.
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
   });
 
   /**
