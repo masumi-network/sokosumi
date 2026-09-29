@@ -864,6 +864,43 @@ describe("ProjectSocialAccounts", () => {
     expect(disconnectProjectSocialConnection).not.toHaveBeenCalled();
   });
 
+  it("returns focus to the section heading when a confirmed action leaves the menu disabled", async () => {
+    const user = userEvent.setup();
+    const pendingDisconnect =
+      Promise.withResolvers<
+        Awaited<ReturnType<typeof disconnectProjectSocialConnection>>
+      >();
+    vi.mocked(disconnectProjectSocialConnection).mockReturnValueOnce(
+      pendingDisconnect.promise,
+    );
+    render(
+      <ProjectSocialAccounts
+        projectId={PROJECT_ID}
+        connections={[buildConnection()]}
+      />,
+    );
+
+    await chooseAccountAction(user, "Disconnect");
+    await user.click(
+      within(screen.getByRole("alertdialog")).getByRole("button", {
+        name: "Disconnect account",
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByRole("heading", { name: "Social accounts" }),
+      ).toHaveFocus();
+    });
+
+    await act(async () => {
+      pendingDisconnect.resolve({
+        ok: true,
+        value: buildDisconnectResult(),
+      });
+    });
+  });
+
   it("refreshes after a replacement initiation failure retires the active connection", async () => {
     const user = userEvent.setup();
     vi.mocked(initiateProjectSocialConnection).mockResolvedValueOnce({

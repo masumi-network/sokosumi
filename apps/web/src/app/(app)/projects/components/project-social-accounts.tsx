@@ -117,6 +117,7 @@ export function ProjectSocialAccounts({
   // dialog closes, so focus goes back to that row's menu trigger by hand.
   const actionTriggersRef = useRef(new Map<string, HTMLButtonElement>());
   const confirmationTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   // The provider being connected, or the connection being changed.
   const [pendingTarget, setPendingTarget] = useState<string | null>(null);
@@ -343,7 +344,12 @@ export function ProjectSocialAccounts({
       id="social-accounts"
     >
       <div className="space-y-1">
-        <h2 id="social-accounts-heading" className="text-base font-semibold">
+        <h2
+          id="social-accounts-heading"
+          ref={headingRef}
+          tabIndex={-1}
+          className="text-base font-semibold"
+        >
           {t("title")}
         </h2>
         <p className="text-muted-foreground text-sm">{t("description")}</p>
@@ -551,7 +557,11 @@ export function ProjectSocialAccounts({
         <AlertDialogContent
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            confirmationTriggerRef.current?.focus();
+            const trigger = confirmationTriggerRef.current;
+            (trigger?.isConnected && !trigger.disabled
+              ? trigger
+              : headingRef.current
+            )?.focus();
           }}
         >
           <AlertDialogHeader>
