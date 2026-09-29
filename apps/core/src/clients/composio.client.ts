@@ -426,8 +426,8 @@ const SOCIAL_IDENTITY_TOOLS: Record<
   },
   linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
   facebook: {
-    slug: "FACEBOOK_GET_CURRENT_USER",
-    arguments: { fields: "id,name" },
+    slug: "FACEBOOK_LIST_MANAGED_PAGES",
+    arguments: { fields: "id,name", limit: 2 },
   },
   youtube: {
     slug: "YOUTUBE_LIST_CHANNELS",
@@ -504,10 +504,21 @@ function socialIdentity(
         identityString(snippet?.customUrl) ?? identityString(snippet?.title);
       break;
     }
-    case "facebook":
-      id = identityString(identity.id);
-      handle = identityString(identity.name);
+    case "facebook": {
+      // Posts go to a Page; never choose one when the account manages none or several.
+      const pages = Array.isArray(identity.data)
+        ? identity.data
+        : Array.isArray(identity.items)
+          ? identity.items
+          : null;
+      if (!pages || pages.length !== 1) return null;
+      const paging = record(identity.paging);
+      if (paging && identityString(paging.next)) return null;
+      const page = record(pages[0]) ?? {};
+      id = identityString(page.id);
+      handle = identityString(page.name);
       break;
+    }
     case "instagram":
       id = identityString(identity.id);
       handle = identityString(identity.username);

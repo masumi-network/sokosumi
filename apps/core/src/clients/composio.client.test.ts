@@ -418,10 +418,10 @@ describe("getConnectedSocialIdentity", () => {
     },
     {
       provider: "facebook",
-      slug: "FACEBOOK_GET_CURRENT_USER",
-      args: { fields: "id,name" },
-      payload: { id: "fb_123", name: "Alice", email: "alice@example.com" },
-      identity: { id: "fb_123", handle: "Alice" },
+      slug: "FACEBOOK_LIST_MANAGED_PAGES",
+      args: { fields: "id,name", limit: 2 },
+      payload: { data: [{ id: "page_123", name: "Alice Studio" }] },
+      identity: { id: "page_123", handle: "Alice Studio" },
     },
     {
       provider: "youtube",
@@ -507,7 +507,20 @@ describe("getConnectedSocialIdentity", () => {
       provider: "linkedin",
       payload: { name: "Alice", email: "alice@example.com" },
     },
-    { provider: "facebook", payload: { name: "Alice", id: "" } },
+    { provider: "facebook", payload: { data: [] } },
+    {
+      provider: "facebook",
+      payload: {
+        data: [
+          { id: "page_one", name: "One" },
+          { id: "page_two", name: "Two" },
+        ],
+      },
+    },
+    {
+      provider: "facebook",
+      payload: { data: [{ id: "", name: "Alice" }] },
+    },
     { provider: "youtube", payload: { items: [] } },
     {
       provider: "youtube",
@@ -648,7 +661,9 @@ describe("getConnectedSocialIdentity", () => {
     fetchMock
       .mockReset()
       .mockResolvedValueOnce(Response.json({ session_id: "sess_identity" }))
-      .mockResolvedValueOnce(Response.json({ data: { id: "fb_123" } }))
+      .mockResolvedValueOnce(
+        Response.json({ data: { data: [{ id: "page_123", name: "Alice" }] } }),
+      )
       .mockRejectedValueOnce(new Error("private-token private-session-url"));
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { getConnectedSocialIdentity } = await import("./composio.client");
@@ -658,7 +673,7 @@ describe("getConnectedSocialIdentity", () => {
         connectedAccountId: "ca_selected",
         executorUserId: input.executorUserId,
       }),
-    ).resolves.toEqual({ id: "fb_123", handle: null });
+    ).resolves.toEqual({ id: "page_123", handle: "Alice" });
     expect(warn).toHaveBeenCalledWith(
       "[composio] delete Project Facebook identity session failed",
     );

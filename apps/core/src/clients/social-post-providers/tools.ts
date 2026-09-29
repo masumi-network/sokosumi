@@ -169,6 +169,34 @@ export async function executeSocialPublishTool(input: {
 }
 
 /**
+ * Wrap create-post transport failures: the post may exist even without a
+ * response, so the caller must settle an unknown outcome instead of retrying.
+ */
+export async function guardSocialCreateOutcome<T>(
+  providerLabel: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    if (error instanceof ComposioApiError && error.httpStatus < 500)
+      throw error;
+    if (
+      error instanceof ComposioToolError &&
+      (error.providerStatus === 429 ||
+        (error.providerStatus !== null && error.providerStatus < 500) ||
+        (!/time.?out|timed out|temporarily|\b5\d\d\b/i.test(
+          error.providerMessage ?? "",
+        ) &&
+          error.providerStatus === null))
+    ) {
+      throw error;
+    }
+    throw new ComposioPublishOutcomeUnknownError(providerLabel);
+  }
+}
+
+/**
  * Stage validated bytes as FileUploadable, not a session path. The SDK's public
  * files.upload cannot accept cancellation; use its presign protocol here.
  * https://docs.composio.dev/reference/api-reference/files/postFilesUploadRequest
