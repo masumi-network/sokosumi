@@ -2266,6 +2266,8 @@
         "description": "Verbinde Social-Media-Konten mit diesem Projekt. Beiträge können derzeit auf X veröffentlicht werden.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
+        "connectHeading": "Konto verbinden",
+        "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
         "replace": "Ersetzen",
         "disconnect": "Trennen",
@@ -2324,12 +2326,16 @@
         "sections": {
           "upcoming": "Anstehend",
           "drafts": "Entwürfe",
-          "history": "Verlauf"
+          "attention": "Braucht Aufmerksamkeit"
         },
+        "selectedPost": "Ausgewählter Beitrag",
         "empty": {
           "upcoming": "Noch keine geplanten Beiträge.",
-          "drafts": "Noch keine Entwürfe.",
-          "history": "Noch keine veröffentlichten, fehlgeschlagenen oder abgebrochenen Beiträge."
+          "drafts": "Noch keine Entwürfe."
+        },
+        "emptyHint": {
+          "upcoming": "Plane einen Beitrag, dann erscheint er hier und im Kalender.",
+          "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
         },
         "status": {
           "DRAFT": "Entwurf",
@@ -2388,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
-          "description": "Der Beitrag wird nicht veröffentlicht. Du kannst ihn später erneut planen.",
+          "description": "Der Beitrag wird nicht veröffentlicht. Das lässt sich nicht rückgängig machen.",
           "confirm": "Beitrag abbrechen"
         },
         "toasts": {
@@ -2565,7 +2571,6 @@
           "overview": "Übersicht",
           "design": "Design",
           "memory": "Gedächtnis",
-          "social": "Social",
           "backToProjects": "Alle Projekte",
           "ariaLabel": "Projektbereiche"
         },
@@ -2708,6 +2713,17 @@
       },
       "creditsCheckedOn": "Preis geprüft am {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Projekt auswählen",
+      "pickBody": "Social arbeitet innerhalb eines Projekts: die Konten, aus denen gepostet wird, gehören dazu. Wähle ein Projekt, um seine Beiträge zu planen.",
+      "pickAction": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
+      "calendar": {
+        "title": "Veröffentlichungsplan",
+        "description": "Alle geplanten Beiträge dieses Projekts – und nichts anderes."
+      }
+    },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
       "description": "Es ist ein unerwarteter Fehler aufgetreten. Unser Team wurde benachrichtigt und wir arbeiten an einer Lösung.",
@@ -2748,7 +2764,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
-          "schedules": "Zeitpläne"
+          "schedules": "Zeitpläne",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -6927,7 +6944,8 @@
         "label": "Zeitzone"
       },
       "empty": {
-        "title": "Keine geplanten Freigaben entsprechen diesen Filtern."
+        "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
+        "socialOnly": "In diesem Zeitraum sind keine Social-Beiträge geplant."
       },
       "schedules": {
         "link": "Zeitpläne"
@@ -6952,6 +6970,9 @@
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
         "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
+      },
+      "socialOnly": {
+        "label": "Nur Social-Beiträge"
       }
     },
     "You": {

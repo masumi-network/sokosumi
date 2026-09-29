@@ -2266,6 +2266,8 @@
         "description": "Connect social accounts to this project. Publishing is currently available for X.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
+        "connectHeading": "Connect an account",
+        "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
@@ -2324,12 +2326,16 @@
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",
-          "history": "History"
+          "attention": "Needs attention"
         },
+        "selectedPost": "Selected post",
         "empty": {
           "upcoming": "No scheduled posts yet.",
-          "drafts": "No drafts yet.",
-          "history": "No published, failed, or canceled posts yet."
+          "drafts": "No drafts yet."
+        },
+        "emptyHint": {
+          "upcoming": "Schedule a post and it shows up here and on the calendar.",
+          "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
           "DRAFT": "Draft",
@@ -2388,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "Cancel this post?",
-          "description": "The post will not be published. You can schedule it again later.",
+          "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
         "toasts": {
@@ -2565,7 +2571,6 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "social": "Social",
           "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
@@ -2708,6 +2713,17 @@
       },
       "creditsCheckedOn": "Price checked {date}"
     },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Pick a project",
+      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "calendar": {
+        "title": "Posting schedule",
+        "description": "Every scheduled post for this project, and nothing else."
+      }
+    },
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
@@ -2748,7 +2764,8 @@
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
-          "schedules": "Schedules"
+          "schedules": "Schedules",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -6927,7 +6944,8 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -6952,6 +6970,9 @@
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
         "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+      },
+      "socialOnly": {
+        "label": "Social posts only"
       }
     },
     "You": {
