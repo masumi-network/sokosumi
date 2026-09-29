@@ -6,20 +6,20 @@ Goal: prove the intended developer wallet receipt for a Coworker Task on Cardano
 
 [VERIFIED: code read, 2026-09-29]
 
-- **Jobs already prove settlement.** `apps/core/src/services/job-sync.service.ts:248` calls `transformPurchaseToJobUpdate` (`apps/core/src/helpers/purchase.ts`), which maps MPS `onChainState` (including `Withdrawn`) using `paymentClient().resolvePurchase(blockchainIdentifier)` (`apps/core/src/clients/masumi-payment.client.ts`, a wrapper over `@sokosumi/masumi` `createPaymentClient`, reading `PAYMENT_API_URL` / `PAYMENT_API_KEY`).
-- **Coworker Tasks do not.** They only have `TaskPaymentClaim` (`PENDING | PURCHASED | REFUNDED`, `packages/database/prisma/schema.prisma:3142`). Core "cannot observe settlement" for them yet.
-- `paymentClient().resolvePurchase(id)` returns `Result<ResolvedPurchase, string>` (neverthrow). `ResolvedPurchase` is the full node row: `onChainState`, `WithdrawnForSeller[]`, `CurrentTransaction.txHash`.
-- `doesResolvedPurchaseSellerMatch` (`@sokosumi/masumi`) confirms the payout seller vkey.
+- **Jobs already prove settlement.** `apps/core/src/services/job-sync.service.ts` resolves the purchase with `paymentClient().getPurchaseByBlockchainIdentifier(...)`, checks it with `doesPurchaseMatchJobTerms`, then maps MPS `onChainState` (including `Withdrawn`) through `transformPurchaseToJobUpdate` (`apps/core/src/helpers/purchase.ts`). `paymentClient` (`apps/core/src/clients/masumi-payment.client.ts`) wraps `@sokosumi/masumi` `createPaymentClient` and reads `PAYMENT_API_URL` / `PAYMENT_API_KEY`.
+- **Coworker Tasks do not.** They only have `TaskPaymentClaim` (`PENDING | PURCHASED | REFUNDED`, `model TaskPaymentClaim` in `packages/database/prisma/schema.prisma`). Core "cannot observe settlement" for them yet.
+- `paymentClient().resolveMasumiTaskPaymentPurchase(payload)` resolves a Task claim's purchase and returns `err({ kind: "mismatch" })` unless the purchase matches the claim's stored terms (`doesPurchaseMatchRequest`: seller vkey, amounts, times, input hash). The purchase row carries `onChainState`, `WithdrawnForSeller[]` and `CurrentTransaction.txHash`.
 
-So the minimal change resolves the Task claim's purchase on demand through the same client and mapping the Job flow already uses.
+So the minimal change resolves the Task claim's purchase on demand through the same terms-checked seam the claim sync already uses.
 
 ## Change
 
 ### Core (reuses `paymentClient` + `purchase.ts`)
 
 1. Helper `apps/core/src/helpers/coworker-task-receipt.ts`:
-   - `resolveTaskSellerReceipt(taskId, db)`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().getPurchaseByBlockchainIdentifier(claim.blockchainIdentifier)`.
-   - Return `{ blockchainIdentifier, claimStatus, onChainState, settled: onChainState === "Withdrawn", txHash, withdrawnForSeller }`.
+   - `resolveTaskSellerReceipt(taskId, db)`: read the latest `TaskPaymentClaim` for the task (`where: { taskEvent: { taskId } }`), then `paymentClient().resolveMasumiTaskPaymentPurchase(parsePurchasePayload(claim.purchasePayload))` with a 20 s timeout.
+   - Return `{ blockchainIdentifier, claimStatus, onChainState, settled, txHash, withdrawnForSeller }`, where `settled` is `Withdrawn`, or `DisputedWithdrawn` with a non-empty `WithdrawnForSeller`.
+   - No purchase on the node (`not_found`) returns `settled: false`. A node failure or a terms mismatch throws 502, so an outage never reads as a proven non-payment.
    - Limitation: the pilot assumes one payment per task. If a task is re-charged (a second claim), only the newest claim is reported; an older settled claim would then read as `settled: false`.
 2. Route `GET /v1/tasks/{id}/receipt` (`apps/core/src/routes/v1/tasks/[id]/receipt/get.ts`), coworker-readable via `requireTaskReadForRouteVars`, returns the helper output through a Zod/OpenAPI schema. Mount before `/{id}` dynamic routes.
 
@@ -43,13 +43,15 @@ No new MPS HTTP, no new settlement mapping, no CLI dependency on the private `@s
 - A real `RefundWithdrawn` purchase → `settled: false` (a refund is correctly not a seller receipt).
 - `WithdrawnForSeller` came back **empty** on this node even for `Withdrawn` purchases, confirming `settled` must key off `onChainState`, not that array. The settlement `txHash` came from `CurrentTransaction.txHash`.
 
+Correction (review, 2026-09-29): the reads above used the unchecked `getPurchaseByBlockchainIdentifier` lookup. The helper now uses `resolveMasumiTaskPaymentPurchase`, which calls the same node endpoint and adds the terms check. [NOT RE-VERIFIED on Preprod] with a real Task claim; only unit tests cover the new path.
+
 ## Follow-ups (from a masumi-cli / MPS cross-reference)
 
 Deferred; not needed for the pilot, and none over-claims a receipt.
 
 - **txHash source hardening.** `txHash` reads `CurrentTransaction.txHash`, which MPS documents as the *active* transaction and can be null after settlement. MPS itself reads the confirmed hash from `TransactionHistory`. A durable fix needs `@sokosumi/masumi` to request `includeHistory` on resolve, then pick the history entry whose `newOnChainState == "Withdrawn"`. Live Preprod reads returned a non-null `txHash`, so the happy path holds today.
 - **Surface the paid amount.** For a plain `Withdrawn`, MPS reports the amount from `PaidFunds`/`RequestedFunds`, not `WithdrawnForSeller` (empty). The receipt proves `settled` but carries no amount in the common case; surface `PaidFunds` if the receipt should state how much the seller received.
-- **Defense-in-depth (optional).** Reuse `doesResolvedPurchaseSellerMatch` to confirm the resolved purchase's seller vkey matches the task's agent, and gate on a confirmed on-chain tx, both of which MPS applies. The blockchainIdentifier + API-key wallet scope already bind the record, so these are not correctness bugs.
+- **Confirmed-tx gate (optional).** Gate `settled` on a confirmed on-chain transaction, as MPS does. The seller vkey and terms are already checked by `resolveMasumiTaskPaymentPurchase`.
 - **Multi-claim.** See the helper limitation above (one payment per task assumed).
 
 ## References
