@@ -6,6 +6,30 @@
   import Testing
   import Vision
 
+  /// The states web's single handle line takes besides its help, each replacing the help rather than stacking.
+  enum CreateChannelHandleLine: CaseIterable, Sendable {
+    case checking, taken, failed, invalid
+
+    /// The line Vision must read, as it appears in the render.
+    var fragment: String {
+      switch self {
+      case .checking: "Checking handle"
+      case .taken: "This channel handle already exists"
+      case .failed: "Could not check this handle"
+      case .invalid: "Enter a valid handle."
+      }
+    }
+
+    var status: ChannelCreation.HandleStatus {
+      switch self {
+      case .checking: .checking
+      case .taken: .taken
+      case .failed: .failed
+      case .invalid: .invalid
+      }
+    }
+  }
+
   extension NativeWindowTests {
     /// Web's create-channel field guidance: handle and name help, remaining-character counters for name and topic,
     /// and the member count in the participants choice.
@@ -43,6 +67,30 @@
         let bitmap = try await render(host, in: window, expecting: ["Add all 2 members of Acme", "Select people and"])
         try Self.expectWindowBackground(bitmap, dark: dark)
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "create-channel-participants-\(dark ? "dark" : "light").png")
+      }
+
+      /// Drives the sheet's own slug check (`.task(id:)` through `checkSlug`) into each state and reads the line it draws.
+      @Test(arguments: CreateChannelHandleLine.allCases, [false, true])
+      func handleLineReplacesItsHelp(line: CreateChannelHandleLine, dark: Bool) async throws {
+        let model = try await loadedModel()
+        if line == .invalid {
+          model.draft.setSlug("...")
+        }
+        let (host, window) = mount(model, dark: dark) { _ in
+          switch line {
+          case .checking:
+            try await Task.sleep(for: .seconds(60))
+            return true
+          case .taken: return false
+          case .failed: throw URLError(.timedOut)
+          case .invalid: return true
+          }
+        }
+        defer { window.orderOut(nil) }
+        try await waitForLoad(model, in: host)
+        let bitmap = try await render(host, in: window, expecting: [line.fragment] + (line == .failed ? ["Retry"] : []), absent: ["Unique among channels"])
+        #expect(model.handleStatus == line.status)
+        try Self.expectWindowBackground(bitmap, dark: dark)
       }
 
       /// Web's `maxLength` stops typing at the limit; the field must not keep characters the draft dropped.
@@ -84,10 +132,11 @@
         return model
       }
 
-      private func mount(_ model: ChannelCreation, dark: Bool) -> (NSHostingView<some View>, NSWindow) {
+      private func mount(_ model: ChannelCreation, dark: Bool,
+                         checkSlug: @escaping (String) async throws -> Bool = { _ in true }) -> (NSHostingView<some View>, NSWindow) {
         let roster = roster
         let content = CreateChannelView(currentUserId: "me", organizationName: "Acme", model: model,
-                                        load: { roster }, checkSlug: { _ in true }, create: { _, _ in
+                                        load: { roster }, checkSlug: checkSlug, create: { _, _ in
                                           Issue.record("Rendering must not create a channel")
                                           return false
                                         })
@@ -101,7 +150,7 @@
       }
 
       /// Draws until Vision reads every expected fragment; on a runner without Vision the text claims are skipped.
-      private func render(_ host: NSView, in window: NSWindow, expecting fragments: [String]) async throws -> NSBitmapImageRep {
+      private func render(_ host: NSView, in window: NSWindow, expecting fragments: [String], absent: [String] = []) async throws -> NSBitmapImageRep {
         var drawn: NSBitmapImageRep?
         var lastLines: [String] = []
         let clock = ContinuousClock()
@@ -111,13 +160,14 @@
           guard let lines = try Self.recognizedLines(in: bitmap) else { return bitmap }
           lastLines = lines
           let text = lines.joined(separator: "\n")
-          if fragments.allSatisfy({ fragment in lines.contains { $0.contains(fragment) } || text.contains(fragment) }) {
+          if fragments.allSatisfy({ fragment in lines.contains { $0.contains(fragment) } || text.contains(fragment) }),
+             !absent.contains(where: { text.contains($0) }) {
             drawn = bitmap
             break
           }
           try await Task.sleep(for: .milliseconds(50))
         } while clock.now < deadline
-        return try #require(drawn, "Expected \(fragments) in the render; Vision read \(lastLines)")
+        return try #require(drawn, "Expected \(fragments) without \(absent) in the render; Vision read \(lastLines)")
       }
 
       /// The sheet's backdrop is window chrome that `cacheDisplay` does not draw, so the content is drawn over the
