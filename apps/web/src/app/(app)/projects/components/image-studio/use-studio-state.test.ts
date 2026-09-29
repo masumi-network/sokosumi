@@ -53,14 +53,12 @@ function job(assetId: string | null, status: string) {
 const INITIAL: StudioState = {
   assets: [asset("a1", 1)],
   jobs: [job(null, "QUEUED")],
-  sessions: [],
   nextCursor: null,
 };
 
 const WITH_RESULT: StudioState = {
   assets: [asset("a2", 2), asset("a1", 1)],
   jobs: [job("a2", "SUCCEEDED")],
-  sessions: [],
   nextCursor: null,
 };
 
@@ -68,7 +66,6 @@ const WITH_RESULT: StudioState = {
 const OTHER_PROJECT: StudioState = {
   assets: [asset("b1", 1)],
   jobs: [],
-  sessions: [],
   nextCursor: null,
 };
 
