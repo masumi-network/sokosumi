@@ -2407,7 +2407,20 @@
           "reschedule": "Neu planen",
           "cancel": "Beitrag abbrechen",
           "edit": "Bearbeiten",
-          "close": "Schließen"
+          "close": "Schließen",
+          "schedulePicker": {
+            "quickPicks": "Schnellauswahl",
+            "quick": {
+              "inAnHour": "In einer Stunde ({time})",
+              "tomorrowMorning": "Morgen {time}",
+              "nextMonday": "Montag {time}"
+            },
+            "pickDate": "Datum wählen",
+            "pickTime": "Uhrzeit wählen",
+            "dateSelected": "Datum: {date}",
+            "timeSelected": "Uhrzeit: {time}",
+            "times": "Uhrzeiten"
+          }
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
