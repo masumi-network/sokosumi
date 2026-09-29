@@ -1,9 +1,14 @@
 "use server";
 
+import type {
+  TaskScheduleRule,
+  TaskScheduleRuleReplacement,
+  TaskVisibility,
+  UpdateTaskScheduleRunRequest,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { ResultAsync } from "neverthrow";
 import { revalidatePath } from "next/cache";
-
 import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
@@ -14,12 +19,6 @@ import {
 } from "@/lib/actions/action-result";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
-import type {
-  TaskScheduleRule,
-  TaskScheduleRuleReplacement,
-  TaskVisibility,
-  UpdateTaskScheduleRunRequest,
-} from "@/lib/clients/generated/core";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
   type AuthenticatedRequest,

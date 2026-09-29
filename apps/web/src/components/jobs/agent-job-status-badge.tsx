@@ -1,7 +1,7 @@
 "use client";
 
+import { AgentJobStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
 

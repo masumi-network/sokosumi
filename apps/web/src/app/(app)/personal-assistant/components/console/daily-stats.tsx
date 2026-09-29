@@ -1,8 +1,7 @@
 "use client";
 
+import type { SokoBotDailyStats } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
-
-import type { SokoBotDailyStats } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 const WIDTH = 640;

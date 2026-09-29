@@ -1,8 +1,7 @@
 "use client";
 
+import type { SokoBotUsage } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
-
-import type { SokoBotUsage } from "@/lib/clients/generated/core";
 
 /**
  * What this bot has spent, for its owner.

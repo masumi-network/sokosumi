@@ -1,4 +1,4 @@
-import type { Coworker, Vendor } from "@/lib/clients/generated/core";
+import type { Coworker, Vendor } from "@sokosumi/core-client";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 function mockVendor(overrides: Partial<Vendor> = {}): Vendor {

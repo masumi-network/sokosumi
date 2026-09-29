@@ -1,12 +1,11 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import {
   listRoomMessagesAction,
   listThreadMessagesAction,
 } from "@/app/chat/actions";
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   TRANSCRIPT_SNAPSHOT_RETRIES,

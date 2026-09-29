@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { ChatRoomMessagePatchEventData } from "@/lib/ably/schema";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /**
  * Merge a high-chatter Ably patch into an existing client message.

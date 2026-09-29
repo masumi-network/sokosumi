@@ -1,10 +1,10 @@
 "use client";
 
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useRef, useState, useTransition } from "react";
-
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import {
@@ -23,10 +23,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {

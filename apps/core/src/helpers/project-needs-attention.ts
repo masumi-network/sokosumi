@@ -110,11 +110,26 @@ export function compareNeedsAttention(
   return left.id < right.id ? -1 : left.id > right.id ? 1 : 0;
 }
 
+/**
+ * An item plus the timestamp this list ranks it by.
+ *
+ * The two are separate because they answer different questions. The item's
+ * `createdAt` is what a reader sees — the date the entity's own card shows —
+ * while attention order is about what moved last, which for a job is the latest
+ * of its own touch, its purchase and its newest event. Reading the rank key off
+ * the item is how the feed's date and this list's order got welded together in
+ * the first place.
+ */
+export interface AttentionCandidate {
+  item: HistoryItem;
+  attentionAt: Date;
+}
+
 export function rankNeedsAttentionItems(
-  items: readonly HistoryItem[],
+  candidates: readonly AttentionCandidate[],
 ): HistoryItem[] {
-  const ranked = items
-    .flatMap((item) => {
+  const ranked = candidates
+    .flatMap(({ item, attentionAt }) => {
       // Only the kinds that can be waiting on somebody. A generated image is
       // already finished the moment it exists — approving it is a choice, not an
       // obligation — so it never belongs on this list.
@@ -135,7 +150,7 @@ export function rankNeedsAttentionItems(
             id: item.id,
             kind: item.kind,
             tier,
-            updatedAtMs: new Date(item.updatedAt).getTime(),
+            updatedAtMs: attentionAt.getTime(),
           } satisfies RankableAttentionItem,
         },
       ];
@@ -158,24 +173,28 @@ function mapTaskToHistoryItem(task: {
   name: string;
   description: string | null;
   status: TaskStatus;
+  createdAt: Date;
   updatedAt: Date;
   projectId: string | null;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
-}): HistoryItem {
+}): AttentionCandidate {
   return {
-    kind: "task",
-    id: task.id,
-    title: task.name,
-    description: task.description,
-    status: task.status,
-    updatedAt: task.updatedAt.toISOString(),
-    archivedAt: null,
-    credits: null,
-    projectId: task.projectId,
-    coworkerId: task.assigneeId,
-    sokoBotId: task.assigneeSokoBotId,
-    owner: null,
+    item: {
+      kind: "task",
+      id: task.id,
+      title: task.name,
+      description: task.description,
+      status: task.status,
+      createdAt: task.createdAt.toISOString(),
+      archivedAt: null,
+      credits: null,
+      projectId: task.projectId,
+      coworkerId: task.assigneeId,
+      sokoBotId: task.assigneeSokoBotId,
+      owner: null,
+    },
+    attentionAt: task.updatedAt,
   };
 }
 
@@ -238,27 +257,31 @@ export function jobAttentionUpdatedAt(job: {
 function mapJobToHistoryItem(job: {
   id: string;
   name: string | null;
+  createdAt: Date;
   updatedAt: Date;
   projectId: string | null;
   agentId: string;
   status: SokosumiJobStatus;
   purchase?: { updatedAt: Date } | null;
   events: readonly { createdAt: Date }[];
-}): HistoryItem {
+}): AttentionCandidate {
   return {
-    kind: "job",
-    id: job.id,
-    title: job.name?.trim() ? job.name : "Untitled job",
-    description: null,
-    status: job.status,
-    updatedAt: jobAttentionUpdatedAt(job).toISOString(),
-    archivedAt: null,
-    credits: null,
-    projectId: job.projectId,
-    agentId: job.agentId,
-    agentName: null,
-    agentIcon: null,
-    owner: null,
+    item: {
+      kind: "job",
+      id: job.id,
+      title: job.name?.trim() ? job.name : "Untitled job",
+      description: null,
+      status: job.status,
+      createdAt: job.createdAt.toISOString(),
+      archivedAt: null,
+      credits: null,
+      projectId: job.projectId,
+      agentId: job.agentId,
+      agentName: null,
+      agentIcon: null,
+      owner: null,
+    },
+    attentionAt: jobAttentionUpdatedAt(job),
   };
 }
 
@@ -294,6 +317,7 @@ export async function getProjectNeedsAttention(
         name: true,
         description: true,
         status: true,
+        createdAt: true,
         updatedAt: true,
         projectId: true,
         assigneeId: true,
@@ -313,6 +337,8 @@ export async function getProjectNeedsAttention(
         name: true,
         updatedAt: true,
         agentId: true,
+        // Brings `createdAt` with it, which is the date the job's own card
+        // shows and therefore the one the item carries.
         ...jobForStatusComputeSelect,
         events: {
           orderBy: {

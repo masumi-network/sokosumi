@@ -1,7 +1,5 @@
 import "server-only";
 
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 import type {
   CreateTaskScheduleRequest,
   TaskSchedule,
@@ -11,7 +9,9 @@ import type {
   TaskScheduleState,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
+import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
 
 export interface ListTaskSchedulesParams {
   projectId?: string | null;

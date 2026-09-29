@@ -4,7 +4,7 @@ import type {
   ProjectImageSettings,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
 import type { StudioTemplateId } from "./studio-templates";
 
 export type StudioAsset = ProjectImageAsset;
