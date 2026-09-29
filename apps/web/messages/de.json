@@ -2311,7 +2311,9 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
-        }
+        },
+        "comingSoon": "Bald verfügbar",
+        "connectComingSoon": "{provider} (bald verfügbar)"
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",

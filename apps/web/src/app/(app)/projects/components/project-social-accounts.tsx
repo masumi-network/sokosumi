@@ -68,7 +68,8 @@ type OAuthAction = "connect" | "reconnect" | "replace";
 
 const SOCIAL_PROVIDERS = [
   { id: "x", name: "X", Icon: SiX },
-  { id: "tiktok", name: "TikTok", Icon: TikTokIcon },
+  // Not offered yet: publishing needs TikTok's app review first.
+  { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
   { id: "instagram", name: "Instagram", Icon: InstagramIcon },
   { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
   { id: "facebook", name: "Facebook", Icon: FacebookIcon },
@@ -77,6 +78,7 @@ const SOCIAL_PROVIDERS = [
   id: ProjectSocialConnection["provider"];
   name: string;
   Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
+  comingSoon?: boolean;
 }[];
 
 const STATUS_TRANSLATION_KEYS: Record<
@@ -380,18 +382,35 @@ export function ProjectSocialAccounts({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            {SOCIAL_PROVIDERS.map(({ id, name, Icon }) => (
-              <DropdownMenuItem
-                key={id}
-                aria-label={t("connect", { provider: name })}
-                onSelect={() => {
-                  void startOAuth("connect", undefined, id);
-                }}
-              >
-                <Icon className="size-4" aria-hidden />
-                {name}
-              </DropdownMenuItem>
-            ))}
+            {SOCIAL_PROVIDERS.map((provider) => {
+              const { id, name, Icon } = provider;
+              const comingSoon = "comingSoon" in provider;
+              return (
+                <DropdownMenuItem
+                  key={id}
+                  aria-label={
+                    comingSoon
+                      ? t("connectComingSoon", { provider: name })
+                      : t("connect", { provider: name })
+                  }
+                  disabled={comingSoon}
+                  onSelect={() => {
+                    void startOAuth("connect", undefined, id);
+                  }}
+                >
+                  <Icon
+                    className={cn("size-4", comingSoon && "grayscale")}
+                    aria-hidden
+                  />
+                  {name}
+                  {comingSoon ? (
+                    <span className="text-muted-foreground ml-auto pl-4 text-xs">
+                      {t("comingSoon")}
+                    </span>
+                  ) : null}
+                </DropdownMenuItem>
+              );
+            })}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

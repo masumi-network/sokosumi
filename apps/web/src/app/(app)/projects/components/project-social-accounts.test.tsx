@@ -43,6 +43,8 @@ const MESSAGES: Record<string, string> = {
   account: "{provider} account",
   connect: "Connect {provider} account",
   connectAccount: "Connect account",
+  comingSoon: "Coming soon",
+  connectComingSoon: "{provider} (coming soon)",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
   replace: "Replace",
@@ -243,19 +245,33 @@ describe("ProjectSocialAccounts", () => {
       ok: false,
       error: {
         code: "SERVICE_UNAVAILABLE",
-        message: "COMPOSIO_TIKTOK_AUTH_CONFIG_ID is not configured",
+        message: "COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID is not configured",
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await connectProvider(userEvent.setup(), "TikTok");
+    await connectProvider(userEvent.setup(), "Instagram");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This integration is not configured yet",
     );
-    expect(screen.queryByText(/COMPOSIO_TIKTOK/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/COMPOSIO_INSTAGRAM/)).not.toBeInTheDocument();
+  });
+
+  it("shows TikTok as coming soon and does not start a connection", async () => {
+    const user = userEvent.setup();
+    render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
+
+    await user.click(screen.getByRole("button", { name: "Connect account" }));
+    const tiktok = screen.getByRole("menuitem", {
+      name: "TikTok (coming soon)",
+    });
+    expect(tiktok).toHaveAttribute("aria-disabled", "true");
+    expect(tiktok).toHaveTextContent("Coming soon");
+
+    await user.click(tiktok);
+    expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
   });
 
   it.each([
-    ["tiktok", "TikTok"],
     ["instagram", "Instagram"],
     ["linkedin", "LinkedIn"],
     ["facebook", "Facebook"],

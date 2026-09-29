@@ -2311,7 +2311,9 @@
           "finalize": "No pudimos terminar de conectar esta cuenta. Inténtalo de nuevo.",
           "disconnect": "No pudimos desconectar esta cuenta. Inténtalo de nuevo.",
           "notConfigured": "Esta integración aún no está configurada. Contacta con soporte para activarla."
-        }
+        },
+        "comingSoon": "Próximamente",
+        "connectComingSoon": "{provider} (próximamente)"
       },
       "SocialPosts": {
         "loadMore": "Cargar más",
