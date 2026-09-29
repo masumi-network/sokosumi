@@ -14,6 +14,7 @@ import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 import {
+  ACTION_LABELS,
   type ActionNarrative,
   buildActionResponse,
   parseActionNarrativeText,
@@ -328,8 +329,27 @@ export async function runTurnTool(input: {
  * meant to be the JSON narrative; plain prose is kept as its message too. A
  * message that claims an action is dropped, since only receipts may.
  */
+/** The changes this turn's receipts confirm, as the answer names them. */
+async function confirmedChanges(turnId: string): Promise<string[]> {
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: {
+      turnId,
+      capability: { in: [...ACTION_CAPABILITIES] },
+      status: "COMPLETED",
+      disposition: { in: ["APPLIED", "ALREADY_SATISFIED"] },
+    },
+    select: { capability: true },
+  });
+  return [
+    ...new Set(
+      calls.map((call) => ACTION_LABELS[call.capability] ?? call.capability),
+    ),
+  ];
+}
+
 async function ownerNarrative(
   text: string,
+  turnId: string,
 ): Promise<ActionNarrative | undefined> {
   const parsed = parseActionNarrativeText(text);
   const narrative: ActionNarrative | null =
@@ -343,7 +363,10 @@ async function ownerNarrative(
         }
       : null);
   if (!narrative?.message) return narrative ?? undefined;
-  const claim = await claimsAction(narrative.message);
+  const claim = await claimsAction(
+    narrative.message,
+    await confirmedChanges(turnId),
+  );
   if (claim === false) return narrative;
   // A claim is dropped: the receipts say what changed, or that nothing did.
   // An unchecked reply is not shown either, but the owner is told why.
@@ -401,7 +424,9 @@ export async function finishTurn(input: {
     input.turnId,
     input.text,
     input.requiresActionProof,
-    input.requiresActionProof ? await ownerNarrative(input.text) : undefined,
+    input.requiresActionProof
+      ? await ownerNarrative(input.text, input.turnId)
+      : undefined,
   );
   // Settlement rebuilds the answer from the stored narrative, so its message
   // is checked as well as the text shown now.

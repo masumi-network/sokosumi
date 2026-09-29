@@ -90,7 +90,9 @@ async function resetLabState(owner: {
   };
   const created = await prisma.sokoBotToolCall.findMany({
     where: {
-      capability: { in: ["create_task", "create_schedule", "upload_file"] },
+      capability: {
+        in: ["create_task", "create_schedule", "upload_file", "post_chat"],
+      },
       status: "COMPLETED",
       targetId: { not: null },
       turn: labTurn,
@@ -127,6 +129,12 @@ async function resetLabState(owner: {
       OR: [{ id: { in: ids("create_schedule") } }, { name: { in: seeded } }],
     },
   });
+  // Removed as a person deleting their message would, so the next scenario
+  // does not find the last run's post and skip its own.
+  const messages = await prisma.chatRoomMessage.updateMany({
+    where: { id: { in: ids("post_chat") }, deletedAt: null },
+    data: { deletedAt: new Date() },
+  });
   const files = ids("upload_file").filter((url) => url.startsWith("https://"));
   if (files.length) {
     await del(files);
@@ -147,7 +155,7 @@ async function resetLabState(owner: {
   }
   await sokoBotControlPlane.resetMemory(owner.bot.userId, owner.workspaceId);
   console.log(
-    `Reset: archived ${tasks.count} task(s), removed ${schedules.count} schedule(s) and ${files.length} file(s), cleared memory`,
+    `Reset: archived ${tasks.count} task(s), removed ${schedules.count} schedule(s), ${messages.count} message(s) and ${files.length} file(s), cleared memory`,
   );
 }
 

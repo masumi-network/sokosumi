@@ -25,6 +25,17 @@ describe("claimsAction", () => {
     },
   );
 
+  it("gives Jev the changes the turn's receipts confirm", async () => {
+    evaluateMock.mockResolvedValue({
+      answers: { claimsAction: { probability: 0.1 } },
+    });
+    await claimsAction("I updated memory.", ["Updated memory"]);
+    expect(evaluateMock.mock.calls[0][0].state).toEqual({
+      reply: "I updated memory.",
+      confirmedChanges: ["Updated memory"],
+    });
+  });
+
   it("reports a failed or malformed check as unchecked", async () => {
     evaluateMock.mockRejectedValueOnce(new Error("timeout"));
     await expect(claimsAction("Here is the draft.")).resolves.toBeNull();

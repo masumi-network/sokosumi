@@ -9,7 +9,7 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
-const ACTION_LABELS: Record<string, string> = {
+export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
   create_table: "Created table",

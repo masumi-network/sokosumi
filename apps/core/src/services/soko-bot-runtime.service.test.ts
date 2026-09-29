@@ -5254,7 +5254,14 @@ describe("find_agents", () => {
       ]),
     );
     const result = await search("write blog posts");
-    expect(result).toMatchObject({ agents: [] });
+    // The nearest listings come back apart, best first, never as a fit.
+    expect(result).toMatchObject({
+      agents: [],
+      closest: [
+        { id: "b", fit: 0.2 },
+        { id: "a", fit: 0.1 },
+      ],
+    });
     expect(result).toHaveProperty(
       "note",
       expect.stringContaining("No available Agent fits"),

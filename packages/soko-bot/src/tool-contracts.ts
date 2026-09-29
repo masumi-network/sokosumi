@@ -568,7 +568,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   list_chats:
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat.",
   read_chat:
-    "Read recent messages in one chat room you are a member of, newest first, with who sent each one. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
+    "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:
@@ -621,7 +621,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   link_tasks:
     "Link two Tasks (related, blocks, blocked_by, parent, child) so follow-up work stays connected on the Taskboard.",
   find_agents:
-    "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer. Use when no Coworker suits the work.",
+    "Search the marketplace for Agents that can do a request, described in plain words. Returns the best fits with price and a fit rating (0-1); an empty list with a note means no listed Agent fits, and saying so is the right answer; `closest` then shows the nearest listings, which do related work, not this. Use when no Coworker suits the work.",
   get_agent_input_schema: "Fetch selected marketplace Agent input schema.",
   hire_agent:
     "Hire a marketplace Agent: Core starts the Job right away and charges credits up to maxCredits. Respect any budget the owner stated.",

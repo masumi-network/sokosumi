@@ -609,6 +609,9 @@ function studioLink(projectId: string, assetId?: string | null): string {
   return assetId ? `${base}&v=${encodeURIComponent(assetId)}` : base;
 }
 
+/** Near misses shown when no Agent fits, so "none fits" still informs. */
+const CLOSEST_AGENTS = 3;
+
 /** Hireable Agents best suited to `query`, with prices and a fit rating. */
 async function findHireableAgents(query: string | undefined) {
   const { agents: rows } = await listHireableAgents(500);
@@ -631,25 +634,30 @@ async function findHireableAgents(query: string | undefined) {
         .filter((row) => (ratings.get(row.id) ?? 0) >= MIN_AGENT_FIT)
         .sort((a, b) => (ratings.get(b.id) ?? 0) - (ratings.get(a.id) ?? 0))
     : (matched.length ? matched : candidates).slice(0, 10);
+  const describe = (row: (typeof rows)[number]) => ({
+    id: row.id,
+    name: row.name,
+    summary: (row.summary ?? row.description)?.slice(0, 300) ?? null,
+    capability: row.capabilityName,
+    paymentType: row.paymentType,
+    riskClassification: row.riskClassification,
+    price: row.price,
+    fit: ratings?.has(row.id)
+      ? Math.round((ratings.get(row.id) ?? 0) * 100) / 100
+      : null,
+  });
+  if (!ratings || !query || results.length > 0)
+    return { agents: results.map(describe), availableAgents: rows.length };
+  // Nothing fits: the nearest listings let the bot say what the marketplace
+  // does offer, and what it would cost, without passing them off as a fit.
+  const closest = [...candidates]
+    .sort((a, b) => (ratings.get(b.id) ?? 0) - (ratings.get(a.id) ?? 0))
+    .slice(0, CLOSEST_AGENTS);
   return {
-    agents: results.map((row) => ({
-      id: row.id,
-      name: row.name,
-      summary: (row.summary ?? row.description)?.slice(0, 300) ?? null,
-      capability: row.capabilityName,
-      paymentType: row.paymentType,
-      riskClassification: row.riskClassification,
-      price: row.price,
-      fit: ratings?.has(row.id)
-        ? Math.round((ratings.get(row.id) ?? 0) * 100) / 100
-        : null,
-    })),
+    agents: [],
+    closest: closest.map(describe),
     availableAgents: rows.length,
-    ...(ratings && query && results.length === 0
-      ? {
-          note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else.`,
-        }
-      : {}),
+    note: `No available Agent fits "${query}" among the ${rows.length} listed. Tell the owner that none fits rather than hiring one that does something else. \`closest\` are the nearest listings: they do related work, not this; name them only as that, and offer another way to get it done, such as doing it yourself or a Task for a Coworker.`,
   };
 }
 

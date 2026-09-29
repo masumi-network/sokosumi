@@ -1,15 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { buildActionResponseMock, claimsActionMock, turnUpdate, turnFind } =
-  vi.hoisted(() => ({
-    buildActionResponseMock: vi.fn(),
-    claimsActionMock: vi.fn(),
-    turnUpdate: vi.fn(),
-    turnFind: vi.fn(),
-  }));
+const {
+  buildActionResponseMock,
+  claimsActionMock,
+  turnUpdate,
+  turnFind,
+  toolCallFind,
+} = vi.hoisted(() => ({
+  buildActionResponseMock: vi.fn(),
+  claimsActionMock: vi.fn(),
+  turnUpdate: vi.fn(),
+  turnFind: vi.fn(),
+  toolCallFind: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
-  default: { sokoBotTurn: { update: turnUpdate, findUnique: turnFind } },
+  default: {
+    sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
+    sokoBotToolCall: { findMany: toolCallFind },
+  },
 }));
 vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
 vi.mock("./action-response", async (importOriginal) => ({
@@ -40,6 +49,7 @@ function completedMessage(): unknown {
 beforeEach(() => {
   vi.clearAllMocks();
   claimsActionMock.mockResolvedValue(false);
+  toolCallFind.mockResolvedValue([]);
   buildActionResponseMock.mockImplementation(
     async (_tx, _turnId, text: string) => ({ answerText: text }),
   );
@@ -60,6 +70,18 @@ describe("finishTurn", () => {
     expect(buildActionResponseMock.mock.calls[0][4]).toMatchObject({
       message: null,
     });
+  });
+
+  it("lets the message report the changes its receipts confirm", async () => {
+    toolCallFind.mockResolvedValue([
+      { capability: "update_memory" },
+      { capability: "update_memory" },
+    ]);
+    await finish("Wrap: two tasks done. I updated memory.", true);
+    expect(claimsActionMock).toHaveBeenCalledWith(
+      "Wrap: two tasks done. I updated memory.",
+      ["Updated memory"],
+    );
   });
 
   it("says so when the message could not be checked", async () => {
