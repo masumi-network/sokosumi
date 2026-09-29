@@ -662,48 +662,53 @@ export function TaskActivitySection({
                     </Avatar>
                   )}
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex flex-row items-baseline justify-between gap-2">
-                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-                        <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground text-xs">
-                          <span>{action}</span>{" "}
-                          {!event.status ? (
+                    <div className="flex flex-row items-baseline justify-between gap-2 max-sm:flex-wrap max-sm:gap-y-0.5">
+                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm max-sm:contents">
+                        <span className="max-sm:order-1 text-sm font-medium">
+                          {actorName}
+                        </span>
+                        <span className="max-sm:order-3 max-sm:basis-full sm:contents">
+                          <span className="text-muted-foreground text-xs">
+                            <span>{action}</span>{" "}
+                            {!event.status ? (
+                              <>
+                                <span className="whitespace-nowrap">
+                                  {originFromLabel}
+                                  <ChannelIcon
+                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                    role="img"
+                                    aria-label={originFromLabel}
+                                    data-testid={`origin-icon-${event.id}`}
+                                  />
+                                </span>
+                              </>
+                            ) : null}
+                          </span>
+                          {event.status ? (
                             <>
-                              <span className="whitespace-nowrap">
-                                {originFromLabel}
-                                <ChannelIcon
-                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                  role="img"
-                                  aria-label={originFromLabel}
-                                  data-testid={`origin-icon-${event.id}`}
-                                />
+                              {" "}
+                              <TaskStatusInline
+                                status={event.status}
+                                label={tStatus(event.status)}
+                              />{" "}
+                              <span className="text-muted-foreground text-xs">
+                                <span className="whitespace-nowrap">
+                                  {originFromLabel}
+                                  <ChannelIcon
+                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                    role="img"
+                                    aria-label={originFromLabel}
+                                    data-testid={`origin-icon-${event.id}`}
+                                  />
+                                </span>
                               </span>
                             </>
                           ) : null}
                         </span>
-                        {event.status ? (
-                          <>
-                            <TaskStatusInline
-                              status={event.status}
-                              label={tStatus(event.status)}
-                            />
-                            <span className="text-muted-foreground text-xs">
-                              <span className="whitespace-nowrap">
-                                {originFromLabel}
-                                <ChannelIcon
-                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
-                                  role="img"
-                                  aria-label={originFromLabel}
-                                  data-testid={`origin-icon-${event.id}`}
-                                />
-                              </span>
-                            </span>
-                          </>
-                        ) : null}
                       </div>
                       <TimeAgo
                         date={event.createdAt}
-                        className="text-muted-foreground text-xs whitespace-nowrap"
+                        className="text-muted-foreground text-xs whitespace-nowrap max-sm:order-2"
                       />
                     </div>
                     {formattedComment ? (
