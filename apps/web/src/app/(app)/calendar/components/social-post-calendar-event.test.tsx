@@ -118,6 +118,8 @@ describe("Social post calendar event", () => {
       "/social?projectId=project&postId=post#social-post-post",
     );
     expect(screen.getByRole("img", { name: "X · @team" })).toBeInTheDocument();
+    // Which account it goes out on is visible, not only in the icon's label.
+    expect(screen.getByText("@team")).toBeVisible();
     expect(screen.queryByText("Social post")).not.toBeInTheDocument();
     expect(screen.getByText("12:00 PM")).toBeInTheDocument();
     expect(screen.getByText("Launch news")).toBeInTheDocument();
@@ -145,6 +147,14 @@ describe("Social post calendar event", () => {
     expect(screen.getByText("Media post")).toBeInTheDocument();
     expect(screen.queryByText(/attachments/)).not.toBeInTheDocument();
     expect(screen.queryByText("@team")).not.toBeInTheDocument();
+    expect(screen.getByText("X")).toBeVisible();
+  });
+  it("encodes the ids it puts in the post link", () => {
+    renderCard({ sourceProjectId: "a&b", postId: "c d" });
+    expect(screen.getByRole("link")).toHaveAttribute(
+      "href",
+      "/social?projectId=a%26b&postId=c+d#social-post-c%20d",
+    );
   });
   it("lets the thumbnail stand for a single attachment", () => {
     renderCard({

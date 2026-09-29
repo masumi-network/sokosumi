@@ -28,9 +28,7 @@ import { SocialPageShell } from "./components/social-page-shell";
 export const instant = false;
 
 interface SocialPageProps {
-  searchParams: Promise<
-    CalendarPageSearchParams & { compose?: string; postId?: string }
-  >;
+  searchParams: Promise<CalendarPageSearchParams & { postId?: string }>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -123,7 +121,7 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 
   return (
     <SocialPageShell title={t("title")}>
-      <SocialComposeProvider initialOpen={query.compose === "new"}>
+      <SocialComposeProvider>
         <div className="space-y-8">
           <SocialCalendarSection
             calendar={calendar}

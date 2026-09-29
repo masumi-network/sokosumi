@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
@@ -419,10 +420,12 @@ function NewPostButton() {
 
 function ComposeHarness({ children }: { children: React.ReactNode }) {
   return (
-    <SocialComposeProvider>
-      <NewPostButton />
-      {children}
-    </SocialComposeProvider>
+    <NuqsTestingAdapter>
+      <SocialComposeProvider>
+        <NewPostButton />
+        {children}
+      </SocialComposeProvider>
+    </NuqsTestingAdapter>
   );
 }
 
@@ -517,6 +520,26 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
     ).not.toBeInTheDocument();
+  });
+
+  it("opens the composer when Social links here with ?compose=new", () => {
+    renderUi(
+      <NuqsTestingAdapter searchParams="?compose=new">
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            connections={[buildConnection()]}
+            posts={[]}
+            projectId={PROJECT_ID}
+          />
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "New post",
+      }),
+    ).toBeInTheDocument();
   });
 
   it("opens the composer from New post and blocks over-limit text", async () => {

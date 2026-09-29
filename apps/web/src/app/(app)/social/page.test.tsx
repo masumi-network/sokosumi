@@ -96,6 +96,13 @@ vi.mock("./components/social-accounts-project-prompt", () => ({
   ),
 }));
 
+// The provider keeps `?compose` in the URL through nuqs; this file is about
+// which state the page chooses, not about the URL adapter.
+vi.mock("./components/social-compose-context", () => ({
+  SocialComposeProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
+}));
+
 vi.mock("./components/social-new-post-menu", () => ({
   SocialNewPostMenu: (props: {
     project: { id: string } | null;
