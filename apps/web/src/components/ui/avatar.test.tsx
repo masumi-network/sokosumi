@@ -117,7 +117,9 @@ describe("Avatar image load", () => {
         "src",
         "https://cdn.example.com/ada.png",
       );
-      expect(screen.getByText("AD")).toBeInTheDocument();
+      // Hide fallback once loaded so transparent PNG/WebP/GIF avatars do not
+      // bleed initials/icons through the photo (Radix Avatar behavior).
+      expect(screen.queryByText("AD")).not.toBeInTheDocument();
     } finally {
       if (complete) {
         Object.defineProperty(HTMLImageElement.prototype, "complete", complete);
