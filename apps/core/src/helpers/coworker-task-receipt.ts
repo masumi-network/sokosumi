@@ -5,8 +5,8 @@ import prisma from "@/lib/db/prisma";
 // TaskPaymentClaim (PENDING | PURCHASED | REFUNDED), which stops at the buyer
 // debit. The real seller receipt lives on-chain, so we resolve the claim's
 // purchase through the same Masumi Payment Service client the Job sync uses
-// (paymentClient().resolvePurchase) and read its settlement state. The receipt
-// is proven only when onChainState is "Withdrawn".
+// (paymentClient().getPurchaseByBlockchainIdentifier) and read its settlement
+// state. See the `settled` rule below for what counts as a seller receipt.
 
 export interface TaskSellerReceipt {
   blockchainIdentifier: string | null;

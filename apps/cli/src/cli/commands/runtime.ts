@@ -267,7 +267,7 @@ export async function runRuntimeCommand({
       } else {
         const message =
           receipt.settled === true
-            ? `Seller receipt confirmed. onChainState=Withdrawn. txHash=${String(receipt.txHash ?? "unknown")}\n`
+            ? `Seller receipt confirmed. onChainState=${String(receipt.onChainState ?? "unknown")}. txHash=${String(receipt.txHash ?? "unknown")}\n`
             : `Seller receipt not settled. onChainState=${String(receipt.onChainState ?? "unknown")}.\n`;
         stdout.write(redactErrorMessage(message, [apiKey]));
       }
