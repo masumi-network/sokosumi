@@ -55,6 +55,11 @@ import {
   socialPostComposerProviders,
 } from "./social-post-composer-rules";
 import {
+  applySocialPostTextStyle,
+  SocialPostFormatToolbar,
+  socialPostShortcutStyle,
+} from "./social-post-format-toolbar";
+import {
   buildSocialPostMediaRef,
   hasSocialPostMedia,
   sameSocialPostMedia,
@@ -114,6 +119,7 @@ export function SocialPostComposerDialog({
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const { data: session } = useSession();
@@ -610,15 +616,43 @@ export function SocialPostComposerDialog({
                     })}
                   </ul>
                 ) : null}
-                <Textarea
-                  id={textId}
-                  aria-invalid={overLimit || undefined}
-                  disabled={isBusy}
-                  onChange={(event) => setText(event.target.value)}
-                  placeholder={t("composer.textPlaceholder")}
-                  rows={5}
-                  value={text}
-                />
+                <div className="rounded-md border focus-within:ring-ring focus-within:ring-2">
+                  <div className="border-b px-1 py-0.5">
+                    <SocialPostFormatToolbar
+                      disabled={isBusy}
+                      onChange={setText}
+                      text={text}
+                      textareaRef={textareaRef}
+                    />
+                  </div>
+                  <Textarea
+                    id={textId}
+                    aria-invalid={overLimit || undefined}
+                    className="rounded-t-none border-0 shadow-none focus-visible:ring-0"
+                    disabled={isBusy}
+                    onChange={(event) => setText(event.target.value)}
+                    onKeyDown={(event) => {
+                      const style = socialPostShortcutStyle(event);
+                      if (!style) return;
+                      event.preventDefault();
+                      const next = applySocialPostTextStyle(
+                        event.currentTarget,
+                        text,
+                        style,
+                      );
+                      if (!next) return;
+                      const textarea = event.currentTarget;
+                      setText(next.text);
+                      requestAnimationFrame(() =>
+                        textarea.setSelectionRange(next.start, next.end),
+                      );
+                    }}
+                    placeholder={t("composer.textPlaceholder")}
+                    ref={textareaRef}
+                    rows={5}
+                    value={text}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">

@@ -2432,6 +2432,18 @@
             "post": "post",
             "mediaPost": "image or video post",
             "video": "video (text is the title and description)"
+          },
+          "format": {
+            "label": "Formatting",
+            "bold": "Bold",
+            "italic": "Italic",
+            "underline": "Underline",
+            "boldHint": "Bold (⌘B). Sent as styled characters every network shows.",
+            "italicHint": "Italic (⌘I). Sent as styled characters every network shows.",
+            "underlineHint": "Underline (⌘U). Sent as styled characters every network shows.",
+            "link": "Add link",
+            "linkUrl": "Link",
+            "linkAdd": "Add"
           }
         },
         "cancelDialog": {

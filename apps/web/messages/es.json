@@ -2432,6 +2432,18 @@
             "post": "publicación",
             "mediaPost": "publicación con imagen o video",
             "video": "video (el texto es el título y la descripción)"
+          },
+          "format": {
+            "label": "Formato",
+            "bold": "Negrita",
+            "italic": "Cursiva",
+            "underline": "Subrayado",
+            "boldHint": "Negrita (⌘B). Se envía como caracteres con estilo que todas las redes muestran.",
+            "italicHint": "Cursiva (⌘I). Se envía como caracteres con estilo que todas las redes muestran.",
+            "underlineHint": "Subrayado (⌘U). Se envía como caracteres con estilo que todas las redes muestran.",
+            "link": "Añadir enlace",
+            "linkUrl": "Enlace",
+            "linkAdd": "Añadir"
           }
         },
         "cancelDialog": {

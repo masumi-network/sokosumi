@@ -2432,6 +2432,18 @@
             "post": "Beitrag",
             "mediaPost": "Bild- oder Videobeitrag",
             "video": "Video (Text wird Titel und Beschreibung)"
+          },
+          "format": {
+            "label": "Formatierung",
+            "bold": "Fett",
+            "italic": "Kursiv",
+            "underline": "Unterstrichen",
+            "boldHint": "Fett (⌘B). Wird als formatierte Zeichen gesendet, die jedes Netzwerk anzeigt.",
+            "italicHint": "Kursiv (⌘I). Wird als formatierte Zeichen gesendet, die jedes Netzwerk anzeigt.",
+            "underlineHint": "Unterstrichen (⌘U). Wird als formatierte Zeichen gesendet, die jedes Netzwerk anzeigt.",
+            "link": "Link hinzufügen",
+            "linkUrl": "Link",
+            "linkAdd": "Hinzufügen"
           }
         },
         "cancelDialog": {

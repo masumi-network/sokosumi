@@ -132,6 +132,13 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  label: "Formatting",
+  bold: "Bold",
+  italic: "Italic",
+  underline: "Underline",
+  link: "Add link",
+  linkUrl: "Link",
+  linkAdd: "Add",
   "composer.platforms": "Limits per platform",
   "composer.platformLimit": "{provider} {format} · {count} / {limit}",
   "composer.formats.post": "post",
@@ -786,6 +793,58 @@ describe("ProjectSocialPosts", () => {
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeDisabled();
+  });
+
+  it("bolds the selected text from the toolbar and the shortcut", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const textarea = within(dialog).getByLabelText(
+      "Text",
+    ) as HTMLTextAreaElement;
+    await user.type(textarea, "Big news today");
+    textarea.setSelectionRange(0, 3);
+    await user.click(
+      within(
+        within(dialog).getByRole("toolbar", { name: "Formatting" }),
+      ).getByRole("button", { name: "Bold" }),
+    );
+    expect(textarea).toHaveValue("𝗕𝗶𝗴 news today");
+
+    textarea.setSelectionRange(
+      textarea.value.length - 5,
+      textarea.value.length,
+    );
+    fireEvent.keyDown(textarea, { key: "i", metaKey: true });
+    expect(textarea).toHaveValue("𝗕𝗶𝗴 news 𝘵𝘰𝘥𝘢𝘺");
+  });
+
+  it("adds a link as a bare URL the network turns into a link", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const textarea = within(dialog).getByLabelText("Text");
+    await user.type(textarea, "Read more");
+    await user.click(within(dialog).getByRole("button", { name: "Add link" }));
+    await user.type(screen.getByLabelText("Link"), "sokosumi.com/blog{Enter}");
+
+    expect(textarea).toHaveValue("Read more https://sokosumi.com/blog");
   });
 
   it("saves one draft per account picked", async () => {
