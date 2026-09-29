@@ -30,9 +30,7 @@ import {
 } from "./subscription-plan-utils";
 
 interface OrganizationSubscriptionSectionProps {
-  cancelAtPeriodEnd: boolean;
   currentPlan: OrganizationBillingPlanName;
-  currentPeriodEnd: Date | string | null;
   currentSeats: number;
   isEnterpriseConsumable: boolean;
   isEnterpriseContract: boolean;
@@ -40,12 +38,11 @@ interface OrganizationSubscriptionSectionProps {
   organizationId: string;
   plans: SubscriptionPlanView[];
   returnPath: string;
+  scheduledCancelDate: Date | null;
 }
 
 export function OrganizationSubscriptionSection({
-  cancelAtPeriodEnd,
   currentPlan,
-  currentPeriodEnd,
   currentSeats,
   isEnterpriseConsumable,
   isEnterpriseContract,
@@ -53,6 +50,7 @@ export function OrganizationSubscriptionSection({
   organizationId,
   plans,
   returnPath,
+  scheduledCancelDate,
 }: OrganizationSubscriptionSectionProps) {
   const t = useTranslations(
     "App.Organizations.OrganizationDetail.Subscription",
@@ -77,21 +75,16 @@ export function OrganizationSubscriptionSection({
   }, [currentSeats]);
 
   const cancellationDate = useMemo(() => {
-    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+    if (!scheduledCancelDate) {
       return null;
     }
 
-    const date =
-      currentPeriodEnd instanceof Date
-        ? currentPeriodEnd
-        : new Date(currentPeriodEnd);
-
-    return formatter.dateTime(date, {
+    return formatter.dateTime(scheduledCancelDate, {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
-  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+  }, [scheduledCancelDate, formatter]);
 
   const cancellationLabel = useMemo(() => {
     if (!cancellationDate) {
@@ -212,12 +205,14 @@ export function OrganizationSubscriptionSection({
     ],
   );
 
+  const isCancellationScheduled = scheduledCancelDate !== null;
+
   function getPlanPresentationProps(plan: SubscriptionPlanView) {
     const isCurrentPlan = plan.isCurrent;
     const hasSamePlanAndSeats = isCurrentPlan && currentSeats === targetSeats;
 
     let actionLabel: null | string = t("choosePlanCta");
-    if (isCurrentPlan && cancelAtPeriodEnd) {
+    if (isCurrentPlan && isCancellationScheduled) {
       actionLabel = cancellationLabel;
     } else if (isCurrentPlan && !hasSamePlanAndSeats) {
       actionLabel = t("updateSeatsCta");
@@ -232,7 +227,7 @@ export function OrganizationSubscriptionSection({
       }),
       isDisabled:
         pendingPlan !== null ||
-        (isCurrentPlan && cancelAtPeriodEnd) ||
+        (isCurrentPlan && isCancellationScheduled) ||
         (isCurrentPlan && hasSamePlanAndSeats) ||
         targetSeats < minimumSeats,
       isPlanPending: pendingPlan === plan.name,

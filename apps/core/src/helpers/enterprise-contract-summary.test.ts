@@ -98,6 +98,7 @@ describe("getEnterpriseContractBillingSummary", () => {
     endsAt: new Date("2026-12-14T23:59:59.999Z"),
     activatedAt: new Date("2026-01-15T00:00:00.000Z"),
     cancelAtPeriodEnd: false as const,
+    cancelAt: null,
     periodEnd: null,
   };
 
