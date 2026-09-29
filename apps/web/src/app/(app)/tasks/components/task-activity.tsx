@@ -665,17 +665,19 @@ export function TaskActivitySection({
                     <div className="flex flex-row items-baseline justify-between gap-2">
                       <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
                         <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                          <span>{action}</span>
+                        <span className="text-muted-foreground text-xs">
+                          <span>{action}</span>{" "}
                           {!event.status ? (
                             <>
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
+                              <span className="whitespace-nowrap">
+                                {originFromLabel}
+                                <ChannelIcon
+                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                  role="img"
+                                  aria-label={originFromLabel}
+                                  data-testid={`origin-icon-${event.id}`}
+                                />
+                              </span>
                             </>
                           ) : null}
                         </span>
@@ -685,14 +687,16 @@ export function TaskActivitySection({
                               status={event.status}
                               label={tStatus(event.status)}
                             />
-                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
+                            <span className="text-muted-foreground text-xs">
+                              <span className="whitespace-nowrap">
+                                {originFromLabel}
+                                <ChannelIcon
+                                  className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                  role="img"
+                                  aria-label={originFromLabel}
+                                  data-testid={`origin-icon-${event.id}`}
+                                />
+                              </span>
                             </span>
                           </>
                         ) : null}
