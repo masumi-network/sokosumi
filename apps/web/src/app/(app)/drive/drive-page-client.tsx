@@ -1589,6 +1589,41 @@ function DrivePageWorkspace({
               activeView={primaryView}
               onViewChange={navigateToPrimaryView}
             />
+            {/* Phone only: Tasks and New folder share one overflow menu beside
+                the tabs. Upload stays the FAB, the thumb-reach create control
+                every list uses. */}
+            {!isTasksView && isWorkspaceView ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="size-11 shrink-0 @2xl:hidden"
+                    aria-label={t("moreActions")}
+                    data-testid="files-mobile-actions"
+                  >
+                    <MoreHorizontal className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={navigateToTasksRoot}
+                    data-testid="files-mobile-tasks-outputs"
+                  >
+                    <Folders className="size-4" aria-hidden />
+                    {t("tasksFolder")}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={openCreateFolderDialog}
+                    data-testid="files-mobile-create-folder"
+                  >
+                    <FolderPlus className="size-4" aria-hidden />
+                    {t("createFolder")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             {isTasksView && (
@@ -1796,25 +1831,6 @@ function DrivePageWorkspace({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      )}
-
-      {!isTasksView && isWorkspaceView && (
-        <div className="mb-6 flex items-center justify-end gap-2 @2xl:hidden">
-          {/* Same rule as the desktop header: the search on this tab is the
-              catalog's own, at the top of its own panel. Upload is the FAB. */}
-          {tasksOutputsButton("files-mobile-tasks-outputs")}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={openCreateFolderDialog}
-            data-testid="files-mobile-create-folder"
-          >
-            <FolderPlus className="size-4" aria-hidden />
-            {t("createFolder")}
-          </Button>
         </div>
       )}
 
