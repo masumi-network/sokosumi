@@ -401,7 +401,7 @@ export function ImageStudio({
       className={cn(
         "flex min-h-0 min-w-0 flex-col gap-3",
         STUDIO_COLUMN_MOBILE_SHELL_CLASS,
-        !showsNothing && STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >
       {problem ? (
@@ -427,9 +427,9 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="pb-2">
-              <h3 className="text-sm font-medium">{labels.emptyTitle}</h3>
-              <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
+            <div className="border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center">
+              <p className="font-medium">{labels.emptyTitle}</p>
+              <p className="text-muted-foreground mt-1 text-sm">
                 {labels.emptyBody}
               </p>
             </div>
