@@ -6,7 +6,7 @@ Sign in lets a user authenticate with email and password, reach the authenticate
 
 - `signin-form` shows email and password fields on `/signin`.
 - `signin-submit` creates a session via Enter submit.
-- `signin-landing` lands on the authenticated default (**Welcome `/`**, or a `returnUrl` when present).
+- `signin-landing` lands on the authenticated default (**Welcome `/`**, or a `returnUrl` when present). Users without a ready workspace are then gated to `/setup`.
 - `signin-persist` keeps the session after reload of a protected URL.
 
 ## How to get to it (user POV)
