@@ -10,6 +10,16 @@ public struct ChannelRoster: Sendable {
     self.recipients = recipients
     self.isOwnerOrAdmin = isOwnerOrAdmin
   }
+
+  /// Web's `members.length` in "Add all {count} members of {organization}": every organization member, the creator included.
+  public var organizationMemberCount: Int {
+    recipients.targets.count { target in
+      if case .human = target.id {
+        return true
+      }
+      return false
+    }
+  }
 }
 
 enum ChannelCreationError: Error, Equatable, Sendable {
@@ -20,6 +30,18 @@ enum ChannelCreationError: Error, Equatable, Sendable {
 public final class ChannelCreation: ObservableObject {
   public enum Availability: Equatable { case invalid, checking, free, taken, failed }
   public enum Step { case details, participants }
+
+  /// Web's one line under the handle: an error replaces the help, and so does the check in flight.
+  public enum HandleStatus: Equatable, Sendable {
+    case help, checking, invalid, taken, failed
+
+    public var isError: Bool {
+      switch self {
+      case .invalid, .taken, .failed: true
+      case .help, .checking: false
+      }
+    }
+  }
 
   @Published public var draft = ChannelDraft()
   @Published public var query = ""
@@ -38,6 +60,17 @@ public final class ChannelCreation: ObservableObject {
   public var canAdvance: Bool {
     !loading && !creating && roster?.recipients.membersLoadFailed == false && draft.isValid
       && availability == .free && checkedSlug == draft.canonicalSlug
+  }
+
+  /// Web shows "Enter a valid handle." only once the handle was edited, and the help (never a confirmation) while it is free.
+  public var handleStatus: HandleStatus {
+    switch availability {
+    case .invalid: draft.slugEdited ? .invalid : .help
+    case .checking: .checking
+    case .free: .help
+    case .taken: .taken
+    case .failed: .failed
+    }
   }
 
   public var sections: [ChatRecipientSection] {

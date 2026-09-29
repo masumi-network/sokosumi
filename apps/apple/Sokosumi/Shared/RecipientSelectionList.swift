@@ -66,9 +66,9 @@ struct RecipientSelectionList: View {
 extension ChannelDraft.Visibility {
   var help: String {
     switch self {
-    case .public: "People in your organization can find and join this channel."
-    case .private: "Only invited members can see this channel. Organization owners and admins can find and join it."
-    case .external: "People in your organization can join. Guests need an invitation."
+    case .public: "Anyone in the organization can find and join this channel."
+    case .private: "Only invited members can see this channel. Organization owners and admins can still find and join it."
+    case .external: "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members."
     }
   }
 }
