@@ -10,8 +10,9 @@ Projects lets a signed-in user open `/projects` and see their project list (incl
 
 ## How to get to it (user POV)
 
-- Choose **Projects** in app navigation.
 - Open `/projects` directly.
+- Desktop: there is **no** Projects row in the main sidebar. Use the ProjectScope control → **Manage projects**, or type the URL.
+- Mobile: choose **Projects** in the bottom tabs.
 
 ## Driving it with agent-browser
 
@@ -29,3 +30,4 @@ Preconditions:
 - Empty projects is valid for a new fixture user — do not require existing projects.
 - True empty uses heading **No projects yet**. A search/filter miss uses **No projects match "…"**, not the empty title.
 - Creating a project (`?create=true` / modal) is out of scope for this entry; list/empty landing only.
+- Desktop sidebar omits the old Projects row (`menu-items.tsx`). Breadcrumb on `/projects` still says **Projects**.
