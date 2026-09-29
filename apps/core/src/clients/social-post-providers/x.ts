@@ -4,16 +4,14 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 
-import {
-  ComposioApiError,
-  deleteProjectSocialSession,
-} from "@/clients/composio.client";
+import { deleteProjectSocialSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
   createSocialPublishSession,
   executeSocialPublishTool,
+  guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -245,8 +243,8 @@ export async function publishXPost(
       mediaIds.push(await uploadXMedia(sessionId, media, context.signal));
     }
     const createStep = X_PUBLISH_TOOL_STEPS[X_CREATE_POST_TOOL_SLUG];
-    try {
-      const post = await executeSocialPublishTool({
+    const post = await guardSocialCreateOutcome(label, () =>
+      executeSocialPublishTool({
         sessionId,
         toolSlug: X_CREATE_POST_TOOL_SLUG,
         arguments: {
@@ -256,35 +254,20 @@ export async function publishXPost(
         context: createStep.context,
         refused: createStep.refused,
         signal: context.signal,
-      });
-      if (!post || typeof post.id !== "string" || !post.id) {
-        throw new ComposioPublishOutcomeUnknownError(label);
-      }
-      return {
-        externalId: post.id,
-        publishedUrl: socialPostPublishedUrl(
-          "x",
-          context.externalHandle,
-          post.id,
-        ),
-        toolSlug: X_CREATE_POST_TOOL_SLUG,
-      };
-    } catch (error) {
-      if (error instanceof ComposioApiError && error.httpStatus < 500)
-        throw error;
-      if (
-        error instanceof ComposioToolError &&
-        (error.providerStatus === 429 ||
-          (error.providerStatus !== null && error.providerStatus < 500) ||
-          (!/time.?out|timed out|temporarily|\b5\d\d\b/i.test(
-            error.providerMessage ?? "",
-          ) &&
-            error.providerStatus === null))
-      ) {
-        throw error;
-      }
+      }),
+    );
+    if (!post || typeof post.id !== "string" || !post.id) {
       throw new ComposioPublishOutcomeUnknownError(label);
     }
+    return {
+      externalId: post.id,
+      publishedUrl: socialPostPublishedUrl(
+        "x",
+        context.externalHandle,
+        post.id,
+      ),
+      toolSlug: X_CREATE_POST_TOOL_SLUG,
+    };
   } finally {
     await deleteProjectSocialSession(
       sessionId,

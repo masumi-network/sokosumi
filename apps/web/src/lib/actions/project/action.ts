@@ -1,6 +1,6 @@
 "use server";
 
-import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
+import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
 
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -541,10 +541,6 @@ const socialPostMediaRefSchema = z.object({
   mimeType: z.string().min(1),
   kind: z.enum(["image", "gif", "video"]),
 });
-
-const SOCIAL_POST_MEDIA_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
-);
 
 const socialPostMediaSchema = z
   .array(socialPostMediaRefSchema)

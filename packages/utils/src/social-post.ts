@@ -143,6 +143,16 @@ export const SOCIAL_POST_MEDIA_RULES = {
   },
 } as const;
 
+/** Longest text any provider accepts: the provider-agnostic request bound. */
+export const SOCIAL_POST_TEXT_MAX = Math.max(
+  ...Object.values(SOCIAL_POST_TEXT_LIMITS),
+);
+
+/** Most attachments any provider accepts: the provider-agnostic request bound. */
+export const SOCIAL_POST_MEDIA_MAX = Math.max(
+  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
+);
+
 export type SocialPostMediaValidationReason =
   | "too_many_images"
   | "too_many_gifs"

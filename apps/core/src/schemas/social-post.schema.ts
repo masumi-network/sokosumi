@@ -1,8 +1,9 @@
 import { z } from "@hono/zod-openapi";
 import {
   isValidTimezone,
-  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
   type SocialPostProvider,
 } from "@sokosumi/utils";
 
@@ -17,13 +18,6 @@ const SOCIAL_POST_PROVIDER_KEYS = Object.keys(SOCIAL_POST_TEXT_LIMITS) as [
   SocialPostProvider,
   ...SocialPostProvider[],
 ];
-
-const SOCIAL_POST_TEXT_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_TEXT_LIMITS),
-);
-const SOCIAL_POST_MEDIA_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
-);
 
 export const socialPostProviderSchema = z.enum(SOCIAL_POST_PROVIDER_KEYS);
 

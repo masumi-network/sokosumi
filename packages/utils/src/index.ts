@@ -362,10 +362,12 @@ export {
 } from "./project-logo-path.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_MEDIA_MAX,
   SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,

@@ -1,8 +1,8 @@
 import {
   createDataTableSchema,
   isValidTimezone,
-  SOCIAL_POST_MEDIA_RULES,
-  SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_MEDIA_MAX,
+  SOCIAL_POST_TEXT_MAX,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -285,12 +285,6 @@ const socialPostRevisionSchema = z.number().int().min(0);
 const socialPostMutationInputSchema = socialPostInputSchema.extend({
   revision: socialPostRevisionSchema,
 });
-const SOCIAL_POST_TEXT_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_TEXT_LIMITS),
-);
-const SOCIAL_POST_MEDIA_MAX = Math.max(
-  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
-);
 const socialPostTextSchema = z.string().trim().max(SOCIAL_POST_TEXT_MAX);
 const socialPostMediaSchema = z
   .array(
