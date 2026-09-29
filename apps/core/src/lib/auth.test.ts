@@ -516,6 +516,15 @@ describe("core auth config", () => {
     expect(config.account).toBe(accountOptions);
   });
 
+  it("passes the refresh token options to the OAuth provider", async () => {
+    await import("./auth");
+    const { oauthRefreshTokenOptions } = await import("./auth-oauth-provider");
+
+    expect(oauthProviderPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining(oauthRefreshTokenOptions),
+    );
+  });
+
   it("fires account-created webhook when a social account is linked", async () => {
     await import("./auth");
 
