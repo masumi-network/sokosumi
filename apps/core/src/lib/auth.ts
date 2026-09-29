@@ -72,7 +72,10 @@ import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
-import { oauthRefreshTokenOptions } from "./auth-oauth-provider";
+import {
+  OAUTH_REFRESH_TOKEN_PREFIX,
+  oauthRefreshTokenOptions,
+} from "./auth-oauth-provider";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
@@ -597,7 +600,7 @@ export const auth = betterAuth({
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
         opaqueAccessToken: "soko_access_token_",
-        refreshToken: "soko_refresh_token_",
+        refreshToken: OAUTH_REFRESH_TOKEN_PREFIX,
         clientSecret: "soko_client_secret_",
       },
     }),

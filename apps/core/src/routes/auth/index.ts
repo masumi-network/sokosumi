@@ -9,7 +9,12 @@ import { cors } from "hono/cors";
 import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
-import { handleOAuthRefreshTokenRequest } from "@/lib/auth-oauth-provider.js";
+import {
+  handleOAuthRefreshTokenRequest,
+  isRefreshTokenRotating,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-provider.js";
+import prisma from "@/lib/db/prisma";
 import { withClientSecretPostShim } from "@/routes/auth/oauth2-token-secret-shim.js";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
@@ -57,6 +62,16 @@ app.on(["POST", "GET"], "*", async (c) => {
         headers: request.headers,
         asResponse: true,
       }),
+    (refreshToken) =>
+      isRefreshTokenRotating(
+        refreshToken,
+        OAUTH_REFRESH_TOKEN_PREFIX,
+        (token) =>
+          prisma.oauthRefreshToken.findUnique({
+            where: { token },
+            select: { rotatedAt: true, rotationReplayExpiresAt: true },
+          }),
+      ),
   );
 });
 

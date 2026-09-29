@@ -7,6 +7,7 @@ import { jwt } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   handleOAuthRefreshTokenRequest,
+  isRefreshTokenRotating,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
 
@@ -107,6 +108,32 @@ function createTestAuth(
     rateLimit: { enabled: rateLimitEnabled, storage: "memory" },
   });
 
+  const retry = vi.fn<Parameters<typeof handleOAuthRefreshTokenRequest>[2]>(
+    (body, request) =>
+      auth.api.oauth2Token({
+        body,
+        request,
+        headers: request.headers,
+        asResponse: true,
+      }),
+  );
+
+  // The same check the route runs against Prisma, on the in-memory rows.
+  function isRotating(refreshToken: string) {
+    return isRefreshTokenRotating(refreshToken, "", async (storedToken) => {
+      const row = db.oauthRefreshToken.find(
+        (candidate) => candidate.token === storedToken,
+      );
+      return row
+        ? {
+            rotatedAt: (row.rotatedAt as Date | undefined) ?? null,
+            rotationReplayExpiresAt:
+              (row.rotationReplayExpiresAt as Date | undefined) ?? null,
+          }
+        : null;
+    });
+  }
+
   async function refresh(refreshToken: string) {
     const response = await handleOAuthRefreshTokenRequest(
       new Request("https://auth.example.com/auth/oauth2/token", {
@@ -122,13 +149,8 @@ function createTestAuth(
         }).toString(),
       }),
       auth.handler,
-      (body, request) =>
-        auth.api.oauth2Token({
-          body,
-          request,
-          headers: request.headers,
-          asResponse: true,
-        }),
+      retry,
+      isRotating,
     );
     return {
       status: response.status,
@@ -136,7 +158,7 @@ function createTestAuth(
     };
   }
 
-  return { refresh };
+  return { refresh, retry };
 }
 
 describe("oauthRefreshTokenOptions", () => {
@@ -214,6 +236,21 @@ describe("oauthRefreshTokenOptions", () => {
     expect(next.body.refresh_token).not.toBe(second.body.refresh_token);
   });
 
+  it("does not retry a refresh token that was never rotated", async () => {
+    const db = createDb();
+    db.oauthRefreshToken[0].expiresAt = new Date(NOW.getTime() - 1_000);
+    const { refresh, retry } = createTestAuth(db);
+
+    const response = await refresh(SEED_REFRESH_TOKEN);
+
+    expect(response.status).toBe(400);
+    expect(response.body).toEqual({
+      error: "invalid_grant",
+      error_description: "invalid refresh token",
+    });
+    expect(retry).not.toHaveBeenCalled();
+  });
+
   it("rejects reuse after 30 seconds and invalidates the token family", async () => {
     const db = createDb();
     const { refresh } = createTestAuth(db);
@@ -262,7 +299,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
       );
 
       expect(
-        await handleOAuthRefreshTokenRequest(request, handler, retry),
+        await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
       ).toBe(response);
       expect(handler).toHaveBeenCalledExactlyOnceWith(request);
       expect(retry).not.toHaveBeenCalled();
@@ -289,10 +326,89 @@ describe("handleOAuthRefreshTokenRequest", () => {
       body: "grant_type=refresh_token",
     });
 
-    expect(await handleOAuthRefreshTokenRequest(request, handler, retry)).toBe(
-      response,
-    );
+    expect(
+      await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+    ).toBe(response);
     expect(handler).toHaveBeenCalledOnce();
     expect(retry).not.toHaveBeenCalled();
+  });
+
+  it("stops when the refresh token has no open rotation", async () => {
+    const response = Response.json(
+      { error: "invalid_grant", error_description: "invalid refresh token" },
+      { status: 400 },
+    );
+    const handler = vi.fn().mockResolvedValue(response);
+    const retry = vi.fn();
+    const isRotating = vi.fn().mockResolvedValue(false);
+    const request = new Request("https://auth.example.com/auth/oauth2/token", {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "grant_type=refresh_token&refresh_token=expired-token",
+    });
+
+    expect(
+      await handleOAuthRefreshTokenRequest(request, handler, retry, isRotating),
+    ).toBe(response);
+    expect(isRotating).toHaveBeenCalledExactlyOnceWith("expired-token");
+    expect(retry).not.toHaveBeenCalled();
+  });
+});
+
+describe("isRefreshTokenRotating", () => {
+  const prefix = "soko_refresh_token_";
+  const token = `${prefix}raw-token`;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("looks up the stored digest of the token without its prefix", async () => {
+    const findRotation = vi.fn().mockResolvedValue(null);
+
+    expect(await isRefreshTokenRotating(token, prefix, findRotation)).toBe(
+      false,
+    );
+    expect(findRotation).toHaveBeenCalledExactlyOnceWith(
+      hashToken("raw-token"),
+    );
+  });
+
+  it("skips the lookup for a token without Core's prefix", async () => {
+    const findRotation = vi.fn();
+
+    expect(
+      await isRefreshTokenRotating("raw-token", prefix, findRotation),
+    ).toBe(false);
+    expect(findRotation).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "an open replay window",
+      {
+        rotatedAt: NOW,
+        rotationReplayExpiresAt: new Date(NOW.getTime() + 1_000),
+      },
+      true,
+    ],
+    [
+      "a closed replay window",
+      {
+        rotatedAt: NOW,
+        rotationReplayExpiresAt: new Date(NOW.getTime() - 1_000),
+      },
+      false,
+    ],
+    ["no rotation", { rotatedAt: null, rotationReplayExpiresAt: null }, false],
+  ])("reports %s", async (_label, rotation, expected) => {
+    expect(
+      await isRefreshTokenRotating(token, prefix, async () => rotation),
+    ).toBe(expected);
   });
 });
