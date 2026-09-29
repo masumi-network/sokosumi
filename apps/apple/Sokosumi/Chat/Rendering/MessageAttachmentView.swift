@@ -78,10 +78,11 @@ struct AttachmentDocumentButton: View {
 }
 
 /// The document and image viewers' bar: Close, the file name (after the image's position when the
-/// message has several), Open in Browser and Save.
+/// message has several), Open in Browser, Copy Image (the image viewer) and Save.
 struct AttachmentViewerToolbar: View {
   let attachment: MessageAttachment
   var position: String?
+  var copiesImage = false
   let close: () -> Void
 
   var body: some View {
@@ -102,12 +103,47 @@ struct AttachmentViewerToolbar: View {
         Label("Open in Browser", systemImage: "arrow.up.right.square")
       }
       .help("Open in Browser")
+      #if os(macOS)
+        if copiesImage {
+          AttachmentCopyImageButton(url: attachment.url)
+        }
+      #endif
       AttachmentSaveButton(attachment: attachment)
     }
     .labelStyle(.iconOnly)
     .buttonStyle(.borderless)
   }
 }
+
+#if os(macOS)
+  /// Web's Copy image: the image itself, else its link, with no message either way. It shows
+  /// progress while the image downloads, as Save does.
+  private struct AttachmentCopyImageButton: View {
+    let url: URL
+    @Environment(\.imageCopyPasteboard) private var pasteboard
+    @State private var copying = false
+
+    var body: some View {
+      Button { copying = true } label: {
+        if copying {
+          ProgressView().controlSize(.small)
+        } else {
+          Label("Copy Image", systemImage: "doc.on.doc")
+        }
+      }
+      .keyboardShortcut("c", modifiers: .command)
+      .help("Copy Image")
+      .disabled(copying)
+      .task(id: copying) {
+        guard copying else { return }
+        defer { copying = false }
+        let content = await ImageCopy.content(of: url)
+        guard !Task.isCancelled else { return }
+        PlatformPasteboard.copyImage(content, from: url, to: pasteboard)
+      }
+    }
+  }
+#endif
 
 private struct AttachmentSaveButton: View {
   let attachment: MessageAttachment

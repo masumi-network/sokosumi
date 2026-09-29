@@ -1,5 +1,7 @@
 #if os(macOS)
   import AppKit
+  import SokosumiChat
+  import UniformTypeIdentifiers
 #elseif os(iOS)
   import UIKit
 #endif
@@ -18,4 +20,25 @@ enum PlatformPasteboard {
       return false
     #endif
   }
+
+  #if os(macOS)
+    /// Web's Copy image: the image as the system image (for any app) plus its original bytes under
+    /// their type; bytes that are not an image, or no bytes at all, copy the image's link instead.
+    @discardableResult
+    static func copyImage(_ content: ImageCopyContent, from url: URL, to name: NSPasteboard.Name = .general) -> Bool {
+      let pasteboard = NSPasteboard(name: name)
+      pasteboard.clearContents()
+      if case let .image(data, contentType) = content, let tiff = NSImage(data: data)?.tiffRepresentation {
+        let item = NSPasteboardItem()
+        item.setData(tiff, forType: .tiff)
+        if let type = UTType(mimeType: contentType), type.conforms(to: .image), type != .tiff {
+          item.setData(data, forType: NSPasteboard.PasteboardType(type.identifier))
+        }
+        if pasteboard.writeObjects([item]) {
+          return true
+        }
+      }
+      return pasteboard.setString(url.absoluteString, forType: .string)
+    }
+  #endif
 }
