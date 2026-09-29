@@ -2425,6 +2425,13 @@
             "yours": "Zeiten in deiner Zeitzone, {zone}.",
             "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
             "postZone": "Geplant für {date} in {zone}."
+          },
+          "platforms": "Limits pro Plattform",
+          "platformLimit": "{provider}-{format} · {count} / {limit}",
+          "formats": {
+            "post": "Beitrag",
+            "mediaPost": "Bild- oder Videobeitrag",
+            "video": "Video (Text wird Titel und Beschreibung)"
           }
         },
         "cancelDialog": {
