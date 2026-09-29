@@ -66,22 +66,25 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 Project social accounts support X, TikTok, Instagram, LinkedIn, Facebook, and
 YouTube. Connect accounts from the Project’s **Social** page. The same
 connection supports reconnection, replacement, and disconnection. Publishing
-and scheduling currently support **X only**; the other accounts cannot be
-selected by the post composer or attached to posts through the API.
+and scheduling work on every connected provider: the composer and the API
+apply the chosen account's rules (text limits, up to four images or one video,
+Instagram needs media, TikTok and YouTube need a video, LinkedIn and YouTube
+need text). Each provider's auth config must carry its publishing scope before
+posts can go out; publishing fails with a clear permission error until then.
 
 Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
 on the Core deployment. Create each OAuth configuration in the same Composio
 environment as that API key. Omit unconfigured variables; connecting that
 provider returns a setup error without starting authorization.
 
-| Provider | Composio toolkit | Core environment variable | Identity access |
-| --- | --- | --- | --- |
-| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) |
-| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` |
-| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` |
-| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` |
-| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` |
-| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` |
+| Provider | Composio toolkit | Core environment variable | Identity access | Publishing scope |
+| --- | --- | --- | --- | --- |
+| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) | — |
+| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` | `video.publish` |
+| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` | `instagram_business_content_publish` |
+| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` | `w_member_social` |
+| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
+| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload` |
 
 Use the provider OAuth callback shown by Composio when registering your OAuth
 app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
@@ -93,11 +96,14 @@ Account types and setup requirements:
 
 - [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
   Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
+  Publishing picks the most permissive privacy level the account offers and records
+  it on the attempt; until the Content Posting audit is approved that is `SELF_ONLY`.
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
-  member. [Facebook](https://docs.composio.dev/toolkits/facebook) connects the
-  authorizing user; this does not select a Facebook Page for publishing.
+  member and publishes as that person. [Facebook](https://docs.composio.dev/toolkits/facebook)
+  binds the connection to the Page the account manages; it requires exactly one
+  managed Page and rejects accounts with none or several instead of choosing one.
 - [YouTube](https://docs.composio.dev/toolkits/youtube) connects a channel. The
   identity lookup requires exactly one authenticated channel; it rejects missing
   or ambiguous channel identities instead of selecting one silently.
