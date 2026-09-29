@@ -18,12 +18,14 @@ export const PORTLESS_WEB_NAME = "web.sokosumi";
 export const PORTLESS_CORE_NAME = "core.sokosumi";
 export const PORTLESS_CMO_NAME = "cmo.sokosumi";
 
-const PORTLESS_NAMES = {
-  web: PORTLESS_WEB_NAME,
-  core: PORTLESS_CORE_NAME,
-  cmo: PORTLESS_CMO_NAME,
+/** @typedef {"web" | "core" | "cmo"} DevApp */
+
+/** Portless name and pnpm filter for each app `run` can start. */
+const DEV_APPS = {
+  web: { name: PORTLESS_WEB_NAME, filter: "web" },
+  core: { name: PORTLESS_CORE_NAME, filter: "@sokosumi/core" },
+  cmo: { name: PORTLESS_CMO_NAME, filter: "cmo" },
 };
-const PACKAGE_FILTERS = { web: "web", core: "@sokosumi/core", cmo: "cmo" };
 
 const repoRoot = path.join(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -70,10 +72,10 @@ export function runPortless(args, opts = {}) {
 }
 
 /**
- * @param {"web" | "core" | "cmo"} app
+ * @param {DevApp} app
  */
 export function portlessNameFor(app) {
-  return PORTLESS_NAMES[app];
+  return DEV_APPS[app].name;
 }
 
 /**
@@ -147,7 +149,7 @@ export function portlessInstancePrefix(root = repoRoot, options = {}) {
 }
 
 /**
- * @param {"web" | "core" | "cmo"} app
+ * @param {DevApp} app
  * @param {string} [root]
  */
 export function portlessAppName(app, root = repoRoot) {
@@ -175,25 +177,25 @@ export function portlessSpawnArgs(name, filter) {
 }
 
 /**
- * CMO is not part of the default stack: it is a separate product that does
- * not share Sokosumi's cookie.
+ * The default stack is Core and Web. CMO is a separate product and starts
+ * only when named.
  *
  * @param {string} [selector]
- * @returns {Array<"web" | "core" | "cmo">}
+ * @returns {DevApp[]}
  */
 export function parseRunApps(selector) {
   if (selector == null || selector === "") {
     return ["core", "web"];
   }
-  if (selector === "web" || selector === "core" || selector === "cmo") {
+  if (Object.hasOwn(DEV_APPS, selector)) {
     return [selector];
   }
   throw new Error("usage: portless-dev.mjs run [web|core|cmo]");
 }
 
 /**
- * @param {"web" | "core" | "cmo"} app
- * @param {{ webUrl: string, coreUrl: string }} urls
+ * @param {DevApp} app
+ * @param {{ webUrl?: string, coreUrl?: string }} urls
  */
 export function envForDevApp(app, urls) {
   if (app === "cmo") {
@@ -224,13 +226,13 @@ export function spawnPlan(selector, urls, root = repoRoot) {
   return parseRunApps(selector).map((app) => ({
     app,
     name: portlessAppName(app, root),
-    filter: PACKAGE_FILTERS[app],
+    filter: DEV_APPS[app].filter,
     env: envForDevApp(app, urls),
   }));
 }
 
 /**
- * @param {"web" | "core" | "cmo"} app
+ * @param {DevApp} app
  */
 export function getPortlessUrl(app) {
   return runPortless(["get", portlessAppName(app)]);
@@ -305,23 +307,21 @@ async function runStack(selector) {
   const apps = parseRunApps(selector);
   await bootstrapLocalEnv(repoRoot);
   ensureProxy();
-  const webUrl = getPortlessUrl("web");
-  const coreUrl = getPortlessUrl("core");
-  assertHttps443(webUrl);
-  assertHttps443(coreUrl);
-
-  console.log(`web  ${webUrl}`);
-  console.log(`core ${coreUrl}`);
-  if (apps.includes("cmo")) {
-    const cmoUrl = getPortlessUrl("cmo");
-    assertHttps443(cmoUrl);
-    console.log(`cmo  ${cmoUrl}`);
+  // Web and Core each receive both named URLs; CMO needs neither.
+  const urls = {};
+  for (const app of apps.includes("cmo") ? ["cmo"] : ["web", "core"]) {
+    urls[app] = getPortlessUrl(app);
+    assertHttps443(urls[app]);
+    console.log(`${app.padEnd(4)} ${urls[app]}`);
   }
   if (apps.length === 1) {
     console.log(`starting ${apps[0]} only`);
   }
 
-  const children = spawnPlan(selector, { webUrl, coreUrl }).map((item) =>
+  const children = spawnPlan(selector, {
+    webUrl: urls.web,
+    coreUrl: urls.core,
+  }).map((item) =>
     spawnDev({
       name: item.name,
       filter: item.filter,
@@ -374,7 +374,7 @@ if (isMain) {
     console.log("portless proxy ok");
   } else if (command === "url") {
     const app = process.argv[3];
-    if (!Object.hasOwn(PORTLESS_NAMES, app ?? "")) {
+    if (!Object.hasOwn(DEV_APPS, app ?? "")) {
       console.error("usage: portless-dev.mjs url web|core|cmo");
       process.exit(1);
     }

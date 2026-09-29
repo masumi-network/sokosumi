@@ -33,6 +33,7 @@ export const VERCEL_PROJECTS = {
       name: "sokosumi-core-mainnet",
     },
     // CMO has no preprod project; it signs in against mainnet Core only.
+    // Operator step (SOK-1224): create the project, then replace this id.
     cmo: {
       id: "prj_CMO_MAINNET_PROJECT_ID_PENDING",
       name: "sokosumi-cmo-mainnet",

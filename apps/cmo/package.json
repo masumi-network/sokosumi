@@ -9,7 +9,7 @@
     "name": "cmo.sokosumi"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --port ${PORT:-3100}",
     "build": "next build",
     "start": "next start",
     "check": "biome check .",

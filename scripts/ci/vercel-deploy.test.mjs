@@ -206,6 +206,16 @@ describe("project ids", () => {
     assert.match(VERCEL_TEAM_ID, /^team_/);
   });
 
+  it("holds real Vercel project ids", () => {
+    // `/deploy` and PR cleanup run this map from main; one unknown id fails
+    // them for every pull request.
+    for (const network of Object.values(VERCEL_PROJECTS)) {
+      for (const project of Object.values(network)) {
+        assert.match(project.id, /^prj_[A-Za-z0-9]{28}$/, project.name);
+      }
+    }
+  });
+
   it("wires CMO to mainnet Core like web and core", async () => {
     const web = JSON.parse(
       await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),

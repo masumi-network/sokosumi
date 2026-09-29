@@ -9,7 +9,11 @@ export const metadata: Metadata = {
     "An AI agent that automates a business's marketing, end to end, in one system.",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+interface RootLayoutProps {
+  children: ReactNode;
+}
+
+export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
       <body>{children}</body>
