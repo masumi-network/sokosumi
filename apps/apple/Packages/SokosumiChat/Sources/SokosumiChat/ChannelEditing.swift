@@ -99,7 +99,7 @@ public final class ChannelEditing: ObservableObject {
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
     }
   }
 
@@ -117,7 +117,7 @@ public final class ChannelEditing: ObservableObject {
       return saved
     } catch {
       guard !Task.isCancelled, !(error is CancellationError) else { return false }
-      errorMessage = chatErrorMessage(error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
       return false
     }
   }
