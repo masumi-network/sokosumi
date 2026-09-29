@@ -53,12 +53,8 @@ export default async function ProjectDesignPage({
 
   return (
     <ProjectWorkspaceShell
-      metadata={[
-        {
-          label: t("header.updated"),
-          value: formatter.dateTime(project.updatedAt, "dateTime"),
-        },
-      ]}
+      createdAt={formatter.dateTime(project.createdAt, "dateTime")}
+      updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
       projectId={project.id}
       projectLogo={project.logo}

@@ -2445,7 +2445,9 @@
         "back": "Back to projects",
         "header": {
           "updated": "Updated",
-          "created": "Created"
+          "created": "Created",
+          "properties": "Properties",
+          "website": "Website"
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
@@ -2587,7 +2589,6 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
         "design": {

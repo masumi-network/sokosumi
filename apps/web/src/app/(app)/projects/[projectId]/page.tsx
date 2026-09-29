@@ -73,16 +73,8 @@ export default async function ProjectDetailPage({
           />
         </div>
       }
-      metadata={[
-        {
-          label: t("header.updated"),
-          value: formatter.dateTime(project.updatedAt, "dateTime"),
-        },
-        {
-          label: t("header.created"),
-          value: formatter.dateTime(project.createdAt, "dateTime"),
-        },
-      ]}
+      createdAt={formatter.dateTime(project.createdAt, "dateTime")}
+      updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
       projectId={project.id}
       projectLogo={project.logo}
@@ -90,16 +82,9 @@ export default async function ProjectDetailPage({
       websiteUrl={project.websiteUrl}
     >
       {/*
-        One column, not a grid.
-        Overview used to be a two-column grid with a third region under it,
-        because there was enough on the page to need columns: a needs-attention
-        list, a panel of module tiles, memory in an aside. Memory has a tab of
-        its own now and the other two are gone, so what is left is three or four
-        blocks that are all *about* the project and all read top to bottom. A
-        grid over that leaves an aside with one card in it beside a column of
-        empty space, which is exactly the "stack of loose things" this card was
-        drawn to replace. The width is capped for the same reason a paragraph is:
-        the briefing is prose.
+        One column of sections with the quiet heading a task section uses;
+        the close status stays a card because it is an alert. The width is
+        capped because the briefing is prose.
       */}
       <ProjectBrandProvider
         key={project.designMd?.url ?? "project-brand-empty"}
