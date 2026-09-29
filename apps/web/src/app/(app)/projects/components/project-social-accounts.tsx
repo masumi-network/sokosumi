@@ -3,6 +3,7 @@
 import {
   Loader2,
   MoreHorizontal,
+  Plus,
   RefreshCw,
   TriangleAlert,
 } from "lucide-react";
@@ -345,16 +346,54 @@ export function ProjectSocialAccounts({
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="space-y-1">
-        <h2
-          id="social-accounts-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-base font-semibold"
-        >
-          {t("title")}
-        </h2>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2
+            id="social-accounts-heading"
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-base font-semibold"
+          >
+            {t("title")}
+          </h2>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              disabled={isBusy}
+              aria-busy={pendingAction === "connect"}
+            >
+              {pendingAction === "connect" ? (
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
+              ) : (
+                <Plus className="size-4" aria-hidden />
+              )}
+              {t("connectAccount")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {SOCIAL_PROVIDERS.map(({ id, name, Icon }) => (
+              <DropdownMenuItem
+                key={id}
+                aria-label={t("connect", { provider: name })}
+                onSelect={() => {
+                  void startOAuth("connect", undefined, id);
+                }}
+              >
+                <Icon className="size-4" aria-hidden />
+                {name}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {feedback ? (
@@ -512,43 +551,6 @@ export function ProjectSocialAccounts({
           })}
         </ul>
       ) : null}
-
-      <div className="space-y-2">
-        <h3 className="text-muted-foreground text-xs font-medium">
-          {t("connectHeading")}
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {SOCIAL_PROVIDERS.map(({ id, name, Icon }) => {
-            const isConnecting =
-              pendingAction === "connect" && pendingTarget === id;
-
-            return (
-              <Button
-                key={id}
-                aria-busy={isConnecting}
-                aria-label={t("connect", { provider: name })}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isBusy}
-                onClick={() => {
-                  void startOAuth("connect", undefined, id);
-                }}
-              >
-                {isConnecting ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : (
-                  <Icon className="size-4" aria-hidden />
-                )}
-                {name}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
 
       <AlertDialog
         open={pendingConfirmation !== null}

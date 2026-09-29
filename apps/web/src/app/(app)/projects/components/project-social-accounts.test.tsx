@@ -15,7 +15,6 @@ import {
   type MockInstance,
   vi,
 } from "vitest";
-
 import { ProjectSocialAccounts } from "@/app/projects/components/project-social-accounts";
 import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import {
@@ -27,6 +26,7 @@ import type {
   DisconnectProjectSocialConnectionResponse,
   ProjectSocialConnection,
 } from "@/lib/clients/generated/core/types.gen";
+import messages from "../../../../../messages/en.json";
 
 const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =
   vi.hoisted(() => ({
@@ -42,12 +42,11 @@ const MESSAGES: Record<string, string> = {
     "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
   account: "{provider} account",
   connect: "Connect {provider} account",
-  connectHeading: "Connect an account",
+  connectAccount: "Connect account",
   actions: "Actions for {account}",
   reconnect: "Reconnect",
   replace: "Replace",
   disconnect: "Disconnect",
-  connecting: "Connecting…",
   disconnecting: "Disconnecting…",
   "status.active": "Connected",
   "status.disconnected": "Disconnected",
@@ -173,7 +172,35 @@ async function chooseAccountAction(
   await user.click(screen.getByRole("menuitem", { name: action }));
 }
 
+async function connectProvider(
+  user: ReturnType<typeof userEvent.setup>,
+  provider = "X",
+): Promise<void> {
+  await user.click(screen.getByRole("button", { name: "Connect account" }));
+  await user.click(
+    screen.getByRole("menuitem", { name: `Connect ${provider} account` }),
+  );
+}
+
 describe("ProjectSocialAccounts", () => {
+  // The mocked messages stand in for the catalog; a key renamed there but not
+  // here would render as its raw path in the app while every test stays green.
+  it("only uses message keys the catalog defines", () => {
+    const catalog = messages.App.Projects.ProjectSocialAccounts;
+    for (const key of Object.keys(MESSAGES)) {
+      const value = key
+        .split(".")
+        .reduce<unknown>(
+          (node, part) =>
+            node && typeof node === "object"
+              ? (node as Record<string, unknown>)[part]
+              : undefined,
+          catalog,
+        );
+      expect(typeof value, key).toBe("string");
+    }
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     MockBroadcastChannel.instances = [];
@@ -220,9 +247,7 @@ describe("ProjectSocialAccounts", () => {
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "Connect TikTok account" }));
+    await connectProvider(userEvent.setup(), "TikTok");
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "This integration is not configured yet",
     );
@@ -242,9 +267,7 @@ describe("ProjectSocialAccounts", () => {
     });
     const user = userEvent.setup();
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await user.click(
-      screen.getByRole("button", { name: `Connect ${name} account` }),
-    );
+    await connectProvider(user, name);
     await waitFor(() =>
       expect(initiateProjectSocialConnection).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
@@ -326,7 +349,7 @@ describe("ProjectSocialAccounts", () => {
       within(reauthorizationRow).getByRole("button", { name: "Reconnect" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Connect X account" }),
+      screen.getByRole("button", { name: "Connect account" }),
     ).toBeVisible();
 
     const pendingRow = screen.getByTestId(
@@ -367,9 +390,7 @@ describe("ProjectSocialAccounts", () => {
 
       render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-      await user.click(
-        screen.getByRole("button", { name: "Connect X account" }),
-      );
+      await connectProvider(user);
       await waitFor(() =>
         expect(MockBroadcastChannel.instances).toHaveLength(1),
       );
@@ -413,7 +434,7 @@ describe("ProjectSocialAccounts", () => {
     const user = userEvent.setup();
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -450,7 +471,7 @@ describe("ProjectSocialAccounts", () => {
     windowOpenMock.mockReturnValue(popup as unknown as Window);
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => {
       expect(popup.location.href).toBe(
         "https://connect.composio.dev/link-token",
@@ -493,14 +514,14 @@ describe("ProjectSocialAccounts", () => {
       <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     expect(toastErrorMock).toHaveBeenCalledWith(
       "Your browser blocked the authorization window. Allow popups and try again.",
     );
     expect(initiateProjectSocialConnection).not.toHaveBeenCalled();
 
     rerender(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -536,8 +557,14 @@ describe("ProjectSocialAccounts", () => {
     windowOpenMock.mockReturnValue(popup as unknown as Window);
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
     await act(async () => {
+      fireEvent.keyDown(
+        screen.getByRole("button", { name: "Connect account" }),
+        { key: "Enter" },
+      );
+    });
+    await act(async () => {
       fireEvent.click(
-        screen.getByRole("button", { name: "Connect X account" }),
+        screen.getByRole("menuitem", { name: "Connect X account" }),
       );
     });
     expect(MockBroadcastChannel.instances).toHaveLength(1);
@@ -580,7 +607,7 @@ describe("ProjectSocialAccounts", () => {
     const { unmount } = render(
       <ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />,
     );
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     unmount();
 
     await act(async () => {
@@ -600,7 +627,7 @@ describe("ProjectSocialAccounts", () => {
     const user = userEvent.setup();
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -626,7 +653,7 @@ describe("ProjectSocialAccounts", () => {
       ok: false,
       error: { code: "NOT_FOUND", message: "Unknown or expired connection" },
     });
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => {
       expect(toastErrorMock).toHaveBeenCalledWith(
         "This connection request expired or is no longer valid. Start again.",
@@ -651,9 +678,7 @@ describe("ProjectSocialAccounts", () => {
 
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(
-      screen.getByRole("button", { name: "Connect Facebook account" }),
-    );
+    await connectProvider(user, "Facebook");
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -683,7 +708,7 @@ describe("ProjectSocialAccounts", () => {
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
@@ -717,7 +742,7 @@ describe("ProjectSocialAccounts", () => {
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);
 
-    await user.click(screen.getByRole("button", { name: "Connect X account" }));
+    await connectProvider(user);
     await waitFor(() => expect(MockBroadcastChannel.instances).toHaveLength(1));
     await act(async () => {
       MockBroadcastChannel.instances[0]?.onmessage?.({
