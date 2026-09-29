@@ -58,6 +58,16 @@ describe("versions", () => {
     expect(prompt).toMatch(/ask me to create the post and I will/i);
   });
 
+  it("tell the default version it can publish to every provider", () => {
+    const prompt = composeSystemPrompt(
+      getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID),
+    );
+    expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v18");
+    expect(prompt).toMatch(/Instagram/);
+    expect(prompt).toMatch(/TikTok/);
+    expect(prompt).not.toMatch(/X only/);
+  });
+
   it("fall back to the default for unknown ids", () => {
     expect(getSokoBotVersion(null).id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
     expect(getSokoBotVersion("nope").id).toBe(DEFAULT_SOKO_BOT_VERSION_ID);
