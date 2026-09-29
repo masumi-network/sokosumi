@@ -141,7 +141,12 @@ export function createCmoAuth(config: CmoAuthConfig) {
         ) {
           return;
         }
-        // Refresh grants do not check bans; /v1 checks current Core access.
+        // Refresh grants do not check bans, so check /v1 once per refresh:
+        // a ban takes effect within one access-token lifetime (2 hours).
+        const refreshed = ctx.context.responseHeaders
+          ?.get("set-cookie")
+          ?.includes(ctx.context.authCookies.accountData.name);
+        if (!refreshed) return;
         const result = await getCoreUser(tokens.accessToken).catch(() => null);
         if (result?.data) return;
         const status = result?.response?.status;

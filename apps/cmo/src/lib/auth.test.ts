@@ -30,7 +30,10 @@ interface FakeCore {
   refuseUser(): void;
   /** Core's discovery document answers 503 while true. */
   discoveryDown: boolean;
+  /** `/v1/users/me` answers 503 while true. */
   userLookupDown: boolean;
+  /** How often CMO has called `/v1/users/me`. */
+  userLookups: number;
 }
 
 /**
@@ -157,6 +160,7 @@ async function createFakeCore(): Promise<FakeCore> {
         return json({ error: "unsupported_grant_type" }, 400);
       }
       case "/v1/users/me": {
+        fake.userLookups += 1;
         if (fake.userLookupDown) return json({ error: "unavailable" }, 503);
         const bearer = request.headers.get("authorization")?.slice(7) ?? "";
         if (userRefused || !accessTokens.has(bearer)) {
@@ -215,6 +219,7 @@ async function createFakeCore(): Promise<FakeCore> {
     },
     discoveryDown: false,
     userLookupDown: false,
+    userLookups: 0,
   };
   return fake;
 }
@@ -384,13 +389,15 @@ describe("CMO auth handler", () => {
     expect(jar.header()).not.toContain("soko_refresh_token_");
   });
 
-  it("leaves a fresh session alone", async () => {
+  it("leaves a fresh session alone without calling Core", async () => {
     await signIn(auth, jar, core);
+    const lookupsAtSignIn = core.userLookups;
 
     const response = await renew(auth, jar);
 
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(core.refreshCount()).toBe(0);
+    expect(core.userLookups).toBe(lookupsAtSignIn);
   });
 
   it("renews when the page request arrives on an internal host", async () => {
@@ -549,23 +556,21 @@ describe("CMO auth handler", () => {
     expect(jar.names()).toEqual([]);
   });
 
-  it.each([0, TWO_HOURS_S + 60])(
-    "signs out a user banned after login, with access token age %s seconds",
-    async (age) => {
-      await signIn(auth, jar, core);
-      core.refuseUser();
-      vi.setSystemTime(Date.now() + age * 1000);
+  it("keeps a user banned after login until the next renewal", async () => {
+    await signIn(auth, jar, core);
+    core.refuseUser();
 
-      await renew(auth, jar);
+    await renew(auth, jar);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
 
-      expect(await sessionUser(auth, jar)).toBeNull();
-      expect(jar.names()).toEqual([]);
-      // After a refresh, sign-out must revoke the newly rotated token.
-      expect(core.revoked).toEqual([
-        age === 0 ? "soko_refresh_token_2" : "soko_refresh_token_3",
-      ]);
-    },
-  );
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+
+    expect(await sessionUser(auth, jar)).toBeNull();
+    expect(jar.names()).toEqual([]);
+    // Sign-out revokes the token the renewal just rotated in.
+    expect(core.revoked).toEqual(["soko_refresh_token_3"]);
+  });
 
   it("preserves rotated tokens during a temporary Core identity outage", async () => {
     await signIn(auth, jar, core);
