@@ -192,6 +192,42 @@ describe("sandbox turn service", () => {
     expect(events().map((event) => event.type)).toContain("step.completed");
   });
 
+  it("drops zero retention only for the Gateway-run search call", async () => {
+    const { resolveRunnableSokoBotVersion } = await import(
+      "@/services/soko-bot-version.service"
+    );
+    const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
+    vi.mocked(resolveRunnableSokoBotVersion)
+      .mockResolvedValueOnce(luna as never)
+      .mockResolvedValueOnce(luna as never);
+    fetchMock.mockImplementation(async () => gatewayAnswer());
+    const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
+    const search = modelRequest(lunaHeaders);
+    search.body = JSON.stringify({
+      prompt: [],
+      tools: [
+        {
+          type: "provider",
+          name: "perplexity_search",
+          id: "gateway.perplexity_search",
+          args: { maxResults: 5 },
+        },
+      ],
+    });
+    await proxySandboxModelCall(claims, search);
+    await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
+    const [searchBody, turnBody] = fetchMock.mock.calls.map(([, init]) =>
+      JSON.parse(String(init?.body)),
+    );
+    expect(searchBody.providerOptions.gateway).toEqual({
+      disallowPromptTraining: true,
+    });
+    expect(turnBody.providerOptions.gateway).toEqual({
+      zeroDataRetention: true,
+      disallowPromptTraining: true,
+    });
+  });
+
   it("marks the turn once the Gateway ran a web search", async () => {
     fetchMock.mockResolvedValue(
       gatewayAnswer([{ type: "tool-result", toolName: "web_search" }]),

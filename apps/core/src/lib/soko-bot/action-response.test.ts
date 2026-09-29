@@ -83,9 +83,7 @@ describe("authoritative action responses", () => {
         "Permanently deleted everything.",
       );
       expect(result.answerText).toBe(
-        historyPresent
-          ? "Archived task (task-one)."
-          : "I could not verify archive_task.",
+        historyPresent ? "Archived task." : "Not confirmed: archived task.",
       );
       expect(db.task.findFirst).toHaveBeenCalledWith({
         where: {
@@ -113,7 +111,7 @@ describe("authoritative action responses", () => {
       narrative: null,
       observations: [],
       unfulfilledActions: [],
-      answerText: "Updated task (task-one).",
+      answerText: "Updated task.",
     });
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
@@ -133,7 +131,7 @@ describe("authoritative action responses", () => {
       "turn-current",
       "All requested work is complete.",
     );
-    expect(result.answerText).toBe("Created task (task-one).");
+    expect(result.answerText).toBe("Created task.");
   });
 
   it("shows the bot's own message beneath the verified receipts", async () => {
@@ -151,7 +149,7 @@ describe("authoritative action responses", () => {
       }),
     );
     expect(result.answerText).toBe(
-      "Created task (task-one).\n\nHannah will cover pricing. Should I include Sokosumi itself?",
+      "Created task.\n\nHannah will cover pricing. Should I include Sokosumi itself?",
     );
   });
 
@@ -205,7 +203,7 @@ describe("authoritative action responses", () => {
       "The update succeeded.",
     );
     expect(result.appliedReceiptIds).toEqual([]);
-    expect(result.answerText).toBe("I could not verify update_task.");
+    expect(result.answerText).toBe("Not confirmed: updated task.");
     expect(result.unfulfilledActions).toEqual([
       {
         action: "update_task",
@@ -231,7 +229,7 @@ describe("authoritative action responses", () => {
     );
     expect(result.appliedReceiptIds).toEqual([]);
     expect(result.answerText).toBe(
-      "The outcome of run_integration_tool is unknown. Reconciliation is required before retrying.",
+      "Outcome unknown: integration acknowledged operation. It has to be checked before trying again.",
     );
     expect(result.unfulfilledActions[0].reason).toBe("UNKNOWN");
   });
@@ -250,7 +248,7 @@ describe("authoritative action responses", () => {
     expect(result).toMatchObject({
       appliedReceiptIds: ["source-one"],
       unfulfilledActions: [],
-      answerText: "Previously verified: Updated task (task-one).",
+      answerText: "Previously verified: Updated task.",
     });
     expect(db.sokoBotToolCall.findMany).toHaveBeenNthCalledWith(2, {
       where: {
@@ -327,7 +325,7 @@ describe("authoritative action responses", () => {
     );
     expect(result.appliedReceiptIds).toEqual(["source-one"]);
     expect(result.unfulfilledActions).toEqual([]);
-    expect(result.answerText).toBe("Updated task (task-one).");
+    expect(result.answerText).toBe("Updated task.");
   });
 
   it.each(["create_table", "write_table_rows", "update_table_columns"])(
@@ -343,9 +341,7 @@ describe("authoritative action responses", () => {
       );
       expect(result.appliedReceiptIds).toHaveLength(1);
       expect(result.answerText).not.toContain("emailed");
-      expect(result.answerText).toContain(
-        capability === "create_table" ? "/drive/tables/table-one" : "table-one",
-      );
+      expect(result.answerText).toContain("/drive/tables/table-one");
       db.sokoBotToolCall.findMany.mockResolvedValue([
         receipt({ capability, targetId: "table-one", verification: "NONE" }),
       ]);
@@ -355,7 +351,7 @@ describe("authoritative action responses", () => {
         "Created the table.",
       );
       expect(unverified.appliedReceiptIds).toEqual([]);
-      expect(unverified.answerText).toBe(`I could not verify ${capability}.`);
+      expect(unverified.answerText).toMatch(/^Not confirmed: \w/);
     },
   );
 
@@ -397,7 +393,7 @@ describe("authoritative action responses", () => {
       "turn-current",
       "All posts were published.",
     );
-    expect(response.answerText).toBe(`${label} (post-one).`);
+    expect(response.answerText).toBe(`${label}.`);
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({
         capability,
@@ -409,7 +405,7 @@ describe("authoritative action responses", () => {
     const unknown = await buildActionResponse(prisma, "turn-current", "Done.");
     expect(unknown.appliedReceiptIds).toEqual([]);
     expect(unknown.answerText).toBe(
-      `The outcome of ${capability} is unknown. Reconciliation is required before retrying.`,
+      `Outcome unknown: ${label.toLowerCase()}. It has to be checked before trying again.`,
     );
   });
 
@@ -645,6 +641,46 @@ describe("authoritative action responses", () => {
     },
   );
 
+  it("does not report a refused attempt the bot then made good", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "refused",
+        toolCallId: "call-refused",
+        capability: "create_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        createdAt: new Date("2026-09-26T12:00:00Z"),
+      }),
+      receipt({
+        id: "created",
+        toolCallId: "call-created",
+        capability: "create_task",
+        createdAt: new Date("2026-09-26T12:00:05Z"),
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Created task.");
+    expect(response.unfulfilledActions).toEqual([]);
+  });
+
+  it("still reports a refused attempt nothing replaced", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Not confirmed: created task.");
+  });
+
   it("combines receipts and persisted authorized read facts, without model facts", async () => {
     db.sokoBotToolCall.findMany
       .mockResolvedValueOnce([receipt()])
@@ -665,9 +701,12 @@ describe("authoritative action responses", () => {
         observationToolCallIds: ["read-one"],
       },
     );
-    expect(response.answerText).toBe(
-      'Updated task (task-one).\n\nObserved task "Launch": status "IN_PROGRESS".',
-    );
+    // The receipts say what happened; what the bot read stays on the record
+    // rather than being restated beneath them in fixed wording.
+    expect(response.answerText).toBe("Updated task.");
+    expect(response.observations).toEqual([
+      'Observed task "Launch": status "IN_PROGRESS".',
+    ]);
     expect(db.sokoBotToolCall.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: {
@@ -736,24 +775,21 @@ describe("authoritative action responses", () => {
         observationToolCallIds: ["read-blocked"],
       },
     );
-    expect(response.answerText).toContain("Assigned task (task-one).");
-    expect(response.answerText).toContain(
+    expect(response.answerText).toBe("Assigned task.");
+    const observed = response.observations.join("\n");
+    expect(observed).toContain(
       'Observed task "Launch campaign": status "BLOCKED".',
     );
-    expect(response.answerText).toContain('Recorded project: "Autumn launch".');
-    expect(response.answerText).toContain('Recorded assignee: "Nina".');
-    expect(response.answerText).toContain(
+    expect(observed).toContain('Recorded project: "Autumn launch".');
+    expect(observed).toContain('Recorded assignee: "Nina".');
+    expect(observed).toContain(
       'Latest reported task update ("coworker"): "Waiting for owner approval of the campaign budget.".',
     );
-    expect(response.answerText).toContain(
+    expect(observed).toContain(
       "Recorded outcome assessment: The requested outcome is partially complete. Result evidence is not yet available.",
     );
-    expect(response.answerText).toContain(
-      'Still unverified: "Approved campaign budget".',
-    );
-    expect(response.answerText).toContain(
-      '"Budget approval", status "INPUT_REQUIRED"',
-    );
+    expect(observed).toContain('Still unverified: "Approved campaign budget".');
+    expect(observed).toContain('"Budget approval", status "INPUT_REQUIRED"');
     expect(response.answerText).not.toContain("I approved");
     expect(response.appliedReceiptIds).toEqual(["receipt-one"]);
   });

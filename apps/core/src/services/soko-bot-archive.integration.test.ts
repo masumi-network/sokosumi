@@ -479,7 +479,7 @@ describe.skipIf(!databaseUrl)(
         );
         expect(rendered.appliedReceiptIds).toEqual([]);
         expect(rendered.answerText).not.toContain("Archived task successfully");
-        expect(rendered.answerText).toContain("could not verify archive_task");
+        expect(rendered.answerText).toContain("Not confirmed: archived task");
         expect(await db.task.count({ where: { id: task.id } })).toBe(1);
       },
     );

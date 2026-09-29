@@ -263,6 +263,29 @@ export async function recordSandboxActionResult(
  * Usage is metered here — the runner's own report is never trusted — and
  * before the region check, so a rejected call is still billed.
  */
+/**
+ * The runner's web search: a call whose only tools are ones the Gateway runs
+ * itself. Perplexity, which runs it, makes no zero-retention commitment, so
+ * such a call keeps "no prompt training" but not zero retention. It carries
+ * only the search terms; everything with the owner's data keeps both.
+ */
+function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
+  const tools = z
+    .array(z.object({ type: z.literal("provider"), id: z.string() }))
+    .min(1)
+    .safeParse(payload.tools);
+  return (
+    tools.success && tools.data.every((tool) => tool.id.startsWith("gateway."))
+  );
+}
+
+function withoutZeroRetention(
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  const { zeroDataRetention: _dropped, ...rest } = options;
+  return rest;
+}
+
 export async function proxySandboxModelCall(
   claims: TurnTokenClaims,
   request: { headers: Headers; body: string },
@@ -291,7 +314,11 @@ export async function proxySandboxModelCall(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
-  payload.providerOptions = { gateway: policy.providerOptions.gateway };
+  payload.providerOptions = {
+    gateway: isGatewaySearchCall(payload)
+      ? withoutZeroRetention(policy.providerOptions.gateway)
+      : policy.providerOptions.gateway,
+  };
 
   const log = logFor(claims);
   await log.append(runtimeEvent("step.started", { modelId: version.model }));

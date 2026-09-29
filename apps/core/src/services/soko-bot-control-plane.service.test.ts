@@ -464,12 +464,12 @@ describe("SokoBotControlPlane lifecycle", () => {
       state: "BLOCKED" as const,
     },
     {
-      finalAnswer: "Created social post (post-one).",
+      finalAnswer: "Created social post.",
       blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
       state: "BLOCKED" as const,
     },
     {
-      finalAnswer: "Created social post (post-one).",
+      finalAnswer: "Created social post.",
       blockerKind: "ARTIFACT_READABILITY_UNVERIFIED",
       state: "BLOCKED" as const,
     },
@@ -601,7 +601,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       startedAt: new Date(),
       costUsdMicros: 0n,
       status: "RUNNING",
-      finalAnswer: "Created task (task-one).",
+      finalAnswer: "Created task.",
       capabilityNames: ["create_task"],
       leaseToken: null,
       cancellationRequestedAt: null,
@@ -625,7 +625,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "COMPLETED",
     });
     const answerText =
-      "The requested outcome is blocked. An action outcome is uncertain; reconciliation is required before retrying. 1 acceptance criterion remains unverified.\n\nCreated task (task-one).";
+      "The requested outcome is blocked. An action outcome is uncertain; reconciliation is required before retrying. 1 acceptance criterion remains unverified.\n\nCreated task.";
     expect(turnUpdateMock).toHaveBeenCalledWith({
       where: { id: "turn_1" },
       data: {
@@ -651,7 +651,7 @@ describe("SokoBotControlPlane lifecycle", () => {
         startedAt: new Date(),
         costUsdMicros: 0n,
         status: "RUNNING",
-        finalAnswer: "Created task (task-one).",
+        finalAnswer: "Created task.",
         capabilityNames: ["create_task"],
         leaseToken: null,
         cancellationRequestedAt: null,

@@ -39,6 +39,12 @@ const ACTION_LABELS: Record<string, string> = {
   publish_social_post: "Published social post",
 };
 
+const TABLE_CAPABILITIES = new Set([
+  "create_table",
+  "write_table_rows",
+  "update_table_columns",
+]);
+
 const TASK_TARGET_CAPABILITIES = new Set([
   "create_task",
   "update_task",
@@ -93,7 +99,7 @@ function actionTarget(
   tasks: Map<string, TaskLabel>,
 ): string {
   const id = call.targetId ?? "";
-  if (call.capability === "create_table")
+  if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
   if (call.capability === "generate_image") {
     const studio = z
@@ -102,8 +108,12 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
+  if (call.capability === "upload_file" && id.startsWith("https://"))
+    return `([Open file](${id}))`;
   const task = tasks.get(id);
-  if (!task) return `(${id})`;
+  // Anything else is named by its label alone: a raw id tells the owner
+  // nothing.
+  if (!task) return "";
   const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;
   return call.capability === "assign_task" && task.assignee
     ? `${link} → ${linkText(task.assignee)}`
@@ -367,10 +377,20 @@ export async function buildActionResponse(
   }
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
+  // A refused attempt the bot then made good with a later call of the same
+  // kind is not something the owner needs to hear about.
+  const madeGood = (call: (typeof calls)[number]) =>
+    unique.some(
+      (applied) =>
+        applied.turnId === turnId &&
+        applied.capability === call.capability &&
+        applied.createdAt > call.createdAt,
+    );
   const unfulfilledActions = calls
     .filter(
       (call) =>
         !appliedReceiptIds.includes(call.id) &&
+        !madeGood(call) &&
         !(
           call.replayedReceiptId &&
           prior.some(
@@ -397,13 +417,21 @@ export async function buildActionResponse(
   );
   const actionText = unique.map(
     (call) =>
-      `${call.turnId !== turnId ? "Previously verified: " : ""}${call.disposition === "ALREADY_SATISFIED" ? "Already satisfied" : ACTION_LABELS[call.capability]} ${actionTarget(call, tasks)}.`,
+      `${call.turnId !== turnId ? "Previously verified: " : ""}${[
+        call.disposition === "ALREADY_SATISFIED"
+          ? "Already satisfied"
+          : ACTION_LABELS[call.capability],
+        actionTarget(call, tasks),
+      ]
+        .filter(Boolean)
+        .join(" ")}.`,
   );
   for (const action of unfulfilledActions) {
+    const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
     actionText.push(
       action.reason === "UNKNOWN"
-        ? `The outcome of ${action.action} is unknown. Reconciliation is required before retrying.`
-        : `I could not verify ${action.action}.`,
+        ? `Outcome unknown: ${label}. It has to be checked before trying again.`
+        : `Not confirmed: ${label}.`,
     );
   }
   const narrative =
@@ -441,7 +469,11 @@ export async function buildActionResponse(
   // the same in plain words, so they are shown only when it wrote none.
   const narrativeText = message
     ? [message]
-    : [...observations, ...(question ? [question] : [])];
+    : actionText.length
+      ? question
+        ? [question]
+        : []
+      : [...observations, ...(question ? [question] : [])];
   const silent =
     !calls.length &&
     (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));
