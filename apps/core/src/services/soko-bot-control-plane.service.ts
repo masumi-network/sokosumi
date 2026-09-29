@@ -8,6 +8,7 @@ import {
 import {
   applyVersionCapabilities,
   capabilitiesForClassification,
+  composeSokoBotVersionNotice,
   containsSokoBotSensitiveMaterial,
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
@@ -92,6 +93,7 @@ import {
   isRunnableSokoBotVersionId,
   isSelectableSokoBotVersionId,
   resolveRunnableSokoBotVersion,
+  resolveSokoBotVersion,
 } from "@/services/soko-bot-version.service";
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
@@ -3450,11 +3452,14 @@ export class SokoBotControlPlane {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
+    /** Tell each moved bot's owner, in its chat, what changed. */
+    notifyOwners?: boolean;
     requestId?: string;
     traceId?: string;
   }): Promise<{
     total: number;
     moved: number;
+    notified: number;
     alreadyOnVersion: number;
     failed: number;
     failures: { sokoBotId: string; message: string }[];
@@ -3464,6 +3469,11 @@ export class SokoBotControlPlane {
         `Unknown Soko Bot version ${input.toVersionId}`,
       );
     }
+    const notice = input.notifyOwners
+      ? composeSokoBotVersionNotice(
+          await resolveSokoBotVersion(input.toVersionId),
+        )
+      : null;
     const bots = await prisma.sokoBot.findMany({
       where: {
         archivedAt: null,
@@ -3478,6 +3488,7 @@ export class SokoBotControlPlane {
     const runId = randomUUID();
     const failures: { sokoBotId: string; message: string }[] = [];
     let moved = 0;
+    let notified = 0;
     let alreadyOnVersion = 0;
     let failed = 0;
     for (const bot of bots) {
@@ -3510,11 +3521,32 @@ export class SokoBotControlPlane {
             message: error instanceof Error ? error.message : String(error),
           });
         }
+        continue;
+      }
+      // The move stands whether or not the owner hears about it: a notice
+      // that fails is counted as not sent, never as a failed move.
+      if (notice) {
+        const { postSokoBotOwnerNotice } = await import(
+          "@/services/soko-bot-chat.service"
+        );
+        const posted = await postSokoBotOwnerNotice({
+          sokoBotId: bot.id,
+          content: notice,
+          key: `version:${runId}:${bot.id}`,
+        }).catch((error: unknown) => {
+          console.warn("Soko Bot version notice failed", {
+            sokoBotId: bot.id,
+            error: error instanceof Error ? error.name : "unknown",
+          });
+          return null;
+        });
+        if (posted) notified += 1;
       }
     }
     return {
       total: bots.length,
       moved,
+      notified,
       alreadyOnVersion,
       failed,
       failures,

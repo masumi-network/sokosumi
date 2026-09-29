@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-
+import { composeSokoBotVersionNotice } from "../persona.js";
 import {
   applyVersionCapabilities,
   composeSystemPrompt,
@@ -87,6 +87,21 @@ describe("versions", () => {
     expect(prompt).toMatch(/Instagram/);
     expect(prompt).toMatch(/TikTok/);
     expect(prompt).not.toMatch(/X only/);
+  });
+
+  it("tell owners what a version change means for them", () => {
+    const luna = composeSokoBotVersionNotice(getSokoBotVersion("v19"));
+    expect(luna).toMatch(/^I've been updated to version v19\./);
+    // Moving an owner onto Luna moves their data outside the EU: say so.
+    expect(luna).toMatch(/outside the EU/);
+    expect(luna).toMatch(/v20/);
+    expect(composeSokoBotVersionNotice(getSokoBotVersion("v20"))).toMatch(
+      /inside the EU/,
+    );
+    // A version without a note says what it is from its summary.
+    expect(
+      composeSokoBotVersionNotice({ id: "custom", summary: "A lab prompt." }),
+    ).toContain("A lab prompt.");
   });
 
   it("fall back to the default for unknown ids", () => {

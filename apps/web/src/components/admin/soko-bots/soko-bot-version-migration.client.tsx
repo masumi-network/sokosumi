@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -46,9 +47,13 @@ export function SokoBotVersionMigration({
   const fromId = useId();
   const toId = useId();
   const reasonId = useId();
+  const notifyId = useId();
   const [from, setFrom] = useState<string>(EVERY_BOT);
   const [to, setTo] = useState(defaultVersionId);
   const [reason, setReason] = useState("");
+  // On by default: a version change can move where an owner's data is
+  // processed, and a bot that answers differently looks broken unannounced.
+  const [notifyOwners, setNotifyOwners] = useState(true);
   const [result, setResult] =
     useState<AdminSokoBotVersionMigrationResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -71,6 +76,7 @@ export function SokoBotVersionMigration({
           ...(from === EVERY_BOT ? {} : { fromVersionId: from }),
           toVersionId: to,
           reason: reason.trim(),
+          notifyOwners,
         },
       });
       if (!outcome.ok) {
@@ -144,6 +150,21 @@ export function SokoBotVersionMigration({
         />
       </div>
 
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id={notifyId}
+          checked={notifyOwners}
+          onCheckedChange={(checked) => setNotifyOwners(checked === true)}
+          disabled={isPending}
+        />
+        <Label htmlFor={notifyId} className="block min-w-0 cursor-pointer">
+          <span className="block">{t("notifyLabel")}</span>
+          <span className="text-muted-foreground mt-1 block text-xs font-normal leading-relaxed">
+            {t("notifyHint")}
+          </span>
+        </Label>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
@@ -165,7 +186,8 @@ export function SokoBotVersionMigration({
               moved: result.moved,
               alreadyOnVersion: result.alreadyOnVersion,
               failed: result.failed,
-            })}
+            })}{" "}
+            {t("notifiedResult", { notified: result.notified })}
           </p>
           {/* Named, so a partial run says which bots still need a look. */}
           {result.failures.length > 0 && (

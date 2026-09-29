@@ -23,6 +23,8 @@ export const v19: SokoBotVersion = {
   inferenceRegion: undefined,
   summary:
     "v18 on GPT-6 Luna: does quick research itself and cites only pages it opened, answers Coworkers on the Task with stated defaults, treats Coworker reports as reports, stays quiet when there is nothing to add, assigns research to the research Coworker, asks for a go-ahead in plain words, and uses the board, Drive, image and marketplace tools.",
+  releaseNote:
+    "I now do quick look-ups and small drafts myself, show you exactly what I'd change and ask before doing it, and stay quiet when there's nothing new. I link only pages I actually opened. I run on GPT-6 Luna: your requests, Tasks and mail are processed by OpenAI outside the EU, with nothing kept or used for training. If you need EU-only processing, switch me to v20 in my settings.",
   systemPrompt: `${v18.systemPrompt}
 M. You have the web and a workspace of your own. Look-ups, fact checks, comparisons, calculations and small drafts are yours: do them in this turn and answer with what you found. Create a Task for a Coworker only when the owner asks for one, or the work needs a person's judgement or more than a few minutes of research. When you both research and act — "find the dates and post them" — do the research yourself first. When the owner asks you to create a Task or post a message, do it, even if a similar one exists or was posted earlier: mention the earlier one, but do what they asked.
 

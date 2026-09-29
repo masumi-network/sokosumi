@@ -152,8 +152,12 @@ vi.mock("./soko-bot-delivery.service", () => ({
   deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
 }));
 
+const { postOwnerNoticeMock } = vi.hoisted(() => ({
+  postOwnerNoticeMock: vi.fn(),
+}));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
+  postSokoBotOwnerNotice: postOwnerNoticeMock,
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -3560,6 +3564,83 @@ describe("SET_VERSION and fleet migration", () => {
       failed: 1,
     });
     expect(result.failures[0]?.sokoBotId).toBe(stuck);
+  });
+
+  it("tells the owners of moved bots, and only them, what changed", async () => {
+    const stuck = "01960001-0001-7001-8001-0000000000ff";
+    const moving = "01960001-0001-7001-8001-0000000000aa";
+    botFindManyMock.mockResolvedValue([
+      { id: BOT_ID, versionId: "v19" },
+      { id: moving, versionId: "v16" },
+      { id: stuck, versionId: "v15" },
+    ]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      where.id === stuck ? null : adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockResolvedValue({ messageId: "m1" });
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move the fleet to Luna",
+      notifyOwners: true,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 1, failed: 1 });
+    // Not the bot already on v19, and not the one that failed to move.
+    expect(postOwnerNoticeMock).toHaveBeenCalledExactlyOnceWith({
+      sokoBotId: moving,
+      content: expect.stringMatching(/^I've been updated to version v19\./),
+      key: expect.stringMatching(new RegExp(`^version:.+:${moving}$`)),
+    });
+  });
+
+  it("keeps a move whose notice could not be posted", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v16" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset().mockRejectedValue(new Error("Ably down"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Move the fleet to Luna",
+      notifyOwners: true,
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 0, failed: 0 });
+    warn.mockRestore();
+  });
+
+  it("posts nothing unless asked to", async () => {
+    botFindManyMock.mockResolvedValue([{ id: BOT_ID, versionId: "v16" }]);
+    botFindUniqueMock.mockImplementation(async ({ where }) =>
+      adminBot({ id: where.id, versionId: "v16" }),
+    );
+    botUpdateMock.mockImplementation(async ({ data }) => ({
+      ...adminBot(),
+      ...data,
+    }));
+    postOwnerNoticeMock.mockReset();
+
+    const result = await new SokoBotControlPlane().migrateVersions({
+      operatorId: "admin_1",
+      toVersionId: "v19",
+      reason: "Quiet fix",
+    });
+
+    expect(result).toMatchObject({ moved: 1, notified: 0 });
+    expect(postOwnerNoticeMock).not.toHaveBeenCalled();
   });
 
   it("gives each bot its own operation id, fresh on every run", async () => {

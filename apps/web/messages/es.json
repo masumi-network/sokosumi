@@ -4199,11 +4199,14 @@
           "defaultOption": "{name} (predeterminada para bots nuevos)",
           "reasonLabel": "Motivo",
           "reasonPlaceholder": "¿Por qué mueve la flota? (obligatorio, queda registrado para cada bot)",
+          "notifyLabel": "Avisar a los propietarios en el chat de su bot",
+          "notifyHint": "Cada bot movido publica un mensaje fijo con la versión que usa ahora y lo que cambia para su propietario. No inicia ningún turno.",
           "confirm": "Mover {count} bots",
           "nothingToMove": "No hay nada que mover con esta selección.",
           "working": "Moviendo…",
           "done": "{moved} bots movidos.",
           "result": "Movidos: {moved}. Ya en esta versión: {alreadyOnVersion}. No se pudieron mover: {failed}.",
+          "notifiedResult": "Propietarios avisados: {notified}.",
           "error": "No se pudieron mover estos bots."
         }
       },

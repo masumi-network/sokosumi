@@ -630,6 +630,8 @@ export const adminSokoBotVersionMigrationRequestSchema = z
     fromVersionId: sokoBotVersionSlugSchema.optional(),
     toVersionId: sokoBotVersionSlugSchema,
     reason: z.string().trim().min(1).max(2_000),
+    /** Post a fixed note in each moved bot's owner chat saying what changed. */
+    notifyOwners: z.boolean().optional(),
   })
   .strict()
   .openapi("AdminSokoBotVersionMigrationRequest");
@@ -639,6 +641,8 @@ export const adminSokoBotVersionMigrationResultSchema = z
     /** Bots that matched the filter, including ones already on the target. */
     total: z.number().int(),
     moved: z.number().int(),
+    /** Owners told in their bot's chat; moved bots whose owner has no chat yet are not. */
+    notified: z.number().int(),
     alreadyOnVersion: z.number().int(),
     failed: z.number().int(),
     /** A sample of the failures, so a partial run says where to look. */

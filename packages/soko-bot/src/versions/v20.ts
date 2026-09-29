@@ -14,4 +14,6 @@ export const v20: SokoBotVersion = {
   inferenceRegion: "eu",
   summary:
     "v19's prompt and tools on Gemini 3.8 Flash, with inference pinned to the EU.",
+  releaseNote:
+    "I now do quick look-ups and small drafts myself, show you exactly what I'd change and ask before doing it, and stay quiet when there's nothing new. I link only pages I actually opened. I run on Gemini 3.8 Flash, with everything processed inside the EU.",
 };

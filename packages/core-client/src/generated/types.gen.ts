@@ -342,6 +342,7 @@ export type AdminSokoBotVersionUsage = {
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
+    notified: number;
     alreadyOnVersion: number;
     failed: number;
     failures: Array<{
@@ -354,6 +355,7 @@ export type AdminSokoBotVersionMigrationRequest = {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
+    notifyOwners?: boolean;
 };
 
 export type AdminSokoBotDetail = SokoBot & {

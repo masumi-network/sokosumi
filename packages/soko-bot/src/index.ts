@@ -22,7 +22,10 @@ export {
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
 } from "./memory.js";
-export { composeSokoBotIntroduction } from "./persona.js";
+export {
+  composeSokoBotIntroduction,
+  composeSokoBotVersionNotice,
+} from "./persona.js";
 export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,

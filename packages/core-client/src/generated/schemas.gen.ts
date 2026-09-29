@@ -1439,6 +1439,9 @@ export const AdminSokoBotVersionMigrationResultSchema = {
         moved: {
             type: 'integer'
         },
+        notified: {
+            type: 'integer'
+        },
         alreadyOnVersion: {
             type: 'integer'
         },
@@ -1468,6 +1471,7 @@ export const AdminSokoBotVersionMigrationResultSchema = {
     required: [
         'total',
         'moved',
+        'notified',
         'alreadyOnVersion',
         'failed',
         'failures'
@@ -1493,6 +1497,9 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 2000
+        },
+        notifyOwners: {
+            type: 'boolean'
         }
     },
     required: [
