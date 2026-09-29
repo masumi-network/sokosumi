@@ -3,6 +3,7 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 import { publishFacebookPost } from "@/clients/social-post-providers/facebook";
+import { publishInstagramPost } from "@/clients/social-post-providers/instagram";
 import { publishLinkedInPost } from "@/clients/social-post-providers/linkedin";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import type {
@@ -34,6 +35,8 @@ export async function publishSocialPostToProvider(
       return publishLinkedInPost(context);
     case "facebook":
       return publishFacebookPost(context);
+    case "instagram":
+      return publishInstagramPost(context);
     default:
       throw new ComposioToolError({
         message: `${socialPostProviderLabel(context.provider)} publishing is not available yet`,
