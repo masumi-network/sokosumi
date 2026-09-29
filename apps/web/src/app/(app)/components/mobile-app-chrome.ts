@@ -15,6 +15,7 @@ const MOBILE_TAB_LIST_PATHS = [
   "/drive",
   "/calendar",
   "/schedules",
+  "/studio",
   "/projects",
   "/you",
   "/history",
@@ -94,7 +95,8 @@ export function resolveMobileAppBackTarget(
       root === "/agents" ||
       root === "/drive" ||
       root === "/calendar" ||
-      root === "/schedules"
+      root === "/schedules" ||
+      root === "/studio"
     ) {
       return { href: "/", labelKey: "back" };
     }

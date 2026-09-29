@@ -606,7 +606,10 @@ export function StudioComposer({
                   </TriggerLabel>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-80 space-y-3">
+              <PopoverContent
+                align="start"
+                className="w-80 max-w-[calc(100vw-2rem)] space-y-3"
+              >
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}

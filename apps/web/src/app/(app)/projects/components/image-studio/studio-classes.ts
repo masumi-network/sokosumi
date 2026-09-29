@@ -18,3 +18,9 @@
  */
 export const STUDIO_PILL_CLASS =
   "focus-visible:ring-ring-halo inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]";
+
+/**
+ * Feed+composer column when the gallery has work: fill leftover chrome
+ * (header + mobile tab spacer), not a desktop-only `100dvh` subtract.
+ */
+export const STUDIO_COLUMN_FEED_HEIGHT_CLASS = "min-h-0 flex-1" as const;
