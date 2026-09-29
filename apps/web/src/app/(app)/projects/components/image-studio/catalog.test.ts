@@ -1,12 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  applyPlacement,
   clampToModel,
   defaultModel,
   modelIdForRepeat,
-  modelSupportsPlacement,
-  placementById,
   resolveModel,
   settingsOf,
 } from "./catalog";
@@ -14,7 +11,6 @@ import { TEST_CATALOG } from "./studio-fixtures";
 import type { StudioAsset, StudioCatalog, StudioJob } from "./types";
 
 const [MODEL_A, MODEL_B] = TEST_CATALOG.models;
-const REELS = TEST_CATALOG.placements[0];
 
 describe("resolveModel", () => {
   it("matches a model by either of its endpoints", () => {
@@ -73,61 +69,31 @@ describe("clampToModel", () => {
   });
 });
 
-describe("placements", () => {
-  it("only offers a placement to a model that can frame it", () => {
-    expect(modelSupportsPlacement(MODEL_A, REELS)).toBe(true);
-    // Model B has no 9:16, so it cannot serve a 9:16 placement. Letting it
-    // through would generate a square and call it a Reels concept.
-    expect(modelSupportsPlacement(MODEL_B, REELS)).toBe(false);
-  });
-
-  it("sets the frame from the placement and records which one", () => {
-    const next = applyPlacement({ aspectRatio: "1:1" }, REELS);
-    expect(next.aspectRatio).toBe("9:16");
-    expect(next.placementId).toBe("reels");
-  });
-
-  it("clears the placement without inventing a frame", () => {
-    const chosen = applyPlacement({ aspectRatio: "1:1" }, REELS);
-    const cleared = applyPlacement(chosen, null);
-    expect(cleared.placementId).toBeNull();
-    // The frame the placement set stays: clearing the placement is not a
-    // request to reframe what was already described.
-    expect(cleared.aspectRatio).toBe("9:16");
-  });
-
-  it("does not resolve an id the catalog has never heard of", () => {
-    expect(placementById(TEST_CATALOG, "tiktok-whatever")).toBeNull();
-  });
-});
-
 describe("settingsOf", () => {
-  it("carries the placement through a repeat", () => {
+  it("repeats a version on the terms it was made with", () => {
     const asset = {
       settings: {
         aspectRatio: "9:16",
         resolution: "2K",
         outputFormat: "jpeg",
         seed: 3,
-        placementId: "reels",
       },
     } as unknown as StudioAsset;
 
-    // The regression this guards: a 9:16 2K Reels image regenerating as a
-    // square 1K with no placement, because the follow-up was built from
-    // defaults instead of from the thing being repeated.
+    // The regression this guards: a 9:16 2K image regenerating as a square 1K,
+    // because the follow-up was built from defaults instead of from the thing
+    // being repeated.
     expect(settingsOf(asset)).toEqual({
       aspectRatio: "9:16",
       resolution: "2K",
       outputFormat: "jpeg",
       seed: 3,
-      placementId: "reels",
     });
   });
 
   it("reads a failed job's own terms, not the selection's", () => {
     const job = {
-      settings: { aspectRatio: "16:9", resolution: "2K", placementId: null },
+      settings: { aspectRatio: "16:9", resolution: "2K" },
     } as unknown as StudioJob;
     expect(settingsOf(job)).toMatchObject({
       aspectRatio: "16:9",

@@ -1,6 +1,14 @@
+import { createHash } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
 import { Composio } from "@composio/core";
+import { ssrfSafeFetch } from "@sokosumi/net";
+import type { SocialPostMediaKind } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
+import {
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
 import { tryUseLogger } from "@/lib/evlog";
 
 let instance: Composio | null | undefined;
@@ -28,7 +36,12 @@ export class ComposioConfigError extends Error {
       composio: {
         failure: "missing_configuration",
         apiKeyConfigured: Boolean(env.COMPOSIO_API_KEY),
-        xAuthConfigConfigured: Boolean(env.COMPOSIO_X_AUTH_CONFIG_ID),
+        authConfigsConfigured: Object.fromEntries(
+          Object.entries(PROJECT_SOCIAL_PROVIDERS).map(([provider, config]) => [
+            provider,
+            Boolean(env[config.authConfigEnv]),
+          ]),
+        ),
       },
     });
   }
@@ -45,6 +58,66 @@ export class ComposioApiError extends Error {
   }
 }
 
+const TOOL_ERROR_MESSAGE_LIMIT = 300;
+
+/** Redacts credentials and identifiers before a provider message is stored. */
+function sanitizeProviderMessage(value: string): string {
+  return value
+    .replace(/[\u0000-\u001f\u007f]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\bhttps?:\/\/[^\s]+/gi, "[redacted-url]")
+    .replace(/\bsess_[a-z0-9_-]+\b/gi, "[redacted]")
+    .replace(/\bBearer\s+[^\s"',;}\]]+/gi, "Bearer [redacted]")
+    .replace(
+      /(\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|client[_ -]?secret|authorization|password|token|secret)\b["']?\s*[:=]\s*)("[^"]*"|'[^']*'|[^\s,;}\]]+)/gi,
+      (_match, prefix: string, value: string) => {
+        const quote =
+          value.startsWith('"') || value.startsWith("'") ? value[0] : "";
+        return `${prefix}${quote}[redacted]${quote}`;
+      },
+    )
+    .replace(/\b[a-z0-9_-]{32,}\b/gi, (candidate) =>
+      /[a-z]/i.test(candidate) && /\d/.test(candidate)
+        ? "[redacted-id]"
+        : candidate,
+    )
+    .trim()
+    .slice(0, TOOL_ERROR_MESSAGE_LIMIT);
+}
+
+/**
+ * A tool executed through Composio but the provider refused or returned no
+ * usable result. Carries only a sanitized provider message and status; never
+ * the session id, tokens, or the raw payload.
+ */
+export class ComposioToolError extends Error {
+  readonly providerMessage: string | null;
+  readonly providerStatus: number | null;
+
+  constructor(input: {
+    message: string;
+    providerMessage?: string | null;
+    providerStatus?: number | null;
+  }) {
+    super(input.message);
+    this.name = "ComposioToolError";
+    this.providerMessage = input.providerMessage
+      ? sanitizeProviderMessage(input.providerMessage)
+      : null;
+    this.providerStatus = input.providerStatus ?? null;
+  }
+}
+
+/** The create-post request may have succeeded; repeating it could publish twice. */
+export class ComposioPublishOutcomeUnknownError extends Error {
+  constructor() {
+    super(
+      "The publishing result could not be confirmed. Check X before retrying to avoid a duplicate post.",
+    );
+    this.name = "ComposioPublishOutcomeUnknownError";
+  }
+}
+
 export type ComposioConnectionStatus =
   | "INITIALIZING"
   | "INITIATED"
@@ -54,12 +127,16 @@ export type ComposioConnectionStatus =
   | "INACTIVE"
   | "REVOKED";
 
-export interface ConnectedXIdentity {
+export interface ConnectedSocialIdentity {
   id: string;
   handle: string | null;
 }
 
-export interface ProjectXConnectedAccount {
+export interface PublishedXPost {
+  externalId: string;
+}
+
+export interface ProjectSocialConnectedAccount {
   id: string;
   status: ComposioConnectionStatus;
   toolkitSlug: string;
@@ -96,10 +173,17 @@ function getProjectComposioConfig(): { apiKey: string; baseUrl: string } {
 
 async function projectComposioFetch(
   path: string,
-  init: { jsonBody?: unknown } & RequestInit = {},
+  init: { jsonBody?: unknown; timeoutMs?: number } & RequestInit = {},
 ): Promise<Response> {
   const { apiKey, baseUrl } = getProjectComposioConfig();
-  const { jsonBody, headers: initHeaders, ...requestInit } = init;
+  const {
+    jsonBody,
+    headers: initHeaders,
+    signal,
+    timeoutMs = 15_000,
+    ...requestInit
+  } = init;
+  signal?.throwIfAborted();
   const headers = new Headers(initHeaders);
   headers.set("x-api-key", apiKey);
   if (jsonBody !== undefined) headers.set("Content-Type", "application/json");
@@ -109,7 +193,9 @@ async function projectComposioFetch(
       body: jsonBody === undefined ? undefined : JSON.stringify(jsonBody),
       cache: "no-store",
       headers,
-      signal: AbortSignal.timeout(15_000),
+      signal: signal
+        ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)])
+        : AbortSignal.timeout(timeoutMs),
     });
   } catch (error) {
     if (
@@ -118,7 +204,7 @@ async function projectComposioFetch(
     ) {
       throw new ComposioApiError(503, undefined, "Composio API timed out");
     }
-    throw error;
+    throw new ComposioApiError(503, undefined, "Composio API request failed");
   }
 }
 
@@ -261,7 +347,7 @@ function validateConnectLinkRedirectUrl(redirectUrl: string): string {
     throw new ComposioApiError(
       503,
       undefined,
-      "initiate Project X connection returned an unsafe redirect URL",
+      "initiate Project social connection returned an unsafe redirect URL",
     );
   }
 
@@ -270,13 +356,13 @@ function validateConnectLinkRedirectUrl(redirectUrl: string): string {
     throw new ComposioApiError(
       503,
       undefined,
-      "initiate Project X connection returned an unsafe redirect URL",
+      "initiate Project social connection returned an unsafe redirect URL",
     );
   }
   return url.toString();
 }
 
-export async function initiateProjectXConnection(input: {
+export async function initiateProjectSocialConnection(input: {
   authConfigId: string;
   callbackUrl: string;
   connectorUserId: string;
@@ -303,12 +389,12 @@ export async function initiateProjectXConnection(input: {
     id?: string;
     redirect_url?: string;
     redirectUrl?: string;
-  }>(response, "initiate Project X connection");
+  }>(response, "initiate Project social connection");
   const connectionId =
     body.connected_account_id ?? body.connectedAccountId ?? body.id;
   const redirectUrl = body.redirect_url ?? body.redirectUrl;
   if (!connectionId || !redirectUrl)
-    projectResponseError(response, "initiate Project X connection");
+    projectResponseError(response, "initiate Project social connection");
   return {
     connectionId,
     redirectUrl: validateConnectLinkRedirectUrl(redirectUrl),
@@ -348,19 +434,19 @@ export async function completeComposioAuth(input: {
   return { connectedAccountId, toolkitSlug };
 }
 
-export async function getProjectXConnectedAccount(
+export async function getProjectSocialConnectedAccount(
   connectedAccountId: string,
-): Promise<ProjectXConnectedAccount> {
+): Promise<ProjectSocialConnectedAccount> {
   const response = await projectComposioFetch(
     `/api/v3.1/connected_accounts/${encodeURIComponent(connectedAccountId)}`,
   );
   const body = await projectComposioResponse<ComposioConnectedAccountResponse>(
     response,
-    "get Project X connection",
+    "get Project social connection",
   );
   const toolkitSlug = body.toolkit?.slug?.toLowerCase();
   if (!body.id || !toolkitSlug || !body.auth_config?.id)
-    projectResponseError(response, "get Project X connection");
+    projectResponseError(response, "get Project social connection");
   return {
     id: body.id,
     status: projectConnectionStatus(body.status ?? body.state?.status),
@@ -374,7 +460,7 @@ export async function getProjectXConnectedAccount(
  * Deletes a Composio tool-router session. Cleanup must never change the outcome
  * of the work the session did, so a failed delete is logged, not raised.
  */
-async function deleteProjectXSession(
+async function deleteProjectSocialSession(
   sessionId: string,
   context: string,
 ): Promise<void> {
@@ -384,25 +470,491 @@ async function deleteProjectXSession(
       { method: "DELETE" },
     );
     await projectComposioResponse(response, context);
-  } catch (error) {
-    console.warn(`[composio] ${context} failed`, error);
+  } catch {
+    console.warn(`[composio] ${context} failed`);
   }
 }
 
-export async function getConnectedXIdentity(input: {
+/** Identity-only tools from https://docs.composio.dev/toolkits/{toolkit}. */
+const SOCIAL_IDENTITY_TOOLS: Record<
+  ProjectSocialProvider,
+  { slug: string; arguments: Record<string, unknown> }
+> = {
+  x: { slug: "TWITTER_USER_LOOKUP_ME", arguments: {} },
+  tiktok: {
+    slug: "TIKTOK_GET_USER_STATS",
+    arguments: { fields: ["open_id", "display_name"] },
+  },
+  instagram: {
+    slug: "INSTAGRAM_GET_USER_INFO",
+    arguments: { ig_user_id: "me", fields: "id,username" },
+  },
+  linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
+  facebook: {
+    slug: "FACEBOOK_GET_CURRENT_USER",
+    arguments: { fields: "id,name" },
+  },
+  youtube: {
+    slug: "YOUTUBE_LIST_CHANNELS",
+    arguments: { mine: true, part: "id,snippet", maxResults: 2 },
+  },
+};
+
+function identityString(value: unknown): string | null {
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+/** Check every Composio/provider envelope before unwrapping its data. */
+function socialIdentityPayload(
+  value: unknown,
+  provider: ProjectSocialProvider,
+): Record<string, unknown> | null {
+  let payload = record(value);
+  for (let depth = 0; payload && depth < 5; depth++) {
+    const error = payload.error;
+    const isTikTokSuccess =
+      provider === "tiktok" && record(error)?.code === "ok";
+    if (
+      payload.successful === false ||
+      payload.success === false ||
+      (error && !isTikTokSuccess)
+    ) {
+      return null;
+    }
+    const data = record(payload.data);
+    if (!data) return payload;
+    payload = data;
+  }
+  return null;
+}
+
+function socialIdentity(
+  provider: ProjectSocialProvider,
+  payload: Record<string, unknown>,
+): ConnectedSocialIdentity | null {
+  let identity = payload;
+  let id: string | null;
+  let handle: string | null;
+  switch (provider) {
+    case "tiktok":
+      // TikTok v2 user/info returns data.user and error.code = "ok".
+      identity = record(payload.user) ?? {};
+      id = identityString(identity.open_id);
+      handle = identityString(identity.display_name);
+      break;
+    case "linkedin": {
+      // Composio also documents response_dict.author_id as the person URN.
+      const profile = record(payload.response_dict) ?? payload;
+      id =
+        identityString(profile.author_id) ??
+        identityString(profile.sub) ??
+        identityString(profile.id);
+      handle =
+        identityString(profile.vanityName) ?? identityString(profile.name);
+      break;
+    }
+    case "youtube": {
+      // Never select an arbitrary channel when OAuth exposes several channels.
+      if (
+        !Array.isArray(payload.items) ||
+        payload.items.length !== 1 ||
+        payload.nextPageToken
+      ) {
+        return null;
+      }
+      identity = record(payload.items[0]) ?? {};
+      id = identityString(identity.id);
+      const snippet = record(identity.snippet);
+      handle =
+        identityString(snippet?.customUrl) ?? identityString(snippet?.title);
+      break;
+    }
+    case "facebook":
+      id = identityString(identity.id);
+      handle = identityString(identity.name);
+      break;
+    case "instagram":
+      id = identityString(identity.id);
+      handle = identityString(identity.username);
+      break;
+    case "x":
+      id = identityString(identity.id);
+      handle =
+        identityString(identity.username) ?? identityString(identity.handle);
+      break;
+  }
+  return id ? { id, handle } : null;
+}
+
+export async function getConnectedSocialIdentity(input: {
+  provider: ProjectSocialProvider;
   connectedAccountId: string;
   executorUserId: string;
-}): Promise<ConnectedXIdentity> {
+}): Promise<ConnectedSocialIdentity> {
+  const { toolkitSlug, name } = PROJECT_SOCIAL_PROVIDERS[input.provider];
+  const tool = SOCIAL_IDENTITY_TOOLS[input.provider];
+  const context = `look up Project ${name} identity`;
   const createResponse = await projectComposioFetch(
     "/api/v3.1/tool_router/session",
     {
       method: "POST",
       jsonBody: {
         user_id: input.executorUserId,
+        toolkits: { enable: [toolkitSlug] },
+        connected_accounts: { [toolkitSlug]: [input.connectedAccountId] },
+        manage_connections: { enable: false, enable_connection_removal: false },
+        tools: { [toolkitSlug]: { enable: [tool.slug] } },
+        workbench: { enable: false, enable_proxy_execution: false },
+        search: { enable: false },
+        execute: { enable_multi_execute: false },
+      },
+    },
+  );
+  const session = record(
+    await projectComposioResponse<unknown>(
+      createResponse,
+      `create Project ${name} identity session`,
+    ),
+  );
+  const sessionId = identityString(session?.session_id);
+  if (!sessionId)
+    projectResponseError(
+      createResponse,
+      `create Project ${name} identity session`,
+    );
+  try {
+    const response = await projectComposioFetch(
+      `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
+      {
+        method: "POST",
+        jsonBody: { tool_slug: tool.slug, arguments: tool.arguments },
+      },
+    );
+    const result = await projectComposioResponse<unknown>(response, context);
+    const payload = socialIdentityPayload(result, input.provider);
+    const identity = payload ? socialIdentity(input.provider, payload) : null;
+    if (!identity) {
+      throw new ComposioApiError(
+        response.status,
+        undefined,
+        `${name} identity lookup failed`,
+      );
+    }
+    return identity;
+  } finally {
+    await deleteProjectSocialSession(
+      sessionId,
+      `delete Project ${name} identity session`,
+    );
+  }
+}
+
+const X_CREATE_POST_TOOL_SLUG = "TWITTER_CREATION_OF_A_POST";
+
+function toolErrorMessage(value: unknown): string | null {
+  if (typeof value === "string") return value;
+  const detail = record(value);
+  if (!detail) return null;
+  for (const key of ["message", "detail", "error", "title"]) {
+    const candidate = detail[key];
+    if (typeof candidate === "string" && candidate) return candidate;
+  }
+  return null;
+}
+
+function toolErrorStatus(value: unknown): number | null {
+  const detail = record(value);
+  if (!detail) return null;
+  for (const key of ["status", "status_code", "statusCode"]) {
+    const candidate = detail[key];
+    if (typeof candidate === "number") return candidate;
+  }
+  return null;
+}
+
+type XPublishToolSlug =
+  | "TWITTER_UPLOAD_MEDIA"
+  | "TWITTER_UPLOAD_LARGE_MEDIA"
+  | "TWITTER_GET_MEDIA_UPLOAD_STATUS"
+  | typeof X_CREATE_POST_TOOL_SLUG;
+
+/** Tools a publish session may execute, with the wording used when each fails. */
+const X_PUBLISH_TOOL_STEPS: Record<
+  XPublishToolSlug,
+  { context: string; refused: string }
+> = {
+  TWITTER_UPLOAD_MEDIA: {
+    context: "upload X image",
+    refused: "X refused the image upload",
+  },
+  TWITTER_UPLOAD_LARGE_MEDIA: {
+    context: "upload X video or GIF",
+    refused: "X refused the media upload",
+  },
+  TWITTER_GET_MEDIA_UPLOAD_STATUS: {
+    context: "check X media upload status",
+    refused: "X refused the media status check",
+  },
+  [X_CREATE_POST_TOOL_SLUG]: {
+    context: "publish X post",
+    refused: "X refused the post",
+  },
+};
+const X_PUBLISH_TOOL_SLUGS = Object.keys(
+  X_PUBLISH_TOOL_STEPS,
+) as XPublishToolSlug[];
+
+const MEDIA_PROCESSING_DEFAULT_WAIT_MS = 2_000;
+/** X can take up to two minutes to process a video or GIF. */
+const MEDIA_PROCESSING_TIMEOUT_MS = 120_000;
+
+export interface PublishXMediaInput {
+  bytes: Uint8Array<ArrayBuffer>;
+  name?: string;
+  mimeType: string;
+  kind: SocialPostMediaKind;
+}
+
+function mediaCategory(kind: SocialPostMediaKind): string {
+  switch (kind) {
+    case "image":
+      return "tweet_image";
+    case "gif":
+      return "tweet_gif";
+    case "video":
+      return "tweet_video";
+  }
+}
+
+/**
+ * X media id from a tool payload. Prefers the string shape: a 17–19 digit id
+ * returned as a JSON number would lose precision.
+ */
+function mediaIdOf(data: Record<string, unknown> | null): string | null {
+  const candidates = [data?.media_id_string, data?.media_id, data?.id];
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate) return candidate;
+    if (typeof candidate === "number" && Number.isSafeInteger(candidate)) {
+      return String(candidate);
+    }
+  }
+  return null;
+}
+
+/**
+ * Executes one tool in a publish session and returns the provider payload with
+ * Composio's envelope layers stripped. A refused or unsuccessful execution is
+ * raised as a {@link ComposioToolError}.
+ */
+async function executePublishTool(
+  sessionId: string,
+  toolSlug: XPublishToolSlug,
+  args: Record<string, unknown>,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown> | null> {
+  const step = X_PUBLISH_TOOL_STEPS[toolSlug];
+  const response = await projectComposioFetch(
+    `/api/v3.1/tool_router/session/${encodeURIComponent(sessionId)}/execute`,
+    {
+      method: "POST",
+      jsonBody: { tool_slug: toolSlug, arguments: args },
+      timeoutMs: toolSlug === "TWITTER_UPLOAD_LARGE_MEDIA" ? 120_000 : 15_000,
+      signal,
+    },
+  );
+  const result = await projectComposioResponse<{
+    data?: unknown;
+    error?: unknown;
+    successful?: boolean;
+  }>(response, step.context);
+  const toolResult = record(result.data);
+  const providerResult = record(toolResult?.data) ?? toolResult;
+  const toolError = result.error ?? toolResult?.error;
+  if (toolError || result.successful === false) {
+    throw new ComposioToolError({
+      message: step.refused,
+      providerMessage: toolErrorMessage(toolError),
+      providerStatus: toolErrorStatus(toolError),
+    });
+  }
+  return record(providerResult?.data) ?? providerResult;
+}
+
+function processingState(
+  data: Record<string, unknown> | null,
+): { state: string; waitMs: number; errorMessage: string | null } | null {
+  const info = record(data?.processing_info);
+  if (!info || typeof info.state !== "string") return null;
+  const checkAfter = info.check_after_secs;
+  return {
+    state: info.state.toLowerCase(),
+    waitMs:
+      typeof checkAfter === "number" && checkAfter >= 0
+        ? checkAfter * 1000
+        : MEDIA_PROCESSING_DEFAULT_WAIT_MS,
+    errorMessage: toolErrorMessage(info.error),
+  };
+}
+
+/** Waits for X to finish processing a media upload, polling within a bounded window. */
+async function awaitMediaProcessing(
+  sessionId: string,
+  mediaId: string,
+  uploadResult: Record<string, unknown> | null,
+  requiresProcessing: boolean,
+  signal?: AbortSignal,
+): Promise<void> {
+  let processing = processingState(uploadResult);
+  if (!processing && requiresProcessing) {
+    processing = { state: "pending", waitMs: 0, errorMessage: null };
+  }
+  const startedAt = Date.now();
+  while (processing && processing.state !== "succeeded") {
+    if (processing.state === "failed") {
+      throw new ComposioToolError({
+        message: "X could not process the media",
+        providerMessage: processing.errorMessage ?? "Media processing failed",
+      });
+    }
+    const remainingMs = MEDIA_PROCESSING_TIMEOUT_MS - (Date.now() - startedAt);
+    if (remainingMs <= 0) {
+      throw new ComposioToolError({
+        message: "X media processing timed out",
+        providerMessage: "Media processing timed out",
+      });
+    }
+    await delay(
+      Math.min(Math.max(processing.waitMs, 1_000), remainingMs),
+      undefined,
+      { signal },
+    );
+    signal?.throwIfAborted();
+    processing = processingState(
+      await executePublishTool(
+        sessionId,
+        "TWITTER_GET_MEDIA_UPLOAD_STATUS",
+        {
+          media_id: mediaId,
+        },
+        signal,
+      ),
+    );
+    if (!processing) {
+      throw new ComposioToolError({
+        message: "X did not confirm media processing completion",
+      });
+    }
+  }
+}
+
+/**
+ * Stage validated bytes as FileUploadable, not a session path. The SDK's public
+ * files.upload cannot accept cancellation; use its presign protocol here.
+ * https://docs.composio.dev/reference/api-reference/files/postFilesUploadRequest
+ * https://docs.composio.dev/toolkits/twitter (UPLOAD_MEDIA / UPLOAD_LARGE_MEDIA)
+ */
+async function uploadXMedia(
+  sessionId: string,
+  media: PublishXMediaInput,
+  signal?: AbortSignal,
+): Promise<string> {
+  const toolSlug =
+    media.kind === "image"
+      ? "TWITTER_UPLOAD_MEDIA"
+      : "TWITTER_UPLOAD_LARGE_MEDIA";
+  const name = media.name ?? "attachment";
+  const stagingResponse = await projectComposioFetch(
+    "/api/v3.1/files/upload/request",
+    {
+      method: "POST",
+      signal,
+      jsonBody: {
+        toolkit_slug: "twitter",
+        tool_slug: toolSlug,
+        filename: name,
+        mimetype: media.mimeType,
+        md5: createHash("md5").update(media.bytes).digest("hex"),
+      },
+    },
+  );
+  const staging = await projectComposioResponse<{
+    key?: string;
+    new_presigned_url?: string;
+  }>(stagingResponse, "stage X media");
+  if (!staging.key || !staging.new_presigned_url)
+    projectResponseError(stagingResponse, "stage X media");
+  signal?.throwIfAborted();
+  const uploaded = await ssrfSafeFetch(staging.new_presigned_url, {
+    method: "PUT",
+    headers: { "Content-Type": media.mimeType },
+    body: media.bytes,
+    maxResponseBytes: 64 * 1024,
+    signal: signal
+      ? AbortSignal.any([signal, AbortSignal.timeout(60_000)])
+      : AbortSignal.timeout(60_000),
+  });
+  if (!uploaded.ok)
+    throw new ComposioApiError(
+      uploaded.status,
+      undefined,
+      "Could not stage X media",
+    );
+  const result = await executePublishTool(
+    sessionId,
+    toolSlug,
+    {
+      media: { name, mimetype: media.mimeType, s3key: staging.key },
+      media_category: mediaCategory(media.kind),
+    },
+    signal,
+  );
+  const mediaId = mediaIdOf(result);
+  if (!mediaId)
+    throw new ComposioToolError({
+      message: "X media upload returned no media id",
+    });
+  await awaitMediaProcessing(
+    sessionId,
+    mediaId,
+    result,
+    media.kind !== "image",
+    signal,
+  );
+  return mediaId;
+}
+
+/**
+ * Publishes a post to X through a restricted tool-router session pinned to one
+ * connected account with only the media-upload and create-post tools enabled.
+ * Media bytes are uploaded inside the same session and referenced by id; the
+ * ids never leave this call. The session is deleted once the call settles,
+ * whatever the outcome.
+ */
+export async function publishXPost(input: {
+  connectedAccountId: string;
+  executorUserId: string;
+  text: string;
+  media: PublishXMediaInput[];
+  signal?: AbortSignal;
+}): Promise<PublishedXPost> {
+  const createResponse = await projectComposioFetch(
+    "/api/v3.1/tool_router/session",
+    {
+      method: "POST",
+      signal: input.signal,
+      jsonBody: {
+        user_id: input.executorUserId,
         toolkits: { enable: ["twitter"] },
         connected_accounts: { twitter: [input.connectedAccountId] },
         manage_connections: { enable: false, enable_connection_removal: false },
-        tools: { twitter: { enable: ["TWITTER_USER_LOOKUP_ME"] } },
+        tools: {
+          twitter: {
+            enable:
+              input.media.length > 0
+                ? [...X_PUBLISH_TOOL_SLUGS]
+                : [X_CREATE_POST_TOOL_SLUG],
+          },
+        },
         workbench: { enable: false, enable_proxy_execution: false },
         search: { enable: false },
         execute: { enable_multi_execute: false },
@@ -411,55 +963,56 @@ export async function getConnectedXIdentity(input: {
   );
   const session = await projectComposioResponse<{ session_id?: string }>(
     createResponse,
-    "create Project X identity session",
+    "create Project X publish session",
   );
   if (!session.session_id)
-    projectResponseError(createResponse, "create Project X identity session");
+    projectResponseError(createResponse, "create Project X publish session");
   try {
-    const response = await projectComposioFetch(
-      `/api/v3.1/tool_router/session/${encodeURIComponent(session.session_id)}/execute`,
-      {
-        method: "POST",
-        jsonBody: { tool_slug: "TWITTER_USER_LOOKUP_ME", arguments: {} },
-      },
-    );
-    const result = await projectComposioResponse<{
-      data?: unknown;
-      error?: string | null;
-    }>(response, "look up Project X identity");
-    const toolResult = record(result.data);
-    const providerResult = record(toolResult?.data) ?? toolResult;
-    const identity = record(providerResult?.data) ?? providerResult;
-    if (
-      result.error ||
-      !identity ||
-      typeof identity.id !== "string" ||
-      !identity.id
-    ) {
-      throw new ComposioApiError(
-        response.status,
-        undefined,
-        "X identity lookup failed",
+    const mediaIds: string[] = [];
+    for (const media of input.media) {
+      mediaIds.push(
+        await uploadXMedia(session.session_id, media, input.signal),
       );
     }
-    return {
-      id: identity.id,
-      handle:
-        typeof identity.username === "string"
-          ? identity.username
-          : typeof identity.handle === "string"
-            ? identity.handle
-            : null,
-    };
+    try {
+      const post = await executePublishTool(
+        session.session_id,
+        X_CREATE_POST_TOOL_SLUG,
+        {
+          ...(input.text ? { text: input.text } : {}),
+          ...(mediaIds.length > 0 ? { media_media_ids: mediaIds } : {}),
+        },
+        input.signal,
+      );
+      if (!post || typeof post.id !== "string" || !post.id) {
+        throw new ComposioPublishOutcomeUnknownError();
+      }
+      return { externalId: post.id };
+    } catch (error) {
+      if (error instanceof ComposioApiError && error.httpStatus < 500)
+        throw error;
+      if (
+        error instanceof ComposioToolError &&
+        (error.providerStatus === 429 ||
+          (error.providerStatus !== null && error.providerStatus < 500) ||
+          (!/time.?out|timed out|temporarily|\b5\d\d\b/i.test(
+            error.providerMessage ?? "",
+          ) &&
+            error.providerStatus === null))
+      ) {
+        throw error;
+      }
+      throw new ComposioPublishOutcomeUnknownError();
+    }
   } finally {
-    await deleteProjectXSession(
+    await deleteProjectSocialSession(
       session.session_id,
-      "delete Project X identity session",
+      "delete Project X publish session",
     );
   }
 }
 
-export async function revokeProjectXConnection(input: {
+export async function revokeProjectSocialConnection(input: {
   connectedAccountId: string;
 }): Promise<void> {
   const response = await projectComposioFetch(
@@ -468,14 +1021,16 @@ export async function revokeProjectXConnection(input: {
   );
   if (response.status === 404) return;
   if (response.status === 409) {
-    const account = await getProjectXConnectedAccount(input.connectedAccountId);
+    const account = await getProjectSocialConnectedAccount(
+      input.connectedAccountId,
+    );
     if (account.status === "REVOKED") return;
   }
-  await projectComposioResponse(response, "revoke Project X connection");
+  await projectComposioResponse(response, "revoke Project social connection");
 }
 
 /** Permanently invalidates an unfinished OAuth link, including future redemption. */
-export async function deleteProjectXConnectionIntent(input: {
+export async function deleteProjectSocialConnectionIntent(input: {
   connectedAccountId: string;
 }): Promise<void> {
   const response = await projectComposioFetch(
@@ -485,6 +1040,6 @@ export async function deleteProjectXConnectionIntent(input: {
   if (response.status === 404) return;
   await projectComposioResponse(
     response,
-    "delete unfinished Project X connection",
+    "delete unfinished Project social connection",
   );
 }

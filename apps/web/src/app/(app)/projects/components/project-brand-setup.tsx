@@ -112,7 +112,7 @@ export function ProjectBrandSetup({
       <div className="flex min-h-24 items-center justify-center">
         {isResolvingLogo ? (
           <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+            <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
           </div>
         ) : brand.status === "completed" && !isResolvingLogo ? (
           <div className="relative">

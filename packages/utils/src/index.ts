@@ -155,13 +155,10 @@ export {
   createDataTableSchema,
   tableBatchSchema,
   tableColumnInputSchema,
-  tableColumnTypeSchema,
   tableEvidenceSchema,
-  tableFilterSchema,
   tableInsertRowSchema,
   tableMutationSchema,
   tableQuerySchema,
-  tableValueSchema,
   tableValuesSchema,
   tableViewDefinitionSchema,
 } from "./data-table.js";
@@ -190,12 +187,20 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_OWNER_PREFIX_PATTERN,
+  driveFolderPathFromSourceId,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
   normalizeDriveFolderPath,
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
+export { isVercelBlobPublicHost } from "./entity-image-upload.js";
+export {
+  CURATED_FILE_VOCABULARY,
+  CURATED_VOCABULARY_VERSION,
+  curatedFileVocabularyRows,
+} from "./file-curated-vocabulary.js";
 export {
   getExtensionFromUrl,
   getUrlBasename,
@@ -207,11 +212,25 @@ export {
   sanitizeFileName,
 } from "./file-url.js";
 export {
-  githubBlobDownloadUrl,
-  isHtmlContentType,
+  checkFileLabelName,
+  FILE_LABEL_DESCRIPTION_MAX_LENGTH,
+  FILE_LABEL_NAME_MAX_GRAPHEMES,
+  FILE_TAGS_PER_RESOURCE_MAX,
+  normalizeFileResourceName,
+} from "./file-vocabulary.js";
+export {
   isUnexpectedHtmlImport,
   resolveDownloadableFileUrl,
 } from "./github-file-url.js";
+export {
+  creditsPerImageCents,
+  IMAGE_PRICE_UNITS,
+  type ImagePriceFigures,
+  type ImagePriceUnit,
+  imageOutputDimensions,
+  isAreaPricedUnit,
+} from "./image-credits.js";
+export { readImageDimensionsFromBytes } from "./image-dimensions.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -343,8 +362,16 @@ export {
 } from "./project-logo-path.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaKind,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidationReason,
+  type SocialPostProvider,
+  socialPostMediaKindForMime,
+  socialPostMimeForFileName,
+  validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";

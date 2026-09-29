@@ -47,7 +47,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | Variable | Purpose |
 | -------- | ------- |
 | `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
-| `DATABASE_URL_UNPOOLED` | Injected by the Vercel Neon integration. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
+| `DATABASE_URL_UNPOOLED` | Set by GitHub Actions for Preview and the Neon integration for Production. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
 | `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET` |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
@@ -60,6 +60,50 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `ABLY_SUBSCRIBE_ONLY_KEY` | Ably key for minting client TokenRequests (`POST /v1/realtime/ably-token`); must allow subscribe on app channels and `presence`+`subscribe` on `presence:org_*` (ADR-0003) |
 
 `PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
+
+### Project social accounts
+
+Project social accounts support X, TikTok, Instagram, LinkedIn, Facebook, and
+YouTube. Connect accounts from the Project’s **Social** page. The same
+connection supports reconnection, replacement, and disconnection. Publishing
+and scheduling currently support **X only**; the other accounts cannot be
+selected by the post composer or attached to posts through the API.
+
+Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
+on the Core deployment. Create each OAuth configuration in the same Composio
+environment as that API key. Omit unconfigured variables; connecting that
+provider returns a setup error without starting authorization.
+
+| Provider | Composio toolkit | Core environment variable | Identity access |
+| --- | --- | --- | --- |
+| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) |
+| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` |
+| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` |
+| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` |
+| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` |
+| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` |
+
+Use the provider OAuth callback shown by Composio when registering your OAuth
+app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
+one-use Composio session before Core verifies the account against the stored
+provider, auth configuration, and connecting user. Accounts are shared only
+with the Project’s Core executor. Tokens remain in Composio.
+
+Account types and setup requirements:
+
+- [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
+  Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
+- [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
+  Creator accounts, not Personal accounts.
+- [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
+  member. [Facebook](https://docs.composio.dev/toolkits/facebook) connects the
+  authorizing user; this does not select a Facebook Page for publishing.
+- [YouTube](https://docs.composio.dev/toolkits/youtube) connects a channel. The
+  identity lookup requires exactly one authenticated channel; it rejects missing
+  or ambiguous channel identities instead of selecting one silently.
+
+Live OAuth requires configured provider apps and accounts. Unit tests use
+provider-response fixtures and do not replace a live authorization check.
 
 ### Turnstile protection for authentication email
 
@@ -306,18 +350,18 @@ Core’s [`vercel.json`](./vercel.json) sets:
 
 1. Runs `@sokosumi/database` `prisma:generate`
 2. Runs `pnpm run build` (`tsup`, which inlines `@sokosumi/database` from source — see [ADR 0035](../../docs/adr/0035-database-consumed-from-source.md); other workspace packages emit `dist` via their `prepare` scripts during install)
-3. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` (from the Vercel Neon integration) or `DATABASE_URL`
+3. On success, runs `prisma migrate deploy` using `DATABASE_URL_UNPOOLED` or `DATABASE_URL`
 4. On migrate failure, the build exits non-zero and Vercel does not activate the new deployment
 
 **Order is intentional:** migrate runs only after a successful app build so a compile failure never touches the database. Schema still applies before Vercel activates the new deployment once migrate succeeds (unlike some Neon samples that migrate first).
 
-No manual DB URL setup for migrate when the Neon integration is connected — it injects pooled and unpooled URLs for Production and each Preview branch. Preview builds **require** `DATABASE_URL_UNPOOLED` for DB-mutating Prisma CLI commands (`migrate …`, `db …`) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`. `prisma generate` (Core `vercel-build` and turbo `prisma:generate`) does not need it.
+GitHub Actions provisions each requested PR preview and sets Git-branch-scoped pooled and unpooled Preview URLs on Core. The Neon integration continues supplying Production URLs. See the root [preview cutover](../../README.md#preview-workflow-cutover) before enabling this flow. Preview builds **require** `DATABASE_URL_UNPOOLED` for DB-mutating Prisma CLI commands (`migrate …`, `db …`) so a misconfigured Preview cannot fall back to a shared/production `DATABASE_URL`. `prisma generate` (Core `vercel-build` and turbo `prisma:generate`) does not need it.
 
 ### Neon / migrate checklist
 
 Before relying on migrate-on-deploy (and after changing the Neon integration):
 
-- [ ] Core Vercel project has the Neon integration enabled for **Production** and **Preview**
+- [ ] Core Vercel project keeps the Neon integration for **Production**; **Preview** branching and credential injection are disabled in the integration
 - [ ] Preview env shows a branch-specific Neon host (not the production host)
 - [ ] Production and Preview expose `DATABASE_URL_UNPOOLED` at **build** time
 - [ ] A Preview deploy log shows migrate against a preview-branch database, not production

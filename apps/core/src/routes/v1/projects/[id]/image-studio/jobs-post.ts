@@ -6,6 +6,8 @@ import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
 } from "@/lib/hono";
+import { readImageJobFailureReason } from "@/lib/image-studio/failure-reason";
+import { imageStudioValidationHook } from "@/lib/image-studio/request-validation";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
@@ -54,44 +56,57 @@ const route = withOrganizationSlugHeaderParameter(
 );
 
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
-  app.openapi(route, async (c) => {
-    const userContext = requireInteractiveUserAuthContext(c.var.authContext);
-    const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id: projectId } = c.req.valid("param");
-    const input = c.req.valid("json");
+  // The studio's own validation hook, so a refused request reads like the studio
+  // rather than like Zod. The shared hook is untouched: every other route in Core
+  // keeps the wording it has.
+  app.openapi(
+    route,
+    async (c) => {
+      const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+      const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
+      const { id: projectId } = c.req.valid("param");
+      const input = c.req.valid("json");
 
-    const job = await createImageJob({
-      projectId,
-      workspaceId: workspaceContext.workspaceId,
-      userId: userContext.userId,
-      sessionId: input.sessionId,
-      prompt: input.prompt,
-      modelId: input.modelId,
-      settings: { ...DEFAULT_SETTINGS, ...input.settings },
-      referenceAssetIds: input.referenceAssetIds,
-      parentAssetId: input.parentAssetId,
-      idempotencyKey: input.idempotencyKey,
-    });
+      const job = await createImageJob({
+        projectId,
+        workspaceId: workspaceContext.workspaceId,
+        userId: userContext.userId,
+        sessionId: input.sessionId,
+        prompt: input.prompt,
+        modelId: input.modelId,
+        settings: { ...DEFAULT_SETTINGS, ...input.settings },
+        referenceAssetIds: input.referenceAssetIds,
+        parentAssetId: input.parentAssetId,
+        idempotencyKey: input.idempotencyKey,
+      });
 
-    return created(
-      c,
-      imageStudioJobSchema.parse({
-        id: job.id,
-        status: job.status,
-        kind: job.kind,
-        model: job.model,
-        prompt: job.prompt,
-        settings: job.settings,
-        referenceAssetIds: job.referenceAssetIds,
-        error: job.error,
-        parentAssetId: job.parentAssetId,
-        assetId: null,
-        createdAt: job.createdAt,
-        submittedAt: job.submittedAt,
-        settledAt: job.settledAt,
-        cancelRequestedAt: job.cancelRequestedAt,
-        retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
-      }),
-    );
-  });
+      return created(
+        c,
+        imageStudioJobSchema.parse({
+          id: job.id,
+          status: job.status,
+          kind: job.kind,
+          model: job.model,
+          prompt: job.prompt,
+          settings: job.settings,
+          referenceAssetIds: job.referenceAssetIds,
+          error: job.error,
+          failureReason: readImageJobFailureReason(job.failureReason),
+          parentAssetId: job.parentAssetId,
+          assetId: null,
+          createdAt: job.createdAt,
+          submittedAt: job.submittedAt,
+          settledAt: job.settledAt,
+          cancelRequestedAt: job.cancelRequestedAt,
+          retryMayDuplicateCharge: job.status === "SUBMISSION_UNCERTAIN",
+          // A job this fresh has never been delivered, so it has cost nothing yet.
+          // `chargedCents` on the row is the quote, and the composer already knows
+          // that figure — it is the one it showed.
+          credits: null,
+          refunded: false,
+        }),
+      );
+    },
+    imageStudioValidationHook,
+  );
 }

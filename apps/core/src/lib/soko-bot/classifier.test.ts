@@ -76,18 +76,22 @@ describe("Jev route selection", () => {
     );
   });
 
-  it.each(["MEMORY", "SCHEDULE", "CHAT", "FILE", "INTEGRATION"] as const)(
-    "grants a %s change only its own writes",
-    async (writeScope) => {
-      const result = await new JevTurnClassifier(
-        answering(jevRoute("MANAGE_WORK", { writeScope })),
-      ).classify("A small change, please", EMPTY_CONTEXT);
-      expect(result.classification.writeScope).toBe(writeScope);
-      const capabilities = capabilitiesForClassification(result.classification);
-      for (const forbidden of ["create_task", "archive_task", "hire_agent"])
-        expect(capabilities).not.toContain(forbidden);
-    },
-  );
+  it.each([
+    "MEMORY",
+    "SCHEDULE",
+    "SOCIAL",
+    "CHAT",
+    "FILE",
+    "INTEGRATION",
+  ] as const)("grants a %s change only its own writes", async (writeScope) => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("MANAGE_WORK", { writeScope })),
+    ).classify("A small change, please", EMPTY_CONTEXT);
+    expect(result.classification.writeScope).toBe(writeScope);
+    const capabilities = capabilitiesForClassification(result.classification);
+    for (const forbidden of ["create_task", "archive_task", "hire_agent"])
+      expect(capabilities).not.toContain(forbidden);
+  });
 
   it("leaves an unsure write scope unset, which grants reads only", async () => {
     const result = await new JevTurnClassifier(

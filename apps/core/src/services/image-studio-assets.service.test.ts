@@ -3,8 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   assetFindFirstMock,
   assetFindManyMock,
-  reviewUpsertMock,
-  reviewDeleteManyMock,
   jobFindManyMock,
   requireProjectAccessMock,
   getMock,
@@ -12,8 +10,6 @@ const {
 } = vi.hoisted(() => ({
   assetFindFirstMock: vi.fn(),
   assetFindManyMock: vi.fn(),
-  reviewUpsertMock: vi.fn(),
-  reviewDeleteManyMock: vi.fn(),
   jobFindManyMock: vi.fn(),
   requireProjectAccessMock: vi.fn(),
   getMock: vi.fn(),
@@ -31,10 +27,6 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: assetFindFirstMock,
       findMany: assetFindManyMock,
     },
-    projectImageReview: {
-      upsert: reviewUpsertMock,
-      deleteMany: reviewDeleteManyMock,
-    },
     projectImageJob: { findMany: jobFindManyMock },
   },
 }));
@@ -42,7 +34,6 @@ vi.mock("@/lib/db/prisma", () => ({
 import {
   listJobs,
   openAssetStream,
-  reviewAsset,
 } from "@/services/image-studio-assets.service";
 
 const SCOPE = {
@@ -51,7 +42,7 @@ const SCOPE = {
   userId: "user-1",
 };
 
-describe("image studio versions and reviews", () => {
+describe("image studio versions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Shared public-store token present, studio private-store token present
@@ -61,48 +52,6 @@ describe("image studio versions and reviews", () => {
       IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: "studio-private-store-token",
     });
     requireProjectAccessMock.mockResolvedValue(SCOPE);
-  });
-
-  it("records a decision against the one version it names", async () => {
-    assetFindFirstMock.mockResolvedValue({
-      id: "asset-2",
-      rootId: "asset-1",
-      parentId: "asset-1",
-      version: 2,
-      review: null,
-    });
-
-    await reviewAsset({
-      ...SCOPE,
-      assetId: "asset-2",
-      decision: "APPROVED",
-      feedback: "good",
-    });
-
-    expect(reviewUpsertMock).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { assetId: "asset-2" } }),
-    );
-    // The upsert is keyed on the asset, so approving a refinement cannot
-    // touch the version it came from.
-    const call = reviewUpsertMock.mock.calls[0]![0];
-    expect(JSON.stringify(call)).not.toContain("asset-1");
-  });
-
-  it("re-checks access before reading a version", async () => {
-    assetFindFirstMock.mockResolvedValue({ id: "asset-1", review: null });
-    requireProjectAccessMock.mockRejectedValue(
-      Object.assign(new Error("not found"), { status: 404 }),
-    );
-
-    await expect(
-      reviewAsset({
-        ...SCOPE,
-        assetId: "asset-1",
-        decision: "APPROVED",
-        feedback: null,
-      }),
-    ).rejects.toThrow();
-    expect(reviewUpsertMock).not.toHaveBeenCalled();
   });
 
   it("streams bytes only after re-authorizing, and never exposes a storage path", async () => {

@@ -19,6 +19,14 @@ const optInPostgresFiles = [
   "src/routes/v1/projects/get.postgres.test.ts",
   "src/services/soko-bot-integrations.service.postgres.test.ts",
   "src/services/source-import-github.postgres.test.ts",
+  "src/services/file-search.postgres.test.ts",
+  "src/services/file-suggestions.postgres.test.ts",
+  "src/services/file-suggestion-backfill.postgres.test.ts",
+  "src/services/file-table-index.postgres.test.ts",
+  "src/services/file-collections.postgres.test.ts",
+  "src/services/file-related.postgres.test.ts",
+  "src/services/file-backfill.postgres.test.ts",
+  "src/services/file-curated-vocabulary.postgres.test.ts",
 ];
 
 const optInIntegrationFiles = [
@@ -34,6 +42,33 @@ export const optInDbExclude = [
   "src/**/*.postgres.test.ts",
   ...optInIntegrationFiles,
 ];
+
+/**
+ * A suite nothing provisions a database for.
+ *
+ * `push-device-consent.postgres.test.ts` does not use `DATABASE_URL` and
+ * the `RUN_DATABASE_INTEGRATION_TESTS` gate the others share. It requires
+ * `SOK939_TEST_DATABASE_URL`, pointed at a separate `sok_939` database on
+ * `127.0.0.1`, and it reads that variable inside a `vi.mock` factory — so
+ * without it the file **throws during collection** rather than skipping.
+ * A suite that skips costs nothing; one that throws fails the run.
+ *
+ * `SOK939` appears nowhere in `.github/` and nowhere else in the
+ * repository, so no CI job provisions it. It arrived with #5291 and
+ * belongs to that work; the hole is named here rather than left as a
+ * deletion somebody makes later to get a build green.
+ *
+ * Held out only while the variable is absent, so whoever owns it keeps
+ * being able to run it. Set `SOK939_TEST_DATABASE_URL` and it collects
+ * normally.
+ *
+ * Kept here rather than as `--exclude` on the CI command line so the
+ * reason travels with the pattern and a local run behaves the way CI
+ * does.
+ */
+export const unprovisionedDbFiles = process.env.SOK939_TEST_DATABASE_URL
+  ? []
+  : ["src/lib/ably/push-device-consent.postgres.test.ts"];
 
 const vitestCommands = new Set([
   "run",
@@ -79,6 +114,9 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     exclude: [
       ...configDefaults.exclude,
+      // Unconditional: a CLI filter naming this file must not resurrect
+      // it, because it throws rather than skipping. See above.
+      ...unprovisionedDbFiles,
       ...(cliSelectsOptInDbFile(process.argv) ? [] : optInDbExclude),
     ],
     setupFiles: ["src/test/setup.ts"],

@@ -11164,6 +11164,1520 @@ export const DeveloperTaskDetailSchema = {
     ]
 } as const;
 
+export const FileCollectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        definition: {
+            type: 'object',
+            additionalProperties: {}
+        },
+        sortBy: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sortOrder: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        isShared: {
+            type: 'boolean'
+        },
+        definitionVersion: {
+            type: 'integer'
+        },
+        isOwner: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'definition',
+        'sortBy',
+        'sortOrder',
+        'isShared',
+        'definitionVersion',
+        'isOwner'
+    ]
+} as const;
+
+export const DriveFileUploadSessionSchema = {
+    type: 'object',
+    properties: {
+        uploadUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf?vercel-blob-delegation=…',
+            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Server-generated upload pathname (no random suffix for Drive)'
+        },
+        access: {
+            type: 'string',
+            enum: [
+                'public'
+            ],
+            example: 'public',
+            description: 'Blob access level for the upload'
+        },
+        method: {
+            type: 'string',
+            enum: [
+                'PUT'
+            ],
+            example: 'PUT',
+            description: 'HTTP method for the client upload request'
+        },
+        headers: {
+            type: 'object',
+            properties: {
+                'Content-Type': {
+                    type: 'string',
+                    example: 'application/pdf'
+                }
+            },
+            required: [
+                'Content-Type'
+            ],
+            description: 'Headers the client must send on the PUT'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T12:00:00.000Z',
+            description: 'When the presigned upload URL expires (ISO-8601)'
+        },
+        maxSizeBytes: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 104857600,
+            description: 'Maximum supported file size for this upload policy'
+        },
+        addRandomSuffix: {
+            type: 'boolean',
+            example: false,
+            description: 'Drive files use exact pathnames (no random suffix)'
+        }
+    },
+    required: [
+        'uploadUrl',
+        'pathname',
+        'access',
+        'method',
+        'headers',
+        'expiresAt',
+        'maxSizeBytes',
+        'addRandomSuffix'
+    ]
+} as const;
+
+export const CreateDriveFileUploadSessionRequestSchema = {
+    type: 'object',
+    properties: {
+        filename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'report.pdf',
+            description: 'File name (becomes part of the blob pathname)'
+        },
+        contentType: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'application/pdf',
+            description: 'MIME type of the file'
+        },
+        size: {
+            type: 'integer',
+            exclusiveMinimum: 0,
+            example: 1024000,
+            description: 'File size in bytes'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        },
+        folder: {
+            type: 'string',
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Target folder path relative to scope root (empty/omit for root)'
+        }
+    },
+    required: [
+        'filename',
+        'contentType',
+        'size',
+        'scope'
+    ]
+} as const;
+
+export const DriveItemsSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveItem'
+    }
+} as const;
+
+export const DriveItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveFolder'
+        },
+        {
+            $ref: '#/components/schemas/DriveFileItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'type',
+        mapping: {
+            folder: '#/components/schemas/DriveFolder',
+            file: '#/components/schemas/DriveFileItem'
+        }
+    }
+} as const;
+
+export const DriveFolderSchema = {
+    type: 'object',
+    properties: {
+        type: {
+            type: 'string',
+            enum: [
+                'folder'
+            ],
+            example: 'folder',
+            description: 'Item type discriminator'
+        },
+        name: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Folder name (next path segment)'
+        },
+        path: {
+            type: 'string',
+            example: 'Documents',
+            description: 'Relative folder path from current folder (single segment)'
+        }
+    },
+    required: [
+        'type',
+        'name',
+        'path'
+    ]
+} as const;
+
+export const DriveFileItemSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/DriveFile'
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'file'
+                    ],
+                    example: 'file',
+                    description: 'Item type discriminator'
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
+} as const;
+
+export const DriveFileSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            example: 'report.pdf',
+            description: 'File name (extracted from pathname)'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf',
+            description: 'Public Blob URL'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Blob pathname'
+        },
+        size: {
+            type: 'integer',
+            example: 1024000,
+            description: 'File size in bytes'
+        },
+        uploadedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'When the file was uploaded to Blob storage'
+        }
+    },
+    required: [
+        'name',
+        'fileUrl',
+        'pathname',
+        'size',
+        'uploadedAt'
+    ]
+} as const;
+
+export const DrivePaginationMetadataSchema = {
+    type: 'object',
+    properties: {
+        cursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmg4zknxt0000l404yn4li0kp',
+            description: 'Cursor for the current page'
+        },
+        limit: {
+            type: 'integer',
+            minimum: 1,
+            example: 20,
+            description: 'Number of items returned'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'cmi4gmksz000104l8wps8p7fp',
+            description: 'Cursor for the next page'
+        }
+    },
+    required: [
+        'cursor',
+        'limit',
+        'nextCursor'
+    ]
+} as const;
+
+export const MoveDriveItemRequestSchema = {
+    type: 'object',
+    properties: {
+        sourcePathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Source pathname (file) or folder path relative to scope root (folder)'
+        },
+        targetFolderPath: {
+            type: 'string',
+            example: 'Archive/2026',
+            description: 'Target folder path relative to scope root (empty string for root)'
+        },
+        itemType: {
+            type: 'string',
+            enum: [
+                'file',
+                'folder'
+            ],
+            example: 'file',
+            description: 'Type of item being moved'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope (required for folder moves): \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org for folder moves)'
+        }
+    },
+    required: [
+        'sourcePathname',
+        'targetFolderPath',
+        'itemType'
+    ]
+} as const;
+
+export const RenameDriveFileRequestSchema = {
+    type: 'object',
+    properties: {
+        oldPathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Current blob pathname'
+        },
+        newFilename: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'renamed_report.pdf',
+            description: 'New file name (sanitized and used in new pathname)'
+        }
+    },
+    required: [
+        'oldPathname',
+        'newFilename'
+    ]
+} as const;
+
+export const DeleteDriveFileRequestSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/report.pdf',
+            description: 'Blob pathname to delete'
+        }
+    },
+    required: [
+        'pathname'
+    ]
+} as const;
+
+export const WorkspaceLabelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'TAG',
+                'CATEGORY'
+            ]
+        },
+        displayName: {
+            type: 'string'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        archived: {
+            type: 'boolean'
+        },
+        vocabularyVersion: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'displayName',
+        'description',
+        'archived',
+        'vocabularyVersion'
+    ]
+} as const;
+
+export const CreateDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'Projects/2026',
+            description: 'Folder path relative to scope root (may be nested with slashes)'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const DeleteDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        folderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects/OldProject',
+            description: 'Folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'folderPath',
+        'scope'
+    ]
+} as const;
+
+export const RenameDriveFolderRequestSchema = {
+    type: 'object',
+    properties: {
+        oldFolderPath: {
+            type: 'string',
+            minLength: 1,
+            example: 'Projects',
+            description: 'Current folder path relative to scope root'
+        },
+        newFolderPath: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 1000,
+            example: 'ArchivedProjects',
+            description: 'New folder path relative to scope root'
+        },
+        scope: {
+            type: 'string',
+            enum: [
+                'me',
+                'org'
+            ],
+            example: 'me',
+            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
+        },
+        organizationId: {
+            type: 'string',
+            example: 'org_123',
+            description: 'Organization ID (required when scope=org)'
+        }
+    },
+    required: [
+        'oldFolderPath',
+        'newFolderPath',
+        'scope'
+    ]
+} as const;
+
+export const DriveRecentsListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/DriveRecentsItem'
+    }
+} as const;
+
+export const DriveRecentsItemSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/DriveRecentsDriveFileItem'
+        },
+        {
+            $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
+        }
+    ],
+    discriminator: {
+        propertyName: 'kind',
+        mapping: {
+            'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
+            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
+        }
+    }
+} as const;
+
+export const DriveRecentsDriveFileItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'drive-file'
+            ],
+            example: 'drive-file',
+            description: 'Drive blob file at any folder depth'
+        },
+        name: {
+            type: 'string',
+            example: 'report.pdf',
+            description: 'File name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/...',
+            description: 'Blob URL'
+        },
+        pathname: {
+            type: 'string',
+            example: 'drive/users/user_123/Projects/report.pdf',
+            description: 'Blob pathname'
+        },
+        size: {
+            type: 'integer',
+            example: 1024,
+            description: 'File size in bytes'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (blob uploadedAt)'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'fileUrl',
+        'pathname',
+        'size',
+        'activityAt'
+    ]
+} as const;
+
+export const DriveRecentsTaskOutputItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'task-output'
+            ],
+            example: 'task-output',
+            description: 'READY TASK_OUTPUT TaskFile row'
+        },
+        name: {
+            type: 'string',
+            example: 'mockup-v2.pdf',
+            description: 'TaskFile name'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/tasks/...',
+            description: 'TaskFile blob URL'
+        },
+        size: {
+            type: [
+                'integer',
+                'null'
+            ],
+            example: 1024000,
+            description: 'File size in bytes (null if unknown)'
+        },
+        activityAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-08-18T10:00:00.000Z',
+            description: 'Latest activity timestamp (TaskFile updatedAt)'
+        },
+        taskFileId: {
+            type: 'string',
+            example: 'tf_123',
+            description: 'TaskFile ID'
+        },
+        taskId: {
+            type: 'string',
+            example: 'tsk_xyz789',
+            description: 'Parent task ID'
+        },
+        taskName: {
+            type: 'string',
+            example: 'Design mockups',
+            description: 'Parent task name'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'prj_abc123',
+            description: 'Parent project ID, or null'
+        },
+        projectName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Q4 Campaign',
+            description: 'Parent project name, or null'
+        }
+    },
+    required: [
+        'kind',
+        'name',
+        'fileUrl',
+        'size',
+        'activityAt',
+        'taskFileId',
+        'taskId',
+        'taskName',
+        'projectId',
+        'projectName'
+    ]
+} as const;
+
+export const FileSelectionTokenResponseSchema = {
+    type: 'object',
+    properties: {
+        token: {
+            type: 'string'
+        },
+        count: {
+            type: 'integer',
+            description: 'Entries in this bounded window that are still eligible, never a corpus total.'
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'token',
+        'count',
+        'expiresAt'
+    ]
+} as const;
+
+export const FileMetadataBatchResponseSchema = {
+    type: 'object',
+    properties: {
+        outcomes: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    resourceId: {
+                        type: 'string'
+                    },
+                    status: {
+                        type: 'string',
+                        enum: [
+                            'applied',
+                            'conflict',
+                            'forbidden',
+                            'not-found'
+                        ]
+                    },
+                    metadataRevision: {
+                        type: [
+                            'integer',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'resourceId',
+                    'status',
+                    'metadataRevision'
+                ]
+            }
+        },
+        revisedCount: {
+            type: [
+                'integer',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'outcomes',
+        'revisedCount'
+    ]
+} as const;
+
+export const FileMetadataBatchRequestSchema = {
+    type: 'object',
+    properties: {
+        resourceIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 100
+        },
+        selectionToken: {
+            type: 'string'
+        },
+        idempotencyKey: {
+            type: 'string',
+            minLength: 8,
+            maxLength: 200
+        },
+        addTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        categoryLabelId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        expectedRevisions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    resourceId: {
+                        type: 'string'
+                    },
+                    metadataRevision: {
+                        type: 'integer'
+                    }
+                },
+                required: [
+                    'resourceId',
+                    'metadataRevision'
+                ]
+            },
+            maxItems: 120
+        }
+    },
+    required: [
+        'idempotencyKey'
+    ]
+} as const;
+
+export const FileResourceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        displayName: {
+            type: 'string'
+        },
+        mimeType: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sizeBytes: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        sourceKind: {
+            type: 'string',
+            enum: [
+                'DRIVE_UPLOAD',
+                'TASK_OUTPUT',
+                'PROJECT_DOCUMENT',
+                'NATIVE_TABLE',
+                'STUDIO_ASSET'
+            ],
+            description: 'Canonical source this document comes from'
+        },
+        sourceTaskId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sourceProjectId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        contentRevision: {
+            type: 'integer'
+        },
+        metadataRevision: {
+            type: 'integer'
+        },
+        extractionState: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'PENDING',
+                'RUNNING',
+                'INDEXED',
+                'PARTIAL',
+                'UNSUPPORTED',
+                'ENCRYPTED',
+                'QUARANTINED',
+                'FAILED',
+                null
+            ],
+            description: 'Processing state of the current version. PARTIAL means some text is searchable, never all of it.'
+        },
+        extractionCoverage: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        extractionReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        category: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                labelId: {
+                    type: 'string'
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'TAG',
+                        'CATEGORY'
+                    ]
+                },
+                displayName: {
+                    type: 'string'
+                },
+                state: {
+                    type: 'string',
+                    enum: [
+                        'SUGGESTED',
+                        'CONFIRMED',
+                        'REJECTED'
+                    ]
+                },
+                provenance: {
+                    type: 'string',
+                    enum: [
+                        'MANUAL',
+                        'MODEL',
+                        'RULE'
+                    ]
+                },
+                evidenceSnippet: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                stale: {
+                    type: 'boolean',
+                    description: 'The suggestion was computed against an older content or vocabulary version.'
+                }
+            },
+            required: [
+                'id',
+                'labelId',
+                'kind',
+                'displayName',
+                'state',
+                'provenance',
+                'evidenceSnippet',
+                'stale'
+            ]
+        },
+        tags: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
+        suggestions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
+        rejected: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    labelId: {
+                        type: 'string'
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'TAG',
+                            'CATEGORY'
+                        ]
+                    },
+                    displayName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    stale: {
+                        type: 'boolean',
+                        description: 'The suggestion was computed against an older content or vocabulary version.'
+                    }
+                },
+                required: [
+                    'id',
+                    'labelId',
+                    'kind',
+                    'displayName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet',
+                    'stale'
+                ]
+            }
+        },
+        projects: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    projectId: {
+                        type: 'string'
+                    },
+                    projectName: {
+                        type: 'string'
+                    },
+                    state: {
+                        type: 'string',
+                        enum: [
+                            'SUGGESTED',
+                            'CONFIRMED',
+                            'REJECTED'
+                        ]
+                    },
+                    provenance: {
+                        type: 'string',
+                        enum: [
+                            'MANUAL',
+                            'MODEL',
+                            'RULE'
+                        ]
+                    },
+                    evidenceSnippet: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'projectId',
+                    'projectName',
+                    'state',
+                    'provenance',
+                    'evidenceSnippet'
+                ]
+            }
+        },
+        folderPath: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        snippet: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                text: {
+                    type: 'string'
+                },
+                highlights: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            start: {
+                                type: 'integer'
+                            },
+                            end: {
+                                type: 'integer'
+                            }
+                        },
+                        required: [
+                            'start',
+                            'end'
+                        ]
+                    }
+                },
+                truncatedStart: {
+                    type: 'boolean'
+                },
+                truncatedEnd: {
+                    type: 'boolean'
+                }
+            },
+            required: [
+                'text',
+                'highlights',
+                'truncatedStart',
+                'truncatedEnd'
+            ],
+            description: 'Extracted passage plus highlight offsets. Plain text: the client escapes at render.'
+        },
+        relatedReason: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        filenameMatch: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'displayName',
+        'mimeType',
+        'sizeBytes',
+        'sourceKind',
+        'sourceTaskId',
+        'sourceProjectId',
+        'updatedAt',
+        'contentRevision',
+        'metadataRevision',
+        'extractionState',
+        'extractionCoverage',
+        'extractionReason',
+        'category',
+        'tags',
+        'suggestions',
+        'rejected',
+        'projects',
+        'folderPath',
+        'snippet',
+        'relatedReason',
+        'filenameMatch'
+    ]
+} as const;
+
+export const FileRelatedResponseSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FileResource'
+            }
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'ok',
+                'empty',
+                'not-indexed',
+                'no-text',
+                'unavailable'
+            ],
+            description: '\'not-indexed\' means processing has not finished and neighbours may still appear; \'no-text\' means processing finished and the document has no readable text, so none are coming; \'unavailable\' means ranking failed and the reader may retry.'
+        }
+    },
+    required: [
+        'items',
+        'state'
+    ]
+} as const;
+
+export const UpdateFileMetadataRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedMetadataRevision: {
+            type: 'integer',
+            description: 'Reject the edit if someone else changed this document\'s metadata first.'
+        },
+        addTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeTagLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        categoryLabelId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        confirmProjectIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        removeProjectIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        },
+        allowSuggestionsFor: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'category',
+                    'tags'
+                ]
+            }
+        },
+        allowSuggestionsForLabelIds: {
+            type: 'array',
+            items: {
+                type: 'string'
+            },
+            maxItems: 20
+        }
+    },
+    required: [
+        'expectedMetadataRevision'
+    ]
+} as const;
+
+export const FileSuggestionDecisionRequestSchema = {
+    type: 'object',
+    properties: {
+        decision: {
+            type: 'string',
+            enum: [
+                'accept',
+                'reject',
+                'restore'
+            ]
+        },
+        expectedMetadataRevision: {
+            type: 'integer'
+        }
+    },
+    required: [
+        'decision',
+        'expectedMetadataRevision'
+    ]
+} as const;
+
+export const FileSearchResponseSchema = {
+    type: 'object',
+    properties: {
+        items: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/FileResource'
+            }
+        },
+        search: {
+            $ref: '#/components/schemas/FileSearchMeta'
+        }
+    },
+    required: [
+        'items',
+        'search'
+    ]
+} as const;
+
+export const FileSearchMetaSchema = {
+    type: 'object',
+    properties: {
+        rankingMode: {
+            type: 'string',
+            enum: [
+                'deterministic',
+                'model'
+            ],
+            description: 'Which ordering produced this page. \'deterministic\' means the model stage did not apply.'
+        },
+        rankingFallback: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'disabled',
+                'not-applicable',
+                'capacity',
+                'timeout',
+                'provider-error',
+                null
+            ],
+            description: 'Why \'deterministic\' was returned. Null when the model stage applied, or when no ranking was attempted for this page.'
+        },
+        resultWindowLimit: {
+            type: 'integer'
+        },
+        windowCount: {
+            type: 'integer',
+            description: 'Authorized entries in this bounded window, not a corpus total.'
+        },
+        remainingWindowCount: {
+            type: 'integer'
+        },
+        truncated: {
+            type: 'boolean',
+            description: 'A retrieval budget or the window cap was reached, so more may match. Independent of hasMore.'
+        },
+        hasMore: {
+            type: 'boolean',
+            description: 'Unconsumed positions remain in this snapshot. Not a claim about the corpus.'
+        },
+        nextCursor: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        restarted: {
+            type: 'boolean',
+            description: 'The previous cursor no longer applied (access, query or index changed) and a fresh window was taken.'
+        },
+        catalogIncomplete: {
+            type: 'boolean',
+            description: 'Adoption of pre-existing files did not finish, so this workspace\'s catalog is known to be missing files. Results are correct for what is catalogued.'
+        },
+        indexCoverage: {
+            type: 'object',
+            properties: {
+                indexed: {
+                    type: 'integer'
+                },
+                processing: {
+                    type: 'integer'
+                },
+                filenameOnly: {
+                    type: 'integer'
+                }
+            },
+            required: [
+                'indexed',
+                'processing',
+                'filenameOnly'
+            ],
+            description: 'Coverage over this window only, so the UI can be honest about what is searchable.'
+        }
+    },
+    required: [
+        'rankingMode',
+        'rankingFallback',
+        'resultWindowLimit',
+        'windowCount',
+        'remainingWindowCount',
+        'truncated',
+        'hasMore',
+        'nextCursor',
+        'restarted',
+        'catalogIncomplete',
+        'indexCoverage'
+    ]
+} as const;
+
 export const DataTableSchema = {
     type: 'object',
     properties: {
@@ -11602,620 +13116,6 @@ export const TableChangeSchema = {
         'rowId',
         'columnId',
         'createdAt'
-    ]
-} as const;
-
-export const DriveFileUploadSessionSchema = {
-    type: 'object',
-    properties: {
-        uploadUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf?vercel-blob-delegation=…',
-            description: 'Presigned Blob PUT URL (time-scoped, path-scoped)'
-        },
-        pathname: {
-            type: 'string',
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Server-generated upload pathname (no random suffix for Drive)'
-        },
-        access: {
-            type: 'string',
-            enum: [
-                'public'
-            ],
-            example: 'public',
-            description: 'Blob access level for the upload'
-        },
-        method: {
-            type: 'string',
-            enum: [
-                'PUT'
-            ],
-            example: 'PUT',
-            description: 'HTTP method for the client upload request'
-        },
-        headers: {
-            type: 'object',
-            properties: {
-                'Content-Type': {
-                    type: 'string',
-                    example: 'application/pdf'
-                }
-            },
-            required: [
-                'Content-Type'
-            ],
-            description: 'Headers the client must send on the PUT'
-        },
-        expiresAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T12:00:00.000Z',
-            description: 'When the presigned upload URL expires (ISO-8601)'
-        },
-        maxSizeBytes: {
-            type: 'integer',
-            exclusiveMinimum: 0,
-            example: 104857600,
-            description: 'Maximum supported file size for this upload policy'
-        },
-        addRandomSuffix: {
-            type: 'boolean',
-            example: false,
-            description: 'Drive files use exact pathnames (no random suffix)'
-        }
-    },
-    required: [
-        'uploadUrl',
-        'pathname',
-        'access',
-        'method',
-        'headers',
-        'expiresAt',
-        'maxSizeBytes',
-        'addRandomSuffix'
-    ]
-} as const;
-
-export const CreateDriveFileUploadSessionRequestSchema = {
-    type: 'object',
-    properties: {
-        filename: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 255,
-            example: 'report.pdf',
-            description: 'File name (becomes part of the blob pathname)'
-        },
-        contentType: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 255,
-            example: 'application/pdf',
-            description: 'MIME type of the file'
-        },
-        size: {
-            type: 'integer',
-            exclusiveMinimum: 0,
-            example: 1024000,
-            description: 'File size in bytes'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'me',
-                'org'
-            ],
-            example: 'me',
-            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
-        },
-        organizationId: {
-            type: 'string',
-            example: 'org_123',
-            description: 'Organization ID (required when scope=org)'
-        },
-        folder: {
-            type: 'string',
-            maxLength: 1000,
-            example: 'Projects/2026',
-            description: 'Target folder path relative to scope root (empty/omit for root)'
-        }
-    },
-    required: [
-        'filename',
-        'contentType',
-        'size',
-        'scope'
-    ]
-} as const;
-
-export const DriveItemsSchema = {
-    type: 'array',
-    items: {
-        $ref: '#/components/schemas/DriveItem'
-    }
-} as const;
-
-export const DriveItemSchema = {
-    oneOf: [
-        {
-            $ref: '#/components/schemas/DriveFolder'
-        },
-        {
-            $ref: '#/components/schemas/DriveFileItem'
-        }
-    ],
-    discriminator: {
-        propertyName: 'type',
-        mapping: {
-            folder: '#/components/schemas/DriveFolder',
-            file: '#/components/schemas/DriveFileItem'
-        }
-    }
-} as const;
-
-export const DriveFolderSchema = {
-    type: 'object',
-    properties: {
-        type: {
-            type: 'string',
-            enum: [
-                'folder'
-            ],
-            example: 'folder',
-            description: 'Item type discriminator'
-        },
-        name: {
-            type: 'string',
-            example: 'Documents',
-            description: 'Folder name (next path segment)'
-        },
-        path: {
-            type: 'string',
-            example: 'Documents',
-            description: 'Relative folder path from current folder (single segment)'
-        }
-    },
-    required: [
-        'type',
-        'name',
-        'path'
-    ]
-} as const;
-
-export const DriveFileItemSchema = {
-    allOf: [
-        {
-            $ref: '#/components/schemas/DriveFile'
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'file'
-                    ],
-                    example: 'file',
-                    description: 'Item type discriminator'
-                }
-            },
-            required: [
-                'type'
-            ]
-        }
-    ]
-} as const;
-
-export const DriveFileSchema = {
-    type: 'object',
-    properties: {
-        name: {
-            type: 'string',
-            example: 'report.pdf',
-            description: 'File name (extracted from pathname)'
-        },
-        fileUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/report.pdf',
-            description: 'Public Blob URL'
-        },
-        pathname: {
-            type: 'string',
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Blob pathname'
-        },
-        size: {
-            type: 'integer',
-            example: 1024000,
-            description: 'File size in bytes'
-        },
-        uploadedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'When the file was uploaded to Blob storage'
-        }
-    },
-    required: [
-        'name',
-        'fileUrl',
-        'pathname',
-        'size',
-        'uploadedAt'
-    ]
-} as const;
-
-export const DrivePaginationMetadataSchema = {
-    type: 'object',
-    properties: {
-        cursor: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cmg4zknxt0000l404yn4li0kp',
-            description: 'Cursor for the current page'
-        },
-        limit: {
-            type: 'integer',
-            minimum: 1,
-            example: 20,
-            description: 'Number of items returned'
-        },
-        nextCursor: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'cmi4gmksz000104l8wps8p7fp',
-            description: 'Cursor for the next page'
-        }
-    },
-    required: [
-        'cursor',
-        'limit',
-        'nextCursor'
-    ]
-} as const;
-
-export const MoveDriveItemRequestSchema = {
-    type: 'object',
-    properties: {
-        sourcePathname: {
-            type: 'string',
-            minLength: 1,
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Source pathname (file) or folder path relative to scope root (folder)'
-        },
-        targetFolderPath: {
-            type: 'string',
-            example: 'Archive/2026',
-            description: 'Target folder path relative to scope root (empty string for root)'
-        },
-        itemType: {
-            type: 'string',
-            enum: [
-                'file',
-                'folder'
-            ],
-            example: 'file',
-            description: 'Type of item being moved'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'me',
-                'org'
-            ],
-            example: 'me',
-            description: 'Owner scope (required for folder moves): \'me\' for personal drive, \'org\' for organization drive'
-        },
-        organizationId: {
-            type: 'string',
-            example: 'org_123',
-            description: 'Organization ID (required when scope=org for folder moves)'
-        }
-    },
-    required: [
-        'sourcePathname',
-        'targetFolderPath',
-        'itemType'
-    ]
-} as const;
-
-export const RenameDriveFileRequestSchema = {
-    type: 'object',
-    properties: {
-        oldPathname: {
-            type: 'string',
-            minLength: 1,
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Current blob pathname'
-        },
-        newFilename: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 255,
-            example: 'renamed_report.pdf',
-            description: 'New file name (sanitized and used in new pathname)'
-        }
-    },
-    required: [
-        'oldPathname',
-        'newFilename'
-    ]
-} as const;
-
-export const DeleteDriveFileRequestSchema = {
-    type: 'object',
-    properties: {
-        pathname: {
-            type: 'string',
-            minLength: 1,
-            example: 'drive/users/user_123/report.pdf',
-            description: 'Blob pathname to delete'
-        }
-    },
-    required: [
-        'pathname'
-    ]
-} as const;
-
-export const CreateDriveFolderRequestSchema = {
-    type: 'object',
-    properties: {
-        folderPath: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 1000,
-            example: 'Projects/2026',
-            description: 'Folder path relative to scope root (may be nested with slashes)'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'me',
-                'org'
-            ],
-            example: 'me',
-            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
-        },
-        organizationId: {
-            type: 'string',
-            example: 'org_123',
-            description: 'Organization ID (required when scope=org)'
-        }
-    },
-    required: [
-        'folderPath',
-        'scope'
-    ]
-} as const;
-
-export const DeleteDriveFolderRequestSchema = {
-    type: 'object',
-    properties: {
-        folderPath: {
-            type: 'string',
-            minLength: 1,
-            example: 'Projects/OldProject',
-            description: 'Folder path relative to scope root'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'me',
-                'org'
-            ],
-            example: 'me',
-            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
-        },
-        organizationId: {
-            type: 'string',
-            example: 'org_123',
-            description: 'Organization ID (required when scope=org)'
-        }
-    },
-    required: [
-        'folderPath',
-        'scope'
-    ]
-} as const;
-
-export const RenameDriveFolderRequestSchema = {
-    type: 'object',
-    properties: {
-        oldFolderPath: {
-            type: 'string',
-            minLength: 1,
-            example: 'Projects',
-            description: 'Current folder path relative to scope root'
-        },
-        newFolderPath: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 1000,
-            example: 'ArchivedProjects',
-            description: 'New folder path relative to scope root'
-        },
-        scope: {
-            type: 'string',
-            enum: [
-                'me',
-                'org'
-            ],
-            example: 'me',
-            description: 'Owner scope: \'me\' for personal drive, \'org\' for organization drive'
-        },
-        organizationId: {
-            type: 'string',
-            example: 'org_123',
-            description: 'Organization ID (required when scope=org)'
-        }
-    },
-    required: [
-        'oldFolderPath',
-        'newFolderPath',
-        'scope'
-    ]
-} as const;
-
-export const DriveRecentsListSchema = {
-    type: 'array',
-    items: {
-        $ref: '#/components/schemas/DriveRecentsItem'
-    }
-} as const;
-
-export const DriveRecentsItemSchema = {
-    oneOf: [
-        {
-            $ref: '#/components/schemas/DriveRecentsDriveFileItem'
-        },
-        {
-            $ref: '#/components/schemas/DriveRecentsTaskOutputItem'
-        }
-    ],
-    discriminator: {
-        propertyName: 'kind',
-        mapping: {
-            'drive-file': '#/components/schemas/DriveRecentsDriveFileItem',
-            'task-output': '#/components/schemas/DriveRecentsTaskOutputItem'
-        }
-    }
-} as const;
-
-export const DriveRecentsDriveFileItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'drive-file'
-            ],
-            example: 'drive-file',
-            description: 'Drive blob file at any folder depth'
-        },
-        name: {
-            type: 'string',
-            example: 'report.pdf',
-            description: 'File name'
-        },
-        fileUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/drive/users/...',
-            description: 'Blob URL'
-        },
-        pathname: {
-            type: 'string',
-            example: 'drive/users/user_123/Projects/report.pdf',
-            description: 'Blob pathname'
-        },
-        size: {
-            type: 'integer',
-            example: 1024,
-            description: 'File size in bytes'
-        },
-        activityAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Latest activity timestamp (blob uploadedAt)'
-        }
-    },
-    required: [
-        'kind',
-        'name',
-        'fileUrl',
-        'pathname',
-        'size',
-        'activityAt'
-    ]
-} as const;
-
-export const DriveRecentsTaskOutputItemSchema = {
-    type: 'object',
-    properties: {
-        kind: {
-            type: 'string',
-            enum: [
-                'task-output'
-            ],
-            example: 'task-output',
-            description: 'READY TASK_OUTPUT TaskFile row'
-        },
-        name: {
-            type: 'string',
-            example: 'mockup-v2.pdf',
-            description: 'TaskFile name'
-        },
-        fileUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://store.public.blob.vercel-storage.com/tasks/...',
-            description: 'TaskFile blob URL'
-        },
-        size: {
-            type: [
-                'integer',
-                'null'
-            ],
-            example: 1024000,
-            description: 'File size in bytes (null if unknown)'
-        },
-        activityAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2026-08-18T10:00:00.000Z',
-            description: 'Latest activity timestamp (TaskFile updatedAt)'
-        },
-        taskFileId: {
-            type: 'string',
-            example: 'tf_123',
-            description: 'TaskFile ID'
-        },
-        taskId: {
-            type: 'string',
-            example: 'tsk_xyz789',
-            description: 'Parent task ID'
-        },
-        taskName: {
-            type: 'string',
-            example: 'Design mockups',
-            description: 'Parent task name'
-        },
-        projectId: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'prj_abc123',
-            description: 'Parent project ID, or null'
-        },
-        projectName: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Q4 Campaign',
-            description: 'Parent project name, or null'
-        }
-    },
-    required: [
-        'kind',
-        'name',
-        'fileUrl',
-        'size',
-        'activityAt',
-        'taskFileId',
-        'taskId',
-        'taskName',
-        'projectId',
-        'projectName'
     ]
 } as const;
 
@@ -13050,13 +13950,17 @@ export const HistoryItemSchema = {
         },
         {
             $ref: '#/components/schemas/HistoryJobItem'
+        },
+        {
+            $ref: '#/components/schemas/HistoryImageItem'
         }
     ],
     discriminator: {
         propertyName: 'kind',
         mapping: {
             task: '#/components/schemas/HistoryTaskItem',
-            job: '#/components/schemas/HistoryJobItem'
+            job: '#/components/schemas/HistoryJobItem',
+            image: '#/components/schemas/HistoryImageItem'
         }
     }
 } as const;
@@ -13315,6 +14219,290 @@ export const HistoryJobItemSchema = {
         'agentId',
         'agentName',
         'agentIcon'
+    ]
+} as const;
+
+export const HistoryImageItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Source entity ID for this history row',
+            example: 'cmi4gmksz000104l8wps8p7fp'
+        },
+        title: {
+            type: 'string',
+            description: 'Display title for the history row',
+            example: 'Review onboarding flow'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Short subtitle or description for the history row',
+            example: 'Audit copy and empty states'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity updatedAt timestamp used for feed ordering'
+        },
+        archivedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Source entity archivedAt timestamp. Null means the row is navigable.'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'User-facing credits. Null means credits do not apply to this item.',
+            example: 2.5
+        },
+        owner: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/HistoryOwner'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Owner of the history item. Null when the user is deleted or could not be resolved.',
+            example: null
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active'
+            ]
+        },
+        assetId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.',
+            example: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+        },
+        projectId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid',
+            description: 'Project the image was generated in',
+            example: 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+        },
+        modelLabel: {
+            type: 'string',
+            description: 'Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.',
+            example: 'Gemini 3.1 Flash Image'
+        }
+    },
+    required: [
+        'id',
+        'title',
+        'description',
+        'updatedAt',
+        'archivedAt',
+        'credits',
+        'owner',
+        'kind',
+        'status',
+        'assetId',
+        'projectId',
+        'modelLabel'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogSchema = {
+    type: 'object',
+    properties: {
+        defaultModelId: {
+            type: 'string'
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageStudioCatalogModel'
+            }
+        },
+        snapshotDate: {
+            type: 'string'
+        },
+        refreshedAt: {
+            type: [
+                'string',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'defaultModelId',
+        'models',
+        'snapshotDate',
+        'refreshedAt'
+    ]
+} as const;
+
+export const ProjectImageStudioCatalogModelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        label: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        generateEndpoint: {
+            type: 'string'
+        },
+        editEndpoint: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        aspectRatios: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        resolutions: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        outputFormats: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        supportsSeed: {
+            type: 'boolean'
+        },
+        maxReferences: {
+            type: 'integer'
+        },
+        dimensionMode: {
+            type: 'string',
+            enum: [
+                'aspect-ratio',
+                'image-size'
+            ]
+        },
+        providerFields: {
+            type: 'array',
+            items: {
+                type: 'string',
+                enum: [
+                    'aspect_ratio',
+                    'resolution',
+                    'image_size',
+                    'output_format',
+                    'num_images',
+                    'seed',
+                    'limit_generations',
+                    'image_urls'
+                ]
+            }
+        },
+        curatedRank: {
+            type: [
+                'integer',
+                'null'
+            ]
+        },
+        notes: {
+            type: 'string'
+        },
+        price: {
+            type: 'object',
+            properties: {
+                unit: {
+                    type: 'string'
+                },
+                unitPriceUsd: {
+                    type: 'number'
+                },
+                perImageUsd: {
+                    type: 'object',
+                    properties: {
+                        '0.5K': {
+                            type: 'number'
+                        },
+                        '1K': {
+                            type: 'number'
+                        },
+                        '2K': {
+                            type: 'number'
+                        }
+                    }
+                },
+                basis: {
+                    type: 'string'
+                },
+                sourceUrl: {
+                    type: 'string'
+                },
+                verifiedAt: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'unit',
+                'unitPriceUsd',
+                'basis',
+                'sourceUrl',
+                'verifiedAt'
+            ]
+        },
+        sourceUrls: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        verifiedAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'label',
+        'description',
+        'generateEndpoint',
+        'editEndpoint',
+        'aspectRatios',
+        'resolutions',
+        'outputFormats',
+        'supportsSeed',
+        'maxReferences',
+        'dimensionMode',
+        'providerFields',
+        'curatedRank',
+        'notes',
+        'price',
+        'sourceUrls',
+        'verifiedAt'
     ]
 } as const;
 
@@ -16023,6 +17211,42 @@ export const ProjectDesignMdWriteSchema = {
     ]
 } as const;
 
+export const WorkspaceCalendarEntrySchema = {
+    allOf: [
+        {
+            type: 'object',
+            properties: {
+                scheduledAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                originalScheduledAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                }
+            },
+            required: [
+                'scheduledAt'
+            ]
+        },
+        {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/WorkspaceCalendarItem'
+                },
+                {
+                    $ref: '#/components/schemas/SocialPostCalendarItem'
+                }
+            ]
+        }
+    ]
+} as const;
+
 export const WorkspaceCalendarItemSchema = {
     type: 'object',
     properties: {
@@ -16189,6 +17413,104 @@ export const WorkspaceCalendarItemSchema = {
         'sourceWorkspaceId',
         'sourceType',
         'sourceProjectId'
+    ]
+} as const;
+
+export const SocialPostCalendarItemSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'socialPost'
+            ]
+        },
+        id: {
+            type: 'string'
+        },
+        postId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        text: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'DRAFT',
+                'SCHEDULED',
+                'PUBLISHING',
+                'PUBLISHED',
+                'FAILED',
+                'MISSED',
+                'CANCELED'
+            ]
+        },
+        externalHandle: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        projectName: {
+            type: 'string'
+        },
+        scheduledByName: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        scheduledByImage: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        attachmentCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        scheduledAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        sourceId: {
+            type: 'string'
+        },
+        sourceProjectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceWorkspaceId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        sourceType: {
+            type: 'string',
+            enum: [
+                'PROJECT'
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'id',
+        'postId',
+        'text',
+        'status',
+        'externalHandle',
+        'projectName',
+        'scheduledByName',
+        'scheduledByImage',
+        'attachmentCount',
+        'scheduledAt',
+        'sourceId',
+        'sourceProjectId',
+        'sourceWorkspaceId',
+        'sourceType'
     ]
 } as const;
 
@@ -16399,10 +17721,7 @@ export const ProjectSocialConnectionSchema = {
             example: 'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
         },
         provider: {
-            type: 'string',
-            enum: [
-                'x'
-            ]
+            $ref: '#/components/schemas/ProjectSocialProvider'
         },
         externalHandle: {
             type: [
@@ -16448,6 +17767,19 @@ export const ProjectSocialConnectionSchema = {
     ]
 } as const;
 
+export const ProjectSocialProviderSchema = {
+    type: 'string',
+    enum: [
+        'x',
+        'tiktok',
+        'instagram',
+        'linkedin',
+        'facebook',
+        'youtube'
+    ],
+    example: 'x'
+} as const;
+
 export const InitiateProjectSocialConnectionResponseSchema = {
     type: 'object',
     properties: {
@@ -16480,10 +17812,7 @@ export const InitiateProjectSocialConnectionRequestSchema = {
                     ]
                 },
                 provider: {
-                    type: 'string',
-                    enum: [
-                        'x'
-                    ]
+                    $ref: '#/components/schemas/ProjectSocialProvider'
                 }
             },
             required: [
@@ -16592,6 +17921,12 @@ export const SocialPostSchema = {
         text: {
             type: 'string'
         },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            }
+        },
         status: {
             $ref: '#/components/schemas/SocialPostStatus'
         },
@@ -16621,6 +17956,13 @@ export const SocialPostSchema = {
                 'string',
                 'null'
             ]
+        },
+        scheduledByCoworkerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Coworker that scheduled the post on behalf of scheduledByUserId, or null for a human.'
         },
         canceledAt: {
             type: [
@@ -16656,6 +17998,37 @@ export const SocialPostSchema = {
                 'null'
             ]
         },
+        attemptCount: {
+            type: 'integer',
+            minimum: 0,
+            example: 0
+        },
+        nextAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttemptAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastAttempt: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SocialPostLastAttempt'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         revision: {
             type: 'integer',
             minimum: 0,
@@ -16679,6 +18052,13 @@ export const SocialPostSchema = {
         },
         canCancel: {
             type: 'boolean'
+        },
+        canPublishNow: {
+            type: 'boolean'
+        },
+        connectionNeedsReconnect: {
+            type: 'boolean',
+            description: 'The linked connection exists but is not active, so the post cannot go out until someone reconnects'
         }
     },
     required: [
@@ -16686,6 +18066,7 @@ export const SocialPostSchema = {
         'projectId',
         'provider',
         'text',
+        'media',
         'status',
         'scheduledAt',
         'timezone',
@@ -16697,12 +18078,68 @@ export const SocialPostSchema = {
         'publishedExternalId',
         'publishedUrl',
         'lastError',
+        'attemptCount',
+        'nextAttemptAt',
+        'lastAttemptAt',
+        'lastAttempt',
         'revision',
         'createdAt',
         'updatedAt',
         'canEdit',
         'canSchedule',
-        'canCancel'
+        'canCancel',
+        'canPublishNow',
+        'connectionNeedsReconnect'
+    ]
+} as const;
+
+export const SocialPostMediaRefSchema = {
+    type: 'object',
+    properties: {
+        pathname: {
+            type: 'string',
+            minLength: 1,
+            example: 'drive/users/user_123/launch.png',
+            description: 'Drive blob pathname; must belong to the active workspace'
+        },
+        fileUrl: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://store.public.blob.vercel-storage.com/drive/users/user_123/launch.png',
+            description: 'Public Blob URL of the Drive file'
+        },
+        name: {
+            type: 'string',
+            minLength: 1,
+            example: 'launch.png'
+        },
+        size: {
+            type: 'integer',
+            minimum: 0,
+            example: 240000
+        },
+        mimeType: {
+            type: 'string',
+            minLength: 1,
+            example: 'image/png'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'image',
+                'gif',
+                'video'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'pathname',
+        'fileUrl',
+        'name',
+        'size',
+        'mimeType',
+        'kind'
     ]
 } as const;
 
@@ -16786,14 +18223,98 @@ export const SocialPostCreatorSchema = {
     ]
 } as const;
 
+export const SocialPostLastAttemptSchema = {
+    type: 'object',
+    properties: {
+        attempt: {
+            type: 'integer',
+            minimum: 1,
+            example: 1
+        },
+        trigger: {
+            type: 'string',
+            enum: [
+                'scheduler',
+                'publish_now'
+            ]
+        },
+        outcome: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'succeeded',
+                'failed_transient',
+                'failed_permanent',
+                'missed',
+                'connection_inactive',
+                'authorization_revoked',
+                null
+            ]
+        },
+        errorKind: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'rate_limited'
+        },
+        providerOutcome: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        finishedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'attempt',
+        'trigger',
+        'outcome',
+        'errorKind',
+        'providerOutcome',
+        'finishedAt'
+    ]
+} as const;
+
+export const PublishSocialPostRequestSchema = {
+    type: 'object',
+    properties: {
+        revision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Revision the client last observed; mismatches return 409',
+            example: 2
+        }
+    },
+    required: [
+        'revision'
+    ]
+} as const;
+
 export const CreateSocialPostRequestSchema = {
     type: 'object',
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: 'string',
@@ -16819,9 +18340,16 @@ export const UpdateSocialPostRequestSchema = {
     properties: {
         text: {
             type: 'string',
-            minLength: 1,
             maxLength: 280,
             example: 'Shipping the new Calendar today.'
+        },
+        media: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SocialPostMediaRef'
+            },
+            maxItems: 4,
+            description: 'Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.'
         },
         socialConnectionId: {
             type: [
@@ -16889,9 +18417,6 @@ export const CancelSocialPostRequestSchema = {
 export const ProjectImageStudioStateSchema = {
     type: 'object',
     properties: {
-        catalog: {
-            $ref: '#/components/schemas/ProjectImageStudioCatalog'
-        },
         assets: {
             type: 'array',
             items: {
@@ -16933,188 +18458,10 @@ export const ProjectImageStudioStateSchema = {
         }
     },
     required: [
-        'catalog',
         'assets',
         'jobs',
         'sessions',
         'nextCursor'
-    ]
-} as const;
-
-export const ProjectImageStudioCatalogSchema = {
-    type: 'object',
-    properties: {
-        defaultModelId: {
-            type: 'string'
-        },
-        models: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string'
-                    },
-                    label: {
-                        type: 'string'
-                    },
-                    description: {
-                        type: 'string'
-                    },
-                    generateEndpoint: {
-                        type: 'string'
-                    },
-                    editEndpoint: {
-                        type: 'string'
-                    },
-                    aspectRatios: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    resolutions: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    outputFormats: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    supportsSeed: {
-                        type: 'boolean'
-                    },
-                    maxReferences: {
-                        type: 'integer'
-                    },
-                    dimensionMode: {
-                        type: 'string',
-                        enum: [
-                            'aspect-ratio',
-                            'image-size'
-                        ]
-                    },
-                    notes: {
-                        type: 'string'
-                    },
-                    price: {
-                        type: 'object',
-                        properties: {
-                            perImageUsd: {
-                                type: 'object',
-                                properties: {
-                                    '0.5K': {
-                                        type: 'number'
-                                    },
-                                    '1K': {
-                                        type: 'number'
-                                    },
-                                    '2K': {
-                                        type: 'number'
-                                    }
-                                }
-                            },
-                            basis: {
-                                type: 'string'
-                            },
-                            sourceUrl: {
-                                type: 'string'
-                            },
-                            verifiedAt: {
-                                type: 'string'
-                            }
-                        },
-                        required: [
-                            'perImageUsd',
-                            'basis',
-                            'sourceUrl',
-                            'verifiedAt'
-                        ]
-                    },
-                    sourceUrls: {
-                        type: 'array',
-                        items: {
-                            type: 'string'
-                        }
-                    },
-                    verifiedAt: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'id',
-                    'label',
-                    'description',
-                    'generateEndpoint',
-                    'editEndpoint',
-                    'aspectRatios',
-                    'resolutions',
-                    'outputFormats',
-                    'supportsSeed',
-                    'maxReferences',
-                    'dimensionMode',
-                    'notes',
-                    'price',
-                    'sourceUrls',
-                    'verifiedAt'
-                ]
-            }
-        },
-        placements: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    id: {
-                        type: 'string'
-                    },
-                    platform: {
-                        type: 'string'
-                    },
-                    label: {
-                        type: 'string'
-                    },
-                    aspectRatio: {
-                        type: 'string'
-                    },
-                    width: {
-                        type: 'integer'
-                    },
-                    height: {
-                        type: 'integer'
-                    },
-                    notes: {
-                        type: 'string'
-                    },
-                    sourceUrl: {
-                        type: 'string'
-                    },
-                    verifiedAt: {
-                        type: 'string'
-                    }
-                },
-                required: [
-                    'id',
-                    'platform',
-                    'label',
-                    'aspectRatio',
-                    'width',
-                    'height',
-                    'notes',
-                    'sourceUrl',
-                    'verifiedAt'
-                ]
-            }
-        }
-    },
-    required: [
-        'defaultModelId',
-        'models',
-        'placements'
     ]
 } as const;
 
@@ -17175,9 +18522,6 @@ export const ProjectImageAssetSchema = {
         },
         contentPath: {
             type: 'string'
-        },
-        review: {
-            $ref: '#/components/schemas/ProjectImageReview'
         }
     },
     required: [
@@ -17201,13 +18545,6 @@ export const ProjectImageAssetSchema = {
 export const ProjectImageSettingsSchema = {
     type: 'object',
     properties: {
-        placementId: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 100
-        },
         aspectRatio: {
             type: 'string',
             enum: [
@@ -17251,39 +18588,6 @@ export const ProjectImageSettingsSchema = {
             default: null
         }
     }
-} as const;
-
-export const ProjectImageReviewSchema = {
-    type: 'object',
-    properties: {
-        decision: {
-            type: 'string',
-            enum: [
-                'APPROVED',
-                'REJECTED'
-            ]
-        },
-        feedback: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        decidedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        decidedByUserId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'decision',
-        'feedback',
-        'decidedAt',
-        'decidedByUserId'
-    ]
 } as const;
 
 export const ProjectImageJobSchema = {
@@ -17336,6 +18640,27 @@ export const ProjectImageJobSchema = {
                 'null'
             ]
         },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
         parentAssetId: {
             type: [
                 'string',
@@ -17381,6 +18706,15 @@ export const ProjectImageJobSchema = {
         },
         retryMayDuplicateCharge: {
             type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
         }
     },
     required: [
@@ -17392,13 +18726,16 @@ export const ProjectImageJobSchema = {
         'settings',
         'referenceAssetIds',
         'error',
+        'failureReason',
         'parentAssetId',
         'assetId',
         'createdAt',
         'submittedAt',
         'settledAt',
         'cancelRequestedAt',
-        'retryMayDuplicateCharge'
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
     ]
 } as const;
 
@@ -17447,11 +18784,8 @@ export const CreateProjectImageJobRequestSchema = {
     properties: {
         modelId: {
             type: 'string',
-            enum: [
-                'gemini-flash',
-                'gemini-pro',
-                'flux-2-pro'
-            ],
+            minLength: 1,
+            maxLength: 200,
             default: 'gemini-flash'
         },
         prompt: {
@@ -17508,30 +18842,6 @@ export const CancelProjectImageJobResponseSchema = {
     },
     required: [
         'accepted'
-    ]
-} as const;
-
-export const ReviewProjectImageAssetRequestSchema = {
-    type: 'object',
-    properties: {
-        decision: {
-            type: 'string',
-            enum: [
-                'APPROVED',
-                'REJECTED'
-            ]
-        },
-        feedback: {
-            type: [
-                'string',
-                'null'
-            ],
-            maxLength: 2000,
-            default: null
-        }
-    },
-    required: [
-        'decision'
     ]
 } as const;
 
@@ -22641,6 +23951,37 @@ export const TaskWorkspaceSchema = {
         'name',
         'workspaceId',
         'organizationId'
+    ]
+} as const;
+
+export const TaskEventsPaginationMetadataSchema = {
+    allOf: [
+        {
+            $ref: '#/components/schemas/PaginationMetadata'
+        },
+        {
+            type: 'object',
+            properties: {
+                commentCount: {
+                    type: 'integer',
+                    minimum: 0,
+                    example: 3,
+                    description: 'Count of events on this task with a non-null comment'
+                },
+                latestCommentId: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    example: 'evt_124',
+                    description: 'Id of the newest comment event (createdAt desc, then id desc), or null'
+                }
+            },
+            required: [
+                'commentCount',
+                'latestCommentId'
+            ]
+        }
     ]
 } as const;
 

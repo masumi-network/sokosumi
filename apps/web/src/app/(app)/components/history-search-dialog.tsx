@@ -1,7 +1,9 @@
 "use client";
 
+import { FileText } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { HistorySearchItemStatus } from "@/app/components/history-search-item-status";
+import { useFileSearchGroup } from "@/app/components/use-file-search-group";
 import { useHistorySearchCorpus } from "@/app/components/use-history-search-corpus";
 import {
   HistoryMetaTime,
@@ -17,7 +19,10 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
+import type {
+  FileResource,
+  HistoryItem,
+} from "@/lib/clients/generated/core/types.gen";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 interface HistorySearchDialogLabels {
@@ -28,6 +33,9 @@ interface HistorySearchDialogLabels {
   loading: string;
   error: string;
   updated: string;
+  filesGroup: string;
+  filesSeeAll: string;
+  filesFilenameMatch: string;
 }
 
 interface HistorySearchDialogProps {
@@ -52,6 +60,13 @@ export function HistorySearchDialog({
       activeOrganizationId,
       errorLabel: labels.error,
     });
+  // The Files group shares the dialog's debounced query. A failure here
+  // hides the group; it never takes the other sections down with it.
+  const { files } = useFileSearchGroup({
+    open,
+    activeOrganizationId,
+    debouncedQuery: query,
+  });
 
   function handleOpenChange(nextOpen: boolean) {
     if (!nextOpen) {
@@ -59,6 +74,18 @@ export function HistorySearchDialog({
     }
 
     onOpenChange(nextOpen);
+  }
+
+  function handleSelectFile(file: FileResource) {
+    handleOpenChange(false);
+    router.push(`/drive/files/${file.id}`);
+  }
+
+  function handleSeeAllFiles() {
+    handleOpenChange(false);
+    router.push(
+      `/drive?view=workspace${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`,
+    );
   }
 
   function handleSelect(item: HistoryItem) {
@@ -129,6 +156,36 @@ export function HistorySearchDialog({
                 </div>
               </CommandItem>
             ))}
+          </CommandGroup>
+        ) : null}
+
+        {files.length > 0 ? (
+          <CommandGroup heading={labels.filesGroup}>
+            {files.map((file) => (
+              <CommandItem
+                key={file.id}
+                value={`file:${file.id}`}
+                onSelect={() => handleSelectFile(file)}
+                className="flex items-start gap-2"
+              >
+                <FileText className="mt-0.5 size-4" />
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate">{file.displayName}</span>
+                  <span className="text-muted-foreground block truncate text-xs">
+                    {file.filenameMatch
+                      ? labels.filesFilenameMatch
+                      : (file.snippet?.text ?? file.mimeType ?? "")}
+                  </span>
+                </div>
+              </CommandItem>
+            ))}
+            <CommandItem
+              value="file:see-all"
+              onSelect={handleSeeAllFiles}
+              className="text-muted-foreground text-xs"
+            >
+              {labels.filesSeeAll}
+            </CommandItem>
           </CommandGroup>
         ) : null}
       </CommandList>

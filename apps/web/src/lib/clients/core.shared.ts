@@ -47,6 +47,7 @@ import type {
   GetProjectsData,
   GetProjectsStatsData,
   GetShareByTokenError,
+  GetTasksByIdEventsData,
   GetTasksData,
   GetTasksSchedulesByIdRunsData,
   GetTasksSchedulesData,
@@ -84,12 +85,12 @@ import type {
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
-  PostProjectsByIdImageStudioAssetsByAssetIdReviewData,
   PostProjectsByIdImageStudioJobsData,
   PostProjectsByIdJobsData,
   PostProjectsByIdSocialConnectionsFinalizeData,
   PostProjectsByIdSocialConnectionsInitiateData,
   PostProjectsByIdSocialPostsByPostIdCancelData,
+  PostProjectsByIdSocialPostsByPostIdPublishData,
   PostProjectsByIdSocialPostsByPostIdScheduleData,
   PostProjectsByIdSocialPostsData,
   PostProjectsByIdTasksData,
@@ -163,7 +164,6 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
-  deleteProjectsByIdImageStudioAssetsByAssetIdReview as coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
   deleteProjectsByIdStar as coreDeleteProjectsByIdStar,
@@ -222,6 +222,7 @@ import {
   getEnterpriseContractsById as coreGetEnterpriseContractsById,
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
+  getImageStudioCatalog as coreGetImageStudioCatalog,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -266,6 +267,7 @@ import {
   getTaskScheduleAssignees as coreGetTaskScheduleAssignees,
   getTasks as coreGetTasks,
   getTasksById as coreGetTasksById,
+  getTasksByIdEvents as coreGetTasksByIdEvents,
   getTasksByIdLinks as coreGetTasksByIdLinks,
   getTasksByIdWorkspace as coreGetTasksByIdWorkspace,
   getTasksSchedules as coreGetTasksSchedules,
@@ -385,7 +387,6 @@ import {
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
-  postProjectsByIdImageStudioAssetsByAssetIdReview as corePostProjectsByIdImageStudioAssetsByAssetIdReview,
   postProjectsByIdImageStudioJobs as corePostProjectsByIdImageStudioJobs,
   postProjectsByIdImageStudioJobsByJobIdCancel as corePostProjectsByIdImageStudioJobsByJobIdCancel,
   postProjectsByIdJobs as corePostProjectsByIdJobs,
@@ -393,6 +394,7 @@ import {
   postProjectsByIdSocialConnectionsInitiate as corePostProjectsByIdSocialConnectionsInitiate,
   postProjectsByIdSocialPosts as corePostProjectsByIdSocialPosts,
   postProjectsByIdSocialPostsByPostIdCancel as corePostProjectsByIdSocialPostsByPostIdCancel,
+  postProjectsByIdSocialPostsByPostIdPublish as corePostProjectsByIdSocialPostsByPostIdPublish,
   postProjectsByIdSocialPostsByPostIdSchedule as corePostProjectsByIdSocialPostsByPostIdSchedule,
   postProjectsByIdStar as corePostProjectsByIdStar,
   postProjectsByIdTasks as corePostProjectsByIdTasks,
@@ -1418,6 +1420,23 @@ export function createCoreClient(getClient: GetCoreClient) {
             transformTaskResponseEnvelope(data),
         }),
       "Failed to fetch task",
+    );
+  }
+
+  async function getTaskEvents(
+    id: string,
+    query?: GetTasksByIdEventsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetTasksByIdEvents({
+          client,
+          path: { id },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch task events",
     );
   }
 
@@ -3043,6 +3062,27 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /**
+   * The studio's model catalog, which is global rather than project-scoped.
+   *
+   * Its own route because it is ~158KB and the studio polls its *state* every
+   * three seconds; the catalog used to ride along on that payload. Core sets
+   * `private, max-age=300`, and the read is authenticated, so this stays on the
+   * session client rather than moving to `coreCatalogClient` — a cookie-free
+   * call would be refused.
+   */
+  async function getImageStudioCatalog() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioCatalog({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch the image studio catalog",
+    );
+  }
+
   async function getProjectsByIdImageStudio(
     id: string,
     query?: GetProjectsByIdImageStudioData["query"],
@@ -3088,40 +3128,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id, jobId },
         }),
       "Failed to request cancellation",
-    );
-  }
-
-  async function postProjectsByIdImageStudioAssetsByAssetIdReview(
-    id: string,
-    assetId: string,
-    body: NonNullable<
-      PostProjectsByIdImageStudioAssetsByAssetIdReviewData["body"]
-    >,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostProjectsByIdImageStudioAssetsByAssetIdReview({
-          client,
-          path: { id, assetId },
-          body,
-        }),
-      "Failed to review image version",
-    );
-  }
-
-  async function deleteProjectsByIdImageStudioAssetsByAssetIdReview(
-    id: string,
-    assetId: string,
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteProjectsByIdImageStudioAssetsByAssetIdReview({
-          client,
-          path: { id, assetId },
-        }),
-      "Failed to clear image review",
     );
   }
 
@@ -3222,6 +3228,23 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to cancel Project social post",
+    );
+  }
+
+  async function postProjectsByIdSocialPostsByPostIdPublish(
+    id: string,
+    postId: string,
+    body: NonNullable<PostProjectsByIdSocialPostsByPostIdPublishData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdSocialPostsByPostIdPublish({
+          client,
+          path: { id, postId },
+          body,
+        }),
+      "Failed to publish Project social post",
     );
   }
 
@@ -5734,16 +5757,16 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
+    getImageStudioCatalog,
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,
-    postProjectsByIdImageStudioAssetsByAssetIdReview,
-    deleteProjectsByIdImageStudioAssetsByAssetIdReview,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,
+    postProjectsByIdSocialPostsByPostIdPublish,
     postProjectsByIdSocialPostsByPostIdSchedule,
     completeComposioCallback,
     getProjectsStats,
@@ -5765,6 +5788,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     requestJobRefund,
     revokeMyOauthConsent,
     getTaskById,
+    getTaskEvents,
     getTaskLinks,
     getTaskWorkspace,
     getTasks,

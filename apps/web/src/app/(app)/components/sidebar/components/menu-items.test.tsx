@@ -114,12 +114,16 @@ import { TestQueryProvider } from "@/test/query-provider";
 
 let sidebarIsMobile = true;
 
-function renderMenu(hasAssignedSeat = true, isMobile = true) {
+function renderMenu(
+  hasAssignedSeat = true,
+  isMobile = true,
+  socialMenuEnabled = false,
+) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems />
+        <MenuItems socialMenuEnabled={socialMenuEnabled} />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );
@@ -239,7 +243,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "drive",
       "history",
     ];
@@ -267,10 +271,52 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "history",
     ];
     const positions = primaryOrder.map((label) =>
+      menuLabels.findIndex((text) => text.includes(label)),
+    );
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  /**
+   * Social was a tab inside one project. It is a destination now, and it is
+   * still beta-gated, so the row exists exactly where the surface does —
+   * including in the Instant Nav shell, which renders `MenuItems` with no
+   * props at all and must therefore leave the row out rather than guess it.
+   */
+  it("leaves Social out until the frame resolves the beta", () => {
+    renderMenu();
+
+    expect(screen.queryByRole("link", { name: /social/i })).toBeNull();
+  });
+
+  it("shows Social inside the beta, scoped like the rows above it", () => {
+    pathnameRef.current = "/calendar";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, true);
+    pathnameRef.current = "/";
+    searchRef.current = "";
+
+    // `hrefFor` carries the reader's project across, the way Calendar and the
+    // studio do, so switching project does not drop them back to no scope.
+    expect(screen.getByRole("link", { name: /social/i })).toHaveAttribute(
+      "href",
+      "/social?projectId=project-1",
+    );
+  });
+
+  it("puts Social after the studio and before Files", () => {
+    const { container } = renderMenu(true, false, true);
+    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
+      (element) => element.textContent ?? "",
+    );
+
+    const order = ["calendar", "contentStudio", "social", "drive", "history"];
+    const positions = order.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
     );
 
@@ -354,7 +400,7 @@ describe("MenuItems search action", () => {
       "taskManager",
       "schedules",
       "calendar",
-      "imageStudio",
+      "contentStudio",
       "drive",
       "history",
     ]);
@@ -428,7 +474,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks"],
       ["schedules", "/schedules"],
       ["calendar", "/calendar"],
-      ["imageStudio", "/studio"],
+      ["contentStudio", "/studio"],
       ["drive", "/drive"],
       ["history", "/history"],
     ]) {
@@ -444,7 +490,7 @@ describe("MenuItems project scope", () => {
       ["taskManager", "/tasks?projectId=p-1"],
       ["schedules", "/schedules?projectId=p-1"],
       ["calendar", "/calendar?projectId=p-1"],
-      ["imageStudio", "/studio?projectId=p-1"],
+      ["contentStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
       ["history", "/history?projectId=p-1"],
     ]) {

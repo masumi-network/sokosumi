@@ -10,6 +10,9 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => response as T,
   };
 }
@@ -63,6 +66,9 @@ test("coworkers register creates and connects the coworker to the selected works
         data: { id: "cw-1", name: "Ops Agent", capabilities: ["tasks"] },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -113,7 +119,13 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
     },
     post: async (path: string) => {
       assert.equal(path, "/v1/coworkers");
-      throw createApiError(403, { error: "Forbidden" });
+      throw createApiError(403, {
+        error: "Forbidden",
+        message: "Admin access required",
+      });
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({}) as T,
   };
@@ -137,6 +149,7 @@ test("ordinary developer gets organizer instructions when Core denies Coworker c
       assert.match(error.message, /vendor-1/);
       assert.match(error.message, /coworkers connect/);
       assert.match(error.message, /coworkers api-key/);
+      assert.match(error.message, /auth whoami/);
       return true;
     },
   );
@@ -166,6 +179,9 @@ test("API key failure keeps the created Coworker ID for recovery", async () => {
       if (path.endsWith("/api-keys"))
         throw new Error("Key service unavailable");
       throw new Error(`Unexpected POST ${path}`);
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({}) as T,
   };
@@ -204,6 +220,9 @@ test("coworkers register rejects Mainnet before any Core request", async () => {
       requestCount += 1;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -231,6 +250,9 @@ test("coworkers connect rejects Mainnet before any Core request", async () => {
     post: async <T>() => {
       requestCount += 1;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -263,6 +285,9 @@ test("coworkers register requires a selected member Workspace", async () => {
     post: async <T>(path: string) => {
       if (path === "/v1/coworkers") createCalled = true;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -310,6 +335,9 @@ test("pending workspace access reports the created Coworker and retry command", 
       }
       return { data: { id: "cw-1", name: "Ops Agent" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -337,8 +365,10 @@ test("pending workspace access reports the created Coworker and retry command", 
 
 test("coworkers connect grants access to an existing Coworker", async () => {
   const calls: { path: string; body: unknown }[] = [];
+  const reads: string[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
+      reads.push(path);
       if (path === "/v1/coworkers/cw-1") {
         return { data: { id: "cw-1", vendor: { id: "vendor-1" } } } as T;
       }
@@ -359,6 +389,9 @@ test("coworkers connect grants access to an existing Coworker", async () => {
           status: "GRANTED",
         },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -381,7 +414,125 @@ test("coworkers connect grants access to an existing Coworker", async () => {
     },
   ]);
   assert.equal(JSON.parse(output.join("")).workspaceAccess.status, "GRANTED");
+  assert.deepEqual(Object.keys(JSON.parse(output.join(""))).sort(), [
+    "coworkerId",
+    "workspaceAccess",
+  ]);
+  assert.deepEqual(reads, [
+    "/v1/users/me/organizations",
+    "/v1/vendors/me",
+    "/v1/coworkers/cw-1",
+  ]);
+  output.length = 0;
+  calls.length = 0;
+  reads.length = 0;
+  await runCoworkersCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    subcommand: "connect",
+    positionalId: "cw-1",
+    target: "preprod",
+    options: { "vendor-id": "vendor-1", "workspace-id": "org-1" },
+  });
+  assert.match(
+    output.join(""),
+    /Next: sokosumi --preprod workspaces check org-1/,
+  );
+  assert.match(
+    output.join(""),
+    /operator.*runtime key-import --coworker-id cw-1 --api-key-stdin/,
+  );
+  assert.equal(calls.length, 1);
+  assert.deepEqual(reads, [
+    "/v1/users/me/organizations",
+    "/v1/vendors/me",
+    "/v1/coworkers/cw-1",
+  ]);
 });
+
+// V42, V47, V63: retain Core diagnostics and redact credentials in creation errors.
+for (const subcommand of ["provision", "register"] as const) {
+  for (const [status, message] of [
+    [403, "Admin access required"],
+    [403, "Organization membership required"],
+    [409, "Coworker slug already exists"],
+  ] as const) {
+    test(`${subcommand} preserves ${status} ${message} without guessing the cause`, async () => {
+      const errorBody = {
+        error: status === 403 ? "Forbidden" : "Conflict",
+        message,
+        meta: { requestId: "request-1" },
+        details: { apiKey: "sensitive-key" },
+      };
+      const failure = createApiError(status, errorBody);
+      const originalMessage = failure.message;
+      let writes = 0;
+      const api: CoreHttpClient = {
+        get: async <T>(path: string) => {
+          if (path === "/v1/users/me")
+            return {
+              data: {
+                id: "user-admin",
+                email: "admin@example.com",
+                role: "user,admin",
+              },
+            } as T;
+          if (path.endsWith("/organizations"))
+            return { data: [{ id: "org-1", role: "member" }] } as T;
+          if (path.endsWith("/vendors/me"))
+            return { data: [{ id: "vendor-1", role: "admin" }] } as T;
+          throw new Error("Unexpected GET");
+        },
+        post: async () => {
+          writes++;
+          throw failure;
+        },
+        put: async () => {
+          throw new Error("Unexpected PUT");
+        },
+        patch: async () => {
+          throw new Error("Unexpected PATCH");
+        },
+      };
+      await assert.rejects(
+        runCoworkersCommand({
+          client: api,
+          stdout: {
+            write() {
+              throw new Error("Unexpected output");
+            },
+          },
+          subcommand,
+          target: "preprod",
+          options: {
+            name: "Agent",
+            "vendor-id": "vendor-1",
+            "workspace-id": subcommand === "register" ? "org-1" : undefined,
+          },
+        }),
+        (error: unknown) => {
+          assert.equal(error, failure);
+          assert.ok(error instanceof Error);
+          assert.equal("status" in error && error.status, status);
+          assert.deepEqual("body" in error && error.body, {
+            ...errorBody,
+            details: { apiKey: "[REDACTED]" },
+          });
+          assert.ok(error.message.startsWith(originalMessage));
+          assert.match(error.message, /request-1/);
+          assert.doesNotMatch(error.message, /sensitive-key/);
+          if (status === 403) assert.match(error.message, /auth whoami --json/);
+          else assert.equal(error.message, originalMessage);
+          if (message === "Admin access required")
+            assert.match(error.message, /platform admin/);
+          else assert.doesNotMatch(error.message, /platform admin|organizer/);
+          return true;
+        },
+      );
+      assert.equal(writes, 1);
+    });
+  }
+}
 
 // V85: the selected Vendor must own the Coworker before Workspace access changes.
 for (const [label, vendor, message] of [
@@ -418,6 +569,9 @@ for (const [label, vendor, message] of [
             status: "GRANTED",
           },
         } as T;
+      },
+      put: async () => {
+        throw new Error("Unexpected PUT");
       },
       patch: async () => {
         throw new Error("Unexpected PATCH");
@@ -456,6 +610,9 @@ test("coworkers register rejects a missing vendor ID before Core request", async
       postCalled = true;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -486,6 +643,9 @@ test("coworkers register blocks when no organization workspace exists", async ()
     post: async <T>() => {
       postCalled = true;
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -528,6 +688,9 @@ test("coworkers register rejects non-admin Vendor before Core create", async () 
       postCalled = true;
       return { data: {} } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
 
@@ -563,6 +726,9 @@ test("coworkers register requires --vendor-id and does not create a Vendor", asy
     post: async <T>(path: string, body?: unknown) => {
       posts.push({ path, body });
       return { data: {} } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };
@@ -612,6 +778,9 @@ test("coworkers update patches the coworker and returns it", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
       body = requestBody;
@@ -694,6 +863,9 @@ test("coworkers api-key mints a key and returns the full token", async () => {
         data: { id: "key-1", name: "ci", token: "soko_secret_value" },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
@@ -719,6 +891,9 @@ test("coworkers update sends the mapped multi-field payload", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(requestPath: string, requestBody: unknown) => {
       path = requestPath;
       body = requestBody;
@@ -758,6 +933,9 @@ test("coworkers update omits an empty name", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>(_path: string, requestBody: unknown) => {
       body = requestBody as Record<string, unknown>;
       return { data: { id: "cw-1" } } as T;
@@ -824,6 +1002,9 @@ test("coworkers register --create-api-key mints and returns the key", async () =
       return {
         data: { id: "cw-1", name: "Ops", capabilities: ["tasks"] },
       } as T;
+    },
+    put: async () => {
+      throw new Error("Unexpected PUT");
     },
     patch: async <T>() => ({ data: {} }) as T,
   };

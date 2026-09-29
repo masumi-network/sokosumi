@@ -3,20 +3,18 @@ name: Preview deploy
 on:
   issue_comment:
     types: [created]
-  # pull_request_target so the workflow YAML comes from the default branch.
-  # pull_request would run this file from the PR merge commit WITH
-  # VERCEL_TOKEN, so a same-repo branch that edits this workflow can exfil
-  # the token or production-deploy on open (merge is not required).
-  pull_request_target:
-    types: [opened]
-    # Previews only build web/core and their workspace package dependencies;
-    # docs-only (and similar) PRs never start this workflow. Keep in sync with
-    # PREVIEW_RELEVANT_PREFIXES in scripts/ci/vercel-deploy.mjs (the /deploy
-    # comment flow enforces the same prefixes via the PR files API).
-    paths:
-      - "apps/web/**"
-      - "apps/core/**"
-      - "packages/**"
+  # Close and renew listen to unprivileged pull_request signals. workflow_run
+  # always loads THIS file from the default branch. Do not switch back to
+  # pull_request_target: that event loads YAML from the PR base, so a
+  # same-repo branch that replaces this file can run with VERCEL_TOKEN and
+  # NEON_API_KEY. `/deploy` and `/reset-db` stay on issue_comment (already
+  # default-branch YAML).
+  workflow_run:
+    workflows: ["PR closed", "PR synchronize"]
+    types: [completed]
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -24,13 +22,14 @@ permissions:
 jobs:
   comment:
     name: Comment preview
+    environment: preview-database
     if: >
       github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       github.event.comment.user.type != 'Bot' &&
       contains(github.event.comment.body, '/deploy') &&
       !(startsWith(github.event.comment.body, '/deploy') && contains(github.event.comment.body, '--reset-db'))
-    # All three jobs share one group per PR. A Core build during a reset could
+    # Deploy, reset, and cleanup share one group per PR. A Core build during a reset could
     # migrate the branch before or after the restore. Each job waits for every
     # deployment it starts, also after one fails. A build that outlasts the
     # 15-minute poll limit, a create whose response is lost (no id to poll),
@@ -45,7 +44,7 @@ jobs:
       pull-requests: write
       issues: write
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 40
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -64,40 +63,9 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/ci/vercel-deploy.mjs preview
-
-  opened:
-    name: Opened preview
-    # Do not add this job as a required check: it only runs on opened, so later
-    # commits would have no check on the new SHA.
-    if: >
-      github.event_name == 'pull_request_target' &&
-      github.event.pull_request.user.type != 'Bot' &&
-      github.event.pull_request.head.repo.full_name == github.repository
-    concurrency:
-      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
-      cancel-in-progress: false
-      queue: max
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          # Privileged (VERCEL_TOKEN). Default branch only — never a PR tree
-          # or base tip. Vercel still deploys the PR head commit via the API.
-          ref: ${{ github.event.repository.default_branch }}
-          persist-credentials: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-
-      - name: Deploy preview
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
         run: node scripts/ci/vercel-deploy.mjs preview
 
   reset-db:
@@ -157,3 +125,172 @@ jobs:
           VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/ci/preview-db-reset.mjs
+
+  closed:
+    name: Closed preview
+    # workflow_run is default-branch YAML. Skip failed/cancelled signals and
+    # fork heads. The script re-checks the PR is closed and same-repo.
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.name == 'PR closed' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    # Closed runs have an empty pull_requests array. display_title is the
+    # signal run-name (the PR number) so this stays on the deploy/reset queue.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
+      cancel-in-progress: false
+      queue: max
+    environment: preview-database
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Clean up preview resources
+        id: cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/ci/preview-lifecycle.ts
+
+  renew:
+    name: Renew preview expiry
+    # Known gap: pull_request workflows do not run while a PR has merge
+    # conflicts, so PR synchronize never fires and pushes to a conflicted PR
+    # do not renew. Its preview DB expires after PREVIEW_TTL_MS (24h); resolve
+    # the conflict and push, or comment /deploy, to recreate it.
+    if: >
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.name == 'PR synchronize' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    # Same queue key as closed. pull_requests[0] when present, else the
+    # signal run-name via display_title. workflow_run.id is not a PR key.
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
+      cancel-in-progress: false
+      queue: max
+    environment: preview-database
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Renew existing preview databases
+        id: cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node scripts/ci/preview-lifecycle.ts renew
+
+  inventory:
+    name: Preview cleanup inventory
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    outputs:
+      prs: ${{ steps.cleanup.outputs.prs }}
+    environment: preview-database
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Clean up preview resources
+        id: cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+        run: node scripts/ci/preview-lifecycle.ts inventory
+
+  reconcile:
+    name: Reconcile closed previews
+    needs: inventory
+    if: needs.inventory.outputs.prs != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        pr: ${{ fromJSON(needs.inventory.outputs.prs) }}
+    concurrency:
+      group: ${{ github.workflow }}-${{ matrix.pr }}
+      cancel-in-progress: false
+      queue: max
+    environment: preview-database
+    permissions:
+      contents: read
+      pull-requests: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - name: Clean up preview resources
+        id: cleanup
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ vars.VERCEL_TEAM_ID }}
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
+          NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          PREVIEW_PR_NUMBER: ${{ matrix.pr }}
+        run: node scripts/ci/preview-lifecycle.ts

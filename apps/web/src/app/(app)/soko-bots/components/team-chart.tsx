@@ -42,7 +42,7 @@ async function BotNode({ member }: { member: Member }) {
     return (
       <Link
         href={SOKO_BOT_ROUTE}
-        className="border-primary-tertiary hover:border-primary hover:bg-primary-quinary flex items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm transition-colors"
+        className="border-primary-tertiary press hover:border-primary hover:bg-primary-quinary flex items-center gap-3 rounded-lg border border-dashed px-3 py-3 text-sm transition-colors"
       >
         <span className="bg-primary-quinary text-primary inline-flex size-9 shrink-0 items-center justify-center rounded-full">
           <Plus aria-hidden className="size-4" />
@@ -93,7 +93,7 @@ async function BotNode({ member }: { member: Member }) {
       {member.isYou ? (
         <Link
           href={SOKO_BOT_ROUTE}
-          className="hover:bg-card-background-hover group flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors"
+          className="hover:bg-card-background-hover group flex items-center gap-3 rounded-lg px-3 py-3 text-sm transition-colors press"
         >
           {body}
           <ChevronRight

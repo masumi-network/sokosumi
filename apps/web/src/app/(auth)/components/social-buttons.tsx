@@ -302,7 +302,7 @@ export default function SocialButtons({
             }}
           >
             {isSigningInWithPasskey ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             ) : (
               <KeyRound className="size-4" />
             )}

@@ -50,6 +50,14 @@ export const SOKO_BOT_CAPABILITIES = [
   "list_calendar_events",
   "list_integration_tools",
   "run_integration_tool",
+  "list_project_social_accounts",
+  "list_social_posts",
+  "get_social_post",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
   "web_search",
   "web_fetch",
   "bash",
@@ -107,6 +115,11 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "create_schedule",
   "update_schedule",
   "manage_reminder",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
 ] as const satisfies readonly SokoBotCapability[];
 
 const DIRECT_READ_CAPABILITIES = [
@@ -125,6 +138,18 @@ const DIRECT_READ_CAPABILITIES = [
   "read_email",
   "list_calendar_events",
   "list_integration_tools",
+  "list_project_social_accounts",
+  "list_social_posts",
+  "get_social_post",
+] as const satisfies readonly SokoBotCapability[];
+
+/** Social posts can publish externally, including edits to already queued content. */
+const SOCIAL_WRITE_CAPABILITIES = [
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Follow-ups the bot sets up for itself; never need owner approval. */
@@ -238,6 +263,7 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
   ],
   MANAGE_WORK: [
     ...OWNER_BASE_CAPABILITIES,
+    ...SOCIAL_WRITE_CAPABILITIES,
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
@@ -279,12 +305,20 @@ export function capabilitiesForClassification(
     CHAT: ["post_chat", "open_direct_chat"],
     FILE: ["upload_file"],
     INTEGRATION: ["run_integration_tool", "request_user_decision"],
+    SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };
   return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];
 }
 
 export interface TurnClassification {
-  writeScope?: "WORK" | "MEMORY" | "SCHEDULE" | "CHAT" | "FILE" | "INTEGRATION";
+  writeScope?:
+    | "WORK"
+    | "MEMORY"
+    | "SCHEDULE"
+    | "CHAT"
+    | "FILE"
+    | "INTEGRATION"
+    | "SOCIAL";
   candidateTaskIds?: string[];
   selectedIntentId?: string;
   continuation?: "NEW" | "CONTINUE" | "CANCEL" | "AMBIGUOUS";

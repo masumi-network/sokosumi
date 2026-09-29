@@ -99,7 +99,7 @@ export async function TurnQuality({
 
       {verdict?.rationale ? (
         <div className="space-y-1">
-          <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <h4 className="text-muted-foreground text-xs font-medium">
             {t("rationale")}
           </h4>
           <p className="text-sm">{verdict.rationale}</p>
@@ -108,7 +108,7 @@ export async function TurnQuality({
 
       {verdict && verdict.issues.length > 0 ? (
         <div className="space-y-1">
-          <h4 className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <h4 className="text-muted-foreground text-xs font-medium">
             {t("issues")}
           </h4>
           <ul className="list-inside list-disc space-y-0.5 text-sm">

@@ -1,4 +1,3 @@
-import { ProjectImageJobStatus } from "@sokosumi/database";
 import { Hono } from "hono";
 
 import prisma from "@/lib/db/prisma";
@@ -7,7 +6,10 @@ import {
   readWebhookHeaders,
   verifyFalWebhook,
 } from "@/lib/image-studio/fal-webhook";
-import { settleWithImage } from "@/services/image-studio-jobs.service";
+import {
+  failImageJob,
+  settleWithImage,
+} from "@/services/image-studio-jobs.service";
 
 /**
  * fal's completion callback.
@@ -65,22 +67,16 @@ export function mountFalImageJobsWebhook(app: Hono): void {
     if (!job) return c.json({ ok: true, ignored: "unknown_request" }, 200);
 
     if (body.status === "ERROR") {
-      await prisma.projectImageJob.updateMany({
-        where: {
-          id: job.id,
-          status: {
-            in: [ProjectImageJobStatus.QUEUED, ProjectImageJobStatus.RUNNING],
-          },
-        },
-        data: {
-          status: ProjectImageJobStatus.FAILED,
-          error:
-            typeof body.error === "string"
-              ? body.error.slice(0, 500)
-              : "The provider reported an error.",
-          settledAt: new Date(),
-        },
-      });
+      // Through the service, not with an `updateMany` of its own. This handler
+      // used to write FAILED directly, which meant the one path fal takes to tell
+      // us a generation failed was also the one path that never refunded it — a
+      // failed generation on preview took eight credits and kept them.
+      // `failImageJob` owns settling a failure, including paying it back.
+      await failImageJob(
+        job.id,
+        "provider_error",
+        typeof body.error === "string" ? body.error : undefined,
+      );
       return c.json({ ok: true }, 200);
     }
 
@@ -91,7 +87,14 @@ export function mountFalImageJobsWebhook(app: Hono): void {
 
     // Idempotent: the asset row is unique per job, so a webhook racing a poll
     // produces one version and one of them loses the insert.
-    await settleWithImage(job.id, images[0]!.url);
+    //
+    // The provider's dimensions go with the URL. They used to be dropped here,
+    // which is half of why stored assets read 0x0.
+    const produced = images[0]!;
+    await settleWithImage(job.id, produced.url, {
+      width: produced.width,
+      height: produced.height,
+    });
     return c.json({ ok: true }, 200);
   });
 }

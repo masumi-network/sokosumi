@@ -91,7 +91,10 @@ export function TaskReopenToReadyDialog({
             onClick={onConfirm}
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : null}
             {labels.confirm}
           </Button>

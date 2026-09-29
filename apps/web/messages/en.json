@@ -54,7 +54,8 @@
       "copyError": "Failed to copy link"
     },
     "DefaultErrorBoundary": {
-      "error": "An unknown error occurred, please contact our support"
+      "error": "Something went wrong here. Try again, or contact support if it keeps happening.",
+      "tryAgain": "Try again"
     },
     "Agents": {
       "RiskClassification": {
@@ -314,7 +315,7 @@
       "calendar": "Calendar",
       "schedules": "Schedules",
       "threads": "Threads",
-      "studio": "Image studio",
+      "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
       "social": "Social"
@@ -537,7 +538,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No executed jobs",
-        "emptyJobs": "No jobs yet.",
+        "emptyJobs": "No jobs yet. Hire this coworker to start one.",
         "loadMore": "Load more",
         "loading": "Loading...",
         "loadMoreError": "Failed to load more jobs"
@@ -1352,7 +1353,8 @@
         "projectLabel": "Project",
         "typeOptions": {
           "task": "Task",
-          "job": "Job"
+          "job": "Job",
+          "image": "Image"
         },
         "statusOptions": {
           "archived": "Archived",
@@ -1389,7 +1391,8 @@
         "updated": "Updated",
         "kind": {
           "task": "Task",
-          "job": "Job"
+          "job": "Job",
+          "image": "Image"
         }
       }
     },
@@ -1646,7 +1649,7 @@
         },
         "recentTitle": "Recent",
         "emptyRecent": "No recently finished jobs.",
-        "emptyList": "No jobs yet.",
+        "emptyList": "No jobs yet. Hire a coworker and your jobs show up here.",
         "emptySection": "No jobs in this status.",
         "untitled": "Untitled job",
         "unknownAgent": "Unknown agent"
@@ -1678,18 +1681,16 @@
         "jobsUnknownAgent": "Agent unavailable",
         "activity": "Activities",
         "emptyActivity": "No activities yet.",
+        "jumpToRecent": "Jump to latest",
+        "showOlderComments": "Show {count, plural, one {# older comment} other {# older comments}}",
         "sourcesFiles": "Files",
         "sourcesLinks": "Links",
         "commentPlaceholder": "Write a comment...",
-        "attach": "Attach",
         "fileLabel": "File",
         "uploadFileErrorRetry": "Failed to upload file, please try again!",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
-        "removeAttachment": "Remove attachment",
         "submit": "Submit",
-        "sendWith": "Send with",
-        "ctrl": "Ctrl",
         "authenticate": "Authenticate",
         "expand": "Expand",
         "collapse": "Show less",
@@ -1891,7 +1892,7 @@
         "hostingLabel": "Hosted in",
         "taskStepTitle": "What should {name} do?",
         "noAgentsFound": "No agents found.",
-        "tasksTitle": "Ready-To-Run Tasks",
+        "tasksTitle": "Ready-to-run tasks",
         "startFromScratch": "Start from scratch",
         "startFromScratchHint": "Write your own instructions",
         "previewExample": "Preview example",
@@ -2262,15 +2263,16 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Connect X accounts that this project can use for future publishing.",
-        "account": "X account",
-        "connect": "Connect X account",
+        "description": "Connect social accounts to this project. Publishing is currently available for X.",
+        "account": "{provider} account",
+        "connect": "Connect {provider} account",
+        "connectHeading": "Connect an account",
+        "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
-        "connecting": "Connecting…",
         "disconnecting": "Disconnecting…",
-        "unknownHandle": "Unknown X account",
+        "unknownHandle": "Unknown account",
         "status": {
           "active": "Connected",
           "pending": "Connection pending",
@@ -2278,35 +2280,36 @@
           "disconnected": "Disconnected"
         },
         "replaceDialog": {
-          "title": "Replace this X account?",
+          "title": "Replace this account?",
           "description": "The current account will be disconnected before you connect a replacement.",
           "confirm": "Replace account"
         },
         "disconnectDialog": {
-          "title": "Disconnect this X account?",
+          "title": "Disconnect this account?",
           "description": "This project will no longer be authorized to use this account.",
           "confirm": "Disconnect account"
         },
         "cancel": "Cancel",
         "success": {
-          "connected": "X account connected.",
-          "disconnected": "X account disconnected."
+          "connected": "Account connected.",
+          "disconnected": "Account disconnected."
         },
         "warning": {
-          "providerRevocationFailed": "This account is disconnected from this project, but X may still authorize this app. Revoke the app in your X settings."
+          "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
         },
         "errors": {
-          "inFlight": "Another X account action is already in progress.",
-          "popupBlocked": "Your browser blocked the X authorization window. Allow popups and try again.",
-          "timeout": "X authorization took too long. Try again.",
-          "providerCallback": "X authorization did not complete. Return to the Project's Social page and try again.",
-          "legacyCallback": "This OAuth callback cannot verify your X account. Update the Composio callback setup and try again.",
-          "verifier": "We could not verify your X account. Start the connection again.",
+          "inFlight": "Another account action is already in progress.",
+          "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
+          "timeout": "Authorization took too long. Try again.",
+          "providerCallback": "Authorization did not complete. Return to the Project’s Social page and try again.",
+          "legacyCallback": "This callback cannot verify your account. Contact support and try again.",
+          "verifier": "We could not verify your account. Start the connection again.",
           "intent": "This connection request expired or is no longer valid. Start again.",
-          "duplicate": "That X account is already connected to this project. Choose a different account.",
-          "reconnectMismatch": "Reconnect the same X account that is already linked to this project.",
-          "finalize": "We could not finish connecting this X account. Try again.",
-          "disconnect": "We could not disconnect this X account. Try again."
+          "duplicate": "That account is already connected to this project. Choose a different account.",
+          "reconnectMismatch": "Reconnect the same account that is already linked to this project.",
+          "finalize": "We could not finish connecting this account. Try again.",
+          "disconnect": "We could not disconnect this account. Try again.",
+          "notConfigured": "This integration is not configured yet. Contact support to enable it."
         }
       },
       "SocialPosts": {
@@ -2317,15 +2320,22 @@
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
+        "outcomes": {
+          "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
+        },
         "sections": {
           "upcoming": "Upcoming",
           "drafts": "Drafts",
-          "history": "History"
+          "attention": "Needs attention"
         },
+        "selectedPost": "Selected post",
         "empty": {
           "upcoming": "No scheduled posts yet.",
-          "drafts": "No drafts yet.",
-          "history": "No published, failed, or canceled posts yet."
+          "drafts": "No drafts yet."
+        },
+        "emptyHint": {
+          "upcoming": "Schedule a post and it shows up here and on the calendar.",
+          "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
           "DRAFT": "Draft",
@@ -2350,6 +2360,25 @@
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
+          "media": {
+            "addFromDrive": "Add from Drive",
+            "upload": "Upload",
+            "uploading": "Uploading…",
+            "remove": "Remove {name}",
+            "hint": "Up to 4 images, or one GIF, or one video.",
+            "unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+            "alreadyAttached": "That file is already attached.",
+            "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
+            "uploadFailed": "The upload failed. Try again.",
+            "errors": {
+              "too_many_images": "X allows at most 4 images per post.",
+              "too_many_gifs": "X allows one GIF per post.",
+              "too_many_videos": "X allows one video per post.",
+              "mixed_media": "Use images, one GIF, or one video — not a mix.",
+              "unsupported_type": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+              "too_large": "A file is too large for X."
+            }
+          },
           "account": "Account",
           "noAccount": "Choose an account",
           "unknownHandle": "Unknown X account",
@@ -2365,7 +2394,7 @@
         },
         "cancelDialog": {
           "title": "Cancel this post?",
-          "description": "The post will not be published. You can schedule it again later.",
+          "description": "The post will not be published. This cannot be undone.",
           "confirm": "Cancel post"
         },
         "toasts": {
@@ -2376,7 +2405,24 @@
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
           "unauthenticated": "Please sign in to continue.",
-          "unauthenticatedAction": "Sign in"
+          "unauthenticatedAction": "Sign in",
+          "published": "Post published.",
+          "publishFailed": "Publishing failed: {error}"
+        },
+        "needsReconnect": "Account needs reconnecting",
+        "needsReconnectLink": "Reconnect the account",
+        "viewOnX": "View on X",
+        "publishedAt": "Published {date}",
+        "failedAt": "Failed {date}",
+        "attempts": "{count, plural, one {# attempt} other {# attempts}}",
+        "actions": {
+          "publishNow": "Publish now",
+          "retry": "Retry"
+        },
+        "publishDialog": {
+          "title": "Publish this post now?",
+          "description": "The post goes out to X right away instead of waiting for its scheduled time.",
+          "confirm": "Publish now"
         }
       },
       "Detail": {
@@ -2434,7 +2480,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "No jobs linked to this project yet.",
+          "empty": "No jobs linked yet. Add one to keep its results here.",
           "add": "Add job",
           "remove": "Remove job",
           "viewAll": "View all jobs",
@@ -2448,7 +2494,7 @@
         },
         "tasks": {
           "title": "Tasks",
-          "empty": "No tasks linked to this project yet.",
+          "empty": "No tasks linked yet. Add one to keep it with this project.",
           "add": "Add task",
           "pickerTitle": "Add task",
           "pickerDescription": "Choose an unassigned task to link to this project.",
@@ -2525,7 +2571,6 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "social": "Social",
           "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
@@ -2539,37 +2584,26 @@
       "back": "Back to project",
       "updated": "Updated",
       "emptyTitle": "No images yet",
-      "emptyBody": "Write a prompt above and pick the models to try it on. You will get versions back to compare, refine and approve.",
-      "example1": "A calm product shot on a light neutral background",
-      "example2": "A wide banner image for a spring campaign",
-      "example3": "An abstract background in the project's brand colours",
+      "emptyBody": "Write a prompt below and pick the models to try it on. You will get versions back to compare and refine.",
       "promptPlaceholder": "Describe the image…",
       "generate": "Generate",
       "refine": "Refine",
       "regenerate": "New variation",
+      "reroll": "Re-roll",
+      "reusePrompt": "Reuse prompt",
       "download": "Download",
       "compare": "Compare",
-      "approve": "Approve",
-      "reject": "Reject",
-      "undecided": "Undecided",
-      "approved": "Approved",
-      "rejected": "Rejected",
-      "clearReview": "Clear decision",
-      "feedbackPlaceholder": "Optional note for this version",
       "version": "Version",
       "generating": "Generating",
       "queued": "Queued at the provider",
       "failed": "That generation failed",
       "uncertainTitle": "We could not confirm this request",
-      "uncertainBody": "The provider never answered, so we do not know whether it received the request. It may already have been charged. Check again before deciding, and only submit a new request if you accept that it may be charged a second time.",
+      "uncertainBody": "The provider never answered, so we do not know whether it received the request. If it did, and an image comes back, that image will be charged. Check again before deciding, and only submit a new request if you accept that it may be charged a second time.",
       "checkAgain": "Check again",
       "submitAnyway": "Submit a new request anyway",
       "tryAgain": "Try again",
       "cancel": "Cancel",
       "cancelRequested": "Cancellation requested. The provider may already have finished.",
-      "clearFilter": "Show all",
-      "filterAll": "All",
-      "filterApproved": "Approved",
       "lineage": "Lineage",
       "from": "Prompt",
       "loadOlder": "Load older versions",
@@ -2578,24 +2612,34 @@
       "errorLoadOlderFailed": "Could not load older versions.",
       "composerTitle": "New images",
       "model": "Model",
-      "placement": "Placement",
-      "placementNone": "No placement",
-      "placementNotOutput": "Placement sets the frame. The pixel sizes are the platform's own recommendation for the finished asset, not the size this studio generates — the studio generates up to 2K.",
       "aspectRatio": "Frame",
       "resolution": "Resolution",
       "outputFormat": "Format",
       "copies": "Copies",
       "generateOne": "Generate",
       "generateMany": "Generate {count} images",
-      "modelUnsupportedForPlacement": "This model cannot frame images that way, so it cannot serve this placement.",
       "modelNotInCatalog": "Made before this model list existed; shown as the provider endpoint that ran.",
       "waitingForSlot": "Waiting for a slot",
       "waitingForSlotBody": "Waiting for a slot — this project already has the most generations running that it is allowed.",
       "queueNotDurable": "The remaining requests are held in this tab and are sent as slots free up. Closing the tab drops the ones that have not been sent.",
+      "templates": "Templates",
+      "Templates": {
+        "poster": "Poster",
+        "headshot": "Headshot",
+        "product-announcement": "Product announcement",
+        "flyer": "Flyer",
+        "infographic": "Infographic",
+        "illustration": "Illustration",
+        "icon": "Icon",
+        "ad": "Ad",
+        "social-post": "Social post",
+        "banner": "Banner",
+        "logo-mark": "Logo mark",
+        "background": "Background",
+        "thumbnail": "Thumbnail",
+        "mockup": "Mockup"
+      },
       "gallery": "Images",
-      "filterRejected": "Rejected",
-      "filterUndecided": "Undecided",
-      "noneMatchFilter": "Nothing matches that filter",
       "select": "Select",
       "deselect": "Deselect",
       "selectedCount": "{count, plural, one {# selected} other {# selected}}",
@@ -2611,32 +2655,74 @@
       "compareHint": "The same brief, side by side. Each pane names the model that made it.",
       "compareNeedsTwo": "Select at least two images to compare.",
       "bytesUnavailable": "This version's file is no longer in storage. Its prompt and settings are still here.",
+      "imageUnreadable": "This image could not be loaded.",
+      "imageRetry": "Try again",
       "previousVersion": "Previous version",
       "nextVersion": "Next version",
       "moreOptions": "Options",
-      "frameSetByPlacement": "The placement sets the frame. Clear it to choose a different one.",
       "modelCount": "{count, plural, one {# model} other {# models}}",
       "copyCount": "{count, plural, one {# copy} other {# copies}}",
-      "placementTarget": "Platform target",
       "pickTitle": "Pick a project",
-      "pickBody": "The studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
+      "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "scopeLabel": "Project",
-      "title": "Image studio",
-      "noProject": "No project selected",
+      "title": "Content Studio",
       "selectAllModels": "Select all",
+      "unselectAllModels": "Unselect all",
+      "searchModels": "Search models…",
+      "noModelsMatch": "No model matches.",
+      "noModelSelected": "Choose at least one model. The frame, resolution and format on offer are whatever every chosen model can honour.",
       "generationTime": "Generation time",
-      "estimatedCost": "Estimated cost",
-      "estimateTitle": "Estimated cost",
-      "estimateNotCharge": "Added up from each provider's own published price for the settings above. It is not a charge: nothing here reads back what fal actually billed, so treat it as what a press of Generate is worth rather than what it cost.",
-      "estimateUnpriced": "At least one of these models has no published price for the resolution it would run at, so this batch cannot be totalled.",
-      "estimateNoPrice": "No published price",
       "runPlan": "Will run {copies}x on {models, plural, one {# model} other {# models}}",
-      "runPlanEstimated": "Will run {copies}x on {models, plural, one {# model} other {# models}}, Est. {cost}",
-      "estimateEach": "{cost} x {count}",
-      "estimateCheckedOn": "Price checked {date}",
-      "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up."
+      "copiesOverCeiling": "{models, plural, one {# model} other {# models}} x {copies} copies is {images} images, and the limit is {limit}.",
+      "batchCeiling": "At most {count} images per press. Sokosumi sends them a few at a time, as the provider frees up.",
+      "errorUnreachable": "Could not reach the studio. Nothing was generated. Try again.",
+      "errorInsufficientCredits": "Not enough credits. Nothing was generated and nothing was charged. Top up your credits and try again.",
+      "credits": "Credits",
+      "creditsTitle": "Credits for this batch",
+      "creditsCharged": "Added up from each model's own published price, at 1 credit per cent and no markup on it. This is the charge, not an approximation of one: the same figure is taken when the image is delivered. A generation that fails costs nothing.",
+      "creditsUnderivable": "At least one of these models cannot be priced per image for the frame it would run at, so this batch cannot be totalled.",
+      "creditsNoFigure": "No figure",
+      "failedNoCharge": "Nothing was charged for it.",
+      "failedBodyUnreported": "The model did not return an image, and this generation is too old to say why.",
+      "FailureReasons": {
+        "provider_rejected": "The image provider refused this request.",
+        "provider_error": "The image provider could not finish this image.",
+        "provider_lost_request": "The image provider no longer has this request, so no image is coming.",
+        "provider_unreachable": "The image provider could not be reached for long enough that the studio stopped waiting.",
+        "submission_uncertain": "The image provider did not confirm it received this request, so it may or may not have run.",
+        "reference_not_sendable": "A reference image could not be sent to the image provider.",
+        "request_not_supported": "This model, or these settings, are no longer available from the image provider.",
+        "cancelled": "Cancelled before an image was produced.",
+        "abandoned_before_send": "This request was abandoned before it reached the image provider.",
+        "access_revoked": "The image was discarded because the project, or access to it, is gone.",
+        "storage_unavailable": "The image was generated but the studio could not store it.",
+        "unknown": "This generation did not finish."
+      },
+      "failedDetails": "What the provider said",
+      "runPlanCredits": "Will run {copies}x on {models, plural, one {# model} other {# models}}, {credits, plural, one {# credit} other {# credits}}",
+      "creditsEach": "{credits, plural, one {# credit} other {# credits}} x {count}",
+      "creditsCount": "{count, plural, one {# credit} other {# credits}}",
+      "priceBasis": "fal lists {price} per {unit} for this endpoint.",
+      "PriceUnits": {
+        "images": "image",
+        "generations": "generation",
+        "megapixels": "megapixel",
+        "processedMegapixels": "processed megapixel"
+      },
+      "creditsCheckedOn": "Price checked {date}"
+    },
+    "Social": {
+      "title": "Social",
+      "pickTitle": "Pick a project",
+      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "calendar": {
+        "title": "Posting schedule",
+        "description": "Every scheduled post for this project, and nothing else."
+      }
     },
     "Error": {
       "title": "Something went wrong",
@@ -2664,7 +2750,7 @@
       },
       "Content": {
         "MenuItems": {
-          "newTask": "New Task",
+          "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
@@ -2677,8 +2763,9 @@
           "chat": "Chat",
           "sokoBot": "Soko Bots",
           "calendar": "Calendar",
-          "imageStudio": "Image studio",
-          "schedules": "Schedules"
+          "contentStudio": "Content Studio",
+          "schedules": "Schedules",
+          "social": "Social"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -2695,11 +2782,14 @@
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, or conversations",
+      "description": "Search for tasks, jobs, or images",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
-      "error": "Failed to load results"
+      "error": "Failed to load results",
+      "filesGroup": "Files",
+      "filesSeeAll": "See all files",
+      "filesFilenameMatch": "Filename match"
     },
     "NoticeDialog": {
       "defaultTitle": "Notice",
@@ -5236,7 +5326,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Start a new task for {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5251,7 +5341,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Ready-to-run tasks",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5284,7 +5374,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "No ready-to-run tasks yet. Start a new task and describe what you need."
       },
       "Jobs": {
         "switchedWorkspace": "Switched to {account} account",
@@ -5633,7 +5723,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} more participants",
-      "directMessages": "Direct Messages",
+      "directMessages": "Direct messages",
       "pinned": "Pinned",
       "reorderPinned": "Reorder pinned chats",
       "reorderPinnedDone": "Done reordering",
@@ -5770,6 +5860,7 @@
         "label": "Unread",
         "threads": "Threads",
         "allUnreads": "Unreads",
+        "allUnreadsShortcut": "Unreads ({shortcut})",
         "unreadThreads": "{count, plural, one {# unread thread} other {# unread threads}}",
         "unreadThreadsCapped": "More than {max} unread threads",
         "mentions": "{count, plural, one {# mention} other {# mentions}}",
@@ -5863,9 +5954,11 @@
       },
       "Edit": {
         "action": "Edit",
-        "composerAria": "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line.",
+        "cancel": "Cancel",
+        "composerAria": "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape cancels, and Shift+Enter adds a new line.",
         "edited": "Edited",
-        "editedAt": "Edited {when}"
+        "editedAt": "Edited {when}",
+        "save": "Save"
       },
       "Copy": {
         "action": "Copy text",
@@ -6155,6 +6248,8 @@
       "uploadError": "Failed to upload file",
       "renameError": "Failed to rename file",
       "renameFileToFolderConflictError": "A folder with this name already exists",
+      "renameFolderAction": "Rename “{name}”",
+      "renameFolderButton": "Rename folder",
       "renameFolderToFileConflictError": "A file with this name already exists",
       "renameConflictError": "A file or folder with this name already exists",
       "deleteError": "Failed to delete file",
@@ -6173,6 +6268,7 @@
       "createFolderDialogDescription": "Enter a name for the new folder",
       "createFolderDialogConfirm": "Create",
       "deleteFolderDialogTitle": "Delete folder",
+      "deleteFolderAction": "Delete folder",
       "deleteFolderDialogDescription": "Are you sure you want to delete {folderName} and all its contents? This action cannot be undone.",
       "moveAction": "Move",
       "moveDialogTitle": "Move {itemName}",
@@ -6184,6 +6280,7 @@
       "createFolderDuplicateError": "A folder with this name already exists. Choose a different name.",
       "deleteFolderError": "Failed to delete folder",
       "moveFolderError": "Failed to move folder",
+      "moveFolderAction": "Move folder",
       "moveFileError": "Failed to move file",
       "tasksFolder": "Tasks",
       "tasksEmptyTitle": "No task files yet",
@@ -6221,10 +6318,151 @@
       "sortAscending": "Ascending",
       "sortDescending": "Descending",
       "tablesTab": "Tables",
-      "workspaceTab": "Your Workspace",
+      "workspaceTab": "Workspace",
       "filterStatusLabel": "Status",
       "filterStatusActive": "Active",
-      "filterStatusArchived": "Archived"
+      "filterStatusArchived": "Archived",
+      "Files": {
+        "searchPlaceholder": "Search files",
+        "searchLabel": "Search files in this workspace",
+        "searchError": "Search could not be completed.",
+        "retry": "Retry",
+        "loadMore": "Load more",
+        "emptyTitle": "Your files will appear here",
+        "emptyDescription": "Upload a file and it will appear here.",
+        "noMatchesTitle": "No accessible matches",
+        "noMatchesDescription": "Try a different wording, or clear the filters.",
+        "statusLoading": "Loading files",
+        "statusMatches": "{count} results",
+        "statusRestarted": "This list was refreshed. Showing it from the start.",
+        "statusTruncated": "More may match — refine your search",
+        "statusProcessing": "{count} still processing",
+        "filterHeading": "Filters",
+        "filterButton": "Filters",
+        "filterButtonWithCount": "Filters ({count})",
+        "filterSheetDescription": "Nothing is fetched until you apply.",
+        "filterApply": "Apply",
+        "filterClear": "Clear filters",
+        "filterFolder": "Folder",
+        "filterFolderAll": "All folders",
+        "filterCategory": "Category",
+        "filterTags": "Tags",
+        "filterTagsAny": "Any of these",
+        "filterTagsAll": "All of these",
+        "filterSource": "Source",
+        "filterType": "Type",
+        "filterStatus": "Processing",
+        "filenameMatch": "Filename match",
+        "suggestedChip": "Suggested: {name}",
+        "selectFile": "Select {name}",
+        "bulkSelected": "{count} selected",
+        "bulkWindowSelected": "{count} files selected from this result window",
+        "bulkWindowChanged": "This window changed — {count} files still match. Confirm again.",
+        "bulkSelectionExpired": "That result window expired. Search again.",
+        "bulkSetCategory": "Set {name}",
+        "bulkClear": "Clear selection",
+        "bulkApplied": "Updated {count} files",
+        "bulkPartial": "{applied} updated, {failed} failed and stay selected",
+        "bulkSelectAllMatches": "Select all {count} matches",
+        "bulkError": "Those changes could not be applied.",
+        "detailLoading": "Loading file",
+        "detailProcessing": "Processing",
+        "detailCategory": "Category",
+        "detailTags": "Tags",
+        "detailSuggestions": "Suggestions",
+        "detailProjects": "Projects",
+        "relatedHeading": "Related files",
+        "relatedEmpty": "No related files yet",
+        "relatedNotIndexed": "Related files will appear when processing finishes",
+        "relatedUnavailable": "Related files unavailable",
+        "processingIndexed": "Text is searchable.",
+        "processingPartial": "Only part of this file is indexed.",
+        "processingUnsupported": "Only the filename is searchable for this format.",
+        "processingPending": "Processing — the filename is already searchable.",
+        "uncategorized": "Uncategorized",
+        "undo": "Undo",
+        "noTags": "No tags yet",
+        "noProjects": "No projects yet",
+        "removeTag": "Remove {name}",
+        "tagRemoved": "Tag removed. It will not be suggested again.",
+        "tagRemoveFailed": "That tag could not be removed.",
+        "tagRestoreFailed": "That tag could not be put back.",
+        "saveConflict": "Updated elsewhere — review the changes.",
+        "suggestedLabel": "Suggested",
+        "suggestionStale": "Based on an older version",
+        "suggestionAccept": "Accept",
+        "suggestionDismiss": "Dismiss",
+        "projectNoAccessChange": "Linking a project does not change who can open this file.",
+        "unknownType": "Unknown type",
+        "unavailableTitle": "File unavailable",
+        "unavailableDescription": "It may have been deleted, or you may not have access.",
+        "backToFiles": "Back to files",
+        "source": {
+          "DRIVE_UPLOAD": "Upload",
+          "TASK_OUTPUT": "Task output",
+          "PROJECT_DOCUMENT": "Project document",
+          "NATIVE_TABLE": "Table",
+          "STUDIO_ASSET": "Studio asset"
+        },
+        "type": {
+          "document": "Document",
+          "image": "Image",
+          "data": "Data",
+          "video": "Video",
+          "audio": "Audio"
+        },
+        "status": {
+          "INDEXED": "Indexed",
+          "PARTIAL": "Partly indexed",
+          "PENDING": "Processing",
+          "UNSUPPORTED": "Filename only",
+          "FAILED": "Could not read"
+        },
+        "previewHeading": "Preview",
+        "previewOpen": "Open",
+        "previewDownload": "Download",
+        "previewLoading": "Loading preview",
+        "previewUnavailable": "This preview could not be loaded. The download still works.",
+        "previewNotRenderable": "No inline preview for this file type. Open it in a tab, or download it.",
+        "collectionSave": "Save as collection",
+        "collectionNamePrompt": "Name for this collection",
+        "collectionSaved": "Saved “{name}”",
+        "collectionUpdated": "Updated “{name}”",
+        "collectionSaveFailed": "That collection could not be saved.",
+        "collectionDeleteFailed": "That collection could not be deleted.",
+        "collectionsUnavailable": "Collections could not be loaded.",
+        "labelsUnavailable": "Categories and tags could not be loaded.",
+        "collectionActions": "Actions for {name}",
+        "collectionResave": "Save current filters here",
+        "collectionRename": "Rename",
+        "collectionDelete": "Delete",
+        "addTag": "Add tag",
+        "addTagSearch": "Search tags",
+        "addTagEmpty": "No tags to add",
+        "addTagUnavailable": "Tags could not be loaded",
+        "tagAdded": "Tag added. An earlier removal of it no longer applies.",
+        "suggestionExcerpt": "From this document",
+        "bulkMoreCategories": "{count} more…",
+        "bulkCategorySearch": "Search categories",
+        "bulkCategoryEmpty": "No categories match",
+        "relatedNoText": "No related files. This document has no readable text.",
+        "processingPartialCoverage": "Only part of this file is indexed. About {percent}% of the text was read.",
+        "sheetOpenAsPage": "Open as page",
+        "sheetDescription": "Details for this file",
+        "viewerDetails": "Details",
+        "viewerClose": "Close",
+        "viewerNoPreview": "No preview for this file type. Download it to open it.",
+        "searchButton": "Search",
+        "searchClear": "Clear search",
+        "typeAll": "All",
+        "foldersLabel": "Folders",
+        "foldersRoot": "All files",
+        "folderEmptyTitle": "Nothing in this folder yet",
+        "detailRejected": "Removed labels",
+        "rejectedExplainer": "You removed these, so they are not suggested again. Let the model reconsider one if that was a mistake.",
+        "allowAgain": "Let the model reconsider {name}",
+        "labelReopened": "Reopened. The model may suggest it again; it is not applied."
+      }
     },
     "SokoBot": {
       "Metadata": {
@@ -6706,7 +6944,8 @@
         "label": "Time zone"
       },
       "empty": {
-        "title": "No scheduled releases match these filters."
+        "title": "No scheduled releases match these filters.",
+        "socialOnly": "No social posts are scheduled in this period."
       },
       "schedules": {
         "link": "Schedules"
@@ -6723,6 +6962,17 @@
         "upcoming": "Coming up next",
         "loading": "Loading…",
         "loadMore": "Load more"
+      },
+      "socialPost": {
+        "mediaOnly": "Media post",
+        "project": "Project: {name}",
+        "projectLabel": "Project: ",
+        "scheduledBy": "Scheduled by {name}",
+        "unknownScheduler": "unknown user",
+        "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+      },
+      "socialOnly": {
+        "label": "Social posts only"
       }
     },
     "You": {

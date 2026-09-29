@@ -3,10 +3,9 @@ import "server-only";
 import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateProjectImageJobRequest,
-  ProjectImageAsset,
   ProjectImageJob,
+  ProjectImageStudioCatalog,
   ProjectImageStudioState,
-  ReviewProjectImageAssetRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 /**
@@ -16,6 +15,19 @@ import type {
  * Nothing here decides anything.
  */
 export const imageStudioService = {
+  /**
+   * The model catalog, off the polling path.
+   *
+   * Read once per page render and handed down as a prop. It is ~158KB for 152
+   * models and it used to be part of `getState`, which the open studio refetches
+   * every three seconds — so a reader sat on the page re-downloaded the whole
+   * catalog twenty times a minute to learn nothing new.
+   */
+  async getCatalog(): Promise<ProjectImageStudioCatalog> {
+    const result = await coreClient.getImageStudioCatalog();
+    return result.data;
+  },
+
   async getState(
     projectId: string,
     query: { assetId?: string; before?: string; beforeId?: string } = {},
@@ -52,32 +64,6 @@ export const imageStudioService = {
       await coreClient.postProjectsByIdImageStudioJobsByJobIdCancel(
         projectId,
         jobId,
-      );
-    return result.data;
-  },
-
-  async reviewAsset(
-    projectId: string,
-    assetId: string,
-    input: ReviewProjectImageAssetRequest,
-  ): Promise<ProjectImageAsset> {
-    const result =
-      await coreClient.postProjectsByIdImageStudioAssetsByAssetIdReview(
-        projectId,
-        assetId,
-        input,
-      );
-    return result.data;
-  },
-
-  async clearAssetReview(
-    projectId: string,
-    assetId: string,
-  ): Promise<ProjectImageAsset> {
-    const result =
-      await coreClient.deleteProjectsByIdImageStudioAssetsByAssetIdReview(
-        projectId,
-        assetId,
       );
     return result.data;
   },

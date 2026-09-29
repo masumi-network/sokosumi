@@ -11,7 +11,7 @@
       "source": "vercel/ai",
       "sourceType": "github",
       "skillPath": "skills/use-ai-sdk/SKILL.md",
-      "computedHash": "0883204d11b055e968dee697c5858e68064c27dfd4deb6310212895daa65c5ad"
+      "computedHash": "aee5bf7ecb066b54eae76799610fa8a9be9ff1ca9a000ea92d17c14ec862938b"
     },
     "ask-matt": {
       "source": "mattpocock/skills",
@@ -398,7 +398,7 @@
       "source": "vercel/turborepo",
       "sourceType": "github",
       "skillPath": "skills/turborepo/SKILL.md",
-      "computedHash": "fb06bed05c194cc42f7292f996676254e25080aebaaed613ad3cb0591645e1b0"
+      "computedHash": "9681d8dfeb5e6cdff767f1bcaba5d7ac55732a9d6c02ee120f44229f8ec25e7e"
     },
     "using-ably": {
       "source": "ably/agent-skills",
@@ -458,7 +458,7 @@
       "source": "obra/superpowers",
       "sourceType": "github",
       "skillPath": "skills/writing-plans/SKILL.md",
-      "computedHash": "cc8517a6bc569a0633b585649291688217b8a65d547c2ac5fa0923e56ecffa8c"
+      "computedHash": "c2647b5bf067be353a893e5a39a632cbbeb7ad81e61fa5ae227ece5490029073"
     },
     "writing-skills": {
       "source": "obra/superpowers",

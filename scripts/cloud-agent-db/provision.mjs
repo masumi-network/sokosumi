@@ -36,7 +36,7 @@ import {
   isAgentRunId,
 } from "./names.mjs";
 import {
-  createAgentBranch,
+  createBranch,
   deleteBranch,
   findBranchByName,
   getBranchConnectionUrls,
@@ -91,7 +91,7 @@ async function ensureBranch(config, branchName) {
 
   let created;
   try {
-    created = await createAgentBranch(config, {
+    created = await createBranch(config, {
       name: branchName,
       parentId: parent.id,
       expiresAt,

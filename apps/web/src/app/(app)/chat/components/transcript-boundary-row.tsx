@@ -64,7 +64,9 @@ export function TranscriptBoundaryRow({
         aria-busy={isLoading}
         onClick={() => onLoad(cursorMessageId)}
       >
-        {isLoading ? <Loader2 className="size-4 animate-spin" /> : null}
+        {isLoading ? (
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+        ) : null}
         {status === "failed" ? (
           <span role="alert" className="text-destructive font-normal">
             {t("Boundary.loadFailed")}

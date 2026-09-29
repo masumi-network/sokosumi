@@ -5,6 +5,13 @@ import {
   ProjectImageJobKind,
   ProjectImageJobStatus,
 } from "@sokosumi/database";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
+import {
+  CORE_API_ERROR_KINDS,
+  convertCentsToCredits,
+  convertCreditsToCents,
+  readImageDimensionsFromBytes,
+} from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
 import { HTTPException } from "hono/http-exception";
@@ -16,6 +23,10 @@ import {
   tooManyRequests,
   unprocessableEntity,
 } from "@/helpers/error";
+import {
+  createTaskEventTransaction,
+  isInsufficientBalanceError,
+} from "@/helpers/task-credits";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -26,7 +37,11 @@ import {
   readStudioBlobToken,
   requireStudioBlobToken,
 } from "@/lib/image-studio/blob-store";
-import { resolveImageSettings } from "@/lib/image-studio/catalog";
+import { imageModel, resolveImageSettings } from "@/lib/image-studio/catalog";
+import {
+  type ImageJobFailureReason,
+  imageJobFailureMessage,
+} from "@/lib/image-studio/failure-reason";
 import {
   buildFalInput,
   cancelQueued,
@@ -37,7 +52,9 @@ import {
   submitToQueue,
   uploadReference,
 } from "@/lib/image-studio/fal-client";
+import { creditsPerImage } from "@/lib/image-studio/image-model";
 import { readAssetBytes } from "@/services/image-studio-assets.service";
+import { publishImageToFiles } from "@/services/image-studio-files.service";
 
 /**
  * The job lifecycle: submit once, settle once.
@@ -71,7 +88,6 @@ const ACTIVE_STATUSES: ProjectImageJobStatus[] = [
 const SPEND_WINDOW_MS = 60 * 60 * 1000;
 
 export interface ImageJobSettings {
-  placementId?: string | null;
   aspectRatio: string;
   resolution: string;
   outputFormat: string;
@@ -123,15 +139,34 @@ function readSettings(value: Prisma.JsonValue): ImageJobSettings {
 }
 
 /**
+ * What reserving a job needs beyond what the caller asked for.
+ *
+ * `chargedCredits` is computed once, outside the transaction, from the resolved
+ * catalog — the same `creditsPerImage` figure the composer showed before anybody
+ * pressed generate. Recomputing it inside the reservation would let a catalog
+ * refresh land between the estimate and the debit, and the person would be
+ * charged a number they were never shown.
+ */
+interface ReserveImageJobInput extends CreateImageJobInput {
+  settings: ImageJobSettings;
+  /** Null for a personal workspace; otherwise the pot being charged. */
+  organizationId: string | null;
+  /** Credits (= cents) to debit for this one image. */
+  chargedCredits: number;
+}
+
+/**
  * Reserve a job row, or hand back the one this key already made.
  *
- * Counting the in-flight jobs and inserting the new one have to be the same
- * operation. As two statements, concurrent submissions all read the same count,
- * all pass the limit, and each then buys an image — the cap would bound a
- * serial loop and not a burst. This is the same reasoning, and the same helper,
- * that `soko-bot-avatar.service.ts` uses for its generation cap.
+ * Counting the in-flight jobs, taking the credits, and inserting the new row all
+ * have to be the same operation. As separate statements, concurrent submissions
+ * all read the same count, all pass the limit, and each then buys an image — the
+ * cap would bound a serial loop and not a burst. And a debit outside the insert
+ * is a charge with no job to point at, or a job nobody paid for, depending on
+ * which half failed. This is the same reasoning, and the same helper, that
+ * `soko-bot-avatar.service.ts` uses for its generation cap.
  */
-async function reserveJob(input: CreateImageJobInput) {
+async function reserveJob(input: ReserveImageJobInput) {
   try {
     return await reserveJobTransaction(input);
   } catch (error) {
@@ -154,7 +189,62 @@ async function reserveJob(input: CreateImageJobInput) {
   }
 }
 
-async function reserveJobTransaction(input: CreateImageJobInput) {
+/**
+ * Refuse a submission the balance cannot cover, without taking anything.
+ *
+ * Read-only by design. The studio charges on delivery, so there is nothing to
+ * reserve here — but a person should still be told "not enough credits" before a
+ * provider call rather than after one, and they should not be able to queue five
+ * images they can only afford one of.
+ *
+ * Hence the aggregate: the balance has to cover this image **plus every quote this
+ * person already has in flight**. Checking this image alone would let three
+ * concurrent submissions each see a balance that covers one of them, and the debits
+ * would then collide at delivery. This is not a reservation — it writes nothing and
+ * holds nothing — it just closes almost all of that window in one read.
+ *
+ * "Almost" is honest: two submissions can still pass this check in parallel and both
+ * land. What that costs is bounded and known, because `prepareConsumption` cannot
+ * overdraw — the balance can never go negative. The loser is handled at delivery,
+ * where the image is kept and given away free rather than lost. See `insertAsset`.
+ */
+async function requireBalanceForQuote(options: {
+  userId: string;
+  organizationId: string | null;
+  chargedCents: bigint;
+  tx: Prisma.TransactionClient;
+}): Promise<void> {
+  if (options.chargedCents <= 0n) return;
+
+  const committed = await options.tx.projectImageJob.aggregate({
+    where: {
+      requestedByUserId: options.userId,
+      status: { in: ACTIVE_STATUSES },
+    },
+    _sum: { chargedCents: true },
+  });
+  const inFlight = committed._sum.chargedCents ?? 0n;
+  const balance = await creditBucketRepository.getBalance(
+    options.userId,
+    options.organizationId,
+    options.tx,
+  );
+  const required = inFlight + options.chargedCents;
+  if (balance >= required) return;
+
+  // Credits, not cents, and the studio's own register — the repository's own
+  // message is about bucket arithmetic and is no use to the person reading it.
+  const price = convertCentsToCredits(options.chargedCents);
+  const available = convertCentsToCredits(balance);
+  throw unprocessableEntity(
+    inFlight > 0n
+      ? `Not enough credits. This image costs ${price}, your balance is ${available}, and ${convertCentsToCredits(inFlight)} is already committed to images still generating.`
+      : `Not enough credits. This image costs ${price} and your balance is ${available}.`,
+    { kind: CORE_API_ERROR_KINDS.INSUFFICIENT_BALANCE },
+  );
+}
+
+async function reserveJobTransaction(input: ReserveImageJobInput) {
   return await serializableTransaction(async (tx) => {
     const existing = await tx.projectImageJob.findUnique({
       where: {
@@ -196,6 +286,17 @@ async function reserveJobTransaction(input: CreateImageJobInput) {
         ? ProjectImageJobKind.EDIT
         : ProjectImageJobKind.GENERATE;
 
+    // A quote, not a charge. The studio charges when it delivers an image, so this
+    // transaction takes no money and writes no consumption rows — `insertAsset` is
+    // the only place a debit happens.
+    const chargedCents = convertCreditsToCents(input.chargedCredits);
+    await requireBalanceForQuote({
+      userId: input.userId,
+      organizationId: input.organizationId,
+      chargedCents,
+      tx,
+    });
+
     // A unique violation here aborts this transaction. It is caught by the
     // caller, on a fresh connection, because the aborted one cannot answer
     // another query.
@@ -213,6 +314,10 @@ async function reserveJobTransaction(input: CreateImageJobInput) {
         parentAssetId: input.parentAssetId,
         idempotencyKey: input.idempotencyKey,
         status: ProjectImageJobStatus.PENDING,
+        // The price the person was shown, kept so the figure taken at delivery is
+        // the figure they agreed to even if the catalog refreshes in between.
+        // `transactionId` stays null until there is an image to charge for.
+        chargedCents,
       },
     });
     return { job, created: true };
@@ -391,7 +496,7 @@ function webhookUrl(): string | null {
  * Create (or replay) a job and, when this caller owns the lease, send it.
  */
 export async function createImageJob(input: CreateImageJobInput) {
-  await requireProjectAccess({
+  const access = await requireProjectAccess({
     projectId: input.projectId,
     workspaceId: input.workspaceId,
     userId: input.userId,
@@ -416,7 +521,24 @@ export async function createImageJob(input: CreateImageJobInput) {
       { kind: "invalid_image_settings" },
     );
   }
-  const { job, created } = await reserveJob({ ...input, settings });
+  // The charge, decided here and nowhere else. Same catalog row, same function
+  // and therefore the same number the composer's pre-flight estimate showed.
+  let chargedCredits: number;
+  try {
+    chargedCredits = creditsPerImage(imageModel(input.modelId), settings);
+  } catch (error) {
+    throw unprocessableEntity(
+      error instanceof Error ? error.message : "Invalid image settings",
+      { kind: "invalid_image_settings" },
+    );
+  }
+
+  const { job, created } = await reserveJob({
+    ...input,
+    settings,
+    organizationId: access.organizationId,
+    chargedCredits,
+  });
   if (!created) return job;
 
   if (!(await claimForSubmission(job.id))) {
@@ -435,28 +557,27 @@ async function sendClaimedJob(jobId: string) {
     where: { id: jobId },
   });
 
-  let imageUrls: string[];
+  // Everything that has to happen before the paid call, in one try, because
+  // everything that can fail in here is provably unsent: `submitToQueue` has not
+  // been reached, so nothing was bought and the reservation's debit comes
+  // straight back.
+  //
+  // `buildFalInput` used to sit outside this — an oversight that became a real
+  // money bug the moment the catalog went live. It resolves `job.model` against
+  // the *current* catalog, so a model fal withdraws between reservation and
+  // submission made it throw, the exception escaped `createImageJob` as a 500,
+  // and the row was left SUBMITTING with the charge taken. The sweeper then
+  // called that SUBMISSION_UNCERTAIN, which is deliberately never refunded
+  // automatically — so the person paid for a request that was never sent.
+  let input: Record<string, unknown>;
+  // Which half failed, so the person is told the right thing. Set before each
+  // step rather than guessed from the message afterwards.
+  let preflightReason: ImageJobFailureReason = "reference_not_sendable";
   try {
-    imageUrls = await buildReferenceUrls(job);
-  } catch (error) {
-    // Nothing reached the generation queue, so this is a plain failure and the
-    // user may retry without risk of a second charge.
-    return await prisma.projectImageJob.update({
-      where: { id: job.id },
-      data: {
-        status: ProjectImageJobStatus.FAILED,
-        error:
-          error instanceof Error ? error.message : "reference upload failed",
-        settledAt: new Date(),
-        submitLeaseAt: null,
-      },
-    });
-  }
-
-  const settings = readSettings(job.settings);
-  const outcome = await submitToQueue({
-    model: job.model,
-    input: buildFalInput(
+    const imageUrls = await buildReferenceUrls(job);
+    const settings = readSettings(job.settings);
+    preflightReason = "request_not_supported";
+    input = buildFalInput(
       {
         prompt: job.prompt,
         aspectRatio: settings.aspectRatio,
@@ -466,7 +587,29 @@ async function sendClaimedJob(jobId: string) {
         imageUrls,
       },
       job.model,
-    ),
+    );
+  } catch (error) {
+    console.warn("[image-studio] a generation could not be prepared", {
+      jobId: job.id,
+      reason: preflightReason,
+      detail: error instanceof Error ? error.message : "unknown",
+    });
+    // Nothing to give back: the charge happens on delivery, and there was none.
+    return await prisma.projectImageJob.update({
+      where: { id: job.id },
+      data: {
+        status: ProjectImageJobStatus.FAILED,
+        error: imageJobFailureMessage(preflightReason),
+        failureReason: preflightReason,
+        settledAt: new Date(),
+        submitLeaseAt: null,
+      },
+    });
+  }
+
+  const outcome = await submitToQueue({
+    model: job.model,
+    input,
     webhookUrl: webhookUrl(),
   });
 
@@ -481,22 +624,35 @@ async function sendClaimedJob(jobId: string) {
           submitLeaseAt: null,
         },
       });
-    case "rejected":
+    case "rejected": {
+      // fal answered and refused, so it enqueued nothing and charged nothing.
+      console.warn("[image-studio] provider refused a submission", {
+        jobId: job.id,
+        status: outcome.status,
+        providerDetail: outcome.message.slice(0, 500),
+      });
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
           status: ProjectImageJobStatus.FAILED,
-          error: outcome.message,
+          error: imageJobFailureMessage("provider_rejected"),
+          failureReason: "provider_rejected",
           settledAt: new Date(),
           submitLeaseAt: null,
         },
       });
+    }
     case "uncertain":
+      console.warn("[image-studio] submission outcome unknown", {
+        jobId: job.id,
+        providerDetail: outcome.message.slice(0, 500),
+      });
       return await prisma.projectImageJob.update({
         where: { id: job.id },
         data: {
           status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-          error: outcome.message,
+          error: imageJobFailureMessage("submission_uncertain"),
+          failureReason: "submission_uncertain",
           submitLeaseAt: null,
         },
       });
@@ -522,7 +678,8 @@ export async function sweepStalledSubmissions(
     },
     data: {
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error: "The submitting process stopped before fal answered.",
+      error: imageJobFailureMessage("submission_uncertain"),
+      failureReason: "submission_uncertain",
       submitLeaseAt: null,
     },
   });
@@ -608,15 +765,16 @@ export async function reconcileJob(jobId: string): Promise<void> {
           data: {
             status: ProjectImageJobStatus.CANCELED,
             settledAt: new Date(),
-            error: "Cancelled before the provider produced an image.",
+            error: imageJobFailureMessage("cancelled"),
+            failureReason: "cancelled",
           },
         });
         return;
       }
-      await failJob(job.id, "fal no longer has this request");
+      await failImageJob(job.id, "provider_lost_request");
       return;
     case "error":
-      await failJob(job.id, status.message);
+      await failImageJob(job.id, "provider_error", status.message);
       return;
     case "completed":
       break;
@@ -634,7 +792,7 @@ export async function reconcileJob(jobId: string): Promise<void> {
   if (result.kind === "error") {
     // A verdict, so the dependency answered and there are no bytes to come.
     await noteReachable(job.id, "result");
-    await failJob(job.id, result.message);
+    await failImageJob(job.id, "provider_error", result.message);
     return;
   }
   // Deliberately *not* cleared here. Getting the image's address is half of
@@ -645,7 +803,11 @@ export async function reconcileJob(jobId: string): Promise<void> {
   //
   // Settled even when cancellation was requested: fal may accept a
   // cancellation and finish anyway, and an image we paid for should be kept.
-  await settleWithImage(job.id, result.images[0]!.url);
+  const produced = result.images[0]!;
+  await settleWithImage(job.id, produced.url, {
+    width: produced.width,
+    height: produced.height,
+  });
 }
 
 /**
@@ -706,6 +868,22 @@ const OUTAGE_WORDING: Record<UnreachableSource, (hours: number) => string> = {
 };
 
 /**
+ * The stable code a client localises, per dependency.
+ *
+ * `authorization` maps to no code on purpose. The other three are things a person
+ * can be told in one clause; "we could not confirm who this image belongs to" is
+ * not one of them, and the wording above already says it better than any code
+ * would. Such a row keeps its sentence and leaves `failureReason` null, which a
+ * client already has to handle for every job written before this existed.
+ */
+const OUTAGE_REASON: Record<UnreachableSource, ImageJobFailureReason | null> = {
+  status: "provider_unreachable",
+  result: "provider_unreachable",
+  authorization: null,
+  storage: "storage_unavailable",
+};
+
+/**
  * Record a read that never arrived, against the dependency that failed.
  *
  * Never settles the job on its own, and never touches the settlement lease —
@@ -751,6 +929,7 @@ async function noteUnreachable(
   if (outageMs < UNREACHABLE_GRACE_MS) return;
 
   const hours = Math.round(outageMs / 3_600_000);
+  const reason = OUTAGE_REASON[source];
   await prisma.projectImageJob.updateMany({
     where: { id: jobId, status: { in: [...LIVE_STATUSES] } },
     data: {
@@ -758,7 +937,12 @@ async function noteUnreachable(
       // offering a retry that looks free would be a lie. Not terminal either —
       // this status stays pollable, so the image is still recoverable.
       status: ProjectImageJobStatus.SUBMISSION_UNCERTAIN,
-      error: `${OUTAGE_WORDING[source](hours)} (${message.slice(0, 200)}).`,
+      // The raw dependency message stays out of it: the wording above already
+      // says which dependency failed and for how long, which is the part a
+      // person can act on. The detail is in `lastPollError` for whoever is
+      // debugging the row.
+      error: `${OUTAGE_WORDING[source](hours)}.`,
+      ...(reason ? { failureReason: reason } : {}),
       settledAt: now,
     },
   });
@@ -787,13 +971,34 @@ async function noteReachable(
 }
 
 /**
- * Settle a job on a definite answer from the provider.
+ * Settle a job on a definite answer from the provider, and pay it back.
  *
- * Only for verdicts: a runner error, a refused request, a request fal says it
- * no longer has. Never for a read that did not arrive — that is
+ * Only for verdicts: a runner error, a refused request, a request fal says it no
+ * longer has. Never for a read that did not arrive — that is
  * {@link noteUnreachable}.
+ *
+ * Exported because it is the *only* place allowed to write a terminal failure on
+ * an image job. fal's completion webhook used to write FAILED itself, with its
+ * own `updateMany`, and so never refunded: a failed generation on preview took
+ * eight credits and kept them. One owner is the fix — a second writer is a second
+ * place that has to remember about money, and it did not.
  */
-async function failJob(jobId: string, message: string): Promise<void> {
+export async function failImageJob(
+  jobId: string,
+  reason: ImageJobFailureReason,
+  /** The provider's own words. Logged, never shown. */
+  providerDetail?: string,
+): Promise<void> {
+  if (providerDetail) {
+    // Where a raw transport string belongs. "Unexpected status code: 422" is
+    // useful to whoever is debugging the job and useless to whoever was waiting
+    // for the image.
+    console.warn("[image-studio] provider failed a generation", {
+      jobId,
+      reason,
+      providerDetail: providerDetail.slice(0, 500),
+    });
+  }
   await prisma.projectImageJob.updateMany({
     where: {
       id: jobId,
@@ -801,7 +1006,8 @@ async function failJob(jobId: string, message: string): Promise<void> {
     },
     data: {
       status: ProjectImageJobStatus.FAILED,
-      error: message.slice(0, 500),
+      error: imageJobFailureMessage(reason),
+      failureReason: reason,
       settledAt: new Date(),
     },
   });
@@ -816,6 +1022,14 @@ async function failJob(jobId: string, message: string): Promise<void> {
 export async function settleWithImage(
   jobId: string,
   sourceUrl: string,
+  /**
+   * What the provider said the image measures, when it said anything.
+   *
+   * fal reports `width`/`height` for some endpoints and not others, and settlement
+   * used to take only the URL and throw these away — so even the endpoints that
+   * *did* report a size had it discarded, and every non-PNG stored 0x0.
+   */
+  providerSize?: { width: number | null; height: number | null },
 ): Promise<void> {
   const job = await prisma.projectImageJob.findUnique({
     where: { id: jobId },
@@ -845,13 +1059,23 @@ export async function settleWithImage(
   // Without it, a job started by someone who has since been removed from the
   // organization still downloaded the image, wrote it into blob storage, and
   // published a version into a project they can no longer see.
-  let project: { id: string; workspaceId: string };
+  // `organizationId` too: it decides which pot the delivery debit comes out of, and
+  // the access check has already read it.
+  let project: {
+    id: string;
+    workspaceId: string;
+    organizationId: string | null;
+  };
   try {
     const access = await requireProjectAccessForUser({
       projectId: job.projectId,
       userId: job.requestedByUserId,
     });
-    project = { id: access.projectId, workspaceId: access.workspaceId };
+    project = {
+      id: access.projectId,
+      workspaceId: access.workspaceId,
+      organizationId: access.organizationId,
+    };
     await noteReachable(job.id, "authorization");
   } catch (error) {
     if (!isAccessDenied(error)) {
@@ -873,11 +1097,13 @@ export async function settleWithImage(
       where: { id: job.id },
       data: {
         status: ProjectImageJobStatus.ORPHANED,
-        error:
-          "The image was discarded: the project or the requester's access to it is gone.",
+        error: imageJobFailureMessage("access_revoked"),
+        failureReason: "access_revoked",
         settledAt: new Date(),
       },
     });
+    // The person keeps nothing and pays nothing: the charge only happens when an
+    // asset is written, and none was.
     return;
   }
 
@@ -894,7 +1120,7 @@ export async function settleWithImage(
       { jobId: job.id },
     );
     await releaseSettlementLease(job.id, lease);
-    // An outage, not a verdict. `failJob` was wrong here: fal has already
+    // An outage, not a verdict. `failImageJob` was wrong here: fal has already
     // produced and charged for this image, and `FAILED` is outside
     // `LIVE_STATUSES`, so the row would drop out of `recoverableSelection()`
     // and neither polling nor the webhook could ever pick it up again —
@@ -931,7 +1157,23 @@ export async function settleWithImage(
     .createHash("sha256")
     .update(downloaded.bytes)
     .digest("hex");
-  const dimensions = readPngDimensions(downloaded.bytes);
+  // The provider first, because it knows without us guessing; then the image's own
+  // header, which is what covers the endpoints that report nothing. `recraft/v3`
+  // returns WebP with no dimensions and `luma-photon` reports none at all, and both
+  // stored 0x0 until this read the bytes.
+  const dimensions =
+    readProviderSize(providerSize) ??
+    readImageDimensionsFromBytes(downloaded.bytes);
+  if (!dimensions) {
+    // Not a failure: the column holds 0 and the client falls back to the rendered
+    // image's intrinsic size. Logged because a format nothing can read is worth
+    // knowing about.
+    console.warn("[image-studio] stored an image with no readable dimensions", {
+      jobId: job.id,
+      contentType: downloaded.contentType,
+      bytes: downloaded.bytes.byteLength,
+    });
+  }
 
   // Private, and into the studio's own store — `studioBlobToken`, never
   // `BLOB_READ_WRITE_TOKEN`. Vercel fixes public-or-private per store, and the
@@ -991,6 +1233,9 @@ export async function settleWithImage(
         prompt: job.prompt,
         settings: job.settings,
         parentAssetId: job.parentAssetId,
+        requestedByUserId: job.requestedByUserId,
+        organizationId: project.organizationId,
+        chargedCents: job.chargedCents,
       },
       blobPathname: blob.pathname,
       contentType: downloaded.contentType,
@@ -1004,17 +1249,35 @@ export async function settleWithImage(
     await releaseSettlementLease(job.id, lease);
     throw error;
   }
+  // Only the settler that stored the asset gets here, so this runs once per job.
+  await publishImageToFiles({
+    jobId: job.id,
+    projectId: project.id,
+    workspaceId: project.workspaceId,
+    organizationId: project.organizationId,
+    userId: job.requestedByUserId,
+    prompt: job.prompt,
+    bytes: downloaded.bytes,
+    contentType: downloaded.contentType,
+  });
   // The outage this dependency was in ends here, not earlier: publishing the
   // asset clears every clock in the same transaction that records the success.
 }
 
 /**
- * Insert the version and take its number.
+ * Insert the version, take its number, and take the money.
  *
  * Version allocation is a read-then-write, so it runs serializable and the
- * `(rootId, version)` unique index backs it up: if two settlements in one
- * lineage still collide, the loser aborts and the helper retries it against a
- * count that now includes the winner.
+ * `(rootId, version)` unique index backs it up: if two settlements in one lineage
+ * still collide, the loser aborts and the helper retries it against a count that
+ * now includes the winner.
+ *
+ * **This is the only place the studio charges for an image.** It is the right place
+ * because it is already exactly-once per job: it early-returns on an existing asset
+ * for this job, `ProjectImageAsset.jobId` is unique, it runs serializable, and the
+ * caller treats a unique violation as "another settler won". A debit placed inside
+ * it inherits all of that, so however many webhooks, polls and cron sweeps race one
+ * job, the person is charged once.
  */
 async function insertAsset(input: {
   job: {
@@ -1025,6 +1288,11 @@ async function insertAsset(input: {
     prompt: string;
     settings: Prisma.JsonValue;
     parentAssetId: string | null;
+    /** Who pays, and out of which pot. */
+    requestedByUserId: string;
+    organizationId: string | null;
+    /** The quote written at submit. What gets taken here. */
+    chargedCents: bigint | null;
   };
   blobPathname: string;
   contentType: string;
@@ -1062,6 +1330,47 @@ async function insertAsset(input: {
       select: { version: true },
     });
 
+    // The charge. Quoted at submit, taken here, once.
+    //
+    // A shortfall must never cost somebody an image the platform has already paid
+    // fal for. `prepareConsumption` cannot overdraw — it throws rather than letting
+    // a balance go negative — so if the balance fell between submit and delivery the
+    // debit fails, and letting that failure escape would abort this transaction,
+    // leave the asset unwritten, and make settlement retry an image it can never
+    // store. The image is kept and given away instead.
+    //
+    // `chargedCents` then has to become 0, not stay at the quote: the history
+    // trigger reads it, and a row reporting a charge with no transaction behind it
+    // is the feed lying about money. Zero is the true number.
+    let chargedCents = input.job.chargedCents ?? 0n;
+    let transactionId: string | null = null;
+    if (chargedCents > 0n) {
+      try {
+        transactionId = await createTaskEventTransaction({
+          userId: input.job.requestedByUserId,
+          organizationId: input.job.organizationId,
+          cents: chargedCents,
+          tx,
+        });
+      } catch (error) {
+        // Only a shortfall is survivable. Anything else — a pool timeout, a
+        // serialization failure — is transient, and rethrowing lets the settler
+        // retry the whole thing rather than silently giving an image away.
+        if (!isInsufficientBalanceError(error)) throw error;
+        console.error(
+          "[image-studio] delivered an image free: the balance no longer covered the quote",
+          {
+            jobId: input.job.id,
+            quotedCents: chargedCents.toString(),
+            userId: input.job.requestedByUserId,
+            organizationId: input.job.organizationId,
+          },
+        );
+        chargedCents = 0n;
+        transactionId = null;
+      }
+    }
+
     await tx.projectImageAsset.create({
       data: {
         id,
@@ -1089,8 +1398,12 @@ async function insertAsset(input: {
         status: ProjectImageJobStatus.SUCCEEDED,
         settledAt: new Date(),
         error: null,
+        failureReason: null,
         settleLeaseAt: null,
         settleLeaseOwner: null,
+        // What was actually taken, which is the quote unless the balance had moved.
+        chargedCents,
+        transactionId,
         // The job is done; no dependency is still owed a read.
         statusUnreachableSince: null,
         resultUnreachableSince: null,
@@ -1290,7 +1603,8 @@ async function finaliseCancellations(limit: number): Promise<number> {
         data: {
           status: ProjectImageJobStatus.CANCELED,
           settledAt: new Date(),
-          error: "Cancelled before the provider produced an image.",
+          error: imageJobFailureMessage("cancelled"),
+          failureReason: "cancelled",
         },
       });
       finalised += settled.count;
@@ -1351,8 +1665,8 @@ export async function recoverUnclaimedReservations(
         },
         data: {
           status: ProjectImageJobStatus.FAILED,
-          error:
-            "Abandoned before it was sent to the provider. Nothing was charged.",
+          error: imageJobFailureMessage("abandoned_before_send"),
+          failureReason: "abandoned_before_send",
           settledAt: new Date(),
         },
       });
@@ -1394,8 +1708,8 @@ export async function recoverUnclaimedReservations(
         },
         data: {
           status: ProjectImageJobStatus.ORPHANED,
-          error:
-            "Not sent: the project or the requester's access to it is gone. Nothing was charged.",
+          error: imageJobFailureMessage("access_revoked"),
+          failureReason: "access_revoked",
           settledAt: new Date(),
         },
       });
@@ -1440,20 +1754,21 @@ const PENDING_RECOVERY_AFTER_MS = 60_000;
 const PENDING_ABANDON_AFTER_MS = 30 * 60_000;
 
 /**
- * Minimal PNG header read, so a stored version knows its own size without
- * pulling in an image library. Returns null for anything else; the column then
- * holds 0 and the UI falls back to the intrinsic size of the rendered image.
+ * The provider's own figures, when they are usable.
+ *
+ * fal sends `null` for endpoints that do not report a size, and the shape allows
+ * anything, so this is where a half-reported size (a width with no height) is
+ * rejected rather than stored as `1024x0`.
  */
-export function readPngDimensions(
-  bytes: Uint8Array,
+function readProviderSize(
+  size: { width: number | null; height: number | null } | undefined,
 ): { width: number; height: number } | null {
-  if (bytes.byteLength < 24) return null;
-  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
-  for (let index = 0; index < signature.length; index += 1) {
-    if (bytes[index] !== signature[index]) return null;
-  }
-  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
-  return { width: view.getUint32(16), height: view.getUint32(20) };
+  if (!size) return null;
+  const { width, height } = size;
+  if (typeof width !== "number" || typeof height !== "number") return null;
+  if (!Number.isInteger(width) || !Number.isInteger(height)) return null;
+  if (width <= 0 || height <= 0) return null;
+  return { width, height };
 }
 
-export { readSettings };
+export { readProviderSize, readSettings };

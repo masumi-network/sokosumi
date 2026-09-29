@@ -213,7 +213,7 @@ export function TaskSchedulesView({
         value={shownValue}
       >
         {rows.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 px-4 py-16 text-center">
+          <div className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-bottom-1 flex flex-col items-center gap-2 px-4 py-16 text-center duration-200 ease-out">
             <CalendarSync
               className="text-muted-foreground size-6"
               aria-hidden

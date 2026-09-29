@@ -47,7 +47,7 @@ export async function ChatLandingMobile({
   return (
     <section className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col items-stretch pt-4 pb-3 text-center">
       <div className="app-scrollbar flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-start overflow-y-auto py-4">
-        <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance">
+        <h1 className="text-foreground shrink-0 px-4 text-2xl font-light text-balance tracking-tight">
           {userName ? t("greetingWithName", { name: userName }) : t("greeting")}
         </h1>
 

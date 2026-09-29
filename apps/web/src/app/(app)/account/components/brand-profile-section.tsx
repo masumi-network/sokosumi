@@ -236,7 +236,7 @@ export function BrandProfileSection({
       <Card>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <fieldset disabled={isBusy}>
+            <fieldset className="space-y-6" disabled={isBusy}>
               <CardHeader>
                 <CardTitle>{t("title")}</CardTitle>
                 <CardDescription>{t("description")}</CardDescription>
@@ -303,7 +303,7 @@ export function BrandProfileSection({
                   className="w-full"
                 >
                   {form.formState.isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                   ) : null}
                   {form.formState.isSubmitting ? t("saving") : t("submit")}
                 </Button>

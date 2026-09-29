@@ -13,6 +13,7 @@ import {
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskDetailActions } from "@/app/tasks/components/task-detail-actions";
+import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import {
   type CreateTaskResult,
   createTaskAndLink,
@@ -654,6 +655,7 @@ function renderActions(
       organizations={sampleOrganizations}
       personalWorkspaceLabel={personalWorkspaceLabel}
       isReadOnly={false}
+      isTaskOwner
       {...props}
     />,
   );
@@ -826,6 +828,24 @@ describe("TaskDetailActions", () => {
       screen.getByRole("menuitem", { name: labels.archive }),
     ).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: labels.edit })).toBeNull();
+  });
+
+  it("marks the task archived for the board before leaving", async () => {
+    const user = userEvent.setup();
+    vi.mocked(deleteTask).mockResolvedValue({ taskId: "task-1" });
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      organizations: undefined,
+      isTaskOwner: true,
+      isReadOnly: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+    await user.click(screen.getByRole("menuitem", { name: labels.archive }));
+    await user.click(screen.getByRole("button", { name: labels.archive }));
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/tasks"));
+    expect(isTaskArchived("task-1")).toBe(true);
   });
 
   it("reports a stale status list instead of opening the upgrade modal", async () => {
@@ -1142,6 +1162,38 @@ describe("TaskDetailActions", () => {
 
     expect(
       screen.getByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeInTheDocument();
+  });
+
+  it("hides move to workspace from a member who does not own the task", async () => {
+    const user = userEvent.setup();
+
+    renderActions({ isTaskOwner: false });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("menuitem", { name: "Move to workspace" }),
+    ).toBeNull();
+  });
+
+  it("shows archive while grant approval is pending to a member of an organization task", async () => {
+    const user = userEvent.setup();
+    renderActions({
+      status: "GRANT_PENDING" as TaskStatus,
+      currentOrganizationId: "org-1",
+      isTaskOwner: false,
+      hasAssignedSeat: true,
+      isReadOnly: true,
+    });
+
+    await user.click(screen.getByRole("button", { name: actionsMenuLabel }));
+
+    expect(
+      screen.getByRole("menuitem", { name: labels.archive }),
     ).toBeInTheDocument();
   });
 
