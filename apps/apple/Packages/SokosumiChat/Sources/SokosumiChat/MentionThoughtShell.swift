@@ -2,12 +2,14 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
-/// The persisted coworker bubble Core leaves for an @mention: empty while the
-/// Thought streams (`metadata.streaming` + `mention_id`) and kept after dispatch
-/// failed (`mention_failed`) so "Failed to reply" and Retry can live on it.
-/// Mirrors the shell helpers in web `coworker-thought.ts`; only coworker
-/// senders count, like web's transcript filter.
-public enum CoworkerMentionShell: Equatable, Sendable {
+/// The persisted bubble Core leaves for an @mention: empty while the Thought
+/// streams (`metadata.streaming` + `mention_id`) and kept after dispatch failed
+/// (`mention_failed`) so "Failed to reply" and Retry can live on it. Mirrors
+/// web's `isPersistedMentionThoughtShell` / `isFailedMentionThoughtShell`
+/// (`coworker-thought.ts`) on a row that resolves the Thought view
+/// (`hasThoughtView`). Which shells a transcript keeps is
+/// `shouldKeepPersistedMessage`'s rule, not this one.
+public enum MentionThoughtShell: Equatable, Sendable {
   /// Live Thought with no answer yet. `startedAt` comes from
   /// `thought_timing_ms.start`; nil falls back to the row's `createdAt`.
   case thinking(startedAt: Date?)
@@ -17,7 +19,7 @@ public enum CoworkerMentionShell: Equatable, Sendable {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
   public init?(message: Message) {
-    guard case .case2 = message.sender, message.deletedAt == nil,
+    guard hasThoughtView(message),
           let metadata = message.metadata?.additionalProperties,
           let mentionId = metadata["mention_id"]?.value as? String, !mentionId.isEmpty
     else { return nil }
@@ -50,7 +52,7 @@ public enum CoworkerMentionShell: Equatable, Sendable {
   /// source message must be loaded and sent by the current user.
   public static func canRetry(_ shell: Message, currentUserId: String, sources: [Message]) -> Bool {
     guard !currentUserId.isEmpty,
-          case let .failed(_, sourceMessageId?) = CoworkerMentionShell(message: shell),
+          case let .failed(_, sourceMessageId?) = MentionThoughtShell(message: shell),
           let source = sources.first(where: { $0.id == sourceMessageId }),
           case let .case1(sender) = source.sender
     else { return false }
