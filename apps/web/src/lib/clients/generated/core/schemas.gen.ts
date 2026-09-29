@@ -23966,6 +23966,71 @@ export const TaskParticipantsSchema = {
     ]
 } as const;
 
+export const TaskSellerReceiptSchema = {
+    type: 'object',
+    properties: {
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        claimStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        onChainState: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        settled: {
+            type: 'boolean'
+        },
+        txHash: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        withdrawnForSeller: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    unit: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    amount: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'unit',
+                    'amount'
+                ]
+            }
+        }
+    },
+    required: [
+        'blockchainIdentifier',
+        'claimStatus',
+        'onChainState',
+        'settled',
+        'txHash',
+        'withdrawnForSeller'
+    ]
+} as const;
+
 export const TaskWorkspaceSchema = {
     type: 'object',
     properties: {
