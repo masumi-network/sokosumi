@@ -1,12 +1,17 @@
 import { paymentClient } from "@/clients/masumi-payment.client";
+import { badGateway } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
+import { parsePurchasePayload } from "@/services/task-payment-claim.service";
 
 // Proves the intended seller receipt for a Coworker Task. Core tracks only the
 // TaskPaymentClaim (PENDING | PURCHASED | REFUNDED), which stops at the buyer
 // debit. The real seller receipt lives on-chain, so we resolve the claim's
-// purchase through the same Masumi Payment Service client the Job sync uses
-// (paymentClient().getPurchaseByBlockchainIdentifier) and read its settlement
-// state. See the `settled` rule below for what counts as a seller receipt.
+// purchase through the same Masumi Payment Service seam the claim sync uses
+// (resolveMasumiTaskPaymentPurchase), which only accepts a purchase matching the
+// claim's stored terms, and read its settlement state. See the `settled` rule
+// below for what counts as a seller receipt.
+
+const RECEIPT_REQUEST_TIMEOUT_MS = 20_000;
 
 export interface TaskSellerReceipt {
   blockchainIdentifier: string | null;
@@ -33,12 +38,13 @@ export async function resolveTaskSellerReceipt(
   // The pilot has one payment per task, so the newest claim is the one to
   // prove. Known limitation: if a task is later re-charged (a second claim),
   // this reports the newest claim only. An older settled claim on the same task
-  // would then read as settled:false. Revisit with a status-aware selection if
-  // re-charging Coworker tasks becomes a real flow.
+  // would then read as settled:false. A claim whose TaskEvent was deleted
+  // (taskEventId set null) is not found either. Revisit with a status-aware
+  // selection if re-charging Coworker tasks becomes a real flow.
   const claim = await db.taskPaymentClaim.findFirst({
     where: { taskEvent: { taskId } },
     orderBy: { createdAt: "desc" },
-    select: { blockchainIdentifier: true, status: true },
+    select: { blockchainIdentifier: true, purchasePayload: true, status: true },
   });
   if (!claim) return NO_CLAIM;
 
@@ -48,10 +54,21 @@ export async function resolveTaskSellerReceipt(
     claimStatus: claim.status,
   };
 
-  const resolved = await paymentClient().getPurchaseByBlockchainIdentifier(
-    claim.blockchainIdentifier,
+  const resolved = await paymentClient().resolveMasumiTaskPaymentPurchase(
+    parsePurchasePayload(claim.purchasePayload),
+    { signal: AbortSignal.timeout(RECEIPT_REQUEST_TIMEOUT_MS) },
   );
-  if (resolved.isErr()) return base;
+  if (resolved.isErr()) {
+    // No purchase on the node yet is a real "not settled" answer. A node
+    // failure or a purchase that does not match the claim is not: reporting
+    // settled:false there would read as a proven non-payment.
+    if (resolved.error.kind === "not_found") return base;
+    throw badGateway(
+      resolved.error.kind === "mismatch"
+        ? "Resolved purchase does not match the task payment"
+        : "Could not resolve the task payment from the Masumi Payment Service",
+    );
+  }
 
   const purchase = resolved.value;
   const onChainState = purchase.onChainState ?? null;

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveTaskSellerReceipt } from "@/helpers/coworker-task-receipt";
+import { badGateway } from "@/helpers/error";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import mountGetTaskReceipt from "./get";
@@ -17,12 +18,16 @@ vi.mock("@/helpers/coworker-task-receipt", () => ({
   resolveTaskSellerReceipt: vi.fn(),
 }));
 
-const { taskFindFirstMock } = vi.hoisted(() => ({
+const { taskFindFirstMock, coworkerFindFirstMock } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
+  coworkerFindFirstMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    coworker: {
+      findFirst: coworkerFindFirstMock,
+    },
     task: {
       findFirst: taskFindFirstMock,
     },
@@ -31,23 +36,35 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const testWorkspaceId = "11111111-1111-7111-8111-111111111111";
 
-function createApp() {
+function createApp(actor: "user" | "coworker" = "user") {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
-    const authContext: AuthenticationContext = {
-      actor: "user",
-      userId: "user_123",
-      organizationId: "org_123",
-      role: "user",
-    };
+    const authContext: AuthenticationContext =
+      actor === "coworker"
+        ? {
+            actor: "coworker",
+            coworkerId: "cow_123",
+            vendorId: "01960001-0001-7001-8001-000000000001",
+          }
+        : {
+            actor: "user",
+            userId: "user_123",
+            organizationId: "org_123",
+            role: "user",
+          };
     c.set("authContext", authContext);
-    c.set("workspaceContext", {
-      workspaceId: testWorkspaceId,
-      userId: "user_123",
-      organizationId: "org_123",
-    });
+    c.set(
+      "workspaceContext",
+      actor === "user"
+        ? {
+            workspaceId: testWorkspaceId,
+            userId: "user_123",
+            organizationId: "org_123",
+          }
+        : null,
+    );
     return await next();
   });
 
@@ -67,6 +84,7 @@ describe("GET /tasks/{id}/receipt", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     taskFindFirstMock.mockResolvedValue({ id: "tsk_a", ownerId: "user_123" });
+    coworkerFindFirstMock.mockResolvedValue({ id: "cow_123" });
     vi.mocked(resolveTaskSellerReceipt).mockResolvedValue(settledReceipt);
   });
 
@@ -102,5 +120,57 @@ describe("GET /tasks/{id}/receipt", () => {
     expect(response.status).toBe(404);
     // The gate blocked before the settlement helper ran.
     expect(resolveTaskSellerReceipt).not.toHaveBeenCalled();
+  });
+
+  it("returns the seller receipt to the coworker assigned to the task", async () => {
+    const app = createApp("coworker");
+    mountGetTaskReceipt(app);
+
+    const response = await app.request("http://localhost/tsk_a/receipt");
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { data: typeof settledReceipt };
+    expect(body.data).toEqual(settledReceipt);
+    // The coworker gate scoped the task read to this coworker's assignment.
+    expect(JSON.stringify(taskFindFirstMock.mock.calls[0][0])).toContain(
+      "cow_123",
+    );
+  });
+
+  it("returns 404 to a coworker that cannot read the task", async () => {
+    taskFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp("coworker");
+    mountGetTaskReceipt(app);
+
+    const response = await app.request("http://localhost/tsk_a/receipt");
+
+    expect(response.status).toBe(404);
+    expect(resolveTaskSellerReceipt).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 to a coworker without the tasks capability", async () => {
+    coworkerFindFirstMock.mockResolvedValue(null);
+
+    const app = createApp("coworker");
+    mountGetTaskReceipt(app);
+
+    const response = await app.request("http://localhost/tsk_a/receipt");
+
+    expect(response.status).toBe(403);
+    expect(resolveTaskSellerReceipt).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 when the payment node cannot resolve the receipt", async () => {
+    vi.mocked(resolveTaskSellerReceipt).mockRejectedValue(
+      badGateway("Could not resolve the task payment"),
+    );
+
+    const app = createApp();
+    mountGetTaskReceipt(app);
+
+    const response = await app.request("http://localhost/tsk_a/receipt");
+
+    expect(response.status).toBe(502);
   });
 });

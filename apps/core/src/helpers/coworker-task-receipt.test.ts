@@ -1,13 +1,26 @@
 import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const getPurchaseByBlockchainIdentifier = vi.fn();
+const resolveMasumiTaskPaymentPurchase = vi.fn();
 
 vi.mock("@/clients/masumi-payment.client", () => ({
-  paymentClient: () => ({ getPurchaseByBlockchainIdentifier }),
+  paymentClient: () => ({ resolveMasumiTaskPaymentPurchase }),
 }));
 
 import { resolveTaskSellerReceipt } from "@/helpers/coworker-task-receipt";
+
+const purchasePayload = {
+  blockchainIdentifier: "bc_1",
+  agentIdentifier: "agent_1",
+  sellerVkey: "vkey_1",
+  submitResultTime: "1",
+  payByTime: "1",
+  unlockTime: "1",
+  externalDisputeUnlockTime: "1",
+  inputHash: "hash_1",
+  Amounts: [{ amount: "500000", unit: "lovelace" }],
+  identifierFromPurchaser: "purchaser_1",
+};
 
 function dbWith(claim: unknown) {
   return {
@@ -15,18 +28,33 @@ function dbWith(claim: unknown) {
   } as unknown as Parameters<typeof resolveTaskSellerReceipt>[1];
 }
 
+function claim(status: string) {
+  return { blockchainIdentifier: "bc_1", purchasePayload, status };
+}
+
 describe("resolveTaskSellerReceipt", () => {
-  beforeEach(() => getPurchaseByBlockchainIdentifier.mockReset());
+  beforeEach(() => resolveMasumiTaskPaymentPurchase.mockReset());
 
   it("returns an empty receipt when the task has no payment claim", async () => {
     const receipt = await resolveTaskSellerReceipt("tsk_1", dbWith(null));
     expect(receipt.settled).toBe(false);
     expect(receipt.blockchainIdentifier).toBeNull();
-    expect(getPurchaseByBlockchainIdentifier).not.toHaveBeenCalled();
+    expect(resolveMasumiTaskPaymentPurchase).not.toHaveBeenCalled();
+  });
+
+  it("resolves the purchase against the claim's stored terms", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      ok({ onChainState: "FundsLocked", CurrentTransaction: null }),
+    );
+    await resolveTaskSellerReceipt("tsk_1", dbWith(claim("PURCHASED")));
+    expect(resolveMasumiTaskPaymentPurchase).toHaveBeenCalledWith(
+      purchasePayload,
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   it("proves the seller receipt when onChainState is Withdrawn", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
       ok({
         onChainState: "Withdrawn",
         CurrentTransaction: { txHash: "tx_withdrawn" },
@@ -35,7 +63,7 @@ describe("resolveTaskSellerReceipt", () => {
     );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+      dbWith(claim("PURCHASED")),
     );
     expect(receipt.settled).toBe(true);
     expect(receipt.onChainState).toBe("Withdrawn");
@@ -46,19 +74,19 @@ describe("resolveTaskSellerReceipt", () => {
   });
 
   it("does not treat FundsLocked (buyer debit) as a seller receipt", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
       ok({ onChainState: "FundsLocked", CurrentTransaction: null }),
     );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+      dbWith(claim("PURCHASED")),
     );
     expect(receipt.settled).toBe(false);
     expect(receipt.onChainState).toBe("FundsLocked");
   });
 
   it("treats DisputedWithdrawn with a seller payout as settled", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
       ok({
         onChainState: "DisputedWithdrawn",
         CurrentTransaction: { txHash: "tx_dispute" },
@@ -67,25 +95,25 @@ describe("resolveTaskSellerReceipt", () => {
     );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+      dbWith(claim("PURCHASED")),
     );
     expect(receipt.settled).toBe(true);
     expect(receipt.onChainState).toBe("DisputedWithdrawn");
   });
 
   it("does not treat DisputedWithdrawn without a seller payout as settled", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
       ok({ onChainState: "DisputedWithdrawn", WithdrawnForSeller: [] }),
     );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+      dbWith(claim("PURCHASED")),
     );
     expect(receipt.settled).toBe(false);
   });
 
   it("does not treat a refund (RefundWithdrawn) as a seller receipt", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
       ok({
         onChainState: "RefundWithdrawn",
         CurrentTransaction: { txHash: "tx_refund" },
@@ -94,19 +122,46 @@ describe("resolveTaskSellerReceipt", () => {
     );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "REFUNDED" }),
+      dbWith(claim("REFUNDED")),
     );
     expect(receipt.settled).toBe(false);
   });
 
-  it("returns claim state without settlement when the purchase cannot be resolved", async () => {
-    getPurchaseByBlockchainIdentifier.mockResolvedValue(err("node down"));
+  it("returns claim state without settlement when the node has no purchase", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({ kind: "not_found", message: "Task purchase not found" }),
+    );
     const receipt = await resolveTaskSellerReceipt(
       "tsk_1",
-      dbWith({ blockchainIdentifier: "bc_1", status: "PURCHASED" }),
+      dbWith(claim("PENDING")),
     );
     expect(receipt.settled).toBe(false);
     expect(receipt.blockchainIdentifier).toBe("bc_1");
-    expect(receipt.claimStatus).toBe("PURCHASED");
+    expect(receipt.claimStatus).toBe("PENDING");
+  });
+
+  it("throws 502 instead of reporting unsettled when the node fails", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({ kind: "ambiguous", message: "node down" }),
+    );
+    await expect(
+      resolveTaskSellerReceipt("tsk_1", dbWith(claim("PURCHASED"))),
+    ).rejects.toMatchObject({
+      status: 502,
+      message:
+        "Could not resolve the task payment from the Masumi Payment Service",
+    });
+  });
+
+  it("throws 502 when the resolved purchase does not match the claim", async () => {
+    resolveMasumiTaskPaymentPurchase.mockResolvedValue(
+      err({ kind: "mismatch", message: "mismatch" }),
+    );
+    await expect(
+      resolveTaskSellerReceipt("tsk_1", dbWith(claim("PURCHASED"))),
+    ).rejects.toMatchObject({
+      status: 502,
+      message: "Resolved purchase does not match the task payment",
+    });
   });
 });

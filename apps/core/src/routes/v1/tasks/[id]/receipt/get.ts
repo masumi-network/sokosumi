@@ -34,7 +34,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}/receipt",
   description:
-    "Prove the intended seller receipt for a Coworker Task payment. Resolves the task's payment claim through the Masumi Payment Service; settled is true only when the escrow paid the seller on-chain (onChainState Withdrawn).",
+    "Prove the intended seller receipt for a Coworker Task payment. Resolves the task's payment claim through the Masumi Payment Service; settled is true only when the escrow paid the seller on-chain: onChainState Withdrawn, or DisputedWithdrawn with a seller payout. Returns 502 when the payment node fails or its purchase does not match the task payment.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -43,6 +43,7 @@ const route = createRoute({
     200: jsonSuccessResponse(taskSellerReceiptSchema, "Task seller receipt"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
+    502: jsonErrorResponse("Bad Gateway - payment node failed or mismatched"),
   },
 });
 
