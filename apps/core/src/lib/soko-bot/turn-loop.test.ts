@@ -62,6 +62,32 @@ describe("finishTurn", () => {
     });
   });
 
+  it("says so when the message could not be checked", async () => {
+    claimsActionMock.mockResolvedValue(null);
+    await finish("Here is what I found.", true);
+    expect(buildActionResponseMock.mock.calls[0][4].message).toContain(
+      "could not be checked",
+    );
+  });
+
+  it("checks the stored message too, which settlement shows again", async () => {
+    turnFind.mockResolvedValue({
+      userMessage: "",
+      contextSnapshot: { packet: null },
+      toolCalls: [],
+    });
+    buildActionResponseMock.mockImplementation(
+      async (_tx, _turnId, text: string, _requested, narrative) => ({
+        answerText: text,
+        narrative,
+      }),
+    );
+    await finish("Book at evil-login.com/account now.", true);
+    const stored = turnUpdate.mock.calls[0][0].data.responseContract;
+    expect(stored.narrative.message).not.toContain("evil-login.com");
+    expect(stored.answerText).not.toContain("evil-login.com");
+  });
+
   it("keeps links to pages the turn loaded and drops the rest", async () => {
     turnFind.mockResolvedValue({
       userMessage: "When is TOKEN2049?",

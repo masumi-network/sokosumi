@@ -342,10 +342,18 @@ async function ownerNarrative(
           observationToolCallIds: [],
         }
       : null);
-  if (!narrative) return undefined;
-  if (narrative.message && (await claimsAction(narrative.message)))
-    return { ...narrative, message: null };
-  return narrative;
+  if (!narrative?.message) return narrative ?? undefined;
+  const claim = await claimsAction(narrative.message);
+  if (claim === false) return narrative;
+  // A claim is dropped: the receipts say what changed, or that nothing did.
+  // An unchecked reply is not shown either, but the owner is told why.
+  return {
+    ...narrative,
+    message:
+      claim === null
+        ? "I held back my reply because it could not be checked just now. Ask me again to see it."
+        : null,
+  };
 }
 
 /**
@@ -395,11 +403,20 @@ export async function finishTurn(input: {
     input.requiresActionProof,
     input.requiresActionProof ? await ownerNarrative(input.text) : undefined,
   );
-  if (/https?:\/\//.test(response.answerText))
-    response.answerText = dropUnverifiedLinks(
-      response.answerText,
-      await citationEvidence(input.turnId),
-    ).text;
+  // Settlement rebuilds the answer from the stored narrative, so its message
+  // is checked as well as the text shown now.
+  let evidence: Set<string> | undefined;
+  const checked = async (text: string) => {
+    if (dropUnverifiedLinks(text, new Set()).dropped === 0) return text;
+    evidence ??= await citationEvidence(input.turnId);
+    return dropUnverifiedLinks(text, evidence).text;
+  };
+  response.answerText = await checked(response.answerText);
+  if (response.narrative?.message)
+    response.narrative = {
+      ...response.narrative,
+      message: await checked(response.narrative.message),
+    };
   await prisma.sokoBotTurn.update({
     where: { id: input.turnId },
     data: { responseContract: response },

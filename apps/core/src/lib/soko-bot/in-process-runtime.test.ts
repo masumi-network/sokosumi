@@ -28,6 +28,8 @@ const {
 }));
 
 vi.mock("@vercel/functions", () => ({ waitUntil: waitUntilMock }));
+// The canned replies here all claim work; Jev is not called from a test.
+vi.mock("./answer-claims", () => ({ claimsAction: async () => true }));
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal<typeof import("ai")>()),
   generateText: generateTextMock,

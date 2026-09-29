@@ -10,10 +10,10 @@ const CLAIMS_ACTION =
 
 /**
  * Whether the bot's own words claim an action. Actions are shown from verified
- * receipts, so a reply that claims one is not shown; a failed check counts as
- * a claim.
+ * receipts, so a reply that claims one is not shown. Null when the check
+ * failed or returned no answer: the reply cannot be shown then either.
  */
-export async function claimsAction(text: string): Promise<boolean> {
+export async function claimsAction(text: string): Promise<boolean | null> {
   try {
     const answers = await askJev({
       state: { reply: text.slice(0, MAX_TEXT_LENGTH) },
@@ -21,11 +21,13 @@ export async function claimsAction(text: string): Promise<boolean> {
       timeoutMs: TIMEOUT_MS,
     });
     const probability = answers.get("claimsAction");
-    return probability === undefined || probability >= MAX_CLAIM_PROBABILITY;
+    return probability === undefined
+      ? null
+      : probability >= MAX_CLAIM_PROBABILITY;
   } catch (error) {
     console.warn("Soko Bot claim check failed", {
       error: error instanceof Error ? error.name : "unknown",
     });
-    return true;
+    return null;
   }
 }

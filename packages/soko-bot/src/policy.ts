@@ -361,6 +361,8 @@ export interface TurnClassification {
   requiresClarification: boolean;
   requiresApproval: boolean;
   proposedTaskBrief?: string;
+  /** The write route Jev leaned toward but was not sure of; reads only. */
+  unsureRoute?: SokoBotRoute;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

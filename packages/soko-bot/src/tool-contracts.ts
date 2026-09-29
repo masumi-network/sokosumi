@@ -604,7 +604,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   find_coworkers:
     "Find available AI Coworkers suitable for delegated Task work.",
   create_task:
-    "Create Sokosumi Task, preferably DRAFT, for Coworker execution.",
+    "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task.",
   update_task:
     "Update existing Task scope or DRAFT/READY status. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:

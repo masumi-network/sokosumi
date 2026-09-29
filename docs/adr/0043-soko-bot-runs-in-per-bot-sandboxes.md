@@ -49,7 +49,10 @@ Known limits:
 - The sandbox firewall accepts IPv4 CIDRs only, so IPv6 private ranges are not
   denied.
 - Web search runs on Perplexity through the AI Gateway, outside the EU, as the
-  Jev route classifier does. Queries are the model's search terms.
+  Jev route classifier does. Queries are the model's search terms. That one
+  call keeps no prompt training but drops zero retention, which Perplexity does
+  not offer; Core recognizes it by its exact shape (the forced search tool and
+  a single "Search the web for:" message).
 
 The in-process runtime remains for preview evaluation runs (their per-call
 ledger lives in Core) and as `SOKO_BOT_RUNTIME_ADAPTER=in-process`, which local

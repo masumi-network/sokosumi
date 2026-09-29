@@ -310,6 +310,18 @@ function describeRead(capability: string, value: unknown): string[] {
 }
 
 /** Model text cannot confer evidence. Replays reference original committed proof. */
+/** Whether `later` repeats every field `earlier` set, with the same value. */
+function inputCovers(later: unknown, earlier: unknown): boolean {
+  if (!isPlainObject(later) || !isPlainObject(earlier)) return false;
+  return Object.entries(earlier).every(
+    ([key, value]) => JSON.stringify(later[key]) === JSON.stringify(value),
+  );
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function buildActionResponse(
   tx: Prisma.TransactionClient,
   turnId: string,
@@ -377,14 +389,18 @@ export async function buildActionResponse(
   }
   const unique = [...new Map(current.map((call) => [call.id, call])).values()];
   const appliedReceiptIds = unique.map((call) => call.id);
-  // A refused attempt the bot then made good with a later call of the same
-  // kind is not something the owner needs to hear about.
+  // A refused attempt the bot then made good — the same call on the same
+  // target, or again with the missing fields filled in — is not something the
+  // owner needs to hear about. One whose outcome is unknown always is.
   const madeGood = (call: (typeof calls)[number]) =>
+    call.disposition !== "UNKNOWN" &&
     unique.some(
       (applied) =>
         applied.turnId === turnId &&
         applied.capability === call.capability &&
-        applied.createdAt > call.createdAt,
+        applied.createdAt > call.createdAt &&
+        ((call.targetId !== null && applied.targetId === call.targetId) ||
+          inputCovers(applied.input, call.input)),
     );
   const unfulfilledActions = calls
     .filter(

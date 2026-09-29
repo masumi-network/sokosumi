@@ -25,10 +25,10 @@ describe("claimsAction", () => {
     },
   );
 
-  it("counts a failed or malformed check as a claim", async () => {
+  it("reports a failed or malformed check as unchecked", async () => {
     evaluateMock.mockRejectedValueOnce(new Error("timeout"));
-    await expect(claimsAction("Here is the draft.")).resolves.toBe(true);
+    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
     evaluateMock.mockResolvedValueOnce({ answers: {} });
-    await expect(claimsAction("Here is the draft.")).resolves.toBe(true);
+    await expect(claimsAction("Here is the draft.")).resolves.toBeNull();
   });
 });

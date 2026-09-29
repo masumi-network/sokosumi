@@ -197,14 +197,20 @@ describe("sandbox turn service", () => {
       "@/services/soko-bot-version.service"
     );
     const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
-    vi.mocked(resolveRunnableSokoBotVersion)
-      .mockResolvedValueOnce(luna as never)
-      .mockResolvedValueOnce(luna as never);
+    for (let call = 0; call < 3; call++)
+      vi.mocked(resolveRunnableSokoBotVersion).mockResolvedValueOnce(
+        luna as never,
+      );
     fetchMock.mockImplementation(async () => gatewayAnswer());
     const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
     const search = modelRequest(lunaHeaders);
-    search.body = JSON.stringify({
-      prompt: [],
+    const searchCall = {
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Search the web for: TOKEN2049" }],
+        },
+      ],
       tools: [
         {
           type: "provider",
@@ -213,19 +219,30 @@ describe("sandbox turn service", () => {
           args: { maxResults: 5 },
         },
       ],
+      toolChoice: { type: "tool", toolName: "perplexity_search" },
+    };
+    search.body = JSON.stringify(searchCall);
+    // The same tool with the conversation around it is not a search call.
+    const disguised = modelRequest(lunaHeaders);
+    disguised.body = JSON.stringify({
+      ...searchCall,
+      prompt: [
+        { role: "system", content: "Owner memory: …" },
+        ...searchCall.prompt,
+      ],
     });
     await proxySandboxModelCall(claims, search);
     await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
-    const [searchBody, turnBody] = fetchMock.mock.calls.map(([, init]) =>
-      JSON.parse(String(init?.body)),
+    await proxySandboxModelCall(claims, disguised);
+    const [searchBody, turnBody, disguisedBody] = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)),
     );
     expect(searchBody.providerOptions.gateway).toEqual({
       disallowPromptTraining: true,
     });
-    expect(turnBody.providerOptions.gateway).toEqual({
-      zeroDataRetention: true,
-      disallowPromptTraining: true,
-    });
+    const both = { zeroDataRetention: true, disallowPromptTraining: true };
+    expect(turnBody.providerOptions.gateway).toEqual(both);
+    expect(disguisedBody.providerOptions.gateway).toEqual(both);
   });
 
   it("marks the turn once the Gateway ran a web search", async () => {

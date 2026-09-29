@@ -143,6 +143,7 @@ const {
     nudge: vi.fn(),
     workspace: vi.fn(),
     chunks: vi.fn(),
+    download: vi.fn(),
   },
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
@@ -291,6 +292,9 @@ vi.mock("@/services/file-catalog.service", () => ({
 }));
 vi.mock("@/lib/files/in-process-indexer", () => ({
   nudgeFileIndexing: files.nudge,
+}));
+vi.mock("@/services/file-index.service", () => ({
+  downloadBlob: files.download,
 }));
 vi.mock("@/helpers/personal-workspace-error", () => ({
   resolveWorkspaceForContextOrNotFound: files.workspace,
@@ -4860,6 +4864,41 @@ describe("Drive file tools", () => {
     ).rejects.toThrow("File not found");
   });
 
+  it("reads a Drive text file itself while search has not indexed it", async () => {
+    const notes = {
+      id: "file-3",
+      displayName: "launch-notes.md",
+      mimeType: "text/markdown",
+      sizeBytes: 20,
+      sourceKind: "DRIVE_UPLOAD",
+      sourceId: "drive/users/u/launch-notes.md",
+      contentRevision: 1,
+      extractionState: "RUNNING",
+      extractionReason: null,
+    };
+    files.loadLive.mockResolvedValueOnce([notes]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download.mockResolvedValueOnce(new TextEncoder().encode("# Launch"));
+    await expect(
+      service["readFile"](authorized as never, { fileId: "file-3" }),
+    ).resolves.toMatchObject({
+      text: "# Launch",
+      note: "Read from the file itself; search has not indexed it yet.",
+    });
+    expect(files.download).toHaveBeenCalledWith(
+      "drive/users/u/launch-notes.md",
+    );
+
+    // Not a Drive text file: nothing is downloaded.
+    files.loadLive.mockResolvedValueOnce([
+      { ...notes, mimeType: "application/pdf" },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download.mockClear();
+    await service["readFile"](authorized as never, { fileId: "file-3" });
+    expect(files.download).not.toHaveBeenCalled();
+  });
+
   it("uploads through the catalog so the file is searchable", async () => {
     files.list.mockResolvedValue({ blobs: [] });
     files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
@@ -4912,6 +4951,22 @@ describe("Content Studio image tools", () => {
   beforeEach(() => {
     images.credits.mockReturnValue(4);
     images.access.mockResolvedValue({ organizationId: null });
+    toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("stops a turn after four images, counting only ones not refused", async () => {
+    toolCallCountMock.mockResolvedValue(4);
+    await expect(generate(ownerChat, request, "call-9")).rejects.toThrow(
+      "at most 4 images",
+    );
+    expect(toolCallCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        turnId: SCOPE.turnId,
+        capability: "generate_image",
+        NOT: { toolCallId: "call-9" },
+      }),
+    });
+    expect(images.create).not.toHaveBeenCalled();
   });
 
   it("starts an image within the price and links to the studio", async () => {
@@ -5090,6 +5145,52 @@ describe("Content Studio image tools", () => {
       operationKey: null,
     });
     expect(images.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("create_task on an event turn", () => {
+  const inbox = vi.fn();
+  const eventTurn = {
+    turn: {
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      source: "EVENT",
+    },
+  };
+  function create(input: Record<string, unknown>) {
+    serializableTransactionMock.mockImplementationOnce(async (operation) =>
+      operation({
+        sokoBotEventInbox: { findMany: inbox },
+        task: { findFirst: vi.fn().mockResolvedValue(null) },
+      }),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue({});
+    return service["createTask"](
+      eventTurn as never,
+      { name: "Follow-up", ...input },
+      "call-follow-up",
+    );
+  }
+
+  it("follows up the batch's only Task when none is named", async () => {
+    inbox.mockReset().mockResolvedValue([{ entityId: "task-1" }]);
+    // The claim is then checked against that Task, as if it had been named.
+    await expect(create({})).rejects.toThrow("no current authority");
+    expect(inbox).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ entityId: "task-1" }),
+      }),
+    );
+  });
+
+  it("asks which Task when the batch has several", async () => {
+    inbox
+      .mockReset()
+      .mockResolvedValue([{ entityId: "task-1" }, { entityId: "task-2" }]);
+    await expect(create({})).rejects.toThrow("one of task-1, task-2");
   });
 });
 

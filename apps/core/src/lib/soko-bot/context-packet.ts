@@ -924,6 +924,9 @@ export class ContextPacketBuilder {
         source: input.source,
         route: input.classification.route,
         confidence: input.classification.confidence,
+        ...(input.classification.unsureRoute
+          ? { unsureRoute: input.classification.unsureRoute }
+          : {}),
         requestedOutcome:
           sanitizeText(
             input.classification.requestedOutcome,

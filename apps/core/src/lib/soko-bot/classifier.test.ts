@@ -161,6 +161,12 @@ describe("Jev route selection", () => {
       ),
     ).classify("Give me a status rundown", EMPTY_CONTEXT);
     expect(result.classification.route).toBe("DIRECT_RESPONSE");
+    // Reads only, but the bot learns what the owner may want, so it can
+    // show the change and ask rather than say it cannot act.
+    expect(result.classification.unsureRoute).toBe("MANAGE_WORK");
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "post_chat",
+    );
   });
 
   it("drops to read-only CLARIFY when Jev is unsure", async () => {
@@ -455,5 +461,6 @@ describe("failing closed", () => {
     ).classify("Do it", EMPTY_CONTEXT);
     expect(result.failed).toBe(false);
     expect(result.classification.route).toBe("CLARIFY");
+    expect(result.classification.unsureRoute).toBeUndefined();
   });
 });

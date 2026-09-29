@@ -257,26 +257,42 @@ export async function recordSandboxActionResult(
 }
 
 /**
- * One model call from the runner. Core owns the Gateway key and the EU
- * routing policy: only the turn's version model, only the Gateway protocol
- * headers, and Core's provider options in place of whatever the runner sent.
- * Usage is metered here — the runner's own report is never trusted — and
- * before the region check, so a rejected call is still billed.
+ * The runner's web search, exactly as `searchWeb` sends it: the Gateway's
+ * Perplexity tool forced, and one user message that is only the search
+ * terms. Perplexity makes no zero-retention commitment, so this call keeps
+ * "no prompt training" but not zero retention; anything else — a system
+ * prompt, history, another tool — keeps both.
  */
-/**
- * The runner's web search: a call whose only tools are ones the Gateway runs
- * itself. Perplexity, which runs it, makes no zero-retention commitment, so
- * such a call keeps "no prompt training" but not zero retention. It carries
- * only the search terms; everything with the owner's data keeps both.
- */
+const MAX_SEARCH_PROMPT_LENGTH = 1_000;
+const gatewaySearchCallSchema = z.object({
+  tools: z.tuple([
+    z.object({
+      type: z.literal("provider"),
+      id: z.literal("gateway.perplexity_search"),
+    }),
+  ]),
+  toolChoice: z.object({
+    type: z.literal("tool"),
+    toolName: z.literal("perplexity_search"),
+  }),
+  prompt: z.tuple([
+    z.object({
+      role: z.literal("user"),
+      content: z.tuple([
+        z.object({
+          type: z.literal("text"),
+          text: z
+            .string()
+            .startsWith("Search the web for: ")
+            .max(MAX_SEARCH_PROMPT_LENGTH),
+        }),
+      ]),
+    }),
+  ]),
+});
+
 function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
-  const tools = z
-    .array(z.object({ type: z.literal("provider"), id: z.string() }))
-    .min(1)
-    .safeParse(payload.tools);
-  return (
-    tools.success && tools.data.every((tool) => tool.id.startsWith("gateway."))
-  );
+  return gatewaySearchCallSchema.safeParse(payload).success;
 }
 
 function withoutZeroRetention(
@@ -286,6 +302,13 @@ function withoutZeroRetention(
   return rest;
 }
 
+/**
+ * One model call from the runner. Core owns the Gateway key and the EU
+ * routing policy: only the turn's version model, only the Gateway protocol
+ * headers, and Core's provider options in place of whatever the runner sent.
+ * Usage is metered here — the runner's own report is never trusted — and
+ * before the region check, so a rejected call is still billed.
+ */
 export async function proxySandboxModelCall(
   claims: TurnTokenClaims,
   request: { headers: Headers; body: string },

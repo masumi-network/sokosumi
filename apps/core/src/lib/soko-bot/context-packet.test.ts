@@ -753,6 +753,20 @@ describe("ContextPacketBuilder", () => {
     expect(serialized).not.toContain("Private answer");
   });
 
+  it("tells the bot what the owner may want when the route was unsure", async () => {
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: {
+        ...CLASSIFICATION,
+        route: "DIRECT_RESPONSE",
+        unsureRoute: "MANAGE_WORK",
+      },
+    });
+
+    expect(result.packet.trigger.route).toBe("DIRECT_RESPONSE");
+    expect(result.packet.trigger.unsureRoute).toBe("MANAGE_WORK");
+  });
+
   it("names the colleague who asked, not the owner the turn runs as", async () => {
     // `actor` is the owner on every turn, so without this the packet asserts
     // the owner is the one speaking and the bot greets them by name at

@@ -157,7 +157,12 @@ import {
   activateDriveUploadResource,
   reserveDriveUploadResource,
 } from "@/services/file-catalog.service";
-import { loadLiveResources, searchFiles } from "@/services/file-search.service";
+import { downloadBlob } from "@/services/file-index.service";
+import {
+  type LiveResource,
+  loadLiveResources,
+  searchFiles,
+} from "@/services/file-search.service";
 import { getJob } from "@/services/image-studio-assets.service";
 import {
   createImageJob,
@@ -234,6 +239,8 @@ const CORE_TOOL_CALLS = {
 } satisfies Prisma.SokoBotToolCallWhereInput;
 /** Enough for "ask Nina and Tom", far short of an organization. */
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
+/** Enough for a few variations; each one spends the owner's credits. */
+const MAX_IMAGES_PER_TURN = 4;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
 
@@ -243,6 +250,57 @@ interface SellerReservationMarker {
   reservedAt: string;
   proposalHash: string;
   error?: string;
+}
+
+/**
+ * The Task an event turn's batch is about, when there is only one: a follow-up
+ * created on that turn belongs to it. With several, the model has to say which.
+ */
+async function onlyEventTask(
+  tx: Prisma.TransactionClient,
+  turn: { id: string; sokoBotId: string },
+): Promise<string> {
+  const entries = await tx.sokoBotEventInbox.findMany({
+    where: { turnId: turn.id, botId: turn.sokoBotId },
+    select: { entityId: true },
+    distinct: ["entityId"],
+  });
+  const [only] = entries;
+  if (entries.length === 1 && only) return only.entityId;
+  throw new SokoBotRuntimeValidationError(
+    entries.length
+      ? `Set triggeringTaskId to the event's Task this follows up: one of ${entries.map((entry) => entry.entityId).join(", ")}.`
+      : "This event turn has no Task to follow up, so it cannot create one.",
+  );
+}
+
+function isTextMimeType(mimeType: string | null): boolean {
+  return (
+    !!mimeType &&
+    (mimeType.startsWith("text/") || mimeType === "application/json")
+  );
+}
+
+/** Drive text small enough to read whole. */
+const MAX_DIRECT_READ_BYTES = 200_000;
+
+/**
+ * A Drive text file's content, read from the blob itself, for a file search
+ * has not indexed yet; null for anything else or when it cannot be read.
+ */
+async function readDriveText(file: LiveResource): Promise<string | null> {
+  if (
+    file.sourceKind !== "DRIVE_UPLOAD" ||
+    !isTextMimeType(file.mimeType) ||
+    (file.sizeBytes ?? Number.POSITIVE_INFINITY) > MAX_DIRECT_READ_BYTES
+  )
+    return null;
+  try {
+    const bytes = await downloadBlob(file.sourceId);
+    return bytes ? new TextDecoder().decode(bytes) : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseHireAgentInput(input: unknown) {
@@ -1419,6 +1477,7 @@ export class SokoBotRuntimeService {
   private async checkImageRequest(
     authorized: AuthorizedSokoBotRuntime,
     raw: unknown,
+    toolCallId: string,
   ) {
     const input = generateImageInputSchema.parse(raw);
     if (
@@ -1428,6 +1487,18 @@ export class SokoBotRuntimeService {
     )
       throw new SokoBotRuntimeAuthorizationError(
         "Images are generated only when your owner asks in chat. Describe the image you would make instead.",
+      );
+    const started = await prisma.sokoBotToolCall.count({
+      where: {
+        turnId: authorized.turn.id,
+        capability: "generate_image",
+        OR: [{ disposition: null }, { disposition: { not: "REJECTED" } }],
+        NOT: { toolCallId },
+      },
+    });
+    if (started >= MAX_IMAGES_PER_TURN)
+      throw new SokoBotRuntimeValidationError(
+        `One turn may start at most ${MAX_IMAGES_PER_TURN} images. Show your owner these first.`,
       );
     const aspectRatio = z
       .enum(IMAGE_ASPECT_RATIOS)
@@ -1485,6 +1556,7 @@ export class SokoBotRuntimeService {
     const { input, model, settings, credits } = await this.checkImageRequest(
       authorized,
       raw,
+      toolCallId,
     ).catch((error: unknown) => {
       throw new SokoBotImageRefusedError(
         error instanceof Error ? error.message : "Image refused",
@@ -1634,22 +1706,28 @@ export class SokoBotRuntimeService {
       orderBy: { ordinal: "asc" },
       select: { text: true },
     });
-    const text = chunks.map((chunk) => chunk.text).join("\n\n");
+    const indexed = chunks.map((chunk) => chunk.text).join("\n\n");
+    const direct = indexed ? null : await readDriveText(file);
+    const text = indexed || direct || "";
     return {
       id: file.id,
       name: file.displayName,
       type: file.mimeType,
       text: text.slice(0, limit),
       truncated: text.length > limit,
-      ...(text
-        ? {}
-        : {
-            note:
-              file.extractionState === "PENDING" ||
-              file.extractionState === "RUNNING"
-                ? "The file is still being processed; its text is not ready yet."
-                : `No text was extracted${file.extractionReason ? ` (${file.extractionReason})` : ""}.`,
-          }),
+      ...(direct
+        ? {
+            note: "Read from the file itself; search has not indexed it yet.",
+          }
+        : text
+          ? {}
+          : {
+              note:
+                file.extractionState === "PENDING" ||
+                file.extractionState === "RUNNING"
+                  ? "The file is still being processed; its text is not ready yet."
+                  : `No text was extracted${file.extractionReason ? ` (${file.extractionReason})` : ""}.`,
+            }),
     };
   }
 
@@ -1677,10 +1755,7 @@ export class SokoBotRuntimeService {
     }
     const contentType = input.contentType ?? "text/markdown";
     // Text only: this tool writes what the model composed, never binary.
-    if (
-      !contentType.startsWith("text/") &&
-      contentType !== "application/json"
-    ) {
+    if (!isTextMimeType(contentType)) {
       throw new SokoBotRuntimeValidationError(
         "Only text files can be written with upload_file",
       );
@@ -2541,11 +2616,12 @@ export class SokoBotRuntimeService {
         approved,
         "create_task",
       );
-      if (authorized.turn.source === "EVENT" && !input.triggeringTaskId)
-        throw new SokoBotRuntimeValidationError(
-          "Event-driven task creation requires triggeringTaskId from the event batch",
-        );
-      const claim = input.triggeringTaskId
+      const triggeringTaskId =
+        input.triggeringTaskId ??
+        (authorized.turn.source === "EVENT"
+          ? await onlyEventTask(tx, authorized.turn)
+          : undefined);
+      const claim = triggeringTaskId
         ? await claimTaskEventAction(
             tx,
             {
@@ -2553,7 +2629,7 @@ export class SokoBotRuntimeService {
               turnId: authorized.turn.id,
               source: authorized.turn.source ?? "CHAT",
             },
-            input.triggeringTaskId,
+            triggeringTaskId,
             "CREATE_TASK",
           )
         : { allowed: true, claimId: null };
@@ -3487,7 +3563,7 @@ export class SokoBotRuntimeService {
 
     if (input.capability === "generate_image") {
       try {
-        await this.checkImageRequest(authorized, input.input);
+        await this.checkImageRequest(authorized, input.input, input.toolCallId);
       } catch (error) {
         // Refused before anything was sent: rejected, and the same request
         // may be made again once whatever refused it has changed.

@@ -641,7 +641,10 @@ describe("authoritative action responses", () => {
     },
   );
 
-  it("does not report a refused attempt the bot then made good", async () => {
+  function refusedThenCreated(
+    refused: Record<string, unknown>,
+    created: Record<string, unknown> = {},
+  ) {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({
         id: "refused",
@@ -652,18 +655,38 @@ describe("authoritative action responses", () => {
         verification: "NONE",
         committedAt: null,
         targetId: null,
+        input: { name: "Brief" },
         createdAt: new Date("2026-09-26T12:00:00Z"),
+        ...refused,
       }),
       receipt({
         id: "created",
         toolCallId: "call-created",
         capability: "create_task",
+        input: { name: "Brief", triggeringTaskId: "task-1" },
         createdAt: new Date("2026-09-26T12:00:05Z"),
+        ...created,
       }),
     ]);
+  }
+
+  it("does not report a refused attempt the bot then made good", async () => {
+    refusedThenCreated({});
     const response = await buildActionResponse(prisma, "turn-current", "Done.");
     expect(response.answerText).toBe("Created task.");
     expect(response.unfulfilledActions).toEqual([]);
+  });
+
+  it("still reports a refused attempt a different call followed", async () => {
+    refusedThenCreated({ input: { name: "Launch plan" } });
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+  });
+
+  it("always reports an attempt whose outcome is unknown", async () => {
+    refusedThenCreated({ status: "COMPLETED", disposition: "UNKNOWN" });
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toContain("Outcome unknown: created task.");
   });
 
   it("still reports a refused attempt nothing replaced", async () => {
