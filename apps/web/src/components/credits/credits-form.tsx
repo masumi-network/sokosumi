@@ -327,7 +327,7 @@ export default function CreditsForm({
                           <p className="text-sm font-medium">
                             {t("creditAmount", { count: amount })}
                           </p>
-                          <p className="text-2xl font-medium md:text-3xl">
+                          <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
                             {formattedTotal}
                           </p>
                           {formattedCompareAt ? (
@@ -416,7 +416,7 @@ export default function CreditsForm({
               selectedPricing !== null ? (
                 <div className="space-y-1 text-right">
                   {formattedSelectedTotal ? (
-                    <p className="text-2xl font-medium md:text-3xl">
+                    <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
                       {formattedSelectedTotal}
                     </p>
                   ) : null}

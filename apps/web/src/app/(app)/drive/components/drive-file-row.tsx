@@ -113,7 +113,7 @@ export function DriveFileRow({
           <button
             type="button"
             aria-label={t("removeTag", { name: label.displayName })}
-            className="hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
+            className="press hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
             onClick={() => onDismissLabel(label)}
           >
             <X className="size-3" aria-hidden />

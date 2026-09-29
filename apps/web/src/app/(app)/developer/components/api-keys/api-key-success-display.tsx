@@ -41,12 +41,12 @@ export function ApiKeySuccessDisplay({
         <div className="rounded-md py-4">
           <button
             onClick={handleCopy}
-            className="bg-muted hover:bg-senary group relative block w-full cursor-pointer rounded px-[1rem] py-[1rem] text-left transition-colors"
+            className="bg-muted press hover:bg-senary group relative block w-full cursor-pointer rounded px-[1rem] py-[1rem] text-left transition-colors"
           >
             <div className="flex items-center justify-between">
               <code className="pr-2 font-mono text-sm break-all">{apiKey}</code>
               {copied ? (
-                <Check className="text-semantic-success size-4 flex-shrink-0" />
+                <Check className="check-pop text-semantic-success size-4 flex-shrink-0" />
               ) : (
                 <Copy className="text-muted-foreground group-hover:text-foreground size-4 flex-shrink-0 transition-colors" />
               )}

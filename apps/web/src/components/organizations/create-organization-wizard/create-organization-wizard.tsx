@@ -962,7 +962,7 @@ export function CreateOrganizationWizard({
                         }
                       >
                         {copied ? (
-                          <Check className="text-primary size-4" />
+                          <Check className="check-pop text-primary size-4" />
                         ) : (
                           <Copy className="size-4" />
                         )}

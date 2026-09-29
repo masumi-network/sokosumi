@@ -22,7 +22,7 @@ const HISTORY_PATH = "/history";
 
 /** Same chrome as `HeaderLeadingControl` mobile back. */
 const MOBILE_HEADER_BACK_BUTTON_CLASS =
-  "text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md";
+  "text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md";
 
 function isHistoryPath(pathname: string): boolean {
   return pathname === HISTORY_PATH || pathname.endsWith(HISTORY_PATH);
@@ -181,7 +181,7 @@ export function HeaderMobileSearchControl() {
     <>
       <button
         type="button"
-        className="hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors md:hidden"
+        className="press hover:bg-muted relative flex size-8 shrink-0 items-center justify-center rounded-full transition-colors md:hidden"
         aria-label={t("open")}
         data-testid="header-mobile-search-trigger"
         onClick={openSearch}

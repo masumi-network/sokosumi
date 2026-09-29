@@ -105,7 +105,7 @@ export function BrowseChannelsDialog({
           size="icon"
           className={
             triggerClassName ??
-            "text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:hidden"
+            "text-muted-foreground press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:hidden"
           }
           aria-label={t("trigger")}
           title={t("trigger")}
@@ -145,7 +145,7 @@ export function BrowseChannelsDialog({
                 return (
                   <li
                     key={room.id}
-                    className="hover:bg-card-background flex items-start gap-3 rounded-md px-3 py-2.5"
+                    className="press hover:bg-card-background flex items-start gap-3 rounded-md px-3 py-2.5"
                   >
                     <ChannelDiscoverabilityIcon
                       discoverability={room.discoverability}

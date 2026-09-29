@@ -18,9 +18,7 @@ export function ColumnHeader({
           className={cn("size-2 shrink-0 rounded-full", statusColorClass)}
           aria-hidden
         />
-        <h2 className="text-foreground text-xs font-semibold tracking-wide uppercase">
-          {title}
-        </h2>
+        <h2 className="text-foreground text-xs font-semibold">{title}</h2>
       </div>
       <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs font-medium tabular-nums">
         {count}

@@ -42,7 +42,7 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-primary hover:shadow-sm motion-safe:active:scale-[0.995]",
+          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-primary hover:shadow-sm press content-in",
           compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
           dragHandleProps?.isDragging &&
             "border-primary-tertiary ring-ring-halo shadow-lg ring-2",

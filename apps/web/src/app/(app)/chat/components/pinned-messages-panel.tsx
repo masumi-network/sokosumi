@@ -245,7 +245,7 @@ export function PinnedMessagesPanel({
           return (
             <div
               key={item.messageId}
-              className="border-border hover:bg-card-background relative mb-3 flex w-full items-start gap-1 rounded-lg border p-3"
+              className="border-border press hover:bg-card-background relative mb-3 flex w-full items-start gap-1 rounded-lg border p-3"
             >
               <div className="min-w-0 flex-1">
                 <button

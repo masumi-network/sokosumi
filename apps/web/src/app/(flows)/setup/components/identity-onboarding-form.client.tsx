@@ -217,7 +217,7 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-personal"
                     className={cn(
-                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "personal" &&
                         "border-primary bg-card-background",
                     )}
@@ -239,7 +239,7 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-organization"
                     className={cn(
-                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "organization" &&
                         "border-primary bg-card-background",
                     )}

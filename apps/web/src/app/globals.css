@@ -914,6 +914,152 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   @apply w-full lg:w-[calc(100%-max(480px,32%))];
 }
 
+@utility press {
+  /* Pointer-down feedback (DESIGN.md Motion: scale 0.995). Transform only. */
+  @media (prefers-reduced-motion: no-preference) {
+    &:active:not(:disabled, [aria-disabled="true"]) {
+      transform: scale(0.995);
+    }
+  }
+}
+
+@keyframes content-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes content-in-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Skeleton to content crossfade, page enter and list item enter. Opacity
+   first; the small rise is dropped under reduced motion. */
+@keyframes check-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Confirmation mark: a copy or save landed. */
+@utility check-pop {
+  animation: check-pop 160ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: content-in;
+  }
+}
+
+@property --edge-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --edge-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes edge-top {
+  to {
+    --edge-top: 20px;
+  }
+}
+
+@keyframes edge-bottom {
+  from {
+    --edge-bottom: 20px;
+  }
+  to {
+    --edge-bottom: 0px;
+  }
+}
+
+/* Scroll-edge fade: content softens where it slides under the edge instead
+   of meeting a hard line. Only the edges that have content beyond them fade;
+   browsers without scroll-driven animations keep the plain edge. */
+@utility scroll-edge-y {
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--edge-top),
+      #000 calc(100% - var(--edge-bottom)),
+      transparent
+    );
+    animation:
+      edge-top linear both,
+      edge-bottom linear both;
+    animation-timeline: scroll(self), scroll(self);
+    animation-range:
+      0 20px,
+      calc(100% - 20px) 100%;
+  }
+}
+
+@utility content-in {
+  animation: content-in 200ms ease-out both;
+}
+
+@utility content-rise {
+  animation: content-in-rise 200ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: content-in;
+  }
+}
+
+/* Dates and stamps keep their digits the same width, so a ticking
+   "2 min ago" does not jitter the row. */
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion: overlays cross-fade in place. No slide, no zoom. */
+@media (prefers-reduced-motion: reduce) {
+  [data-state][data-slot$="-content"] {
+    --tw-enter-scale: 1;
+    --tw-exit-scale: 1;
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+  }
+}
+
+/* Frosted chrome goes solid for people who ask for less transparency. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-slot="dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-chrome="glass"] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 767.98px) {
+  [data-chrome="glass"] {
+    background-color: var(--background);
+  }
+}
+
 @utility agent-card-roll-up {
   animation: var(--animate-roll-down);
 

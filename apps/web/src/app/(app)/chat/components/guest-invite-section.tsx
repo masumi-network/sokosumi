@@ -281,7 +281,7 @@ export function GuestInviteSection({
         </form>
 
         <div className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-xs font-medium">
             {t("pendingTitle")}
           </p>
           {isLoading ? (
@@ -483,7 +483,7 @@ export function GuestInviteSection({
       </div>
 
       <div className="space-y-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           {t("guestsTitle")}
         </p>
         {guests.length === 0 ? (

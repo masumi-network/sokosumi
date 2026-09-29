@@ -433,7 +433,7 @@ export function OfferCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-all duration-200 hover:border-primary hover:shadow-sm active:scale-[0.99]",
+        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-primary hover:shadow-sm press",
         FOCUS_RING,
       )}
     >
@@ -642,7 +642,7 @@ function OfferDetailBody({
                   FOCUS_RING,
                   index === activeIdx
                     ? "bg-foreground text-background"
-                    : "bg-card-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                    : "bg-card-background text-muted-foreground press hover:bg-muted hover:text-foreground",
                 )}
               >
                 <OutputTypeIcon type={output.type} className="size-3.5" />
@@ -666,7 +666,7 @@ function OfferDetailBody({
           <div className="space-y-2 pr-10">
             <div className="flex flex-wrap items-center gap-2">
               {offer.category ? (
-                <span className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                <span className="text-muted-foreground text-xs font-medium">
                   {offer.category}
                 </span>
               ) : null}

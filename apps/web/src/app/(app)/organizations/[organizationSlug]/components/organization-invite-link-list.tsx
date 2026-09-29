@@ -211,7 +211,7 @@ function InviteLinkRow({
             onClick={() => void handleCopy()}
           >
             {copied ? (
-              <Check className="size-4" />
+              <Check className="check-pop size-4" />
             ) : (
               <Copy className="size-4" />
             )}

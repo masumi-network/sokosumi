@@ -136,7 +136,7 @@ export function OrganizationLogoUploadField({
               aria-label={labels.remove}
               disabled={disabled || isRemoving}
               className={cn(
-                "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                "bg-background text-muted-foreground press hover:bg-muted hover:text-foreground",
                 "focus-visible:ring-ring absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border shadow-sm",
                 "outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
               )}

@@ -118,7 +118,7 @@ async function AllAgentsTier() {
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-foreground text-xl font-light md:text-2xl">
+        <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
           {t("allAgentsTitle")}
         </h2>
         <p className="text-muted-foreground text-sm md:text-base">

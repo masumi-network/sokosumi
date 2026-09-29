@@ -74,7 +74,7 @@ export function AgentRatingForm({
               key={index}
               type="button"
               onClick={() => setRating(index + 1)}
-              className="hover:bg-muted rounded transition-colors"
+              className="press hover:bg-muted rounded transition-colors"
               disabled={isSubmitting}
             >
               <StarIcon

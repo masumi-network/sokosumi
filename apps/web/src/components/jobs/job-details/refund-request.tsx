@@ -145,7 +145,7 @@ function RefundErrorButton({
 }) {
   return (
     <button
-      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity press hover:opacity-80"
       onClick={onRetry}
       disabled={isLoading}
     >

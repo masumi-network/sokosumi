@@ -55,7 +55,7 @@ export function HistoryListItem({
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
     isArchivedHistoryItem(item)
       ? "cursor-default"
-      : "hover:bg-card-background-hover active:scale-[0.995]",
+      : "hover:bg-card-background-hover press content-in",
   );
   const content = (
     <HistoryListItemContent
@@ -168,7 +168,7 @@ export function HistoryTypeColumn({
       >
         <HistoryTypeIcon item={item} />
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wider uppercase hidden sm:block">
+      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>

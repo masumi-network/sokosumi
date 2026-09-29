@@ -1384,7 +1384,7 @@ export function TaskForm({
                     isSubmittingAny ||
                     isUploadingAttachments
                   }
-                  className="focus-visible:ring-ring text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+                  className="focus-visible:ring-ring text-muted-foreground press hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
                 >
                   {isUploadingAttachments ? (
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />

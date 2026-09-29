@@ -29,7 +29,7 @@ export function StripeBillingInformationFields({
 }: StripeBillingInformationFieldsProps) {
   const addressField = (
     <div className="space-y-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+      <p className="text-muted-foreground text-xs font-medium">
         {addressLabel}
       </p>
       {formattedAddress ? (
@@ -43,7 +43,7 @@ export function StripeBillingInformationFields({
   const taxIdField =
     taxIds.length > 0 ? (
       <div className="space-y-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           {taxIdLabel}
         </p>
         {taxIds.map((taxId) => (
@@ -61,7 +61,7 @@ export function StripeBillingInformationFields({
 
   const emailField = (
     <div className="space-y-1">
-      <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+      <p className="text-muted-foreground text-xs font-medium">
         {invoiceEmailLabel}
       </p>
       <p className="text-sm">
@@ -75,7 +75,7 @@ export function StripeBillingInformationFields({
   const stripeCustomerIdField =
     stripeCustomerIdLabel !== undefined ? (
       <div className="space-y-1">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           {stripeCustomerIdLabel}
         </p>
         {stripeCustomerId ? (

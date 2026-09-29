@@ -136,7 +136,7 @@ export function SkillsSection({
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-medium">{skill.name}</span>
-              <span className="text-muted-foreground shrink-0 text-[0.6875rem] tracking-wide uppercase">
+              <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
                 {t("builtIn")}
               </span>
             </span>
@@ -187,7 +187,7 @@ export function SkillsSection({
           type="button"
           onClick={() => setAdding((value) => !value)}
           aria-expanded={adding}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+          className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 text-sm"
         >
           <Plus aria-hidden className="size-3.5" />
           {t("addTitle")}

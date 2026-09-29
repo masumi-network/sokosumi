@@ -221,7 +221,7 @@ export function TaskContextAttachmentsField({
             <button
               type="button"
               aria-label={t("brandMenuAria")}
-              className="focus-visible:ring-ring hover:bg-senary inline-flex h-full items-center border-l border-current px-1.5 outline-none focus-visible:ring-2"
+              className="focus-visible:ring-ring press hover:bg-senary inline-flex h-full items-center border-l border-current px-1.5 outline-none focus-visible:ring-2"
             >
               <ChevronDown className="size-3" aria-hidden />
             </button>
@@ -305,7 +305,7 @@ export function TaskContextAttachmentsField({
           <button
             type="button"
             aria-label={t("infoAria")}
-            className="text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex size-6 shrink-0 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
+            className="text-muted-foreground press hover:bg-accent hover:text-foreground focus-visible:ring-ring inline-flex size-6 shrink-0 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2"
           >
             <Info className="size-3.5" aria-hidden />
           </button>

@@ -250,7 +250,7 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="text-foreground hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
+            className="text-foreground press hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
@@ -354,7 +354,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-personal"
               className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "personal" &&
                   "border-primary bg-card-background",
               )}
@@ -376,7 +376,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "organization" &&
                   "border-primary bg-card-background",
               )}

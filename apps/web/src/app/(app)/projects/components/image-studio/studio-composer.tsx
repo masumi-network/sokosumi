@@ -466,7 +466,7 @@ export function StudioComposer({
         >
           {STUDIO_TEMPLATES.map((template) => (
             <button
-              className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
+              className="bg-background press hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
               key={template.id}
               onClick={() => onApplyTemplate(template)}
               type="button"
@@ -565,7 +565,7 @@ export function StudioComposer({
                 return (
                   <button
                     aria-checked={checked}
-                    className="hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
+                    className="press hover:bg-accent focus-visible:ring-ring-halo flex w-full cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-left outline-none focus-visible:ring-[3px]"
                     key={model.id}
                     onClick={() => toggleModel(model)}
                     role="checkbox"
