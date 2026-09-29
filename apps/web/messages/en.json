@@ -301,7 +301,7 @@
       "connections": "Connections",
       "developer": "Developer",
       "personal-assistant": "Personal Assistant",
-      "history": "Transactions",
+      "history": "Credit History",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
@@ -1330,7 +1330,7 @@
     "save": "Save",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transactions",
+        "title": "Credit History",
         "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
@@ -2793,7 +2793,7 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "history": "Transactions",
+          "history": "Credit History",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
