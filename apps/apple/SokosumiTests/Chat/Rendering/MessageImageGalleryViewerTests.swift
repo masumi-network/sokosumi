@@ -8,12 +8,12 @@
   import Testing
 
   /// The three fixture images, told apart in the viewer by their proportions.
-  private enum GalleryShape: String {
+  enum GalleryShape: String {
     case landscape, portrait, wide
   }
 
   /// A message body hosted in a window that attaches the viewer sheet.
-  @MainActor private final class GalleryFixture {
+  @MainActor final class GalleryFixture {
     let host: NSHostingView<AnyView>
     let window: NSWindow
 
@@ -31,18 +31,18 @@
     @MainActor struct MessageImageGalleryViewerTests {
       private static let base = "https://scroll-fixture.invalid"
 
-      private static func link(_ name: String, _ shape: GalleryShape, run: UUID, delay: Double? = nil) -> String {
+      static func link(_ name: String, _ shape: GalleryShape, run: UUID, delay: Double? = nil) -> String {
         "[\(name).svg](\(base)/\(run)/\(name).svg?format=svg&shape=\(shape.rawValue)\(delay.map { "&delay=\($0)" } ?? ""))"
       }
 
       /// Two images in one row, words, a PDF and the third image: all three images are the gallery.
-      private static func threeImages(_ run: UUID, delay: Double? = nil, dropping dropped: String? = nil) -> String {
+      static func threeImages(_ run: UUID, delay: Double? = nil, dropping dropped: String? = nil) -> String {
         let first = [("a", GalleryShape.landscape), ("b", .portrait)].filter { $0.0 != dropped }.map { link($0.0, $0.1, run: run) }
         let last = dropped == "c" ? "" : link("c", .wide, run: run, delay: delay)
         return first.joined(separator: " ") + "\n\nThe photos from Friday.\n\n[notes.pdf](\(base)/\(run)/notes.pdf)\n\nAnd the view:\n\n" + last
       }
 
-      private static func view(_ source: String, dark: Bool) -> AnyView {
+      static func view(_ source: String, dark: Bool) -> AnyView {
         AnyView(MessageMarkdownView(source: source)
           .padding(12)
           .frame(width: 400, alignment: .leading)
@@ -51,7 +51,7 @@
           .environment(\.colorScheme, dark ? .dark : .light))
       }
 
-      private static func fixture(_ source: String, dark: Bool = false) -> GalleryFixture {
+      static func fixture(_ source: String, dark: Bool = false) -> GalleryFixture {
         let host = NSHostingView(rootView: view(source, dark: dark))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 400, height: 1000), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
@@ -60,14 +60,14 @@
         return GalleryFixture(host: host, window: window)
       }
 
-      private static func close(_ fixture: GalleryFixture) {
+      static func close(_ fixture: GalleryFixture) {
         if let sheet = fixture.window.attachedSheet {
           fixture.window.endSheet(sheet)
         }
         fixture.window.orderOut(nil)
       }
 
-      private static func bitmap(_ view: NSView) throws -> NSBitmapImageRep {
+      static func bitmap(_ view: NSView) throws -> NSBitmapImageRep {
         view.layoutSubtreeIfNeeded()
         let bitmap = try #require(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -75,7 +75,7 @@
       }
 
       /// The fixture's rgb(76, 217, 38), read from the raw samples: `colorAt` is too slow for a whole sheet.
-      private static func isFixtureGreen(_ bitmap: NSBitmapImageRep, _ column: Int, _ row: Int) -> Bool {
+      static func isFixtureGreen(_ bitmap: NSBitmapImageRep, _ column: Int, _ row: Int) -> Bool {
         var pixel = [Int](repeating: 0, count: max(bitmap.samplesPerPixel, 4))
         bitmap.getPixel(&pixel, atX: column, y: row)
         let top = (1 << bitmap.bitsPerSample) - 1
@@ -85,7 +85,7 @@
 
       /// Connected green regions, top to bottom and left to right. Adjacent thumbnails share
       /// vertical bands, so preserve the gap between their columns when finding a click target.
-      private static func greenBands(_ bitmap: NSBitmapImageRep) -> [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] {
+      static func greenBands(_ bitmap: NSBitmapImageRep) -> [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] {
         var bands: [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] = []
         for row in stride(from: 0, to: bitmap.pixelsHigh, by: 2) {
           let columns = stride(from: 0, to: bitmap.pixelsWide, by: 2).filter { isFixtureGreen(bitmap, $0, row) }
@@ -110,7 +110,7 @@
       }
 
       /// Waits for the transcript's images, then clicks the one at `index`.
-      private static func openImage(_ index: Int, in fixture: GalleryFixture, count: Int) async throws {
+      static func openImage(_ index: Int, in fixture: GalleryFixture, count: Int) async throws {
         var bands: [(rows: ClosedRange<Int>, columns: ClosedRange<Int>)] = []
         var shot = try bitmap(fixture.host)
         for _ in 0 ..< 250 where bands.count < count {
@@ -127,7 +127,7 @@
                    of: shot, drawnFrom: fixture.host, in: fixture.window)
       }
 
-      private static func sheet(of fixture: GalleryFixture) async throws -> NSWindow {
+      static func sheet(of fixture: GalleryFixture) async throws -> NSWindow {
         for _ in 0 ..< 250 {
           if let sheet = fixture.window.attachedSheet, sheet.contentView != nil {
             return sheet
@@ -139,7 +139,7 @@
 
       /// The sheet's content drawn over the window background in the sheet's appearance: the sheet's
       /// own backdrop is window chrome that `cacheDisplay` does not draw, so the content alone is transparent.
-      private static func sheetBitmap(_ sheet: NSWindow) throws -> NSBitmapImageRep {
+      static func sheetBitmap(_ sheet: NSWindow) throws -> NSBitmapImageRep {
         let content = try #require(sheet.contentView)
         let drawn = try bitmap(content)
         let opaque = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: drawn.pixelsWide, pixelsHigh: drawn.pixelsHigh,
@@ -158,14 +158,14 @@
       }
 
       /// The image the sheet shows, by its proportions; nil while none is drawn.
-      private static func shownShape(_ sheet: NSWindow) throws -> GalleryShape? {
+      static func shownShape(_ sheet: NSWindow) throws -> GalleryShape? {
         let bands = try greenBands(sheetBitmap(sheet))
         guard let band = bands.max(by: { $0.rows.count < $1.rows.count }) else { return nil }
         let ratio = Double(band.columns.count) / Double(band.rows.count)
         return ratio > 4 ? .wide : (ratio < 0.8 ? .portrait : .landscape)
       }
 
-      private static func waitForShape(_ shape: GalleryShape, in sheet: NSWindow, _ message: String) async throws {
+      static func waitForShape(_ shape: GalleryShape, in sheet: NSWindow, _ message: String) async throws {
         for _ in 0 ..< 250 {
           if try shownShape(sheet) == shape {
             return
@@ -181,7 +181,7 @@
 
       /// A key press where `NSApplication.sendEvent` offers it first: the key window's key equivalents,
       /// whatever holds focus. True when a control took it.
-      private static func press(_ keyCode: UInt16, _ character: Int, in sheet: NSWindow) throws -> Bool {
+      static func press(_ keyCode: UInt16, _ character: Int, in sheet: NSWindow) throws -> Bool {
         let characters = String(UnicodeScalar(character).map(Character.init) ?? " ")
         let event = try #require(NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.function, .numericPad],
                                                   timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: sheet.windowNumber, context: nil,
@@ -190,18 +190,18 @@
       }
 
       @discardableResult
-      private static func pressLeft(in sheet: NSWindow) throws -> Bool {
+      static func pressLeft(in sheet: NSWindow) throws -> Bool {
         try press(123, NSLeftArrowFunctionKey, in: sheet)
       }
 
       @discardableResult
-      private static func pressRight(in sheet: NSWindow) throws -> Bool {
+      static func pressRight(in sheet: NSWindow) throws -> Bool {
         try press(124, NSRightArrowFunctionKey, in: sheet)
       }
 
       /// Where the step control on `edge` sits, in bitmap pixels: a 44 pt circle 16 pt inside the image
       /// area, which the sheet pads by 16 pt, level with the middle of the centred image.
-      private static func stepControlPoint(_ edge: HorizontalEdge, in shot: NSBitmapImageRep, of sheet: NSWindow) throws -> CGPoint {
+      static func stepControlPoint(_ edge: HorizontalEdge, in shot: NSBitmapImageRep, of sheet: NSWindow) throws -> CGPoint {
         let content = try #require(sheet.contentView)
         let scale = CGFloat(shot.pixelsWide) / content.bounds.width
         let band = try #require(greenBands(shot).max { $0.rows.count < $1.rows.count }, "The sheet shows an image.")
@@ -211,7 +211,7 @@
 
       /// Whether the step control on `edge` is drawn: its scrim, beside the chevron, differs from the
       /// sheet's background. Only for an image narrow enough to leave the edges to the background.
-      private static func drawsStepControl(_ edge: HorizontalEdge, in sheet: NSWindow) throws -> Bool {
+      static func drawsStepControl(_ edge: HorizontalEdge, in sheet: NSWindow) throws -> Bool {
         let shot = try sheetBitmap(sheet)
         let point = try stepControlPoint(edge, in: shot, of: sheet)
         let scale = CGFloat(shot.pixelsWide) / (sheet.contentView?.bounds.width ?? 1)
@@ -224,7 +224,7 @@
         return difference > 0.1
       }
 
-      private static func click(_ edge: HorizontalEdge, in sheet: NSWindow) throws {
+      static func click(_ edge: HorizontalEdge, in sheet: NSWindow) throws {
         let content = try #require(sheet.contentView)
         let shot = try sheetBitmap(sheet)
         try clickPixel(stepControlPoint(edge, in: shot, of: sheet), of: shot, drawnFrom: content, in: sheet)
