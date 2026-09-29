@@ -2,7 +2,7 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import gravatarUrl from "gravatar-url";
-import { Coins, LogOut, Settings, ShieldCheck } from "lucide-react";
+import { Coins, History, LogOut, Settings, ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactElement, useRef, useState } from "react";
@@ -25,6 +25,7 @@ import { CreditsCycleOverview } from "./credits-cycle-overview.client";
 
 const GRAVATAR_SIZE = 80;
 const ADMIN_HREF = "/admin";
+const HISTORY_HREF = "/history";
 
 export interface AccountSummaryMenuProps
   extends AccountSummaryCreditProps,
@@ -74,6 +75,11 @@ export function AccountSummaryMenu({
   function handleAdmin() {
     onRequestClose();
     router.push(ADMIN_HREF);
+  }
+
+  function handleHistory() {
+    onRequestClose();
+    router.push(HISTORY_HREF);
   }
 
   function handleNavigateRoute(href: string) {
@@ -175,6 +181,16 @@ export function AccountSummaryMenu({
               {buyCreditsLabel}
             </Button>
             <div className="divide-border divide-y">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleHistory}
+                className="text-muted-foreground hover:text-foreground h-10 w-full justify-start gap-2 rounded-none font-normal"
+              >
+                <History className="size-4 shrink-0" aria-hidden />
+                {tMenu("history")}
+              </Button>
               {adminSettingsChrome.adminMenuEnabled ? (
                 <Button
                   type="button"

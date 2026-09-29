@@ -301,7 +301,7 @@
       "connections": "Connections",
       "developer": "Developer",
       "personal-assistant": "Personal Assistant",
-      "history": "Transactions",
+      "history": "Credit History",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
@@ -1331,7 +1331,7 @@
     "save": "Save",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transactions",
+        "title": "Credit History",
         "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
@@ -2794,7 +2794,7 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "history": "Transactions",
+          "history": "Credit History",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
@@ -6369,7 +6369,7 @@
       "moveFolderError": "Failed to move folder",
       "moveFolderAction": "Move folder",
       "moveFileError": "Failed to move file",
-      "tasksFolder": "Tasks",
+      "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",
       "tasksEmptyDescription": "Task files will appear here when you complete tasks",
       "loadTasksError": "Failed to load tasks",
@@ -6382,7 +6382,7 @@
       "copyToFilesDialogTitle": "Copy to Files?",
       "copyToFilesDialogDescription": "Copy {fileName} to {workspace}.",
       "copyToFilesDialogConfirm": "Copy",
-      "tasksBreadcrumbLabel": "Tasks",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "No project",
       "filterTitle": "Filter",
       "filterSearchPlaceholder": "Search...",

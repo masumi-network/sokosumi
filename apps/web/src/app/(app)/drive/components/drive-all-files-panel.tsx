@@ -141,6 +141,8 @@ export interface DriveAllFilesPanelProps {
    * The page owns rename, move and delete, so it passes them in.
    */
   folderActions?: ReactNode;
+  /** Listed with the root folders; see `DriveFolderNav`. */
+  virtualFolder?: { label: string; onOpen: () => void };
   /**
    * Bumped when the page changed the files behind this list — an upload, a
    * folder rename, a delete.
@@ -176,6 +178,7 @@ export function DriveAllFilesPanel({
   initialFolder = "",
   onFolderChange,
   folderActions,
+  virtualFolder,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -941,6 +944,7 @@ export function DriveAllFilesPanel({
           current={filters.folder}
           onSelect={(folder) => applyFilters({ ...filters, folder })}
           actions={filters.folder ? folderActions : null}
+          virtualFolder={virtualFolder}
         />
       ) : null}
 

@@ -3,6 +3,7 @@ import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { EmptyState } from "@/components/common/empty-state";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
+import { TaskCard } from "./task-card";
 import { TaskListItem } from "./task-list-item";
 
 interface TaskListViewProps {
@@ -29,12 +30,22 @@ export function TaskListView({
       {hasAnyTasks ? (
         <div className="flex flex-col gap-2">
           {tasks.map((task) => (
-            <TaskListItem
-              key={task.id}
-              task={task}
-              compact={compact}
-              statusLabels={statusLabels}
-            />
+            <div key={task.id}>
+              <div className="md:hidden">
+                <TaskCard
+                  task={task}
+                  compact={compact}
+                  statusLabels={statusLabels}
+                />
+              </div>
+              <div className="hidden md:block">
+                <TaskListItem
+                  task={task}
+                  compact={compact}
+                  statusLabels={statusLabels}
+                />
+              </div>
+            </div>
           ))}
           {footer ? <div className="py-3">{footer}</div> : null}
         </div>
