@@ -82,6 +82,17 @@ describe("task detail layout contract", () => {
     );
   });
 
+  it("renders linked tasks in the sidebar, after the properties and tags", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+    const asideStart = view.indexOf("<aside");
+    const asideEnd = view.indexOf("</aside>");
+    const linkedIdx = view.indexOf("<TaskRelatedTasks");
+
+    expect(linkedIdx).toBeGreaterThan(asideStart);
+    expect(linkedIdx).toBeLessThan(asideEnd);
+    expect(linkedIdx).toBeGreaterThan(view.indexOf("<TaskMetadataSection"));
+  });
+
   it("single-column source order keeps metadata after description and before later sections", () => {
     const view = readTasks("components/task-detail-view.tsx");
     const descriptionIdx = view.indexOf("<TaskDescription");

@@ -1,78 +1,42 @@
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import {
-  type TaskLinkRelation,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
-import { cn } from "@/lib/utils";
+import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
+import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
+import type { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TaskDetailLink } from "./task-detail-link";
-import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 
 interface TaskRelationRowProps {
   taskId: string;
   taskName: string;
   taskStatus: TaskStatus;
-  relation: TaskLinkRelation;
-  relationLabel?: string;
-  relationTone?: "default" | "destructive";
+  statusLabel: string;
 }
 
-function getFallbackRelationLabel(relation: TaskLinkRelation): string {
-  switch (relation) {
-    case "related":
-      return "Related";
-    case "blocks":
-      return "Blocks";
-    case "blocked_by":
-      return "Blocked by";
-    case "parent":
-      return "Sub-task";
-    case "child":
-      return "Parent task";
-    case "duplicate":
-      return "Duplicate";
-    default: {
-      const _exhaustive: never = relation;
-      return _exhaustive;
-    }
-  }
-}
-
+/** A sidebar row: status marker in the same 20px slot as the property rows, then the name. */
 export function TaskRelationRow({
   taskId,
   taskName,
   taskStatus,
-  relation,
-  relationLabel,
-  relationTone = "default",
+  statusLabel,
 }: TaskRelationRowProps) {
-  const RelationIcon = getTaskLinkRelationIcon(relation);
-  const badgeLabel = relationLabel ?? getFallbackRelationLabel(relation);
-  const iconBadge = (
-    <span
-      aria-label={badgeLabel}
-      title={badgeLabel}
-      className={cn(
-        "inline-flex size-6 shrink-0 items-center justify-center",
-        relationTone === "destructive"
-          ? "text-destructive"
-          : "text-muted-foreground",
-      )}
-    >
-      <RelationIcon className="size-4" aria-hidden />
-    </span>
-  );
+  const marker = getTaskStatusMarker(taskStatus);
 
   return (
     <TaskDetailLink
       href={`/tasks/${taskId}`}
-      className="bg-card-background border-border press hover:bg-card-background-hover flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+      className="hover:bg-muted -mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors"
     >
-      <div className="flex min-w-0 items-center gap-2">
-        {iconBadge}
-        <p className="truncate text-sm">{taskName}</p>
-      </div>
-      <TaskStatusBadge status={taskStatus} className="shrink-0" />
+      <span
+        role="img"
+        aria-label={statusLabel}
+        title={statusLabel}
+        className="flex size-5 shrink-0 items-center justify-center"
+      >
+        <StatusMarker
+          spec={marker}
+          tone={getToneStyle(marker.tone).labelOnSurface}
+        />
+      </span>
+      <span className="truncate">{taskName}</span>
     </TaskDetailLink>
   );
 }

@@ -1672,7 +1672,6 @@
         "description": "Beschreibung",
         "context": "Kontext",
         "linkedTasksTitle": "Verknüpfte Aufgaben",
-        "linkedTasksEmpty": "Noch keine verknüpften Aufgaben.",
         "jobs": "Jobs",
         "jobsEmpty": "Noch keine Jobs.",
         "jobsUntitled": "Unbenannter Job",

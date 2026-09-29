@@ -1673,7 +1673,6 @@
         "description": "Description",
         "context": "Context",
         "linkedTasksTitle": "Linked tasks",
-        "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
