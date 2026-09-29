@@ -2407,7 +2407,20 @@
           "reschedule": "Reschedule",
           "cancel": "Cancel post",
           "edit": "Edit",
-          "close": "Close"
+          "close": "Close",
+          "schedulePicker": {
+            "quickPicks": "Quick picks",
+            "quick": {
+              "inAnHour": "In an hour ({time})",
+              "tomorrowMorning": "Tomorrow {time}",
+              "nextMonday": "Monday {time}"
+            },
+            "pickDate": "Pick a date",
+            "pickTime": "Pick a time",
+            "dateSelected": "Date: {date}",
+            "timeSelected": "Time: {time}",
+            "times": "Times"
+          }
         },
         "cancelDialog": {
           "title": "Cancel this post?",
