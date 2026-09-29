@@ -302,6 +302,24 @@ describe("WorkspaceCalendar Social-only view", () => {
       ).not.toBeInTheDocument();
     });
 
+    it("opens on the month, not the workspace calendar's week", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC",
+      );
+
+      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+    });
+
+    it("keeps a view the reader picked", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=week",
+      );
+
+      expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
+    });
+
     it("ignores a socialOnly=false left in the URL by the workspace calendar", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
