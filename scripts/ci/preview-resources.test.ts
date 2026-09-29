@@ -566,8 +566,12 @@ test("resolvePreviewPullNumber looks up the workflow run then commit pulls", asy
     }
     if (url.endsWith("/commits/abc123/pulls")) {
       return Response.json([
-        { number: 2, head: { repo: { full_name: "evil/fork" } } },
-        { number: 3, head: { repo: { full_name: repo } } },
+        {
+          number: 2,
+          head: { sha: "abc123", repo: { full_name: "evil/fork" } },
+        },
+        { number: 4, head: { sha: "def456", repo: { full_name: repo } } },
+        { number: 3, head: { sha: "abc123", repo: { full_name: repo } } },
       ]);
     }
     throw new Error(`unexpected ${url}`);
@@ -582,6 +586,48 @@ test("resolvePreviewPullNumber looks up the workflow run then commit pulls", asy
       fetchImpl,
     }),
     3,
+  );
+});
+
+test("resolvePreviewPullNumber fails when commit pulls are not a unique head SHA match", async () => {
+  const repo = "acme/sokosumi";
+  const options = {
+    event: { workflow_run: { head_sha: "abc123" } },
+    githubToken: "tok",
+    repoOwner: "acme",
+    repoName: "sokosumi",
+    env: {},
+  };
+  await assert.rejects(
+    resolvePreviewPullNumber({
+      ...options,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.endsWith("/commits/abc123/pulls")) {
+          return Response.json([
+            { number: 4, head: { sha: "def456", repo: { full_name: repo } } },
+          ]);
+        }
+        throw new Error(`unexpected ${url}`);
+      },
+    }),
+    /A valid PR number is required/,
+  );
+  await assert.rejects(
+    resolvePreviewPullNumber({
+      ...options,
+      fetchImpl: async (input) => {
+        const url = String(input);
+        if (url.endsWith("/commits/abc123/pulls")) {
+          return Response.json([
+            { number: 3, head: { sha: "abc123", repo: { full_name: repo } } },
+            { number: 5, head: { sha: "abc123", repo: { full_name: repo } } },
+          ]);
+        }
+        throw new Error(`unexpected ${url}`);
+      },
+    }),
+    /A valid PR number is required/,
   );
 });
 

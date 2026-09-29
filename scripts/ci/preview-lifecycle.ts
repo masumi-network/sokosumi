@@ -38,8 +38,10 @@ interface WorkflowRunEvent {
 
 /**
  * PR number for preview close/renew. workflow_run.pull_requests is often
- * empty, so fall back to the Actions run and commit-associated pulls APIs
- * (same lookup as cloud-agent-db teardown).
+ * empty, so fall back to the Actions run, then the unique same-repo
+ * commit-associated pull whose head SHA matches the signal. First-match
+ * is unsafe: that API lists PRs that contain the commit, and the later
+ * open/closed re-check still deletes if the wrong PR is also closed.
  */
 export async function resolvePreviewPullNumber(options: {
   event: WorkflowRunEvent;
@@ -85,11 +87,16 @@ export async function resolvePreviewPullNumber(options: {
       options.githubToken,
       `https://api.github.com/repos/${repo}/commits/${headSha}/pulls`,
     );
-    const sameRepo = (Array.isArray(associated) ? associated : []).find(
-      (pull) => pull?.head?.repo?.full_name === repo && pull?.number,
+    const matches = (Array.isArray(associated) ? associated : []).filter(
+      (pull) =>
+        pull?.head?.repo?.full_name === repo &&
+        pull?.head?.sha === headSha &&
+        pull?.number,
     );
-    const fromCommit = Number(sameRepo?.number);
-    if (Number.isSafeInteger(fromCommit) && fromCommit > 0) return fromCommit;
+    if (matches.length === 1) {
+      const fromCommit = Number(matches[0].number);
+      if (Number.isSafeInteger(fromCommit) && fromCommit > 0) return fromCommit;
+    }
   }
 
   throw new Error("A valid PR number is required");
