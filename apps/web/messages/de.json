@@ -2263,10 +2263,10 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social-Media-Konten",
-        "description": "Verbinde Social-Media-Konten mit diesem Projekt. Beiträge können derzeit auf X veröffentlicht werden.",
+        "description": "Verbinde Social-Media-Konten mit diesem Projekt. Entwirf, plane und veröffentliche Beiträge auf jeder verbundenen Plattform.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
-        "connectHeading": "Konto verbinden",
+        "connectAccount": "Konto verbinden",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
         "replace": "Ersetzen",
@@ -2298,6 +2298,7 @@
           "providerRevocationFailed": "Dieses Konto ist vom Projekt getrennt, aber der Anbieter erlaubt dieser App möglicherweise weiterhin den Zugriff. Widerrufe den Zugriff in deinen Kontoeinstellungen."
         },
         "errors": {
+          "facebookPage": "Für das Veröffentlichen auf Facebook braucht das Konto genau eine verwaltete Seite. Verwende ein Konto mit einer einzigen verwaltbaren Seite.",
           "inFlight": "Eine andere Kontoaktion läuft bereits.",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
@@ -2310,13 +2311,15 @@
           "finalize": "Dieses Konto konnte nicht vollständig verbunden werden. Versuche es erneut.",
           "disconnect": "Dieses Konto konnte nicht getrennt werden. Versuche es erneut.",
           "notConfigured": "Diese Integration ist noch nicht eingerichtet. Wende dich an den Support, um sie zu aktivieren."
-        }
+        },
+        "comingSoon": "Bald verfügbar",
+        "connectComingSoon": "{provider} (bald verfügbar)"
       },
       "SocialPosts": {
         "loadMore": "Mehr laden",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
-        "description": "Entwirf Textbeiträge für X und plane sie aus diesem Projekt heraus.",
+        "description": "Entwirf, plane und veröffentliche Beiträge über die verbundenen Social-Media-Konten dieses Projekts.",
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
@@ -2365,23 +2368,29 @@
             "upload": "Hochladen",
             "uploading": "Wird hochgeladen…",
             "remove": "{name} entfernen",
-            "hint": "Bis zu 4 Bilder oder ein GIF oder ein Video.",
-            "unsupported": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
+            "hint": "Hänge Bilder oder ein Video an, im Rahmen der Limits von {provider}.",
+            "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
             "alreadyAttached": "Diese Datei ist bereits angehängt.",
             "uploadDuplicate": "Im Drive existiert bereits eine Datei mit diesem Namen. Benenne sie um und versuche es erneut.",
             "uploadFailed": "Der Upload ist fehlgeschlagen. Versuche es erneut.",
             "errors": {
-              "too_many_images": "X erlaubt höchstens 4 Bilder pro Beitrag.",
-              "too_many_gifs": "X erlaubt ein GIF pro Beitrag.",
-              "too_many_videos": "X erlaubt ein Video pro Beitrag.",
-              "mixed_media": "Verwende Bilder, ein GIF oder ein Video – nicht gemischt.",
-              "unsupported_type": "Verwende eine JPG-, PNG-, WebP-, GIF- oder MP4-Datei.",
-              "too_large": "Eine Datei ist zu groß für X."
+              "too_many_images": "{provider} erlaubt höchstens {max} Bilder pro Beitrag.",
+              "too_many_gifs": "{provider} erlaubt ein GIF pro Beitrag.",
+              "too_many_videos": "{provider} erlaubt ein Video pro Beitrag.",
+              "mixed_media": "{provider} erlaubt keine Mischung aus Bildern, GIF oder Video.",
+              "unsupported_type": "{provider} akzeptiert dieses Dateiformat nicht.",
+              "too_large": "Eine Datei ist zu groß für {provider}."
             }
+          },
+          "requirements": {
+            "text_or_media_required": "Füge Text oder Medien hinzu.",
+            "text_required": "{provider} erfordert Text.",
+            "media_required": "{provider} erfordert mindestens ein Bild oder ein Video.",
+            "video_required": "{provider} erfordert ein Video."
           },
           "account": "Konto",
           "noAccount": "Konto auswählen",
-          "unknownHandle": "Unbekanntes X-Konto",
+          "unknownHandle": "Unbekanntes Konto",
           "scheduledAt": "Geplanter Zeitpunkt",
           "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
           "saveDraft": "Entwurf speichern",
@@ -2411,7 +2420,7 @@
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
-        "viewOnX": "Auf X ansehen",
+        "viewPost": "Beitrag ansehen",
         "publishedAt": "Veröffentlicht {date}",
         "failedAt": "Fehlgeschlagen {date}",
         "attempts": "{count, plural, one {# Versuch} other {# Versuche}}",
@@ -2421,7 +2430,7 @@
         },
         "publishDialog": {
           "title": "Diesen Beitrag jetzt veröffentlichen?",
-          "description": "Der Beitrag wird sofort auf X veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
+          "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
         }
       },
@@ -2715,14 +2724,35 @@
     },
     "Social": {
       "title": "Social",
-      "pickTitle": "Projekt auswählen",
-      "pickBody": "Social arbeitet innerhalb eines Projekts: die Konten, aus denen gepostet wird, gehören dazu. Wähle ein Projekt, um seine Beiträge zu planen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "calendar": {
         "title": "Veröffentlichungsplan",
         "description": "Alle geplanten Beiträge dieses Projekts – und nichts anderes."
-      }
+      },
+      "newPost": {
+        "label": "Neuer Post",
+        "options": "Optionen für neuen Post",
+        "manual": "Selbst schreiben",
+        "manualHint": "Konto, Medien und Zeitpunkt wählen.",
+        "sokoBot": "Mit Soko Bot posten",
+        "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
+        "sokoBotSetup": "Richte zuerst Soko Bot ein",
+        "sokoBotFailed": "Der Soko-Bot-Chat konnte nicht geöffnet werden. Versuche es erneut.",
+        "sokoBotPrompt": "Hilf mir, einen Social-Post für das Projekt {project} zu erstellen.",
+        "sokoBotPromptAnyProject": "Hilf mir, einen Social-Post zu erstellen.",
+        "chooseProjectTitle": "Projekt für diesen Post wählen",
+        "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
+      },
+      "allProjectsCalendar": {
+        "title": "Veröffentlichungsplan",
+        "description": "Geplante Posts aller Projekte in diesem Workspace."
+      },
+      "accountsNeedProject": {
+        "title": "Social-Konten",
+        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+      },
+      "loading": "Social wird geladen…"
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",
@@ -6969,7 +6999,8 @@
         "projectLabel": "Projekt: ",
         "scheduledBy": "Geplant von {name}",
         "unknownScheduler": "unbekanntem Nutzer",
-        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
+        "attachments": "{count, plural, one {# Anhang} other {# Anhänge}}",
+        "compactLabel": "{media, select, image {{count, plural, one {{provider}-Post mit Bild} other {{provider}-Post mit # Bildern}}} gif {{provider}-Post mit GIF} video {{provider}-Post mit Video} other {{provider}-Post}}"
       },
       "socialOnly": {
         "label": "Nur Social-Beiträge"
