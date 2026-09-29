@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { JobDetailsPresentationProps } from "./job-details-view";
+import type { JobDetailsPresentationProps } from "./job-details-loader";
 
 const loadJobDetailsMock = vi.fn();
 const getMyMembersWithOrganizationsMock = vi.fn();
@@ -42,10 +42,10 @@ function Presentation(props: JobDetailsPresentationProps) {
   return <div data-testid="job-details-presentation" />;
 }
 
-async function renderJobDetailsView(agentId = "agent-1", jobId = "job-1") {
-  const { JobDetailsView } = await import("./job-details-view");
+async function renderJobDetailsLoader(agentId = "agent-1", jobId = "job-1") {
+  const { JobDetailsLoader } = await import("./job-details-loader");
   return render(
-    await JobDetailsView({
+    await JobDetailsLoader({
       agentId,
       jobId,
       children: (props) => <Presentation {...props} />,
@@ -53,7 +53,7 @@ async function renderJobDetailsView(agentId = "agent-1", jobId = "job-1") {
   );
 }
 
-describe("JobDetailsView", () => {
+describe("JobDetailsLoader", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getMyMembersWithOrganizationsMock.mockResolvedValue([
@@ -91,7 +91,7 @@ describe("JobDetailsView", () => {
       readOnly: false,
     });
 
-    await renderJobDetailsView();
+    await renderJobDetailsLoader();
 
     expect(loadJobDetailsMock).toHaveBeenCalledWith({
       agentId: "agent-1",
@@ -136,7 +136,7 @@ describe("JobDetailsView", () => {
       readOnly: true,
     });
 
-    await renderJobDetailsView();
+    await renderJobDetailsLoader();
 
     expect(autoContextSwitchMock).toHaveBeenCalledWith({
       activeOrganizationId: "org-billing",

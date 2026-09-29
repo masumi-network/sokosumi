@@ -1,11 +1,11 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const jobDetailsViewMock = vi.fn();
+const jobDetailsLoaderMock = vi.fn();
 const jobDetailsModalMock = vi.fn();
 
-vi.mock("@/app/agents/[agentId]/jobs/_lib/job-details-view", () => ({
-  JobDetailsView: ({
+vi.mock("@/app/agents/[agentId]/jobs/_lib/job-details-loader", () => ({
+  JobDetailsLoader: ({
     agentId,
     jobId,
     children,
@@ -14,9 +14,9 @@ vi.mock("@/app/agents/[agentId]/jobs/_lib/job-details-view", () => ({
     jobId: string;
     children: (props: { job: { id: string } }) => React.ReactNode;
   }) => {
-    jobDetailsViewMock({ agentId, jobId });
+    jobDetailsLoaderMock({ agentId, jobId });
     return (
-      <div data-testid="job-details-view">
+      <div data-testid="job-details-loader">
         {children({ job: { id: "job-1" } })}
       </div>
     );
@@ -47,7 +47,7 @@ describe("JobDetailsModalPage", () => {
       }),
     );
 
-    expect(jobDetailsViewMock).toHaveBeenCalledWith({
+    expect(jobDetailsLoaderMock).toHaveBeenCalledWith({
       agentId: "agent-1",
       jobId: "job-1",
     });
@@ -55,7 +55,7 @@ describe("JobDetailsModalPage", () => {
       agentId: "agent-1",
       job: { id: "job-1" },
     });
-    expect(screen.getByTestId("job-details-view")).toBeInTheDocument();
+    expect(screen.getByTestId("job-details-loader")).toBeInTheDocument();
     expect(screen.getByTestId("job-details-modal")).toBeInTheDocument();
   });
 });
