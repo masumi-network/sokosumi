@@ -542,9 +542,13 @@ const socialPostMediaRefSchema = z.object({
   kind: z.enum(["image", "gif", "video"]),
 });
 
+const SOCIAL_POST_MEDIA_MAX = Math.max(
+  ...Object.values(SOCIAL_POST_MEDIA_RULES).map((rules) => rules.maxImages),
+);
+
 const socialPostMediaSchema = z
   .array(socialPostMediaRefSchema)
-  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages);
+  .max(SOCIAL_POST_MEDIA_MAX);
 
 const createProjectSocialPostSchema = z
   .object({

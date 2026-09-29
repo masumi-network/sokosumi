@@ -31,6 +31,7 @@ const query = {
 };
 const post = {
   id: postId,
+  provider: "x",
   text: "Launch",
   status: "SCHEDULED",
   scheduledAt: new Date(at),
@@ -99,6 +100,7 @@ describe("Social posts in the calendar", () => {
     expect(second.items[0]).toMatchObject({
       kind: "socialPost",
       postId,
+      provider: "x",
       status: "SCHEDULED",
       externalHandle: "team",
       projectName: "Launch project",

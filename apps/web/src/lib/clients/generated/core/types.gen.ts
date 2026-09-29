@@ -5198,6 +5198,7 @@ export type SocialPostCalendarItem = {
     kind: 'socialPost';
     id: string;
     postId: string;
+    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     status: 'DRAFT' | 'SCHEDULED' | 'PUBLISHING' | 'PUBLISHED' | 'FAILED' | 'MISSED' | 'CANCELED';
     externalHandle: string | null;
@@ -5318,7 +5319,7 @@ export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection 
 export type SocialPost = {
     id: string;
     projectId: string;
-    provider: 'x';
+    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
     text: string;
     media: Array<SocialPostMediaRef>;
     status: SocialPostStatus;
@@ -5411,7 +5412,7 @@ export type PublishSocialPostRequest = {
 export type CreateSocialPostRequest = {
     text: string;
     /**
-     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string;
@@ -5422,7 +5423,7 @@ export type CreateSocialPostRequest = {
 export type UpdateSocialPostRequest = {
     text?: string;
     /**
-     * Drive files to attach: up to 4 images, or 1 GIF, or 1 video. Never mixed.
+     * Drive files to attach: up to four images, or one video, according to the provider's rules. Never mixed.
      */
     media?: Array<SocialPostMediaRef>;
     socialConnectionId?: string | null;

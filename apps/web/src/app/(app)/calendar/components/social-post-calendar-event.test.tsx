@@ -8,6 +8,7 @@ import { SocialPostCalendarEvent } from "./social-post-calendar-event";
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
+  provider: "x",
   id: "social:post",
   postId: "post",
   sourceProjectId: "project",
