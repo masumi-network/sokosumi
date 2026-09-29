@@ -159,13 +159,10 @@ describe("MenuItems search action", () => {
     expect(setOpenMobileMock).toHaveBeenCalledWith(false);
   });
 
-  it("shows History by default", () => {
+  it("no longer lists Credit History in the sidebar", () => {
     renderMenu();
 
-    expect(screen.getByRole("link", { name: /history/i })).toHaveAttribute(
-      "href",
-      "/history",
-    );
+    expect(screen.queryByRole("link", { name: /history/i })).toBeNull();
   });
 
   it("opens the New Task wizard in place and closes the mobile sidebar for seated members", () => {
@@ -245,7 +242,6 @@ describe("MenuItems search action", () => {
       "calendar",
       "contentStudio",
       "drive",
-      "history",
     ];
     const positions = primaryOrder.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
@@ -259,7 +255,7 @@ describe("MenuItems search action", () => {
     );
   });
 
-  it("orders primary destinations Search, Agents, Tasks, Schedules, Calendar, Studio, History", () => {
+  it("orders primary destinations Search, Agents, Tasks, Schedules, Calendar, Studio", () => {
     const { container } = renderMenu(true);
     const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
       (element) => element.textContent ?? "",
@@ -272,7 +268,6 @@ describe("MenuItems search action", () => {
       "schedules",
       "calendar",
       "contentStudio",
-      "history",
     ];
     const positions = primaryOrder.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
@@ -315,7 +310,7 @@ describe("MenuItems search action", () => {
       (element) => element.textContent ?? "",
     );
 
-    const order = ["calendar", "contentStudio", "social", "drive", "history"];
+    const order = ["calendar", "contentStudio", "social", "drive"];
     const positions = order.map((label) =>
       menuLabels.findIndex((text) => text.includes(label)),
     );
@@ -402,7 +397,6 @@ describe("MenuItems search action", () => {
       "calendar",
       "contentStudio",
       "drive",
-      "history",
     ]);
   });
 });
@@ -476,7 +470,6 @@ describe("MenuItems project scope", () => {
       ["calendar", "/calendar"],
       ["contentStudio", "/studio"],
       ["drive", "/drive"],
-      ["history", "/history"],
     ]) {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }
@@ -492,7 +485,6 @@ describe("MenuItems project scope", () => {
       ["calendar", "/calendar?projectId=p-1"],
       ["contentStudio", "/studio?projectId=p-1"],
       ["drive", "/drive?view=tasks&projectId=p-1"],
-      ["history", "/history?projectId=p-1"],
     ]) {
       expect(screen.getByRole("link", { name })).toHaveAttribute("href", href);
     }

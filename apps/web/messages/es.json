@@ -284,7 +284,7 @@
       "connections": "Conexiones",
       "developer": "Desarrollador",
       "personal-assistant": "Asistente personal",
-      "history": "Transacciones",
+      "history": "Historial de créditos",
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
@@ -1330,7 +1330,7 @@
     "save": "Guardar",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transacciones",
+        "title": "Historial de créditos",
         "description": "Cada consumo de créditos de tu cuenta, del más reciente al más antiguo."
       },
       "Search": {
@@ -2793,7 +2793,7 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "history": "Transacciones",
+          "history": "Historial de créditos",
           "drive": "Archivos",
           "admin": "Administración",
           "settings": "Configuración",
