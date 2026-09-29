@@ -427,7 +427,7 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="border-border bg-card-background rounded-md border border-dashed px-5 py-10 text-center">
+            <div className="border-border bg-card-background motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-md border border-dashed px-5 py-10 text-center duration-300">
               <p className="font-medium">{labels.emptyTitle}</p>
               <p className="text-muted-foreground mt-1 text-sm">
                 {labels.emptyBody}
