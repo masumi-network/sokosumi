@@ -56,6 +56,7 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({
@@ -86,6 +87,7 @@ describe("creditBucketRepository.getBalance (consumable enterprise)", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue({

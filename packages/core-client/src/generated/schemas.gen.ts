@@ -15834,6 +15834,15 @@ export const ActiveSubscriptionResponseSchema = {
                     ],
                     example: false
                 },
+                cancelAt: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z',
+                    description: 'When a scheduled cancellation takes effect. Stripe flexible billing mode sets this instead of cancelAtPeriodEnd'
+                },
                 periodStart: {
                     type: [
                         'string',
@@ -16277,6 +16286,15 @@ export const OrganizationBillingPlanSchema = {
             description: 'Whether the self-serve subscription cancels at the period end (always false for enterprise contracts)',
             example: false
         },
+        cancelAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When a scheduled self-serve cancellation takes effect (null when none is scheduled). Stripe flexible billing mode sets this instead of cancelAtPeriodEnd'
+        },
         periodEnd: {
             type: [
                 'string',
@@ -16293,6 +16311,7 @@ export const OrganizationBillingPlanSchema = {
         'isConsumable',
         'purchasedSeats',
         'cancelAtPeriodEnd',
+        'cancelAt',
         'periodEnd'
     ]
 } as const;

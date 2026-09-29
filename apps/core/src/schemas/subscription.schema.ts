@@ -42,6 +42,10 @@ export const activeSubscriptionResponseSchema = z
         plan: z.string().openapi({ example: "starter" }),
         status: stripeSubscriptionStatusSchema,
         cancelAtPeriodEnd: z.boolean().nullish().openapi({ example: false }),
+        cancelAt: dateTimeSchema.nullish().openapi({
+          description:
+            "When a scheduled cancellation takes effect. Stripe flexible billing mode sets this instead of cancelAtPeriodEnd",
+        }),
         periodStart: dateTimeSchema.nullish(),
         periodEnd: dateTimeSchema.nullish(),
         seats: z.number().int().nullish().openapi({ example: 3 }),
