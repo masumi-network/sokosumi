@@ -1,5 +1,6 @@
 "use client";
 
+import type { PushDevice } from "@sokosumi/core-client";
 import {
   ChevronRight,
   CircleHelp,
@@ -29,7 +30,6 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import type { PushDevice } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { usePushDevices } from "./use-push-devices";
 

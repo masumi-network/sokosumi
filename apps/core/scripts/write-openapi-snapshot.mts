@@ -1,10 +1,9 @@
 /**
- * Writes the v1 OpenAPI document for web client codegen without running the
- * HTTP server. Several route modules instantiate Prisma at import time, so
- * required env vars must be set first (mirrors `src/test/setup.ts`).
+ * Writes the v1 OpenAPI document for `@sokosumi/core-client` codegen without
+ * running the HTTP server. Several route modules instantiate Prisma at import
+ * time, so required env vars must be set first (mirrors `src/test/setup.ts`).
  *
- *   pnpm --filter core exec tsx scripts/write-openapi-for-web.mts
- *   pnpm --filter web exec openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json
+ *   pnpm --filter @sokosumi/core-client generate:snapshot
  */
 import { writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -58,8 +57,8 @@ for (const [key, value] of Object.entries(envDefaults)) {
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const coreRoot = join(scriptDir, "..");
-const webRoot = join(coreRoot, "../web");
-const outPath = join(webRoot, "openapi-core.snapshot.json");
+const coreClientRoot = join(coreRoot, "../../packages/core-client");
+const outPath = join(coreClientRoot, "openapi-core.snapshot.json");
 
 const { default: apiV1 } = await import(
   pathToFileURL(join(coreRoot, "src/routes/v1/index.ts")).href

@@ -1,4 +1,4 @@
-import type { SocialPostStatus } from "@/lib/clients/generated/core/types.gen";
+import type { SocialPostStatus } from "@sokosumi/core-client";
 
 /**
  * One tab per section. Published and canceled posts have no section: the

@@ -4,7 +4,7 @@ import type {
   TaskShare as CoreTaskShare,
   PublicSharedResourceResponse,
   PublicSharedTask,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 function toDate(value: Date | string): Date {
   return value instanceof Date ? value : new Date(value);

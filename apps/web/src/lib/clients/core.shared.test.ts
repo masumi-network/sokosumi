@@ -1,5 +1,3 @@
-import { describe, expect, it, vi } from "vitest";
-import { createCoreClient } from "@/lib/clients/core.shared";
 import {
   deleteAdminInvoice as coreDeleteAdminInvoice,
   getCoworkers as coreGetCoworkers,
@@ -10,12 +8,13 @@ import {
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
   startAdminImpersonation as coreStartAdminImpersonation,
   stopAdminImpersonation as coreStopAdminImpersonation,
-} from "@/lib/clients/generated/core";
-import type { Client } from "@/lib/clients/generated/core/client";
+} from "@sokosumi/core-client";
+import type { Client } from "@sokosumi/core-client/client";
+import { describe, expect, it, vi } from "vitest";
+import { createCoreClient } from "@/lib/clients/core.shared";
 
-vi.mock("@/lib/clients/generated/core", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/clients/generated/core")>();
+vi.mock("@sokosumi/core-client", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@sokosumi/core-client")>();
   return {
     ...actual,
     deleteAdminInvoice: vi.fn(),

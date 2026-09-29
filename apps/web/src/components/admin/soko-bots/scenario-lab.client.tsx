@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+  SokoBotLabRun,
+  SokoBotLabVerdict,
+  SokoBotVersion,
+} from "@sokosumi/core-client";
 import {
   evaluateScenario,
   type ScenarioResult,
@@ -21,11 +26,6 @@ import {
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
-import type {
-  SokoBotLabRun,
-  SokoBotLabVerdict,
-  SokoBotVersion,
-} from "@/lib/clients/generated/core";
 import type { ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 

@@ -1,15 +1,14 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useId, useRef } from "react";
-
 import { ChatUnreadViewHeader } from "@/app/chat/components/chat-unread-view-header";
 import { EarlierThreadsList } from "@/components/chat/earlier-threads-list";
 import { resolveUnreadThreadsAttention } from "@/components/chat/room-attention";
 import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { UnreadThreadsList } from "@/components/chat/unread-threads-list";
 import { useLiveChatRooms } from "@/components/chat/use-live-chat-rooms";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
 interface UnreadThreadsViewProps {

@@ -1,5 +1,6 @@
 "use client";
 
+import type { SocialPostCalendarItem } from "@sokosumi/core-client";
 import { socialPostProviderLabel } from "@sokosumi/utils";
 import { Paperclip, Play } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import type { SocialPostCalendarItem } from "@/lib/clients/generated/core";
 
 /** The post on Social, scoped to its project and opened in its list. */
 function socialPostHref(item: SocialPostCalendarItem): string {

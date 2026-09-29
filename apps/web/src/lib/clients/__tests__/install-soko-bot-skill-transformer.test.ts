@@ -1,6 +1,5 @@
+import { installMySokoBotSkillResponseTransformer } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
-
-import { installMySokoBotSkillResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 const meta = { timestamp: "2026-09-02T09:21:35.000Z" };
 

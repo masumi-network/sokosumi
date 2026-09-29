@@ -1,9 +1,8 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ChatRoomMessage,
   ChatRoomMessageReaction,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
 
 import {
   applyPendingReaction,

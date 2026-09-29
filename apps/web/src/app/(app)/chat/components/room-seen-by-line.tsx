@@ -1,7 +1,7 @@
 "use client";
 
+import type { ChatRoomUserParticipant } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
-
 import type {
   RoomReader,
   RoomReadReceipts,
@@ -16,7 +16,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { ChatRoomUserParticipant } from "@/lib/clients/generated/core";
 
 /**
  * Which readers a message shows — the newest message in the transcript, and

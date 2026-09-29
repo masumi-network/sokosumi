@@ -1,10 +1,10 @@
 "use client";
 
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getJobStatusMarker } from "@/components/jobs/job-status-styles";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {

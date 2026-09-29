@@ -1,9 +1,8 @@
+import type { SokoBotLegacyMessage } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { legacyHistoryRange } from "@/components/soko-bot/legacy";
 import { LegacyHistory } from "@/components/soko-bot/legacy-history";
 import { Panel } from "@/components/soko-bot/panel";
-import type { SokoBotLegacyMessage } from "@/lib/clients/generated/core";
 
 interface AdminLegacyHistoryPanelProps {
   messages: readonly SokoBotLegacyMessage[];

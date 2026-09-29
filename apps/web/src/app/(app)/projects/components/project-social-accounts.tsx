@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   Loader2,
@@ -13,7 +14,6 @@ import { useTranslations } from "next-intl";
 import { type ComponentType, useRef, useState } from "react";
 import { SiX } from "react-icons/si";
 import { toast } from "sonner";
-
 import {
   FacebookIcon,
   InstagramIcon,
@@ -46,7 +46,6 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
-import type { ProjectSocialConnection } from "@/lib/clients/generated/core/types.gen";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
 

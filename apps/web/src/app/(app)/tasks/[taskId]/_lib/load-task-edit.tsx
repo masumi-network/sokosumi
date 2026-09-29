@@ -1,6 +1,6 @@
+import type { TaskStatus } from "@sokosumi/core-client";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
 import { getTaskAttachmentUploadLabelTemplate } from "@/app/tasks/components/task-attachment-upload-labels";
 import { TaskEditModal } from "@/app/tasks/components/task-edit-modal";
@@ -18,7 +18,6 @@ import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
-import type { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { agentService } from "@/lib/services/agent.service";
 import { designMdService } from "@/lib/services/design-md.service";

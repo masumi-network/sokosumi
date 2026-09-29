@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   CLIENT_MESSAGE_ID_METADATA_KEY,

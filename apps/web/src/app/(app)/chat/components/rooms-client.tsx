@@ -1,5 +1,13 @@
 "use client";
 
+import type {
+  ChatRoom,
+  ChatRoomMessage,
+  ChatRoomUserParticipant,
+  Coworker,
+  Member,
+  Organization,
+} from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Hash } from "lucide-react";
@@ -174,14 +182,6 @@ import {
 } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  ChatRoomUserParticipant,
-  Coworker,
-  Member,
-  Organization,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {

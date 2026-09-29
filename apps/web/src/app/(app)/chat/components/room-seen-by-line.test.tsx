@@ -1,12 +1,8 @@
+import type { ChatRoom, ChatRoomUserParticipant } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-
 import { useRoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
-import type {
-  ChatRoom,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 import { createTestFormatter } from "@/test/intl-formatter";
 
 const formatter = createTestFormatter({ timeZone: "UTC", hourCycle: "h23" });

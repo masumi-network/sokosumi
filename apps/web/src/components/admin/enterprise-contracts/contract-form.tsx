@@ -1,11 +1,15 @@
 "use client";
 
+import type {
+  CreateEnterpriseContractRequest,
+  EnterpriseContract,
+  PatchEnterpriseContractRequest,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, type ReactNode, useState } from "react";
 import { toast } from "sonner";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -20,11 +24,6 @@ import {
   createEnterpriseContractAction,
   updateEnterpriseContractAction,
 } from "@/lib/actions/enterprise-contract/action";
-import type {
-  CreateEnterpriseContractRequest,
-  EnterpriseContract,
-  PatchEnterpriseContractRequest,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   formatDatetimeLocalValue,
   parseDatetimeLocalValue,

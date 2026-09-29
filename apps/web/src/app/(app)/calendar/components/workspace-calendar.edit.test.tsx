@@ -1,3 +1,7 @@
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -10,10 +14,6 @@ import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 
 interface FullCalendarProps {
   borderless?: boolean;

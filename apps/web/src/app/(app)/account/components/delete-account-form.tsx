@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { UserDeletionEvaluation } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -50,7 +50,6 @@ import {
   USER_OWNS_ORGANIZATION_ERROR_CODE,
 } from "@/lib/actions/errors/better-auth";
 import { deleteUser } from "@/lib/auth/auth.client";
-import type { UserDeletionEvaluation } from "@/lib/clients/generated/core";
 import {
   type DeleteAccountFormType,
   deleteAccountSchema,

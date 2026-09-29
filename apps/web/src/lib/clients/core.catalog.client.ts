@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createClient } from "@/lib/clients/generated/core/client";
+import { createClient } from "@sokosumi/core-client/client";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 

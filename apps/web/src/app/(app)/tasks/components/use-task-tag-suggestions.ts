@@ -1,7 +1,7 @@
 "use client";
 
+import type { TaskTagId } from "@sokosumi/core-client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { TaskTagId } from "@/lib/clients/generated/core";
 
 interface DraftInput {
   name: string;

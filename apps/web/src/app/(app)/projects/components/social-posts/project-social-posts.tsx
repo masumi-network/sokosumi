@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+  SocialPostStatus,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
@@ -52,12 +58,6 @@ import {
   cancelProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
-} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
 import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";

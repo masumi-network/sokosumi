@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   isFailedMentionThoughtShell,
   isPersistedMentionThoughtShell,

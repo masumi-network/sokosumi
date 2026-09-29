@@ -1,14 +1,13 @@
 "use client";
 
-import type { ChatRoomCollection } from "@sokosumi/utils";
-import { useCallback, useEffect, useRef, useState } from "react";
-
-import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import type {
   ChatRoom,
   ChatRoomInvitation,
   StarredChatRoomOrder,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import type { ChatRoomCollection } from "@sokosumi/utils";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import {
