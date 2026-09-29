@@ -169,7 +169,9 @@ export function ProjectSocialAccounts({
             ? t("errors.duplicate")
             : message?.includes("reconnect must match")
               ? t("errors.reconnectMismatch")
-              : fallback,
+              : message?.includes("exactly one page")
+                ? t("errors.facebookPage")
+                : fallback,
     });
   }
 
