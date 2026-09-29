@@ -11,6 +11,7 @@ import type {
   SocialPostPublishResult,
 } from "@/clients/social-post-providers/types";
 import { publishXPost } from "@/clients/social-post-providers/x";
+import { publishYouTubeVideo } from "@/clients/social-post-providers/youtube";
 
 /** Create/publish tool recorded on an attempt before the adapter runs. */
 export const SOCIAL_POST_ATTEMPT_TOOL_SLUGS: Record<
@@ -37,6 +38,8 @@ export async function publishSocialPostToProvider(
       return publishFacebookPost(context);
     case "instagram":
       return publishInstagramPost(context);
+    case "youtube":
+      return publishYouTubeVideo(context);
     default:
       throw new ComposioToolError({
         message: `${socialPostProviderLabel(context.provider)} publishing is not available yet`,
