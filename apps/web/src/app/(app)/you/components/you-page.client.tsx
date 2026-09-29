@@ -6,6 +6,7 @@ import {
   Code2,
   Coins,
   HardDrive,
+  History,
   ImagePlus,
   LifeBuoy,
   LogOut,
@@ -41,6 +42,7 @@ import { getInitials } from "@/lib/utils/text";
 
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
+const HISTORY_HREF = "/history";
 const CALENDAR_HREF = "/calendar";
 const STUDIO_HREF = "/studio";
 
@@ -159,6 +161,15 @@ export function YouPageClient({
         </section>
 
         <nav aria-label={tYou("title")} className="space-y-6">
+          <MobileStackedMenuGroup>
+            <MobileStackedMenuLink
+              href={HISTORY_HREF}
+              icon={<History className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("history")}
+              testId="you-history"
+            />
+          </MobileStackedMenuGroup>
+
           <MobileStackedMenuGroup>
             <MobileStackedMenuLink
               href={TASK_SCHEDULES_PATH}
