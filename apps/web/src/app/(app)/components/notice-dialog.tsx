@@ -1,5 +1,7 @@
 "use client";
 
+import type { Notice } from "@sokosumi/core-client";
+import { NoticeKind } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
@@ -15,8 +17,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
-import type { Notice } from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
 import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 

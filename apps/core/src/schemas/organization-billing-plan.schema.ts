@@ -35,6 +35,10 @@ export const organizationBillingPlanSchema = z
         "Whether the self-serve subscription cancels at the period end (always false for enterprise contracts)",
       example: false,
     }),
+    cancelAt: dateTimeSchema.nullable().openapi({
+      description:
+        "When a scheduled self-serve cancellation takes effect (null when none is scheduled). Stripe flexible billing mode sets this instead of cancelAtPeriodEnd",
+    }),
     periodEnd: dateTimeSchema.nullable().openapi({
       description:
         "End of the current self-serve billing period (null for enterprise contracts or when unknown)",

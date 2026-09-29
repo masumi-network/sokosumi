@@ -1,10 +1,7 @@
+import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { vi } from "vitest";
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-} from "@/lib/clients/generated/core";
 import {
   CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE,
   serializeChatUnreadsFilterCookie,

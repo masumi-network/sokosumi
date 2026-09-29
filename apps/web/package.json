@@ -23,9 +23,7 @@
     "messages:parity:write": "node ./scripts/check-message-key-parity.mjs --write",
     "test": "pnpm messages:parity && vitest run",
     "test:ci": "pnpm messages:parity && vitest run",
-    "test:watch": "vitest",
-    "generate:core": "NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.core.config.ts",
-    "generate:core:snapshot": "pnpm --filter @sokosumi/core run write-openapi-snapshot-for-web && NODE_OPTIONS=\"--import ../../scripts/register-typescript6.mjs\" openapi-ts -f openapi-ts.core.config.ts -i openapi-core.snapshot.json"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.125",
@@ -47,6 +45,7 @@
     "@next/third-parties": "16.3.6",
     "@radix-ui/react-slot": "1.3.3",
     "@sentry/nextjs": "11.1.0",
+    "@sokosumi/core-client": "workspace:*",
     "@sokosumi/masumi": "workspace:*",
     "@sokosumi/net": "workspace:*",
     "@sokosumi/soko-bot": "workspace:*",
@@ -119,7 +118,6 @@
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.99.0",
     "@tailwindcss/postcss": "4.3.3",
     "@tailwindcss/typography": "0.5.20",
     "@testing-library/dom": "10.4.2",

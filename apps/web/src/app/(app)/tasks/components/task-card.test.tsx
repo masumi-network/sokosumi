@@ -1,8 +1,8 @@
 import { DndContext } from "@dnd-kit/core";
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";

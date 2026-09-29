@@ -214,18 +214,18 @@ import { JobsList } from "src/app/(app)/agents/[agentId]/jobs/components/jobs-li
 ### Database Access
 
 - **Web does not access Postgres or Prisma.** All reads and writes go through the Core API (`coreClient` in `src/lib/clients/core.client.ts`).
-- **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`src/lib/clients/generated/core`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
-- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) come from the generated Core client barrel (`@/lib/clients/generated/core`). Do not import domain enum values from `@sokosumi/utils`. **Pure helpers** (URLs, credits, locale, auth cookies, task-status transitions) stay in `@sokosumi/utils` — not entity mirrors. The drift test (`core-enums-drift.test.ts`) locks generated const shapes (and `SokosumiJobStatus` against the shared utils map).
-- Codegen stays **web-only** under `src/lib/clients/generated/core` (no `packages/api-types`); same pattern as `TaskLinkRelation`.
+- **Entity DTOs** (`Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …) come from the generated Core client (`@sokosumi/core-client`). Use `src/lib/types/core-dto.ts` for web helpers (`CoreAgentDto`, credit/rating accessors, placeholders) and enum **type** aliases derived from Core fields (`TaskStatus`, `JobType`, `SokosumiJobStatus`, …).
+- **Enum runtime values** (`TaskStatus.RUNNING`, `JobType.PAID`, …) come from the generated Core client barrel (`@sokosumi/core-client`). Do not import domain enum values from `@sokosumi/utils`. **Pure helpers** (URLs, credits, locale, auth cookies, task-status transitions) stay in `@sokosumi/utils` — not entity mirrors. The drift test (`core-enums-drift.test.ts`) locks generated const shapes (and `SokosumiJobStatus` against the shared utils map).
+- Codegen lives in `packages/core-client` so every app that calls Core imports one client. Subpaths: `@sokosumi/core-client/client` (`createClient`, `Client`), `/transformers`, `/schemas`.
 - Do not import `@sokosumi/database` from web. Do not add Prisma/Core enum mirrors or Prisma-shaped composites under `@sokosumi/utils`.
-- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`). Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
+- After adding or changing a Core endpoint, regenerate the Core API client (`pnpm --filter @sokosumi/core-client generate:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`). Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Services return Core DTOs directly — no mapper shims back to Prisma-shaped types.
 
 #### Boundary rules (SOK-596)
 
 Keep web on the Core DTO boundary (convention / review — not a separate CI grep job):
 
 - **Never** import `@sokosumi/database` from web (including `package.json` dependencies).
-- **Never** import domain enum **runtime const maps** from `@sokosumi/utils` — use `@/lib/clients/generated/core`. Forbidden names include: `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`.
+- **Never** import domain enum **runtime const maps** from `@sokosumi/utils` — use `@sokosumi/core-client`. Forbidden names include: `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`.
 - **Allowed** from utils: Masumi protocol enums (`NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`) and the approved pure helpers listed under [Core DTO boundary](#core-dto-boundary).
 - **Allowlist:** `src/lib/clients/__tests__/core-enums-drift.test.ts` may import `SokosumiJobStatus` from `@sokosumi/utils` only (parity guard against the shared Core/DB map).
 - After Core client regen, run `pnpm --filter web typecheck` (CI `typecheck` also covers this).
@@ -237,7 +237,7 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 #### In Core REST DTOs (use generated client)
 
 - Entity shapes: `Agent`, `Job`, `JobSummary`, `Task`, `OrganizationRecord`, …
-- Domain enum **types and runtime const maps** that appear in OpenAPI (e.g. `TaskStatus`, `JobType`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `NotificationKind`, …) from `@/lib/clients/generated/core`
+- Domain enum **types and runtime const maps** that appear in OpenAPI (e.g. `TaskStatus`, `JobType`, `OnChainJobStatus`, `MemberRole`, persisted `InvitationStatus`, `NotificationKind`, …) from `@sokosumi/core-client`
 - Cross-cutting helpers / field-derived aliases in `src/lib/types/core-dto.ts`
 
 #### Not Core REST DTOs (do not add to `/v1` OpenAPI entity schemas)
@@ -488,7 +488,7 @@ When implementing or reviewing UI in this app, load and follow these app-scoped 
 
 ## Additional Rules
 
-- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@/lib/clients/generated/core` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
+- [Avoid re-exports](../../.cursor/rules/avoid-re-exports.mdc) – import entity types from `@sokosumi/core-client` or `@/lib/types/core-dto`; import Better Auth session types (`Session`, `SessionUser`, `SessionRecord`, `Account`) and other approved pure helpers from `@sokosumi/utils` directly; no passthrough files. See [Core DTO boundary](#core-dto-boundary).
 - [Utils vs database helpers](../../.cursor/rules/utils-vs-database.mdc) – import `@sokosumi/utils` from client components; web never imports `@sokosumi/database`
 - [Whole pixels](../../.cursor/rules/whole-pixels.mdc) – no fractional `px` on a layout or border length; guard `src/lib/utils/__tests__/src-walk-guards.test.ts`
 - [Effects](.cursor/rules/effects.mdc)

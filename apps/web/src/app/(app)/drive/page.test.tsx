@@ -131,7 +131,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFilesDelete: vi.fn(),
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
@@ -1063,7 +1063,7 @@ describe("DrivePage files view mode", () => {
     );
   });
 
-  it("workspace mobile header shows create folder and task outputs as buttons", async () => {
+  it("workspace mobile header folds create folder and task outputs into one menu", async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams("view=workspace");
     listDriveItemsMock.mockResolvedValue([]);
@@ -1074,19 +1074,24 @@ describe("DrivePage files view mode", () => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    // No "..." menu: both are out in the open.
-    expect(screen.queryByTestId("files-mobile-actions")).toBeNull();
     // Desktop create-folder control remains in the header for wide containers.
     expect(
       screen.getAllByRole("button", { name: "createFolder" }).length,
     ).toBeGreaterThan(0);
+    // The menu shares the tab row, so no second control row sits above the list.
+    const header = screen.getByTestId("files-desktop-header");
+    await user.click(
+      within(header).getByRole("button", { name: "moreActions" }),
+    );
 
+    // The Tasks view was reachable only through a card in the grid, so without
+    // this the grid's removal would have orphaned a whole view.
+    expect(
+      await screen.findByTestId("files-mobile-tasks-outputs"),
+    ).toBeVisible();
     expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
       "createFolder",
     );
-    // The Tasks view was reachable only through a card in the grid, so without
-    // this the grid's removal would have orphaned a whole view.
-    expect(screen.getByTestId("files-mobile-tasks-outputs")).toBeVisible();
 
     await user.click(screen.getByTestId("files-mobile-create-folder"));
     expect(
@@ -1111,30 +1116,12 @@ describe("DrivePage files view mode", () => {
       within(header).getByRole("tab", { name: "recentsTab" }),
     ).toBeVisible();
     expect(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     ).toBeVisible();
     // And no search field: the catalog's own is the first thing on the page.
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),
     ).toBeNull();
-  });
-
-  it("keeps mobile create-folder path outside the desktop header row", async () => {
-    useIsMobileMock.mockReturnValue(true);
-    searchParams = new URLSearchParams("view=browse");
-    listDriveItemsMock.mockResolvedValue([]);
-
-    renderDrive();
-
-    await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
-    });
-
-    const header = screen.getByTestId("files-desktop-header");
-    expect(screen.getByTestId("files-mobile-create-folder")).toBeVisible();
-    expect(
-      within(header).queryByTestId("files-mobile-create-folder"),
-    ).not.toBeInTheDocument();
   });
 });
 
@@ -1681,7 +1668,7 @@ describe("one catalog, not two", () => {
 
     const header = screen.getByTestId("files-desktop-header");
     await user.click(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     );
     await user.type(screen.getByPlaceholderText("folderName"), "Reports");
     await user.click(
@@ -1826,7 +1813,7 @@ describe("one catalog, not two", () => {
     // every width.
     const header = screen.getByTestId("files-desktop-header");
     expect(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     ).toBeVisible();
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),

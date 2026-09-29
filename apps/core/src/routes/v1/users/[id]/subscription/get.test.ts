@@ -15,9 +15,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUniqueMock, subscriptionFindFirstMock } = vi.hoisted(() => ({
+const {
+  userFindUniqueMock,
+  subscriptionFindFirstMock,
+  subscriptionFindManyMock,
+} = vi.hoisted(() => ({
   userFindUniqueMock: vi.fn(),
   subscriptionFindFirstMock: vi.fn(),
+  subscriptionFindManyMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -27,6 +32,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     subscription: {
       findFirst: subscriptionFindFirstMock,
+      findMany: subscriptionFindManyMock,
     },
   },
 }));
@@ -59,6 +65,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
 describe("GET /users/{id}/subscription", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    subscriptionFindManyMock.mockResolvedValue([]);
   });
 
   it("returns 403 when the caller may not access the target user", async () => {
@@ -72,16 +79,19 @@ describe("GET /users/{id}/subscription", () => {
 
   it("returns the active personal subscription for `me`", async () => {
     userFindUniqueMock.mockResolvedValueOnce({ id: "user_123" });
-    subscriptionFindFirstMock.mockResolvedValue({
-      id: "sub_1",
-      plan: "starter",
-      status: "active",
-      cancelAtPeriodEnd: true,
-      periodStart: new Date("2025-01-01T00:00:00.000Z"),
-      periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-      seats: 1,
-      referenceId: "user_123",
-    });
+    subscriptionFindManyMock.mockResolvedValue([
+      {
+        id: "sub_1",
+        plan: "starter",
+        status: "active",
+        cancelAtPeriodEnd: true,
+        cancelAt: new Date("2025-02-01T00:00:00.000Z"),
+        periodStart: new Date("2025-01-01T00:00:00.000Z"),
+        periodEnd: new Date("2025-02-01T00:00:00.000Z"),
+        seats: 1,
+        referenceId: "user_123",
+      },
+    ]);
 
     const response = await createApp().request(
       "http://localhost/me/subscription",
@@ -94,12 +104,13 @@ describe("GET /users/{id}/subscription", () => {
         plan: "starter",
         status: "active",
         cancelAtPeriodEnd: true,
+        cancelAt: "2025-02-01T00:00:00.000Z",
         periodStart: "2025-01-01T00:00:00.000Z",
         periodEnd: "2025-02-01T00:00:00.000Z",
         seats: 1,
       },
     });
-    expect(subscriptionFindFirstMock).toHaveBeenCalledWith(
+    expect(subscriptionFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ referenceId: "user_123" }),
       }),

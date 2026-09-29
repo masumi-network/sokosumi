@@ -1,11 +1,11 @@
 "use client";
 
+import { AgentStatus } from "@sokosumi/core-client";
 import type { OnChangeFn, SortingState } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
-
 import { getAgentListColumns } from "@/components/admin/agents/agent-list-columns";
 import DataTable from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { listAdminAgentsAction } from "@/lib/actions/admin-agents/action";
-import { AgentStatus } from "@/lib/clients/generated/core";
 import type {
   AdminAgentListPage,
   ListAdminAgentsParams,

@@ -1,17 +1,15 @@
 "use client";
 
-import { Building2, CircleDashed, FolderKanban, ListTodo } from "lucide-react";
+import { Building2, FolderKanban, Receipt } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
 
 import {
   buildHistoryFiltersSearchParams,
   getHistoryFiltersFromSearchParams,
-  getHistoryStatusOptionsForType,
+  HISTORY_TYPE_VALUES,
   type HistoryFilters,
-  type HistoryStatus,
   type HistoryType,
-  isHistoryStatusAllowedForType,
   type ProjectFilterOption,
 } from "@/app/history/utils/history-filters";
 import {
@@ -31,14 +29,10 @@ interface HistoryViewFiltersProps {
     scopeOwned: string;
     scopeWorkspace: string;
     typeLabel: string;
-    statusLabel: string;
     projectLabel: string;
     typeOptions: Record<HistoryType, string>;
-    statusOptions: Record<HistoryStatus, string>;
   };
 }
-
-const HISTORY_TYPE_OPTIONS: HistoryType[] = ["task", "job", "image"];
 
 export function HistoryViewFilters({
   activeOrganizationId,
@@ -112,39 +106,14 @@ export function HistoryViewFilters({
     nextSections.push({
       id: "type",
       label: labels.typeLabel,
-      icon: ListTodo,
+      icon: Receipt,
       value: filters.type,
       allLabel: labels.all,
-      onChange: (type) => {
-        const nextType = (type as HistoryType | null) ?? null;
-        handleFilterChange({
-          type: nextType,
-          status:
-            filters.status &&
-            !isHistoryStatusAllowedForType(filters.status, nextType)
-              ? null
-              : filters.status,
-        });
-      },
-      options: HISTORY_TYPE_OPTIONS.map((type) => ({
+      onChange: (type) =>
+        handleFilterChange({ type: (type as HistoryType | null) ?? null }),
+      options: HISTORY_TYPE_VALUES.map((type) => ({
         value: type,
         label: labels.typeOptions[type],
-      })),
-    });
-
-    nextSections.push({
-      id: "status",
-      label: labels.statusLabel,
-      icon: CircleDashed,
-      value: filters.status,
-      allLabel: labels.all,
-      onChange: (status) =>
-        handleFilterChange({
-          status: (status as HistoryStatus | null) ?? null,
-        }),
-      options: getHistoryStatusOptionsForType(filters.type).map((status) => ({
-        value: status,
-        label: labels.statusOptions[status],
       })),
     });
 
@@ -175,8 +144,6 @@ export function HistoryViewFilters({
     labels.scopeLabel,
     labels.scopeOwned,
     labels.scopeWorkspace,
-    labels.statusLabel,
-    labels.statusOptions,
     labels.typeLabel,
     labels.typeOptions,
     projectOptions,

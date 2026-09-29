@@ -1,3 +1,5 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
+import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -22,8 +24,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
 const {

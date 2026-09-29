@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { Task } from "@/lib/clients/generated/core";
+import type { Task } from "@sokosumi/core-client";
 import {
   TaskLinkRelation,
   TaskPriority,
   TaskStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
   revalidatePath: vi.fn(),

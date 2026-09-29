@@ -1,4 +1,4 @@
-import type { Vendor } from "@/lib/clients/generated/core";
+import type { Vendor } from "@sokosumi/core-client";
 import { cn } from "@/lib/utils";
 
 const VENDOR_LOGOS: Record<string, { light: string; dark: string }> = {

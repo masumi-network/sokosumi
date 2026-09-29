@@ -5,6 +5,8 @@ import { useMemo } from "react";
 
 import { DEFAULT_TIME_ZONE } from "@/i18n/time-zone";
 import {
+  formatDateWithYear,
+  formatMonthYear,
   formatShortDate,
   formatTimeAgo,
   getDateGroupKey,
@@ -17,8 +19,12 @@ export function useLocalizedDateTime() {
   return useMemo(
     () => ({
       locale,
+      formatMonthYear: (date: string | Date) =>
+        formatMonthYear(date, locale, timeZone),
       formatShortDate: (date: string | Date) =>
         formatShortDate(date, locale, timeZone),
+      formatDateWithYear: (date: string | Date) =>
+        formatDateWithYear(date, locale, timeZone),
       formatTimeAgo: (date: string | Date) => formatTimeAgo(date, locale),
       getDateGroupKey: (dateInput: Date | number) =>
         getDateGroupKey(dateInput, locale),

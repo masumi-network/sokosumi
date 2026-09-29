@@ -1,9 +1,9 @@
 "use client";
 
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { useSession } from "@/lib/auth/auth.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";

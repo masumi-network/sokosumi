@@ -1,10 +1,7 @@
+import type { Task, TaskListItem } from "@sokosumi/core-client";
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
-import type {
-  Task,
-  TaskListItem,
-} from "@/lib/clients/generated/core/types.gen";
 
 function buildTask(
   status: TaskStatus,
@@ -40,6 +37,8 @@ function buildTask(
     description: null,
     status,
     priority: "NONE",
+    number: null,
+    identifier: null,
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     scheduleId: null,

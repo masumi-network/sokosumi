@@ -1,7 +1,7 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { ShellOwnedEditChannelDialog } from "./edit-channel-dialog-harness";
 
 vi.mock("next/navigation", () => ({

@@ -14,11 +14,8 @@ import {
   mapChatRoomWithSidebarFlags,
   requireChatRoomUserAccess,
 } from "../helpers";
-import {
-  getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
-  roomUnreadFields,
-} from "../room-unread";
+import { getChatRoomUnreadMentionCounts } from "../room-mention-counts";
+import { getChatRoomUnreadCounts, roomUnreadFields } from "../room-unread";
 
 const paramsSchema = z.object({
   id: z

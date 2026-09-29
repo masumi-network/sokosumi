@@ -9,11 +9,7 @@ import {
 import { HistoryTypeIcon } from "@/app/history/components/history-type-icon";
 import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { HistoryItem } from "@/lib/services/history.service";
-import type { SokosumiJobStatus } from "@/lib/types/core-dto";
+import type { TransactionHistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -21,19 +17,21 @@ import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 export interface HistoryListItemLabels {
   credit: string;
   credits: string;
-  creditsUnavailable: string;
   noDescription: string;
-  updated: string;
+  consumed: string;
   kind: {
-    task: string;
     job: string;
     image: string;
+    task: string;
+    coworker: string;
+    sokoBot: string;
+    topUp: string;
+    unattributed: string;
   };
-  taskStatus: Record<TaskStatus, string>;
 }
 
 interface HistoryListItemProps {
-  item: HistoryItem;
+  item: TransactionHistoryItem;
   labels: HistoryListItemLabels;
   activeOrganizationId: string | null;
 }
@@ -43,37 +41,42 @@ export function HistoryListItem({
   labels,
   activeOrganizationId,
 }: HistoryListItemProps) {
-  const { formatTimeAgo } = useLocalizedDateTime();
+  const { formatDateWithYear } = useLocalizedDateTime();
   const formatter = useFormatter();
   const description = getHistoryRowSubtitle(item, labels);
-  const credits = formatHistoryCredits(item.credits, labels, formatter.number);
+  const credits = formatHistoryCredits(item, labels, formatter.number);
+  const href = getHistoryItemHref(item);
   const showOwner = activeOrganizationId !== null;
+  // Main's grid minus the status column. The amount column takes 110px rather
+  // than main's 80px because a ledger amount runs to five or six digits
+  // ("14,568 credits") where a task's was three; at 80px it wrapped onto a
+  // second line and gave every row a ragged right edge.
   const rowClassName = cn(
     "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
-      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
-      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
-    isArchivedHistoryItem(item)
-      ? "cursor-default"
-      : "hover:bg-card-background-hover press content-in",
+      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px] sm:items-center sm:gap-4"
+      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px] sm:items-center sm:gap-4",
+    href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
   );
   const content = (
     <HistoryListItemContent
       credits={credits}
       description={description}
-      formatTimeAgo={formatTimeAgo}
+      formatShortDate={formatDateWithYear}
       item={item}
       labels={labels}
       activeOrganizationId={activeOrganizationId}
     />
   );
 
-  if (isArchivedHistoryItem(item)) {
+  // Coworker seats, Soko Bot usage and unattributed spends have no page behind
+  // them, so those rows are text rather than a link to nowhere.
+  if (!href) {
     return <div className={rowClassName}>{content}</div>;
   }
 
   return (
-    <Link href={getHistoryItemHref(item)} className={rowClassName}>
+    <Link href={href} className={rowClassName}>
       {content}
     </Link>
   );
@@ -82,15 +85,15 @@ export function HistoryListItem({
 function HistoryListItemContent({
   credits,
   description,
-  formatTimeAgo,
+  formatShortDate,
   item,
   labels,
   activeOrganizationId,
 }: {
   credits: string;
   description: string;
-  formatTimeAgo: (date: string | Date) => string;
-  item: HistoryItem;
+  formatShortDate: (date: string | Date) => string;
+  item: TransactionHistoryItem;
   labels: HistoryListItemLabels;
   activeOrganizationId: string | null;
 }) {
@@ -114,32 +117,22 @@ function HistoryListItemContent({
             <HistoryOwnerAvatar owner={item.owner} />
           </div>
         )}
-        <div
+        <HistoryMetaTime
+          consumedAt={item.consumedAt}
+          formatShortDate={formatShortDate}
+          consumedLabel={labels.consumed}
           className={cn(
-            "flex items-center",
             showOwner
               ? "sm:col-start-4 sm:row-start-1"
               : "sm:col-start-3 sm:row-start-1",
           )}
-        >
-          <HistoryStatus item={item} labels={labels} />
-        </div>
-        <HistoryMetaTime
-          updatedAt={item.updatedAt}
-          formatTimeAgo={formatTimeAgo}
-          updatedLabel={labels.updated}
-          className={cn(
-            showOwner
-              ? "sm:col-start-5 sm:row-start-1"
-              : "sm:col-start-4 sm:row-start-1",
-          )}
         />
         <span
           className={cn(
-            "text-muted-foreground tabular-nums sm:text-right",
+            "text-muted-foreground tabular-nums whitespace-nowrap sm:text-right",
             showOwner
-              ? "sm:col-start-6 sm:row-start-1"
-              : "sm:col-start-5 sm:row-start-1",
+              ? "sm:col-start-5 sm:row-start-1"
+              : "sm:col-start-4 sm:row-start-1",
           )}
         >
           {credits}
@@ -149,15 +142,11 @@ function HistoryListItemContent({
   );
 }
 
-export function isArchivedHistoryItem(item: HistoryItem): boolean {
-  return item.archivedAt != null;
-}
-
 export function HistoryTypeColumn({
   item,
   labels,
 }: {
-  item: HistoryItem;
+  item: TransactionHistoryItem;
   labels: Pick<HistoryListItemLabels, "kind">;
 }) {
   return (
@@ -168,49 +157,30 @@ export function HistoryTypeColumn({
       >
         <HistoryTypeIcon item={item} />
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
+      {/* `truncate`: the column is 120px wide and the chip label is now a
+          source name, not one of main's three short words. Without it a long
+          label ran under the title and broke the row's left alignment. */}
+      <span className="text-muted-foreground w-full truncate rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>
   );
 }
 
-function HistoryStatus({
-  item,
-  labels,
-}: {
-  item: HistoryItem;
-  labels: HistoryListItemLabels;
-}) {
-  if (item.kind === "task") {
-    const status = item.status as TaskStatus;
-    return (
-      <TaskStatusBadge status={status} label={labels.taskStatus[status]} />
-    );
-  }
-
-  // An image has no lifecycle of its own — Core types its status as the literal
-  // `"active"` for that reason. A badge here would be a job status word
-  // ("Started", "Payment failed") applied to a finished picture.
-  if (item.kind === "image") {
-    return null;
-  }
-
-  return <JobStatusBadge status={item.status as SokosumiJobStatus} />;
-}
-
+/**
+ * A spend reads exactly as it did on main. A top up carries a leading `+`, so
+ * the two directions are told apart by the sign and the source chip rather than
+ * by a colour: the app has no green/red convention for a credit amount, and
+ * inventing one here would be a new accent role on a surface that has none.
+ */
 function formatHistoryCredits(
-  credits: number | null,
-  labels: Pick<
-    HistoryListItemLabels,
-    "credit" | "credits" | "creditsUnavailable"
-  >,
+  item: TransactionHistoryItem,
+  labels: Pick<HistoryListItemLabels, "credit" | "credits">,
   formatNumber: (value: number) => string,
 ): string {
-  if (credits === null) return labels.creditsUnavailable;
-
-  const formattedCredits = formatCreditsForDisplay(credits);
+  const formattedCredits = formatCreditsForDisplay(item.credits);
   const unit = formattedCredits === 1 ? labels.credit : labels.credits;
+  const amount = `${formatNumber(formattedCredits)} ${unit}`;
 
-  return `${formatNumber(formattedCredits)} ${unit}`;
+  return item.kind === "topUp" ? `+${amount}` : amount;
 }

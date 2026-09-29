@@ -1,11 +1,10 @@
 import "server-only";
 
+import { postUsersByIdUtmAttribution } from "@sokosumi/core-client";
+import { createClient } from "@sokosumi/core-client/client";
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 import type { z } from "zod";
-
-import { postUsersByIdUtmAttribution } from "@/lib/clients/generated/core";
-import { createClient } from "@/lib/clients/generated/core/client";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { UTM_COOKIE_NAME, utmDataSchema } from "@/lib/utils/utm";

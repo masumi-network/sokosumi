@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { CoreApiPagination } from "@/lib/clients/core.client";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   CancelSocialPostRequest,
   CreateSocialPostRequest,
@@ -26,7 +24,9 @@ import type {
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import type { CoreApiPagination } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 interface ListProjectsParams {
   cursor?: string | null;

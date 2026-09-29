@@ -1,13 +1,12 @@
 "use client";
 
+import type { CheckoutSessionAnalytics } from "@sokosumi/core-client";
 import { useEffect } from "react";
-
 import {
   CONSENT_CHANGE_EVENT,
   type ConsentChoice,
   readConsent,
 } from "@/lib/analytics/consent";
-import type { CheckoutSessionAnalytics } from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 interface PurchaseTrackerProps {
