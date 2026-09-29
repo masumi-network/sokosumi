@@ -25,6 +25,8 @@ export interface TaskAssigneeView {
  */
 export interface TaskWithCoworker {
   id: string;
+  /** Short id such as SOK-12; null for tasks without a project. */
+  identifier: string | null;
   name: string;
   status: TaskStatus;
   priority: TaskPriority;

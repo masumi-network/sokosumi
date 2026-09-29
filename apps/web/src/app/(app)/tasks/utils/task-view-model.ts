@@ -176,6 +176,7 @@ export function mapTaskToTaskWithCoworker(
 
   return {
     id: task.id,
+    identifier: task.identifier,
     name: stripInlineMarkdown(task.name),
     status: task.status,
     priority: task.priority,

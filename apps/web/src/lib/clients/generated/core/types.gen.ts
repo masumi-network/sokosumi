@@ -1149,6 +1149,14 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -6592,6 +6600,14 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -49566,6 +49582,9 @@ export type DeleteTasksByIdResponse = DeleteTasksByIdResponses[keyof DeleteTasks
 export type GetTasksByIdData = {
     body?: never;
     path: {
+        /**
+         * Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace; a trailing slug like SOK-123-fix-login is ignored).
+         */
         id: string;
     };
     query?: never;

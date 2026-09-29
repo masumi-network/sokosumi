@@ -224,13 +224,13 @@ function normalizeLinkNote(note?: string | null): string | null | undefined {
   return trimmedNote ? trimmedNote : null;
 }
 
-function revalidateTaskMutationRoutes(taskId: string, relatedTaskId?: string) {
+/**
+ * A task page can be open at `/tasks/{uuid}`, `/tasks/SOK-12` or the slug URL,
+ * so revalidate the route, not one concrete path.
+ */
+function revalidateTaskMutationRoutes() {
   revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
-
-  if (relatedTaskId) {
-    revalidatePath(`/tasks/${relatedTaskId}`);
-  }
+  revalidatePath("/tasks/[taskId]", "page");
 }
 
 /**
@@ -628,8 +628,7 @@ export const updateTask = withSession<UpdateTaskParameters, UpdateTaskResult>(
         });
       }
 
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${taskId}`);
+      revalidateTaskMutationRoutes();
       if (typeof normalizedProjectId !== "undefined") {
         revalidatePath("/projects");
       }
@@ -677,8 +676,7 @@ export const setTaskStatusFromDrag = withSession<
       });
     }
 
-    revalidatePath("/tasks");
-    revalidatePath(`/tasks/${taskId}`);
+    revalidateTaskMutationRoutes();
     return taskMutationSuccess({ taskId });
   } catch (error) {
     const mutationErrorKind = toTaskMutationErrorKind(error);
@@ -700,8 +698,7 @@ export const setTaskPriority = withSession<
   try {
     await taskService.patchTask(taskId, { priority });
 
-    revalidatePath("/tasks");
-    revalidatePath(`/tasks/${taskId}`);
+    revalidateTaskMutationRoutes();
     return taskMutationSuccess({ taskId });
   } catch (error) {
     const mutationErrorKind = toTaskMutationErrorKind(error);
@@ -720,8 +717,7 @@ export const deleteTask = withSession<DeleteTaskParameters, { taskId: string }>(
   async ({ taskId }) => {
     try {
       await taskService.deleteTask(taskId);
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${taskId}`);
+      revalidateTaskMutationRoutes();
       return { taskId };
     } catch (error) {
       rethrowTaskActionError(
@@ -739,8 +735,7 @@ export const moveTaskToWorkspace = withSession<
 >(async ({ taskId, organizationId }) => {
   try {
     await taskService.moveTaskToWorkspace(taskId, organizationId);
-    revalidatePath("/tasks");
-    revalidatePath(`/tasks/${taskId}`);
+    revalidateTaskMutationRoutes();
     return { taskId };
   } catch (error) {
     rethrowTaskActionError(
@@ -763,8 +758,7 @@ export const createTaskComment = withSession<CreateTaskCommentParameters, void>(
         comment: trimmedComment,
         ...(mentionedUserIds?.length ? { mentionedUserIds } : {}),
       });
-      revalidatePath("/tasks");
-      revalidatePath(`/tasks/${taskId}`);
+      revalidateTaskMutationRoutes();
     } catch (error) {
       rethrowTaskActionError(
         error,
@@ -801,8 +795,7 @@ export const removeTaskParticipant = withSession<
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskMutationRoutes();
   return toActionResult(ok({ taskId }));
 });
 
@@ -815,8 +808,7 @@ export const subscribeTaskParticipant = withSession<
   } catch (error) {
     return toActionResult(err(toCoreApiActionError(error)));
   }
-  revalidatePath("/tasks");
-  revalidatePath(`/tasks/${taskId}`);
+  revalidateTaskMutationRoutes();
   return toActionResult(ok({ taskId }));
 });
 
@@ -850,7 +842,7 @@ export const createTaskLink = withSession<
       parentLinksToReplace,
     });
 
-    revalidateTaskMutationRoutes(normalizedTaskId, normalizedRelatedTaskId);
+    revalidateTaskMutationRoutes();
     return {
       taskId: normalizedTaskId,
       relatedTaskId: normalizedRelatedTaskId,
@@ -882,7 +874,7 @@ export const deleteTaskLink = withSession<
     );
 
     await taskService.deleteTaskLink(normalizedTaskId, normalizedLinkId);
-    revalidateTaskMutationRoutes(normalizedTaskId, link?.peerTask.id);
+    revalidateTaskMutationRoutes();
 
     return {
       taskId: normalizedTaskId,
@@ -962,7 +954,7 @@ export const createTaskAndLink = withSession<
         parentLinksToReplace,
       });
 
-      revalidateTaskMutationRoutes(normalizedTaskId, createdTask.id);
+      revalidateTaskMutationRoutes();
       return taskMutationSuccess({
         taskId: normalizedTaskId,
         createdTaskId: createdTask.id,

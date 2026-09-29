@@ -4624,6 +4624,23 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -4774,6 +4791,8 @@ export const TaskSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
@@ -22988,6 +23007,23 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -23092,6 +23128,8 @@ export const TaskListItemSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
