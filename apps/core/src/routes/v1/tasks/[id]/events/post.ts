@@ -13,7 +13,6 @@ import { waitUntil } from "@vercel/functions";
 import { LIMITS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import {
-  requireTaskCancelAccess,
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
@@ -297,11 +296,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         authenticationUrl == null &&
         masumiPayment == null;
 
-      const task = isCancelOnlyWrite
-        ? await requireTaskCancelAccess(c.var, taskId, tx)
-        : hasNonCommentWrite
-          ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
-          : await requireTaskCommentAccess(c.var, taskId, tx);
+      const task = hasNonCommentWrite
+        ? await requireTaskStatusWriteAccess(c.var, taskId, tx)
+        : await requireTaskCommentAccess(c.var, taskId, tx);
 
       const isAgent = isAgentAuthContext(authContext);
 

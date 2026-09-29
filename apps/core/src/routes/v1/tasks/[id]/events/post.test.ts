@@ -43,7 +43,6 @@ const {
   requireTaskCommentAccessMock,
   requireTaskCollaborationMock,
   requireTaskStatusWriteAccessMock,
-  requireTaskCancelAccessMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   calculateCentsFromMasumiAmountStringsMock: vi.fn(),
@@ -74,7 +73,6 @@ const {
   requireTaskCommentAccessMock: vi.fn(),
   requireTaskCollaborationMock: vi.fn(),
   requireTaskStatusWriteAccessMock: vi.fn(),
-  requireTaskCancelAccessMock: vi.fn(),
   waitUntilCapturedPromises: [] as Promise<unknown>[],
 }));
 
@@ -86,7 +84,6 @@ vi.mock("@/helpers/access-control", () => ({
   requireTaskCollaboration: requireTaskCollaborationMock,
   requireTaskStatusWriteAccess: requireTaskStatusWriteAccessMock,
   requireTaskCommentAccess: requireTaskCommentAccessMock,
-  requireTaskCancelAccess: requireTaskCancelAccessMock,
 }));
 
 vi.mock("@/helpers/notifications", () => ({
@@ -453,7 +450,6 @@ describe("POST /{id}/events", () => {
         requireTaskCollaborationMock(vars, taskId, tx),
     );
     requireTaskCommentAccessMock.mockResolvedValue(createTask());
-    requireTaskCancelAccessMock.mockResolvedValue(createTask());
   });
 
   it("allows assigned coworkers to set OUT_OF_CREDITS", async () => {
@@ -3026,7 +3022,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("lets a delegated coworker cancel a task without charging", async () => {
-    requireTaskCancelAccessMock.mockResolvedValue(
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({ status: TaskStatus.READY, assigneeId: COWORKER_ID }),
     );
 
@@ -3066,7 +3062,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(requireTaskCancelAccessMock).toHaveBeenCalled();
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
@@ -3085,7 +3081,7 @@ describe("POST /{id}/events", () => {
     ["does not notify the owner who canceled their own task", USER_ID, 0],
     ["notifies the owner when the event carries no userId", null, 1],
   ])("%s", async (_title, eventUserId, notificationCount) => {
-    requireTaskCancelAccessMock.mockResolvedValue(
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({ status: TaskStatus.RUNNING }),
     );
     const tx: TransactionMock = {
@@ -3125,7 +3121,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("lets an org workspace member cancel another member's task", async () => {
-    requireTaskCancelAccessMock.mockResolvedValue(
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.RUNNING,
         ownerId: "user_owner",
@@ -3166,7 +3162,7 @@ describe("POST /{id}/events", () => {
     });
 
     expect(response.status).toBe(201);
-    expect(requireTaskCancelAccessMock).toHaveBeenCalled();
+    expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
     expect(requireTaskCollaborationMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3218,7 +3214,6 @@ describe("POST /{id}/events", () => {
 
     expect(response.status).toBe(422);
     expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
-    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
   });
 
@@ -3256,7 +3251,6 @@ describe("POST /{id}/events", () => {
 
     expect(response.status).toBe(404);
     expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
-    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
   });
 
   it("rejects credits from a user session canceling a task", async () => {
@@ -3293,7 +3287,6 @@ describe("POST /{id}/events", () => {
 
     expect(response.status).toBe(422);
     expect(requireTaskStatusWriteAccessMock).toHaveBeenCalled();
-    expect(requireTaskCancelAccessMock).not.toHaveBeenCalled();
     expect(createTaskEventTransactionMock).not.toHaveBeenCalled();
     expect(tx.taskEvent.create).not.toHaveBeenCalled();
     expect(tx.task.updateMany).not.toHaveBeenCalled();
@@ -3428,7 +3421,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("clears the Run at when canceling a queued task", async () => {
-    requireTaskCancelAccessMock.mockResolvedValue(
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({
         status: TaskStatus.QUEUED,
         runAt: new Date("2099-01-05T09:00:00.000Z"),
@@ -3573,7 +3566,7 @@ describe("POST /{id}/events", () => {
     });
 
     it("lets a person cancel it and clears the Run at", async () => {
-      requireTaskCancelAccessMock.mockResolvedValue(
+      requireTaskStatusWriteAccessMock.mockResolvedValue(
         createTask(QUEUED_WITH_RUN_AT),
       );
       const tx: TransactionMock = {
@@ -3647,7 +3640,7 @@ describe("POST /{id}/events", () => {
   });
 
   it("cancels a Task created by a Task Schedule like any other Task", async () => {
-    requireTaskCancelAccessMock.mockResolvedValue(
+    requireTaskStatusWriteAccessMock.mockResolvedValue(
       createTask({ status: TaskStatus.READY, scheduleId: "sch_123" }),
     );
     const tx: TransactionMock = {

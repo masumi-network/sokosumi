@@ -9,7 +9,7 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import {
-  requireMutableTaskOwnership,
+  requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
@@ -174,7 +174,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     } = c.req.valid("json");
 
     const result = await prisma.$transaction(async (tx) => {
-      const taskSnapshot = await requireMutableTaskOwnership(
+      const taskSnapshot = await requireMutableTaskWriteAccess(
         userContext,
         id,
         tx,
@@ -206,7 +206,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw conflict("Task changed during update");
       }
 
-      const task = await requireMutableTaskOwnership(userContext, id, tx);
+      const task = await requireMutableTaskWriteAccess(userContext, id, tx);
       await requireAssignedOrganizationSeat(
         userContext.userId,
         task.organizationId,
@@ -313,6 +313,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           description: removeTaskContextAttachmentLinks(proseSource) || null,
           organizationId: task.organizationId,
           ownerId: task.ownerId,
+          actorUserId: userContext.userId,
           project: healedProject,
           preservedBrandUrl,
           tx,
@@ -327,7 +328,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let updatedTask = await tx.task.update({
         where: {
           id,
-          ownerId: userContext.userId,
           archivedAt: null,
           status: {
             in: [TaskStatus.DRAFT, TaskStatus.QUEUED, TaskStatus.READY],

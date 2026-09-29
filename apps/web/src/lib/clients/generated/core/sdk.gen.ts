@@ -4207,7 +4207,7 @@ export const deleteTasksByIdParticipantsByUserId = <ThrowOnError extends boolean
 });
 
 /**
- * Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.
+ * Archive task. The owner, or any member of the task's organization for a public task, may archive it, including a parked task awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.
  */
 export const deleteTasksById = <ThrowOnError extends boolean = false>(options: Options<DeleteTasksByIdData, ThrowOnError>): RequestResult<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteTasksByIdResponses, DeleteTasksByIdErrors, ThrowOnError>({
     responseTransformer: deleteTasksByIdResponseTransformer,
