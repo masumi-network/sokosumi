@@ -27,7 +27,11 @@ import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
-import { CLI_COMMANDS, runDiscoverCommand } from "./commands/discover.js";
+import {
+  formatCliCommandHelpLines,
+  formatUnknownCommandUsage,
+  runDiscoverCommand,
+} from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
 import {
   type RuntimeDependencies,
@@ -160,45 +164,6 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const COMMAND_USAGE: Record<(typeof CLI_COMMANDS)[number], string> = {
-  discover: "",
-  skills: "",
-  "skills path": "",
-  "auth login": "",
-  "auth status": "",
-  "auth whoami": "",
-  "auth logout": "",
-  "admin members": "WORKSPACE_SLUG",
-  "admin add-member": "WORKSPACE_SLUG --email EMAIL",
-  "admin assign-seat": "WORKSPACE_SLUG --email EMAIL",
-  "agents list": "",
-  "agents hire": "AGENT_ID",
-  "coworkers list": "",
-  "coworkers register": "[options]",
-  "coworkers provision": "[options]",
-  "coworkers connect": "COWORKER_ID [options]",
-  "coworkers update": "COWORKER_ID [options]",
-  "coworkers api-key": "COWORKER_ID [options]",
-  "coworkers me": "",
-  "vendors me": "",
-  "vendors create": "--name NAME --slug SLUG",
-  "workspaces list": "",
-  "workspaces check": "ORGANIZATION_ID",
-  "runtime key-import": "[options]",
-  "runtime start": "TASK_ID [options]",
-  "runtime complete": "TASK_ID [options]",
-  "runtime run": "TASK_ID [options]",
-  "tasks list": "[options]",
-  "tasks create": "[--organization-slug WORKSPACE_SLUG]",
-  "tasks get": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
-  "tasks events": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
-  "tasks jobs": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
-  "tasks comment": "TASK_ID [--organization-slug WORKSPACE_SLUG]",
-  "jobs list": "",
-  "jobs get": "JOB_ID",
-  "jobs input": "JOB_ID",
-};
-
 export const GLOBAL_VALUE_OPTIONS = [
   "api-url",
   "auth-url",
@@ -250,15 +215,11 @@ function formatGlobalOptionHelp(): string[] {
 }
 
 function formatHelpText(): string {
-  const usage = CLI_COMMANDS.map((command) => {
-    const extra = COMMAND_USAGE[command];
-    return extra ? `  sokosumi ${command} ${extra}` : `  sokosumi ${command}`;
-  }).join("\n");
   return `Sokosumi CLI v${CLI_VERSION}
 
 Usage:
   sokosumi
-${usage}
+${formatCliCommandHelpLines()}
 
 Empty argv opens the TUI. Use arrows, then Enter. Press Esc to go back.
 
@@ -768,9 +729,7 @@ export async function runCli(
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
-      throw new Error(
-        "Usage: sokosumi discover | admin members|add-member|assign-seat | agents list | coworkers | vendors me|create | workspaces list|check | runtime key-import|start|complete | tasks | jobs | auth login|status|whoami|logout",
-      );
+      throw new Error(formatUnknownCommandUsage());
     }
 
     if (command === "logout") {

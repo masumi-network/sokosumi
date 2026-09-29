@@ -6,44 +6,79 @@ import { type CliTargetConfig, sanitizeApiUrl } from "../../auth/config.js";
 import { redactErrorMessage } from "../../error-redaction.js";
 import type { CommandOutput } from "./command-helpers.js";
 
-export const CLI_COMMANDS = [
-  "discover",
-  "skills",
-  "skills path",
-  "auth login",
-  "auth status",
-  "auth whoami",
-  "auth logout",
-  "admin members",
-  "admin add-member",
-  "admin assign-seat",
-  "agents list",
-  "agents hire",
-  "coworkers list",
-  "coworkers register",
-  "coworkers provision",
-  "coworkers connect",
-  "coworkers update",
-  "coworkers api-key",
-  "coworkers me",
-  "vendors me",
-  "vendors create",
-  "workspaces list",
-  "workspaces check",
-  "runtime key-import",
-  "runtime start",
-  "runtime complete",
-  "runtime run",
-  "tasks list",
-  "tasks create",
-  "tasks get",
-  "tasks events",
-  "tasks jobs",
-  "tasks comment",
-  "jobs list",
-  "jobs get",
-  "jobs input",
-] as const;
+interface CliCommandCatalogEntry {
+  readonly command: string;
+  readonly usage: string;
+}
+
+export const CLI_COMMAND_CATALOG = [
+  { command: "discover", usage: "" },
+  { command: "skills", usage: "" },
+  { command: "skills path", usage: "" },
+  { command: "auth login", usage: "" },
+  { command: "auth status", usage: "" },
+  { command: "auth whoami", usage: "" },
+  { command: "auth logout", usage: "" },
+  { command: "admin members", usage: "WORKSPACE_SLUG" },
+  { command: "admin add-member", usage: "WORKSPACE_SLUG --email EMAIL" },
+  { command: "admin assign-seat", usage: "WORKSPACE_SLUG --email EMAIL" },
+  { command: "agents list", usage: "" },
+  { command: "agents hire", usage: "AGENT_ID" },
+  { command: "coworkers list", usage: "" },
+  { command: "coworkers register", usage: "[options]" },
+  { command: "coworkers provision", usage: "[options]" },
+  { command: "coworkers connect", usage: "COWORKER_ID [options]" },
+  { command: "coworkers update", usage: "COWORKER_ID [options]" },
+  { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
+  { command: "coworkers me", usage: "" },
+  { command: "vendors me", usage: "" },
+  { command: "vendors create", usage: "--name NAME --slug SLUG" },
+  { command: "workspaces list", usage: "" },
+  { command: "workspaces check", usage: "ORGANIZATION_ID" },
+  { command: "runtime key-import", usage: "[options]" },
+  { command: "runtime start", usage: "TASK_ID [options]" },
+  { command: "runtime complete", usage: "TASK_ID [options]" },
+  { command: "runtime run", usage: "TASK_ID [options]" },
+  { command: "tasks list", usage: "[options]" },
+  { command: "tasks create", usage: "[--organization-slug WORKSPACE_SLUG]" },
+  {
+    command: "tasks get",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks events",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks jobs",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks comment",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  { command: "jobs list", usage: "" },
+  { command: "jobs get", usage: "JOB_ID" },
+  { command: "jobs input", usage: "JOB_ID" },
+] as const satisfies readonly CliCommandCatalogEntry[];
+
+type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];
+
+export const CLI_COMMANDS: readonly CliCommand[] = CLI_COMMAND_CATALOG.map(
+  (entry) => entry.command,
+);
+
+export function formatCliCommandHelpLines(): string {
+  return CLI_COMMAND_CATALOG.map((entry) =>
+    entry.usage
+      ? `  sokosumi ${entry.command} ${entry.usage}`
+      : `  sokosumi ${entry.command}`,
+  ).join("\n");
+}
+
+export function formatUnknownCommandUsage(): string {
+  return `Usage: sokosumi ${CLI_COMMANDS.join(" | ")}`;
+}
 
 export interface DiscoverCommandOptions {
   client?: CoreHttpClient;
