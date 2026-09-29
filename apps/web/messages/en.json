@@ -2483,7 +2483,8 @@
           "empty": "Builds as tasks complete",
           "modelLine": "{model} · hosted in the EU 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Not configured (AI_GATEWAY_API_KEY)",
+          "offHint": "Completed tasks will not add to memory.",
+          "off": "Memory is off",
           "title": "Project memory",
           "copyLink": "Copy link",
           "openRaw": "Open raw",
@@ -2592,8 +2593,7 @@
           "ariaLabel": "Project sections"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "No DESIGN.md yet. Generate one from the project website, or upload a file."
+          "document": "DESIGN.md"
         }
       }
     },

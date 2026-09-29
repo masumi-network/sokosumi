@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { getFormatter } from "next-intl/server";
-
+import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectMemoryPanel } from "@/app/projects/components/project-memory-panel";
 import {
   getProjectWorkspaceLabels,
@@ -46,6 +46,14 @@ export default async function ProjectMemoryPage({
 
   return (
     <ProjectWorkspaceShell
+      actions={
+        <ProjectHeaderActions
+          closedAt={project.closedAt}
+          closingAt={project.closingAt}
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+        />
+      }
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}

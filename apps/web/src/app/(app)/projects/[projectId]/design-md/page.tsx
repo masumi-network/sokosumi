@@ -5,10 +5,12 @@ import {
   ProjectBrandCard,
   ProjectBrandProvider,
 } from "@/app/projects/components/project-brand-card";
+import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import {
   getProjectWorkspaceLabels,
   ProjectWorkspaceShell,
 } from "@/app/projects/components/project-workspace-shell";
+import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
 import { fetchDesignMdMarkdown } from "@/components/design-md/design-md-edit-page-shared";
 import Markdown from "@/components/markdown";
 import { projectService } from "@/lib/services/project.service";
@@ -53,6 +55,14 @@ export default async function ProjectDesignPage({
 
   return (
     <ProjectWorkspaceShell
+      actions={
+        <ProjectHeaderActions
+          closedAt={project.closedAt}
+          closingAt={project.closingAt}
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+        />
+      }
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
@@ -70,25 +80,33 @@ export default async function ProjectDesignPage({
         <div className="max-w-3xl min-w-0 space-y-8">
           <ProjectBrandCard
             projectId={project.id}
-            projectName={project.name}
-            logo={project.logo}
             websiteUrl={project.websiteUrl}
           />
 
-          <section className="space-y-2" data-testid="project-design-document">
-            <h2 className="text-muted-foreground text-xs font-medium">
-              {t("design.document")}
-            </h2>
-            {loaded && "markdown" in loaded ? (
-              <Markdown className="text-foreground">{loaded.markdown}</Markdown>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {loaded
-                  ? tDesignMd("editLoadErrorDescription")
-                  : t("design.empty")}
-              </p>
-            )}
-          </section>
+          {/* With no DESIGN.md the brand section above already says so and
+              offers the ways to add one. */}
+          {loaded ? (
+            <section
+              className="space-y-2"
+              data-testid="project-design-document"
+            >
+              <h2 className="text-muted-foreground text-xs font-medium">
+                {t("design.document")}
+              </h2>
+              {"markdown" in loaded ? (
+                <Markdown
+                  className="text-foreground"
+                  components={SECTION_MARKDOWN_HEADINGS}
+                >
+                  {loaded.markdown}
+                </Markdown>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  {tDesignMd("editLoadErrorDescription")}
+                </p>
+              )}
+            </section>
+          ) : null}
         </div>
       </ProjectBrandProvider>
     </ProjectWorkspaceShell>

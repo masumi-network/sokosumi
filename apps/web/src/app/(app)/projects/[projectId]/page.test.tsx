@@ -32,14 +32,15 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
-vi.mock("@/app/projects/components/project-detail-actions", () => ({
-  ProjectDetailActions: () => <div>Project actions</div>,
-}));
-
-// Stubbed like its sibling above: it reads the reader's Pin list through
-// react-query, and this file is about the page, not about Pin state.
-vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
-  ProjectDetailPinButton: () => <div>Pin project</div>,
+// Stubbed: the pin reads the reader's Pin list through react-query, and this
+// file is about the page, not about Pin state.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => (
+    <div>
+      <div>Pin project</div>
+      <div>Project actions</div>
+    </div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/project-close-status", () => ({

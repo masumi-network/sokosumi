@@ -7,8 +7,7 @@ import {
 } from "@/app/projects/components/project-brand-card";
 import { ProjectBriefing } from "@/app/projects/components/project-briefing";
 import { ProjectCloseStatusCard } from "@/app/projects/components/project-close-status";
-import { ProjectDetailActions } from "@/app/projects/components/project-detail-actions";
-import { ProjectDetailPinButton } from "@/app/projects/components/project-detail-pin-button";
+import { ProjectHeaderActions } from "@/app/projects/components/project-header-actions";
 import { ProjectLatestUpdate } from "@/app/projects/components/project-latest-update";
 import {
   getProjectWorkspaceLabels,
@@ -28,12 +27,11 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const [closeStatus, t, tList, formatter] = await Promise.all([
+  const [closeStatus, t, formatter] = await Promise.all([
     project.closingAt || project.closedAt
       ? projectService.getProjectCloseStatus(project.id)
       : Promise.resolve(null),
     getTranslations("App.Projects.Detail"),
-    getTranslations("App.Projects.list"),
     getFormatter(),
   ]);
   const workspaceLabels = await getProjectWorkspaceLabels();
@@ -41,37 +39,12 @@ export default async function ProjectDetailPage({
   return (
     <ProjectWorkspaceShell
       actions={
-        <div className="flex items-center gap-2">
-          <ProjectDetailPinButton
-            projectId={project.id}
-            isClosed={Boolean(project.closingAt || project.closedAt)}
-            labels={{
-              pin: tList("pin"),
-              unpin: tList("unpin"),
-              error: tList("pinError"),
-            }}
-          />
-          <ProjectDetailActions
-            projectId={project.id}
-            projectRevision={project.projectRevision}
-            isClosingOrClosed={Boolean(project.closingAt || project.closedAt)}
-            labels={{
-              moreActions: t("actions.moreActions"),
-              edit: t("actions.edit"),
-              close: t("actions.close"),
-              closeDialog: {
-                title: t("close.dialog.title"),
-                description: t("close.dialog.description"),
-                reasonLabel: t("close.dialog.reasonLabel"),
-                reasonPlaceholder: t("close.dialog.reasonPlaceholder"),
-                confirm: t("close.dialog.confirm"),
-                cancel: t("close.dialog.cancel"),
-                success: t("close.dialog.success"),
-                error: t("close.dialog.error"),
-              },
-            }}
-          />
-        </div>
+        <ProjectHeaderActions
+          closedAt={project.closedAt}
+          closingAt={project.closingAt}
+          projectId={project.id}
+          projectRevision={project.projectRevision}
+        />
       }
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
@@ -116,8 +89,6 @@ export default async function ProjectDetailPage({
 
           <ProjectBrandCard
             projectId={project.id}
-            projectName={project.name}
-            logo={project.logo}
             websiteUrl={project.websiteUrl}
           />
         </div>
