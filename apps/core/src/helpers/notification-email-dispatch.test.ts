@@ -109,11 +109,10 @@ function restoreTimers() {
 /**
  * Drive a dispatch/resend/cancel to the end under fake timers.
  *
- * `runAllTimersAsync` waits for every pending promise, including the one
- * that is itself waiting on a `sleep`. Sentry 11.1 queues that sleep on a
- * timer captured before the fake clock, so the async runner returns (or
- * deadlocks) and the sleep never fires. Pump one native 0-ms turn at a
- * time, and only run fake timers that are already queued.
+ * `runAllTimersAsync` waits on the test promise while Sentry 11.1's captured
+ * turn has not run, so it deadlocks. Pump a native 0-ms tick so that turn
+ * can queue the fake `sleep`, then run only fake timers that are already
+ * queued. The 500ms Resend gap stays a fake timer.
  */
 async function flush(task: Promise<unknown>): Promise<void> {
   let settled = false;
