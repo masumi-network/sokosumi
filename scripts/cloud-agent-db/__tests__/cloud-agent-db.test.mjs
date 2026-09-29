@@ -707,7 +707,7 @@ describe("sameRepoPullRequestBodies", () => {
           ok: true,
           json: async () => ({
             body: "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
-            head: { repo: { full_name: repo } },
+            head: { sha: "abc123", repo: { full_name: repo } },
           }),
         };
       }
@@ -724,5 +724,70 @@ describe("sameRepoPullRequestBodies", () => {
     assert.deepEqual(bodies, [
       "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
     ]);
+  });
+
+  it("resolves an unmerged close from display_title bound to the head SHA", async () => {
+    // Real GitHub: closed runs list no pulls, and commits/{sha}/pulls omits
+    // PRs closed without merging. Only the signal run-name identifies the PR.
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      if (url.endsWith("/actions/runs/7")) {
+        return {
+          ok: true,
+          json: async () => ({ display_title: "5", pull_requests: [] }),
+        };
+      }
+      if (url.endsWith("/pulls/5")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { sha: "abc123", repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [`https://cursor.com/agents/${agentId}`]);
+    assert.equal(calls.length, 2);
+  });
+
+  it("skips a display_title PR whose head is not the run head SHA", async () => {
+    const fetchImpl = async (url) => {
+      if (url.endsWith("/actions/runs/7")) {
+        return {
+          ok: true,
+          json: async () => ({ display_title: "5", pull_requests: [] }),
+        };
+      }
+      if (url.endsWith("/pulls/5")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { sha: "def456", repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, []);
   });
 });

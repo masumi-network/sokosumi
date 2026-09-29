@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { requireTaskArchiveAccess } from "@/helpers/access-control";
+import { requireTaskWriteAccess } from "@/helpers/access-control";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
@@ -24,7 +24,7 @@ const route = createRoute({
   method: "delete",
   path: "/{id}",
   description:
-    "Archive task. Owners may archive any of their tasks (including parked). Organization owners/admins may archive parked tasks awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.",
+    "Archive task. The owner, or any member of the task's organization for a public task, may archive it, including a parked task awaiting vendor workspace grant approval. A Task created by a Task Schedule archives like any other Task.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -42,11 +42,11 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
-    requireOwnerUserContext(authContext);
+    const userContext = requireOwnerUserContext(authContext);
     const { id } = c.req.valid("param");
 
     const result = await prisma.$transaction(async (tx) => {
-      const currentTask = await requireTaskArchiveAccess(c.var, id, tx);
+      const currentTask = await requireTaskWriteAccess(userContext, id, tx);
 
       await archiveTaskRecord(tx, currentTask);
 
