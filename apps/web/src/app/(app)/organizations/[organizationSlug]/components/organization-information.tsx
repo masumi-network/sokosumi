@@ -139,7 +139,7 @@ export default async function OrganizationInformation({
                   key={card.label}
                   className="rounded-2xl border border-border bg-surface-glass px-4 py-4"
                 >
-                  <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  <dt className="text-muted-foreground text-xs font-medium">
                     {card.label}
                   </dt>
                   <dd className="mt-3 text-sm">{card.value}</dd>

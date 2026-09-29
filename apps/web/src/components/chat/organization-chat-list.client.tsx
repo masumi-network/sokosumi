@@ -967,7 +967,8 @@ export function OrganizationChatList({
                               <RotateCcw
                                 className={cn(
                                   "size-3.5",
-                                  isRestoring && "animate-spin",
+                                  isRestoring &&
+                                    "animate-spin motion-reduce:animate-pulse",
                                 )}
                                 aria-hidden
                               />

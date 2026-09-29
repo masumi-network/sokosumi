@@ -332,7 +332,7 @@ export function StatusMarker({
       // measured above the light side's floor.
       strokeWidth={2.25}
       className={cn(
-        "size-3.5 shrink-0",
+        "size-3.5 shrink-0 transition-colors duration-200",
         tone ?? style.mark,
         spec.spin && live && "animate-spin motion-reduce:animate-none",
       )}

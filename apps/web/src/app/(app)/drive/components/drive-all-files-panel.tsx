@@ -815,7 +815,7 @@ export function DriveAllFilesPanel({
               <button
                 type="button"
                 aria-label={t("removeTag", { name: facet.label })}
-                className="hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
+                className="press hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
                 onClick={facet.remove}
               >
                 <X className="size-3" aria-hidden />
@@ -1007,7 +1007,7 @@ export function DriveAllFilesPanel({
           </Button>
         </div>
       ) : state.items.length === 0 ? (
-        <div className="bg-card-background rounded-lg border p-10 text-center">
+        <div className="bg-card-background motion-safe:animate-in motion-safe:fade-in-0 duration-200 rounded-lg border p-10 text-center">
           <p className="text-sm font-medium">
             {appliedQuery || activeFilterCount > 0
               ? t("noMatchesTitle")
@@ -1084,7 +1084,7 @@ export function DriveAllFilesPanel({
               onClick={() => void loadMore()}
             >
               {state.loadingMore ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("loadMore")}
             </Button>

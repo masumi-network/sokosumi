@@ -17,7 +17,7 @@ function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
               className="h-[22px] max-w-full gap-1"
             >
               <TagIcon name={tag} size={12} />
-              <p className="truncate uppercase">{tag}</p>
+              <p className="truncate">{tag}</p>
             </Badge>
           ))}
         </div>

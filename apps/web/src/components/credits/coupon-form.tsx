@@ -150,7 +150,9 @@ export default function CouponForm({
           </CardContent>
           <CardFooter className="flex items-end justify-between gap-4 pt-6">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
             <p className="text-muted-foreground text-right text-xs">

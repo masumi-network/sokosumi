@@ -253,7 +253,10 @@ export function CreateChannelDialog() {
 
         {!rosterLoaded ? (
           <div className="text-muted-foreground flex items-center justify-center gap-2 py-10 text-sm">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <Loader2
+              className="size-4 animate-spin motion-reduce:animate-pulse"
+              aria-hidden
+            />
             {tChannels("loading")}
           </div>
         ) : null}
@@ -568,7 +571,10 @@ export function CreateChannelDialog() {
               onClick={handleCreate}
             >
               {isPending ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {isPending ? t("creating") : t("create")}
             </Button>

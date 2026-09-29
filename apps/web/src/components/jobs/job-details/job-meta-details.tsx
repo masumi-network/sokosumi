@@ -27,7 +27,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+      <h3 className="text-muted-foreground text-xs font-semibold">
         {t("propertiesTitle")}
       </h3>
 

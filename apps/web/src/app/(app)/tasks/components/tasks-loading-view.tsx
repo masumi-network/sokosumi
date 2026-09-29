@@ -141,7 +141,7 @@ function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
               {isFirstColumn ? (
                 <div className="flex flex-1 items-center justify-center py-6">
                   <Loader2
-                    className="text-muted-foreground size-5 animate-spin"
+                    className="text-muted-foreground size-5 animate-spin motion-reduce:animate-pulse"
                     aria-hidden
                   />
                 </div>
@@ -161,7 +161,7 @@ function TasksListLoading() {
     <div className="bg-card-background overflow-hidden rounded-xl p-2">
       <div className="flex items-center justify-center px-4 py-16">
         <Loader2
-          className="text-muted-foreground size-5 animate-spin"
+          className="text-muted-foreground size-5 animate-spin motion-reduce:animate-pulse"
           aria-hidden
         />
       </div>

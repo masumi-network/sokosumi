@@ -276,13 +276,13 @@ export function CreateProjectWizard({
 
                 <dl className="mt-8 space-y-5 text-left">
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium">
                       {t("Wizard.review.nameLabel")}
                     </dt>
                     <dd className="text-sm font-medium">{trimmedName}</dd>
                   </div>
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium">
                       {t("Wizard.review.websiteLabel")}
                     </dt>
                     <dd className="text-muted-foreground text-sm">
@@ -290,7 +290,7 @@ export function CreateProjectWizard({
                     </dd>
                   </div>
                   <div className="space-y-1.5">
-                    <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                    <dt className="text-muted-foreground text-xs font-medium">
                       {t("Wizard.review.briefingLabel")}
                     </dt>
                     <dd>
@@ -368,7 +368,10 @@ export function CreateProjectWizard({
                   onClick={() => void handleCreate()}
                 >
                   {isSubmitting ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
                   ) : null}
                   {isSubmitting
                     ? t("Wizard.nav.creating")

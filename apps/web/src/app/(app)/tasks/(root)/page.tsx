@@ -322,7 +322,7 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
   };
 
   return (
-    <div className="w-full">
+    <div className="content-in w-full">
       <Suspense fallback={null}>
         <TasksPendingVendorGrantBannerSlot
           activeOrganizationId={activeOrganizationId}

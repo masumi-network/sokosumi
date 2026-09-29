@@ -274,19 +274,25 @@ export function GuestInviteSection({
             className="sm:mb-0"
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : null}
             {t("send")}
           </Button>
         </form>
 
         <div className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+          <p className="text-muted-foreground text-xs font-medium">
             {t("pendingTitle")}
           </p>
           {isLoading ? (
             <p className="text-muted-foreground flex items-center gap-2 text-sm">
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
               {t("loading")}
             </p>
           ) : loadFailed ? (
@@ -322,7 +328,10 @@ export function GuestInviteSection({
                     onClick={() => void handleRevoke(invitation.id)}
                   >
                     {revokingId === invitation.id ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <Trash2 className="size-4" aria-hidden />
                     )}
@@ -401,7 +410,10 @@ export function GuestInviteSection({
             onClick={() => void handleCreateLink()}
           >
             {isCreatingLink ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : (
               <Link2 className="size-4" aria-hidden />
             )}
@@ -411,7 +423,10 @@ export function GuestInviteSection({
 
         {isLoading ? (
           <p className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <Loader2
+              className="size-4 animate-spin motion-reduce:animate-pulse"
+              aria-hidden
+            />
             {t("loading")}
           </p>
         ) : inviteLinks.length === 0 ? (
@@ -453,7 +468,10 @@ export function GuestInviteSection({
                       onClick={() => void handleRevokeLink(link.token)}
                     >
                       {revokingToken === link.token ? (
-                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                        <Loader2
+                          className="size-4 animate-spin motion-reduce:animate-pulse"
+                          aria-hidden
+                        />
                       ) : (
                         <Trash2 className="size-4" aria-hidden />
                       )}
@@ -483,7 +501,7 @@ export function GuestInviteSection({
       </div>
 
       <div className="space-y-2">
-        <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        <p className="text-muted-foreground text-xs font-medium">
           {t("guestsTitle")}
         </p>
         {guests.length === 0 ? (
@@ -517,7 +535,10 @@ export function GuestInviteSection({
                     onClick={() => void handleRemoveGuest(guest.id, label)}
                   >
                     {removingUserId === guest.id ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <Trash2 className="size-4" aria-hidden />
                     )}

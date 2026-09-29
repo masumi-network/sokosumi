@@ -100,7 +100,7 @@ export function EmailForm() {
               {captcha}
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {t("submit")}
               </Button>

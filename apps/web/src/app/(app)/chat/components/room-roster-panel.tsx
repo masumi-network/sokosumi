@@ -187,7 +187,7 @@ function RosterMemberRow({
 
   const messageIcon = isOpening ? (
     <Loader2
-      className="text-muted-foreground size-4 shrink-0 animate-spin"
+      className="text-muted-foreground size-4 shrink-0 animate-spin motion-reduce:animate-pulse"
       aria-hidden
     />
   ) : (
@@ -206,7 +206,7 @@ function RosterMemberRow({
     <div
       className={cn(
         "group flex items-center gap-2 rounded-md px-2 py-1.5 text-sm",
-        (canMessage || caption) && "hover:bg-accent",
+        (canMessage || caption) && "press hover:bg-accent",
       )}
       data-testid="room-roster-member"
     >
@@ -255,7 +255,7 @@ function RosterMemberRow({
         {caption && copyLabel ? (
           <button
             type="button"
-            className="text-muted-foreground hover:text-foreground max-w-full cursor-pointer self-start truncate text-left text-xs leading-tight outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
+            className="text-muted-foreground press hover:text-foreground max-w-full cursor-pointer self-start truncate text-left text-xs leading-tight outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={copyLabel}
             title={copyLabel}
             onClick={() => {
