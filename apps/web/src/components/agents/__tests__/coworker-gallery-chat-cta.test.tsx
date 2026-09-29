@@ -1,8 +1,7 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Coworker } from "@/lib/clients/generated/core";
 
 const openCoworkerRoomMock = vi.fn();
 const handleOpenWithMock = vi.fn();

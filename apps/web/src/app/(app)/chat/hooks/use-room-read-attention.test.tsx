@@ -1,6 +1,6 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { markThreadReadAction } from "@/app/chat/actions";
 import { markOrganizationChatRoomReadAction } from "@/components/chat/organization-chat-list.actions";
 import {
@@ -8,7 +8,6 @@ import {
   clearRoomReadOverlays,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 import { useRoomReadAttention } from "./use-room-read-attention";
 

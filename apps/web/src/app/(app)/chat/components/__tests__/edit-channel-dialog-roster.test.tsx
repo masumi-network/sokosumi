@@ -1,7 +1,7 @@
+import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { ShellOwnedEditChannelDialog } from "./edit-channel-dialog-harness";
 
 const { updateRoomActionMock } = vi.hoisted(() => ({

@@ -1,7 +1,6 @@
+import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import { mapVisibleTaskLinks } from "@/app/tasks/components/task-detail-api-types";
-import { TaskLinkRelation, TaskStatus } from "@/lib/clients/generated/core";
 
 describe("task-detail-api-types", () => {
   it("filters archived peer tasks from visible linked tasks", () => {

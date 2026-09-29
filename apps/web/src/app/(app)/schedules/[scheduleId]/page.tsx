@@ -1,3 +1,8 @@
+import {
+  type TaskSchedule,
+  TaskScheduleEndsMode,
+  TaskScheduleState,
+} from "@sokosumi/core-client";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -26,11 +31,6 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { Badge } from "@/components/ui/badge";
 import { getSession } from "@/lib/auth/auth.server";
-import {
-  type TaskSchedule,
-  TaskScheduleEndsMode,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { taskService } from "@/lib/services/task.service";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";

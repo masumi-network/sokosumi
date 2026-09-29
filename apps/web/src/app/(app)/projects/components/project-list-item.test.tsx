@@ -1,9 +1,8 @@
+import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: ({

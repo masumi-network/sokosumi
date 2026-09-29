@@ -1,4 +1,4 @@
-import type { Coworker, Vendor } from "@/lib/clients/generated/core";
+import type { Coworker, Vendor } from "@sokosumi/core-client";
 
 /** A coworker's curated, pre-filled task offer (from the Core Coworker DTO). */
 export type CoworkerOffer = NonNullable<

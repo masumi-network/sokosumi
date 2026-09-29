@@ -1,10 +1,9 @@
+import type { Project } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { ProjectForm } from "@/app/projects/components/project-form";
 import { createProject, updateProject } from "@/lib/actions/project/action";
-import type { Project } from "@/lib/clients/generated/core/types.gen";
 
 const pushMock = vi.fn();
 const toastErrorMock = vi.fn();

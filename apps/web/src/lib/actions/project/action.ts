@@ -1,7 +1,17 @@
 "use server";
 
+import type {
+  DisconnectProjectSocialConnectionResponse,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
+  Project,
+  ProjectCloseStatus,
+  ProjectContextMd,
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
-
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
@@ -19,17 +29,6 @@ import {
   mapCoreApiStatusToCommonErrorCode,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type {
-  DisconnectProjectSocialConnectionResponse,
-  InitiateProjectSocialConnectionRequest,
-  InitiateProjectSocialConnectionResponse,
-  Project,
-  ProjectCloseStatus,
-  ProjectContextMd,
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
   type AuthenticatedRequest,

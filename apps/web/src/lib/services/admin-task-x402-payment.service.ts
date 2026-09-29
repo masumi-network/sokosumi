@@ -1,6 +1,5 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   AdminTaskX402Payment,
   AdminTaskX402PaymentAgentAggregate,
@@ -8,7 +7,8 @@ import type {
   ListAdminTaskX402PaymentsData,
   RefundAdminTaskX402PaymentData,
   ResolveAdminTaskX402PaymentData,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
 export type AdminTaskX402PaymentStatus = AdminTaskX402Payment["status"];
 export type AdminTaskX402RefundReason =

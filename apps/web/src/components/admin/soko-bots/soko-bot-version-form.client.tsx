@@ -1,12 +1,16 @@
 "use client";
 
+import type {
+  SokoBotGatewayModel,
+  SokoBotVersionDetail,
+  SokoBotVersionList,
+} from "@sokosumi/core-client";
 import { Check, ChevronsUpDown } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -37,11 +41,6 @@ import {
   createAdminSokoBotVersionAction,
   updateAdminSokoBotVersionAction,
 } from "@/lib/actions/admin-soko-bots/action";
-import type {
-  SokoBotGatewayModel,
-  SokoBotVersionDetail,
-  SokoBotVersionList,
-} from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

@@ -1,3 +1,4 @@
+import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
@@ -8,7 +9,6 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import type { CreditWalletScope } from "./components/account-summary-types";

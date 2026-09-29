@@ -1,4 +1,4 @@
-import type { BlobFile } from "@/lib/clients/generated/core";
+import type { BlobFile } from "@sokosumi/core-client";
 import {
   cleanupOwnedLogoBestEffort,
   type UploadUserFileDirectOptions,

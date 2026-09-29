@@ -1,9 +1,8 @@
 "use client";
 
+import type { ChatRoomPresence } from "@sokosumi/core-client";
 import { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "@sokosumi/utils";
 import { useEffect, useState } from "react";
-
-import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 /**
  * Local self-approx for account chrome (navigator.onLine / document.hidden /

@@ -1,7 +1,5 @@
 import "server-only";
 
-import { cache } from "react";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
   ChannelSlugAvailability,
@@ -25,7 +23,9 @@ import type {
   ResolveChatRoomGuestInviteLink,
   StarredChatRoomOrder,
   UpdateChatRoomRequest,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { cache } from "react";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 const ROOM_MESSAGE_LIMIT = 100;
 const THREAD_LIST_PAGE_LIMIT = 50;

@@ -1,4 +1,6 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import type { AgentJobStatus } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactNode } from "react";
@@ -13,8 +15,6 @@ import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import type { JobsListFilters } from "@/app/tasks/utils/jobs-filters";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import type { AgentJobStatus } from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
 

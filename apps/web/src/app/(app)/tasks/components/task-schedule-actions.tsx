@@ -1,11 +1,11 @@
 "use client";
 
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { Pause, Pencil, Play, Square, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -25,10 +25,6 @@ import {
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 

@@ -1,6 +1,6 @@
+import { AgentJobStatus } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 

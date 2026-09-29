@@ -284,7 +284,7 @@
       "connections": "Verbindungen",
       "developer": "Entwickler",
       "personal-assistant": "Persönlicher Assistent",
-      "history": "Verlauf",
+      "history": "Transaktionen",
       "new": "Neu",
       "notifications": "Benachrichtigungen",
       "projects": "Projekte",
@@ -1328,13 +1328,13 @@
     "delete": "Löschen",
     "cancel": "Abbrechen",
     "save": "Speichern",
-    "History": {
+    "TransactionHistory": {
       "Metadata": {
-        "title": "Verlauf",
-        "description": "Aufgaben, Jobs und Chats in einer Zeitleiste durchsuchen."
+        "title": "Transaktionen",
+        "description": "Jeder Credit-Verbrauch deines Kontos, neueste zuerst."
       },
       "Search": {
-        "placeholder": "Verlauf durchsuchen...",
+        "placeholder": "Transaktionen durchsuchen...",
         "clear": "Suche löschen"
       },
       "ResultsCount": {
@@ -1346,54 +1346,60 @@
         "emptyResults": "Keine Ergebnisse gefunden.",
         "all": "Alle",
         "scopeLabel": "Bereich",
-        "scopeOwned": "Mein Verlauf",
+        "scopeOwned": "Meine Transaktionen",
         "scopeWorkspace": "Workspace",
-        "typeLabel": "Typ",
-        "statusLabel": "Status",
+        "typeLabel": "Quelle",
         "projectLabel": "Projekt",
         "typeOptions": {
+          "job": "Agent-Job",
+          "image": "Bild",
           "task": "Aufgabe",
-          "job": "Job",
-          "image": "Bild"
-        },
-        "statusOptions": {
-          "archived": "Archiviert",
-          "DRAFT": "Entwurf",
-          "QUEUED": "Geplant",
-          "READY": "Bereit",
-          "GRANT_PENDING": "Freigabe ausstehend",
-          "INPUT_REQUIRED": "Eingabe erforderlich",
-          "APPROVAL_REQUIRED": "Genehmigung erforderlich",
-          "AUTHENTICATION_REQUIRED": "Authentifizierung erforderlich",
-          "OUT_OF_CREDITS": "Keine Credits mehr",
-          "CREDITS_TOPPED_UP": "Credits aufgeladen",
-          "RUNNING": "Läuft",
-          "AWAITING_EXTERNAL": "Wartet auf Externes",
-          "COMPLETED": "Abgeschlossen",
-          "FAILED": "Fehlgeschlagen",
-          "CANCELED": "Abgebrochen"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Aufladung",
+          "unattributed": "Sonstige"
         }
       },
       "Empty": {
-        "title": "Noch kein Verlauf",
-        "description": "Deine Aufgaben, Jobs und Chats erscheinen hier, sobald es Aktivität gibt."
+        "title": "Noch keine Transaktionen",
+        "description": "Jeder Job-Lauf, jede Bildgenerierung, jeder weitere Credit-Verbrauch und jede Aufladung erscheint hier."
       },
       "List": {
         "loadMore": "Mehr laden",
-        "loading": "Verlauf wird geladen...",
-        "loadMoreError": "Weitere Einträge konnten nicht geladen werden"
+        "loading": "Transaktionen werden geladen...",
+        "loadMoreError": "Weitere Transaktionen konnten nicht geladen werden"
       },
       "Row": {
         "credit": "Credit",
         "credits": "Credits",
-        "creditsUnavailable": "—",
         "noDescription": "Keine Beschreibung",
-        "updated": "Aktualisiert",
+        "consumed": "Verbraucht",
         "kind": {
+          "job": "Agent-Job",
+          "image": "Bild",
           "task": "Aufgabe",
-          "job": "Job",
-          "image": "Bild"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Aufladung",
+          "unattributed": "Sonstige"
         }
+      },
+      "Export": {
+        "button": "CSV exportieren",
+        "title": "Transaktionen exportieren",
+        "lastMonth": "Letzter Monat",
+        "thisMonth": "Dieser Monat",
+        "last30Days": "Letzte 30 Tage",
+        "month": "Monat",
+        "from": "Von",
+        "to": "Bis",
+        "download": "CSV herunterladen",
+        "filtersNote": "Nutzt die Filter oben. Datumsangaben in UTC."
+      },
+      "Chart": {
+        "label": "Ausgegebene Credits pro Tag, letzte 30 Tage",
+        "total": "{count} Credits in den letzten 30 Tagen ausgegeben",
+        "day": "{date}: {count} Credits"
       }
     },
     "Chat": {
@@ -1516,12 +1522,13 @@
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
-          "sinceLastActivity": "Seit deiner letzten Aktivität, {when}",
           "completed": "{count, plural, one {# Aufgabe erledigt} other {# Aufgaben erledigt}}",
           "worked": "{minutes, plural, one {# Minute gearbeitet} other {# Minuten gearbeitet}}",
           "awaiting": "{count, plural, one {# Aufgabe braucht dich} other {# Aufgaben brauchen dich}}",
           "byTeammates": "{count, plural, one {# Aufgabe von deinem Team} other {# Aufgaben von deinem Team}}",
-          "recent": "In den letzten 24 Stunden"
+          "recent": "In den letzten 24 Stunden",
+          "trendUp": "{count} mehr als in den vorherigen 24 Stunden",
+          "trendDown": "{count} weniger als in den vorherigen 24 Stunden"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -2805,7 +2812,7 @@
           "exploreAgents": "Agenten",
           "filesAndOutputs": "Dateien und Outputs",
           "taskManager": "Aufgaben",
-          "history": "Verlauf",
+          "history": "Transaktionen",
           "drive": "Dateien",
           "admin": "Administration",
           "settings": "Einstellungen",
@@ -2832,11 +2839,12 @@
     },
     "HistorySearchDialog": {
       "title": "Suche",
-      "description": "Suche nach Aufgaben, Jobs oder Bildern",
+      "description": "Suche nach Aufgaben, Jobs, Job-Ergebnissen, Bildern oder Dateien",
       "searchPlaceholder": "Suchen...",
       "empty": "Keine Ergebnisse gefunden",
       "loading": "Lädt...",
       "error": "Ergebnisse konnten nicht geladen werden",
+      "created": "Erstellt",
       "filesGroup": "Dateien",
       "filesSeeAll": "Alle Dateien ansehen",
       "filesFilenameMatch": "Treffer im Dateinamen"
@@ -2881,6 +2889,10 @@
       "upgradePlanCta": "Plan auswählen",
       "cancelSubscriptionCta": "Abonnement kündigen",
       "cancelsOnDate": "Endet am {date}",
+      "personalPlanNotice": "Dein persönlicher Plan: {plan}",
+      "personalPlanNoticeCancels": "Dein persönlicher Plan: {plan}, endet am {date}",
+      "switchToPersonalWorkspace": "Zum persönlichen Workspace wechseln",
+      "switchToPersonalWorkspaceError": "Wechsel in deinen persönlichen Workspace fehlgeschlagen. Versuche es erneut.",
       "statusCancellationScheduled": "Die Kündigung des Abonnements wurde geplant.",
       "billingPortalTitle": "Billing-Portal",
       "billingPortalDescription": "Öffne das Stripe-Billing-Portal, um deine Abonnements und Rechnungen zu verwalten.",

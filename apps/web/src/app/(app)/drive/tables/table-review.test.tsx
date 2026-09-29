@@ -1,3 +1,4 @@
+import type { TableColumn, TableView } from "@sokosumi/core-client";
 import {
   cleanup,
   fireEvent,
@@ -11,7 +12,6 @@ import { TableColumnDialog } from "@/app/drive/tables/table-column-dialog";
 import { TableCreateDialog } from "@/app/drive/tables/table-create-dialog";
 import { TableEditor } from "@/app/drive/tables/table-editor";
 import { TableList } from "@/app/drive/tables/table-list";
-import type { TableColumn, TableView } from "@/lib/clients/generated/core";
 
 const f = vi.hoisted(() => {
   const column = {

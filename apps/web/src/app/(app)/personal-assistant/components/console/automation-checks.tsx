@@ -1,9 +1,8 @@
 "use client";
 
+import type { SokoBotDailyStats } from "@sokosumi/core-client";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-
-import type { SokoBotDailyStats } from "@/lib/clients/generated/core";
 
 /**
  * Whether the automation ran, not just what it decided. A bot that stayed

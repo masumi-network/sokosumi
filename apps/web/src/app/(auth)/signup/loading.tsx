@@ -1,7 +1,9 @@
-import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 
 import { Skeleton } from "@/components/ui/skeleton";
+
+import SignInLink from "./components/sign-in-link";
 
 export default function RegisterLoadingPage() {
   const t = useTranslations("Auth.Pages.SignUp");
@@ -27,12 +29,16 @@ export default function RegisterLoadingPage() {
           <span className="text-muted-foreground text-sm">
             {t("Form.Login.message")}
           </span>
-          <Link
-            href="/signin"
-            className="text-primary text-sm font-medium hover:underline"
+          {/* The prerendered shell cannot know the query, so the link waits for it. */}
+          <Suspense
+            fallback={
+              <span className="text-primary text-sm font-medium">
+                {t("Form.Login.link")}
+              </span>
+            }
           >
-            {t("Form.Login.link")}
-          </Link>
+            <SignInLink />
+          </Suspense>
         </div>
       </div>
     </div>

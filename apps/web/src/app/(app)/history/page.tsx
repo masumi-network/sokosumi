@@ -2,18 +2,16 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 import { HistoryList } from "@/app/history/components/history-list";
+import { HistorySpendChart } from "@/app/history/components/history-spend-chart";
 import { HistoryToolbar } from "@/app/history/components/history-toolbar";
 import { HISTORY_PAGE_LIMIT } from "@/app/history/constants";
 import {
   applyHistoryProjectAllowlist,
   getHistoryFiltersResetKey,
-  HISTORY_JOB_ONLY_STATUS_VALUES,
   parseHistoryFilters,
   resolveHistoryApiTypes,
 } from "@/app/history/utils/history-filters";
-import { getJobStatusBadgeLabelKey } from "@/components/jobs/job-status-label";
 import { getSession } from "@/lib/auth/auth.server";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import { historyService } from "@/lib/services/history.service";
 
@@ -22,13 +20,12 @@ interface HistoryPageProps {
     q?: string | string[];
     scope?: string | string[];
     type?: string | string[];
-    status?: string | string[];
     projectId?: string | string[];
   }>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.History.Metadata");
+  const t = await getTranslations("App.TransactionHistory.Metadata");
 
   return {
     title: t("title"),
@@ -37,17 +34,16 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * Search / history tab destination.
+ * Transactions: every credit consumption on the account, newest first.
  *
  * Instant Nav uses `history/loading.tsx` while this page streams after
  * `connection()`.
  */
 export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   await connection();
-  const [rawSearchParams, t, jobStatusT, session] = await Promise.all([
+  const [rawSearchParams, t, session] = await Promise.all([
     searchParams,
-    getTranslations("App.History"),
-    getTranslations("Components.Jobs.StatusBadge"),
+    getTranslations("App.TransactionHistory"),
     getSession(),
   ]);
   const activeOrganizationId = session?.session.activeOrganizationId ?? null;
@@ -57,60 +53,42 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
   );
   const projectOptions = await getProjectFilterOptions(parsedFilters.projectId);
   const filters = applyHistoryProjectAllowlist(parsedFilters, projectOptions);
-  const historyPage = await historyService.listHistory({
-    limit: HISTORY_PAGE_LIMIT,
+  const listParams = {
     projectId: filters.projectId ?? undefined,
     q: filters.q ?? undefined,
     scope: filters.scope,
-    status: filters.status ? [filters.status] : undefined,
     types: resolveHistoryApiTypes(filters.type),
-  });
+  };
+  const [historyPage, dailySpend] = await Promise.all([
+    historyService.listHistory({ limit: HISTORY_PAGE_LIMIT, ...listParams }),
+    historyService.listDailySpend(listParams),
+  ]);
   const filterResetKey = getHistoryFiltersResetKey(
     filters,
     activeOrganizationId,
   );
-  const jobStatusOptions = Object.fromEntries(
-    HISTORY_JOB_ONLY_STATUS_VALUES.map((status) => [
-      status,
-      jobStatusT(getJobStatusBadgeLabelKey(status)),
-    ]),
-  ) as Record<(typeof HISTORY_JOB_ONLY_STATUS_VALUES)[number], string>;
-  const taskStatusOptions: Record<TaskStatus, string> = {
-    [TaskStatus.DRAFT]: t("Filters.statusOptions.DRAFT"),
-    [TaskStatus.QUEUED]: t("Filters.statusOptions.QUEUED"),
-    [TaskStatus.READY]: t("Filters.statusOptions.READY"),
-    [TaskStatus.GRANT_PENDING]: t("Filters.statusOptions.GRANT_PENDING"),
-    [TaskStatus.INPUT_REQUIRED]: t("Filters.statusOptions.INPUT_REQUIRED"),
-    [TaskStatus.APPROVAL_REQUIRED]: t(
-      "Filters.statusOptions.APPROVAL_REQUIRED",
-    ),
-    [TaskStatus.AUTHENTICATION_REQUIRED]: t(
-      "Filters.statusOptions.AUTHENTICATION_REQUIRED",
-    ),
-    [TaskStatus.OUT_OF_CREDITS]: t("Filters.statusOptions.OUT_OF_CREDITS"),
-    [TaskStatus.CREDITS_TOPPED_UP]: t(
-      "Filters.statusOptions.CREDITS_TOPPED_UP",
-    ),
-    [TaskStatus.RUNNING]: t("Filters.statusOptions.RUNNING"),
-    [TaskStatus.AWAITING_EXTERNAL]: t(
-      "Filters.statusOptions.AWAITING_EXTERNAL",
-    ),
-    [TaskStatus.COMPLETED]: t("Filters.statusOptions.COMPLETED"),
-    [TaskStatus.FAILED]: t("Filters.statusOptions.FAILED"),
-    [TaskStatus.CANCELED]: t("Filters.statusOptions.CANCELED"),
-  };
 
   const historyTotal =
     historyPage.pagination?.total ?? historyPage.history.length;
   const resultsCountLabel = t("ResultsCount.resultsCount", {
     count: historyTotal,
   });
+  const kindLabels = {
+    job: t("Row.kind.job"),
+    image: t("Row.kind.image"),
+    task: t("Row.kind.task"),
+    coworker: t("Row.kind.coworker"),
+    sokoBot: t("Row.kind.sokoBot"),
+    topUp: t("Row.kind.topUp"),
+    unattributed: t("Row.kind.unattributed"),
+  };
 
   return (
     <div className="content-in w-full">
       <div className="mx-auto flex w-full flex-col gap-6 pb-6">
         <HistoryToolbar
           activeOrganizationId={activeOrganizationId}
+          filters={filters}
           projectOptions={projectOptions}
           resultsCountLabel={resultsCountLabel}
           labels={{
@@ -127,21 +105,13 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               scopeOwned: t("Filters.scopeOwned"),
               scopeWorkspace: t("Filters.scopeWorkspace"),
               typeLabel: t("Filters.typeLabel"),
-              statusLabel: t("Filters.statusLabel"),
               projectLabel: t("Filters.projectLabel"),
-              typeOptions: {
-                task: t("Filters.typeOptions.task"),
-                job: t("Filters.typeOptions.job"),
-                image: t("Filters.typeOptions.image"),
-              },
-              statusOptions: {
-                archived: t("Filters.statusOptions.archived"),
-                ...taskStatusOptions,
-                ...jobStatusOptions,
-              },
+              typeOptions: kindLabels,
             },
           }}
         />
+
+        <HistorySpendChart days={dailySpend} />
 
         <HistoryList
           key={filterResetKey}
@@ -161,15 +131,9 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
             row: {
               credit: t("Row.credit"),
               credits: t("Row.credits"),
-              creditsUnavailable: t("Row.creditsUnavailable"),
               noDescription: t("Row.noDescription"),
-              updated: t("Row.updated"),
-              kind: {
-                task: t("Row.kind.task"),
-                job: t("Row.kind.job"),
-                image: t("Row.kind.image"),
-              },
-              taskStatus: taskStatusOptions,
+              consumed: t("Row.consumed"),
+              kind: kindLabels,
             },
           }}
         />

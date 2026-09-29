@@ -1,11 +1,11 @@
 "use client";
 
+import type { AdminMatchedChannelDetail } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useCallback, useState } from "react";
 import { toast } from "sonner";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -43,7 +43,6 @@ import {
   searchOrganizationsClient,
   searchUsersClient,
 } from "@/lib/actions/admin-search/client";
-import type { AdminMatchedChannelDetail } from "@/lib/clients/generated/core";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import { favorAdminMemberOrganizations } from "@/lib/utils/favor-admin-member-organizations";

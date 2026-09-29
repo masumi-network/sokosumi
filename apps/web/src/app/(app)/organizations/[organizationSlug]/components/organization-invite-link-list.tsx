@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationInviteLink } from "@sokosumi/core-client";
 import {
   canRevokeInviteLink,
   evaluateInviteLinkStatus,
@@ -31,7 +32,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { revokeOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
-import type { OrganizationInviteLink } from "@/lib/clients/generated/core";
 
 const COPIED_RESET_MS = 2000;
 

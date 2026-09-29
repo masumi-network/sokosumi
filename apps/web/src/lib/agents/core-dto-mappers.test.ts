@@ -1,10 +1,10 @@
+import type { AgentDetail, AgentReviews } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   mapCoreAgentRatingDistribution,
   mapCoreAgentReviews,
   mapCoreMyAgentReview,
 } from "@/lib/agents/core-dto-mappers";
-import type { AgentDetail, AgentReviews } from "@/lib/clients/generated/core";
 
 describe("core dto mappers", () => {
   it("maps agent reviews and my-review summaries", () => {

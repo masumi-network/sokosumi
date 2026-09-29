@@ -133,7 +133,7 @@ export async function waitForAuthSession<TSession = unknown>({
   return retrySession ?? null;
 }
 
-interface BuildSignUpUrlParams {
+interface BuildAuthPageUrlParams {
   returnUrl?: string;
   email?: string;
 }
@@ -164,10 +164,10 @@ export async function getRedirectQueryString(
   return preservedSearchParams.toString();
 }
 
-export function buildSignUpUrlFromSignIn({
-  returnUrl,
-  email,
-}: BuildSignUpUrlParams): string {
+function buildAuthPageUrl(
+  path: "/signin" | "/signup",
+  { returnUrl, email }: BuildAuthPageUrlParams,
+): string {
   const searchParams = new URLSearchParams();
 
   if (returnUrl) {
@@ -178,7 +178,21 @@ export function buildSignUpUrlFromSignIn({
   }
 
   const query = searchParams.toString();
-  return query ? `/signup?${query}` : "/signup";
+  return query ? `${path}?${query}` : path;
+}
+
+export function buildSignUpUrlFromSignIn(
+  params: BuildAuthPageUrlParams,
+): string {
+  return buildAuthPageUrl("/signup", params);
+}
+
+// No email: sign-in locks a prefilled email field, so a typed sign-up email
+// would trap a person who meant to use another account.
+export function buildSignInUrlFromSignUp({
+  returnUrl,
+}: Pick<BuildAuthPageUrlParams, "returnUrl">): string {
+  return buildAuthPageUrl("/signin", { returnUrl });
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable

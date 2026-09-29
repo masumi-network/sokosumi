@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 
 /**
  * Session snapshot of membership-visible rooms from the chat sidebar list.

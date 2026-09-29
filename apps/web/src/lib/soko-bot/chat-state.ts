@@ -9,7 +9,7 @@ import type {
   SokoBotTurn,
   SokoBotTurnRoute,
   SokoBotTurnStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /**
  * JSON-safe projection of the Soko Bot chat surface. The server page renders
