@@ -402,6 +402,27 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
+  it("renews once when two requests share a cookie", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const header = jar.header();
+    const [first, second] = await Promise.all(
+      [0, 1].map(() =>
+        renewSession(
+          auth,
+          new Request(`${CMO}/`, { headers: { cookie: header, origin: CMO } }),
+        ),
+      ),
+    );
+
+    expect(core.refreshCount()).toBe(1);
+    for (const response of [first, second]) {
+      const next = new CookieJar();
+      next.store(response);
+      expect(next.names()).toEqual(["__Secure-cmo.account_data"]);
+    }
+  });
+
   it("renews an expired access token silently and keeps the rotated refresh token", async () => {
     await signIn(auth, jar, core);
 

@@ -167,11 +167,32 @@ function withSetCookies(from: Response): Response {
 }
 
 /**
+ * One in-flight renewal per cookie jar. Core deletes the refresh-token family
+ * when a second request presents a token the first request just rotated.
+ */
+const renewalsInFlight = new Map<string, Promise<Response>>();
+
+/**
  * Keeps a page request's Sokosumi access fresh. Returns an empty response
  * whose `Set-Cookie` headers the caller forwards: renewed token cookies after
  * a silent refresh, cleared cookies when renewal fails, none otherwise.
  */
-export async function renewSession(
+export function renewSession(
+  auth: CmoAuth,
+  request: Request,
+): Promise<Response> {
+  const key = request.headers.get("cookie") ?? "";
+  const current = renewalsInFlight.get(key);
+  if (current) return current.then((response) => response.clone());
+
+  const renewal = renewSessionOnce(auth, request);
+  renewalsInFlight.set(key, renewal);
+  return renewal.finally(() => {
+    if (renewalsInFlight.get(key) === renewal) renewalsInFlight.delete(key);
+  });
+}
+
+async function renewSessionOnce(
   auth: CmoAuth,
   request: Request,
 ): Promise<Response> {

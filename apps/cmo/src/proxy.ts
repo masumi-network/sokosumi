@@ -21,8 +21,15 @@ export const config = {
   matcher: [
     {
       source: "/((?!api/|_next/|favicon.ico).*)",
-      // Server actions sign in and out themselves.
-      missing: [{ type: "header", key: "next-action" }],
+      // Server actions sign in and out themselves. Prefetch must not rotate
+      // the refresh token. Next strips these headers before proxy() runs, so
+      // only the matcher can see them.
+      missing: [
+        { type: "header", key: "next-action" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "purpose", value: "prefetch" },
+      ],
     },
   ],
 };
