@@ -2724,13 +2724,33 @@
     },
     "Social": {
       "title": "Social",
-      "pickTitle": "Pick a project",
-      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "calendar": {
         "title": "Posting schedule",
         "description": "Every scheduled post for this project, and nothing else."
+      },
+      "newPost": {
+        "label": "New post",
+        "options": "New post options",
+        "manual": "Write it myself",
+        "manualHint": "Pick the account, media, and time.",
+        "sokoBot": "Post with Soko Bot",
+        "sokoBotHint": "Chat it through, Soko Bot drafts and schedules.",
+        "sokoBotSetup": "Set up Soko Bot first",
+        "sokoBotFailed": "Could not open the Soko Bot chat. Try again.",
+        "sokoBotPrompt": "Help me create a social post for the {project} project.",
+        "sokoBotPromptAnyProject": "Help me create a social post.",
+        "chooseProjectTitle": "Choose a project for this post",
+        "chooseProjectBody": "A post is published from the accounts connected to one project."
+      },
+      "allProjectsCalendar": {
+        "title": "Posting schedule",
+        "description": "Scheduled posts across every project in this workspace."
+      },
+      "accountsNeedProject": {
+        "title": "Social accounts",
+        "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
       }
     },
     "Error": {
@@ -6978,7 +6998,8 @@
         "projectLabel": "Project: ",
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
-        "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+        "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
       },
       "socialOnly": {
         "label": "Social posts only"

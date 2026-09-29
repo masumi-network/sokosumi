@@ -107,6 +107,10 @@ describe("Social posts in the calendar", () => {
       scheduledByName: "Albina",
       scheduledByImage: "https://example.com/albina.png",
       attachmentCount: 1,
+      previewMedia: {
+        fileUrl: "https://example.com/launch.png",
+        kind: "image",
+      },
     });
     expect(mocks.posts.mock.lastCall?.[0].where.OR[1]).toEqual({
       scheduledAt: new Date(at),
@@ -132,6 +136,7 @@ describe("Social posts in the calendar", () => {
       scheduledByName: null,
       scheduledByImage: null,
       attachmentCount: 0,
+      previewMedia: null,
       projectName: "Launch project",
     });
   });

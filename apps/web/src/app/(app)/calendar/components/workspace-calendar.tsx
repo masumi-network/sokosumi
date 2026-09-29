@@ -477,6 +477,7 @@ function CalendarView({
   onDateClick,
   runHandlers,
   socialOnly,
+  socialPostVariant,
   sources,
   timeZone,
   view,
@@ -488,6 +489,8 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   socialOnly: boolean;
+  /** Social's own calendar previews posts; the workspace Calendar lists them. */
+  socialPostVariant: "compact" | "preview";
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
@@ -581,7 +584,11 @@ function CalendarView({
               {dayItems.map((item) => (
                 <li key={item.id}>
                   {item.kind === "socialPost" ? (
-                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                    <SocialPostCalendarEvent
+                      item={item}
+                      timeZone={timeZone}
+                      variant={socialPostVariant}
+                    />
                   ) : (
                     <CalendarEvent
                       item={item}
@@ -657,7 +664,11 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                <SocialPostCalendarEvent
+                  item={item}
+                  timeZone={timeZone}
+                  variant={socialPostVariant}
+                />
               );
             return (
               <CalendarEvent
@@ -1293,6 +1304,7 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
+          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
           sources={sources}
           timeZone={timeZone}
           view={view}

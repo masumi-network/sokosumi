@@ -5206,6 +5206,13 @@ export type SocialPostCalendarItem = {
     scheduledByName: string | null;
     scheduledByImage: string | null;
     attachmentCount: number;
+    /**
+     * The post's first attachment, for a thumbnail.
+     */
+    previewMedia: {
+        fileUrl: string;
+        kind: 'image' | 'gif' | 'video';
+    } | null;
     scheduledAt: Date;
     sourceId: string;
     sourceProjectId: string;

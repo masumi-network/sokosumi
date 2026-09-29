@@ -219,6 +219,15 @@ export const socialPostCalendarItemSchema = z
     scheduledByName: z.string().nullable(),
     scheduledByImage: z.string().nullable(),
     attachmentCount: z.number().int().nonnegative(),
+    previewMedia: z
+      .object({
+        fileUrl: z.string(),
+        kind: z.enum(["image", "gif", "video"]),
+      })
+      .nullable()
+      .openapi({
+        description: "The post's first attachment, for a thumbnail.",
+      }),
     scheduledAt: dateTimeSchema,
     sourceId: z.string(),
     sourceProjectId: z.uuid(),

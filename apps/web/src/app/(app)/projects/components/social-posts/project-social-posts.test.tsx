@@ -2,7 +2,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   act,
   fireEvent,
-  render,
+  render as renderUi,
   screen,
   waitFor,
   within,
@@ -11,6 +11,10 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
+import {
+  SocialComposeProvider,
+  useSocialCompose,
+} from "@/app/social/components/social-compose-context";
 import {
   cancelProjectSocialPost,
   createProjectSocialPost,
@@ -400,6 +404,30 @@ async function openTab(
   label: string,
 ) {
   await user.click(getTab(label));
+}
+
+// Social's top-level New post menu stands in as a plain button here; it opens
+// the composer through the same context.
+function NewPostButton() {
+  const compose = useSocialCompose();
+  return (
+    <button type="button" onClick={() => compose?.setOpen(true)}>
+      New post
+    </button>
+  );
+}
+
+function ComposeHarness({ children }: { children: React.ReactNode }) {
+  return (
+    <SocialComposeProvider>
+      <NewPostButton />
+      {children}
+    </SocialComposeProvider>
+  );
+}
+
+function render(ui: React.ReactElement) {
+  return renderUi(ui, { wrapper: ComposeHarness });
 }
 
 describe("ProjectSocialPosts", () => {
