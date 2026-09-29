@@ -47,24 +47,30 @@ const FACE = {
  *
  * `quiet` is for the faces under a message, where the receipt arrives the
  * instant you finish writing and has to not shout about it. Colour is most of
- * what shouts, even pulled back, so they sit grey at half opacity until the
- * faces themselves are hovered, focused or open. The ring goes too: without it
- * they sit in the text lane rather than on it.
+ * what shouts, even pulled back, so the stack sits grey at half opacity until
+ * the faces themselves are hovered, focused or open. Opacity and grayscale are
+ * on the stack, not each face: per-face opacity composites the overlap, so the
+ * seam reads darker than the rest. The ring goes too: without it they sit in
+ * the text lane rather than on it.
  *
  * It answers to a `group/seen-by` ancestor, so whatever wraps the faces owns
  * the hover, the focus ring and the open state. Named, because the message
  * row is a bare `group` and a bare `group-hover:` wakes on any `.group`
- * ancestor, so hovering the message would colour them.
+ * ancestor, so hovering the message would colour them. Tailwind 4 already
+ * wraps `group-hover` in `@media (hover: hover)`, so a tap does not leave the
+ * faces coloured.
  *
  * The header stack stays `full`: nothing there competes with a sentence.
  */
 export type ReadReceiptFacesTone = "full" | "quiet";
 
-const TONE: Record<ReadReceiptFacesTone, string> = {
+const TONE: Record<ReadReceiptFacesTone, string | undefined> = {
   full: "ring-border ring-1",
-  quiet:
-    "opacity-50 grayscale group-hover/seen-by:opacity-100 group-hover/seen-by:grayscale-0 group-focus-visible/seen-by:opacity-100 group-focus-visible/seen-by:grayscale-0 group-data-[state=open]/seen-by:opacity-100 group-data-[state=open]/seen-by:grayscale-0 motion-safe:transition motion-safe:duration-150",
+  quiet: undefined,
 };
+
+const QUIET_STACK =
+  "opacity-50 grayscale group-hover/seen-by:opacity-100 group-hover/seen-by:grayscale-0 group-focus-visible/seen-by:opacity-100 group-focus-visible/seen-by:grayscale-0 group-data-[state=open]/seen-by:opacity-100 group-data-[state=open]/seen-by:grayscale-0 motion-safe:transition-[opacity,filter] motion-safe:duration-150";
 
 interface ReadReceiptFacesProps {
   /** Readers, most-recent-read first, viewer already excluded. */
@@ -89,7 +95,14 @@ export function ReadReceiptFaces({
   const remainingCount = readers.length - faces.length;
 
   return (
-    <span className={cn("flex", FACE[size].overlap, className)}>
+    <span
+      className={cn(
+        "flex",
+        FACE[size].overlap,
+        tone === "quiet" && QUIET_STACK,
+        className,
+      )}
+    >
       {faces.map(({ participant }, index) => (
         <span
           key={participant.id}
