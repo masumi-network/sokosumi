@@ -2742,7 +2742,7 @@
       "newPost": {
         "label": "Neuer Post",
         "options": "Optionen für neuen Post",
-        "manual": "Selbst schreiben",
+        "manual": "Manueller Beitrag",
         "manualHint": "Konto, Medien und Zeitpunkt wählen.",
         "sokoBot": "Mit Soko Bot posten",
         "sokoBotHint": "Im Chat besprechen, Soko Bot entwirft und plant.",
