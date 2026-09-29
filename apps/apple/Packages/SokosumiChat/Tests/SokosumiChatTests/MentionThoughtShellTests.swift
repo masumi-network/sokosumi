@@ -14,38 +14,66 @@ private func decode(_ row: String) async throws -> Components.Schemas.ChatRoomMe
   try #require(try await fetchTestMessages([row]).first)
 }
 
-struct CoworkerMentionShellTests {
-  @Test func thinkingShellNeedsStreamingMentionIdEmptyBodyAndCoworkerSender() async throws {
+struct MentionThoughtShellTests {
+  @Test func thinkingShellNeedsStreamingMentionIdEmptyBodyAndAThoughtSender() async throws {
     let live = #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source","thought_timing_ms":{"start":1700000000000}}"#
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: live))) == .thinking(startedAt: Date(timeIntervalSince1970: 1_700_000_000)))
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":"mention_1"}"#))) == .thinking(startedAt: nil))
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":"mention_1","thought_timing_ms":{"start":"0"}}"#))) == .thinking(startedAt: nil))
-    // Answer filled, no mention id, not streaming, deleted, human or Soko Bot sender: ordinary rows.
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(content: "Done", metadata: live))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":""}"#))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"mention_id":"mention_1","reasoning":[]}"#))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: live, deletedAt: testTimestamp))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(sender: testUserSender(name: "Me", email: "me@example.com"), metadata: live))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(sender: sokoBotSender, metadata: live))) == nil)
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: nil))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: live))) == .thinking(startedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":"mention_1"}"#))) == .thinking(startedAt: nil))
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":"mention_1","thought_timing_ms":{"start":"0"}}"#))) == .thinking(startedAt: nil))
+    // Row 38a: web resolves the Thought view for a Soko Bot sender too (#5304).
+    #expect(try await MentionThoughtShell(message: decode(shellRow(sender: sokoBotSender, metadata: live))) == .thinking(startedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+    // Answer filled, no mention id, not streaming, deleted or human sender: ordinary rows.
+    #expect(try await MentionThoughtShell(message: decode(shellRow(content: "Done", metadata: live))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"streaming":true,"mention_id":""}"#))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"mention_id":"mention_1","reasoning":[]}"#))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: live, deletedAt: testTimestamp))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(sender: testUserSender(name: "Me", email: "me@example.com"), metadata: live))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(content: "Done", sender: sokoBotSender, metadata: live))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: nil))) == nil)
+  }
+
+  /// Row 38a: web's row resolves the Thought view for coworker and Soko Bot senders
+  /// (`room-message-row.tsx` `thoughtView`), never for a person or a deleted row.
+  @Test func coworkersAndSokoBotsHaveTheThoughtView() async throws {
+    let answered = #"{"mention_id":"mention_1","reasoning":[{"type":"reasoning","text":"Creating a Task"}]}"#
+    #expect(try await hasThoughtView(decode(shellRow(content: "Done", metadata: answered))))
+    #expect(try await hasThoughtView(decode(shellRow(content: "Done", sender: sokoBotSender, metadata: answered))))
+    #expect(try await !hasThoughtView(decode(shellRow(content: "Done", sender: testUserSender(name: "Me", email: "me@example.com"), metadata: answered))))
+    #expect(try await !hasThoughtView(decode(shellRow(content: "", sender: sokoBotSender, metadata: answered, deletedAt: testTimestamp))))
+  }
+
+  /// The Soko Bot shell reads like a coworker's on the row, but web's transcript filter
+  /// (`isMentionCoworkerShell`) still keeps only a coworker's bodiless shell.
+  @Test func aSokoBotShellResolvesOnTheRowButLeavesTheTranscript() async throws {
+    let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
+    let thinking = #"{"streaming":true,"mention_id":"mention_1","reasoning":[{"type":"reasoning","text":"Creating a Task"}],"soko_bot":{"turn_id":"turn_1"}}"#
+    let failedShell = try await decode(shellRow(sender: sokoBotSender, metadata: failed))
+    let thinkingShell = try await decode(shellRow(sender: sokoBotSender, metadata: thinking))
+    #expect(MentionThoughtShell(message: failedShell) == .failed(mentionId: "mention_1", sourceMessageId: "source"))
+    #expect(MentionThoughtShell(message: thinkingShell)?.isThinking == true)
+    #expect(!canQuoteMessage(thinkingShell))
+    #expect(!canReactToMessage(thinkingShell))
+    #expect(!shouldKeepPersistedMessage(failedShell))
+    #expect(!shouldKeepPersistedMessage(thinkingShell))
+    #expect(try await shouldKeepPersistedMessage(decode(shellRow(metadata: thinking))))
   }
 
   @Test func failedShellWinsOverStreamingAndReadsItsTarget() async throws {
     let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","streaming":true}"#
-    let shell = try await CoworkerMentionShell(message: decode(shellRow(metadata: failed)))
+    let shell = try await MentionThoughtShell(message: decode(shellRow(metadata: failed)))
     #expect(shell == .failed(mentionId: "mention_1", sourceMessageId: "source"))
     #expect(shell?.isThinking == false)
     #expect(shell?.startedAt == nil)
-    let orphan = try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":""}"#)))
+    let orphan = try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":""}"#)))
     #expect(orphan == .failed(mentionId: "mention_1", sourceMessageId: nil))
-    #expect(try await CoworkerMentionShell(message: decode(shellRow(metadata: #"{"mention_failed":true}"#))) == nil)
+    #expect(try await MentionThoughtShell(message: decode(shellRow(metadata: #"{"mention_failed":true}"#))) == nil)
   }
 
   @Test func retryingDropsTheFailureAndStartsTheClock() async throws {
     let shell = try await decode(shellRow(metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source"}"#))
     let startedAt = Date(timeIntervalSince1970: 1_700_000_123.456)
-    let retrying = CoworkerMentionShell.retrying(shell, startedAt: startedAt)
-    #expect(CoworkerMentionShell(message: retrying) == .thinking(startedAt: Date(timeIntervalSince1970: 1_700_000_123.456)))
+    let retrying = MentionThoughtShell.retrying(shell, startedAt: startedAt)
+    #expect(MentionThoughtShell(message: retrying) == .thinking(startedAt: Date(timeIntervalSince1970: 1_700_000_123.456)))
     let metadata = retrying.metadata?.additionalProperties
     #expect(metadata?["mention_failed"] == nil)
     #expect(metadata?["mention_id"]?.value as? String == "mention_1")
@@ -58,14 +86,14 @@ struct CoworkerMentionShellTests {
     let shell = try await decode(shellRow(metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source"}"#))
     let mine = try await decode(testMessageJSON(id: "source", content: "@Elena hi", sender: testUserSender(name: "Me", email: "me@example.com")))
     let theirs = try await decode(testMessageJSON(id: "source", content: "@Elena hi", sender: #"{"type":"user","user":{"id":"user_9","name":"Ada","email":"ada@example.com","presence":"offline"}}"#))
-    #expect(CoworkerMentionShell.canRetry(shell, currentUserId: "user_2", sources: [mine]))
-    #expect(!CoworkerMentionShell.canRetry(shell, currentUserId: "user_2", sources: [theirs]))
-    #expect(!CoworkerMentionShell.canRetry(shell, currentUserId: "user_2", sources: []))
-    #expect(!CoworkerMentionShell.canRetry(shell, currentUserId: "", sources: [mine]))
+    #expect(MentionThoughtShell.canRetry(shell, currentUserId: "user_2", sources: [mine]))
+    #expect(!MentionThoughtShell.canRetry(shell, currentUserId: "user_2", sources: [theirs]))
+    #expect(!MentionThoughtShell.canRetry(shell, currentUserId: "user_2", sources: []))
+    #expect(!MentionThoughtShell.canRetry(shell, currentUserId: "", sources: [mine]))
     let thinking = try await decode(shellRow(metadata: #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source"}"#))
-    #expect(!CoworkerMentionShell.canRetry(thinking, currentUserId: "user_2", sources: [mine]))
+    #expect(!MentionThoughtShell.canRetry(thinking, currentUserId: "user_2", sources: [mine]))
     let orphan = try await decode(shellRow(metadata: #"{"mention_id":"mention_1","mention_failed":true}"#))
-    #expect(!CoworkerMentionShell.canRetry(orphan, currentUserId: "user_2", sources: [mine]))
+    #expect(!MentionThoughtShell.canRetry(orphan, currentUserId: "user_2", sources: [mine]))
   }
 
   @Test func thinkingShellHasNoActionsButFailedKeepsQuoteAndReactions() async throws {
