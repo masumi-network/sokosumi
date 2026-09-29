@@ -571,7 +571,8 @@ export function SocialPostComposerDialog({
                     })}
                   </span>
                 </div>
-                {providers.length > 1 || selectedConnections.length > 0 ? (
+                {/* One platform: the count above already is its limit. */}
+                {providers.length > 1 ? (
                   <ul
                     aria-label={t("composer.platforms")}
                     className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
