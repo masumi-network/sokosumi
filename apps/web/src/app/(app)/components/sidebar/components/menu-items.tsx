@@ -4,7 +4,6 @@ import {
   Bot,
   CalendarDays,
   HardDrive,
-  History,
   ImagePlus,
   ListTodo,
   Plus,
@@ -183,12 +182,6 @@ function ScopedMenuItems({
           },
         ]
       : []),
-    {
-      key: "history",
-      href: "/history",
-      label: t("history"),
-      Icon: History,
-    },
   ];
 
   return (
