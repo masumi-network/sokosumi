@@ -395,7 +395,7 @@ function VendorDashboard({
                     type="button"
                     onClick={() => setShowAllOffers((value) => !value)}
                     className={cn(
-                      "text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-md text-sm font-medium",
+                      "text-muted-foreground press hover:text-foreground inline-flex items-center gap-1 rounded-md text-sm font-medium",
                       FOCUS_RING,
                     )}
                   >
@@ -577,7 +577,7 @@ function CoworkerGallerySectionInner({
               </span>
             </div>
           ) : null}
-          <h2 className="text-foreground text-2xl font-light text-balance md:text-3xl">
+          <h2 className="text-foreground text-2xl font-light text-balance md:text-3xl tracking-tight">
             {t("heroHeadline")}
           </h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
@@ -620,7 +620,7 @@ function CoworkerGallerySectionInner({
                   type="button"
                   onClick={() => setQuery(suggestion)}
                   className={cn(
-                    "bg-card border-border text-muted-foreground hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    "bg-card border-border text-muted-foreground press hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
                   )}
                 >
@@ -634,7 +634,7 @@ function CoworkerGallerySectionInner({
 
       {vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className="text-foreground text-xl font-light md:text-2xl">
+          <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
             {t("coworkersTitle")}
           </h2>
           <div>
@@ -672,7 +672,7 @@ function CoworkerGallerySectionInner({
                 type="button"
                 onClick={() => setShowAllCompanies((value) => !value)}
                 className={cn(
-                  "border-border bg-card text-foreground hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                  "border-border bg-card text-foreground press hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                   FOCUS_RING,
                 )}
               >

@@ -340,7 +340,9 @@ export default function OrganizationInformationForm({
           />
           <FormFields form={form} formData={organizationInformationFormData} />
           <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {isLoading && (
+              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {isCreating ? t("Submit.create") : t("Submit.edit")}
           </Button>
         </fieldset>

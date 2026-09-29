@@ -258,7 +258,7 @@ export function JobsList({
               </section>
             ))
           ) : (
-            <div className="text-muted-foreground px-2 py-8 text-sm">
+            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
               {t("emptyJobs")}
             </div>
           )}
@@ -298,7 +298,7 @@ export function JobRow({
       type="button"
       onClick={() => onClick(job)}
       className={cn(
-        "hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
+        "press hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
         selected &&
           "bg-primary-solid text-primary-solid-foreground hover:bg-primary-solid-hover",
       )}

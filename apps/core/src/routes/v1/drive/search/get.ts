@@ -38,6 +38,8 @@ const querySchema = z.object({
   projectIds: z.string().optional(),
   /** One folder path, relative to the store root. Includes everything under it. */
   folder: z.string().max(1000).optional(),
+  /** Only files filed directly in `folder` (or the root), for browsing. */
+  directOnly: z.enum(["true", "false"]).optional(),
   sourceKinds: z.string().optional(),
   typeFamilies: z.string().optional(),
   extractionStates: z.string().optional(),
@@ -125,6 +127,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tagMatch: query.tagMatch ?? "any",
         projectIds: csv(query.projectIds),
         folderPath: normalizeDriveFolderPath(query.folder ?? "") || undefined,
+        directOnly: query.directOnly === "true" || undefined,
         sourceKinds: csv(query.sourceKinds)?.filter(
           (kind): kind is z.infer<typeof fileSourceKindSchema> =>
             fileSourceKindSchema.safeParse(kind).success,

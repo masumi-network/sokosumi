@@ -327,7 +327,7 @@ export default function CreditsForm({
                           <p className="text-sm font-medium">
                             {t("creditAmount", { count: amount })}
                           </p>
-                          <p className="text-2xl font-medium md:text-3xl">
+                          <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
                             {formattedTotal}
                           </p>
                           {formattedCompareAt ? (
@@ -407,7 +407,7 @@ export default function CreditsForm({
                 disabled={isSubmitting || !hasValidCreditsValue}
               >
                 {isSubmitting && (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {organization ? t("topUpButtonOrganization") : t("topUpButton")}
               </Button>
@@ -416,7 +416,7 @@ export default function CreditsForm({
               selectedPricing !== null ? (
                 <div className="space-y-1 text-right">
                   {formattedSelectedTotal ? (
-                    <p className="text-2xl font-medium md:text-3xl">
+                    <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
                       {formattedSelectedTotal}
                     </p>
                   ) : null}

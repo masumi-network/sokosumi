@@ -600,7 +600,10 @@ export function TaskDetailActions({
                 onSelect={handleRepeat}
               >
                 {isRepeatLoading ? (
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
                 ) : (
                   <Repeat className="size-4" aria-hidden />
                 )}
@@ -621,7 +624,10 @@ export function TaskDetailActions({
                   onSelect={() => handleStatusToggle(action)}
                 >
                   {isStatusPending && pendingStatusTarget === action.target ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
                   ) : (
                     <StatusIcon className="size-4" aria-hidden />
                   )}
@@ -802,7 +808,7 @@ export function TaskDetailActions({
                                 {isRemoveRelatedPending &&
                                 pendingRemoveLinkId === link.id ? (
                                   <Loader2
-                                    className="size-4 animate-spin"
+                                    className="size-4 animate-spin motion-reduce:animate-pulse"
                                     aria-hidden
                                   />
                                 ) : (
@@ -854,7 +860,7 @@ export function TaskDetailActions({
                               {isRemoveRelatedPending &&
                               pendingRemoveLinkId === link.id ? (
                                 <Loader2
-                                  className="size-4 animate-spin"
+                                  className="size-4 animate-spin motion-reduce:animate-pulse"
                                   aria-hidden
                                 />
                               ) : (
@@ -885,7 +891,10 @@ export function TaskDetailActions({
                     onSelect={handleRemoveParent}
                   >
                     {isParentRemovalPending ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <SquareArrowRightExit className="size-4" aria-hidden />
                     )}

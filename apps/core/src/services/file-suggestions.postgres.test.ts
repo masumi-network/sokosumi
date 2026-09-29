@@ -507,10 +507,10 @@ describe.skipIf(!enabled)("the suggestion pipeline against PostgreSQL", () => {
      * Nothing caps label creation, so a workspace reaches this by doing
      * what the product invites.
      *
-     * Thirty tags is exactly the window, so before the fix the category
+     * A full window of tags is exactly the window, so before the fix the category
      * below was not merely outranked — there was no room for it at all.
      */
-    for (let index = 0; index < 30; index += 1) {
+    for (let index = 0; index < SUGGESTION_VOCABULARY_MAX; index += 1) {
       await prisma.workspaceLabel.create({
         data: {
           workspaceId,

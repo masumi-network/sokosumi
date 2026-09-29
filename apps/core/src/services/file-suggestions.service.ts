@@ -59,7 +59,7 @@ import { getJevScheduler } from "@/lib/files/jev-scheduler";
  */
 
 /** Labels one request may ask about, so the shortlist is deterministic. */
-export const SUGGESTION_VOCABULARY_MAX = 30;
+export const SUGGESTION_VOCABULARY_MAX = 40;
 
 /**
  * Slots each kind keeps even when the other has more labels than the

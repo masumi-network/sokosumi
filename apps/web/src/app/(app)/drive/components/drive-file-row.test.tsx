@@ -206,20 +206,6 @@ describe("where the document came from", () => {
     expect(screen.queryByTestId("drive-file-origin")).toBeNull();
   });
 
-  it("shows the folder the file is filed in, last segment first", () => {
-    // The catalog showed no folder at all, for files that were nine-tenths in
-    // one. The whole path is on hover, because paths here run three deep.
-    renderRow(
-      resource({ folderPath: "Media/Sokosumi Social Media Assets/Youtube" }),
-    );
-    const folder = screen.getByTestId("drive-file-folder");
-    expect(folder).toHaveTextContent("Youtube");
-    expect(folder).toHaveAttribute(
-      "title",
-      "Media/Sokosumi Social Media Assets/Youtube",
-    );
-  });
-
   it("states a confirmed project and marks a suggested one", () => {
     renderRow(
       resource({
@@ -407,5 +393,39 @@ describe("opening a file", () => {
       .dispatchEvent(event);
 
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("what a row says", () => {
+  it("has no description: no summary, no document opening, no date", () => {
+    renderRow(
+      resource({
+        snippet: {
+          text: "Copyright 2026 Acme. All rights reserved.",
+          highlights: [],
+          truncatedStart: false,
+          truncatedEnd: true,
+        },
+      }),
+    );
+
+    expect(screen.queryByText(/Copyright 2026/)).toBeNull();
+    expect(screen.queryByText("2 weeks ago")).toBeNull();
+    expect(screen.queryByText(/PDF ·/)).toBeNull();
+  });
+
+  it("shows the matching passage only when a query matched", () => {
+    renderRow(
+      resource({
+        snippet: {
+          text: "revenue grew in the third quarter",
+          highlights: [{ start: 0, end: 7 }],
+          truncatedStart: false,
+          truncatedEnd: false,
+        },
+      }),
+    );
+
+    expect(screen.getByText("revenue")).toBeVisible();
   });
 });

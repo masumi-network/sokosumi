@@ -4,11 +4,11 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 /**
- * The sheet and the detail route render the same component.
+ * The detail route is the one host of the document view.
  *
- * The detail page is no longer the main way to see a file, but it stays as the
- * shareable deep link, and the temptation is to give the sheet its own copy of
- * that markup. A copy drifts: a fix to the coverage line, the no-text state or
+ * The detail page is no longer the main way to see a file — a row opens the
+ * shared viewer — but it stays as the shareable deep link, and the temptation
+ * is to grow a second host with its own copy of that markup. A copy drifts: a fix to the coverage line, the no-text state or
  * the suggestion controls lands in one host and not the other, and nothing fails
  * — the two just quietly stop agreeing about the same document.
  *
@@ -25,7 +25,7 @@ function read(relative: string): string {
 }
 
 const VIEW = read("./file-detail-view.tsx");
-const SHEET = read("./drive-file-sheet.tsx");
+const VIEWER = read("./drive-file-viewer.tsx");
 const ROUTE = read("../files/[resourceId]/file-detail-client.tsx");
 
 /** Markup only, so prose about a thing does not count as the thing. */
@@ -34,11 +34,8 @@ function jsxLines(source: string): string[] {
 }
 
 describe("one component, two hosts", () => {
-  it("has both hosts render FileDetailView", () => {
-    for (const [name, source] of [
-      ["the sheet", SHEET],
-      ["the route", ROUTE],
-    ] as const) {
+  it("has the route render FileDetailView", () => {
+    for (const [name, source] of [["the route", ROUTE]] as const) {
       expect(source, name).toContain(
         'from "@/app/drive/components/file-detail-view"',
       );
@@ -63,7 +60,7 @@ describe("one component, two hosts", () => {
     }
 
     for (const [name, source] of [
-      ["the sheet", SHEET],
+      ["the viewer", VIEWER],
       ["the route", ROUTE],
     ] as const) {
       const lines = jsxLines(source);
@@ -82,13 +79,13 @@ describe("one component, two hosts", () => {
     expect(VIEW).toContain("export function FileDetailView");
   });
 
-  it("keeps the detail route reachable from the sheet", () => {
-    // A sheet has no URL of its own, so without this the deep link is only
+  it("keeps the detail route reachable from the viewer", () => {
+    // A dialog has no URL of its own, so without this the deep link is only
     // reachable by knowing it exists.
-    expect(SHEET).toContain("`/drive/files/${resourceId}`");
+    expect(VIEWER).toContain("`/drive/files/${file.id}`");
   });
 
-  it("opens the sheet from a link, not a button", () => {
+  it("opens the viewer from a link, not a button", () => {
     const row = read("./drive-file-row.tsx");
     // An <a href> keeps copy-link, middle-click and cmd-click working and
     // announces a link to a document. A button would have been less code and

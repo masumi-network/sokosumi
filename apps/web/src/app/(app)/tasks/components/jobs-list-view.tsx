@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { EmptyState } from "@/components/common/empty-state";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 import { ColumnHeader } from "./column-header";
@@ -145,7 +147,7 @@ export function JobsListView({
                   />
                 ))
               ) : (
-                <div className="text-muted-foreground px-4 py-3 text-sm">
+                <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                   {labels.emptyRecent}
                 </div>
               )}
@@ -175,7 +177,7 @@ export function JobsListView({
                       />
                     ))
                   ) : (
-                    <div className="text-muted-foreground px-4 py-3 text-sm">
+                    <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                       {labels.emptySection}
                     </div>
                   )}
@@ -185,9 +187,10 @@ export function JobsListView({
           })}
         </div>
       ) : (
-        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
-          {labels.emptyList}
-        </div>
+        <EmptyState
+          description={labels.emptyList}
+          action={<NewTaskEmptyAction />}
+        />
       )}
     </div>
   );

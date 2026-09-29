@@ -236,7 +236,7 @@ export function EditOAuthClientDialog({
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
                   {isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                   ) : null}
                   {t("EditDialog.saveButton")}
                 </Button>

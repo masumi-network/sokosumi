@@ -54,7 +54,8 @@
       "copyError": "No se pudo copiar el enlace"
     },
     "DefaultErrorBoundary": {
-      "error": "Ocurrió un error desconocido. Por favor, contacta con nuestro soporte"
+      "error": "Algo salió mal aquí. Inténtalo de nuevo o contacta con soporte si sigue pasando.",
+      "tryAgain": "Intentar de nuevo"
     },
     "Agents": {
       "RiskClassification": {
@@ -521,7 +522,7 @@
       },
       "JobsList": {
         "noExecutedJobs": "No hay jobs ejecutados",
-        "emptyJobs": "Aún sin jobs.",
+        "emptyJobs": "Aún sin jobs. Contrata a este coworker para empezar uno.",
         "loadMore": "Cargar más",
         "loading": "Cargando...",
         "loadMoreError": "No se pudieron cargar más jobs"
@@ -1648,7 +1649,7 @@
         },
         "recentTitle": "Recientes",
         "emptyRecent": "No hay jobs completados recientemente.",
-        "emptyList": "Aún sin jobs.",
+        "emptyList": "Aún sin jobs. Contrata a un coworker y tus jobs aparecerán aquí.",
         "emptySection": "No hay jobs en este estado.",
         "untitled": "Job sin título",
         "unknownAgent": "Agent desconocido"
@@ -2473,7 +2474,7 @@
         },
         "jobs": {
           "title": "Jobs",
-          "empty": "Aún no hay jobs vinculados a este proyecto.",
+          "empty": "Aún no hay jobs vinculados. Añade uno para reunir sus resultados aquí.",
           "add": "Añadir job",
           "remove": "Quitar job",
           "viewAll": "Ver todos los jobs",
@@ -2487,7 +2488,7 @@
         },
         "tasks": {
           "title": "Tareas",
-          "empty": "Aún no hay tareas vinculadas a este proyecto.",
+          "empty": "Aún no hay tareas vinculadas. Añade una para mantenerla con este proyecto.",
           "add": "Añadir tarea",
           "pickerTitle": "Añadir tarea",
           "pickerDescription": "Elige una tarea sin asignar para vincularla a este proyecto.",
@@ -5272,7 +5273,7 @@
         "all": "All",
         "examplesTitle": "What {name} can do",
         "startShort": "Start a task",
-        "startForCoworker": "Start New Task for {name}",
+        "startForCoworker": "Iniciar una tarea nueva para {name}",
         "subtitle": "Browse your AI coworkers and the ready-to-run offers they handle. Pick one, add your details, and go.",
         "searchOffers": "Search offers, coworkers…",
         "byCompany": "Company",
@@ -5287,7 +5288,7 @@
         "clearFilters": "Clear filters",
         "coworkersTitle": "Your AI coworkers",
         "coworkersSubtitle": "Your AI coworkers and the ready-to-run offers they deliver, grouped by company.",
-        "offersSectionTitle": "Ready-To-Run Tasks",
+        "offersSectionTitle": "Tareas listas para ejecutar",
         "offersSectionSubtitle": "Tasks that are already set up. Open one to see an example, then add your details.",
         "deliveredByLabel": "Delivered by",
         "deliverableLabel": "What you'll get",
@@ -5320,7 +5321,7 @@
         "showAllOffers": "Show all {count} offers",
         "offerCount": "{count, plural, one {# offer} other {# offers}}",
         "noResults": "Nothing matches your search.",
-        "coworkerNoOffers": "No ready-to-run offers yet."
+        "coworkerNoOffers": "Aún no hay tareas listas para ejecutar. Inicia una tarea nueva y describe lo que necesitas."
       },
       "Jobs": {
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
@@ -5705,7 +5706,7 @@
       "humanCount": "{count, plural, one {# human} other {# humans}}",
       "coworkerCount": "{count, plural, one {# AI coworker} other {# AI coworkers}}",
       "participantOverflowCount": "{count} participantes más",
-      "directMessages": "Direct Messages",
+      "directMessages": "Mensajes directos",
       "pinned": "Fijados",
       "reorderPinned": "Reordenar chats fijados",
       "reorderPinnedDone": "Terminar de reordenar",
@@ -6231,6 +6232,7 @@
       "renameError": "No se pudo renombrar el archivo",
       "renameFileToFolderConflictError": "Ya existe una carpeta con este nombre",
       "renameFolderAction": "Cambiar el nombre de «{name}»",
+      "renameFolderButton": "Renombrar carpeta",
       "renameFolderToFileConflictError": "Ya existe un archivo con este nombre",
       "renameConflictError": "Ya existe un archivo o carpeta con este nombre",
       "deleteError": "No se pudo eliminar el archivo",
@@ -6430,6 +6432,15 @@
         "processingPartialCoverage": "Solo una parte de este archivo está indexada. Se leyó aproximadamente el {percent}% del texto.",
         "sheetOpenAsPage": "Abrir como página",
         "sheetDescription": "Detalles de este archivo",
+        "viewerDetails": "Detalles",
+        "viewerClose": "Cerrar",
+        "viewerNoPreview": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+        "searchButton": "Buscar",
+        "searchClear": "Borrar búsqueda",
+        "typeAll": "Todos",
+        "foldersLabel": "Carpetas",
+        "foldersRoot": "Todos los archivos",
+        "folderEmptyTitle": "Aún no hay nada en esta carpeta",
         "detailRejected": "Etiquetas eliminadas",
         "rejectedExplainer": "Las eliminaste, así que no se vuelven a sugerir. Deja que el modelo reconsidere una si fue un error.",
         "allowAgain": "Que el modelo reconsidere {name}",

@@ -124,6 +124,11 @@ export interface FileSearchFilters {
    * this needs no column of its own.
    */
   folderPath?: string;
+  /**
+   * With `folderPath` (or at the root), only files filed directly in that
+   * folder, not in folders below it. The browse view of a folder.
+   */
+  directOnly?: boolean;
 }
 
 export interface FileCandidate {
@@ -247,7 +252,24 @@ function buildFiltersSql(filters: FileSearchFilters): PrismaRaw.Sql {
     }
   }
 
-  if (filters.folderPath) {
+  if (filters.directOnly) {
+    // Browse: what is filed in this folder itself. Subfolders are shown as
+    // folders, so their files must not also appear here. Task outputs have no
+    // drive path and are left out by the `drive/` guard.
+    const rel = PrismaRaw.sql`regexp_replace(fr."sourceId", ${DRIVE_OWNER_PREFIX_PATTERN}, '')`;
+    clauses.push(
+      filters.folderPath
+        ? PrismaRaw.sql`(
+      fr."sourceId" ~ ${DRIVE_OWNER_PREFIX_PATTERN}
+      AND starts_with(${rel}, ${`${filters.folderPath}/`})
+      AND position('/' in substr(${rel}, ${filters.folderPath.length + 2})) = 0
+    )`
+        : PrismaRaw.sql`(
+      fr."sourceId" ~ ${DRIVE_OWNER_PREFIX_PATTERN}
+      AND position('/' in ${rel}) = 0
+    )`,
+    );
+  } else if (filters.folderPath) {
     /**
      * The first three segments are `drive/<users|organizations>/<ownerId>`,
      * which vary by store and say nothing a reader filed. Stripping them

@@ -358,7 +358,7 @@ export function EditChannelDialog({
               <DialogFooter>
                 <Button type="submit" variant="primary" disabled={isPending}>
                   {isPending ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                   ) : null}
                   {t("Dialog.save")}
                 </Button>
@@ -454,7 +454,10 @@ export function EditChannelDialog({
               }}
             >
               {isExiting ? (
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {pendingKind === "archive"
                 ? tActions("archiveConfirm")

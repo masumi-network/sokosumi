@@ -255,7 +255,9 @@ export function VendorProfileForm({
         </div>
 
         <Button type="submit" disabled={isDisabled}>
-          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isSaving ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          ) : null}
           {t("save")}
         </Button>
       </form>

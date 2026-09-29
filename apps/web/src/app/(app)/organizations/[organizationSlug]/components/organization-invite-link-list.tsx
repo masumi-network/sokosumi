@@ -211,7 +211,7 @@ function InviteLinkRow({
             onClick={() => void handleCopy()}
           >
             {copied ? (
-              <Check className="size-4" />
+              <Check className="check-pop size-4" />
             ) : (
               <Copy className="size-4" />
             )}
@@ -252,7 +252,7 @@ function InviteLinkRow({
                       }}
                     >
                       {revoking ? (
-                        <Loader2 className="size-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                       ) : null}
                       {t("revokeDialog.confirm")}
                     </AlertDialogAction>

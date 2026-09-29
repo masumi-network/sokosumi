@@ -17,8 +17,8 @@ export function threadListRowClassName(unread: boolean): string {
   return cn(
     "flex w-full min-w-0 gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors",
     unread
-      ? "bg-primary-quinary hover:bg-primary-quaternary"
-      : "hover:bg-accent",
+      ? "bg-primary-quinary press hover:bg-primary-quaternary"
+      : "press hover:bg-accent",
   );
 }
 
@@ -43,7 +43,7 @@ export function ThreadGroupHeading({
   return (
     <h3
       id={id}
-      className="text-muted-foreground mt-3 mb-1.5 flex items-center gap-2 px-2 text-[0.625rem] font-medium tracking-[0.08em] uppercase"
+      className="text-muted-foreground mt-3 mb-1.5 flex items-center gap-2 px-2 text-[0.625rem] font-medium"
       data-testid="thread-list-group-heading"
     >
       {children}

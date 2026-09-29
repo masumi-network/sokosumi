@@ -112,7 +112,7 @@ function SidebarAccountChipDesktop({
         // `pl-1` rather than `p-2`: footer chrome it may be, but its face
         // still sits on the 28px leading axis every row's mark uses, so it
         // shrinks in place when the sidebar collapses instead of sliding 4px.
-        "group/chip focus-visible:ring-sidebar-ring hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+        "group/chip focus-visible:ring-sidebar-ring press hover:bg-sidebar-accent data-[state=open]:bg-sidebar-accent flex w-full cursor-pointer items-center gap-2.5 rounded-lg p-2 pl-1 transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
         // The rail square every item stands on, so the chip's face lands on
         // the same axis a row's mark does. Its own `h-8!` because the chip is
         // 48px expanded, and `p-0!` because a 24px face has no room for the

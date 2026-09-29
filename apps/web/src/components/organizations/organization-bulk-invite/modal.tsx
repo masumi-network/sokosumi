@@ -129,7 +129,9 @@ export default function OrganizationBulkInviteModal({
               <p className="text-muted-foreground text-sm">{t("hint")}</p>
             </div>
             <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {t("submit")}
             </Button>
           </form>

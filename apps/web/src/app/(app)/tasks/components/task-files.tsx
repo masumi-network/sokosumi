@@ -64,7 +64,7 @@ function TaskFilesContent({
 
   return (
     <section className={className}>
-      <h2 className="text-muted-foreground mb-3 text-xs font-semibold tracking-wider uppercase">
+      <h2 className="text-muted-foreground mb-3 text-xs font-semibold">
         {title}
       </h2>
       <div

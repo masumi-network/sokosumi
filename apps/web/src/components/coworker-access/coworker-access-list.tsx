@@ -239,7 +239,7 @@ function CoworkerAccessCardActions({
           }
         >
           {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("approve")}
         </Button>
@@ -258,7 +258,7 @@ function CoworkerAccessCardActions({
           }
         >
           {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("deny")}
         </Button>
@@ -284,7 +284,7 @@ function CoworkerAccessCardActions({
           }
         >
           {loadingAction === "revoke" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {tActions("revoke")}
         </Button>

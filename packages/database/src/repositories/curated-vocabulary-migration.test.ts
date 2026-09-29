@@ -27,14 +27,16 @@ import { curatedFileVocabularyRows } from "../../../utils/src/file-curated-vocab
  * that what it inserts is what the product thinks the vocabulary is.
  */
 
-const MIGRATION = readFileSync(
-  fileURLToPath(
-    new URL(
-      "../../prisma/migrations/20260928140000_seed_curated_file_vocabulary/migration.sql",
-      import.meta.url,
+const MIGRATIONS = [
+  "20260928140000_seed_curated_file_vocabulary",
+  "20260928210000_widen_curated_file_vocabulary",
+].map((name) =>
+  readFileSync(
+    fileURLToPath(
+      new URL(`../../prisma/migrations/${name}/migration.sql`, import.meta.url),
     ),
+    "utf8",
   ),
-  "utf8",
 );
 
 /**
@@ -44,21 +46,26 @@ const MIGRATION = readFileSync(
  * occurrences would pass a migration whose descriptions had all been
  * truncated.
  */
-function migrationRows(): {
+function migrationRows(migration: string): {
   kind: string;
   displayName: string;
   normalizedName: string;
   description: string;
 }[] {
-  const start = MIGRATION.indexOf("VALUES");
-  const end = MIGRATION.indexOf(") AS v(", start);
+  const start = migration.indexOf("VALUES");
+  const end = migration.indexOf(") AS v(", start);
   expect(start, "the migration no longer has a VALUES block").toBeGreaterThan(
     -1,
   );
   expect(end, "the migration no longer has the v() alias").toBeGreaterThan(-1);
 
-  const body = MIGRATION.slice(start, end);
-  const rows: ReturnType<typeof migrationRows> = [];
+  const body = migration.slice(start, end);
+  const rows: {
+    kind: string;
+    displayName: string;
+    normalizedName: string;
+    description: string;
+  }[] = [];
 
   // One tuple per line, four single-quoted fields, '' as an escaped quote.
   const tuple = /\(\s*((?:'(?:[^']|'')*'\s*,\s*){3}'(?:[^']|'')*')\s*\)/g;
@@ -76,42 +83,50 @@ function migrationRows(): {
   return rows;
 }
 
+/** Each migration adds its own rows, so order across them is not the list's. */
+const byName = <T extends { kind: string; displayName: string }>(rows: T[]) =>
+  [...rows].sort((a, b) =>
+    `${a.kind}${a.displayName}`.localeCompare(`${b.kind}${b.displayName}`),
+  );
+
 describe("the curated vocabulary backfill", () => {
   it("inserts exactly the curated list", () => {
     expect(
-      migrationRows(),
+      byName(MIGRATIONS.flatMap(migrationRows)),
       "The backfill and packages/utils/src/file-curated-vocabulary.ts have " +
         "drifted. A label added to the list without a migration reaches new " +
         "workspaces and silently never reaches existing ones.",
-    ).toEqual(curatedFileVocabularyRows());
+    ).toEqual(byName(curatedFileVocabularyRows()));
   });
 
-  it("is idempotent and does not overwrite", () => {
-    // The two properties that make it safe to run twice against production,
-    // asserted here so a later edit cannot quietly drop either one. Behaviour
-    // is proven in file-curated-vocabulary.postgres.test.ts; this is the
-    // statement-level guard.
-    expect(MIGRATION).toContain(
-      'ON CONFLICT ("workspaceId", "kind", "normalizedName") DO NOTHING',
-    );
-    expect(
-      MIGRATION.includes("DO UPDATE"),
-      "an upsert would rewrite a rubric that existing suggestions were " +
-        "scored against, and would claim product authorship of a human's label",
-    ).toBe(false);
-  });
+  describe.each(MIGRATIONS)("statement %#", (migration) => {
+    it("is idempotent and does not overwrite", () => {
+      // The two properties that make it safe to run twice against production,
+      // asserted here so a later edit cannot quietly drop either one. Behaviour
+      // is proven in file-curated-vocabulary.postgres.test.ts; this is the
+      // statement-level guard.
+      expect(migration).toContain(
+        'ON CONFLICT ("workspaceId", "kind", "normalizedName") DO NOTHING',
+      );
+      expect(
+        migration.includes("DO UPDATE"),
+        "an upsert would rewrite a rubric that existing suggestions were " +
+          "scored against, and would claim product authorship of a human's label",
+      ).toBe(false);
+    });
 
-  it("is one set-based statement over the workspace table", () => {
-    // Not 20xN rows shipped from application code: at this shape the cost is
-    // one sequential scan and the behaviour is the same at ten thousand
-    // workspaces as at a million, so no row count gates the deploy.
-    expect(MIGRATION).toContain('FROM "workspace" w');
-    expect(MIGRATION).toContain("CROSS JOIN");
-    expect(MIGRATION.match(/INSERT INTO/g) ?? []).toHaveLength(1);
-  });
+    it("is one set-based statement over the workspace table", () => {
+      // Not 20xN rows shipped from application code: at this shape the cost is
+      // one sequential scan and the behaviour is the same at ten thousand
+      // workspaces as at a million, so no row count gates the deploy.
+      expect(migration).toContain('FROM "workspace" w');
+      expect(migration).toContain("CROSS JOIN");
+      expect(migration.match(/INSERT INTO/g) ?? []).toHaveLength(1);
+    });
 
-  it("leaves createdByUserId null, which is the provenance marker", () => {
-    expect(MIGRATION).toContain('"createdByUserId"');
-    expect(MIGRATION).toMatch(/NULL\s*\n\s*FROM "workspace" w/);
+    it("leaves createdByUserId null, which is the provenance marker", () => {
+      expect(migration).toContain('"createdByUserId"');
+      expect(migration).toMatch(/NULL\s*\n\s*FROM "workspace" w/);
+    });
   });
 });

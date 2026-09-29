@@ -208,7 +208,9 @@ function JobVerificationBadgeBase({
               className={cn(
                 "h-4 w-4",
                 colorClass,
-                isPending ? "animate-spin" : undefined,
+                isPending
+                  ? "animate-spin motion-reduce:animate-pulse"
+                  : undefined,
               )}
             />
           </span>
