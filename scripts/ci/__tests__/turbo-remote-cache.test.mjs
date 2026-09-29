@@ -200,6 +200,17 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.doesNotMatch(syncSignal, /secrets\./);
     assert.match(closedSignal, /pull_request:\s*\n\s+types:\s*\[closed\]/);
     assert.match(syncSignal, /pull_request:\s*\n\s+types:\s*\[synchronize\]/);
+    // Closed workflow runs have pull_requests: []. The signal run-name is the
+    // PR number; preview-deploy reads it back as display_title so close stays
+    // on the same concurrency group as /deploy and /reset-db.
+    const runName =
+      /^run-name: \$\{\{ github\.event\.pull_request\.number \}\}$/m;
+    assert.match(closedSignal, runName);
+    assert.match(syncSignal, runName);
+    const queueKey =
+      /workflow_run\.pull_requests\[0\]\.number \|\| github\.event\.workflow_run\.display_title \|\| github\.event\.workflow_run\.id/;
+    assert.match(jobBlock(workflow, "closed"), queueKey);
+    assert.match(jobBlock(workflow, "renew"), queueKey);
     assert.match(
       jobBlock(workflow, "closed"),
       /workflow_run\.name == 'PR closed'/,

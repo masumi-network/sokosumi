@@ -136,8 +136,10 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.name == 'PR closed' &&
       github.event.workflow_run.head_repository.full_name == github.repository
+    # Closed runs have an empty pull_requests array. display_title is the
+    # signal run-name (the PR number) so this stays on the deploy/reset queue.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
       cancel-in-progress: false
       queue: max
     environment: preview-database
@@ -179,8 +181,10 @@ jobs:
       github.event.workflow_run.event == 'pull_request' &&
       github.event.workflow_run.name == 'PR synchronize' &&
       github.event.workflow_run.head_repository.full_name == github.repository
+    # Same queue key as closed. pull_requests[0] when present, else the
+    # signal run-name via display_title. workflow_run.id is not a PR key.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.id }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
       cancel-in-progress: false
       queue: max
     environment: preview-database

@@ -1,4 +1,7 @@
 name: PR closed
+# Actions run title. preview-deploy's per-PR queue reads this back as
+# workflow_run.display_title. pull_requests is empty once the PR is closed.
+run-name: ${{ github.event.pull_request.number }}
 
 # Unprivileged signal. `cloud-agent-db-teardown.yml` and `preview-deploy.yml`
 # listen via workflow_run so the privileged YAML always comes from the default
