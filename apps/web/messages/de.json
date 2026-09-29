@@ -2365,7 +2365,7 @@
           "editTitle": "Beitrag bearbeiten",
           "scheduleTitle": "Beitrag planen",
           "rescheduleTitle": "Beitrag neu planen",
-          "description": "Schreibe den Text, wähle das Konto und lege fest, wann er erscheint.",
+          "description": "Wähle das Ziel, schreibe den Beitrag und lege fest, wann er erscheint.",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
           "characters": "{count} / {limit}",
@@ -2395,7 +2395,9 @@
             "video_required": "{provider} erfordert ein Video."
           },
           "account": "Konto",
-          "noAccount": "Konto auswählen",
+          "accounts": "Posten auf",
+          "accountOption": "{provider} {handle}",
+          "noAccounts": "Noch keine Konten verbunden. Verbinde eines im Tab Konten.",
           "unknownHandle": "Unbekanntes Konto",
           "scheduledAt": "Geplanter Zeitpunkt",
           "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
@@ -2413,8 +2415,8 @@
           "confirm": "Beitrag abbrechen"
         },
         "toasts": {
-          "created": "Entwurf gespeichert.",
-          "scheduled": "Beitrag geplant.",
+          "created": "{count, plural, one {Entwurf gespeichert.} other {# Entwürfe gespeichert.}}",
+          "scheduled": "{count, plural, one {Beitrag geplant.} other {# Beiträge geplant.}}",
           "updated": "Beitrag aktualisiert.",
           "canceled": "Beitrag abgebrochen.",
           "conflict": "Dieser Beitrag wurde an anderer Stelle geändert. Die neueste Version wird geladen.",
