@@ -1,8 +1,7 @@
 "use client";
 
+import type { TaskPriority } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-
-import type { TaskPriority } from "@/lib/clients/generated/core";
 
 import { TaskPriorityIcon } from "./task-priority-icon";
 

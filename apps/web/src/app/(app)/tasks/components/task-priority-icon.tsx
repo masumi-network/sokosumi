@@ -1,4 +1,4 @@
-import type { TaskPriority } from "@/lib/clients/generated/core";
+import type { TaskPriority } from "@sokosumi/core-client";
 import { cn } from "@/lib/utils";
 
 const BARS = [

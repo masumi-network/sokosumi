@@ -6,6 +6,7 @@ import {
   Code2,
   Coins,
   HardDrive,
+  ImagePlus,
   LifeBuoy,
   LogOut,
   Repeat,
@@ -41,6 +42,7 @@ import { getInitials } from "@/lib/utils/text";
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const CALENDAR_HREF = "/calendar";
+const STUDIO_HREF = "/studio";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
@@ -169,6 +171,12 @@ export function YouPageClient({
               icon={<Calendar className="size-4 shrink-0" aria-hidden />}
               label={tMenu("calendar")}
               testId="you-calendar"
+            />
+            <MobileStackedMenuLink
+              href={STUDIO_HREF}
+              icon={<ImagePlus className="size-4 shrink-0" aria-hidden />}
+              label={tMenu("contentStudio")}
+              testId="you-studio"
             />
             <MobileStackedMenuLink
               href={DRIVE_HREF}

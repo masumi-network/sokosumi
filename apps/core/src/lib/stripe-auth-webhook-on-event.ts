@@ -115,13 +115,28 @@ export async function handleStripeAuthWebhookOnEvent(
 
   if (event.type === "customer.subscription.updated") {
     const subscription = event.data.object;
-    // Stripe lists only the attributes that changed, so a false-to-true flip
-    // is the one shape a cancellation at period end has. A resumed and
-    // re-cancelled subscription flips again and is told again, under the
-    // same event id when the period is the same.
+    const previous = event.data.previous_attributes;
+    // Stripe lists only the attributes that changed. A cancellation is
+    // scheduled by cancel_at_period_end (classic billing mode) or by cancel_at
+    // alone (flexible billing mode), so tell the wallet when either one moves
+    // the subscription from not ending to ending. A resumed and re-cancelled
+    // subscription is told again, under the same event id when the date is
+    // the same.
     const setToEnd =
-      event.data.previous_attributes?.cancel_at_period_end === false &&
-      subscription.cancel_at_period_end;
+      (previous?.cancel_at_period_end === false &&
+        subscription.cancel_at_period_end) ||
+      (previous !== undefined &&
+        !isCancellationScheduled({
+          cancel_at_period_end:
+            "cancel_at_period_end" in previous
+              ? previous.cancel_at_period_end
+              : subscription.cancel_at_period_end,
+          cancel_at:
+            "cancel_at" in previous
+              ? previous.cancel_at
+              : subscription.cancel_at,
+        }) &&
+        isCancellationScheduled(subscription));
 
     if (setToEnd) {
       const wallet = await resolveWalletOrReport(subscription.customer, event);
@@ -137,6 +152,16 @@ export async function handleStripeAuthWebhookOnEvent(
   }
 
   console.info(`Unhandled Stripe event type: ${event.type}`);
+}
+
+function isCancellationScheduled(
+  subscription: Partial<
+    Pick<Stripe.Subscription, "cancel_at" | "cancel_at_period_end">
+  >,
+): boolean {
+  return (
+    subscription.cancel_at_period_end === true || subscription.cancel_at != null
+  );
 }
 
 /** The wallet behind a Stripe customer field, or null with the miss reported. */

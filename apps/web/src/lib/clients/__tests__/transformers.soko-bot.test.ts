@@ -1,6 +1,5 @@
+import { getMySokoBotResponseTransformer } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
-
-import { getMySokoBotResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 describe("getMySokoBotResponseTransformer", () => {
   it("preserves the valid no-bot state without dereferencing null", async () => {

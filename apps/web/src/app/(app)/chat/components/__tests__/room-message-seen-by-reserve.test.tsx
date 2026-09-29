@@ -32,7 +32,7 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 
 import { ChatMessageRow } from "../room-message-row";
 

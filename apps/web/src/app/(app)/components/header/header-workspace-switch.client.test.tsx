@@ -1,3 +1,4 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -6,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
 

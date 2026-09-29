@@ -1,9 +1,8 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   MemberWithOrganization,
   VendorGrant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
 import {
   buildWorkspaceApprovalReviewHref,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,

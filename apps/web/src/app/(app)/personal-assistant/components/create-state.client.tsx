@@ -1,5 +1,6 @@
 "use client";
 
+import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
@@ -12,7 +13,6 @@ import {
   createSokoBotAction,
   introduceSokoBotAction,
 } from "@/lib/actions/soko-bot/action";
-import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { AvatarPicker } from "./avatar-picker.client";

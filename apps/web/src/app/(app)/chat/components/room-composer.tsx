@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomSokoBotParticipant,
+  ChatRoomUserParticipant,
+  DriveFile,
+} from "@sokosumi/core-client";
 import {
   CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH,
   type ChannelLinkTarget,
@@ -60,12 +66,6 @@ import {
   type NormalizedMention,
 } from "@/components/ui/mention-textarea-utils";
 import { MOBILE_BREAKPOINT } from "@/hooks/use-mobile";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomSokoBotParticipant,
-  ChatRoomUserParticipant,
-  DriveFile,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
 import {

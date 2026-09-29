@@ -1,10 +1,10 @@
 "use client";
 
+import { TaskPriority } from "@sokosumi/core-client";
 import { Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   Command,
   CommandEmpty,
@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { setTaskPriority } from "@/lib/actions/task/action";
-import { TaskPriority } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { TaskPriorityIcon } from "./task-priority-icon";

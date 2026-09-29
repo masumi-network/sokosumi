@@ -1,9 +1,6 @@
+import { NotificationKind, SokosumiJobStatus } from "@sokosumi/core-client";
 import { CHAT_ROOM_PINNED_MESSAGE_ACTIONS } from "@sokosumi/utils";
 import * as z from "zod";
-import {
-  NotificationKind,
-  SokosumiJobStatus,
-} from "@/lib/clients/generated/core";
 
 import { TYPING_STATES } from "./room-typing-model";
 

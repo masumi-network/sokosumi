@@ -1,11 +1,10 @@
+import type { Project } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { CreateProjectWizard } from "@/app/projects/components/create-project-wizard";
 import { createProject } from "@/lib/actions/project/action";
-import type { Project } from "@/lib/clients/generated/core/types.gen";
 
 const toastErrorMock = vi.fn();
 const trackMock = vi.fn();

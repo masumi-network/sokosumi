@@ -33,9 +33,9 @@ import {
   mapChatRoom,
   membershipVisibleActiveRoomWhere,
 } from "./helpers";
+import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
 import {
   getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
   listUnreadThreadsOfRoomsWithThreadUnread,
   unreadCountFields,
 } from "./room-unread";

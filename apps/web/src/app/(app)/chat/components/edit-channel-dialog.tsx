@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
 import { Archive as ArchiveIcon, Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -42,7 +43,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
-import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import type { Discoverability } from "./create-channel-wizard";
 import { GuestInviteSection } from "./guest-invite-section";
 import { ParticipantCheckboxes } from "./participant-checkboxes";

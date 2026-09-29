@@ -1,3 +1,8 @@
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   act,
@@ -10,7 +15,6 @@ import {
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
   SocialComposeProvider,
@@ -23,11 +27,6 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-} from "@/lib/clients/generated/core/types.gen";
 
 import { loadMoreSocialPosts } from "./actions";
 

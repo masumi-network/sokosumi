@@ -1,5 +1,7 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import {
   ExternalLink,
   HandCoins,
@@ -33,8 +35,6 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { requestRefundJob } from "@/lib/actions/job/action";
-import type { Job } from "@/lib/clients/generated/core";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**

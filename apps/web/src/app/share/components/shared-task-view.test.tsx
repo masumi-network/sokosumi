@@ -1,6 +1,6 @@
+import type { PublicSharedTask } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PublicSharedTask } from "@/lib/clients/generated/core";
 import { createTestFormatter } from "@/test/intl-formatter";
 import { SharedTaskView } from "./shared-task-view";
 

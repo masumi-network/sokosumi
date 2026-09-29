@@ -1,11 +1,8 @@
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import {
   getChatsInvitationsResponseTransformer,
   getChatsRoomsResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
 
 import { fetchBackgroundJson } from "./fetch-background-json";
 

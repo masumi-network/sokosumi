@@ -1,8 +1,8 @@
 "use client";
 
+import type { TaskStatus } from "@sokosumi/core-client";
 import { Check, ChevronDown } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
-
 import {
   Command,
   CommandEmpty,
@@ -21,7 +21,6 @@ import {
   MARKER_ICONS,
   StatusMarker,
 } from "@/components/ui/status-marker";
-import type { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";

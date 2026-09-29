@@ -1,6 +1,6 @@
+import { createClient } from "@sokosumi/core-client/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createCoreClient } from "./core.shared";
-import { createClient } from "./generated/core/client";
 
 const sdk = vi.hoisted(() => ({
   listSokoBotAvatars: vi.fn(),
@@ -8,8 +8,8 @@ const sdk = vi.hoisted(() => ({
   claimMySokoBotAvatar: vi.fn(),
 }));
 
-vi.mock("@/lib/clients/generated/core", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("./generated/core")>()),
+vi.mock("@sokosumi/core-client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/core-client")>()),
   ...sdk,
 }));
 

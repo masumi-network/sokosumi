@@ -1,11 +1,11 @@
 import "server-only";
 
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   DeveloperCoworkerRef,
   DeveloperTaskListItem,
   Task,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 interface DeveloperTaskOwner {

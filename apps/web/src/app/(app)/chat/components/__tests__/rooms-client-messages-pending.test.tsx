@@ -1,4 +1,12 @@
 import "./rooms-client-harness";
+import type {
+  ChatRoom,
+  ChatRoomMessage,
+  Coworker,
+  Member,
+  Organization,
+} from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -15,14 +23,6 @@ import {
   forgetRoomRead,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Coworker,
-  Member,
-  Organization,
-} from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   PersistentRoomView,

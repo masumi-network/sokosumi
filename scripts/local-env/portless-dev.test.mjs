@@ -20,6 +20,7 @@ describe("portless names", () => {
     assert.equal(PORTLESS_CORE_NAME, "core.sokosumi");
     assert.equal(portlessNameFor("web"), "web.sokosumi");
     assert.equal(portlessNameFor("core"), "core.sokosumi");
+    assert.equal(portlessNameFor("cmo"), "cmo.sokosumi");
   });
 });
 
@@ -52,10 +53,11 @@ describe("parseRunApps", () => {
   it("runs a single named app", () => {
     assert.deepEqual(parseRunApps("web"), ["web"]);
     assert.deepEqual(parseRunApps("core"), ["core"]);
+    assert.deepEqual(parseRunApps("cmo"), ["cmo"]);
   });
 
   it("rejects unknown selectors", () => {
-    assert.throws(() => parseRunApps("api"), /run \[web\|core\]/);
+    assert.throws(() => parseRunApps("api"), /run \[web\|core\|cmo\]/);
   });
 });
 
@@ -163,6 +165,14 @@ describe("spawnPlan", () => {
     assert.equal(web.app, "web");
     assert.equal(web.env.CORE_APP_BASE_URL, urls.coreUrl);
     assert.equal(web.env.WEB_APP_BASE_URL, urls.webUrl);
+  });
+
+  it("plans CMO on its own name without Sokosumi cookie or URLs", () => {
+    const [cmo] = spawnPlan("cmo", urls, primaryRoot);
+    assert.equal(cmo.app, "cmo");
+    assert.equal(cmo.name, "cmo.sokosumi");
+    assert.equal(cmo.filter, "cmo");
+    assert.deepEqual(cmo.env, {});
   });
 
   it("plans grok copies with a basename prefix", () => {

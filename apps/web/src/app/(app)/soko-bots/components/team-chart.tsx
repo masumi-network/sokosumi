@@ -1,12 +1,11 @@
+import type { SokoBotTeam } from "@sokosumi/core-client";
 import { Building2, ChevronRight, Plus, User } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
 import { AuroraOrb } from "@/components/aurora-orb";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import type { SokoBotTeam } from "@/lib/clients/generated/core";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
