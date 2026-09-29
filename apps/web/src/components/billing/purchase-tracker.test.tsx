@@ -1,3 +1,4 @@
+import type { CheckoutSessionAnalytics } from "@sokosumi/core-client";
 import { act, render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -5,7 +6,6 @@ import {
   CONSENT_COOKIE,
   writeConsent,
 } from "@/lib/analytics/consent";
-import type { CheckoutSessionAnalytics } from "@/lib/clients/generated/core";
 
 const purchaseMock = vi.fn();
 

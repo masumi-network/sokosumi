@@ -1,8 +1,8 @@
+import type { Task } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { Box, Building2, Lock, Repeat, UserRound } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,7 +13,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 import {

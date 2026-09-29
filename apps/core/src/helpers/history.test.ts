@@ -8,6 +8,7 @@ import type { UserAuthenticationContext } from "@/middleware/auth";
 import {
   buildHistoryArchivedFilter,
   buildHistoryStatusFilter,
+  buildHistoryWhere,
   type HistoryRowForApi,
   mapHistoryRow,
 } from "./history";
@@ -131,7 +132,7 @@ describe("mapHistoryRow", () => {
       title: "A bold event poster",
       description: "fal-ai/gemini-3.1-flash-image-preview · 8 credits",
       status: "active",
-      updatedAt: row.sortAt.toISOString(),
+      createdAt: row.sortAt.toISOString(),
       archivedAt: null,
       credits: 8,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -512,5 +513,50 @@ describe("loadComputedJobStatusByEntityId", () => {
       }),
     });
     expect(statuses.get("job_123")).toBe(SokosumiJobStatus.PAYMENT_FAILED);
+  });
+});
+
+describe("buildHistoryWhere search", () => {
+  const params = {
+    q: "invoice",
+    scope: "owned" as const,
+    types: [HistoryKind.JOB],
+    userContext: { ...orgAuthContext, source: "session" as const },
+    workspaceContext: {
+      workspaceId: "11111111-1111-7111-8111-111111111111",
+      userId: null,
+      organizationId: "org_123",
+    },
+  };
+
+  it("also finds a job whose result text contains the query", async () => {
+    const findMany = vi.fn().mockResolvedValue([{ id: "job_result_hit" }]);
+    const client = createHistoryPrismaClient({ job: { findMany } });
+
+    const where = await buildHistoryWhere(params, client);
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          workspaceId: params.workspaceContext.workspaceId,
+          ownerId: "user_123",
+          events: {
+            some: { result: { contains: "invoice", mode: "insensitive" } },
+          },
+        },
+      }),
+    );
+    expect(JSON.stringify(where)).toContain(
+      '"entityId":{"in":["job_result_hit"]}',
+    );
+  });
+
+  it("does not read job results when jobs are not being searched", async () => {
+    const findMany = vi.fn();
+    const client = createHistoryPrismaClient({ job: { findMany } });
+
+    await buildHistoryWhere({ ...params, types: [HistoryKind.TASK] }, client);
+
+    expect(findMany).not.toHaveBeenCalled();
   });
 });

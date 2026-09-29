@@ -1,4 +1,4 @@
-import type { SokoBotAdminAction } from "@/lib/clients/generated/core";
+import type { SokoBotAdminAction } from "@sokosumi/core-client";
 
 export type AuditOutcome = "SUCCEEDED" | "FAILED" | "ATTEMPTED";
 

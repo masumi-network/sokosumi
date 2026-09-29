@@ -95,8 +95,7 @@ describe("PersonalSubscriptionSection", () => {
   it("renders a cancel action for the current paid plan and no action for free", () => {
     render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status={null}
@@ -120,8 +119,7 @@ describe("PersonalSubscriptionSection", () => {
   it("shows the scheduled cancellation date on the current paid plan", () => {
     render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={new Date("2026-04-01T00:00:00.000Z")}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status={null}
@@ -140,8 +138,7 @@ describe("PersonalSubscriptionSection", () => {
   it("uses the upgrade action for non-current paid plans", async () => {
     render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status={null}
@@ -177,8 +174,7 @@ describe("PersonalSubscriptionSection", () => {
 
     render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={new Date("2026-04-01T00:00:00.000Z")}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status={null}
@@ -207,8 +203,7 @@ describe("PersonalSubscriptionSection", () => {
   it("does not show a status banner when status is null", () => {
     const { queryByText } = render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={null}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status={null}
@@ -221,8 +216,7 @@ describe("PersonalSubscriptionSection", () => {
   it("shows a cancel banner when status is cancel", () => {
     const { getByText } = render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={null}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status="cancel"
@@ -235,8 +229,7 @@ describe("PersonalSubscriptionSection", () => {
   it("does not show a status banner when status is success (the success modal, owned by the billing page, handles that)", () => {
     const { queryByText } = render(
       <PersonalSubscriptionSection
-        cancelAtPeriodEnd={false}
-        currentPeriodEnd={null}
+        scheduledCancelDate={null}
         plans={createPlans()}
         returnPath="/billing?tab=subscription"
         status="success"

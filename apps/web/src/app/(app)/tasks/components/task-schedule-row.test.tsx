@@ -1,8 +1,7 @@
+import type { TaskSchedule } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-
-import type { TaskSchedule } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskScheduleRow } from "./task-schedule-row";

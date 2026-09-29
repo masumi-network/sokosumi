@@ -1,3 +1,4 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
@@ -9,7 +10,6 @@ import {
 } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom } from "./__tests__/chat-room-fixtures";
 import { ChatUnreadNavRows } from "./chat-unread-nav-rows";
 

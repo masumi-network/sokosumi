@@ -1,15 +1,14 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 import { useId } from "react";
-
 import { ThreadListLoadMore } from "@/components/chat/thread-list-load-more";
 import { ThreadGroupHeading } from "@/components/chat/thread-list-row";
 import { EarlierThreadLink } from "@/components/chat/unread-thread-link";
 import { unreadThreadsFingerprint } from "@/components/chat/unread-threads-list";
 import { Button } from "@/components/ui/button";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 import { fetchChatEarlierThreads } from "./fetch-chat-threads";
 

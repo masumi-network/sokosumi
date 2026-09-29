@@ -7,6 +7,13 @@ import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
+import {
+  TaskStatus,
+  type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
+  type WorkspaceCalendarItem,
+  type WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
@@ -81,13 +88,6 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
-import {
-  TaskStatus,
-  type TaskStatus as TaskStatusValue,
-  type WorkspaceCalendarEntry,
-  type WorkspaceCalendarItem,
-  type WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 import {
   getDefaultTimezone,
   getTimezoneOptions,

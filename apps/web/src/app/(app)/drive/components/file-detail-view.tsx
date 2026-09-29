@@ -1,5 +1,6 @@
 "use client";
 
+import type { FileResource } from "@sokosumi/core-client";
 import { Check, Loader2, RotateCcw, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -11,14 +12,12 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
-
 import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { useSession } from "@/lib/auth/auth.client";
-import type { FileResource } from "@/lib/clients/generated/core";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   decideSuggestion,

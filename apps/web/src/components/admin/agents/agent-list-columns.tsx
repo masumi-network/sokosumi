@@ -1,13 +1,12 @@
 "use client";
 
+import type { AdminAgentListItem } from "@sokosumi/core-client";
 import Link from "next/link";
 import type { useFormatter, useTranslations } from "next-intl";
-
 import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
 import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { AdminAgentListItem } from "@/lib/clients/generated/core/types.gen";
 
 const columnHelper = createAppColumnHelper<AdminAgentListItem>();
 

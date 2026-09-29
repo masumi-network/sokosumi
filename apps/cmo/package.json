@@ -1,0 +1,32 @@
+{
+  "name": "cmo",
+  "version": "0.1.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "private": true,
+  "portless": {
+    "name": "cmo.sokosumi"
+  },
+  "scripts": {
+    "dev": "next dev --port ${PORT:-3100}",
+    "build": "next build",
+    "start": "next start",
+    "check": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run"
+  },
+  "dependencies": {
+    "next": "16.3.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "typescript": "7.0.2",
+    "vitest": "5.0.2"
+  }
+}

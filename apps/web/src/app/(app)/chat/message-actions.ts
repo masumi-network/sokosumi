@@ -1,5 +1,6 @@
 "use server";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import {
   type ActionResultDto,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { actionErrorMessage } from "./action-error-message";
 

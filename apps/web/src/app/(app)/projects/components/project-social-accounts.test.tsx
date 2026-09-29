@@ -1,3 +1,7 @@
+import type {
+  DisconnectProjectSocialConnectionResponse,
+  ProjectSocialConnection,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -22,10 +26,6 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
-import type {
-  DisconnectProjectSocialConnectionResponse,
-  ProjectSocialConnection,
-} from "@/lib/clients/generated/core/types.gen";
 import messages from "../../../../../messages/en.json";
 
 const { refreshMock, toastErrorMock, toastSuccessMock, toastWarningMock } =

@@ -1,9 +1,8 @@
+import type { Job, MemberWithOrganization } from "@sokosumi/core-client";
 import { HydrationBoundary } from "@tanstack/react-query";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-
 import { AutoContextSwitch } from "@/app/components/auto-context-switch";
-import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 import { userService } from "@/lib/services/user.service";
 import { resolveAccountName } from "@/lib/utils/account-name";
 

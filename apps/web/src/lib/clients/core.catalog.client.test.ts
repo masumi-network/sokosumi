@@ -21,11 +21,11 @@ vi.mock("@/lib/clients/utils/core-api-base-url", () => ({
   getCoreApiBaseUrl: () => "http://localhost:8787/v1",
 }));
 
-vi.mock("@/lib/clients/generated/core/client", () => ({
+vi.mock("@sokosumi/core-client/client", () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   getAgents: getAgentsMock,
   getCategories: getCategoriesMock,
 }));

@@ -1,8 +1,8 @@
-import type { SessionUser } from "@sokosumi/utils";
 import type {
   GetUsersByIdCreditsResponse,
   MemberWithOrganization,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import type { SessionUser } from "@sokosumi/utils";
 import type { CreditUsage } from "@/lib/types/credit";
 
 export type CreditWalletScope = GetUsersByIdCreditsResponse["data"]["scope"];

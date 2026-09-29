@@ -21,18 +21,16 @@ import {
 } from "./subscription-plan-utils";
 
 interface PersonalSubscriptionSectionProps {
-  cancelAtPeriodEnd: boolean;
-  currentPeriodEnd: Date | string | null;
   plans: SubscriptionPlanView[];
   returnPath?: string;
+  scheduledCancelDate: Date | null;
   status: "cancel" | "success" | null;
 }
 
 export function PersonalSubscriptionSection({
-  cancelAtPeriodEnd,
-  currentPeriodEnd,
   plans,
   returnPath,
+  scheduledCancelDate,
   status,
 }: PersonalSubscriptionSectionProps) {
   const t = useTranslations("App.Subscriptions");
@@ -49,21 +47,16 @@ export function PersonalSubscriptionSection({
   const statusMessage = status === "cancel" ? t("statusCancel") : null;
 
   const cancellationDate = useMemo(() => {
-    if (!cancelAtPeriodEnd || !currentPeriodEnd) {
+    if (!scheduledCancelDate) {
       return null;
     }
 
-    const date =
-      currentPeriodEnd instanceof Date
-        ? currentPeriodEnd
-        : new Date(currentPeriodEnd);
-
-    return formatter.dateTime(date, {
+    return formatter.dateTime(scheduledCancelDate, {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
-  }, [cancelAtPeriodEnd, currentPeriodEnd, formatter]);
+  }, [scheduledCancelDate, formatter]);
 
   const cancellationLabel = useMemo(() => {
     if (!cancellationDate) {

@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-
-import type { NormalizedMention } from "@/components/ui/mention-textarea-utils";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
+import type { NormalizedMention } from "@/components/ui/mention-textarea-utils";
 import {
   buildRoomAllMentionRecord,
   composerMentionDisplayNames,

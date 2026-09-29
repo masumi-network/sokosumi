@@ -1,3 +1,5 @@
+import type { Task } from "@sokosumi/core-client";
+import { TaskVisibility } from "@sokosumi/core-client";
 import {
   removeTaskContextAttachmentLinks,
   resolveIpfsOrHttpUrl,
@@ -45,8 +47,6 @@ import {
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 import { getSession } from "@/lib/auth/auth.server";
-import { TaskVisibility } from "@/lib/clients/generated/core";
-import type { Task } from "@/lib/clients/generated/core/types.gen";
 import { agentService } from "@/lib/services/agent.service";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { designMdService } from "@/lib/services/design-md.service";
