@@ -20,6 +20,7 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 
 const {
   ensureServiceplanWorkspaceGrantOnCreateMock,
+  seedCuratedVocabularyMock,
   transactionMock,
   userFindUniqueMock,
   workspaceFindUniqueMock,
@@ -27,6 +28,7 @@ const {
   userUpdateMock,
 } = vi.hoisted(() => ({
   ensureServiceplanWorkspaceGrantOnCreateMock: vi.fn(),
+  seedCuratedVocabularyMock: vi.fn(),
   transactionMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -38,6 +40,9 @@ vi.mock("@sokosumi/database/repositories", () => ({
   vendorGrantRepository: {
     ensureServiceplanWorkspaceGrantOnCreate:
       ensureServiceplanWorkspaceGrantOnCreateMock,
+  },
+  workspaceRepository: {
+    seedCuratedVocabulary: seedCuratedVocabularyMock,
   },
 }));
 
@@ -103,6 +108,7 @@ describe("POST /users/{id}/personal-workspace", () => {
       return await callback(TX);
     });
     ensureServiceplanWorkspaceGrantOnCreateMock.mockResolvedValue(undefined);
+    seedCuratedVocabularyMock.mockResolvedValue(undefined);
     userUpdateMock.mockResolvedValue({ id: "user_123" });
   });
 
@@ -137,6 +143,13 @@ describe("POST /users/{id}/personal-workspace", () => {
       resolvedByUserId: "user_123",
       tx: TX,
     });
+    // This route does not go through `workspaceRepository` for the create, so
+    // it is the one creation path that has to call the vocabulary seed itself.
+    // A workspace without it produces no tags ever, silently.
+    expect(seedCuratedVocabularyMock).toHaveBeenCalledWith(
+      "11111111-1111-7111-8111-111111111111",
+      TX,
+    );
     expect(userUpdateMock).toHaveBeenCalledWith({
       where: { id: "user_123" },
       data: { preferredOrganizationId: null },

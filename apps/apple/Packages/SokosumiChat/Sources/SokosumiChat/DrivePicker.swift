@@ -29,13 +29,7 @@ public final class DrivePicker: ObservableObject {
       return
     } catch {
       guard current == generation, !Task.isCancelled else { return }
-      switch error {
-      case let ChatServiceError.unauthorized(message), let ChatServiceError.unprocessable(_, message),
-           let ChatServiceError.unexpectedResponse(message):
-        errorMessage = message
-      default:
-        errorMessage = friendlyMessage(for: error)
-      }
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
     }
   }
 }

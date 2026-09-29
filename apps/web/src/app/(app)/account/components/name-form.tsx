@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas";
+import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
 
 export function NameForm() {
   const t = useTranslations("App.Account.Name");
@@ -85,7 +85,7 @@ export function NameForm() {
             <CardFooter>
               <Button type="submit" disabled={isSubmitting} className="w-full">
                 {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {t("submit")}
               </Button>

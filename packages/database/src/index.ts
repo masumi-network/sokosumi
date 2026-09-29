@@ -1,11 +1,9 @@
 export { POSTGRES_BIGINT_MAX } from "./constants.js";
-// Export browser-safe types (includes Prisma namespace, model types, and all enums - no PrismaClient)
+// Browser-safe Prisma types and enums; no PrismaClient
 export * from "./generated/prisma/browser.js";
 
-// Explicitly re-export Prisma namespace for better discoverability
 export { Prisma } from "./generated/prisma/browser.js";
 
-// Export additional model-related types
 export * from "./generated/prisma/models.js";
 
 export {

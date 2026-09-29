@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   acceptInvitationMock,
   emptyListResult,
+  listArchivedMock,
   listPendingMock,
   listRoomsMock,
   makeInvitation,
@@ -16,6 +17,31 @@ import {
 describe("OrganizationChatList section visibility", () => {
   beforeEach(() => {
     resetOrganizationChatListMocks();
+  });
+
+  // One list is the app sidebar and the phone's Chats tab alike, so this is
+  // where Threads and All unreads land on both (SOK-1159).
+  it("puts Threads and All unreads above every section, workspace or not", () => {
+    const pinned = makeRoom({
+      id: "launch",
+      kind: "channel",
+      myAccess: "member",
+      starredAt: new Date("2026-08-01T00:00:00.000Z"),
+    });
+    for (const organizationId of ["org-1", null]) {
+      const { unmount } = renderOrganizationChatList({
+        organizationId,
+        rooms: [pinned],
+      });
+
+      const entry = screen.getByTestId("chat-unread-nav-rows");
+      const firstSection = screen.getByText("App.Channels.pinned");
+      expect(
+        entry.compareDocumentPosition(firstSection) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      unmount();
+    }
   });
 
   it("hides Channels in a personal workspace", () => {
@@ -114,7 +140,7 @@ describe("OrganizationChatList section visibility", () => {
     expect(screen.queryByText("App.Channels.title")).not.toBeInTheDocument();
   });
 
-  it("gives Channels, External and Direct Messages a rail header, and Archived none", async () => {
+  it("gives every section a rail header, Archived included", async () => {
     const external = makeRoom({
       id: "ext-1",
       kind: "channel",
@@ -122,22 +148,27 @@ describe("OrganizationChatList section visibility", () => {
       discoverability: "external",
       name: "Partners",
     });
+    const archived = makeRoom({
+      id: "old-launch",
+      kind: "channel",
+      myAccess: "member",
+      name: "old-launch",
+    });
     listRoomsMock.mockResolvedValue(emptyListResult([external]));
+    // The list refreshes every collection on mount, so an archived room has
+    // to survive that refresh or the section unmounts before the assertion.
+    listArchivedMock.mockResolvedValue(emptyListResult([archived]));
 
     renderOrganizationChatList({
       organizationId: "org-1",
       rooms: [external],
-      archivedRooms: [
-        makeRoom({
-          id: "old-launch",
-          kind: "channel",
-          myAccess: "member",
-          name: "old-launch",
-        }),
-      ],
+      archivedRooms: [archived],
     });
 
     await screen.findByText("App.Channels.External.title");
+    // Archived's square holds its heading's place so the Direct Messages
+    // under it do not jump when the sidebar toggles. Its rows still stay off
+    // the rail; the square expands the sidebar to reach them instead.
     expect(
       screen
         .getAllByTestId("section-rail-button")
@@ -145,6 +176,7 @@ describe("OrganizationChatList section visibility", () => {
     ).toEqual([
       "App.Channels.title",
       "App.Channels.External.title",
+      "App.Channels.archivedChannels",
       "App.Channels.directMessages",
     ]);
   });

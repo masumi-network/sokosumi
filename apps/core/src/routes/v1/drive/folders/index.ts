@@ -1,10 +1,12 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountDeleteFolder from "./delete.js";
+import mountGetFolders from "./get.js";
 import mountPostFolder from "./post.js";
 import mountRenameFolder from "./rename.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
+mountGetFolders(app);
 mountPostFolder(app);
 mountDeleteFolder(app);
 mountRenameFolder(app);

@@ -38,8 +38,10 @@ test("filters agents by searchable fields and applies a limit", async () => {
         ],
       }) as T,
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -57,8 +59,10 @@ test("agents list emits a stable JSON collection", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: [createAgent()] }) as T,
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -83,8 +87,10 @@ test("agents hire fetches the input schema and posts a job", async () => {
         data: { id: "job-1", agentId: "agent-1", status: "PENDING" },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runAgentsCommand({
@@ -110,8 +116,10 @@ test("agents hire requires an agent id and input", async () => {
   const client: CoreHttpClient = {
     get: async <T>() => ({ data: {} }) as T,
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   await assert.rejects(
     () =>
@@ -143,8 +151,10 @@ test("agents hire forwards max-credits and name to the job request", async () =>
       body = requestBody as typeof body;
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,
@@ -169,8 +179,10 @@ test("agents hire reads input from a file", async () => {
       body = requestBody as typeof body;
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   await runAgentsCommand({
     client,

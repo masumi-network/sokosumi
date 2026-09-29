@@ -1,9 +1,11 @@
 import type {
   IndexedRuntimeEvent,
   RuntimeEvent,
+  RuntimeJsonValue,
   SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { jevRoute } from "@/test/jev-routes";
 
 const {
   botUpdateManyMock,
@@ -27,8 +29,13 @@ const {
   turnUpdateManyMock: vi.fn(),
 }));
 
+const jevEvaluate = vi.hoisted(() => vi.fn());
+vi.mock("ai", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("ai")>()),
+  experimental_evaluate: jevEvaluate,
+}));
 vi.mock("@/config/env", () => ({
-  getEnv: () => ({ SOKO_BOT_CLASSIFIER_MODE: "rules" }),
+  getEnv: () => ({ SOKO_BOT_PROACTIVE_PAUSED: false }),
 }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: async () => ({
@@ -62,6 +69,26 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
   requireSokoBotTurnFunding: vi.fn(),
 }));
 
+vi.mock("@/lib/soko-bot/action-response", () => ({
+  buildActionResponse: vi.fn(async (_tx, _turnId, answerText) => ({
+    answerText,
+    appliedReceiptIds: [],
+    observations: [],
+    unfulfilledActions: [],
+  })),
+}));
+vi.mock("@/services/soko-bot-outcome.service", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/services/soko-bot-outcome.service")
+  >()),
+  assessSokoBotIntentOutcome: vi.fn(),
+  invalidateSokoBotIntentOutcomes: vi.fn(),
+}));
+vi.mock("@/services/soko-bot-delivery.service", () => ({
+  enqueueSokoBotDelivery: vi.fn(),
+  deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { SokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 
 const TURN_ID = "01960001-0001-7001-8001-000000000010";
@@ -70,7 +97,7 @@ const LEASE_TOKEN = "lease_1";
 function runtimeEvent(
   type: string,
   id: string,
-  data: Record<string, unknown> = {},
+  data: Record<string, RuntimeJsonValue> = {},
 ): RuntimeEvent {
   return {
     type,
@@ -116,6 +143,11 @@ function runtimeFor(
     inspectSession: vi.fn(),
   };
 }
+
+// Jev answers every classification; tests that need another route script it.
+beforeEach(() => {
+  jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+});
 
 describe("SokoBotControlPlane reconciliation", () => {
   beforeEach(() => {
@@ -232,6 +264,9 @@ describe("SokoBotControlPlane reconciliation", () => {
   });
 
   it("preserves completed output when settlement discovers a credit shortfall", async () => {
+    turnFindUniqueMock.mockResolvedValue(
+      activeTurn({ finalAnswer: "Delegation complete" }),
+    );
     recordUsageMock.mockResolvedValue({
       chargedCents: 10n,
       expectedCents: 20n,
@@ -259,7 +294,7 @@ describe("SokoBotControlPlane reconciliation", () => {
         data: expect.objectContaining({
           status: "COMPLETED",
           errorKind: "insufficient_credits",
-          finalAnswer: undefined,
+          finalAnswer: "Delegation complete",
         }),
       }),
     );

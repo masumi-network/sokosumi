@@ -15,7 +15,8 @@ const BLOCKQUOTE_PREFIX_REGEX = /^>\s?/gm;
 const INLINE_CODE_REGEX = /`([^`]+)`/g;
 const WRAPPING_QUOTES_REGEX = /^["'“”‘’«»]+|["'“”‘’«»]+$/g;
 const TRAILING_PERIODS_REGEX = /\.+$/u;
-const REFUSAL_REGEX = /\b(?:i cannot|unable to|i need to be transparent)\b/i;
+const REFUSAL_REGEX =
+  /\b(?:i cannot|i can['’]t|i['’]m sorry|i am sorry|unable to|i need to be transparent)\b/i;
 const DUMP_REGEX = /^\s*#|##|```|[\n\r]|(?:^|\s)\d+\.\s.+\s\d+\.\s/;
 
 function stripHtmlTags(text: string): string {
@@ -108,9 +109,13 @@ export async function resolveTaskName(input: {
     return UNTITLED_TASK_NAME;
   }
 
-  const generated = (
-    await openrouterClient.generateTaskName(namingSource)
-  )?.trim();
+  let generated: string | undefined;
+  try {
+    generated = (await openrouterClient.generateTaskName(namingSource))?.trim();
+  } catch (error) {
+    // Best-effort naming. A parser/runtime throw must not fail task create.
+    console.error("Task name generation failed:", error);
+  }
   if (generated) {
     const cleaned = cleanAutoName(generated);
     if (!isRejectedGeneratedName(generated, cleaned)) {

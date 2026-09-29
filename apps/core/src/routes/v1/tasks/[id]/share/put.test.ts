@@ -6,9 +6,8 @@ import mountPutTaskShareById from "./put";
 
 const {
   authContextState,
-  prismaTransactionMock,
-  requireMutableTaskOwnershipMock,
-  upsertForTaskMock,
+  requireMutableTaskWriteAccessMock,
+  publicShareUpsertMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -31,14 +30,13 @@ const {
         }
       | null,
   },
-  prismaTransactionMock: vi.fn(),
-  requireMutableTaskOwnershipMock: vi.fn(),
-  upsertForTaskMock: vi.fn(),
+  requireMutableTaskWriteAccessMock: vi.fn(),
+  publicShareUpsertMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: (...args: unknown[]) =>
-    requireMutableTaskOwnershipMock(...args),
+  requireMutableTaskWriteAccess: (...args: unknown[]) =>
+    requireMutableTaskWriteAccessMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -76,15 +74,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    upsertForTask: (...args: unknown[]) => upsertForTaskMock(...args),
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
+    publicShare: {
+      upsert: (...args: unknown[]) => publicShareUpsertMock(...args),
+    },
   },
 }));
 
@@ -103,15 +101,12 @@ describe("PUT /tasks/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
-    requireMutableTaskOwnershipMock.mockResolvedValue({
+    requireMutableTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       pendingVendorGrantId: null,
     });
-    upsertForTaskMock.mockResolvedValue({
+    publicShareUpsertMock.mockResolvedValue({
       id: "share_123",
       taskId: "tsk_123",
       token: "public-share-token",
@@ -136,10 +131,11 @@ describe("PUT /tasks/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(upsertForTaskMock).toHaveBeenCalledWith(
-      "tsk_123",
-      true,
-      expect.any(Object),
+    expect(publicShareUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { taskId: "tsk_123" },
+        update: { allowSearchIndexing: true },
+      }),
     );
     expect(body.data).toMatchObject({
       id: "share_123",
@@ -150,7 +146,7 @@ describe("PUT /tasks/{id}/share", () => {
   });
 
   it("rejects creating a public share for a private task", async () => {
-    requireMutableTaskOwnershipMock.mockResolvedValue({
+    requireMutableTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       pendingVendorGrantId: null,
@@ -169,7 +165,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(400);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 for unauthenticated requests", async () => {
@@ -187,12 +183,12 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not owned by the caller", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -208,12 +204,12 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task does not exist", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -229,7 +225,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -252,7 +248,7 @@ describe("PUT /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
-    expect(upsertForTaskMock).not.toHaveBeenCalled();
+    expect(requireMutableTaskWriteAccessMock).not.toHaveBeenCalled();
+    expect(publicShareUpsertMock).not.toHaveBeenCalled();
   });
 });

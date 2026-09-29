@@ -23,7 +23,7 @@ export interface RoomNotificationDeepLinkParams {
    */
   ready: boolean;
   pathname: string;
-  searchParams: ReadonlyURLSearchParams;
+  searchParams: Pick<ReadonlyURLSearchParams, "get" | "has" | "toString">;
   replace: (href: string, options: { scroll: false }) => void;
   /** True when the message is already in the room transcript. Saves the lookup. */
   highlight: (messageId: string) => boolean;
@@ -133,7 +133,7 @@ export function useRoomNotificationDeepLink({
       // Spend the message from the URL as soon as it is acted on. Left there,
       // every Back into this history entry would jump again and drag a reader
       // who had scrolled away back to a message they have already read.
-      const remaining = new URLSearchParams(searchParams);
+      const remaining = new URLSearchParams(searchParams.toString());
       remaining.delete(CHAT_MESSAGE_PARAM);
       replace(pathWithSearch(pathname, remaining), { scroll: false });
       // Nothing awaits this, so a transport failure would otherwise surface as

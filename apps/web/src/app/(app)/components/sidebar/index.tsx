@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
+import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -86,14 +87,14 @@ export function mapAccountCreditsChrome(
 interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
-  calendarMenuEnabled: boolean;
+  socialMenuEnabled: boolean;
   sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
-  calendarMenuEnabled,
+  socialMenuEnabled,
   sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
@@ -111,9 +112,12 @@ export default function Sidebar({
       <SidebarContent className="min-h-0 w-full flex-1">
         {/* Grow with nav content (no min-h-0 shrink) so SidebarContent can scroll. */}
         <div className="flex w-full flex-col gap-0">
+          <Suspense fallback={null}>
+            <SidebarProjectScope />
+          </Suspense>
           <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
           {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
-          <MenuItems calendarMenuEnabled={calendarMenuEnabled} />
+          <MenuItems socialMenuEnabled={socialMenuEnabled} />
           <SidebarSeparator />
           {chatList}
         </div>
@@ -130,7 +134,10 @@ export default function Sidebar({
         {/* No bottom padding of its own: `SidebarFooter` already contributes
             8px there, matching the 8px this adds on the sides. The inset only
             grows on phones, where the home indicator sits in that 8px. */}
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
+            every Sidebar row does, so its face lands on the sidebar's 28px
+            leading axis rather than on the rail's own half-pixel centre. */}
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
           {accountFooter}
         </div>
       </SidebarFooter>

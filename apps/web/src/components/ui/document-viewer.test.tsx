@@ -388,6 +388,29 @@ describe("DocumentViewer", () => {
       );
     });
 
+    it("names the document once, in the dialog header", async () => {
+      vi.mocked(global.fetch).mockResolvedValue({
+        ok: true,
+        text: () => Promise.resolve("# Notes\n\nHello world"),
+      } as Response);
+
+      render(
+        <DocumentViewer
+          open
+          onOpenChange={vi.fn()}
+          url="https://blob.example.com/deployment.md"
+          fileName="deployment.md"
+          kind="text"
+        />,
+      );
+
+      await screen.findByText(/Hello world/);
+
+      // The body used to repeat the filename as a letterhead, so one
+      // document rendered as a window with a second document card inside it.
+      expect(screen.getAllByText("deployment.md")).toHaveLength(1);
+    });
+
     it("shows a fallback message when the fetch fails", async () => {
       vi.mocked(global.fetch).mockResolvedValue({
         ok: false,

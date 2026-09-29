@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { CreateOrganizationWizard } from "@/components/organizations";
+import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -19,11 +19,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
+import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas";
+import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
 import { cn } from "@/lib/utils";
 
 type WorkspaceChoice = "personal" | "organization";
@@ -217,7 +217,7 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-personal"
                     className={cn(
-                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "personal" &&
                         "border-primary bg-card-background",
                     )}
@@ -239,7 +239,7 @@ export function IdentityOnboardingForm({
                   <Label
                     htmlFor="workspace-choice-organization"
                     className={cn(
-                      "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                      "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                       choice === "organization" &&
                         "border-primary bg-card-background",
                     )}
@@ -270,7 +270,9 @@ export function IdentityOnboardingForm({
                 className="w-full"
                 data-testid="workspace-gate-identity-submit"
               >
-                {busy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {busy ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+                ) : null}
                 {t("continue")}
               </Button>
             </fieldset>
@@ -281,7 +283,7 @@ export function IdentityOnboardingForm({
           className="flex justify-center py-6"
           data-testid="workspace-gate-leaving"
         >
-          <Loader2 className="size-4 animate-spin" />
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
         </div>
       )}
       <CreateOrganizationWizard

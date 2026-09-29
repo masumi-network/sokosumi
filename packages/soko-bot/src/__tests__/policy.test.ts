@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -13,8 +14,41 @@ import {
 } from "../versions/index.js";
 
 describe("Soko Bot route capability ceilings", () => {
+  it.each(["MEMORY", "SCHEDULE", "CHAT", "FILE", "INTEGRATION"] as const)(
+    "does not grant task writes to %s requests",
+    (writeScope) => {
+      const capabilities = capabilitiesForClassification({
+        schemaVersion: 1,
+        route: "MANAGE_WORK",
+        writeScope,
+        confidence: 1,
+        rationaleSummary: "explicit",
+        requestedOutcome: "change",
+        candidateProjectIds: [],
+        candidateCoworkerIds: [],
+        candidateAgentIds: [],
+        requiresApproval: false,
+        requiresClarification: false,
+      });
+      for (const capability of [
+        "create_task",
+        "update_task",
+        "archive_task",
+        "assign_task",
+        "hire_agent",
+      ])
+        expect(capabilities).not.toContain(capability);
+      expect(capabilities).toContain("get_task_status");
+    },
+  );
+  it("lets the hiring route propose an owner decision", () => {
+    expect(SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT).toContain(
+      "request_user_decision",
+    );
+  });
+
   it("keeps ambiguous routes read-only", () => {
-    for (const route of ["CLARIFY", "MIXED"] as const) {
+    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const) {
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("create_task");
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("hire_agent");
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("update_memory");
@@ -31,22 +65,83 @@ describe("Soko Bot route capability ceilings", () => {
   });
 
   it("keeps write tools off the read-only routes", () => {
-    // CLARIFY and MIXED are read-only by the operating contract; a tool that
+    // Conversation, CLARIFY and MIXED are read-only by the operating contract; a tool that
     // sends, posts, writes or runs something must never appear on them.
     const writes = [
       "post_chat",
+      "open_direct_chat",
+      "create_schedule",
+      "update_schedule",
+      "delete_schedule",
+      "manage_reminder",
+      "update_memory",
       "upload_file",
+      "create_table",
+      "write_table_rows",
+      "update_table_columns",
       "run_integration_tool",
       "create_task",
+      "archive_task",
       "assign_task",
       "hire_agent",
     ] as const;
-    for (const route of ["CLARIFY", "MIXED"] as const) {
+    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const) {
       const allowed = SOKO_BOT_ROUTE_CAPABILITIES[route] as readonly string[];
       for (const write of writes) {
         expect(allowed).not.toContain(write);
       }
     }
+  });
+
+  it("allows durable owner proposals on task and hiring routes", () => {
+    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
+    for (const route of [
+      "MANAGE_WORK",
+      "DELEGATE_TASK",
+      "HIRE_AGENT",
+    ] as const) {
+      const grant = applyVersionCapabilities(
+        version,
+        SOKO_BOT_ROUTE_CAPABILITIES[route],
+      );
+      expect(grant).toContain("request_user_decision");
+      if (route !== "HIRE_AGENT") expect(grant).toContain("archive_task");
+    }
+    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const) {
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain(
+        "request_user_decision",
+      );
+    }
+    for (const ceiling of [
+      SOKO_BOT_TEAMMATE_CAPABILITIES,
+      SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+    ]) {
+      expect(applyVersionCapabilities(version, ceiling)).not.toContain(
+        "request_user_decision",
+      );
+    }
+    expect(
+      applyVersionCapabilities(
+        { ...version, capabilities: ["get_task_status"] },
+        SOKO_BOT_ROUTE_CAPABILITIES.MANAGE_WORK,
+      ),
+    ).not.toContain("request_user_decision");
+  });
+
+  it("grants archive only on task mutation routes", () => {
+    for (const route of ["MANAGE_WORK", "DELEGATE_TASK"] as const) {
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).toContain("archive_task");
+    }
+    for (const route of [
+      "DIRECT_RESPONSE",
+      "CLARIFY",
+      "MIXED",
+      "HIRE_AGENT",
+    ] as const) {
+      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("archive_task");
+    }
+    expect(SOKO_BOT_TEAMMATE_CAPABILITIES).not.toContain("archive_task");
+    expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain("archive_task");
   });
 
   it("keeps the owner's private surfaces off the teammate ceiling", () => {
@@ -59,7 +154,12 @@ describe("Soko Bot route capability ceilings", () => {
       "read_email",
       "list_calendar_events",
       "list_files",
+      "list_tables",
+      "read_table",
       "upload_file",
+      "create_table",
+      "write_table_rows",
+      "update_table_columns",
       "list_chats",
       "read_chat",
       "post_chat",
@@ -120,6 +220,8 @@ describe("bot-to-bot ceiling", () => {
       "read_email",
       "list_calendar_events",
       "list_files",
+      "list_tables",
+      "read_table",
       "read_chat",
       "hire_agent",
       "create_task",

@@ -194,6 +194,9 @@ describe("PATCH /chats/rooms/:id/messages/:messageId", () => {
     const body = await response.json();
     expect(body.data.content).toBe("hello fixed");
     expect(body.data.editedAt).toBe("2026-07-01T12:05:00.000Z");
+    // An edit does not compute the viewer's unread replies; claiming 0 would
+    // untint the reply bar of the message being edited.
+    expect(body.data).not.toHaveProperty("threadUnreadReplyCount");
     expect(scheduleUnfurlsMock).toHaveBeenCalledWith(MESSAGE_ID);
     expect(waitUntilMock).toHaveBeenCalledTimes(1);
   });

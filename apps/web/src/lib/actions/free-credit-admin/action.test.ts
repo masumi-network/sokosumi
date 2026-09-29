@@ -39,7 +39,7 @@ vi.mock("@/lib/services/free-credit-admin.service", () => {
   };
 });
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 import { FreeCreditValidationError } from "@/lib/services/free-credit-admin.service";
 

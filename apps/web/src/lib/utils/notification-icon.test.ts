@@ -33,6 +33,8 @@ describe("getNotificationIcon", () => {
     ["TASK", "Notifications.Task.assigned", Bell],
     ["TASK", "Notifications.Task.scheduleRemovedByOperator", Bell],
     ["TASK", "Notifications.Task.scheduleRepaired", Bell],
+    ["PROJECT", "Notifications.Project.closed", CircleCheck],
+    ["PROJECT", "Notifications.Project.closeFailed", TriangleAlert],
     ["SYSTEM", "notifications.vendorGrant.pending", Bell],
   ] as const)("%s %s", (kind, messageKey, expected) => {
     expect(getNotificationIcon({ kind, messageKey })).toBe(expected);

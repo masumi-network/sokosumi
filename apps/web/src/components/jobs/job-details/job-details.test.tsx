@@ -55,7 +55,7 @@ vi.mock("@/contexts/lazy-ably-provider", () => ({
     lazyAblyProviderMock(props),
 }));
 
-vi.mock("@/queries", () => ({
+vi.mock("@/queries/jobs", () => ({
   getJobQueryKey: (...args: unknown[]) => getJobQueryKeyMock(...args),
   getJobQueryOptions: (...args: unknown[]) => getJobQueryOptionsMock(...args),
 }));
@@ -174,6 +174,7 @@ describe("JobDetails", () => {
         readOnly
         className="w-full"
         showAgentHeader={false}
+        hasPersonalWorkspace
       />,
     );
 
@@ -185,12 +186,10 @@ describe("JobDetails", () => {
     });
     expect(jobDetailsViewMock).toHaveBeenCalledWith({
       job: refreshedJob,
-      organizations: undefined,
-      personalWorkspaceLabel: undefined,
       readOnly: true,
       className: "w-full",
       showAgentHeader: false,
-      publicJobLayout: false,
+      hasPersonalWorkspace: true,
     });
     expect(screen.getByTestId("channel-provider")).toBeInTheDocument();
   });

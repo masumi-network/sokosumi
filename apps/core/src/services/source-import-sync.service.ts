@@ -5,6 +5,8 @@ import {
   buildTaskFilePathname,
   FILE_UPLOAD_MAX_SIZE_BYTES,
   getUrlBasename,
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
 } from "@sokosumi/utils";
 import { head, put } from "@vercel/blob";
 
@@ -62,18 +64,6 @@ function shouldContinueSync(options: ImportPendingResultBlobsOptions): boolean {
   }
 
   return hasTimeRemaining(options.deadlineMs);
-}
-
-function validateResponseSize(response: Response): void {
-  const contentLength = response.headers.get("content-length");
-  if (contentLength) {
-    const size = Number.parseInt(contentLength, 10);
-    if (size > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response size ${size} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
-    }
-  }
 }
 
 function createImportAbortSignal(
@@ -137,31 +127,48 @@ async function importBlob(
     // result is uploaded to a public blob store, so an unguarded fetch on a
     // URL derived from untrusted job output would be an SSRF + exfiltration
     // primitive.
-    const response = await ssrfSafeFetch(blob.sourceUrl, {
+    // A link to a file and a link to a *page about* a file both end in
+    // `.md`. Resolve a page link to GitHub's own download route, which knows
+    // where the bytes live (including Git LFS). The recorded sourceUrl keeps
+    // what the job actually emitted; only the fetch target is resolved.
+    const downloadUrl = resolveDownloadableFileUrl(blob.sourceUrl);
+    const response = await ssrfSafeFetch(downloadUrl, {
       signal: abortSignal,
+      maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch blob source: ${response.status}`);
     }
 
-    validateResponseSize(response);
-
     const contentType = response.headers.get("content-type");
+    const responseFileName = parseContentDispositionFilename(
+      response.headers.get("content-disposition"),
+    );
     const suggestedName =
-      parseContentDispositionFilename(
-        response.headers.get("content-disposition"),
-      ) ??
-      blob.name ??
-      getUrlBasename(blob.sourceUrl) ??
-      "file";
+      responseFileName ?? blob.name ?? getUrlBasename(blob.sourceUrl) ?? "file";
+
+    // A web page arriving under a document's name is a failed import, not a
+    // document whose contents happen to be someone's navigation menu.
+    //
+    // Judged against what we already knew this file was — the enqueued name
+    // and the link the job emitted — as well as what the response calls
+    // itself. A response cannot clear itself by answering
+    // `Content-Disposition: filename="login.html"`.
+    if (
+      isUnexpectedHtmlImport({
+        contentType,
+        fileNames: [
+          blob.name,
+          getUrlBasename(blob.sourceUrl),
+          responseFileName,
+        ],
+      })
+    ) {
+      throw new Error(`Refusing to import an HTML page as ${suggestedName}`);
+    }
 
     const arrayBuffer = await response.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
-    }
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });
@@ -234,31 +241,40 @@ async function importTaskFile(
   try {
     const abortSignal = createImportAbortSignal(options);
     // SSRF guard: validate the source URL against private addresses
-    const response = await ssrfSafeFetch(taskFile.sourceUrl, {
+    const downloadUrl = resolveDownloadableFileUrl(taskFile.sourceUrl);
+    const response = await ssrfSafeFetch(downloadUrl, {
       signal: abortSignal,
+      maxResponseBytes: MAX_IMPORT_SIZE_BYTES,
     });
 
     if (!response.ok) {
       throw new Error(`Failed to fetch task file source: ${response.status}`);
     }
 
-    validateResponseSize(response);
-
     const contentType = response.headers.get("content-type");
+    const responseFileName = parseContentDispositionFilename(
+      response.headers.get("content-disposition"),
+    );
     const suggestedName =
-      parseContentDispositionFilename(
-        response.headers.get("content-disposition"),
-      ) ??
+      responseFileName ??
       taskFile.name ??
       getUrlBasename(taskFile.sourceUrl) ??
       "file";
 
-    const arrayBuffer = await response.arrayBuffer();
-    if (arrayBuffer.byteLength > MAX_IMPORT_SIZE_BYTES) {
-      throw new Error(
-        `Response body ${arrayBuffer.byteLength} exceeds maximum ${MAX_IMPORT_SIZE_BYTES} bytes`,
-      );
+    if (
+      isUnexpectedHtmlImport({
+        contentType,
+        fileNames: [
+          taskFile.name,
+          getUrlBasename(taskFile.sourceUrl),
+          responseFileName,
+        ],
+      })
+    ) {
+      throw new Error(`Refusing to import an HTML page as ${suggestedName}`);
     }
+
+    const arrayBuffer = await response.arrayBuffer();
     const sourceFile = new File([arrayBuffer], suggestedName, {
       type: contentType ?? "application/octet-stream",
     });

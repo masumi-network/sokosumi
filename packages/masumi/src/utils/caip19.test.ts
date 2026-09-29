@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  buildCaip19AssetKey,
-  isCaip19AssetKey,
-  isEvmNamespacedUnit,
-  parseCaip19AssetKey,
-} from "./caip19.js";
+import { buildCaip19AssetKey, isEvmNamespacedUnit } from "./caip19.js";
 
 const USDC_BASE = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const USDC_BASE_LOWER = USDC_BASE.toLowerCase();
@@ -75,60 +70,9 @@ describe("buildCaip19AssetKey", () => {
   });
 });
 
-describe("parseCaip19AssetKey", () => {
-  it("round-trips a built key", () => {
-    const key = buildCaip19AssetKey("eip155:8453", USDC_BASE);
-    expect(parseCaip19AssetKey(key)).toEqual({
-      caip2Network: "eip155:8453",
-      assetAddress: USDC_BASE_LOWER,
-    });
-  });
-
-  it("accepts mixed-case stored keys and returns lowercase parts", () => {
-    expect(parseCaip19AssetKey(`EIP155:8453/ERC20:${USDC_BASE}`)).toEqual({
-      caip2Network: "eip155:8453",
-      assetAddress: USDC_BASE_LOWER,
-    });
-  });
-
-  it("returns null for Cardano units and other non-CAIP-19 keys", () => {
-    expect(parseCaip19AssetKey("lovelace")).toBeNull();
-    expect(parseCaip19AssetKey("")).toBeNull();
-    expect(
-      parseCaip19AssetKey(
-        "8db269c3ec630e06ae29f74bc39edd1f87c819f1056206e879a1cd61446a65644d6963726f555344",
-      ),
-    ).toBeNull();
-    expect(parseCaip19AssetKey("eip155:8453")).toBeNull();
-    expect(parseCaip19AssetKey(`erc20:${USDC_BASE_LOWER}`)).toBeNull();
-    expect(
-      parseCaip19AssetKey(`eip155:8453/erc721:${USDC_BASE_LOWER}`),
-    ).toBeNull();
-    expect(parseCaip19AssetKey("eip155:8453/erc20:0x1234")).toBeNull();
-  });
-
-  it("returns null for non-canonical chain-id spellings", () => {
-    expect(
-      parseCaip19AssetKey(`eip155:08453/erc20:${USDC_BASE_LOWER}`),
-    ).toBeNull();
-    expect(
-      parseCaip19AssetKey(`eip155:1${"0".repeat(32)}/erc20:${USDC_BASE_LOWER}`),
-    ).toBeNull();
-  });
-});
-
-describe("isCaip19AssetKey", () => {
-  it("recognizes CAIP-19 keys and rejects everything else", () => {
-    expect(isCaip19AssetKey(`eip155:84532/erc20:${USDC_BASE_LOWER}`)).toBe(
-      true,
-    );
-    expect(isCaip19AssetKey("lovelace")).toBe(false);
-  });
-});
-
 describe("isEvmNamespacedUnit", () => {
   it("catches the whole eip155 namespace, misspellings included", () => {
-    // The EXCLUSION fence: broader than isCaip19AssetKey by design, so a
+    // The EXCLUSION fence: broader than the canonical key pattern, so a
     // malformed key can never fall through to per-smallest-unit pricing.
     expect(isEvmNamespacedUnit(`eip155:84532/erc20:${USDC_BASE_LOWER}`)).toBe(
       true,

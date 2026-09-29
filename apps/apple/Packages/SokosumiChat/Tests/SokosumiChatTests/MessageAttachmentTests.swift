@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 @Test func attachmentLinksPreserveTextAndOccurrenceOrder() {
@@ -61,11 +61,6 @@ import Testing
   let document = MessageMarkdown("<img src=\"https://example.com/clip.mp4\">")
   let segments = document.blocks.flatMap { MessageAttachmentSegment.split($0.text) }
   #expect(segments.first?.attachment?.kind == .video)
-}
-
-@Test func documentReportsAttachments() {
-  #expect(MessageMarkdown("hello ![A](https://example.com/a.png)").containsAttachments)
-  #expect(!MessageMarkdown("hello [site](https://example.com)").containsAttachments)
 }
 
 @Test func attachmentLayoutRemovesBoundaryLineBreaksButPreservesParagraphs() {

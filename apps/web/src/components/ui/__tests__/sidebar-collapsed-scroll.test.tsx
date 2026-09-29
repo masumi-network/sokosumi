@@ -32,6 +32,12 @@ describe("SidebarContent in the collapsed icon rail", () => {
     expect(content?.className).toContain(
       "group-data-[collapsible=icon]:[scrollbar-width:none]",
     );
+    // The expanded nav takes the app-wide scrollbar; the rail's own hide is a
+    // variant, so it still outranks the `app-scrollbar` utility on specificity.
+    expect(content?.className).toContain("app-scrollbar");
+    expect(content?.className).toContain(
+      "group-data-[collapsible=icon]:[&::-webkit-scrollbar]:hidden",
+    );
     expect(content?.className).not.toMatch(
       /collapsible=icon\]:overflow-hidden/,
     );

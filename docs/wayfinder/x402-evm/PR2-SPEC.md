@@ -1,8 +1,9 @@
 # PR 2 spec — masumi-job x402 rail
 
-> **Status:** approved (wayfinder ticket 009) — the second half of the
-> destination, **reached 2026-08-11**; all three review points accepted as
-> specced. Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
+> **Status:** spec approved (wayfinder ticket 009, 2026-08-11) — **not
+> shipped**. Destination agreed; all three review points accepted as specced.
+> `Job.paymentRail` / `JobX402Payment` remain unimplemented on `main`.
+> Substrate: [ADR 0001](../../adr/0001-x402-evm-payment-rail.md)
 > (Accepted 2026-08-11) — this spec does not restate it; it binds the ADR's
 > decisions to concrete schema, flow, and rollout. All former node unknowns
 > are resolved ([ADR 0001](../../adr/0001-x402-evm-payment-rail.md)).
@@ -131,8 +132,10 @@ post-hoc auto-refund via the phased reconciler.
 - Operator prereqs: X402Network enabled + purchasing wallet funded with native
   gas and priced token per chain, `ChainIdLimit` covering targets, and either
   usable key budget or admin access. Preprod = testnets only.
-- Pre-implementation step: refresh pinned specs (`fetch-specs`) — deployed
-  nodes already run the x402 surface.
+- Pre-implementation step: refresh pinned OpenAPI snapshots with
+  `pnpm --filter @sokosumi/masumi fetch:specs` (see
+  [`packages/masumi/spec/SPEC_SOURCES.md`](../../../packages/masumi/spec/SPEC_SOURCES.md))
+  — deployed nodes already run the x402 surface.
 
 ## 7. Tests
 

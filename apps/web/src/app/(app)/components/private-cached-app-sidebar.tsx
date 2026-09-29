@@ -14,7 +14,8 @@ interface PrivateCachedAppSidebarProps {
   sessionUser: SessionUser;
   activeOrganizationId: string | null;
   adminMenuEnabled: boolean;
-  calendarMenuEnabled: boolean;
+  /** Resolved by the frame: Social is still a beta surface. */
+  socialMenuEnabled: boolean;
 }
 
 /**
@@ -27,16 +28,22 @@ export default function PrivateCachedAppSidebar({
   sessionUser,
   activeOrganizationId,
   adminMenuEnabled,
-  calendarMenuEnabled,
+  socialMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
   const sokoBotMenuEnabled = hasSokoBotBetaAccess(sessionUser);
 
   return (
     <Sidebar
+      socialMenuEnabled={socialMenuEnabled}
       sokoBotMenuEnabled={sokoBotMenuEnabled}
-      calendarMenuEnabled={calendarMenuEnabled}
       chatList={
-        <Suspense fallback={<SidebarChatListSkeleton />}>
+        <Suspense
+          fallback={
+            <SidebarChatListSkeleton
+              hasOrganization={activeOrganizationId !== null}
+            />
+          }
+        >
           <PrivateCachedSidebarRooms
             userId={sessionUser.id}
             activeOrganizationId={activeOrganizationId}

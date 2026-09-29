@@ -1,14 +1,7 @@
-import {
-  AgentJobStatus,
-  AgentStatus,
-  JobType,
-  NotificationKind,
-} from "@sokosumi/database";
+import { AgentJobStatus, AgentStatus, JobType } from "@sokosumi/database";
 import { SokosumiJobStatus } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { JOB_ATTENTION_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 
 import { PURCHASE_DIFF_SYNC_METADATA_KEY } from "./job-purchase-diff.service";
 import { jobSyncService } from "./job-sync.service";
@@ -27,8 +20,6 @@ const {
   publishJobStatusDataMock,
   prismaJobFindManyMock,
   renderJobFailureNotificationEmailMock,
-  renderJobFinalStatusEmailMock,
-  renderJobInputRequiredEmailMock,
   requestFetchMock,
   sendEmailMock,
   sendEmailsMock,
@@ -62,8 +53,6 @@ const {
     publishJobStatusDataMock: vi.fn(),
     prismaJobFindManyMock: vi.fn(),
     renderJobFailureNotificationEmailMock: vi.fn(),
-    renderJobFinalStatusEmailMock: vi.fn(),
-    renderJobInputRequiredEmailMock: vi.fn(),
     requestFetchMock: vi.fn(),
     sendEmailMock: vi.fn(),
     sendEmailsMock: vi.fn(),
@@ -184,6 +173,7 @@ vi.mock("@/helpers/purchase", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
+  publishChatRoomsChanged: vi.fn(),
   publishJobStatusData: publishJobStatusDataMock,
 }));
 
@@ -225,8 +215,6 @@ vi.mock("@/services/source-import.service", () => ({
 
 vi.mock("@sokosumi/email", () => ({
   renderJobFailureNotificationEmail: renderJobFailureNotificationEmailMock,
-  renderJobFinalStatusEmail: renderJobFinalStatusEmailMock,
-  renderJobInputRequiredEmail: renderJobInputRequiredEmailMock,
 }));
 
 const originalFetch = global.fetch;
@@ -414,8 +402,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       publishJobStatusDataMock,
       prismaJobFindManyMock,
       renderJobFailureNotificationEmailMock,
-      renderJobFinalStatusEmailMock,
-      renderJobInputRequiredEmailMock,
       requestFetchMock,
       sendEmailMock,
       sendEmailsMock,
@@ -455,14 +441,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     renderJobFailureNotificationEmailMock.mockResolvedValue({
       subject: "failure",
       html: "<p>failure</p>",
-    });
-    renderJobFinalStatusEmailMock.mockResolvedValue({
-      subject: "completed",
-      html: "<p>completed</p>",
-    });
-    renderJobInputRequiredEmailMock.mockResolvedValue({
-      subject: "input",
-      html: "<p>input</p>",
     });
     sendEmailMock.mockResolvedValue(undefined);
     sendEmailsMock.mockImplementation(async (emails: unknown[]) => {
@@ -1667,7 +1645,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
   });
 
-  it("creates new job events, enqueues source imports, and sends final notifications", async () => {
+  it("creates new job events and enqueues source imports, and tells the owner nothing", async () => {
     const initialJob = createJob();
     const completedJob = createJob({
       status: SokosumiJobStatus.COMPLETED,
@@ -1719,20 +1697,6 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       "event_2",
       "[result](https://example.com/report.pdf)",
     );
-    expect(renderJobFinalStatusEmailMock).toHaveBeenCalledWith({
-      recipientName: "Ada",
-      agentName: "Display Name",
-      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
-      jobName: undefined,
-      jobStatus: SokosumiJobStatus.COMPLETED,
-      locale: "en",
-    });
-    expect(sendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "user@example.com",
-        tag: "job-final-status",
-      }),
-    );
     expect(publishJobStatusDataMock).toHaveBeenCalledWith({
       agentId: "agent_1",
       userId: "user_1",
@@ -1740,95 +1704,15 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.COMPLETED,
       jobStatusSettled: true,
     });
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      kind: NotificationKind.JOB,
-      referenceId: "job_1",
-      eventId: "event_2",
-      messageKey: "Notifications.Job.completed",
-      messageParams: {
-        agentName: "Display Name",
-        jobName: "Untitled job",
-      },
-      metadata: {
-        agentId: "agent_1",
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
-    // SOK-916 story 16. A job that finished while the reader was away has
-    // stopped waiting on them, so whatever it left unread stops being a
-    // question and the follow-up sync has nothing to remind them about.
-    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          userId: "user_1",
-          kind: NotificationKind.JOB,
-          referenceId: "job_1",
-          isRead: false,
-          messageKey: { in: [...JOB_ATTENTION_MESSAGE_KEYS] },
-        }),
-      }),
-    );
-    // And before the outcome write, not after it. `createNotification`
-    // rethrows any write error that is not a unique violation, so clearing
-    // afterwards would be skipped on the one run that settled the job.
-    expect(
-      notificationUpdateManyAndReturnMock.mock.invocationCallOrder[0],
-    ).toBeLessThan(createNotificationMock.mock.invocationCallOrder[0]);
-  });
-
-  it("still notifies an owner who turned the account-wide emails off", async () => {
-    const owner = {
-      id: "user_1",
-      email: "user@example.com",
-      name: "Ada",
-      notificationsOptIn: false,
-    };
-    const initialJob = createJob({ owner });
-    const completedJob = createJob({
-      owner,
-      status: SokosumiJobStatus.COMPLETED,
-      jobStatusSettled: true,
-      completedAt: new Date("2026-03-18T10:05:00.000Z"),
-      events: [
-        createJobEvent({
-          id: "event_2",
-          status: AgentJobStatus.COMPLETED,
-          result: "done",
-          statusHash: "new-hash",
-        }),
-      ],
-    });
-
-    mockInitialJobQueries({ agent: [initialJob] });
-    fetchAgentJobStatusMock.mockReturnValue(
-      ok({
-        status: "completed",
-        result: "done",
-        input_schema: null,
-        statusHash: "new-hash",
-      }),
-    );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
-
-    await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
-
-    // The opt-in is the email gate now. The notification answers to the
-    // preference matrix, which `createNotification` reads for itself.
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user_1",
-        kind: NotificationKind.JOB,
-        messageKey: "Notifications.Job.completed",
-      }),
-    );
-    expect(renderJobFinalStatusEmailMock).not.toHaveBeenCalled();
+    // SOK-930. An agent job is started through the API and read there, so a
+    // job that finishes tells its owner nothing they can act on in the app.
+    // Nothing is written, nothing is mailed, and nothing is cleared.
+    expect(createNotificationMock).not.toHaveBeenCalled();
     expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(notificationUpdateManyAndReturnMock).not.toHaveBeenCalled();
   });
 
-  it("emits failure notifications for terminal payment failures", async () => {
+  it("alerts the agent author for terminal payment failures, and nobody else", async () => {
     const updatedFailedJob = createJob({
       status: SokosumiJobStatus.PAYMENT_FAILED,
       agent: {
@@ -1885,16 +1769,9 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       }),
     );
     expect(requestFetchMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userId: "user_1",
-        kind: NotificationKind.JOB,
-        referenceId: "job_1",
-        eventId: "event_2",
-        messageKey: "Notifications.Job.paymentFailed",
-      }),
-    );
+    // The alert above goes to the agent's author and the stakeholder list
+    // (SOK-24). The owner gets nothing, here as everywhere else (SOK-930).
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("reports job-failure webhook HTTP errors to Sentry with response context", async () => {
@@ -2022,16 +1899,10 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
       jobStatus: SokosumiJobStatus.PAYMENT_FAILED,
       jobStatusSettled: false,
     });
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: "event_1",
-        messageKey: "Notifications.Job.paymentFailed",
-      }),
-    );
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
-  it("creates a distinct in-app notification when purchase status changes without an agent event update", async () => {
+  it("writes no job event when purchase status changes without an agent event update", async () => {
     const sharedEvent = createJobEvent({
       id: "event_2",
       status: AgentJobStatus.COMPLETED,
@@ -2077,13 +1948,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
     expect(createJobEventForJobIdMock).not.toHaveBeenCalled();
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        eventId: "event_2",
-        messageKey: "Notifications.Job.paymentFailed",
-      }),
-    );
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("ignores late completed agent results when a purchase-state payment failure resolves in the same sync cycle", async () => {
@@ -2532,7 +2397,7 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
   });
 
-  it("sends input-required notifications when a job starts awaiting input", async () => {
+  it("tells the owner nothing when a job starts awaiting input", async () => {
     const awaitingInputJob = createJob({
       status: SokosumiJobStatus.INPUT_REQUIRED,
       agent: {
@@ -2568,47 +2433,35 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     await jobSyncService.syncUnfinishedJobs(createExecutionOptions());
 
-    expect(renderJobInputRequiredEmailMock).toHaveBeenCalledWith({
-      recipientName: "Ada",
-      agentName: "Display Name",
-      jobLink: "https://app.sokosumi.test/agents/agent_1/jobs/job_1",
-      jobName: undefined,
-      locale: "en",
-    });
-    expect(sendEmailMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "user@example.com",
-        tag: "job-input-required",
-      }),
+    // The run reached the branch first. Both assertions below are negative,
+    // so a fixture that stopped driving the job to awaiting input would pass
+    // them without ever entering the code they are about. Read on the event
+    // write, which is built from the status the agent answered with rather
+    // than from the job the repository hands back.
+    expect(createJobEventForJobIdMock).toHaveBeenCalledWith(
+      "job_1",
+      expect.objectContaining({ status: AgentJobStatus.AWAITING_INPUT }),
+      {},
     );
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-    expect(createNotificationMock).toHaveBeenCalledWith({
-      userId: "user_1",
-      kind: NotificationKind.JOB,
-      referenceId: "job_1",
-      eventId: "event_2",
-      messageKey: "Notifications.Job.inputRequired",
-      messageParams: {
-        agentName: "Display Name",
-        jobName: "Untitled job",
-      },
-      metadata: {
-        agentId: "agent_1",
-        workspaceId: "11111111-1111-7111-8111-111111111111",
-      },
-    });
+    // A job asking for input asks through the API it was started from, so
+    // Sokosumi neither mails the owner nor writes them a row (SOK-930).
+    expect(sendEmailMock).not.toHaveBeenCalled();
+    expect(createNotificationMock).not.toHaveBeenCalled();
   });
 
   it("does not fail the sync when webhook, email, or ably publishing fails", async () => {
-    const completedJob = createJob({
-      status: SokosumiJobStatus.COMPLETED,
+    // Failed rather than completed: the failure alert is the only thing a job
+    // still mails and the only thing that posts the webhook (SOK-930), so a
+    // completed job here would leave two of these three refusals unreached.
+    const failedJob = createJob({
+      status: SokosumiJobStatus.FAILED,
       jobStatusSettled: true,
       completedAt: new Date("2026-03-18T10:05:00.000Z"),
       events: [
         createJobEvent({
           id: "event_2",
-          status: AgentJobStatus.COMPLETED,
-          result: "done",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
           statusHash: "new-hash",
         }),
       ],
@@ -2619,13 +2472,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
-        status: "completed",
-        result: "done",
+        status: "failed",
+        result: "boom",
         input_schema: null,
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    getJobByIdMock.mockResolvedValueOnce(failedJob);
     sendEmailMock.mockRejectedValue(new Error("email down"));
     publishJobStatusDataMock.mockRejectedValue(new Error("ably down"));
     requestFetchMock.mockRejectedValue(new Error("webhook down"));
@@ -2638,20 +2491,27 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
         unfinishedFound: 1,
       }),
     );
+    // The three refusals were actually reached. Without this the mocks above
+    // are dead setup and the test passes on a job that mails nothing.
+    expect(sendEmailMock).toHaveBeenCalled();
+    expect(requestFetchMock).toHaveBeenCalled();
+    expect(publishJobStatusDataMock).toHaveBeenCalled();
   });
 
   it("awaits Resend batch flush so sync waitUntil covers delivery", async () => {
     const emailGate = Promise.withResolvers<void>();
     const emailStarted = Promise.withResolvers<void>();
 
-    const completedJob = createJob({
-      status: SokosumiJobStatus.COMPLETED,
+    // The failure alert, because it is the only email a job still sends
+    // (SOK-930): its audience is the agent author and the stakeholder list.
+    const failedJob = createJob({
+      status: SokosumiJobStatus.FAILED,
       jobStatusSettled: true,
       events: [
         createJobEvent({
           id: "event_2",
-          status: AgentJobStatus.COMPLETED,
-          result: "done",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
           statusHash: "new-hash",
         }),
       ],
@@ -2660,13 +2520,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({ unfinished: [createJob()] });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
-        status: "completed",
-        result: "done",
+        status: "failed",
+        result: "boom",
         input_schema: null,
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    getJobByIdMock.mockResolvedValueOnce(failedJob);
     sendEmailsMock.mockImplementation(async (emails: unknown[]) => {
       emailStarted.resolve();
       await emailGate.promise;
@@ -2754,81 +2614,19 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     );
   });
 
-  it("awaits the in-app notification so sync waitUntil covers it", async () => {
-    const notificationGate = Promise.withResolvers<void>();
-    const notificationStarted = Promise.withResolvers<void>();
-
-    const completedJob = createJob({
-      status: SokosumiJobStatus.COMPLETED,
-      jobStatusSettled: true,
-      events: [
-        createJobEvent({
-          id: "event_2",
-          status: AgentJobStatus.COMPLETED,
-          result: "done",
-          statusHash: "new-hash",
-        }),
-      ],
-    });
-
-    mockInitialJobQueries({ unfinished: [createJob()] });
-    fetchAgentJobStatusMock.mockReturnValue(
-      ok({
-        status: "completed",
-        result: "done",
-        input_schema: null,
-        statusHash: "new-hash",
-      }),
-    );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
-    createNotificationMock.mockImplementation(async () => {
-      notificationStarted.resolve();
-      await notificationGate.promise;
-      return { notification: { id: "notification_1" }, created: true };
-    });
-
-    const syncPromise = jobSyncService.syncUnfinishedJobs(
-      createExecutionOptions(),
-    );
-    let syncSettled = false;
-    // Both handlers: a rejection is still a settle, and a bare `.then` here
-    // would float the very kind of promise this test exists to forbid.
-    void syncPromise.then(
-      () => {
-        syncSettled = true;
-      },
-      () => {
-        syncSettled = true;
-      },
-    );
-
-    await notificationStarted.promise;
-    // A detached notification lets the rest of the run settle while the write
-    // is still in flight. Flush that work before asserting coverage.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(syncSettled).toBe(false);
-
-    notificationGate.resolve();
-    await expect(syncPromise).resolves.toEqual(
-      expect.objectContaining({ processed: 1 }),
-    );
-    expect(syncSettled).toBe(true);
-    expect(createNotificationMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("flushes pending status emails in one sendEmails batch call", async () => {
-    const completedById = new Map([
+  it("flushes pending failure alerts in one sendEmails batch call", async () => {
+    const failedById = new Map([
       [
         "job_1",
         createJob({
           id: "job_1",
-          status: SokosumiJobStatus.COMPLETED,
+          status: SokosumiJobStatus.FAILED,
           jobStatusSettled: true,
           events: [
             createJobEvent({
               id: "event_2",
-              status: AgentJobStatus.COMPLETED,
-              result: "done-1",
+              status: AgentJobStatus.FAILED,
+              result: "boom-1",
               statusHash: "new-hash",
             }),
           ],
@@ -2845,13 +2643,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
             notificationsOptIn: true,
           },
           ownerId: "user_2",
-          status: SokosumiJobStatus.COMPLETED,
+          status: SokosumiJobStatus.FAILED,
           jobStatusSettled: true,
           events: [
             createJobEvent({
               id: "event_3",
-              status: AgentJobStatus.COMPLETED,
-              result: "done-2",
+              status: AgentJobStatus.FAILED,
+              result: "boom-2",
               statusHash: "new-hash",
             }),
           ],
@@ -2876,14 +2674,14 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     });
     fetchAgentJobStatusMock.mockImplementation(async () =>
       ok({
-        status: "completed",
-        result: "done",
+        status: "failed",
+        result: "boom",
         input_schema: null,
         statusHash: "new-hash",
       }),
     );
     getJobByIdMock.mockImplementation(async (jobId: string) => {
-      return completedById.get(jobId) ?? createJob({ id: jobId });
+      return failedById.get(jobId) ?? createJob({ id: jobId });
     });
     createJobEventForJobIdMock.mockImplementation(async (jobId: string) => ({
       id: jobId === "job_1" ? "event_2" : "event_3",
@@ -2896,26 +2694,22 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailsMock).toHaveBeenCalledWith(
       expect.arrayContaining([
         expect.objectContaining({
-          to: "user@example.com",
-          tag: "job-final-status",
-        }),
-        expect.objectContaining({
-          to: "bob@example.com",
-          tag: "job-final-status",
+          to: ["stakeholder1@example.com", "stakeholder2@example.com"],
+          tag: "job-failure-notification",
         }),
       ]),
     );
   });
 
   it("flushes queued emails when a later sync phase throws", async () => {
-    const completedJob = createJob({
-      status: SokosumiJobStatus.COMPLETED,
+    const failedJob = createJob({
+      status: SokosumiJobStatus.FAILED,
       jobStatusSettled: true,
       events: [
         createJobEvent({
           id: "event_2",
-          status: AgentJobStatus.COMPLETED,
-          result: "done",
+          status: AgentJobStatus.FAILED,
+          result: "boom",
           statusHash: "new-hash",
         }),
       ],
@@ -2929,13 +2723,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
-        status: "completed",
-        result: "done",
+        status: "failed",
+        result: "boom",
         input_schema: null,
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    getJobByIdMock.mockResolvedValueOnce(failedJob);
 
     await expect(
       jobSyncService.syncUnfinishedJobs(createExecutionOptions()),
@@ -2944,8 +2738,8 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     expect(sendEmailsMock).toHaveBeenCalledTimes(1);
     expect(sendEmailsMock).toHaveBeenCalledWith([
       expect.objectContaining({
-        to: "user@example.com",
-        tag: "job-final-status",
+        to: ["stakeholder1@example.com", "stakeholder2@example.com"],
+        tag: "job-failure-notification",
       }),
     ]);
   });
@@ -3136,13 +2930,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
 
   it("still counts the job as processed when email delivery fails transiently", async () => {
     const initialJob = createJob({ status: SokosumiJobStatus.PROCESSING });
-    const completedJob = createJob({
-      status: SokosumiJobStatus.COMPLETED,
+    const failedJob = createJob({
+      status: SokosumiJobStatus.FAILED,
       jobStatusSettled: true,
       events: [
         createJobEvent({
           id: "event_2",
-          status: AgentJobStatus.COMPLETED,
+          status: AgentJobStatus.FAILED,
           statusHash: "new-hash",
         }),
       ],
@@ -3151,13 +2945,13 @@ describe("jobSyncService.syncUnfinishedJobs", () => {
     mockInitialJobQueries({ agent: [initialJob] });
     fetchAgentJobStatusMock.mockReturnValue(
       ok({
-        status: "completed",
+        status: "failed",
         result: null,
         input_schema: null,
         statusHash: "new-hash",
       }),
     );
-    getJobByIdMock.mockResolvedValueOnce(completedJob);
+    getJobByIdMock.mockResolvedValueOnce(failedJob);
     sendEmailMock.mockRejectedValue(
       Object.assign(
         new Error("Unable to fetch data. The request could not be resolved."),

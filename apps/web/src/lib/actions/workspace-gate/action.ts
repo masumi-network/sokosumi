@@ -7,11 +7,9 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import {
-  type ActionError,
-  CommonErrorCode,
-  WorkspaceGateErrorCode,
-} from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   PersonalWorkspaceCreated,

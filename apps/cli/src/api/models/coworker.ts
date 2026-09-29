@@ -1,3 +1,6 @@
+import { asRecord } from "./parse-helpers.js";
+import { parseVendor, type Vendor } from "./vendor.js";
+
 export interface CoworkerPrice {
   credits: number | null;
   includedFee: number | null;
@@ -11,6 +14,7 @@ export interface Coworker {
   priority: number;
   slug: string | null;
   name: string | null;
+  vendor: Vendor | null;
   caption: string | null;
   company: string | null;
   companyLogo: string | null;
@@ -36,12 +40,6 @@ export interface CoworkerApiKey {
   expiresAt: string | null;
 }
 
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
-}
-
 export function parseCoworker(input: unknown): Coworker {
   const value = asRecord(input);
   const price = asRecord(value.price);
@@ -57,6 +55,7 @@ export function parseCoworker(input: unknown): Coworker {
         : 0,
     slug: typeof value.slug === "string" ? value.slug : null,
     name: typeof value.name === "string" ? value.name : null,
+    vendor: value.vendor == null ? null : parseVendor(value.vendor),
     caption: typeof value.caption === "string" ? value.caption : null,
     company: typeof value.company === "string" ? value.company : null,
     companyLogo:

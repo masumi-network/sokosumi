@@ -5,7 +5,6 @@ export {};
 vi.mock("server-only", () => ({}));
 
 const getAllCoreAgentsMock = vi.fn();
-const getCoreAgentByIdMock = vi.fn();
 const mapCoreMyAgentReviewMock = vi.fn();
 
 const getAgentRatingEligibilityMock = vi.fn();
@@ -23,7 +22,6 @@ class CoreApiRequestErrorMock extends Error {
 
 vi.mock("@/lib/agents/core-loaders", () => ({
   getAllCoreAgents: (...args: unknown[]) => getAllCoreAgentsMock(...args),
-  getCoreAgentById: (...args: unknown[]) => getCoreAgentByIdMock(...args),
 }));
 
 vi.mock("@/lib/agents/core-dto-mappers", () => ({
@@ -68,26 +66,6 @@ describe("agent.service", () => {
 
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();
-  });
-
-  it("returns null for an unavailable agent by id (core 404)", async () => {
-    getCoreAgentByIdMock.mockResolvedValue(null);
-
-    const { agentService } = await import("./agent.service");
-    const result = await agentService.getAvailableAgentById("missing");
-
-    expect(getCoreAgentByIdMock).toHaveBeenCalledWith("missing");
-    expect(result).toBeNull();
-  });
-
-  it("returns an available agent fetched by id from core", async () => {
-    const coreAgent = { id: "agent-1" };
-    getCoreAgentByIdMock.mockResolvedValue(coreAgent);
-
-    const { agentService } = await import("./agent.service");
-    const result = await agentService.getAvailableAgentById("agent-1");
-
-    expect(result).toEqual(coreAgent);
   });
 
   it("reports rating eligibility from core", async () => {

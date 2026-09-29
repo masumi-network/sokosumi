@@ -21,14 +21,17 @@ func testMessageJSON(
   deletedAt: String? = nil,
   editedAt: String? = nil,
   membership: String? = nil,
-  metadata: String? = nil
+  groupNameChange: String? = nil,
+  metadata: String? = nil,
+  roomId: String = testRoomId
 ) -> String {
   let deletedJSON = deletedAt.map { "\"\($0)\"" } ?? "null"
   let editedJSON = editedAt.map { "\"\($0)\"" } ?? "null"
   let membershipJSON = membership ?? "null"
+  let groupNameChangeJSON = groupNameChange ?? "null"
   let metadataJSON = metadata ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(testRoomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"unfurls":null}
+  {"id":"\(id)","roomId":"\(roomId)","parentMessageId":null,"content":"\(content)","createdAt":"\(createdAt)","deletedAt":\(deletedJSON),"editedAt":\(editedJSON),"sender":\(sender),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadataJSON),"quote":null,"membership":\(membershipJSON),"groupNameChange":\(groupNameChangeJSON),"unfurls":null}
   """
 }
 
@@ -121,4 +124,10 @@ func fetchTestMessages(_ messages: [String]) async throws -> [Components.Schemas
     return []
   }
   return try okResponse.body.json.data
+}
+
+func testAttentionRoomJSON(unread: Int = 4, marked: Bool = false) -> String {
+  """
+  {"id":"\(testRoomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":\(unread),"unreadMentionCount":1,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":\(marked),"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  """
 }

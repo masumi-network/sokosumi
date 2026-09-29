@@ -56,7 +56,9 @@ export function SubscriptionEnterprisePlanCard({
         <CardDescription>{t("Plans.enterprise.description")}</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-2xl font-medium md:text-3xl">{t("customPrice")}</p>
+        <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
+          {t("customPrice")}
+        </p>
         <p className="text-muted-foreground text-sm">{t("pricePerMonth")}</p>
         <SubscriptionPlanFeatureList
           items={featureItems}

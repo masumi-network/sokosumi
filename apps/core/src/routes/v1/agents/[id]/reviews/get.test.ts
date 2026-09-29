@@ -111,12 +111,10 @@ describe("GET /agents/{id}/reviews", () => {
         id: true,
       },
     });
-    // Defaults to the recent-review limit with no offset.
     expect(getRecentAgentReviewsMock).toHaveBeenCalledWith(
       "agent_123",
       10,
       expect.anything(),
-      0,
     );
     expect(body.data).toEqual({
       distribution: {
@@ -143,10 +141,10 @@ describe("GET /agents/{id}/reviews", () => {
     });
   });
 
-  it("forwards limit and offset query params to the review reader", async () => {
+  it("forwards the limit query param to the review reader", async () => {
     const app = createApp();
     const response = await app.request(
-      "http://localhost/agent_123/reviews?limit=5&offset=10",
+      "http://localhost/agent_123/reviews?limit=5",
     );
 
     expect(response.status).toBe(200);
@@ -154,7 +152,6 @@ describe("GET /agents/{id}/reviews", () => {
       "agent_123",
       5,
       expect.anything(),
-      10,
     );
   });
 });

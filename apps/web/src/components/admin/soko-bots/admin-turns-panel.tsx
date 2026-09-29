@@ -376,7 +376,7 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                                   <p className="text-muted-foreground text-xs">
                                     {t("counts")}
                                   </p>
-                                  <pre className="bg-card-background max-h-48 overflow-auto rounded border p-2 font-mono text-xs">
+                                  <pre className="app-scrollbar bg-card-background max-h-48 overflow-auto rounded border p-2 font-mono text-xs">
                                     {countsJson}
                                   </pre>
                                 </div>
@@ -386,7 +386,7 @@ export async function AdminTurnsPanel({ turns }: AdminTurnsPanelProps) {
                                   <p className="text-muted-foreground text-xs">
                                     {t("omissions")}
                                   </p>
-                                  <pre className="bg-card-background max-h-48 overflow-auto rounded border p-2 font-mono text-xs">
+                                  <pre className="app-scrollbar bg-card-background max-h-48 overflow-auto rounded border p-2 font-mono text-xs">
                                     {omissionsJson}
                                   </pre>
                                 </div>

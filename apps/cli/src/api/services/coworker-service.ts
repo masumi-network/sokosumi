@@ -6,36 +6,33 @@ import {
   parseCoworker,
   parseCoworkerApiKey,
 } from "../models/coworker.js";
+import {
+  type CoworkerWorkspaceAccess,
+  parseCoworkerWorkspaceAccessResponse,
+} from "../models/coworker-workspace-access.js";
 
 const COWORKERS_PATH = "/v1/coworkers";
 
 export interface FetchCoworkersOptions {
   scope?: string;
-  capability?: string | readonly string[];
   capabilities?: string | readonly string[];
 }
 
-export interface CoworkerMutationData {
-  name?: string;
-  vendorId?: string;
-  caption?: string | null;
-  url?: string | null;
-  baseURL?: string | null;
-  description?: string | null;
-  capabilities?: readonly string[];
-  priority?: number;
-  metadata?: Record<string, unknown> | null;
-}
+export type CoworkerMutationData = Record<string, unknown>;
 
 export interface CoworkerApiKeyData {
   name?: string | null;
   expiresAt?: string | null;
 }
 
+export interface CoworkerWorkspaceAccessTarget {
+  organizationId: string;
+}
+
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   const params = new URLSearchParams();
   if (options.scope) params.set("scope", options.scope.trim());
-  const capabilities = options.capabilities ?? options.capability;
+  const capabilities = options.capabilities;
   const values = Array.isArray(capabilities)
     ? capabilities
     : capabilities
@@ -78,6 +75,21 @@ export async function fetchCurrentCoworker(
   return { response, coworker: parseCoworker(response.data) };
 }
 
+export async function fetchCoworker(
+  client: CoreHttpClient,
+  coworkerId: string,
+  signal?: AbortSignal,
+): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
+  requireId(coworkerId, "coworkerId");
+  const response = parseApiResponse(
+    await client.get<unknown>(
+      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}`,
+      signal,
+    ),
+  );
+  return { response, coworker: parseCoworker(response.data) };
+}
+
 function mutationPayload(data: CoworkerMutationData): Record<string, unknown> {
   const payload: Record<string, unknown> = { ...data };
   if (typeof data.name === "string") payload.name = data.name.trim();
@@ -91,7 +103,8 @@ export async function createCoworker(
   data: CoworkerMutationData = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown>; coworker: Coworker }> {
-  if (!data.name?.trim()) throw new Error("name is required");
+  if (typeof data.name !== "string" || !data.name.trim())
+    throw new Error("name is required");
   const response = parseApiResponse(
     await client.post<unknown>(COWORKERS_PATH, mutationPayload(data), signal),
   );
@@ -135,4 +148,26 @@ export async function createCoworkerApiKey(
     ),
   );
   return { response, apiKey: parseCoworkerApiKey(response.data) };
+}
+
+export async function grantCoworkerWorkspaceAccess(
+  client: CoreHttpClient,
+  coworkerId: string,
+  target: CoworkerWorkspaceAccessTarget,
+  signal?: AbortSignal,
+): Promise<{
+  response: ApiResponse<unknown>;
+  access: CoworkerWorkspaceAccess;
+}> {
+  requireId(coworkerId, "coworkerId");
+  if (!target.organizationId.trim())
+    throw new Error("organizationId is required");
+  const parsed = parseCoworkerWorkspaceAccessResponse(
+    await client.post<unknown>(
+      `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}/workspace-access`,
+      { organizationId: target.organizationId.trim() },
+      signal,
+    ),
+  );
+  return parsed;
 }

@@ -1,9 +1,12 @@
 import Redis from "ioredis";
 
+import { getEnv } from "@/config/env";
+
 let cachedClient: Redis | null | undefined;
 
-function getRedisUrl(): string | null {
-  const url = process.env.REDIS_URL?.trim() || process.env.KV_URL?.trim() || "";
+export function getRedisUrl(): string | null {
+  const env = getEnv();
+  const url = env.REDIS_URL?.trim() || env.KV_URL?.trim() || "";
   return url.length > 0 ? url : null;
 }
 

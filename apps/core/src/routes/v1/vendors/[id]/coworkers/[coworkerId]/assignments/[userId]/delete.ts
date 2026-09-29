@@ -4,7 +4,6 @@ import { jsonErrorResponse } from "@/helpers/openapi";
 import {
   requireCoworkerBelongsToVendor,
   requireVendorAdminMembership,
-  resolveUserIdFromUserIdOrEmail,
 } from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -23,7 +22,7 @@ const params = z.object({
   }),
   userId: z.string().openapi({
     param: { name: "userId", in: "path" },
-    description: "Assigned user ID or email address",
+    description: "Assigned user ID",
     example: "user_123",
   }),
 });
@@ -33,7 +32,7 @@ const route = createRoute({
   path: "/{id}/coworkers/{coworkerId}/assignments/{userId}",
   operationId: "unassignCoworkerDeveloper",
   description:
-    "Remove a developer assignment from a vendor coworker by user ID or email (vendor admin only). Idempotent when the assignment is already absent.",
+    "Remove a coworker assignment by user ID (vendor admin only). Idempotent when the assignment is already absent.",
   tags: ["Vendors"],
   request: {
     params,
@@ -51,18 +50,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const { id, coworkerId, userId: userIdOrEmail } = c.req.valid("param");
+    const { id, coworkerId, userId } = c.req.valid("param");
     const userAuth = requireUserAuthContext(c.var.authContext);
 
     await requireVendorAdminMembership(userAuth.userId, id);
     await requireCoworkerBelongsToVendor(coworkerId, id);
 
-    const targetUserId = await resolveUserIdFromUserIdOrEmail(userIdOrEmail);
-
     await prisma.coworkerAssignment.deleteMany({
       where: {
         coworkerId,
-        userId: targetUserId,
+        userId,
       },
     });
 

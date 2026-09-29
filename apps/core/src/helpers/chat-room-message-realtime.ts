@@ -55,6 +55,7 @@ function buildChatRoomMessagePatch(
 export async function publishChatRoomMessageRealtime(
   message: ChatRoomMessageWithInclude,
   eventType: ChatRoomMessageEventType,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     // No currentUserId: shared wire DTO; clients derive viewer flags.
@@ -74,6 +75,7 @@ export async function publishChatRoomMessageRealtime(
       message: dto,
     });
   } catch (error) {
+    if (options.throwOnError) throw error;
     console.error("Failed to publish chat room message over Ably:", error);
     Sentry.captureException(error, {
       extra: {
@@ -88,6 +90,7 @@ export async function publishChatRoomMessageRealtime(
 export async function publishChatRoomMessageRealtimeById(
   messageId: string,
   eventType: ChatRoomMessageEventType,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     const message = await prisma.chatRoomMessage.findUnique({
@@ -95,10 +98,13 @@ export async function publishChatRoomMessageRealtimeById(
       include: chatRoomMessageInclude,
     });
     if (!message) {
+      if (options.throwOnError)
+        throw new Error("Chat message no longer exists");
       return;
     }
-    await publishChatRoomMessageRealtime(message, eventType);
+    await publishChatRoomMessageRealtime(message, eventType, options);
   } catch (error) {
+    if (options.throwOnError) throw error;
     console.error("Failed to load chat room message for Ably publish:", error);
     Sentry.captureException(error, {
       extra: {

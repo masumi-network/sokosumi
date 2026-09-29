@@ -28,13 +28,22 @@ import {
   coreSessionUnavailableJson,
   readRouteSession,
 } from "@/lib/auth/route-session";
+import { withExportOperation } from "@/lib/services/export.service";
+import { assertDocxImageCount } from "@/lib/utils/docx-export-budget";
+import {
+  DocxExportQueueError,
+  withDocxExportLock,
+} from "@/lib/utils/docx-export-lock";
 import {
   MAX_MARKDOWN_BYTES,
   withDocxExportFetchGuard,
 } from "@/lib/utils/docx-export-ssrf";
 import { setupDomContext } from "@/lib/utils/dom-context";
+import { ExportLimitError } from "@/lib/utils/export-operation";
 import { hasHtmlContent } from "@/lib/utils/html-detection";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
+
+export const maxDuration = 60;
 
 interface GenerateDocxRequest {
   markdown?: string;
@@ -143,129 +152,159 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = await readRequestJsonWithByteLimit<GenerateDocxRequest>(
-    request,
-    MAX_MARKDOWN_BYTES,
-  );
-  if (!parsed.ok) {
-    if (parsed.error === "too_large") {
+  return withExportOperation(request, async (signal) => {
+    const parsed = await readRequestJsonWithByteLimit<GenerateDocxRequest>(
+      request,
+      MAX_MARKDOWN_BYTES,
+      signal,
+    );
+    if (!parsed.ok) {
+      if (parsed.error === "too_large") {
+        return NextResponse.json(
+          { error: "Markdown payload too large" },
+          { status: 413 },
+        );
+      }
+      if (parsed.error === "invalid_json") {
+        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+      }
+      return NextResponse.json(
+        { error: "Missing 'markdown'" },
+        { status: 400 },
+      );
+    }
+
+    const markdown = (parsed.value.markdown ?? "").toString();
+    if (!markdown) {
+      return NextResponse.json(
+        { error: "Missing 'markdown'" },
+        { status: 400 },
+      );
+    }
+
+    if (Buffer.byteLength(markdown, "utf8") > MAX_MARKDOWN_BYTES) {
       return NextResponse.json(
         { error: "Markdown payload too large" },
         { status: 413 },
       );
     }
-    if (parsed.error === "invalid_json") {
-      return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-    }
-    return NextResponse.json({ error: "Missing 'markdown'" }, { status: 400 });
-  }
 
-  const markdown = (parsed.value.markdown ?? "").toString();
-  if (!markdown) {
-    return NextResponse.json({ error: "Missing 'markdown'" }, { status: 400 });
-  }
+    // The conversion below owns process globals (`fetch`, `window`, `document`),
+    // so only one export may run at a time per instance.
+    return withDocxExportLock(async () => {
+      // Set up DOM context for server-side HTML processing
+      const cleanup = await setupDomContext();
 
-  if (Buffer.byteLength(markdown, "utf8") > MAX_MARKDOWN_BYTES) {
-    return NextResponse.json(
-      { error: "Markdown payload too large" },
-      { status: 413 },
-    );
-  }
+      try {
+        // Check if markdown contains HTML content
+        const hasHtml = hasHtmlContent(markdown);
+        const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
+        const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
+        const mdast = unified()
+          .use(remarkParse)
+          .use(remarkGfm)
+          .use(remarkFrontmatter)
+          .use(remarkMath)
+          .parse(markdown);
 
-  // Set up DOM context for server-side HTML processing (inject if needed)
-  const cleanup = await setupDomContext();
+        assertDocxImageCount(
+          mdast,
+          Number(!!logoBuffer) + Number(!!kanjiLogoBuffer),
+        );
+        signal.throwIfAborted();
+        const headerElements: Paragraph[] = [];
+        headerElements.push(
+          ...createHeaderElements(logoBuffer, kanjiLogoBuffer),
+        );
 
-  try {
-    // Check if markdown contains HTML content
-    const hasHtml = hasHtmlContent(markdown);
-    const logoBuffer = dataUrlToBuffer(parsed.value.logoPng);
-    const kanjiLogoBuffer = dataUrlToBuffer(parsed.value.kanjiLogoPng);
-    const mdast = unified()
-      .use(remarkParse)
-      .use(remarkGfm)
-      .use(remarkFrontmatter)
-      .use(remarkMath)
-      .parse(markdown);
+        const footerLeft = new Paragraph({
+          alignment: AlignmentType.LEFT,
+          children: [
+            new TextRun({
+              text: appAuthorUrl,
+              bold: true,
+              font: defaultFont,
+            }),
+          ],
+        });
+        const footerRight = new Paragraph({
+          alignment: AlignmentType.RIGHT,
+          children: [new TextRun({ children: [PageNumber.CURRENT] })],
+        });
 
-    const headerElements: Paragraph[] = [];
-    headerElements.push(...createHeaderElements(logoBuffer, kanjiLogoBuffer));
+        // @m2d/image uses global fetch for remote markdown images — wrap so
+        // private/link-local/metadata targets are blocked at connect time.
+        const blob = await withDocxExportFetchGuard(
+          () =>
+            toDocx(
+              mdast,
+              {
+                title: docTitle,
+                author: docAuthor,
+                styles: defaultStyles,
+              } as unknown as Record<string, unknown>,
+              {
+                plugins: [
+                  tablePlugin(),
+                  imagePlugin({
+                    cacheConfig: { cacheMode: "memory", cache: {} },
+                  }),
+                  listPlugin(),
+                  mathPlugin(),
+                  ...(hasHtml ? [htmlPlugin()] : []),
+                ] as IPlugin<EmptyNode>[],
+                headers: { default: new Header({ children: headerElements }) },
+                footers: {
+                  default: new Footer({ children: [footerLeft, footerRight] }),
+                },
+              },
+            ),
+          signal,
+        );
 
-    const footerLeft = new Paragraph({
-      alignment: AlignmentType.LEFT,
-      children: [
-        new TextRun({
-          text: appAuthorUrl,
-          bold: true,
-          font: defaultFont,
-        }),
-      ],
-    });
-    const footerRight = new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [new TextRun({ children: [PageNumber.CURRENT] })],
-    });
+        const fileName =
+          sanitizeFileName(parsed.value.fileName ?? "output") + ".docx";
+        const body =
+          blob instanceof Blob
+            ? blob
+            : new Blob(
+                [
+                  ((blob as Uint8Array).buffer as ArrayBuffer).slice(
+                    (blob as Uint8Array).byteOffset,
+                    (blob as Uint8Array).byteOffset +
+                      (blob as Uint8Array).byteLength,
+                  ),
+                ],
+                {
+                  type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                },
+              );
 
-    // @m2d/image uses global fetch for remote markdown images — wrap so
-    // private/link-local/metadata targets are blocked at connect time.
-    const blob = await withDocxExportFetchGuard(() =>
-      toDocx(
-        mdast,
-        {
-          title: docTitle,
-          author: docAuthor,
-          styles: defaultStyles,
-        } as unknown as Record<string, unknown>,
-        {
-          plugins: [
-            tablePlugin(),
-            imagePlugin(),
-            listPlugin(),
-            mathPlugin(),
-            ...(hasHtml ? [htmlPlugin()] : []),
-          ] as IPlugin<EmptyNode>[],
-          headers: { default: new Header({ children: headerElements }) },
-          footers: {
-            default: new Footer({ children: [footerLeft, footerRight] }),
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "content-type":
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "content-disposition": `attachment; filename="${fileName}"`,
+            "cache-control": "no-store",
           },
-        },
-      ),
-    );
-
-    const fileName =
-      sanitizeFileName(parsed.value.fileName ?? "output") + ".docx";
-    const body =
-      blob instanceof Blob
-        ? blob
-        : new Blob(
-            [
-              ((blob as Uint8Array).buffer as ArrayBuffer).slice(
-                (blob as Uint8Array).byteOffset,
-                (blob as Uint8Array).byteOffset +
-                  (blob as Uint8Array).byteLength,
-              ),
-            ],
-            {
-              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            },
-          );
-
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "content-type":
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "content-disposition": `attachment; filename="${fileName}"`,
-        "cache-control": "no-store",
-      },
+        });
+      } catch (error) {
+        if (error instanceof ExportLimitError || signal.aborted) throw error;
+        console.error("DOCX generation error", error);
+        return NextResponse.json(
+          { error: "Failed to generate DOCX" },
+          { status: 500 },
+        );
+      } finally {
+        // Clean up DOM context
+        cleanup();
+      }
+    }, signal).catch((error: unknown) => {
+      if (error instanceof DocxExportQueueError) {
+        return NextResponse.json({ error: error.message }, { status: 503 });
+      }
+      throw error;
     });
-  } catch (error) {
-    console.error("DOCX generation error", error);
-    return NextResponse.json(
-      { error: "Failed to generate DOCX" },
-      { status: 500 },
-    );
-  } finally {
-    // Clean up DOM context
-    cleanup();
-  }
+  });
 }

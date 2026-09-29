@@ -1,14 +1,14 @@
 import { waitUntil } from "@vercel/functions";
 import { createResumableStreamContext } from "resumable-stream/ioredis";
 
+import { getRedisUrl } from "@/lib/redis";
+
 type ResumableStreamContext = ReturnType<typeof createResumableStreamContext>;
 
 let cachedContext: ResumableStreamContext | null = null;
 
 export function isUiStreamResumptionConfigured(): boolean {
-  return Boolean(
-    process.env.REDIS_URL?.trim().length || process.env.KV_URL?.trim().length,
-  );
+  return getRedisUrl() !== null;
 }
 
 export function getResumableUiStreamContext(): ResumableStreamContext {

@@ -43,6 +43,8 @@ async function loadState(): Promise<StateLoad> {
   }
 }
 
+export const instant = false;
+
 interface SokoBotPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
@@ -61,7 +63,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
 
   if (load.kind === "disabled") {
     return (
-      <div className="mx-auto w-full max-w-2xl px-4 py-6">
+      <div className="content-in mx-auto w-full max-w-2xl px-4 py-6">
         <Alert>
           <AlertTitle>{t("Disabled.title")}</AlertTitle>
           <AlertDescription>

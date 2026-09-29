@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountGetAdminOrganizationBySlug from "./[slug]/get.js";
 import mountRemoveAdminOrganizationMember from "./[slug]/members/[memberId]/delete.js";
 import mountUpdateAdminOrganizationMemberRole from "./[slug]/members/[memberId]/role/patch.js";
@@ -8,7 +8,7 @@ import mountListAdminOrganizationMembers from "./[slug]/members/get.js";
 import mountAddAdminOrganizationMember from "./[slug]/members/post.js";
 import mountListAdminOrganizations from "./get.js";
 
-const app = new OpenAPIHonoWithAuth();
+const app = createNestedOpenAPIHono();
 
 mountListAdminOrganizations(app);
 mountGetAdminOrganizationBySlug(app);

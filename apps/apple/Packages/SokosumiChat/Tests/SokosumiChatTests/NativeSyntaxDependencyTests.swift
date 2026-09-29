@@ -49,7 +49,7 @@ struct NativeSyntaxDependencyTests {
 
   @Test func graphqlHighlightsQueriesAndUnicodeStrings() throws {
     let source = "query Greeting($id: ID!) { user(id: $id, greeting: \"Hello 👋\") { name } }"
-    let url = try #require(Bundle.module.url(forResource: "graphql-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
+    let url = try #require(ChatResources.bundle.url(forResource: "graphql-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
     let captures = try highlight(source, language: tree_sitter_graphql(), queryURL: url)
     #expect(captures.contains { $0.0 == "keyword" && $0.1 == "query" })
     #expect(captures.contains { $0.0 == "property" && $0.1 == "name" })
@@ -58,7 +58,7 @@ struct NativeSyntaxDependencyTests {
 
   @Test func lessHighlightsVariablesAndNestedSelectors() throws {
     let source = "@color: #fff; .greeting { color: @color; content: \"Hello 👋\"; &:hover { width: 2px; } }"
-    let url = try #require(Bundle.module.url(forResource: "less-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
+    let url = try #require(ChatResources.bundle.url(forResource: "less-highlights", withExtension: "scm", subdirectory: "GrammarDependencies"))
     let captures = try highlight(source, language: tree_sitter_less(), queryURL: url)
     #expect(captures.contains { $0.0 == "property" && $0.1 == "color" })
     #expect(captures.contains { $0.0 == "number" && $0.1 == "2px" })

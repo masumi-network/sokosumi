@@ -1,6 +1,5 @@
 import "server-only";
 
-/* eslint-disable no-restricted-properties */
 import * as z from "zod";
 
 /**
@@ -42,7 +41,6 @@ const envSecretsSchema = z.object({
     .pipe(z.url())
     .optional(),
   VERCEL_GIT_COMMIT_REF: z.string().optional(),
-  VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
   MASUMI_DESIGN_MD_API_URL: z
@@ -51,6 +49,13 @@ const envSecretsSchema = z.object({
 
   // HMAC secret for DESIGN.md job tokens (web-only).
   APP_SIGNING_SECRET: z.string().min(1),
+  /**
+   * Shared with Core and with the image-studio agent. Web mints the
+   * short-lived studio token the browser hands to the agent; the agent mints
+   * the grant it presents to Core. Absent, the studio chat is unavailable and
+   * says so — it never falls back to an unauthenticated agent.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
 
   // Max pending invitations per organization (optional; default 100).
   ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),

@@ -7,12 +7,10 @@ export const TaskScheduleEndsMode = {
 export type TaskScheduleEndsMode =
   (typeof TaskScheduleEndsMode)[keyof typeof TaskScheduleEndsMode];
 
-export type TaskScheduleMode = "none" | "once" | "recurring";
-
+/** What the schedule form holds: a repeating rule (ADR 0041). */
 export interface TaskScheduleSelection {
-  mode: TaskScheduleMode;
   timezone: string;
-  oneTimeLocalIso?: string;
+  firstRunLocalIso?: string;
   cron?: string;
   customCronExpr?: string;
   intervalDays?: number;

@@ -4,7 +4,7 @@ import Foundation
 /// not Swift grapheme clusters. Limits apply after trimming.
 public struct ComposerContent: Equatable, Sendable {
   public static let maximumLength = 10000
-  public static let counterThreshold = 9500
+  private static let counterThreshold = 9500
   public let text: String
   public var count: Int {
     text.utf16.count
@@ -15,7 +15,13 @@ public struct ComposerContent: Equatable, Sendable {
   }
 
   public var canSend: Bool {
-    !text.isEmpty && !isTooLong
+    canSend(quoted: false)
+  }
+
+  /// A quote can be the whole message, so a quote-only draft sends with an
+  /// empty body. Editing and the coworker 1:1 stream still need words.
+  public func canSend(quoted: Bool) -> Bool {
+    (!text.isEmpty || quoted) && !isTooLong
   }
 
   public var showsCounter: Bool {

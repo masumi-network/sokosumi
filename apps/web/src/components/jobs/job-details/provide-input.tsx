@@ -25,8 +25,7 @@ import { useProvideJobInput } from "@/hooks/use-provide-job-input";
 import type { Job } from "@/lib/clients/generated/core";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
-import { getJobQueryKey } from "@/queries";
-
+import { getJobQueryKey } from "@/queries/jobs";
 import type { JobEvent } from "./job-details-events.utils";
 
 interface JobDetailsProvideInputProps {
@@ -148,7 +147,7 @@ function ProvideInputForm({
             >
               <div className="flex items-center gap-1">
                 {(isSubmitting || formIsSubmitting) && (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {t("submit")}
               </div>
@@ -201,7 +200,7 @@ function ProvideInputForm({
               >
                 <div className="flex items-center gap-1">
                   {(isSubmitting || formIsSubmitting) && (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                   )}
                   {t("submit")}
                 </div>
@@ -215,7 +214,7 @@ function ProvideInputForm({
             ) : (
               <Button type="submit" disabled={formIsSubmitting || !isValid}>
                 {formIsSubmitting && (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {tForm("next")}
                 <ArrowRight className="size-4" />

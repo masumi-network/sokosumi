@@ -4,6 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   buildOrganizationMetadataWithUrl,
   normalizeWebsiteUrl,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
 import {
   ArrowLeft,
@@ -39,8 +41,8 @@ import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-swi
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+} from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -66,16 +68,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import {
-  createOrganizationInviteLink,
   generateOrganizationSlug,
   inviteOrganizationMembersBulk,
-  resolveOrganizationSiteIcon,
-} from "@/lib/actions";
+} from "@/lib/actions/organization/action";
+import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { resolveOrganizationSiteIcon } from "@/lib/actions/organization/site-icon-action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   ORGANIZATION_LOGO_ACCEPT,
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
 } from "@/lib/constants/organization-logo";
 import { cn } from "@/lib/utils";
@@ -641,7 +641,7 @@ export function CreateOrganizationWizard({
         {/* `m-auto` on the child, not `justify-center` on the scroller: a
             centered flex child that outgrows its container gets clipped at the
             top with no way to scroll back up. */}
-        <div className="flex min-h-0 flex-col items-center overflow-y-auto px-6 py-6 text-center sm:px-16">
+        <div className="app-scrollbar flex min-h-0 flex-col items-center overflow-y-auto px-6 py-6 text-center sm:px-16">
           <div
             key={step}
             className="animate-in fade-in-0 slide-in-from-bottom-1 my-auto w-full duration-200 ease-out motion-reduce:animate-none"
@@ -740,7 +740,7 @@ export function CreateOrganizationWizard({
                 <div className="flex min-h-24 flex-none items-center justify-center">
                   {isResolvingLogo ? (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-                      <Loader2 className="text-muted-foreground size-6 animate-spin" />
+                      <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
                     </div>
                   ) : (
                     <OrganizationLogoUploadField
@@ -794,7 +794,7 @@ export function CreateOrganizationWizard({
                           disabled={isUploadingLogo}
                         >
                           {isUploadingLogo ? (
-                            <Loader2 className="size-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                           ) : (
                             <CloudUpload className="size-4" />
                           )}
@@ -823,7 +823,7 @@ export function CreateOrganizationWizard({
                     </div>
                   ) : (
                     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
-                      <Loader2 className="text-primary size-6 animate-spin" />
+                      <Loader2 className="text-primary size-6 animate-spin motion-reduce:animate-pulse" />
                     </div>
                   )}
                 </div>
@@ -962,7 +962,7 @@ export function CreateOrganizationWizard({
                         }
                       >
                         {copied ? (
-                          <Check className="text-primary size-4" />
+                          <Check className="check-pop text-primary size-4" />
                         ) : (
                           <Copy className="size-4" />
                         )}
@@ -998,7 +998,7 @@ export function CreateOrganizationWizard({
                       onClick={() => void handleSendInvites()}
                     >
                       {isSendingInvites && (
-                        <Loader2 className="size-4 animate-spin" />
+                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                       )}
                       {isSendingInvites
                         ? t("Invite.sending")
@@ -1051,7 +1051,9 @@ export function CreateOrganizationWizard({
               className="h-11 px-6"
               disabled={isBusy}
             >
-              {isCreatingOrg && <Loader2 className="size-4 animate-spin" />}
+              {isCreatingOrg && (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
               {!isCreatingOrg && <ArrowRight className="size-4" />}
             </Button>

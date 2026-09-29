@@ -54,7 +54,11 @@ describe("GET /api/chat/[roomId]/messages", () => {
       data: [{ id: "msg-1" }],
       meta: { pagination: { nextCursor: "cursor-2", limit: 1 } },
     });
-    expect(listMessagesMock).toHaveBeenCalledWith(ROOM_ID);
+    expect(listMessagesMock).toHaveBeenCalledWith(ROOM_ID, {
+      cursor: undefined,
+      around: undefined,
+      limit: undefined,
+    });
     expect(listThreadMessagesMock).not.toHaveBeenCalled();
   });
 
@@ -62,7 +66,11 @@ describe("GET /api/chat/[roomId]/messages", () => {
     const result = await get("?parentMessageId=parent-1");
     expect(result.status).toBe(200);
     expect(await result.json()).toMatchObject({ data: [{ id: "reply-1" }] });
-    expect(listThreadMessagesMock).toHaveBeenCalledWith(ROOM_ID, "parent-1");
+    expect(listThreadMessagesMock).toHaveBeenCalledWith(ROOM_ID, "parent-1", {
+      cursor: undefined,
+      around: undefined,
+      limit: undefined,
+    });
     expect(listMessagesMock).not.toHaveBeenCalled();
   });
 

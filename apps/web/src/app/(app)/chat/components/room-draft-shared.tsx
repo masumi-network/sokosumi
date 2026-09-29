@@ -208,7 +208,7 @@ export function DirectDraftTargetRow({
         "flex w-full items-center gap-2 rounded-md px-2 py-2 text-left transition-colors",
         disabled
           ? "text-muted-foreground cursor-not-allowed opacity-50"
-          : "hover:bg-senary",
+          : "press hover:bg-senary",
       )}
       onMouseDown={(event) => {
         event.preventDefault();

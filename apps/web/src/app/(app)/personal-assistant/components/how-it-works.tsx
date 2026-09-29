@@ -17,9 +17,7 @@ export function HowItWorks({ schedules }: { schedules: ChatSchedule[] }) {
   return (
     <div className="space-y-5">
       <div className="space-y-2">
-        <p className="text-muted-foreground text-xs tracking-wide uppercase">
-          {t("rhythms")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("rhythms")}</p>
         <ul className="grid gap-2 sm:grid-cols-2">
           {SOKO_BOT_SYSTEM_SCHEDULES.map((rhythm) => {
             const live = schedules.find((s) => s.systemKey === rhythm.key);
@@ -47,9 +45,7 @@ export function HowItWorks({ schedules }: { schedules: ChatSchedule[] }) {
         </ul>
       </div>
       <div className="space-y-2">
-        <p className="text-muted-foreground text-xs tracking-wide uppercase">
-          {t("triggers")}
-        </p>
+        <p className="text-muted-foreground text-xs">{t("triggers")}</p>
         <ul className="grid gap-x-6 gap-y-3 sm:grid-cols-2">
           {SOKO_BOT_PROACTIVE_RULES.map((rule) => (
             <li key={rule.id} className="text-sm">

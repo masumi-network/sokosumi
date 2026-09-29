@@ -122,7 +122,7 @@ function FileUploadProgressToastContent({
 
       <Progress value={totalPercentage} aria-label={title} />
 
-      <div className="pointer-events-auto max-h-32 space-y-2 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
+      <div className="app-scrollbar pointer-events-auto max-h-32 space-y-2 overflow-y-auto overscroll-contain pr-1 touch-pan-y">
         {items.map((item) => (
           <div key={item.id} className="space-y-1">
             <div className="flex items-center justify-between gap-3 text-xs">

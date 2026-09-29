@@ -12,12 +12,19 @@ import {
   isAgentBranchName,
   isAgentRunId,
 } from "../names.mjs";
-import { readNeonConfig } from "../neon-api.mjs";
+import {
+  findBranchByName,
+  readNeonConfig,
+  resetPreviewBranchToParent,
+  resolveParentBranch,
+  waitForOperations,
+} from "../neon-api.mjs";
 import {
   clearUnwantedOrganizationMemberships,
   resetUnwantedPersonalWorkspace,
   throwIfZeroWorkspaceResetFailed,
 } from "../seed-auth-fixtures.mjs";
+import { parseArgs, sameRepoPullRequestBodies } from "../teardown.mjs";
 
 describe("names", () => {
   it("builds agent branch names with stable prefix", () => {
@@ -271,5 +278,516 @@ describe("clearUnwantedOrganizationMemberships", () => {
     assert.match(queries[0], /DELETE FROM member/);
     assert.match(queries[1], /preferredOrganizationId/);
     assert.match(queries[2], /activeOrganizationId/);
+  });
+});
+
+/**
+ * Neon config whose fetch answers from a queue of [status, body] pairs. An
+ * Error in the queue is thrown, as fetch does on a network failure. An empty
+ * queue answers 404, which no caller retries.
+ */
+function queuedNeon(responses) {
+  const calls = [];
+  const fetchImpl = async (url, init = {}) => {
+    calls.push({
+      url: String(url),
+      method: init.method ?? "GET",
+      body: init.body,
+    });
+    const next = responses.shift() ?? [404, { message: "no queued reply" }];
+    if (next instanceof Error) {
+      throw next;
+    }
+    const [status, body] = next;
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      statusText: String(status),
+      text: async () => JSON.stringify(body),
+    };
+  };
+  return { config: { apiKey: "k", projectId: "proj", fetchImpl }, calls };
+}
+
+const PREVIEW_BRANCH = {
+  id: "br-preview",
+  name: "preview/feat/x",
+  parent_id: "br-main",
+  default: false,
+  protected: false,
+};
+const NO_WAIT = { sleep: async () => {} };
+
+describe("findBranchByName", () => {
+  it("searches by name and returns only the exact match", async () => {
+    const { config, calls } = queuedNeon([
+      [200, { branches: [{ name: "preview/feat/x-2" }, PREVIEW_BRANCH] }],
+    ]);
+    assert.deepEqual(
+      await findBranchByName(config, "preview/feat/x"),
+      PREVIEW_BRANCH,
+    );
+    assert.equal(
+      calls[0].url,
+      "https://console.neon.tech/api/v2/projects/proj/branches?limit=10000&search=preview%2Ffeat%2Fx",
+    );
+  });
+});
+
+describe("resolveParentBranch", () => {
+  it("lists every branch without a search", async () => {
+    const main = { id: "br-main", name: "main", default: true };
+    const { config, calls } = queuedNeon([[200, { branches: [main] }]]);
+    assert.deepEqual(await resolveParentBranch(config, () => false), main);
+    assert.equal(
+      calls[0].url,
+      "https://console.neon.tech/api/v2/projects/proj/branches?limit=10000",
+    );
+  });
+});
+
+describe("resetPreviewBranchToParent", () => {
+  it("restores the branch from its parent", async () => {
+    const operations = [{ id: "op-1", status: "running" }];
+    const { config, calls } = queuedNeon([[200, { operations }]]);
+    assert.deepEqual(
+      await resetPreviewBranchToParent(config, PREVIEW_BRANCH, NO_WAIT),
+      { operations },
+    );
+    assert.equal(calls[0].method, "POST");
+    assert.equal(
+      calls[0].url,
+      "https://console.neon.tech/api/v2/projects/proj/branches/br-preview/restore",
+    );
+    assert.deepEqual(JSON.parse(calls[0].body), {
+      source_branch_id: "br-main",
+    });
+  });
+
+  it("refuses non-preview, protected, default, and parentless branches", async () => {
+    const { config, calls } = queuedNeon([]);
+    for (const [branch, pattern] of [
+      [{ ...PREVIEW_BRANCH, name: "main" }, /non-preview branch "main"/],
+      [{ ...PREVIEW_BRANCH, name: "cloud-agent-bc-1" }, /non-preview/],
+      [{ ...PREVIEW_BRANCH, protected: true }, /protected\/default/],
+      [{ ...PREVIEW_BRANCH, default: true }, /protected\/default/],
+      [{ ...PREVIEW_BRANCH, parent_id: undefined }, /no parent/],
+    ]) {
+      await assert.rejects(
+        () => resetPreviewBranchToParent(config, branch, NO_WAIT),
+        pattern,
+      );
+    }
+    assert.deepEqual(calls, []);
+  });
+
+  it("retries 423 Locked with doubling delays", async () => {
+    const delays = [];
+    const { config, calls } = queuedNeon([
+      ...Array.from({ length: 4 }, () => [423, { message: "locked" }]),
+      [200, { operations: [] }],
+    ]);
+    await resetPreviewBranchToParent(config, PREVIEW_BRANCH, {
+      sleep: async (ms) => {
+        delays.push(ms);
+      },
+    });
+    assert.equal(calls.length, 5);
+    assert.deepEqual(delays, [100, 200, 400, 800]);
+  });
+
+  it("gives up after five attempts and never retries other errors", async () => {
+    const locked = queuedNeon(
+      Array.from({ length: 6 }, () => [423, { message: "locked" }]),
+    );
+    await assert.rejects(
+      () => resetPreviewBranchToParent(locked.config, PREVIEW_BRANCH, NO_WAIT),
+      /failed \(423\): locked/,
+    );
+    assert.equal(locked.calls.length, 5);
+
+    const conflict = queuedNeon([[409, { message: "has children" }]]);
+    await assert.rejects(
+      () =>
+        resetPreviewBranchToParent(conflict.config, PREVIEW_BRANCH, NO_WAIT),
+      /failed \(409\): has children/,
+    );
+    assert.equal(conflict.calls.length, 1);
+  });
+});
+
+describe("waitForOperations", () => {
+  it("polls each operation until it finishes or is skipped", async () => {
+    const { config, calls } = queuedNeon([
+      [200, { operation: { id: "op-1", status: "running" } }],
+      [200, { operation: { id: "op-1", status: "finished" } }],
+      [200, { operation: { id: "op-2", status: "skipped" } }],
+    ]);
+    await waitForOperations(
+      config,
+      [
+        { id: "op-1", status: "scheduling" },
+        { id: "op-2", status: "running" },
+      ],
+      NO_WAIT,
+    );
+    assert.deepEqual(
+      calls.map((call) => call.url.split("/api/v2")[1]),
+      [
+        "/projects/proj/operations/op-1",
+        "/projects/proj/operations/op-1",
+        "/projects/proj/operations/op-2",
+      ],
+    );
+  });
+
+  it("does not poll an operation that already finished", async () => {
+    const { config, calls } = queuedNeon([]);
+    await waitForOperations(
+      config,
+      [{ id: "op-1", status: "finished" }],
+      NO_WAIT,
+    );
+    assert.deepEqual(calls, []);
+  });
+
+  it("throws when an operation ends failed, error, or cancelled", async () => {
+    for (const status of ["failed", "error", "cancelled"]) {
+      const { config } = queuedNeon([
+        [200, { operation: { id: "op-1", status } }],
+      ]);
+      await assert.rejects(
+        () =>
+          waitForOperations(
+            config,
+            [{ id: "op-1", status: "running" }],
+            NO_WAIT,
+          ),
+        new RegExp(`op-1 ended ${status}$`),
+      );
+    }
+  });
+
+  it("polls again after a network error, a rate limit, or a server error", async () => {
+    const { config, calls } = queuedNeon([
+      new TypeError("fetch failed"),
+      [429, { message: "slow down" }],
+      [500, { message: "internal" }],
+      [503, { message: "unavailable" }],
+      [200, { operation: { id: "op-1", status: "finished" } }],
+    ]);
+    await waitForOperations(
+      config,
+      [{ id: "op-1", status: "running" }],
+      NO_WAIT,
+    );
+    assert.equal(calls.length, 5);
+  });
+
+  it("stops at once on a client error", async () => {
+    const { config, calls } = queuedNeon([
+      [401, { message: "bad key" }],
+      [200, { operation: { id: "op-1", status: "finished" } }],
+    ]);
+    await assert.rejects(
+      () =>
+        waitForOperations(config, [{ id: "op-1", status: "running" }], NO_WAIT),
+      /failed \(401\): bad key/,
+    );
+    assert.equal(calls.length, 1);
+  });
+
+  it("throws when the deadline passes first", async () => {
+    let clock = 0;
+    const { config } = queuedNeon(
+      Array.from({ length: 3 }, () => [
+        200,
+        { operation: { id: "op-1", status: "running" } },
+      ]),
+    );
+    await assert.rejects(
+      () =>
+        waitForOperations(config, [{ id: "op-1", status: "running" }], {
+          sleep: async (ms) => {
+            clock += ms;
+          },
+          now: () => clock,
+          intervalMs: 5,
+          timeoutMs: 10,
+        }),
+      /op-1 did not finish \(last status: running\)/,
+    );
+  });
+
+  it("gives all operations one shared deadline", async () => {
+    let clock = 0;
+    const running = [200, { operation: { id: "op-2", status: "running" } }];
+    const { config } = queuedNeon([
+      [200, { operation: { id: "op-1", status: "finished" } }],
+      running,
+      running,
+      running,
+    ]);
+    await assert.rejects(
+      () =>
+        waitForOperations(
+          config,
+          [
+            { id: "op-1", status: "running" },
+            { id: "op-2", status: "running" },
+          ],
+          {
+            sleep: async (ms) => {
+              clock += ms;
+            },
+            now: () => clock,
+            intervalMs: 5,
+            timeoutMs: 10,
+          },
+        ),
+      /op-2 did not finish/,
+    );
+    assert.equal(clock, 10);
+  });
+
+  it("polls a later operation once before the deadline fails it", async () => {
+    let clock = 0;
+    const { config, calls } = queuedNeon([
+      [200, { operation: { id: "op-1", status: "running" } }],
+      [200, { operation: { id: "op-1", status: "finished" } }],
+      [200, { operation: { id: "op-2", status: "finished" } }],
+    ]);
+    await waitForOperations(
+      config,
+      [
+        { id: "op-1", status: "running" },
+        { id: "op-2", status: "running" },
+      ],
+      {
+        sleep: async (ms) => {
+          clock += ms;
+        },
+        now: () => clock,
+        intervalMs: 5,
+        timeoutMs: 10,
+      },
+    );
+    assert.deepEqual(
+      calls.map((call) => call.url.split("/operations/")[1]),
+      ["op-1", "op-1", "op-2"],
+    );
+  });
+
+  it("waits 5 minutes by default", async () => {
+    let clock = 0;
+    const { config } = queuedNeon(
+      Array.from({ length: 60 }, () => [
+        200,
+        { operation: { id: "op-1", status: "running" } },
+      ]),
+    );
+    await assert.rejects(
+      () =>
+        waitForOperations(config, [{ id: "op-1", status: "running" }], {
+          sleep: async (ms) => {
+            clock += ms;
+          },
+          now: () => clock,
+        }),
+      /op-1 did not finish \(last status: running\)/,
+    );
+    assert.equal(clock, 5 * 60 * 1000);
+  });
+
+  it("names the last poll's failure when the deadline passes", async () => {
+    const running = [200, { operation: { id: "op-1", status: "running" } }];
+    for (const [replies, last] of [
+      [
+        [running, new TypeError("fetch failed")],
+        "last poll failed: fetch failed",
+      ],
+      // Without the request path, which names the project.
+      [
+        [running, [503, { message: "unavailable" }]],
+        "last poll failed: Neon answered 503: unavailable",
+      ],
+      [[new TypeError("fetch failed"), running], "last status: running"],
+    ]) {
+      let clock = 0;
+      const { config } = queuedNeon(replies);
+      await assert.rejects(
+        () =>
+          waitForOperations(config, [{ id: "op-1", status: "running" }], {
+            sleep: async (ms) => {
+              clock += ms;
+            },
+            now: () => clock,
+            intervalMs: 5,
+            timeoutMs: 10,
+          }),
+        { message: `Neon operation op-1 did not finish (${last})` },
+      );
+    }
+  });
+});
+
+describe("teardown args", () => {
+  it("reads AGENT_ID from the environment", () => {
+    const opts = parseArgs(["--from-agent-id-env"], {
+      AGENT_ID: "bc-11111111-1111-1111-1111-111111111111",
+    });
+    assert.deepEqual(opts.agentIds, [
+      "bc-11111111-1111-1111-1111-111111111111",
+    ]);
+    assert.equal(opts.fromWorkflowRun, false);
+  });
+
+  it("flags a workflow_run lookup without taking a shell argument", () => {
+    const opts = parseArgs(["--from-workflow-run"]);
+    assert.equal(opts.fromWorkflowRun, true);
+    assert.equal(opts.fromText, null);
+  });
+});
+
+describe("sameRepoPullRequestBodies", () => {
+  const agentId = "bc-aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const repo = "masumi-network/sokosumi";
+
+  it("keeps same-repo bodies and skips forks", async () => {
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      if (url.endsWith("/actions/runs/99")) {
+        return {
+          ok: true,
+          json: async () => ({ pull_requests: [{ number: 1 }, { number: 2 }] }),
+        };
+      }
+      if (url.endsWith("/pulls/1")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { repo: { full_name: repo } },
+          }),
+        };
+      }
+      if (url.endsWith("/pulls/2")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/bc-bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb`,
+            head: { repo: { full_name: "evil/fork" } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "99",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [`https://cursor.com/agents/${agentId}`]);
+    assert.equal(calls.length, 3);
+  });
+
+  it("falls back to commit-associated pulls when the run lists none", async () => {
+    const fetchImpl = async (url) => {
+      if (url.endsWith("/actions/runs/7")) {
+        return { ok: true, json: async () => ({ pull_requests: [] }) };
+      }
+      if (url.endsWith("/commits/abc123/pulls")) {
+        return { ok: true, json: async () => [{ number: 3 }] };
+      }
+      if (url.endsWith("/pulls/3")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
+            head: { sha: "abc123", repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [
+      "Cloud-Agent-Run: bc-cccccccc-cccc-cccc-cccc-cccccccccccc",
+    ]);
+  });
+
+  it("resolves an unmerged close from display_title bound to the head SHA", async () => {
+    // Real GitHub: closed runs list no pulls, and commits/{sha}/pulls omits
+    // PRs closed without merging. Only the signal run-name identifies the PR.
+    const calls = [];
+    const fetchImpl = async (url) => {
+      calls.push(String(url));
+      if (url.endsWith("/actions/runs/7")) {
+        return {
+          ok: true,
+          json: async () => ({ display_title: "5", pull_requests: [] }),
+        };
+      }
+      if (url.endsWith("/pulls/5")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { sha: "abc123", repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, [`https://cursor.com/agents/${agentId}`]);
+    assert.equal(calls.length, 2);
+  });
+
+  it("skips a display_title PR whose head is not the run head SHA", async () => {
+    const fetchImpl = async (url) => {
+      if (url.endsWith("/actions/runs/7")) {
+        return {
+          ok: true,
+          json: async () => ({ display_title: "5", pull_requests: [] }),
+        };
+      }
+      if (url.endsWith("/pulls/5")) {
+        return {
+          ok: true,
+          json: async () => ({
+            body: `https://cursor.com/agents/${agentId}`,
+            head: { sha: "def456", repo: { full_name: repo } },
+          }),
+        };
+      }
+      throw new Error(`unexpected ${url}`);
+    };
+
+    const bodies = await sameRepoPullRequestBodies({
+      token: "tok",
+      repo,
+      runId: "7",
+      headSha: "abc123",
+      fetchImpl,
+    });
+    assert.deepEqual(bodies, []);
   });
 });

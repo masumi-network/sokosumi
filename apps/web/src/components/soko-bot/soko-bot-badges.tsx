@@ -35,12 +35,18 @@ const LIVE_TURN_STATUSES = new Set<SokoBotTurnStatus>([
   "CANCEL_REQUESTED",
 ]);
 
+/**
+ * A route is what the turn decided to do, not whether anything is running.
+ * `MANAGE_WORK` read `working` after the info role was folded away, which made
+ * a category label claim work was in flight. It is a sibling of
+ * `DELEGATE_TASK` and `HIRE_AGENT`, so it takes their tone.
+ */
 const ROUTE_TONE: Record<NonNullable<SokoBotTurnRoute>, StatusTone> = {
   DIRECT_RESPONSE: "neutral",
   CLARIFY: "warning",
   DELEGATE_TASK: "accent",
   HIRE_AGENT: "accent",
-  MANAGE_WORK: "working",
+  MANAGE_WORK: "accent",
   MIXED: "warning",
 };
 

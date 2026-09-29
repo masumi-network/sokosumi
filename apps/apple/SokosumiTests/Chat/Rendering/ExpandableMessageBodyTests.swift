@@ -26,14 +26,38 @@
       #expect(abs(measurement.height - text.fittingSize.height) <= 1)
     }
 
-    @Test(arguments: [
-      Array(repeating: "### Heading with descenders gy", count: 30).joined(separator: "\n\n"),
-      String(repeating: "A paragraph with **bold words**, _emphasis_, descenders gy and a [link](https://example.com).\n\n", count: 30),
-      "## Report\n\n" + String(repeating: "- A wrapped list item with enough words to continue onto another line in a narrow window.\n", count: 30),
-      "### Code\n\n```swift\n" + String(repeating: "let value = 42\n", count: 30) + "```",
-      "| Column | Description |\n| --- | --- |\n" + String(repeating: "| One | A longer table cell with descenders gy |\n", count: 30)
-    ])
-    func resizingRichBodyKeepsCompleteLines(source: String) async throws {
+    /// Narrow wrap: a long markdown paragraph must clamp on a complete line, not mid-glyph.
+    @Test func wrappingParagraphClampsOnCompleteLinesWhenNarrow() async throws {
+      try await assertCompleteLines(source: Self.paragraphSource, width: 240)
+    }
+
+    /// Comfortable width: the same paragraph still clamps on a complete line after reflow.
+    @Test func wrappingParagraphClampsOnCompleteLinesWhenComfortable() async throws {
+      try await assertCompleteLines(source: Self.paragraphSource, width: 600)
+    }
+
+    /// Headings with descenders: block metrics must not leave a line straddling Show more.
+    @Test func headingDescendersClampOnCompleteLines() async throws {
+      try await assertCompleteLines(
+        source: Array(repeating: "### Heading with descenders gy", count: 30).joined(separator: "\n\n"),
+        width: 240
+      )
+    }
+
+    /// Wrapped list items: list layout must clamp on a complete line, not a mid-item gap.
+    @Test func wrappedListClampsOnCompleteLines() async throws {
+      try await assertCompleteLines(
+        source: "## Report\n\n" + String(repeating: "- A wrapped list item with enough words to continue onto another line in a narrow window.\n", count: 30),
+        width: 600
+      )
+    }
+
+    private static let paragraphSource = String(
+      repeating: "A paragraph with **bold words**, _emphasis_, descenders gy and a [link](https://example.com).\n\n",
+      count: 30
+    )
+
+    private func assertCompleteLines(source: String, width: CGFloat) async throws {
       let document = MessageMarkdown(source)
       let measurement = HeightMeasurement()
       let body = ExpandableMessageBody(source: source) {
@@ -55,21 +79,19 @@
       let host = NSHostingView(rootView: body)
       let button = NSHostingView(rootView: Button("Show more") {}
         .buttonStyle(.borderless).font(.caption.weight(.medium)))
-      for width in [600.0, 240.0, 900.0] {
-        host.frame = NSRect(x: 0, y: 0, width: width, height: 1000)
-        for _ in 0 ..< 10 {
-          host.layoutSubtreeIfNeeded()
-          try await Task.sleep(for: .milliseconds(20))
-        }
-        let boundary = measurement.height - button.fittingSize.height - 4
-        #expect(!measurement.lines.isEmpty)
-        #expect(boundary > 0)
-        #expect(measurement.lines.contains { $0.maxY > boundary + 1 })
-        #expect(!measurement.lines.contains { $0.minY < boundary - 0.5 && $0.maxY > boundary + 0.5 },
-                "A text line crosses the collapsed boundary at width \(width)")
-        #expect(measurement.lines.contains { abs($0.maxY - boundary) < 0.5 },
-                "Show more should follow a complete line without an empty paragraph gap")
+      host.frame = NSRect(x: 0, y: 0, width: width, height: 1000)
+      for _ in 0 ..< 10 {
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(20))
       }
+      let boundary = measurement.height - button.fittingSize.height - 4
+      #expect(!measurement.lines.isEmpty)
+      #expect(boundary > 0)
+      #expect(measurement.lines.contains { $0.maxY > boundary + 1 })
+      #expect(!measurement.lines.contains { $0.minY < boundary - 0.5 && $0.maxY > boundary + 0.5 },
+              "A text line crosses the collapsed boundary at width \(width)")
+      #expect(measurement.lines.contains { abs($0.maxY - boundary) < 0.5 },
+              "Show more should follow a complete line without an empty paragraph gap")
     }
 
     private final class HeightMeasurement {

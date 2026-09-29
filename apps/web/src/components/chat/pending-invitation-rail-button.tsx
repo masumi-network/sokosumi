@@ -1,7 +1,11 @@
 "use client";
 
 import { flushSync } from "react-dom";
-import { SidebarMenuButton, useSidebar } from "@/components/ui/sidebar";
+import {
+  SidebarMenuButton,
+  SidebarRowSlot,
+  useSidebar,
+} from "@/components/ui/sidebar";
 import { ChannelRoomMark } from "./channel-room-mark";
 import { RailAttentionPill } from "./chat-room-sidebar-row";
 
@@ -44,9 +48,11 @@ export function PendingInvitationRailButton({
         }}
         className="hidden overflow-visible group-data-[collapsible=icon]:flex"
       >
-        <ChannelRoomMark
-          room={{ name: roomName, discoverability: "external" }}
-        />
+        <SidebarRowSlot>
+          <ChannelRoomMark
+            room={{ name: roomName, discoverability: "external" }}
+          />
+        </SidebarRowSlot>
         <span className="sr-only">{label}</span>
       </SidebarMenuButton>
     </>

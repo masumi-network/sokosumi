@@ -4,44 +4,88 @@ import { fetchCoworkers } from "../../api/services/coworker-service.js";
 import { fetchJobs } from "../../api/services/job-service.js";
 import { type CliTargetConfig, sanitizeApiUrl } from "../../auth/config.js";
 import { redactErrorMessage } from "../../error-redaction.js";
+import type { CommandOutput } from "./command-helpers.js";
 
-interface TextOutput {
-  write(value: string): unknown;
+interface CliCommandCatalogEntry {
+  readonly command: string;
+  readonly usage: string;
 }
 
-export const CLI_COMMANDS = [
-  "discover",
-  "auth login",
-  "auth status",
-  "auth logout",
-  "agents list",
-  "agents hire",
-  "coworkers list",
-  "coworkers register",
-  "coworkers update",
-  "coworkers api-key",
-  "coworkers me",
-  "tasks list",
-  "tasks create",
-  "tasks get",
-  "tasks events",
-  "tasks jobs",
-  "tasks comment",
-  "jobs list",
-  "jobs get",
-  "jobs input",
-] as const;
+export const CLI_COMMAND_CATALOG = [
+  { command: "discover", usage: "" },
+  { command: "skills", usage: "" },
+  { command: "skills path", usage: "" },
+  { command: "auth login", usage: "" },
+  { command: "auth status", usage: "" },
+  { command: "auth whoami", usage: "" },
+  { command: "auth logout", usage: "" },
+  { command: "admin members", usage: "WORKSPACE_SLUG" },
+  { command: "admin add-member", usage: "WORKSPACE_SLUG --email EMAIL" },
+  { command: "admin assign-seat", usage: "WORKSPACE_SLUG --email EMAIL" },
+  { command: "agents list", usage: "" },
+  { command: "agents hire", usage: "AGENT_ID" },
+  { command: "coworkers list", usage: "" },
+  { command: "coworkers register", usage: "[options]" },
+  { command: "coworkers provision", usage: "[options]" },
+  { command: "coworkers connect", usage: "COWORKER_ID [options]" },
+  { command: "coworkers update", usage: "COWORKER_ID [options]" },
+  { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
+  { command: "coworkers me", usage: "" },
+  { command: "vendors me", usage: "" },
+  { command: "vendors create", usage: "--name NAME --slug SLUG" },
+  { command: "workspaces list", usage: "" },
+  { command: "workspaces check", usage: "ORGANIZATION_ID" },
+  { command: "runtime key-import", usage: "[options]" },
+  { command: "runtime start", usage: "TASK_ID [options]" },
+  { command: "runtime complete", usage: "TASK_ID [options]" },
+  { command: "runtime run", usage: "TASK_ID [options]" },
+  { command: "tasks list", usage: "[options]" },
+  { command: "tasks create", usage: "[--organization-slug WORKSPACE_SLUG]" },
+  {
+    command: "tasks get",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks events",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks jobs",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  {
+    command: "tasks comment",
+    usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
+  },
+  { command: "jobs list", usage: "" },
+  { command: "jobs get", usage: "JOB_ID" },
+  { command: "jobs input", usage: "JOB_ID" },
+] as const satisfies readonly CliCommandCatalogEntry[];
+
+type CliCommand = (typeof CLI_COMMAND_CATALOG)[number]["command"];
+
+export const CLI_COMMANDS: readonly CliCommand[] = CLI_COMMAND_CATALOG.map(
+  (entry) => entry.command,
+);
+
+export function formatCliCommandHelpLines(): string {
+  return CLI_COMMAND_CATALOG.map((entry) =>
+    entry.usage
+      ? `  sokosumi ${entry.command} ${entry.usage}`
+      : `  sokosumi ${entry.command}`,
+  ).join("\n");
+}
+
+export function formatUnknownCommandUsage(): string {
+  return `Usage: sokosumi ${CLI_COMMANDS.join(" | ")}`;
+}
 
 export interface DiscoverCommandOptions {
   client?: CoreHttpClient;
   config: CliTargetConfig;
-  stdout: TextOutput;
+  stdout: CommandOutput;
   json?: boolean;
   signal?: AbortSignal;
-}
-
-function errorMessage(reason: unknown): string {
-  return redactErrorMessage(reason);
 }
 
 export async function runDiscoverCommand({
@@ -84,19 +128,19 @@ export async function runDiscoverCommand({
     if (agentsResult.status === "rejected") {
       errors.push({
         resource: "agents",
-        message: errorMessage(agentsResult.reason),
+        message: redactErrorMessage(agentsResult.reason),
       });
     }
     if (coworkersResult.status === "rejected") {
       errors.push({
         resource: "coworkers",
-        message: errorMessage(coworkersResult.reason),
+        message: redactErrorMessage(coworkersResult.reason),
       });
     }
     if (jobsResult.status === "rejected") {
       errors.push({
         resource: "jobs",
-        message: errorMessage(jobsResult.reason),
+        message: redactErrorMessage(jobsResult.reason),
       });
     }
     if (errors.length > 0) result.errors = errors;

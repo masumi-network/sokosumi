@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   applyConsentMode,
+  CONSENT_CHANGE_EVENT,
   CONSENT_COOKIE,
   CONSENT_VERSION,
   readConsent,
@@ -123,5 +124,21 @@ describe("applyConsentMode", () => {
         }),
       ]),
     );
+  });
+
+  it("announces the choice to in-app listeners", () => {
+    const listener = vi.fn();
+    window.addEventListener(CONSENT_CHANGE_EVENT, listener);
+    const choice = {
+      necessary: true,
+      analytics: false,
+      marketing: true,
+    } as const;
+
+    applyConsentMode(choice);
+
+    window.removeEventListener(CONSENT_CHANGE_EVENT, listener);
+    expect(listener).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls[0][0].detail).toEqual(choice);
   });
 });

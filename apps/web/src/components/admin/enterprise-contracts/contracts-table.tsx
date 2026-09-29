@@ -10,7 +10,8 @@ import {
   buildComboboxLabels,
 } from "@/components/admin/async-search-combobox";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
-import { createAppColumnHelper, DataTable } from "@/components/data-table";
+import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
+import DataTable from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {

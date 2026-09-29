@@ -68,6 +68,7 @@ import {
   toggleComposerBlockquote,
   tryExitComposerBlockquoteOnEmptyLine,
 } from "@/lib/utils/composer-wysiwyg-blockquote";
+import { toggleComposerCodeBlock } from "@/lib/utils/composer-wysiwyg-code-block";
 import { toggleComposerInlineCode } from "@/lib/utils/composer-wysiwyg-code-format";
 import {
   replaceComposerTextRange,
@@ -98,6 +99,8 @@ export interface ComposerWysiwygEditorHandle {
   focus: () => void;
   focusAtEnd: () => void;
   insertText: (text: string) => void;
+  /** Remove the last occurrence of `text`; false when it is not in the editor. */
+  removeLastText: (text: string) => boolean;
   openMentions: () => void;
   applyFormat: (command: ComposerFormatCommand) => void;
   insertLink: (text: string, url: string) => void;
@@ -130,11 +133,6 @@ interface ComposerWysiwygEditorProps<TData = unknown> {
   onBlur?: () => void;
   disabled?: boolean;
   ariaLabel?: string;
-  /**
-   * Inline edit mode: Ctrl/Cmd+Enter submits instead of inserting a newline,
-   * and plain Enter submits even on touch devices (no Save button exists).
-   */
-  modifierEnterSubmits?: boolean;
   onLinkShortcut?: () => void;
   onActiveFormatsChange?: (formats: ComposerActiveFormats) => void;
   onSelectedKeysChange?: (selectedKeys: string[]) => void;
@@ -155,7 +153,7 @@ const EDITOR_PROSE_CLASSNAME = cn(
   "[&_em]:italic [&_i]:italic [&_strong]:font-bold [&_b]:font-bold",
   "[&_u]:underline [&_s]:line-through [&_strike]:line-through [&_del]:line-through",
   "[&_code]:bg-muted [&_code]:rounded [&_code]:px-1 [&_code]:py-0.5 [&_code]:font-mono [&_code]:text-xs",
-  "[&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
+  "[&_pre]:app-scrollbar [&_pre]:bg-muted [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:rounded [&_pre]:p-2 [&_pre]:whitespace-pre",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-xs",
   "[&_a]:text-primary [&_a]:underline",
   "[&_blockquote]:border-input [&_blockquote]:text-muted-foreground [&_blockquote]:border-l-2 [&_blockquote]:pl-3",
@@ -232,7 +230,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
   onBlur,
   disabled = false,
   ariaLabel,
-  modifierEnterSubmits = false,
   onLinkShortcut,
   onActiveFormatsChange,
   onSelectedKeysChange,
@@ -824,6 +821,24 @@ export function ComposerWysiwygEditor<TData = unknown>({
     [handleInput],
   );
 
+  const removeLastText = useCallback(
+    (text: string) => {
+      const editor = editorRef.current;
+      if (!editor || text.length === 0) return false;
+      const start = serializeEditorText(editor).lastIndexOf(text);
+      if (
+        start < 0 ||
+        !replaceComposerTextRange(editor, start, start + text.length, "")
+      ) {
+        return false;
+      }
+      savedCaretOffsetRef.current = getCaretOffset(editor);
+      handleInput();
+      return true;
+    },
+    [handleInput],
+  );
+
   const insertHtml = useCallback(
     (html: string) => {
       editorRef.current?.focus();
@@ -891,12 +906,13 @@ export function ComposerWysiwygEditor<TData = unknown>({
           return;
         }
         case "codeBlock": {
-          const text = window.getSelection()?.toString() ?? "";
-          const escapedText = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-          insertHtml(`<pre><code>${escapedText}</code></pre>`);
+          if (!editorRef.current) return;
+          editorRef.current.focus();
+          toggleComposerCodeBlock(editorRef.current);
+          handleInput();
+          requestAnimationFrame(() => {
+            publishActiveFormats();
+          });
           return;
         }
         case "quote": {
@@ -921,7 +937,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         }
       }
     },
-    [execCommand, handleInput, insertHtml, publishActiveFormats],
+    [execCommand, handleInput, publishActiveFormats],
   );
 
   const openMentions = useCallback(() => {
@@ -1214,11 +1230,10 @@ export function ComposerWysiwygEditor<TData = unknown>({
       if (key === "enter" && !event.nativeEvent.isComposing) {
         const action = resolveComposerEnterAction({
           shiftKey: event.shiftKey,
-          metaKey: modifierEnterSubmits ? false : event.metaKey,
-          ctrlKey: modifierEnterSubmits ? false : event.ctrlKey,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
           isSuggestionKeyboardActive: isDropdownVisible,
-          // Inline edit has no Save button, so Enter must still commit there.
-          isTouchDevice: modifierEnterSubmits ? false : !devicePrefersHover(),
+          isTouchDevice: !devicePrefersHover(),
         });
 
         if (action === "ignore") return;
@@ -1257,7 +1272,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertEmojiShortcode,
       insertMention,
       isOpen,
-      modifierEnterSubmits,
       onEscape,
       onLinkShortcut,
       onSubmitShortcut,
@@ -1380,6 +1394,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
         selection.addRange(range);
       },
       insertText,
+      removeLastText,
       openMentions,
       applyFormat,
       insertLink,
@@ -1393,6 +1408,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
       insertLink,
       insertText,
       openMentions,
+      removeLastText,
       tryFlushTrailingEmoticon,
     ],
   );
@@ -1404,7 +1420,6 @@ export function ComposerWysiwygEditor<TData = unknown>({
         id={id}
         contentEditable={!disabled}
         suppressContentEditableWarning
-        enterKeyHint={modifierEnterSubmits ? "send" : undefined}
         aria-label={ariaLabel}
         aria-disabled={disabled || undefined}
         onInput={handleInput}
@@ -1439,7 +1454,7 @@ export function ComposerWysiwygEditor<TData = unknown>({
                 : { top: VIEWPORT_PADDING_PX, left: VIEWPORT_PADDING_PX }
             }
             className={cn(
-              "bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
+              "app-scrollbar bg-popover text-popover-foreground fixed z-50 overflow-y-auto rounded-xl border p-1 shadow-md",
               triggerPosition?.width == null && "w-72",
               !triggerPosition && "mt-1 max-h-60",
             )}

@@ -3,11 +3,12 @@
 import * as Sentry from "@sentry/nextjs";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
-import { type ActionError, CommonErrorCode } from "@/lib/actions";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { toCoreJobInputData } from "@/lib/actions/job/core-job-input";
 import {
@@ -21,8 +22,8 @@ import {
   jobDetailsNameFormSchema,
   type ProvideJobInputSchemaType,
   provideJobInputSchema,
-} from "@/lib/schemas";
-import { jobService } from "@/lib/services";
+} from "@/lib/schemas/job";
+import { jobService } from "@/lib/services/job.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -68,7 +69,6 @@ export const provideJobInput = withSession<
         );
       }
 
-      // Set user context for Sentry
       Sentry.setUser({
         id: userId,
       });
@@ -81,7 +81,6 @@ export const provideJobInput = withSession<
         inputDataSize: JSON.stringify(inputData).length,
       });
 
-      // Add breadcrumb for job input submission flow
       Sentry.addBreadcrumb({
         category: "Job Action",
         message: "Submitting job input",
@@ -112,7 +111,6 @@ export const provideJobInput = withSession<
         inputData: coreInputData,
       });
 
-      // Add success breadcrumb
       Sentry.addBreadcrumb({
         category: "Job Action",
         message: "Job input submitted successfully",

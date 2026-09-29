@@ -4,6 +4,7 @@ import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   applyFullChatRoomMessageEvent,
+  applyThreadUnreadReplyCounts,
   mergeMessagesWithStreamOverlay,
   mergeRoomMessages,
 } from "./merge-room-messages";
@@ -38,6 +39,7 @@ function message(id: string, createdAt: string, content = id): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     deletedAt: null,
   };
@@ -80,6 +82,48 @@ describe("applyFullChatRoomMessageEvent", () => {
     expect(next.map((row) => row.id)).toEqual(["m1"]);
   });
 
+  it("keeps the viewer's unread reply count when a broadcast event replaces the parent", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+    // The realtime payload is addressed to the whole room, so it carries no
+    // per-viewer count.
+    const { threadUnreadReplyCount: _, ...edited } = {
+      ...parent,
+      content: "hello, edited",
+    };
+
+    const next = applyFullChatRoomMessageEvent([parent], {
+      eventType: "update",
+      message: edited,
+    });
+
+    expect(next).toEqual([
+      expect.objectContaining({
+        id: "m1",
+        content: "hello, edited",
+        threadUnreadReplyCount: 2,
+      }),
+    ]);
+  });
+
+  it("takes a fresh unread reply count over the known one", () => {
+    const parent = {
+      ...message("m1", "2026-07-01T10:00:00.000Z", "hello"),
+      threadReplyCount: 5,
+      threadUnreadReplyCount: 2,
+    };
+
+    const next = mergeRoomMessages(
+      [parent],
+      [{ ...parent, threadUnreadReplyCount: 0 }],
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
   it("merges a user tombstone so deleted chrome stays", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "hello");
     const tombstone = {
@@ -95,6 +139,42 @@ describe("applyFullChatRoomMessageEvent", () => {
 
     expect(next).toHaveLength(1);
     expect(next[0]?.deletedAt).not.toBeNull();
+  });
+});
+
+describe("applyThreadUnreadReplyCounts", () => {
+  function parent(id: string, threadUnreadReplyCount?: number) {
+    return {
+      ...message(id, "2026-07-01T10:00:00.000Z"),
+      threadReplyCount: 3,
+      threadUnreadReplyCount,
+    };
+  }
+
+  it("tints a parent the read names and leaves the rest", () => {
+    const quiet = parent("m2", 0);
+
+    const next = applyThreadUnreadReplyCounts(
+      [parent("m1", 0), quiet],
+      new Map([["m1", 2]]),
+    );
+
+    expect(next[0].threadUnreadReplyCount).toBe(2);
+    expect(next[1]).toBe(quiet);
+  });
+
+  it("clears a parent the read no longer names", () => {
+    const next = applyThreadUnreadReplyCounts([parent("m1", 4)], new Map());
+
+    expect(next[0].threadUnreadReplyCount).toBe(0);
+  });
+
+  it("returns the same list when nothing moved", () => {
+    const messages = [parent("m1", 1), parent("m2"), parent("m3", 0)];
+
+    expect(applyThreadUnreadReplyCounts(messages, new Map([["m1", 1]]))).toBe(
+      messages,
+    );
   });
 });
 

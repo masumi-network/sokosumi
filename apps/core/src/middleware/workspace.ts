@@ -89,10 +89,6 @@ export const workspaceMiddleware = (includeWorkspaceContext: boolean) =>
     }
 
     try {
-      // Avoid wrapping every request in a DB transaction — pool contention under
-      // load caused P2028 "Unable to start a transaction in the given time"
-      // (SOKOSUMI-CORE-2J). Org workspace create is still idempotent via
-      // unique-constraint recovery. Missing personal is fail-closed, not create.
       const workspace = await workspaceRepository.resolveWorkspaceForContext(
         workspaceOwnerContext.userId,
         workspaceOwnerContext.organizationId,

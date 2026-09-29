@@ -30,22 +30,7 @@ interface CreditBucketBalanceRow {
   expiresAt: Date | null;
 }
 
-/**
- * Credit Bucket Repository Interface
- *
- * Handles credit bucket operations including FIFO consumption and balance calculations.
- * Balances are calculated dynamically (bucket.amount - sum(consumptions)) rather than stored.
- */
 export const creditBucketRepository = {
-  /**
-   * Calculate the total available balance for a user/organization.
-   * Balance = sum(bucket.amount where unexpired) - sum(consumption.amount where bucket is unexpired).
-   *
-   * @param userId - The ID of the user.
-   * @param organizationId - Optional organization ID (null for personal credits).
-   * @param tx - The Prisma transaction client to use for database operations.
-   * @returns The total available balance in cents as a bigint.
-   */
   async getBalance(
     userId: string,
     organizationId: string | null,
@@ -79,12 +64,10 @@ export const creditBucketRepository = {
   },
 
   /**
-   * List unexpired buckets with remaining balance > 0 (same ownership scope as getBalance).
-   * Omits subscription-period buckets (`referenceType` subscription); those credits are
-   * represented on the subscription payload instead.
-   * Order: expiresAt ASC NULLS LAST, smallest original allocation (`amount`),
-   * then createdAt ASC, then id ASC.
-   * Amounts are in cents for conversion at the API boundary.
+   * Unexpired buckets with remaining > 0. Omits subscription-period buckets
+   * (`referenceType` subscription); those credits live on the subscription
+   * payload. Order: expiresAt ASC NULLS LAST, smallest original `amount`,
+   * then createdAt ASC, then id ASC. Amounts in cents.
    */
   async listAvailableBucketsWithBalances(
     userId: string,
@@ -246,15 +229,8 @@ export const creditBucketRepository = {
   },
 
   /**
-   * Consume credits from buckets in list order (expiry, then smallest original amount,
-   * then createdAt, then id) until the requested amount is covered.
-   * Creates CreditConsumption records for each bucket consumed from.
-   *
-   * @param userId - The ID of the user.
-   * @param organizationId - Optional organization ID (null for personal credits).
-   * @param amountToConsume - The amount to consume in cents (must be positive).
-   * @param tx - The Prisma transaction client to use for database operations.
-   * @returns Array of CreditConsumption records created, or throws error if insufficient balance.
+   * FIFO consume in list order until `cents` is covered. Throws if
+   * insufficient.
    */
   async prepareConsumption(
     userId: string,

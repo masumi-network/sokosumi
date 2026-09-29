@@ -1,3 +1,4 @@
+import "./rooms-client-harness";
 import {
   act,
   fireEvent,
@@ -9,52 +10,33 @@ import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { ROOM_HISTORY_WINDOW_LIMIT } from "@/app/chat/utils/room-transcript-ranges";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Organization,
-} from "@/lib/clients/generated/core";
+import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
+import {
+  getRoomThreadAction,
+  listRoomMessagesAction,
+  listThreadMessagesAction,
+  markThreadReadAction,
+  mockReplace,
+  mockSearch,
+  roomsClientBaseProps,
+  toast,
+} from "./rooms-client-harness";
 import { transcriptViewportSpies } from "./transcript-viewport-stub";
-
-const { mockIsMobileMedia, mockHeaderRoomSlotHost } = vi.hoisted(() => ({
-  mockIsMobileMedia: vi.fn((): boolean | undefined => false),
-  mockHeaderRoomSlotHost: vi.fn((): HTMLElement | null => null),
-}));
-
-const { mockReplace, mockSearch, mockThreadPanelRows } = vi.hoisted(() => ({
-  // Off by default: rendering reply rows puts a second copy of those ids in
-  // the document, which changes what every highlight in this file can find.
-  mockThreadPanelRows: { current: false },
-  mockReplace: vi.fn(),
-  mockSearch: { current: "" },
-}));
 
 // The search panel is a stub, so a hit has to be handed to it. Set it and the
 // stub renders one clickable result; leave it null and the panel is empty, as
 // every test that is not about search wants it.
-const { mockSearchHit } = vi.hoisted(() => ({
+const { mockSearchHit, mockThreadPanelRows } = vi.hoisted(() => ({
   mockSearchHit: { current: null as ChatRoomMessage | null },
+  // Off by default: rendering reply rows puts a second copy of those ids in
+  // the document, which changes what every highlight in this file can find.
+  mockThreadPanelRows: { current: false },
 }));
 
 vi.mock("@/app/chat/message-actions", () => ({
   getRoomMessageAction: vi.fn(),
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({
-    push: vi.fn(),
-    replace: mockReplace,
-    refresh: vi.fn(),
-  }),
-  usePathname: () => "/chat/rooms/room-channel",
-  useSearchParams: () => new URLSearchParams(mockSearch.current),
-}));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useLocale: () => "en",
 }));
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -78,90 +60,6 @@ vi.mock("@/app/chat/components/room-search-panel", () => ({
 
 vi.mock("@/app/chat/components/unread-threads-panel", () => ({
   UnreadThreadsPanel: () => null,
-}));
-
-vi.mock("@/app/chat/components/day-separator", () => ({
-  default: () => null,
-}));
-
-vi.mock("@/hooks/use-is-apple-platform", () => ({
-  default: () => false,
-}));
-
-vi.mock("@/hooks/use-mobile", () => ({
-  useIsMobileMedia: () => mockIsMobileMedia(),
-}));
-
-vi.mock("@/app/components/header/use-header-room-slot-host", () => ({
-  useHeaderRoomSlotHost: () => mockHeaderRoomSlotHost(),
-}));
-
-vi.mock("@/contexts/breadcrumb-override-context", () => ({
-  useRegisterBreadcrumbOverride: () => undefined,
-}));
-
-vi.mock("@/contexts/lazy-ably-provider", () => ({
-  default: ({ children }: { children: ReactNode }) => <>{children}</>,
-}));
-
-vi.mock("@/lib/ably/use-chat-room-realtime", () => ({
-  useChatRoomRealtime: () => undefined,
-}));
-
-vi.mock("@/lib/ably/use-selected-room-channel-health", () => ({
-  useSelectedRoomChannelHealth: () => undefined,
-}));
-
-vi.mock("@/app/chat/hooks/use-client-local-calendar-ready", () => ({
-  useClientLocalCalendarReady: () => true,
-}));
-
-vi.mock(
-  "@/app/chat/components/transcript-viewport",
-  () => import("./transcript-viewport-stub"),
-);
-
-vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
-  readStoredStreamParentMessageId: () => null,
-  useCoworkerDirectRoomStream: () => ({
-    streamOverlayMessages: [],
-    isStreaming: false,
-    activeStreamParentMessageId: null,
-    sendStreamMessage: vi.fn(),
-    consumePendingStreamMessage: vi.fn(),
-  }),
-}));
-
-vi.mock("@/components/chat/use-show-room-unread-count", () => ({
-  useShowRoomUnreadCount: () => false,
-}));
-
-vi.mock("@/app/chat/actions", () => ({
-  countUnreadThreadsAction: vi.fn(async () => ({
-    ok: true as const,
-    value: 0,
-  })),
-  getRoomThreadAction: vi.fn(),
-  deleteRoomMessageAction: vi.fn(),
-  editRoomMessageAction: vi.fn(),
-  listRoomMessagesAction: vi.fn(),
-  listThreadMessagesAction: vi.fn(),
-  markThreadReadAction: vi.fn(),
-  retryRoomMentionAction: vi.fn(),
-  sendRoomMessageAction: vi.fn(),
-  setMessageReactionAction: vi.fn(),
-}));
-
-vi.mock("@/components/chat/organization-chat-list.actions", () => ({
-  markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
-    ok: true as const,
-    value: {
-      id: roomId,
-      unreadCount: 0,
-      unreadMentionCount: 0,
-      markedUnread: false,
-    },
-  })),
 }));
 
 // Only the two writes are stubbed. `useRoomReadAttention` reads the rest of
@@ -301,25 +199,6 @@ vi.mock("../edit-channel-dialog", () => ({
   ),
 }));
 
-vi.mock("../chat-participant-hover-card", () => ({
-  ChatParticipantHoverCard: ({ children }: { children: ReactNode }) => (
-    <>{children}</>
-  ),
-}));
-
-vi.mock("@/components/chat/channel-discoverability-icon", () => ({
-  ChannelDiscoverabilityIcon: () => null,
-}));
-
-vi.mock("@/components/chat/live-member-presence-dot", () => ({
-  LiveMemberPresenceDot: () => null,
-  LiveMemberPresenceText: () => null,
-}));
-
-vi.mock("sonner", () => ({
-  toast: { error: vi.fn(), success: vi.fn() },
-}));
-
 function channelRoom(): ChatRoom {
   return {
     id: "room-channel",
@@ -329,6 +208,8 @@ function channelRoom(): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",
@@ -355,34 +236,6 @@ function channelRoom(): ChatRoom {
   };
 }
 
-const organization = {
-  id: "org-1",
-  name: "Acme",
-  slug: "acme",
-} as Organization;
-
-const baseProps = {
-  activeOrganization: organization,
-  rooms: [channelRoom()],
-  organizationMembers: [] as [],
-  currentUserId: "user-1",
-  coworkers: [] as [],
-  selectedRoomId: "room-channel",
-  messageLoadFailed: false,
-  membersLoadFailed: false,
-  messages: [] as ChatRoomMessage[],
-  messagesNextCursor: null as string | null,
-};
-
-import { toast } from "sonner";
-
-import {
-  getRoomThreadAction,
-  listRoomMessagesAction,
-  listThreadMessagesAction,
-  markThreadReadAction,
-} from "@/app/chat/actions";
-
 function sampleMessage(
   content = "history body",
   id = "msg-real",
@@ -403,6 +256,7 @@ function sampleMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -420,6 +274,8 @@ function sampleMessage(
 function settledMessages(messages: ChatRoomMessage[] = []) {
   return Promise.resolve({ messages, nextCursor: null, failed: false });
 }
+
+const baseProps = roomsClientBaseProps();
 
 /**
  * The wiring between the URL and the jump, which the helper unit tests cannot
@@ -1163,7 +1019,7 @@ describe("RoomsClient notification deep link", () => {
               value: { messages: [], nextCursor: null },
             };
           }
-          return new Promise((resolve) => {
+          return new Promise<typeof serverError>((resolve) => {
             failWindow = () => resolve(serverError);
           });
         },

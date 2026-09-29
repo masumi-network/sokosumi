@@ -3,13 +3,8 @@
 import { ArrowLeft } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type TouchEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type TouchEvent, useCallback, useRef, useState } from "react";
+import { useJobsTwoPaneFit } from "@/app/agents/[agentId]/jobs/components/use-jobs-two-pane-fit";
 import JobDetails from "@/components/jobs/job-details/job-details";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,22 +37,11 @@ export function JobDetailsModal({
 }: JobDetailsModalProps) {
   const t = useTranslations("App.Agents.Jobs.Modal");
   const [isOpen, setIsOpen] = useState(true);
-  const [isBelowLg, setIsBelowLg] = useState(false);
+  const twoPaneFits = useJobsTwoPaneFit();
   const router = useRouter();
   const searchParams = useSearchParams();
   const touchStartXRef = useRef<number | null>(null);
   const touchStartYRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    const query = "(max-width: 1023px)";
-    const mediaQuery = window.matchMedia(query);
-    const onChange = () => setIsBelowLg(mediaQuery.matches);
-
-    onChange();
-    mediaQuery.addEventListener("change", onChange);
-
-    return () => mediaQuery.removeEventListener("change", onChange);
-  }, []);
 
   const handleClose = useCallback(() => {
     setIsOpen(false);
@@ -103,7 +87,9 @@ export function JobDetailsModal({
     [handleClose],
   );
 
-  if (!isBelowLg) {
+  // `null` while the panes row has not been measured: render nothing rather
+  // than open a modal the right pane is about to make redundant.
+  if (twoPaneFits !== false) {
     return null;
   }
 

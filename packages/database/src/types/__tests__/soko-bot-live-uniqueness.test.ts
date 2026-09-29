@@ -46,8 +46,10 @@ describe("one live Soko Bot per user and workspace", () => {
   });
 
   it("enforces the rule with a partial unique index instead", () => {
-    // Prisma cannot express the predicate, so the index lives in raw SQL and
-    // this test is what keeps it from being dropped silently.
+    // The schema declares it too, so `prisma migrate dev` never drops it.
+    expect(sokoBotModel()).toMatch(
+      /@@unique\(\[userId, workspaceId\], map: "soko_bot_user_workspace_live_key", where: \{ deletedAt: null \}\)/,
+    );
     const sql = migrationSql();
     const lastLiveKey = sql.lastIndexOf("user_workspace_live_key");
     expect(lastLiveKey).toBeGreaterThan(-1);

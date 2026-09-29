@@ -74,7 +74,7 @@ export function AgentRatingForm({
               key={index}
               type="button"
               onClick={() => setRating(index + 1)}
-              className="hover:bg-muted rounded transition-colors"
+              className="press hover:bg-muted rounded transition-colors"
               disabled={isSubmitting}
             >
               <StarIcon
@@ -118,7 +118,10 @@ export function AgentRatingForm({
           aria-label={t("submitButton")}
         >
           {isSubmitting ? (
-            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            <Loader2
+              className="size-3.5 animate-spin motion-reduce:animate-pulse"
+              aria-hidden
+            />
           ) : (
             <ArrowUp className="size-3.5" aria-hidden />
           )}

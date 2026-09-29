@@ -49,7 +49,6 @@ const {
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
-  uploadProfileImageMock,
   webhookCallAccountCreatedMock,
   webhookCallUserCreatedMock,
   webhookCallUserUpdatedMock,
@@ -57,6 +56,7 @@ const {
   deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
   publishOrganizationExitChatRevocationMock,
+  deliverOrganizationCalendarInvalidationsNowMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
   syncUserEmailWithStripeMock,
@@ -65,6 +65,7 @@ const {
   workspaceUpsertMock,
   ensurePersonalWorkspaceKeepingPreferredMock,
   isLastWorkspaceMock,
+  prepareOrganizationForDeletionMock,
 } = vi.hoisted(() => {
   const waitUntilCapturedPromises: Promise<unknown>[] = [];
   const waitUntilMock = vi.fn((promise: Promise<unknown>) => {
@@ -156,7 +157,6 @@ const {
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
-    uploadProfileImageMock: vi.fn(),
     webhookCallAccountCreatedMock: vi.fn(),
     webhookCallUserCreatedMock: vi.fn(),
     webhookCallUserUpdatedMock: vi.fn(),
@@ -164,6 +164,7 @@ const {
     deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
     publishOrganizationExitChatRevocationMock: vi.fn(),
+    deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
     syncUserEmailWithStripeMock: vi.fn(),
@@ -172,6 +173,7 @@ const {
     workspaceUpsertMock: vi.fn(),
     ensurePersonalWorkspaceKeepingPreferredMock: vi.fn(),
     isLastWorkspaceMock: vi.fn(),
+    prepareOrganizationForDeletionMock: vi.fn(),
   };
 });
 
@@ -289,6 +291,11 @@ vi.mock("@/helpers/workspace-access", () => ({
   isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
 }));
 
+vi.mock("@/helpers/organization-deletion", () => ({
+  prepareOrganizationForDeletion: (...args: unknown[]) =>
+    prepareOrganizationForDeletionMock(...args),
+}));
+
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
@@ -332,7 +339,7 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 vi.mock("@/lib/blob", () => ({
-  uploadProfileImage: (...args: unknown[]) => uploadProfileImageMock(...args),
+  uploadProfileImage: vi.fn(),
 }));
 
 vi.mock("@/services/webhook.service", () => ({
@@ -383,6 +390,11 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     listOrganizationExitChatRoomIdsForAblyMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverOrganizationCalendarInvalidationsNow: (...args: unknown[]) =>
+    deliverOrganizationCalendarInvalidationsNowMock(...args),
 }));
 
 vi.mock("@/services/stripe-user-email.service", () => ({
@@ -441,7 +453,6 @@ describe("core auth config", () => {
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
-    uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
     webhookCallUserCreatedMock.mockResolvedValue(undefined);
     webhookCallUserUpdatedMock.mockResolvedValue(undefined);
@@ -452,6 +463,7 @@ describe("core auth config", () => {
       workspace: { id: "personal_ws_123" },
     });
     isLastWorkspaceMock.mockResolvedValue(false);
+    prepareOrganizationForDeletionMock.mockResolvedValue(null);
     prismaMock.user.findUnique.mockResolvedValue({ stripeCustomerId: null });
     prismaMock.organization.findUnique.mockResolvedValue({
       stripeCustomerId: null,
@@ -490,154 +502,18 @@ describe("core auth config", () => {
     waitUntilMock.mockClear();
   });
 
-  it("configures Google and Microsoft social providers without requireLocalEmailVerified", async () => {
+  it("passes the social provider and account options to Better Auth", async () => {
     await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              clientId: string;
-              clientSecret: string;
-              overrideUserInfoOnSignIn: boolean;
-              mapProfileToUser: unknown;
-            };
-            microsoft: {
-              clientId: string;
-              clientSecret: string;
-              overrideUserInfoOnSignIn: boolean;
-              mapProfileToUser: unknown;
-            };
-          };
-          account: {
-            accountLinking: {
-              enabled: boolean;
-              trustedProviders: string[];
-            };
-          };
-        },
-      ]
-    >;
-
-    expect(config.socialProviders.google).toEqual({
-      clientId: "google-client-id",
-      clientSecret: "google-client-secret",
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(config.socialProviders.microsoft).toEqual({
-      clientId: "microsoft-client-id",
-      clientSecret: "microsoft-client-secret",
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(config.socialProviders.google.mapProfileToUser).toBe(
-      config.socialProviders.microsoft.mapProfileToUser,
+    const { accountOptions, socialProviderOptions } = await import(
+      "./auth-social-providers"
     );
-    expect(config.account.accountLinking).toEqual({
-      enabled: true,
-      trustedProviders: ["google", "microsoft"],
-    });
-  });
-
-  it("maps social profile pictures to user fields", async () => {
-    await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{
-                name: string;
-                image?: string | null;
-                emailVerified: boolean;
-              }>;
-            };
-          };
-        },
-      ]
+      [{ socialProviders: unknown; account: unknown }]
     >;
 
-    const mapProfileToUser = config.socialProviders.google.mapProfileToUser;
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: "https://cdn.example.com/avatar.png",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: "https://cdn.example.com/avatar.png",
-      emailVerified: true,
-    });
-
-    const dataUri =
-      "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: dataUri,
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: "https://blob.example/avatar.png",
-      emailVerified: true,
-    });
-    expect(uploadProfileImageMock).toHaveBeenCalledWith(dataUri);
-
-    await expect(
-      mapProfileToUser({
-        name: "Andreas",
-        picture: "",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: undefined,
-      emailVerified: true,
-    });
-  });
-
-  it("falls back when social profile mapping fails", async () => {
-    uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          socialProviders: {
-            google: {
-              mapProfileToUser: (profile: {
-                name: string;
-                picture: string;
-              }) => Promise<{
-                name: string;
-                image?: string | null;
-                emailVerified: boolean;
-              }>;
-            };
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.socialProviders.google.mapProfileToUser({
-        name: "Andreas",
-        picture: "data:image/png;base64,invalid",
-      }),
-    ).resolves.toEqual({
-      name: "Andreas",
-      image: undefined,
-      emailVerified: true,
-    });
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error));
+    expect(config.socialProviders).toBe(socialProviderOptions);
+    expect(config.account).toBe(accountOptions);
   });
 
   it("fires account-created webhook when a social account is linked", async () => {
@@ -844,67 +720,90 @@ describe("core auth config", () => {
     });
   });
 
-  it.each(["onSubscriptionCreated", "onSubscriptionUpdate"] as const)(
-    "reconciles local free rows from Better Auth subscription callback %s",
-    async (callbackName) => {
-      await import("./auth");
+  interface SubscriptionHookConfig {
+    subscription: {
+      onSubscriptionCreated?: unknown;
+      onSubscriptionUpdate: (params: {
+        event: { id: string; type: string };
+        subscription: {
+          id: string;
+          referenceId: string;
+          stripeSubscriptionId?: string | null;
+        };
+      }) => Promise<void>;
+    };
+  }
 
-      const [[config]] = stripePluginMock.mock.calls as Array<
-        [
-          {
-            subscription: {
-              onSubscriptionCreated: (params: {
-                event: {
-                  id: string;
-                  type: string;
-                };
-                subscription: {
-                  id: string;
-                  referenceId: string;
-                  stripeSubscriptionId?: string | null;
-                };
-              }) => Promise<void>;
-              onSubscriptionUpdate: (params: {
-                event: {
-                  id: string;
-                  type: string;
-                };
-                subscription: {
-                  id: string;
-                  referenceId: string;
-                  stripeSubscriptionId?: string | null;
-                };
-              }) => Promise<void>;
-            };
-          },
-        ]
-      >;
+  const updatedSubscription = {
+    id: "sub_local_enterprise",
+    referenceId: "org-enterprise",
+    stripeSubscriptionId: "sub_enterprise",
+  };
 
-      const subscription = {
-        id: "sub_local_enterprise",
-        referenceId: "org-enterprise",
-        stripeSubscriptionId: "sub_enterprise",
-      };
+  const updatedEvent = {
+    id: "evt_enterprise",
+    type: "customer.subscription.updated",
+  };
 
-      await config.subscription[callbackName]({
-        event: {
-          id: "evt_enterprise",
-          type:
-            callbackName === "onSubscriptionCreated"
-              ? "customer.subscription.created"
-              : "customer.subscription.updated",
+  it("leaves customer.subscription.created to onEvent, where a failure is retried", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    expect(config.subscription.onSubscriptionCreated).toBeUndefined();
+  });
+
+  it("reconciles on a subscription update without auto-assigning seats", async () => {
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    await config.subscription.onSubscriptionUpdate({
+      event: updatedEvent,
+      subscription: updatedSubscription,
+    });
+
+    // The exact call, so an auto-assign option cannot slip in.
+    expect(reconcileActiveStripeBackedSubscriptionMock.mock.calls).toEqual([
+      [updatedSubscription],
+    ]);
+  });
+
+  it("reports a failed update reconciliation without throwing", async () => {
+    const failure = new Error("reconcile failed");
+    reconcileActiveStripeBackedSubscriptionMock.mockRejectedValueOnce(failure);
+    await import("./auth");
+
+    const [[config]] = stripePluginMock.mock.calls as Array<
+      [SubscriptionHookConfig]
+    >;
+
+    await expect(
+      config.subscription.onSubscriptionUpdate({
+        event: updatedEvent,
+        subscription: updatedSubscription,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        tags: expect.objectContaining({
+          stripeEventType: "customer.subscription.updated",
+          stripeSubscriptionId: "sub_enterprise",
+        }),
+        extra: {
+          eventId: "evt_enterprise",
+          localSubscriptionId: "sub_local_enterprise",
+          referenceId: "org-enterprise",
         },
-        subscription,
-      });
-
-      expect(reconcileActiveStripeBackedSubscriptionMock).toHaveBeenCalledWith(
-        subscription,
-        {
-          autoAssignIfUnassigned: callbackName === "onSubscriptionCreated",
-        },
-      );
-    },
-  );
+      }),
+    );
+  });
 
   it("denies subscription management for non-members", async () => {
     getMemberByUserIdAndOrganizationIdMock.mockResolvedValue(null);
@@ -1254,7 +1153,6 @@ describe("core auth config", () => {
       expect.arrayContaining([
         "termsAccepted",
         "marketingOptIn",
-        "notificationsOptIn",
         "logo",
         "metadata",
         "stripeCustomerId",
@@ -1262,6 +1160,11 @@ describe("core auth config", () => {
     );
     expect(Object.keys(config.user.additionalFields)).not.toContain(
       "onboardingCompleted",
+    );
+    // The job status emails went in SOK-930 and left this switch with no
+    // reader, so SOK-934 stopped the session carrying it.
+    expect(Object.keys(config.user.additionalFields)).not.toContain(
+      "notificationsOptIn",
     );
     expect(config.user.additionalFields.stripeCustomerId).toEqual({
       type: "string",
@@ -1348,6 +1251,22 @@ describe("core auth config", () => {
       maxAge: 60,
     });
     expect(config.session.storeSessionInDatabase).toBe(true);
+  });
+
+  it("revokes every existing session when a password is reset", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          emailAndPassword: {
+            revokeSessionsOnPasswordReset?: boolean;
+          };
+        },
+      ]
+    >;
+
+    expect(config.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true);
   });
 
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
@@ -2253,10 +2172,13 @@ describe("core auth config", () => {
   });
 
   it("blocks organization deletion when additional members remain", async () => {
-    getMembersByOrganizationIdMock.mockResolvedValue([
-      { userId: "user-1" },
-      { userId: "user-2" },
-    ]);
+    prepareOrganizationForDeletionMock.mockRejectedValue({
+      status: "BAD_REQUEST",
+      body: {
+        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
+        message: "Remove all other members before deleting this organization.",
+      },
+    });
 
     await import("./auth");
 
@@ -2286,15 +2208,21 @@ describe("core auth config", () => {
       },
     });
 
-    expect(getMembersByOrganizationIdMock).toHaveBeenCalledWith(
+    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
       "org-1",
+      "user-1",
       prismaMock,
     );
   });
 
   it("blocks organization deletion when it is the user's last workspace", async () => {
-    getMembersByOrganizationIdMock.mockResolvedValue([{ userId: "user-1" }]);
-    isLastWorkspaceMock.mockResolvedValueOnce(true);
+    prepareOrganizationForDeletionMock.mockRejectedValue({
+      status: "BAD_REQUEST",
+      body: {
+        code: "LAST_WORKSPACE",
+        message: "Cannot delete the user's last workspace.",
+      },
+    });
 
     await import("./auth");
 
@@ -2324,9 +2252,9 @@ describe("core auth config", () => {
       },
     });
 
-    expect(isLastWorkspaceMock).toHaveBeenCalledWith(
+    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
+      "org-1",
       "user-1",
-      { type: "organization", organizationId: "org-1" },
       prismaMock,
     );
   });
@@ -2494,6 +2422,34 @@ describe("core auth config", () => {
         path: "/sign-in/email",
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("delivers the committed Calendar revocation after leaving an organization", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            after: (ctx: {
+              body?: Record<string, unknown>;
+              context: Record<string, unknown>;
+              path: string;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.hooks.after({
+      body: { organizationId: "org-1" },
+      context: { session: { user: { id: "user-1" } } },
+      path: "/organization/leave",
+    });
+
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org-1", "user-1");
   });
 
   it("creates a personal workspace before accepting an organization invitation", async () => {
@@ -2677,6 +2633,9 @@ describe("core auth config", () => {
       "user-1",
       { revokedRoomIds: ["room-a", "room-b"], statusMessages: [] },
     );
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org-1", "user-1");
   });
 
   it("creates a Stripe customer when an organization is created", async () => {

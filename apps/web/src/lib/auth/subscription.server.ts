@@ -7,14 +7,18 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
-import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
 import {
   getAuthServerClient,
   resolveWebRequestOrigin,
 } from "@/lib/auth/auth.server.client";
 import { getAbsoluteRedirectUrlForOrigin } from "@/lib/auth/auth.utils";
-import { buildSubscriptionStatusPath } from "@/lib/stripe/subscription-redirect-urls";
+import {
+  buildSubscriptionStatusPath,
+  withCheckoutSessionIdPlaceholder,
+} from "@/lib/stripe/subscription-redirect-urls";
 
 export type SubscriptionChangeResult =
   | { mode: "complete" }
@@ -96,10 +100,12 @@ async function resolveSubscriptionRedirectUrls(returnPath: string): Promise<
         returnPath,
         SAFE_REDIRECT_FALLBACK,
       ),
-      successUrl: getAbsoluteRedirectUrlForOrigin(
-        origin,
-        buildSubscriptionStatusPath(returnPath, "success"),
-        SAFE_REDIRECT_FALLBACK,
+      successUrl: withCheckoutSessionIdPlaceholder(
+        getAbsoluteRedirectUrlForOrigin(
+          origin,
+          buildSubscriptionStatusPath(returnPath, "success"),
+          SAFE_REDIRECT_FALLBACK,
+        ),
       ),
     }),
   );

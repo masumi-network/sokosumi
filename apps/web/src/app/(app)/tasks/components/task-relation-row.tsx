@@ -31,10 +31,6 @@ function getFallbackRelationLabel(relation: TaskLinkRelation): string {
       return "Parent task";
     case "duplicate":
       return "Duplicate";
-    case "schedule_run":
-      return "Scheduled run";
-    case "schedule_series":
-      return "Schedule";
     default: {
       const _exhaustive: never = relation;
       return _exhaustive;
@@ -70,7 +66,7 @@ export function TaskRelationRow({
   return (
     <TaskDetailLink
       href={`/tasks/${taskId}`}
-      className="bg-card-background border-border hover:bg-card-background-hover flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+      className="bg-card-background border-border press hover:bg-card-background-hover flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
     >
       <div className="flex min-w-0 items-center gap-2">
         {iconBadge}

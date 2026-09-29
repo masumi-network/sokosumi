@@ -7,7 +7,6 @@ import {
 } from "@/app/projects/components/projects-loading-view";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
@@ -29,10 +28,19 @@ describe("ProjectsPageSkeleton", () => {
 
     const createSlot = screen.getByTestId("projects-loading-create");
     expect(createSlot.className).toContain("hidden");
-    expect(createSlot.className).toContain("md:flex");
-    expect(createSlot.querySelector('[data-slot="skeleton"]')).toBeTruthy();
+    expect(createSlot.className).toContain("md:inline-flex");
     // No accessible button with English (or any) create label.
-    expect(createSlot.querySelector("button")).toBeNull();
+    expect(createSlot.tagName).not.toBe("BUTTON");
+  });
+
+  it("reserves the create control above the list", () => {
+    render(<ProjectsPageSkeleton />);
+
+    const header = screen.getByTestId("projects-loading-toolbar");
+
+    expect(header).toContainElement(
+      screen.getByTestId("projects-loading-create"),
+    );
   });
 });
 
@@ -40,9 +48,13 @@ describe("ProjectsLoadingView", () => {
   it("hides header create below md and pads for the mobile FAB", () => {
     const { container } = render(<ProjectsLoadingView />);
 
-    const headerRow = screen.getByTestId("projects-loading-create");
-    expect(headerRow.className).toContain("hidden");
-    expect(headerRow.className).toContain("md:flex");
+    const create = screen.getByTestId("projects-loading-create");
+    expect(create.className).toContain("hidden");
+    expect(create.className).toContain("md:inline-flex");
+    // Loading toolbar reserves the same space as the live controls.
+    expect(container.firstElementChild?.firstElementChild).toBe(
+      screen.getByTestId("projects-loading-toolbar"),
+    );
     expect(container.firstElementChild?.className).toContain(
       "pb-[calc(3.5rem+1rem)]",
     );
@@ -53,15 +65,20 @@ describe("ProjectsLoadingView", () => {
     const { container } = render(<ProjectsLoadingView />);
 
     const browse = screen.getByTestId("projects-loading-browse");
-    for (const token of PROJECTS_BROWSE_LAYOUT_CLASS.split(/\s+/)) {
-      expect(browse.className).toContain(token);
-    }
-    expect(browse.className).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
-    expect(browse.className).not.toContain("grid-cols-2");
-    expect(browse.className).toContain("rounded-none");
-    expect(browse.className).toContain("md:rounded-xl");
+    expect(browse).toHaveClass(
+      "bg-card-background",
+      "rounded-xl",
+      PROJECTS_LIST_CARD_MIN_H_CLASS,
+    );
+    expect(browse).not.toHaveClass("border");
+    const header = screen.getByTestId("projects-loading-toolbar");
+    expect(browse).not.toContainElement(header);
+    expect(header.querySelector('[data-slot="skeleton"]')).toHaveClass(
+      "h-10",
+      "md:w-64",
+    );
 
-    const divide = browse.firstElementChild;
+    const divide = browse.lastElementChild;
     for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
       expect(divide?.className).toContain(token);
     }
@@ -79,7 +96,8 @@ describe("ProjectsLoadingView", () => {
       expect(row?.className).not.toContain("border-border");
       expect(row?.className).not.toContain("bg-overlay");
       expect(row?.className.split(/\s+/)).not.toContain("border");
-      // Avatar + name + briefing + two count pills; no overflow actions column.
+      // Avatar + name + briefing + one count pill + activity stamp; no
+      // overflow actions column.
       expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
       for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
         expect(item.className).toContain(token);

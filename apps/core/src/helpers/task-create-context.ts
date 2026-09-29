@@ -133,6 +133,7 @@ export async function resolveTaskDescriptionWithContext({
   description,
   organizationId,
   ownerId,
+  actorUserId = ownerId,
   project,
   preservedBrandUrl = null,
   tx,
@@ -141,6 +142,8 @@ export async function resolveTaskDescriptionWithContext({
   description: string | null | undefined;
   organizationId: string | null;
   ownerId: string;
+  /** Member making the change, when not the owner; their ad-hoc brand is allowed too. */
+  actorUserId?: string;
   project: TaskContextProject | null;
   /** Existing DESIGN.md on the task — allowed to round-trip on update. */
   preservedBrandUrl?: string | null;
@@ -165,10 +168,13 @@ export async function resolveTaskDescriptionWithContext({
     let brandUrl: string | null = null;
 
     if (typeof context?.brand === "object") {
-      brandUrl = context.brand.url;
-      const isOwnedAdHocBrand = isUrlUnderPathPrefix(
-        brandUrl,
-        buildAdHocDesignMdPrefix(ownerId),
+      const requestedBrandUrl = context.brand.url;
+      brandUrl = requestedBrandUrl;
+      const isOwnedAdHocBrand = [ownerId, actorUserId].some((userId) =>
+        isUrlUnderPathPrefix(
+          requestedBrandUrl,
+          buildAdHocDesignMdPrefix(userId),
+        ),
       );
       const isProjectBrand = brandUrl === project?.designMdUrl;
       const isPreservedBrand =

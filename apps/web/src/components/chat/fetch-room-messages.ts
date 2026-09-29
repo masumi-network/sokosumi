@@ -18,13 +18,29 @@ export interface RoomMessagesPage {
 export async function fetchRoomMessages(
   roomId: string,
   parentMessageId?: string | null,
+  options?: { cursor?: string; around?: string; limit?: number },
+  onAccessDenied?: (status: number) => void,
 ): Promise<RoomMessagesPage | null> {
-  const query = parentMessageId
-    ? `?parentMessageId=${encodeURIComponent(parentMessageId)}`
-    : "";
+  const params = new URLSearchParams();
+  if (parentMessageId) params.set("parentMessageId", parentMessageId);
+  if (options?.cursor) params.set("cursor", options.cursor);
+  if (options?.around) params.set("around", options.around);
+  if (options?.limit) params.set("limit", String(options.limit));
+  const query = params.size ? `?${params}` : "";
   const data = await fetchBackgroundJson(
     `/api/chat/${encodeURIComponent(roomId)}/messages${query}`,
     ROOM_MESSAGE_REQUEST_TIMEOUT_MS,
+    (status) => {
+      if (
+        status === 401 ||
+        status === 403 ||
+        (status === 404 &&
+          !options?.around &&
+          !options?.cursor &&
+          !parentMessageId)
+      )
+        onAccessDenied?.(status);
+    },
   );
   if (data == null) return null;
   try {

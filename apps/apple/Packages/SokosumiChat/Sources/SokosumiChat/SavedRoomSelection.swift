@@ -4,6 +4,11 @@ import Foundation
 /// Persists the selected room per account and workspace across launches.
 /// The saved id wins when the room still exists, otherwise the first room
 /// applies. Account/workspace keys prevent cross-account restoration.
+///
+/// Keys are `sokosumi.selectedRoom.v2.` plus length-prefixed
+/// `userId` / personal-or-organization / `organizationId` parts.
+/// `v2` replaced the unscoped `sokosumi.selectedRoomId` key; that leftover
+/// is not read.
 public struct SavedRoomSelection {
   private let defaults: UserDefaults
   private func key(userId: String, organizationId: String?) -> String {

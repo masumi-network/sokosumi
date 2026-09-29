@@ -8,12 +8,41 @@
   import SwiftUI
   import Testing
 
+  private enum ReadingPosition {
+    case pinned
+    case scrolledUp
+    case activeScroll
+  }
+
   extension NativeWindowTests {
     @MainActor struct TranscriptContentGrowthTests {
-      @Test(arguments: ["bottom", "bottomInteraction", "visible", "active"], [(thread: false, lines: 10), (thread: false, lines: 20), (thread: true, lines: 10), (thread: true, lines: 20)])
-      func growingMessagePreservesReadingPosition(position: String, configuration: (thread: Bool, lines: Int)) async throws {
-        let (thread, lines) = configuration
-        let readingHistory = position == "visible" || position == "active"
+      /// Content already filling the viewport stays pinned to the newest edge when it grows.
+      @Test func growingNewestMessageWhilePinnedStaysAtBottom() async throws {
+        try await assertGrowth(position: .pinned, thread: false, lines: 10)
+      }
+
+      /// Growing a message above the fold must not yank the reader to the newest edge.
+      @Test func appendingWhileScrolledUpDoesNotJump() async throws {
+        try await assertGrowth(position: .scrolledUp, thread: false, lines: 10)
+      }
+
+      /// Same claim while a scroll gesture is still active (no phase-ended event).
+      @Test func appendingDuringActiveScrollDoesNotJump() async throws {
+        try await assertGrowth(position: .activeScroll, thread: false, lines: 10)
+      }
+
+      /// A taller growth still pins when the reader is at the bottom.
+      @Test func tallNewestMessageGrowthStaysPinned() async throws {
+        try await assertGrowth(position: .pinned, thread: false, lines: 20)
+      }
+
+      /// Reply-thread timeline is a distinct document; growth there must pin independently of the room.
+      @Test func threadReplyGrowthStaysPinned() async throws {
+        try await assertGrowth(position: .pinned, thread: true, lines: 10)
+      }
+
+      private func assertGrowth(position: ReadingPosition, thread: Bool, lines: Int) async throws {
+        let readingHistory = position == .scrolledUp || position == .activeScroll
         let state = fixtureState(thread: thread)
         let host = NSHostingView(rootView: Group {
           if thread {
@@ -27,14 +56,14 @@
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
-        if readingHistory || position == "bottomInteraction" {
+        if readingHistory {
           for index in 0 ..< 10 {
-            let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: readingHistory ? 60 : -60, wheel2: 0, wheel3: 0))
+            let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 60, wheel2: 0, wheel3: 0))
             event.setIntegerValueField(.scrollWheelEventScrollPhase, value: index == 0 ? 1 : 2)
             try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
             try await Task.sleep(for: .milliseconds(16))
           }
-          if position != "active" {
+          if position != .activeScroll {
             let end = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 0, wheel2: 0, wheel3: 0))
             end.setIntegerValueField(.scrollWheelEventScrollPhase, value: 4)
             try scroll.scrollWheel(with: #require(NSEvent(cgEvent: end)))

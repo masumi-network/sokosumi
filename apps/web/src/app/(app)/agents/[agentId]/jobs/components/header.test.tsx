@@ -21,10 +21,6 @@ vi.mock("@/components/agents/agent-rating-cta", () => ({
   AgentRatingCTA: () => <div data-testid="rating-cta" />,
 }));
 
-vi.mock("@/lib/utils/credits", () => ({
-  formatCreditsForDisplay: (value: number) => `${value} credits`,
-}));
-
 describe("Header", () => {
   it("renders detail actions in both desktop and mobile header areas", () => {
     const agent = createMockCoreAgent({ id: "agent-1", credits: 1 });

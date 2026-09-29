@@ -7,6 +7,11 @@ const { captureExceptionMock } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
 }));
 
+vi.mock("ai", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("ai")>();
+  return { ...actual, generateText: vi.fn(actual.generateText) };
+});
+
 vi.mock("@sentry/node", () => ({
   captureException: captureExceptionMock,
 }));
@@ -76,6 +81,30 @@ function budgetSensitiveJudgeModel() {
 }
 
 describe("soko-bot lab judge generateText", () => {
+  it("applies EU routing to the production judge call", async () => {
+    const actual = await vi.importActual<typeof import("ai")>("ai");
+    vi.mocked(generateText).mockImplementationOnce((options) =>
+      actual.generateText({ ...options, model: budgetSensitiveJudgeModel() }),
+    );
+    await generateSokoBotJudgeText({
+      model: "anthropic/claude-haiku-4.5",
+      payload: {},
+    });
+    expect(generateText).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        model: expect.objectContaining({
+          modelId: "anthropic/claude-haiku-4.5",
+        }),
+        maxRetries: 0,
+        providerOptions: {
+          gateway: {
+            only: ["vertex", "bedrock"],
+            inferenceRegion: { scope: "zone", geoRegion: "eu" },
+          },
+        },
+      }),
+    );
+  });
   it.each([800, 8_000])(
     "throws AI_NoOutputGeneratedError when a %s-token cap is set",
     async (maxOutputTokens) => {
@@ -94,13 +123,11 @@ describe("soko-bot lab judge generateText", () => {
     },
   );
 
-  it("parses a verdict when the production judge call does not cap output tokens", async () => {
-    const result = await generateSokoBotJudgeText({
+  it("parses a verdict without an output cap", async () => {
+    const result = await generateText({
       model: budgetSensitiveJudgeModel(),
-      payload: {
-        scenario: { id: "lab" },
-        turn: { finalAnswer: "done" },
-      },
+      output: Output.object({ schema: sokoBotJudgeVerdictSchema }),
+      prompt: "{}",
     });
 
     expect(sokoBotJudgeVerdictSchema.parse(result.output)).toEqual(
@@ -110,6 +137,11 @@ describe("soko-bot lab judge generateText", () => {
 });
 
 describe("soko-bot judge failure reporting", () => {
+  it("rejects an unapproved model before sending a request", async () => {
+    await expect(
+      generateSokoBotJudgeText({ model: "typesafe-ai/jev", payload: {} }),
+    ).rejects.toThrow("not approved");
+  });
   it("pages Sentry when a background turn judge fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const error = new Error("No output generated.");

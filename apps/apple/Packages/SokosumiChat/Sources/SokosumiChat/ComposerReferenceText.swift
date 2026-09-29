@@ -47,6 +47,17 @@ public enum ComposerReferenceText {
     return output
   }
 
+  /// Code is sent as the characters it shows, as web reads a `pre`: a chip becomes its
+  /// label, never the replacement character that stands for it in the editor.
+  static func replaceChipsWithLabels(in text: NSMutableAttributedString) {
+    text.enumerateAttribute(name, in: NSRange(location: 0, length: text.length), options: .reverse) { label, run, _ in
+      if let label = label as? String {
+        // Two identical chips side by side share one attribute run.
+        text.replaceCharacters(in: run, with: NSAttributedString(string: String(repeating: label, count: run.length)))
+      }
+    }
+  }
+
   private static func isProtected(_ text: NSAttributedString, range: NSRange) -> Bool {
     var protected = false
     text.enumerateAttributes(in: range) { attributes, _, stop in

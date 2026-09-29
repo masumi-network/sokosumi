@@ -25,21 +25,13 @@ interface TaskEditModalProps {
     projectId?: string | null;
     status: TaskStatus;
     selectableStatuses: readonly TaskStatus[];
-    metadata?: string | null;
-    nextRunAt?: string | null;
+    runAt?: string | null;
   };
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
   agentNameById: Map<string, string>;
   labels: TaskFormLabels;
   initialDesignMdAttachment?: TaskFormInitialDesignMdAttachment | null;
-  /** Precondition for every schedule write made from this render. */
-  scheduleRevision: number;
-  /**
-   * Durable future exceptions a full-series edit would cancel, or `null` when
-   * the ledger could not be read.
-   */
-  futureExceptionCount: number | null;
 }
 
 export function TaskEditModal({
@@ -51,8 +43,6 @@ export function TaskEditModal({
   agentNameById,
   labels,
   initialDesignMdAttachment = null,
-  scheduleRevision,
-  futureExceptionCount,
 }: TaskEditModalProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -83,8 +73,6 @@ export function TaskEditModal({
         taskId={taskId}
         initialValues={initialValues}
         initialDesignMdAttachment={initialDesignMdAttachment}
-        scheduleRevision={scheduleRevision}
-        futureExceptionCount={futureExceptionCount}
         onCancel={handleClose}
         onSubmittingChange={setIsDismissDisabled}
         onSuccess={handleClose}

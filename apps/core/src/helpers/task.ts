@@ -3,12 +3,12 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   countSetAssignees,
-  hasActiveTaskSchedule,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
+import { mapTaskTags } from "@/helpers/task-tags";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
@@ -20,6 +20,7 @@ import { unprocessableEntity } from "./error";
 import {
   coworkerSummaryFromLoadedRelation,
   organizationSummaryFromLoadedRelation,
+  projectSummaryFromLoadedRelation,
   sokoBotSummaryFromLoadedRelation,
   userSummaryFromLoadedRelation,
 } from "./loaded-relation-summaries";
@@ -151,22 +152,6 @@ export function taskAssigneeKind(task: {
   return "unset";
 }
 
-export function getTaskStatusUpdateDataForEvent(status: TaskStatus): {
-  status: TaskStatus;
-  metadata?: null;
-  nextRunAt?: null;
-} {
-  if (status === TaskStatus.CANCELED) {
-    return {
-      status,
-      metadata: null,
-      nextRunAt: null,
-    };
-  }
-
-  return { status };
-}
-
 /**
  * Status changes are free between any distinct statuses (SOK-1028).
  * Authorization, assignee rules, reopen comments, parked/seat gates live elsewhere.
@@ -203,25 +188,29 @@ export function validateTaskAssigneeAssignment({
   }
 }
 
-/** Queued means waiting on a schedule — reject status writes that invent Queued without one. */
-export function validateQueuedRequiresSchedule({
+/** A Run at must still be ahead; the release would flip a past one at once. */
+export function parseFutureRunAt(runAt: string, now = new Date()): Date {
+  const date = new Date(runAt);
+  if (date <= now) {
+    throw unprocessableEntity("Run at must be in the future", {
+      kind: CORE_API_ERROR_KINDS.RUN_AT_NOT_IN_FUTURE,
+    });
+  }
+  return date;
+}
+
+/** Queued means waiting for a Run at; reject status writes that invent Queued without one (ADR 0041). */
+export function validateQueuedRequiresRunAt({
   status,
-  metadata,
-  nextRunAt,
+  runAt,
 }: {
   status: TaskStatus;
-  metadata: string | null | undefined;
-  nextRunAt: Date | string | null | undefined;
+  runAt: Date | null;
 }): void {
-  if (status !== TaskStatus.QUEUED) {
-    return;
-  }
-
-  if (!hasActiveTaskSchedule(metadata, nextRunAt)) {
-    throw unprocessableEntity(
-      "A schedule is required before moving a task to Queued",
-      { kind: CORE_API_ERROR_KINDS.QUEUED_REQUIRES_SCHEDULE },
-    );
+  if (status === TaskStatus.QUEUED && runAt === null) {
+    throw unprocessableEntity("Set a Run at on the task to move it to Queued", {
+      kind: CORE_API_ERROR_KINDS.QUEUED_REQUIRES_RUN_AT,
+    });
   }
 }
 
@@ -469,6 +458,11 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     user: taskOwnerSummary,
     organizationId: task.organizationId,
     projectId: task.projectId,
+    project: projectSummaryFromLoadedRelation(
+      `Task ${task.id}`,
+      task.projectId,
+      task.project ?? null,
+    ),
     organization: taskOrganizationSummary,
     assigneeId: task.assigneeId,
     assigneeSokoBotId: task.assigneeSokoBotId ?? null,
@@ -482,6 +476,7 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
     name: task.name,
     description: task.description,
+    tags: mapTaskTags(task),
     status: task.status,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
     visibility: task.visibility ?? TaskVisibility.PUBLIC,
@@ -495,11 +490,25 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
       task.status === TaskStatus.GRANT_PENDING
         ? (task.pendingVendorGrantId ?? null)
         : null,
-    metadata: task.metadata ?? null,
-    nextRunAt: task.nextRunAt ?? null,
-    scheduleRevision: task.scheduleRevision ?? 0,
+    runAt: task.runAt ?? null,
+    scheduleId: task.scheduleId ?? null,
     workspace: mapWorkspaceSummary(task.workspace),
+    participants: mapTaskParticipants(task),
   };
+}
+
+function mapTaskParticipants(
+  task: TaskListItemWithIncludes | TaskWithIncludes,
+) {
+  const rows = task.participants ?? [];
+  return rows.map((row) => ({
+    user: userSummaryFromLoadedRelation(
+      `Task ${task.id} participant`,
+      row.userId,
+      row.user,
+    ),
+    addedAt: row.createdAt,
+  }));
 }
 
 function mapTaskBase(task: TaskWithIncludes) {

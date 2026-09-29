@@ -15,8 +15,10 @@ function createClient(response: unknown, calls: string[]): CoreHttpClient {
       return response as T;
     },
     post: async <T>() => undefined as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => undefined as T,
-    delete: async <T>() => undefined as T,
   };
 }
 

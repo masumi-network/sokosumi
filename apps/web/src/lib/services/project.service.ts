@@ -3,20 +3,36 @@ import "server-only";
 import type { CoreApiPagination } from "@/lib/clients/core.client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
+  CancelSocialPostRequest,
+  CreateSocialPostRequest,
+  DisconnectProjectSocialConnectionResponse,
   GetProjectsByIdCalendarData,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   JobSummary,
   Project,
+  ProjectCloseRecoveryRequest,
+  ProjectCloseRequest,
+  ProjectCloseStatus,
   ProjectContextMd,
-  ProjectDeleted,
   ProjectListItem,
-  ProjectNeedsAttention,
+  ProjectSocialConnection,
+  ProjectStar,
   ProjectStatsEntry,
+  PublishSocialPostRequest,
+  ScheduleSocialPostRequest,
+  SocialPost,
+  SocialPostStatus,
+  StarredProject,
   TaskListItem,
+  UpdateSocialPostRequest,
 } from "@/lib/clients/generated/core/types.gen";
 
 interface ListProjectsParams {
   cursor?: string | null;
   limit?: number;
+  /** Case-insensitive project-name filter, applied by Core before paging. */
+  query?: string;
 }
 
 interface ListProjectResourcesParams {
@@ -45,6 +61,7 @@ export const projectService = (() => {
     const result = await coreClient.getProjects({
       cursor: params.cursor ?? undefined,
       limit: params.limit,
+      q: params.query || undefined,
     });
 
     return {
@@ -80,11 +97,19 @@ export const projectService = (() => {
     }
   }
 
-  async function getProjectNeedsAttention(
+  async function getProjectCloseStatus(
     projectId: string,
-  ): Promise<ProjectNeedsAttention> {
-    const result = await coreClient.getProjectsByIdNeedsAttention(projectId);
-    return result.data;
+  ): Promise<ProjectCloseStatus | null> {
+    try {
+      const result = await coreClient.getProjectsByIdClose(projectId);
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
+    }
   }
 
   async function getProjectContextMd(
@@ -112,6 +137,45 @@ export const projectService = (() => {
       items: result.data,
       pagination: result.meta?.pagination ?? null,
     };
+  }
+
+  /**
+   * Product UI says Pin; the API and database say star (ADR 0017), which is
+   * why the call below reads `star` and everything around it reads `pin`.
+   */
+  async function pinProject(projectId: string): Promise<ProjectStar> {
+    const result = await coreClient.pinProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to pin project");
+    }
+
+    return result.data;
+  }
+
+  async function unpinProject(projectId: string): Promise<ProjectStar> {
+    const result = await coreClient.unpinProject(projectId);
+
+    if (!result.data) {
+      throw new Error("Failed to unpin project");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * The reader's Pinned projects, oldest Pin first. Separate from
+   * `listProjects` because a Pinned project is usually a quiet one, so it
+   * often sits outside the activity-ordered first page (ADR 0036).
+   */
+  async function listPinnedProjects(): Promise<StarredProject[]> {
+    const result = await coreClient.getPinnedProjects();
+
+    if (!result.data) {
+      throw new Error("Failed to fetch pinned projects");
+    }
+
+    return result.data;
   }
 
   async function createProject(input: CreateProjectInput): Promise<Project> {
@@ -151,13 +215,174 @@ export const projectService = (() => {
     return result.data;
   }
 
-  async function deleteProject(projectId: string): Promise<ProjectDeleted> {
-    const result = await coreClient.deleteProjectsById(projectId);
+  async function closeProject(
+    projectId: string,
+    input: ProjectCloseRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdClose(projectId, input);
+    return result.data;
+  }
 
-    if (!result.data) {
-      throw new Error("Failed to delete project");
+  async function retryProjectClose(
+    projectId: string,
+    input: ProjectCloseRecoveryRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdCloseRetry(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function cancelProjectCloseOwedWork(
+    projectId: string,
+    input: ProjectCloseRecoveryRequest,
+  ): Promise<ProjectCloseStatus> {
+    const result = await coreClient.postProjectsByIdCloseCancelOwed(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function listSocialConnections(
+    projectId: string,
+  ): Promise<ProjectSocialConnection[]> {
+    const result = await coreClient.getProjectsByIdSocialConnections(projectId);
+    return result.data;
+  }
+
+  async function initiateSocialConnection(
+    projectId: string,
+    input: InitiateProjectSocialConnectionRequest,
+  ): Promise<InitiateProjectSocialConnectionResponse> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsInitiate(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function finalizeSocialConnection(
+    projectId: string,
+    connectionId: string,
+  ): Promise<ProjectSocialConnection> {
+    const result = await coreClient.postProjectsByIdSocialConnectionsFinalize(
+      projectId,
+      { connectionId },
+    );
+    return result.data;
+  }
+
+  async function disconnectSocialConnection(
+    projectId: string,
+    socialConnectionId: string,
+  ): Promise<DisconnectProjectSocialConnectionResponse> {
+    const result =
+      await coreClient.deleteProjectsByIdSocialConnectionsByConnectionId({
+        id: projectId,
+        connectionId: socialConnectionId,
+      });
+    return result.data;
+  }
+
+  async function listSocialPosts(
+    projectId: string,
+    params: {
+      statuses?: readonly SocialPostStatus[];
+      cursor?: string | null;
+    } = {},
+  ): Promise<{ posts: SocialPost[]; nextCursor: string | null }> {
+    const result = await coreClient.getProjectsByIdSocialPosts(projectId, {
+      status: params.statuses?.join(","),
+      cursor: params.cursor ?? undefined,
+      limit: 20,
+    });
+    return {
+      posts: result.data,
+      nextCursor: result.meta?.pagination?.nextCursor ?? null,
+    };
+  }
+
+  async function getSocialPost(
+    projectId: string,
+    postId: string,
+  ): Promise<SocialPost | null> {
+    try {
+      const result = await coreClient.getProjectsByIdSocialPostsByPostId(
+        projectId,
+        postId,
+      );
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+
+      throw error;
     }
+  }
 
+  async function createSocialPost(
+    projectId: string,
+    input: CreateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPosts(
+      projectId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function updateSocialPost(
+    projectId: string,
+    postId: string,
+    input: UpdateSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.patchProjectsByIdSocialPostsByPostId(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function scheduleSocialPost(
+    projectId: string,
+    postId: string,
+    input: ScheduleSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdSchedule(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function cancelSocialPost(
+    projectId: string,
+    postId: string,
+    input: CancelSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdCancel(
+      projectId,
+      postId,
+      input,
+    );
+    return result.data;
+  }
+
+  async function publishSocialPost(
+    projectId: string,
+    postId: string,
+    input: PublishSocialPostRequest,
+  ): Promise<SocialPost> {
+    const result = await coreClient.postProjectsByIdSocialPostsByPostIdPublish(
+      projectId,
+      postId,
+      input,
+    );
     return result.data;
   }
 
@@ -258,13 +483,29 @@ export const projectService = (() => {
     listProjects,
     getProjectsStats,
     getProjectById,
-    getProjectNeedsAttention,
+    getProjectCloseStatus,
     getProjectContextMd,
     getProjectCalendar,
     createProject,
+    pinProject,
+    unpinProject,
+    listPinnedProjects,
     patchProject,
     removeProjectDesignMd,
-    deleteProject,
+    listSocialConnections,
+    initiateSocialConnection,
+    finalizeSocialConnection,
+    disconnectSocialConnection,
+    closeProject,
+    retryProjectClose,
+    cancelProjectCloseOwedWork,
+    listSocialPosts,
+    getSocialPost,
+    createSocialPost,
+    updateSocialPost,
+    scheduleSocialPost,
+    cancelSocialPost,
+    publishSocialPost,
     listProjectJobs,
     listProjectTasks,
     addJob,

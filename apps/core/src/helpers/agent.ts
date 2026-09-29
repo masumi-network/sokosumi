@@ -8,6 +8,7 @@ import {
   PricingType,
   type Prisma,
 } from "@sokosumi/database";
+import type { PrismaRaw } from "@sokosumi/database/client";
 import { listV2RegistryPolicyIds } from "@sokosumi/masumi";
 import type { Agent as MasumiAgent } from "@sokosumi/masumi/types";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
@@ -430,25 +431,6 @@ export const requireAvailableAgentOrThrow = async (
   }
 };
 
-// Agent pricing → billable cents lives in `./agent-cost` (getAgentCost,
-// calculateCentsFromMasumiAmountStrings), extracted with the CAIP-19
-// convention fence so this file stays within the size ceiling.
-
-/**
- * Calculates the average execution time (in seconds) for a given agent's jobs.
- *
- * The function looks at all jobs associated with the specified agent ID,
- * created within the lookback period
- * (see TIME.AGENT_EXECUTION_METRICS_DAYS). For each job, it determines the
- * most recent 'COMPLETED' event and calculates the duration from job creation to completion.
- *
- * The function returns the average duration in seconds as a number, or null
- * if no qualifying jobs exist.
- *
- * @param agentId - The ID of the agent whose average execution time is to be calculated.
- * @param tx - The Prisma transaction client used to run the raw SQL query.
- * @returns A Promise that resolves to the average execution time in seconds (number), or null if unavailable.
- */
 export const calculateAverageExecutionTime = async (
   agentId: string,
   tx: Prisma.TransactionClient,
@@ -458,7 +440,7 @@ export const calculateAverageExecutionTime = async (
   cutoffDate.setDate(cutoffDate.getDate() - TIME.AGENT_EXECUTION_METRICS_DAYS);
 
   const result = await tx.$queryRawUnsafe<
-    [{ avg_duration_seconds: typeof Prisma.Decimal | null }]
+    [{ avg_duration_seconds: PrismaRaw.Decimal | null }]
   >(
     `
     SELECT 
@@ -481,8 +463,3 @@ export const calculateAverageExecutionTime = async (
   const averageDurationSeconds = result[0]?.avg_duration_seconds ?? null;
   return averageDurationSeconds ? averageDurationSeconds.toNumber() : null;
 };
-
-// Agent ratings and reviews (aggregates, the public review feed, and the
-// caller's own review) live in `./agent-rating`, extracted alongside
-// `./agent-cost` so this file keeps one responsibility and stays inside the
-// 750-line ceiling.

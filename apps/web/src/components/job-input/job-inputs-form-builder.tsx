@@ -12,7 +12,7 @@ import {
   defaultValues as getDefaultValues,
   type JobInputsFormSchemaType,
   jobInputsFormSchema,
-} from "@/lib/job-input";
+} from "@/lib/job-input/form";
 import type { JobInputFormIntlPath } from "@/lib/job-input/type";
 import { cn } from "@/lib/utils";
 

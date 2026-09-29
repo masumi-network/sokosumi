@@ -11,7 +11,7 @@ import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 
-import { jobStatusDataSchema } from "@/lib/ably";
+import { jobStatusDataSchema } from "@/lib/ably/schema";
 import type { JobSummary } from "@/lib/clients/generated/core";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
@@ -230,14 +230,14 @@ export function JobsList({
           />
         </ChannelProvider>
       </LazyAblyProvider>
-      <aside className="lg:border-border flex h-full min-h-0 w-full flex-col py-4 lg:w-72 lg:border-r">
+      <aside className="@4xl/jobs-panes:border-border flex h-full min-h-0 w-full flex-col py-4 @4xl/jobs-panes:border-r">
         <JobsSearch
           jobs={localJobs}
           hasMoreHistory={Boolean(nextCursor)}
           onFilteredChange={(nextJobs) => setFilteredJobs(nextJobs)}
         />
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 lg:pb-2">
+        <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto px-2 pb-24 md:p-2 md:pr-4 md:pl-0 @4xl/jobs-panes:pb-2">
           {dayGroups.length > 0 ? (
             dayGroups.map((group) => (
               <section key={group.key} className="mb-4">
@@ -258,7 +258,7 @@ export function JobsList({
               </section>
             ))
           ) : (
-            <div className="text-muted-foreground px-2 py-8 text-sm">
+            <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-2 py-8 text-sm text-pretty">
               {t("emptyJobs")}
             </div>
           )}
@@ -298,7 +298,7 @@ export function JobRow({
       type="button"
       onClick={() => onClick(job)}
       className={cn(
-        "hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
+        "press hover:bg-muted bg-card-background w-full rounded-md px-2 py-2 text-left transition-colors",
         selected &&
           "bg-primary-solid text-primary-solid-foreground hover:bg-primary-solid-hover",
       )}

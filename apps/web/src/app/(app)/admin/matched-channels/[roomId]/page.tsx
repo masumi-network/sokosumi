@@ -6,6 +6,8 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { adminMatchedChannelsService } from "@/lib/services/admin-matched-channels.service";
 import { userService } from "@/lib/services/user.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Matched channel",
   description: "Manage participants on a matched channel",

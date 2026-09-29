@@ -61,7 +61,7 @@ public final class DirectRecipientPicker: ObservableObject {
       }
     } catch {
       guard current == generation, !Task.isCancelled, !(error is CancellationError) else { return }
-      errorMessage = Self.message(for: error)
+      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
     }
   }
 
@@ -78,17 +78,9 @@ public final class DirectRecipientPicker: ObservableObject {
       return opened
     } catch {
       if !(error is CancellationError), !Task.isCancelled {
-        creationError = Self.message(for: error)
+        creationError = friendlyMessage(for: error, mode: .coreMessage)
       }
       return false
-    }
-  }
-
-  private static func message(for error: Error) -> String {
-    switch error {
-    case let ChatServiceError.unauthorized(message), let ChatServiceError.unprocessable(_, message),
-         let ChatServiceError.unexpectedResponse(message): message
-    default: friendlyMessage(for: error)
     }
   }
 }

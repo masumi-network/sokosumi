@@ -5,12 +5,15 @@ import test from "node:test";
 
 import { type Instance, render as inkRender } from "ink";
 import packageJson from "../../package.json" with { type: "json" };
-import { parseTask } from "../../src/api/models/task.js";
+import type { CoreHttpClient } from "../../src/api/http-client.js";
 import {
   AuthManager,
   type OAuthCredentials,
 } from "../../src/auth/auth-manager.js";
-import type { CliTargetConfig } from "../../src/auth/config.js";
+import {
+  assertApiKeyTarget,
+  type CliTargetConfig,
+} from "../../src/auth/config.js";
 import {
   type BrowserLoginOptions,
   DEFAULT_OAUTH_REDIRECT_PATH,
@@ -21,19 +24,24 @@ import { runCli } from "../../src/cli/index.js";
 import { CLI_VERSION } from "../../src/cli/metadata.js";
 import { redactErrorMessage } from "../../src/error-redaction.js";
 import {
-  paginationTotal,
-  recentTaskActivity,
-} from "../../src/tui/resource-view.js";
-import {
   apiKeyCreationHint,
   apiKeyPrefixHint,
   apiKeyTargetEscapeState,
+  buildSignInMenuItems,
+  canToggleSignInNetwork,
   displayTargetLabel,
-  explicitApiKeyTargetError,
+  formatVendorReviewLine,
+  formatWorkspaceReviewLine,
+  isNetworkSelectionLocked,
+  nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
   renderStatusApp,
   resolveHostedTargetConfig,
+  resolveStatusCoreClient,
   type StatusAppOptions,
+  toggleHostedTarget,
+  vendorMembershipCaption,
+  workspaceMembershipCaption,
 } from "../../src/tui/status-app.js";
 
 test("TUI display values derive from package, config, and OAuth sources", () => {
@@ -55,7 +63,7 @@ test("TUI display values derive from package, config, and OAuth sources", () => 
   );
 });
 
-test("TestV32 mainnet TUI selection overrides a preprod API URL", () => {
+test("mainnet TUI selection overrides a preprod API URL", () => {
   const config = resolveHostedTargetConfig(
     { SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com" },
     "mainnet",
@@ -66,29 +74,23 @@ test("TestV32 mainnet TUI selection overrides a preprod API URL", () => {
   assert.equal(config.authBaseUrl, "https://api.sokosumi.com/auth");
 });
 
-test("TestV43 TUI explicit target rejects mismatched prefixed API keys", () => {
+test("TUI explicit target rejects mismatched prefixed API keys", () => {
   const mainnet = resolveHostedTargetConfig({}, "mainnet");
   const preprod = resolveHostedTargetConfig({}, "preprod");
 
-  assert.match(
-    explicitApiKeyTargetError("soko_preprod_secret", mainnet, true) || "",
+  assert.throws(
+    () => assertApiKeyTarget("soko_preprod_secret", mainnet, true),
     /belongs to preprod/,
   );
-  assert.equal(
-    explicitApiKeyTargetError("soko_mainnet_secret", mainnet, true),
-    null,
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_mainnet_secret", mainnet, true),
   );
-  assert.equal(
-    explicitApiKeyTargetError("soko_preprod_secret", preprod, true),
-    null,
-  );
-  assert.equal(
-    explicitApiKeyTargetError("soko_preprod_secret", mainnet, false),
-    null,
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_preprod_secret", preprod, true),
   );
 });
 
-test("TestV55 TUI target labels sanitize API URLs", () => {
+test("TUI target labels sanitize API URLs", () => {
   const config: CliTargetConfig = {
     target: "custom",
     apiUrl:
@@ -102,44 +104,150 @@ test("TestV55 TUI target labels sanitize API URLs", () => {
   assert.doesNotMatch(label, /user|password|secret|fragment/i);
 });
 
-test("TestV46 dashboard counts prefer Core pagination totals", () => {
-  assert.equal(paginationTotal({ meta: { total: 42 } }, 3), 42);
-  assert.equal(
-    paginationTotal({ meta: { pagination: { totalCount: "17" } } }, 3),
-    17,
-  );
-  assert.equal(paginationTotal({ meta: {} }, 3), 3);
-});
-
-test("TestV55 recent task activity sorts valid updates and supports empty state", () => {
-  const recent = recentTaskActivity([
-    parseTask({
-      id: "old",
-      name: "Old",
-      status: "done",
-      updatedAt: "2024-01-01T00:00:00Z",
-    }),
-    parseTask({
-      id: "new",
-      name: "New",
-      status: "running",
-      updatedAt: "2024-03-01T00:00:00Z",
-    }),
-    parseTask({
-      id: "invalid",
-      name: "Invalid",
-      status: "unknown",
-      updatedAt: "not-a-date",
-    }),
-  ]);
+test("sign-in menu lists auth methods only; Tab toggles network", () => {
+  const items = buildSignInMenuItems();
   assert.deepEqual(
-    recent.map((task) => task.id),
-    ["new", "old"],
+    items.map((item) => item.value),
+    ["oauth", "api-key"],
   );
-  assert.deepEqual(recentTaskActivity([]), []);
+  assert.equal(toggleHostedTarget("mainnet"), "preprod");
+  assert.equal(toggleHostedTarget("preprod"), "mainnet");
 });
 
-test("TestV47 TUI errors redact credential-shaped values", () => {
+function stubCoreClient(): CoreHttpClient {
+  return {
+    get: async <T>() => ({}) as T,
+    post: async <T>() => ({}) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
+    patch: async <T>() => ({}) as T,
+  };
+}
+
+test("status core client reuses override only while API URLs match", () => {
+  const primary = stubCoreClient();
+  const created = stubCoreClient();
+  let createCount = 0;
+
+  const reused = resolveStatusCoreClient({
+    coreClientOverride: primary,
+    selectedApiUrl: "https://api.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(reused, primary);
+  assert.equal(createCount, 0);
+
+  const switched = resolveStatusCoreClient({
+    coreClientOverride: primary,
+    selectedApiUrl: "https://api.preprod.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(switched, created);
+  assert.equal(createCount, 1);
+
+  const withoutOverride = resolveStatusCoreClient({
+    selectedApiUrl: "https://api.sokosumi.com",
+    configApiUrl: "https://api.sokosumi.com",
+    createClient: () => {
+      createCount += 1;
+      return created;
+    },
+  });
+  assert.equal(withoutOverride, created);
+  assert.equal(createCount, 2);
+});
+
+test("Tab network toggle is scoped to unlocked auth-method screen", () => {
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: false,
+      busy: false,
+    }),
+    true,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: true,
+      busy: false,
+    }),
+    false,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "auth",
+      screen: "auth-method",
+      networkSelectionLocked: false,
+      busy: true,
+    }),
+    false,
+  );
+  assert.equal(
+    canToggleSignInNetwork({
+      route: "signed-in",
+      screen: "home",
+      networkSelectionLocked: false,
+      busy: false,
+    }),
+    false,
+  );
+
+  const mainnet = resolveHostedTargetConfig({}, "mainnet");
+  const preprod = nextSignInNetworkConfig(mainnet, {}, undefined);
+  assert.equal(preprod.target, "preprod");
+});
+
+test("env default mainnet URL does not lock TUI network selection", () => {
+  const config = resolveHostedTargetConfig(
+    { SOKOSUMI_API_URL: "https://api.sokosumi.com" },
+    "mainnet",
+  );
+  assert.equal(isNetworkSelectionLocked(config, { preprod: false }), false);
+  assert.equal(isNetworkSelectionLocked(config, { preprod: true }), true);
+  assert.equal(
+    isNetworkSelectionLocked(
+      {
+        target: "custom",
+        apiUrl: "https://api.example.test",
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "client",
+        clientSecret: "",
+      },
+      {},
+    ),
+    true,
+  );
+});
+
+test("env SOKOSUMI_API_URL still validates mismatched API keys when network is unlocked", () => {
+  const env = { SOKOSUMI_API_URL: "https://api.sokosumi.com" };
+  const config = resolveHostedTargetConfig(env, "mainnet");
+  const targetExplicit = Boolean(env.SOKOSUMI_API_URL);
+
+  assert.equal(isNetworkSelectionLocked(config, {}), false);
+  assert.equal(targetExplicit, true);
+  assert.throws(
+    () => assertApiKeyTarget("soko_preprod_secret", config, targetExplicit),
+    /belongs to preprod/,
+  );
+  assert.doesNotThrow(() =>
+    assertApiKeyTarget("soko_mainnet_secret", config, targetExplicit),
+  );
+});
+
+test("TUI errors redact credential-shaped values", () => {
   assert.equal(
     redactErrorMessage(
       new Error("apiKey=soko_mainnet_secret accessToken=access-secret"),
@@ -148,7 +256,104 @@ test("TestV47 TUI errors redact credential-shaped values", () => {
   );
 });
 
-test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () => {
+test("signed-in home lists Vendors and Workspaces, not a fake Register flow", async () => {
+  const terminal = createTestTerminal();
+  let output = "";
+  terminal.stdout.on("data", (chunk) => {
+    output += String(chunk);
+  });
+  const signedInAuthManager = new AuthManager({
+    credentialStore: {
+      read: () => null,
+      write: (_credentials: OAuthCredentials) => {},
+      clear: () => {},
+    },
+    apiKeyStore: {
+      read: () => ({ apiKey: "soko_mainnet_test-key" }),
+      write: (_credentials) => {},
+      clear: () => {},
+    },
+  });
+  let instance: Instance | undefined;
+  const render: NonNullable<StatusAppOptions["render"]> = (node) => {
+    const nextInstance = inkRender(node, {
+      debug: true,
+      stdin: terminal.stdin,
+      stdout: terminal.stdout,
+      exitOnCtrlC: false,
+      patchConsole: false,
+      interactive: true,
+    });
+    instance = nextInstance;
+    return nextInstance;
+  };
+  const cliPromise = runCli([], {
+    env: {},
+    authManager: signedInAuthManager,
+    tuiFn: (options) =>
+      renderStatusApp({
+        ...options,
+        authManagerFactory: () => signedInAuthManager,
+        render,
+      }),
+  });
+  try {
+    await waitForOutput(terminal.stdout, () => output, "Developer CLI");
+    assert.match(output, /Vendors/);
+    assert.match(output, /Workspaces/);
+    assert.match(output, /Sign out/);
+    assert.match(output, /coworkers list/);
+    assert.match(output, /coworkers connect/);
+    assert.match(output, /coworkers api-key/);
+    assert.doesNotMatch(output, /coworkers register/);
+    assert.doesNotMatch(output, /Register a Coworker/);
+    assert.doesNotMatch(output, /pi-sokosumi|OpenClaw|Hermes/);
+    await sendInput(terminal.stdin, "q");
+    await cliPromise;
+  } finally {
+    instance?.unmount();
+    await cliPromise;
+    instance?.cleanup();
+  }
+});
+
+test("Vendor and Workspace screens are read-only review lists", () => {
+  assert.equal(
+    vendorMembershipCaption(false),
+    "Vendor memberships from Core. Review only.",
+  );
+  assert.equal(
+    workspaceMembershipCaption(false),
+    "Organization workspaces from Core. Review only.",
+  );
+  assert.doesNotMatch(vendorMembershipCaption(false), /Choose/);
+  assert.doesNotMatch(workspaceMembershipCaption(false), /Choose|Coworker/);
+  assert.equal(
+    formatVendorReviewLine({
+      id: "vendor-1",
+      createdAt: null,
+      updatedAt: null,
+      name: "Acme",
+      slug: "acme",
+      logos: { light: null, dark: null },
+      role: "admin",
+    }),
+    "Acme · admin · vendor-1",
+  );
+  assert.equal(
+    formatWorkspaceReviewLine({
+      organizationId: "org-1",
+      createdAt: null,
+      name: "Acme Org",
+      slug: "acme",
+      logo: null,
+      role: "owner",
+    }),
+    "Acme Org · owner · org-1",
+  );
+});
+
+test("Ink solely owns API-key input and Esc/arrow navigation", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -198,14 +403,14 @@ test("TestV60 Ink solely owns API-key input and Esc/arrow navigation", async () 
   }
 });
 
-test("TestV50 API-key target Escape discards the pending key", () => {
+test("API-key target Escape discards the pending key", () => {
   assert.deepEqual(apiKeyTargetEscapeState(), {
     screen: "auth-method",
     pendingApiKey: null,
   });
 });
 
-test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
+test("OAuth Escape returns to confirm and allows retry", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -243,6 +448,7 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
   const loginResolvers: Array<(credentials: OAuthCredentials) => void> = [];
   const cliPromise = runCli([], {
     env: {},
+    authManager,
     loginFn: async () => {
       loginCalls += 1;
       const deferred = createDeferred<OAuthCredentials>();
@@ -260,9 +466,8 @@ test("TestV56 OAuth Escape returns to confirm and allows retry", async () => {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Choose OAuth target");
-    await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
+    assert.doesNotMatch(output, /Choose OAuth target/);
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
     await waitForNextImmediate();
@@ -324,7 +529,6 @@ async function sendInput(stdin: PassThrough, input: string): Promise<void> {
   stdin.write(input);
   stdin.emit("readable");
   await waitForNextImmediate();
-  // Ink 7 buffers a trailing ESC for 20ms so CSI sequences can complete.
   if (input === "\u001b") {
     await new Promise<void>((resolve) => setTimeout(resolve, 30));
   }
@@ -369,7 +573,7 @@ function createTestTerminal(): {
   return { stdin, stdout };
 }
 
-test("TestV57 explicit preprod target skips OAuth target picker", async () => {
+test("explicit preprod target skips OAuth target picker", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -401,6 +605,11 @@ test("TestV57 explicit preprod target skips OAuth target picker", async () => {
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
     assert.doesNotMatch(output, /Choose OAuth target/);
     assert.match(output, /Target: preprod/);
+    await sendInput(terminal.stdin, "\t");
+    await waitForNextImmediate();
+    await waitForNextImmediate();
+    assert.match(output, /Target: preprod/);
+    assert.doesNotMatch(output, /Target: mainnet/);
     await sendInput(terminal.stdin, "q");
     await cliPromise;
   } finally {
@@ -410,7 +619,7 @@ test("TestV57 explicit preprod target skips OAuth target picker", async () => {
   }
 });
 
-test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
+test("runCli TUI selection preserves explicit client ID", async () => {
   const terminal = createTestTerminal();
   let output = "";
   terminal.stdout.on("data", (chunk) => {
@@ -434,7 +643,14 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   const loginRequestResolvers = createDeferred<BrowserLoginOptions>();
   const loginRequestPromise = loginRequestResolvers.promise;
   const cliPromise = runCli(
-    ["--client-id", "flag-client", "--oauth-port", "53683"],
+    [
+      "--client-id",
+      "flag-client",
+      "--oauth-port",
+      "53683",
+      "--oauth-timeout-ms",
+      "180000",
+    ],
     {
       env: {
         SOKOSUMI_PREPROD_OAUTH_CLIENT_ID: "preprod-environment-client",
@@ -460,13 +676,11 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   try {
     await waitForOutput(terminal.stdout, () => output, "Browser OAuth");
     await waitForNextImmediate();
-    await sendInput(terminal.stdin, "\r");
-    await waitForOutput(terminal.stdout, () => output, "Choose OAuth target");
-
-    await sendInput(terminal.stdin, "\u001b[B");
-    await waitForOutput(terminal.stdout, () => output, "› Preprod");
+    await sendInput(terminal.stdin, "\t");
+    await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
     await waitForOutput(terminal.stdout, () => output, "Open browser sign-in?");
+    assert.doesNotMatch(output, /Choose OAuth target/);
     assert.match(output, /Target: preprod/);
     await waitForNextImmediate();
     await sendInput(terminal.stdin, "\r");
@@ -474,6 +688,7 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
     const loginRequest = await loginRequestPromise;
     assert.match(output, /http:\/\/127\.0\.0\.1:53683\/oauth\/callback/);
     assert.equal(loginRequest.port, 53683);
+    assert.equal(loginRequest.timeoutMs, 180000);
     assert.equal(loginRequest.clientId, "flag-client");
     assert.equal(
       loginRequest.authBaseUrl,
@@ -489,7 +704,7 @@ test("TestV34 runCli TUI selection preserves explicit client ID", async () => {
   }
 });
 
-test("TestV34 hosted TUI selection preserves an explicit client ID", () => {
+test("hosted TUI selection preserves an explicit client ID", () => {
   const config = resolveHostedTargetConfig(
     {
       SOKOSUMI_API_URL: "https://api.preprod.sokosumi.com",

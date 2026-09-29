@@ -18,6 +18,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../../room-unread";
 
 const paramsSchema = z.object({
@@ -57,37 +58,35 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const starredAt = new Date();
 
-    const room = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(id, userContext.userId, tx);
+    const room = await requireChatRoomUserAccess(
+      id,
+      userContext.userId,
+      prisma,
+    );
 
-      const updated = await tx.chatRoomUserMember.updateMany({
-        where: {
-          roomId: room.id,
-          userId: userContext.userId,
-          mutedAt: null,
-        },
-        data: { starredAt },
-      });
-      if (updated.count === 0) {
-        const membership = await tx.chatRoomUserMember.findUnique({
-          where: {
-            roomId_userId: {
-              roomId: room.id,
-              userId: userContext.userId,
-            },
-          },
-          select: { mutedAt: true },
-        });
-        if (membership?.mutedAt != null) {
-          throw unprocessableEntity(
-            "Cannot star a muted room. Unmute it first.",
-          );
-        }
-        throw notFound("Room not found");
-      }
-
-      return room;
+    const updated = await prisma.chatRoomUserMember.updateMany({
+      where: {
+        roomId: room.id,
+        userId: userContext.userId,
+        mutedAt: null,
+      },
+      data: { starredAt },
     });
+    if (updated.count === 0) {
+      const membership = await prisma.chatRoomUserMember.findUnique({
+        where: {
+          roomId_userId: {
+            roomId: room.id,
+            userId: userContext.userId,
+          },
+        },
+        select: { mutedAt: true },
+      });
+      if (membership?.mutedAt != null) {
+        throw unprocessableEntity("Cannot star a muted room. Unmute it first.");
+      }
+      throw notFound("Room not found");
+    }
 
     const [unreadCounts, unreadMentionCounts] = await Promise.all([
       getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
@@ -98,7 +97,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
         }),
       ),

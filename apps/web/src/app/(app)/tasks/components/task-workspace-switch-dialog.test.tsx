@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TaskWorkspaceSwitchDialog } from "@/app/tasks/components/task-workspace-switch-dialog";
-import { updatePreferredOrganization } from "@/lib/actions/organization";
+import { updatePreferredOrganization } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
@@ -77,7 +77,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/organization", () => ({
+vi.mock("@/lib/actions/organization/action", () => ({
   updatePreferredOrganization: vi.fn(),
 }));
 

@@ -4,3 +4,6 @@
  * depends on — into a caller's import graph.
  */
 export const IN_PROCESS_RUNTIME_VERSION = "in-process-1";
+
+/** Turns whose loop runs in the bot's own Vercel Sandbox. */
+export const SANDBOX_RUNTIME_VERSION = "sandbox-1";

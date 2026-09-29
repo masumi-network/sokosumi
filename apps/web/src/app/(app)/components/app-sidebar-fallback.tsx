@@ -37,11 +37,11 @@ export function AppSidebarFallback() {
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
         <div className="flex w-full flex-col gap-0">
-          {/* Soko Bot's nav and the Calendar row are beta-gated on membership
+          {/* Soko Bot's nav and the Social row are beta-gated on membership
               this frame has not loaded yet, so both are left out rather than
               guessed: a row that appears once is cheaper than one that
               appears and then goes away. */}
-          <MenuItems calendarMenuEnabled={false} />
+          <MenuItems />
           <SidebarSeparator />
           <SidebarChatListSkeleton />
         </div>
@@ -51,7 +51,10 @@ export function AppSidebarFallback() {
           room, and carrying it here keeps the rule from appearing when the
           streamed sidebar takes over. */}
       <SidebarFooter className="border-sidebar-border mt-auto shrink-0 border-t px-0">
-        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:justify-center">
+        {/* No `justify-center` on the rail: the chip carries the same `ml-1`
+            every Sidebar row does, so its face lands on the sidebar's 28px
+            leading axis rather than on the rail's own half-pixel centre. */}
+        <div className="p-2 pt-0 pb-[env(safe-area-inset-bottom)] group-data-[collapsible=icon]:flex">
           <SidebarAccountChipFallback />
         </div>
       </SidebarFooter>

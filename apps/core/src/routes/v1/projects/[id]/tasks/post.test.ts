@@ -1,38 +1,36 @@
-import { TaskStatus } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
+import { buildHumanTaskVisibilityWhere } from "@/helpers/task-visibility";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 const {
+  deliverCalendarInvalidationsNowMock,
   projectFindFirstMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
   prismaTransactionMock,
-  refreshTaskSchedulePlannedOccurrencesMock,
   taskFindFirstMock,
-  taskFindUniqueMock,
   taskUpdateManyMock,
   taskUpdateMock,
 } = vi.hoisted(() => ({
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   projectFindFirstMock: vi.fn(),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
-  taskFindUniqueMock: vi.fn(),
   taskUpdateManyMock: vi.fn(),
   taskUpdateMock: vi.fn(),
 }));
 
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  refreshTaskSchedulePlannedOccurrences:
-    refreshTaskSchedulePlannedOccurrencesMock,
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
@@ -75,7 +73,6 @@ vi.mock("@/lib/db/prisma", () => ({
     project: { findFirst: projectFindFirstMock },
     task: {
       findFirst: taskFindFirstMock,
-      findUnique: taskFindUniqueMock,
       updateMany: taskUpdateManyMock,
       update: taskUpdateMock,
     },
@@ -96,6 +93,11 @@ const COWORKER_CONTEXT_AUTH: AuthenticationContext = {
   context: { userId: "user_123", organizationId: null },
 };
 
+const OTHER_MEMBER_AUTH_CONTEXT: AuthenticationContext = {
+  ...USER_AUTH_CONTEXT,
+  userId: "user_456",
+};
+
 const WORKSPACE_ID = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
 const PROJECT_ID = "22222222-2222-4222-8222-222222222222";
 const TASK_ID = "tsk_abc";
@@ -105,19 +107,6 @@ const WORKSPACE_CONTEXT = {
   userId: "user_123",
   organizationId: null,
 } satisfies WorkspaceVariables["workspaceContext"];
-
-const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
-  version: 2,
-  epochId: "11111111-1111-4111-8111-111111111111",
-  mode: "recurring",
-  createdAt: "2026-09-01T09:00:00.000Z",
-  ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-  timezone: "UTC",
-  expr: "0 9 * * *",
-  endsMode: "never",
-  anchorAt: "2026-09-01T09:00:00.000Z",
-  epochReleaseCount: 0,
-});
 
 const sampleProject = {
   id: PROJECT_ID,
@@ -141,10 +130,35 @@ const sampleProject = {
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
 
+type StoredTask = {
+  visibility: TaskVisibility;
+  ownerId: string;
+};
+
+// Applies the route's visibility OR clauses to one stored row, so the tests
+// exercise the real human visibility rule instead of a hand-picked null.
+function findFirstVisibleTask(task: StoredTask) {
+  return async ({ where }: { where: { OR: Partial<StoredTask>[] } }) =>
+    where.OR.some((clause) =>
+      Object.entries(clause).every(
+        ([key, value]) => task[key as keyof StoredTask] === value,
+      ),
+    )
+      ? {
+          ...task,
+          projectId: null,
+          pendingVendorGrantId: null,
+          status: TaskStatus.READY,
+          workspaceId: WORKSPACE_ID,
+        }
+      : null;
+}
+
 let mountPostProjectTask: (app: OpenAPIHonoWithAuth) => void;
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
 
   app.use("*", async (c, next) => {
     c.set("requestId", "req_123");
@@ -172,19 +186,10 @@ describe("POST /projects/{id}/tasks", () => {
     prismaTransactionMock.mockImplementation(async (callback) =>
       callback({
         task: {
-          findUnique: taskFindUniqueMock,
           updateMany: taskUpdateManyMock,
         },
       }),
     );
-    taskFindUniqueMock.mockResolvedValue({
-      id: TASK_ID,
-      projectId: PROJECT_ID,
-      status: TaskStatus.DRAFT,
-      metadata: null,
-      nextRunAt: null,
-      workspaceId: WORKSPACE_ID,
-    });
     taskUpdateManyMock.mockResolvedValue({ count: 1 });
   });
 
@@ -193,8 +198,6 @@ describe("POST /projects/{id}/tasks", () => {
       projectId: null,
       pendingVendorGrantId: null,
       status: TaskStatus.DRAFT,
-      metadata: null,
-      nextRunAt: null,
       workspaceId: WORKSPACE_ID,
     });
 
@@ -208,29 +211,22 @@ describe("POST /projects/{id}/tasks", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      WORKSPACE_ID,
+    );
     expect(taskUpdateManyMock).toHaveBeenCalledWith({
       where: {
         id: TASK_ID,
         archivedAt: null,
         workspaceId: WORKSPACE_ID,
         projectId: null,
+        ...buildHumanTaskVisibilityWhere("user_123"),
       },
       data: {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
       },
     });
-    expect(refreshTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      expect.anything(),
-      expect.objectContaining({
-        id: TASK_ID,
-        projectId: PROJECT_ID,
-        status: TaskStatus.DRAFT,
-        metadata: null,
-        nextRunAt: null,
-        workspaceId: WORKSPACE_ID,
-      }),
-    );
   });
 
   it("returns 403 when the task is parked", async () => {
@@ -252,78 +248,28 @@ describe("POST /projects/{id}/tasks", () => {
     expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
-  it("rejects adding a Task whose schedule series is still active", async () => {
+  it("adds a Queued Task with a Run at like any other Task", async () => {
     taskFindFirstMock.mockResolvedValue({
       projectId: null,
       pendingVendorGrantId: null,
       status: TaskStatus.QUEUED,
-      metadata: ACTIVE_SCHEDULE_METADATA,
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
-      workspaceId: WORKSPACE_ID,
-    });
-    taskFindUniqueMock.mockResolvedValue({
-      id: TASK_ID,
-      projectId: null,
-      status: TaskStatus.QUEUED,
-      metadata: ACTIVE_SCHEDULE_METADATA,
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
       workspaceId: WORKSPACE_ID,
     });
 
-    const app = createApp();
-    app.onError(errorHandler);
-    const response = await app.request(`http://localhost/${PROJECT_ID}/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId: TASK_ID }),
-    });
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("checks the schedule guard on the locked row, after both locks", async () => {
-    // The pre-transaction read sees no series; a concurrent PUT /schedule arms
-    // one before the locks are granted, so only the locked re-read can catch it.
-    taskFindFirstMock.mockResolvedValue({
-      projectId: null,
-      pendingVendorGrantId: null,
-      status: TaskStatus.DRAFT,
-      metadata: null,
-      nextRunAt: null,
-      workspaceId: WORKSPACE_ID,
-    });
-    taskFindUniqueMock.mockResolvedValue({
-      id: TASK_ID,
-      projectId: null,
-      status: TaskStatus.QUEUED,
-      metadata: ACTIVE_SCHEDULE_METADATA,
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
-      workspaceId: WORKSPACE_ID,
-    });
-
-    const app = createApp();
-    app.onError(errorHandler);
-    const response = await app.request(`http://localhost/${PROJECT_ID}/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ taskId: TASK_ID }),
-    });
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(taskUpdateManyMock).not.toHaveBeenCalled();
-    expect(taskFindUniqueMock).toHaveBeenCalledWith({
-      where: { id: TASK_ID },
-      select: { metadata: true, nextRunAt: true },
-    });
-    // Calendar scope lock → Task row lock → locked re-read → guard.
-    expect(lockCalendarScopeMock.mock.invocationCallOrder[0]).toBeLessThan(
-      lockTaskRowsMock.mock.invocationCallOrder[0],
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/tasks`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: TASK_ID }),
+      },
     );
-    expect(lockTaskRowsMock.mock.invocationCallOrder[0]).toBeLessThan(
-      taskFindUniqueMock.mock.invocationCallOrder[0],
+
+    expect(response.status).toBe(200);
+    expect(taskUpdateManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { projectId: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      }),
     );
   });
 
@@ -356,5 +302,76 @@ describe("POST /projects/{id}/tasks", () => {
     expect(response.status).toBe(403);
     expect(projectFindFirstMock).not.toHaveBeenCalled();
     expect(taskUpdateMock).not.toHaveBeenCalled();
+  });
+
+  describe("private Task visibility", () => {
+    const postTask = (authContext: AuthenticationContext) =>
+      createApp(authContext).request(`http://localhost/${PROJECT_ID}/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskId: TASK_ID }),
+      });
+
+    it("lets the owner add their private Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await postTask(USER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(200);
+      expect(taskFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: TASK_ID,
+            archivedAt: null,
+            workspaceId: WORKSPACE_ID,
+            ...buildHumanTaskVisibilityWhere("user_123"),
+          },
+        }),
+      );
+      expect(taskUpdateManyMock).toHaveBeenCalledOnce();
+    });
+
+    it("returns 404 when another member adds a private Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PRIVATE,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await postTask(OTHER_MEMBER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(404);
+      expect(await response.json()).toMatchObject({
+        message: "Task not found",
+      });
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+      expect(taskUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("lets any member add a public Task", async () => {
+      taskFindFirstMock.mockImplementation(
+        findFirstVisibleTask({
+          visibility: TaskVisibility.PUBLIC,
+          ownerId: "user_123",
+        }),
+      );
+
+      const response = await postTask(OTHER_MEMBER_AUTH_CONTEXT);
+
+      expect(response.status).toBe(200);
+      expect(taskUpdateManyMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining(
+            buildHumanTaskVisibilityWhere("user_456"),
+          ),
+        }),
+      );
+    });
   });
 });

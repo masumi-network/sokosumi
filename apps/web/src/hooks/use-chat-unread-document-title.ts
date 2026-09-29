@@ -29,7 +29,13 @@ function getDocumentTitleDescriptor(target: Document): PropertyDescriptor & {
 // cannot fall back to the browser host / a generic default.
 let sharedLastGoodBase = "Sokosumi";
 
-export function useChatUnreadDocumentTitle(unreadTotal: number): void {
+export function useChatUnreadDocumentTitle(
+  unreadTotal: number,
+  stableTitle?: string,
+): void {
+  const writeTitleRef = useRef<((title: string) => void) | null>(null);
+  const stableTitleRef = useRef(stableTitle);
+  stableTitleRef.current = stableTitle;
   const unreadTotalRef = useRef(unreadTotal);
   unreadTotalRef.current = unreadTotal;
 
@@ -54,6 +60,8 @@ export function useChatUnreadDocumentTitle(unreadTotal: number): void {
       });
     }
 
+    writeTitleRef.current = writeTitle;
+
     function rememberBase(rawTitle: string) {
       const base = stripChatUnreadTitlePrefix(rawTitle).trim();
       if (base) {
@@ -65,7 +73,7 @@ export function useChatUnreadDocumentTitle(unreadTotal: number): void {
       rememberBase(rawTitle);
       writeTitle(
         formatChatUnreadDocumentTitle(
-          sharedLastGoodBase,
+          stableTitleRef.current ?? sharedLastGoodBase,
           unreadTotalRef.current,
         ),
       );
@@ -81,7 +89,7 @@ export function useChatUnreadDocumentTitle(unreadTotal: number): void {
         rememberBase(value);
         writeTitle(
           formatChatUnreadDocumentTitle(
-            sharedLastGoodBase,
+            stableTitleRef.current ?? sharedLastGoodBase,
             unreadTotalRef.current,
           ),
         );
@@ -105,6 +113,7 @@ export function useChatUnreadDocumentTitle(unreadTotal: number): void {
 
     return () => {
       observer.disconnect();
+      writeTitleRef.current = null;
       Reflect.deleteProperty(document, "title");
       writeTitle(stripChatUnreadTitlePrefix(descriptor.get.call(document)));
     };
@@ -112,11 +121,10 @@ export function useChatUnreadDocumentTitle(unreadTotal: number): void {
 
   useEffect(() => {
     const nextTitle = formatChatUnreadDocumentTitle(
-      document.title,
+      stableTitle ?? sharedLastGoodBase,
       unreadTotal,
     );
-    if (nextTitle !== document.title) {
-      document.title = nextTitle;
-    }
-  }, [unreadTotal]);
+    // Our own prefix/title updates must not replace the latest route metadata.
+    writeTitleRef.current?.(nextTitle);
+  }, [unreadTotal, stableTitle]);
 }

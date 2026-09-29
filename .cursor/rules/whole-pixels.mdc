@@ -1,6 +1,7 @@
 ---
 description: "Whole pixels in apps/web: no fractional px on a layout or border length"
-alwaysApply: true
+globs: apps/web/**
+alwaysApply: false
 ---
 
 ## Whole pixels
@@ -64,6 +65,6 @@ pixel.
 
 ### Guard
 
-`apps/web/src/lib/utils/__tests__/whole-pixels.test.ts` scans every `.ts`,
+`apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` scans every `.ts`,
 `.tsx` and `.css` file under `apps/web/src` and fails on a fractional px in
 any of the three forms above. Generated clients and test files are skipped.

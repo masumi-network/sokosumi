@@ -1,5 +1,5 @@
 import type { InputSearchSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,7 @@ export function SearchInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.SEARCH, InputSearchSchemaType>) {
+}: JobInputComponentProps<typeof InputType.SEARCH, InputSearchSchemaType>) {
   const { data } = jobInputSchema;
   return (
     <Input

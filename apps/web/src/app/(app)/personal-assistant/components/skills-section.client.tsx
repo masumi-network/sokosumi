@@ -2,7 +2,7 @@
 
 import { ExternalLink, Plus, Search, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,14 +47,28 @@ export function SkillsSection({
   );
   const [browse, setBrowse] = useState<SokoBotSkillBrowse | null>(null);
   const [page, setPage] = useState(0);
+  const committedPage = useRef(0);
   const [isPending, startTransition] = useTransition();
   const installedNames = new Set(installed.map((skill) => skill.name));
 
   useEffect(() => {
     let cancelled = false;
-    void browseSokoBotSkillsAction({ page }).then((result) => {
-      if (!cancelled && result.ok) setBrowse(result.value);
-    });
+    void browseSokoBotSkillsAction({ page })
+      .then((result) => {
+        if (cancelled) return;
+        if (result.ok) {
+          committedPage.current = page;
+          setBrowse(result.value);
+        } else {
+          setPage(committedPage.current);
+        }
+      })
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. Same outcome as a failed
+      // browse: keep showing the page the existing results belong to.
+      .catch(() => {
+        if (!cancelled) setPage(committedPage.current);
+      });
     return () => {
       cancelled = true;
     };
@@ -122,7 +136,7 @@ export function SkillsSection({
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-medium">{skill.name}</span>
-              <span className="text-muted-foreground shrink-0 text-[0.6875rem] tracking-wide uppercase">
+              <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
                 {t("builtIn")}
               </span>
             </span>
@@ -173,7 +187,7 @@ export function SkillsSection({
           type="button"
           onClick={() => setAdding((value) => !value)}
           aria-expanded={adding}
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm"
+          className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 text-sm"
         >
           <Plus aria-hidden className="size-3.5" />
           {t("addTitle")}

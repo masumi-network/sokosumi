@@ -4,6 +4,7 @@ import {
   afterAll,
   afterEach,
   beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
@@ -101,6 +102,7 @@ function message(index: number): ChatRoomMessage {
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
   };
 }
@@ -318,7 +320,7 @@ function mountedIds(container: HTMLElement): string[] {
 async function settle(container: HTMLElement) {
   for (let round = 0; round < 3; round += 1) {
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await vi.advanceTimersByTimeAsync(30);
       const scroller = container.querySelector('[data-testid="scroller"]');
       scroller?.dispatchEvent(new Event("scroll"));
       scroller?.dispatchEvent(new Event("scrollend"));
@@ -326,10 +328,15 @@ async function settle(container: HTMLElement) {
   }
 }
 
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+
 afterEach(() => {
   document.body.innerHTML = "";
   resizeObservations.length = 0;
   viewportHeight = VIEWPORT_HEIGHT;
+  vi.useRealTimers();
 });
 
 describe("TranscriptViewport", () => {
@@ -747,7 +754,7 @@ describe("TranscriptViewport", () => {
 
     fireEvent.touchEnd(scroller);
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await vi.advanceTimersByTimeAsync(200);
     });
 
     expect(list?.style.marginBottom).toBe("");
@@ -785,7 +792,7 @@ describe("TranscriptViewport", () => {
     // Rows mount unmeasured while the virtualizer still counts the reader
     // as scrolling, and nothing lays them out later here. Let that lapse.
     await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await vi.advanceTimersByTimeAsync(200);
     });
 
     rerender(

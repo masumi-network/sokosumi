@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { removeDesignMd } from "@/lib/actions/design-md";
+import { removeDesignMd } from "@/lib/actions/design-md/action";
 import type { PersistedDesignMd } from "@/lib/services/design-md.service";
 
 import { DesignMdFileRow } from "./design-md-file-row";

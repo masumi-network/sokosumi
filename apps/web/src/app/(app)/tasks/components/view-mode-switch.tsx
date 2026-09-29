@@ -63,7 +63,12 @@ export function ViewModeSwitch({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-2"
+          aria-label={labels.button}
+        >
           <SlidersHorizontal className="size-4" aria-hidden />
           <span className="hidden sm:inline">{labels.button}</span>
         </Button>

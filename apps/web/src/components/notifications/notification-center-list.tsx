@@ -1,6 +1,9 @@
 "use client";
 
-import { isNeedsActionNotification } from "@sokosumi/utils";
+import {
+  isMentionNotification,
+  isNeedsActionNotification,
+} from "@sokosumi/utils";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
@@ -9,6 +12,7 @@ import { toast } from "sonner";
 import { useWorkspaceSwitcher } from "@/app/components/user-avatar/workspace-switcher";
 import { NotificationsSkeletonRows } from "@/app/notifications/components/notifications-loading-view";
 import { NotificationCenterRow } from "@/components/notifications/notification-center-row";
+import { NotificationEmptyState } from "@/components/notifications/notification-empty-state";
 import { NotificationOlderBoundaryRow } from "@/components/notifications/notification-older-boundary-row";
 import { Button } from "@/components/ui/button";
 import { useAccountNotice } from "@/contexts/account-notice-provider";
@@ -55,6 +59,7 @@ export function NotificationCenterList({
     unreadCount,
     needsActionCount,
     view,
+    setView,
     markRead,
     isLoading,
     hasFetchError,
@@ -84,9 +89,9 @@ export function NotificationCenterList({
     });
   }, []);
 
-  // Needs you holds rows that asked the reader something. A realtime row
-  // that never asked lands in the shared feed all the same, for the bell,
-  // and stays out of this view here.
+  // Needs you holds rows that asked the reader something, Mentions rows
+  // that named them. A realtime row that is neither lands in the shared
+  // feed all the same, for the bell, and stays out of those views here.
   const visibleNotifications =
     view === "unread"
       ? notifications.filter(
@@ -97,7 +102,11 @@ export function NotificationCenterList({
         ? notifications.filter((notification) =>
             isNeedsActionNotification(notification.messageKey),
           )
-        : notifications;
+        : view === "mentions"
+          ? notifications.filter((notification) =>
+              isMentionNotification(notification.messageKey),
+            )
+          : notifications;
 
   const handleNotificationClick = (notification: NotificationItem) => {
     // Immediate paint: pending state + optimistic read. Network and navigation
@@ -125,9 +134,28 @@ export function NotificationCenterList({
     });
   };
 
+  // Switching to All takes the empty state away, and the button that asked
+  // for it with it. Focus would land on <body>, so it goes to the view
+  // strip this frame carries: the control the reader just changed, one
+  // Tab away from the rows that arrive. Scoped to the frame the button sits
+  // in, because the page and the bell panel can both be open at once.
+  const handleShowAll = (trigger: HTMLElement) => {
+    const frame = trigger.closest("[data-notification-frame]");
+    setView("all");
+    requestAnimationFrame(() => {
+      frame
+        ?.querySelector<HTMLElement>(
+          '[data-slot="tabs-trigger"][data-state="active"]',
+        )
+        ?.focus();
+    });
+  };
+
   const oldest = notifications.at(-1);
   // Unread and Needs you both carry a live count of the whole view, not of
-  // the loaded page. A 0 means Core has nothing left to page.
+  // the loaded page. A 0 means Core has nothing left to page. Mentions stays
+  // out on purpose: its count is the unread mentions only, and the view
+  // lists read ones too, so a 0 there says nothing about older pages.
   const narrowedCount =
     view === "unread"
       ? unreadCount
@@ -178,9 +206,10 @@ export function NotificationCenterList({
       );
     }
 
-    // An account notice above the list already gives the frame something to
-    // say, and "No notifications yet" under it would read as a contradiction.
-    if (notice !== null) {
+    // On Needs you an account notice above the list already gives the frame
+    // something to say, and "Nothing needs you" under it would read as a
+    // contradiction. The other views do not show the notice.
+    if (view === "needs-action" && notice !== null) {
       return null;
     }
 
@@ -191,17 +220,7 @@ export function NotificationCenterList({
       return null;
     }
 
-    return (
-      <div className="flex flex-col items-center justify-center p-8">
-        <p className="text-muted-foreground text-center text-sm">
-          {view === "unread"
-            ? t("emptyUnreadState")
-            : view === "needs-action"
-              ? t("emptyNeedsYouState")
-              : t("emptyState")}
-        </p>
-      </div>
-    );
+    return <NotificationEmptyState view={view} onShowAll={handleShowAll} />;
   }
 
   return (

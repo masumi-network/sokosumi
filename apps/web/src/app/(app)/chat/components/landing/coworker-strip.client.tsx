@@ -7,15 +7,8 @@ import { useEffectEvent, useRef } from "react";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { cn } from "@/lib/utils";
 
+import type { StripCoworker } from "./landing-content";
 import { findNearestCenterIdFromElements } from "./nearest-center-coworker";
-
-export interface StripCoworker {
-  id: string;
-  imageUrl: null | string;
-  name: string;
-  /** Specialty shown under the name. Null when unset. */
-  title: null | string;
-}
 
 interface CoworkerStripProps {
   coworkers: StripCoworker[];
@@ -236,7 +229,7 @@ export function CoworkerStrip({
               aria-label={t("team.select", { name: coworker.name })}
               data-coworker-id={coworker.id}
               className={cn(
-                "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity outline-none",
+                "flex shrink-0 cursor-pointer flex-col items-center gap-2 text-center transition-opacity press outline-none",
                 "focus-visible:ring-ring rounded-md focus-visible:ring-2 focus-visible:ring-offset-2",
                 scale.itemWidth,
               )}

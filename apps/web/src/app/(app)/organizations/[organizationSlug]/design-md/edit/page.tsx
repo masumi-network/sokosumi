@@ -7,7 +7,7 @@ import {
 import { DesignMdEditor } from "@/components/design-md-editor/design-md-editor";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { MemberRole } from "@/lib/clients/generated/core";
-import { userService } from "@/lib/services";
+import { userService } from "@/lib/services/user.service";
 
 interface OrganizationDesignMdEditPageProps {
   params: Promise<{ organizationSlug: string }>;

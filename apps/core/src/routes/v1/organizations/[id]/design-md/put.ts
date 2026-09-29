@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import { organizationRepository } from "@sokosumi/database/repositories";
 
 import { buildOrganizationDesignMdMetadata } from "@/helpers/design-md";
 import { serviceUnavailable } from "@/helpers/error";
@@ -98,11 +97,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       { url, extractionId: body.extractionId },
     );
 
-    await organizationRepository.updateOrganizationById(
-      organization.id,
-      { metadata: serialized },
-      prisma,
-    );
+    await prisma.organization.update({
+      where: { id: organization.id },
+      data: { metadata: serialized },
+    });
 
     return ok(c, persistedDesignMdSchema.parse({ designMd: persisted }));
   });

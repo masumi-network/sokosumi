@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { NotificationKind } from "@sokosumi/database";
+import { NotificationKind, TaskStatus } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 
@@ -81,6 +81,8 @@ export async function dispatchTaskNotification(
   },
   eventId: string,
   status: string,
+  actorUserId: string | null,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     let messageKey: string;
@@ -153,6 +155,19 @@ export async function dispatchTaskNotification(
       );
     }
 
+    if (
+      messageKey === "Notifications.Task.completed" ||
+      messageKey === "Notifications.Task.failed" ||
+      messageKey === "Notifications.Task.canceled"
+    ) {
+      await markParticipantAddedRead(task.id);
+    }
+
+    // The owner set this status themselves, so there is nothing to tell them.
+    if (actorUserId === task.ownerId) {
+      return;
+    }
+
     await createNotification({
       userId: task.ownerId,
       kind: NotificationKind.TASK,
@@ -161,8 +176,10 @@ export async function dispatchTaskNotification(
       messageKey,
       messageParams,
       metadata,
+      ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
     });
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId: task.id,
@@ -176,12 +193,16 @@ export async function dispatchTaskNotification(
 /**
  * Loads the task's notification relations and dispatches the status
  * notification. The complete waitUntil body of the status-event paths —
- * callers schedule it after their transaction commits.
+ * callers schedule it after their transaction commits. `actorUserId` is the
+ * event's `userId`: the user account that wrote it (session, API key or
+ * OAuth), or null when an agent wrote it.
  */
 export async function notifyTaskStatusEvent(
   taskId: string,
   eventId: string,
   status: string,
+  actorUserId: string | null = null,
+  options: { throwOnError?: boolean } = {},
 ): Promise<void> {
   try {
     const taskWithRelations = await prisma.task.findUnique({
@@ -212,9 +233,16 @@ export async function notifyTaskStatusEvent(
     });
 
     if (taskWithRelations) {
-      await dispatchTaskNotification(taskWithRelations, eventId, status);
+      await dispatchTaskNotification(
+        taskWithRelations,
+        eventId,
+        status,
+        actorUserId,
+        options,
+      );
     }
   } catch (error) {
+    if (options.throwOnError) throw error;
     Sentry.captureException(error, {
       extra: {
         taskId,
@@ -226,10 +254,136 @@ export async function notifyTaskStatusEvent(
 }
 
 const TASK_ASSIGNED_MESSAGE_KEY = "Notifications.Task.assigned";
+const TASK_PARTICIPANT_ADDED_MESSAGE_KEY =
+  "Notifications.Task.participantAdded";
+
+const TASK_SETTLED_STATUSES = [
+  TaskStatus.COMPLETED,
+  TaskStatus.FAILED,
+  TaskStatus.CANCELED,
+];
+
+/**
+ * Notify each user the moment an @ in Task comment activity adds them.
+ * A repeat mention is not passed in. Best-effort, same as assignee notify.
+ *
+ * Runs after the comment commits, so a removal, archive, or settlement can
+ * land first and clear alerts before this starts. The Task and participant
+ * rows are read again here so those users are not re-alerted.
+ */
+export async function notifyTaskParticipantsAdded(
+  taskId: string,
+  eventId: string,
+  userIds: readonly string[],
+): Promise<void> {
+  if (userIds.length === 0) {
+    return;
+  }
+
+  const task = await findTaskForParticipantAlert(
+    taskId,
+    eventId,
+    userIds,
+  ).catch((error) => {
+    Sentry.captureException(error, {
+      extra: {
+        taskId,
+        eventId,
+        userIds,
+        notificationType: "task-participant-notification",
+      },
+    });
+    return null;
+  });
+  if (!task) {
+    return;
+  }
+
+  const { messageParams, metadata } = taskNotificationPayload(task);
+  const current = new Set(task.participants.map((row) => row.userId));
+  for (const userId of userIds) {
+    if (!current.has(userId)) {
+      continue;
+    }
+    try {
+      await createNotification({
+        userId,
+        kind: NotificationKind.TASK,
+        referenceId: task.id,
+        eventId,
+        messageKey: TASK_PARTICIPANT_ADDED_MESSAGE_KEY,
+        messageParams,
+        metadata,
+        ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        extra: {
+          taskId,
+          eventId,
+          userId,
+          notificationType: "task-participant-notification",
+        },
+      });
+    }
+  }
+}
+
+/**
+ * Null when the Task is archived or settled after the mentioning event.
+ * Missing TaskEvent (self-join synthetic eventId) still alerts when the Task
+ * is not archived and its current status is not settled.
+ */
+async function findTaskForParticipantAlert(
+  taskId: string,
+  eventId: string,
+  userIds: readonly string[],
+) {
+  const event = await prisma.taskEvent.findUnique({
+    where: { id: eventId },
+    select: { createdAt: true },
+  });
+
+  return prisma.task.findFirst({
+    where: event
+      ? {
+          id: taskId,
+          archivedAt: null,
+          events: {
+            none: {
+              status: { in: TASK_SETTLED_STATUSES },
+              createdAt: { gt: event.createdAt },
+            },
+          },
+        }
+      : {
+          id: taskId,
+          archivedAt: null,
+          status: { notIn: TASK_SETTLED_STATUSES },
+        },
+    select: {
+      id: true,
+      name: true,
+      projectId: true,
+      workspaceId: true,
+      project: { select: { name: true } },
+      participants: {
+        where: { userId: { in: [...userIds] } },
+        select: { userId: true },
+      },
+    },
+  });
+}
 
 /**
  * Notify a workspace member when they become the Task assignee.
  * Does not run for unassign or assign-to-agent. Best-effort.
+ *
+ * No account-wide opt-in read here. That field is the email gate, and this
+ * row has no email behind it, so reading it silenced a notification the
+ * reader could not switch back on. The `TASK_ATTENTION` row of the
+ * preference matrix answers for it instead, resolved inside
+ * `createNotification`.
  */
 export async function notifyTaskHumanAssignee(
   taskId: string,
@@ -254,15 +408,6 @@ export async function notifyTaskHumanAssignee(
       return;
     }
 
-    const assignee = await prisma.user.findUnique({
-      where: { id: assigneeUserId },
-      select: { notificationsOptIn: true },
-    });
-
-    if (!assignee?.notificationsOptIn) {
-      return;
-    }
-
     const { messageParams, metadata } = taskNotificationPayload(task);
 
     await createNotification({
@@ -273,6 +418,7 @@ export async function notifyTaskHumanAssignee(
       messageKey: TASK_ASSIGNED_MESSAGE_KEY,
       messageParams,
       metadata,
+      ...(task.workspaceId ? { workspaceId: task.workspaceId } : {}),
     });
   } catch (error) {
     Sentry.captureException(error, {
@@ -318,10 +464,10 @@ export async function markTaskAssignedRead(
  * Archiving is the fourth way a task stops waiting on somebody, after
  * completing, failing and being canceled, and it is the one the dispatcher
  * above never sees. Four of the seven archivable statuses are non-terminal
- * (`DRAFT`, `QUEUED`, `READY`, `GRANT_PENDING`), so a row asking the owner to
- * act can still be outstanding: the operator-removed-schedule row is written
- * with no status condition at all. Nobody can open an archived task, so every
- * such row is now about a question nobody is asking.
+ * (`DRAFT`, `QUEUED`, `READY`, `GRANT_PENDING`), so a row asking a reader to
+ * act can still be outstanding: the `assigned` row is written on assignment,
+ * whatever the status. Nobody can open an archived task, so every such row is
+ * now about a question nobody is asking.
  *
  * Every attention key rather than the assigned one, and both readers, because
  * archiving ends the task for all of them at once. That is what separates it
@@ -341,4 +487,41 @@ export async function markTaskArchivedRead(task: {
       "task-archived-read",
     );
   }
+  await markParticipantAddedRead(task.id);
+}
+
+async function markParticipantAddedRead(taskId: string): Promise<void> {
+  try {
+    const rows = await prisma.taskParticipant.findMany({
+      where: { taskId },
+      select: { userId: true },
+    });
+    for (const row of rows) {
+      await markAttentionRead(
+        row.userId,
+        NotificationKind.TASK,
+        taskId,
+        [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
+        "task-participant-settled-read",
+      );
+    }
+  } catch (error) {
+    Sentry.captureException(error, {
+      extra: { taskId, notificationType: "task-participant-settled-read" },
+    });
+  }
+}
+
+/** The removed person is no longer on the task, so their added row stops waiting. */
+export async function markTaskParticipantRemovedRead(
+  userId: string,
+  taskId: string,
+): Promise<void> {
+  await markAttentionRead(
+    userId,
+    NotificationKind.TASK,
+    taskId,
+    [TASK_PARTICIPANT_ADDED_MESSAGE_KEY],
+    "task-participant-removed-read",
+  );
 }

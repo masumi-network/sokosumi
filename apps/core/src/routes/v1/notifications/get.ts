@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { MENTION_MESSAGE_KEYS } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import {
@@ -68,11 +69,23 @@ const needsActionQuerySchema = z
     example: "true",
   });
 
+const mentionsQuerySchema = z
+  .enum(["true", "false"])
+  .optional()
+  .transform((val) => (val === undefined ? undefined : val === "true"))
+  .openapi({
+    param: { name: "mentions", in: "query" },
+    description:
+      "When true, only rows where someone named the reader: chat mentions and their reminders. Direct messages are not mentions.",
+    example: "true",
+  });
+
 const query = z
   .object({
     kind: notificationKindsQuerySchema,
     isRead: isReadQuerySchema,
     needsAction: needsActionQuerySchema,
+    mentions: mentionsQuerySchema,
   })
   .extend(cursorPaginationQuerySchema.shape);
 
@@ -95,13 +108,13 @@ const route = withOrganizationSlugHeaderParameter(
             {
               id: "cm123456789abcdefghij",
               userId: "cm123456789abcdefghij",
-              kind: "JOB",
+              kind: "TASK",
               referenceId: "cm123456789abcdefghij",
               eventId: "cm123456789abcdefghij",
-              messageKey: "Notifications.Job.completed",
+              messageKey: "Notifications.Task.completed",
               messageParams: {
-                agentName: "Research Agent",
-                jobName: "Market Analysis",
+                coworkerName: "Ada",
+                taskName: "Market Analysis",
               },
               metadata: { agentId: "agent_123", projectId: "proj_456" },
               isRead: false,
@@ -147,6 +160,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (needsActionIds !== undefined) {
       where.id = { in: needsActionIds };
+    }
+
+    if (queryParams.mentions) {
+      where.messageKey = { in: [...MENTION_MESSAGE_KEYS] };
     }
 
     const takePlusOne = take + 1;

@@ -1,13 +1,20 @@
 import {
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
 } from "@sokosumi/utils";
 
-type AblyClientCapabilityOp = "subscribe" | "presence" | "push-subscribe";
+type AblyClientCapabilityOp =
+  | "subscribe"
+  | "presence"
+  | "publish"
+  | "push-subscribe";
 
 /**
  * Ably capability ops granted to browser clients. Typed as the exact op union
@@ -25,6 +32,7 @@ export interface BuildAblyClientCapabilityInput {
   userId: string;
   roomIds: readonly string[];
   organizationIds: readonly string[];
+  workspaceIds: readonly string[];
   notificationChannelEnvironment: NotificationChannelEnvironment;
 }
 
@@ -32,15 +40,20 @@ export interface BuildAblyClientCapabilityInput {
  * Ably capabilities for a user session.
  * - Chat rooms: per-membership room id subscribe (SOK-741)
  * - Chat control: always subscribe (SOK-742 membership revoke)
+ * - Calendar workspaces: exact per-workspace, per-user subscribe
+ * - Calendar control: always subscribe so access revocation can detach clients
  * - Org presence: `presence` (enter/update/leave) + `subscribe` (get + presence
  *   events) on presence:org_* (ADR-0003; Ably requires both for roster maps)
- * - Notifications: `subscribe` (realtime feed) + `push-subscribe` (register this
- *   device for closed-app OS banners; ADR-0022)
+ * - Notifications: `subscribe` (realtime feed) + `presence` (a client enters
+ *   while it is in front, so Core can hold a notification email back for a
+ *   reader who is looking; SOK-1090) + `push-subscribe` (register this device
+ *   for closed-app OS banners; ADR-0022)
  */
 export function buildAblyClientCapability({
   userId,
   roomIds,
   organizationIds,
+  workspaceIds,
   notificationChannelEnvironment,
 }: BuildAblyClientCapabilityInput): AblySubscribeCapabilityMap {
   const capability: AblySubscribeCapabilityMap = {
@@ -48,17 +61,27 @@ export function buildAblyClientCapability({
     [`agent_jobs:*:user_${userId}`]: ["subscribe"],
     [makeUserTasksChannelName(userId)]: ["subscribe"],
     [makeUserNotificationsChannelName(userId, notificationChannelEnvironment)]:
-      ["subscribe", "push-subscribe"],
+      ["subscribe", "presence", "push-subscribe"],
     [makeUserChatControlChannelName(userId)]: ["subscribe"],
+    [makeUserCalendarControlChannelName(userId)]: ["subscribe"],
   };
 
   for (const roomId of roomIds) {
     capability[makeChatRoomChannelName(roomId)] = ["subscribe"];
+    // Typing gets its own channel so `publish` never lands on the message
+    // channel, where a member could forge a chat_room_message (ADR-0033).
+    capability[makeChatTypingChannelName(roomId)] = ["publish", "subscribe"];
   }
 
   for (const organizationId of organizationIds) {
     capability[makeOrgPresenceChannelName(organizationId)] = [
       "presence",
+      "subscribe",
+    ];
+  }
+
+  for (const workspaceId of workspaceIds) {
+    capability[makeWorkspaceCalendarChannelName(workspaceId, userId)] = [
       "subscribe",
     ];
   }

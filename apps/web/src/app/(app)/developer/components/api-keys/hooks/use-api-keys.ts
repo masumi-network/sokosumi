@@ -63,8 +63,8 @@ export function useApiKeys(): UseApiKeysReturn {
           // Reveal the one-time key immediately; list refresh is non-blocking.
           void refresh();
           return {
-            success: true,
-            data: {
+            ok: true,
+            value: {
               key: result.data.key,
             },
           };
@@ -73,7 +73,7 @@ export function useApiKeys(): UseApiKeysReturn {
             result.error?.message ?? t("Messages.createError");
           toast.error(errorMessage);
           return {
-            success: false,
+            ok: false,
             error: {
               message: errorMessage,
             },
@@ -83,7 +83,7 @@ export function useApiKeys(): UseApiKeysReturn {
         const errorMessage = t("Messages.createError");
         toast.error(errorMessage);
         return {
-          success: false,
+          ok: false,
           error: {
             message: errorMessage,
           },

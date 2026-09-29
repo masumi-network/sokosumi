@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { toChatRoomGuestInviteLinkResponse } from "@/helpers/chat-room-guest-invite-link-response";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -54,11 +53,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireRoomMemberCanInviteGuests(roomId, userContext.userId, prisma);
 
-    const links =
-      await chatRoomGuestInviteLinkRepository.listInviteLinksByRoomId(
-        roomId,
-        prisma,
-      );
+    const links = await prisma.chatRoomGuestInviteLink.findMany({
+      where: { roomId },
+      orderBy: { createdAt: "desc" },
+    });
 
     return ok(
       c,

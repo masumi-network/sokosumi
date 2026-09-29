@@ -60,7 +60,7 @@ struct RichTextDependencyTests {
   }
 
   @Test func loadsApprovedEmojiResources() throws {
-    let shortcodesURL = try #require(Bundle.module.url(forResource: "shortcodes", withExtension: "json", subdirectory: "Emoji"))
+    let shortcodesURL = try #require(ChatResources.bundle.url(forResource: "shortcodes", withExtension: "json", subdirectory: "Emoji"))
     let shortcodesData = try Data(contentsOf: shortcodesURL)
     #expect(SHA256.hash(data: shortcodesData).map { String(format: "%02x", $0) }.joined() ==
       "3afcba7d834ea2cafe4d4e26082faa769e51b81c61914724f2868c875f25025e")
@@ -73,7 +73,7 @@ struct RichTextDependencyTests {
       let emoji: String
       let emoticons: [String]
     }
-    let emoticonsURL = try #require(Bundle.module.url(forResource: "emoticons", withExtension: "json", subdirectory: "Emoji"))
+    let emoticonsURL = try #require(ChatResources.bundle.url(forResource: "emoticons", withExtension: "json", subdirectory: "Emoji"))
     let emoticonsData = try Data(contentsOf: emoticonsURL)
     #expect(SHA256.hash(data: emoticonsData).map { String(format: "%02x", $0) }.joined() ==
       "e6ef43a6d7ae89ec74dbcdd2c6122250ae2bac0055ac4e1453bbe8fd8718b25c")

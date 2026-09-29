@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 
 const toastErrorMock = vi.fn();
 const updateUserMock = vi.fn();
@@ -24,7 +24,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   createPersonalWorkspaceAction: (...args: unknown[]) =>
     createPersonalWorkspaceActionMock(...args),
 }));
@@ -34,38 +34,41 @@ vi.mock("@/lib/activate-organization-workspace", () => ({
     activateOrganizationWorkspaceMock(...args),
 }));
 
-vi.mock("@/components/organizations", () => ({
-  CreateOrganizationWizard: ({
-    open,
-    onOpenChange,
-    onOrganizationReady,
-  }: {
-    open: boolean;
-    onOpenChange: (open: boolean) => void;
-    onOrganizationReady?: (organizationId: string) => void;
-  }) =>
-    open ? (
-      <div data-testid="create-org-wizard">
-        <button
-          type="button"
-          data-testid="wizard-back"
-          onClick={() => onOpenChange(false)}
-        >
-          wizard back
-        </button>
-        <button
-          type="button"
-          data-testid="wizard-complete"
-          onClick={() => {
-            onOrganizationReady?.("org-1");
-            onOpenChange(false);
-          }}
-        >
-          wizard complete
-        </button>
-      </div>
-    ) : null,
-}));
+vi.mock(
+  "@/components/organizations/create-organization-wizard/create-organization-wizard",
+  () => ({
+    CreateOrganizationWizard: ({
+      open,
+      onOpenChange,
+      onOrganizationReady,
+    }: {
+      open: boolean;
+      onOpenChange: (open: boolean) => void;
+      onOrganizationReady?: (organizationId: string) => void;
+    }) =>
+      open ? (
+        <div data-testid="create-org-wizard">
+          <button
+            type="button"
+            data-testid="wizard-back"
+            onClick={() => onOpenChange(false)}
+          >
+            wizard back
+          </button>
+          <button
+            type="button"
+            data-testid="wizard-complete"
+            onClick={() => {
+              onOrganizationReady?.("org-1");
+              onOpenChange(false);
+            }}
+          >
+            wizard complete
+          </button>
+        </div>
+      ) : null,
+  }),
+);
 
 import { IdentityOnboardingForm } from "../identity-onboarding-form.client";
 

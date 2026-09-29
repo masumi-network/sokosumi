@@ -10,8 +10,8 @@ import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { acceptOrganizationInviteLink } from "@/lib/actions";
-import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { acceptOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import {
@@ -292,7 +292,9 @@ export function PendingInvitesQueue({
                 }}
                 data-testid={`workspace-gate-accept-${item.kind}-${key}`}
               >
-                {itemBusy ? <Loader2 className="size-4 animate-spin" /> : null}
+                {itemBusy ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+                ) : null}
                 {item.kind === "join" ? t("join") : t("accept")}
               </Button>
             </li>
@@ -309,7 +311,7 @@ export function PendingInvitesQueue({
           data-testid="workspace-gate-retry-activation"
         >
           {busyKey === "retry-activation" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("activateRetry")}
         </Button>
@@ -326,7 +328,7 @@ export function PendingInvitesQueue({
               data-testid="workspace-gate-accept-all"
             >
               {busyKey === "accept-all" ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("acceptAll")}
             </Button>
@@ -340,7 +342,7 @@ export function PendingInvitesQueue({
               data-testid="workspace-gate-accept-selected"
             >
               {busyKey === "accept-selected" ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("acceptSelected")}
             </Button>
@@ -357,7 +359,7 @@ export function PendingInvitesQueue({
           data-testid="workspace-gate-reject-all"
         >
           {busyKey === "reject-all" ? (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {t("rejectAll")}
         </Button>

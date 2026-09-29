@@ -1,8 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { TaskLinkType } from "@sokosumi/database";
 
-import { requireMutableTaskOwnership } from "@/helpers/access-control";
-import { badRequest, notFound } from "@/helpers/error";
+import {
+  buildTaskWriteAccessWhere,
+  requireMutableTaskWriteAccess,
+} from "@/helpers/access-control";
+import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import {
@@ -33,8 +35,7 @@ const paramsSchema = z.object({
 const route = createRoute({
   method: "patch",
   path: "/{id}/links/{linkId}",
-  description:
-    "Update a link between this task and another task. Schedule series links (TaskLinkType.SCHEDULE) are system-managed and cannot be patched.",
+  description: "Update a link between this task and another task.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -72,21 +73,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         throw notFound("Task link not found");
       }
 
-      if (link.type === TaskLinkType.SCHEDULE) {
-        throw badRequest(
-          "Schedule links are system-managed and cannot be updated",
-        );
-      }
-
-      await requireMutableTaskOwnership(userContext, id, tx);
+      await requireMutableTaskWriteAccess(userContext, id, tx);
 
       const peerTaskId =
         link.fromTaskId === id ? link.toTaskId : link.fromTaskId;
       const peerTask = await tx.task.findFirst({
         where: {
           id: peerTaskId,
-          ownerId: userContext.userId,
           workspaceId: workspaceContext.workspaceId,
+          ...buildTaskWriteAccessWhere(userContext.userId),
         },
         select: taskLinkPeerTaskSelect,
       });

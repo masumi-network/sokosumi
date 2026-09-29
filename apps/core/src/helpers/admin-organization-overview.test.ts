@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const {
   getUniqueOrganizationWithRelationsMock,
   getOrganizationLimitedInfoBySlugMock,
-  getAssignedMemberCountMock,
+  memberCountMock,
   listMembersForAdminOverviewMock,
   resolveActiveSubscriptionByReferenceIdMock,
   getLatestSubscriptionByReferenceIdMock,
@@ -15,7 +15,7 @@ const {
 } = vi.hoisted(() => ({
   getUniqueOrganizationWithRelationsMock: vi.fn(),
   getOrganizationLimitedInfoBySlugMock: vi.fn(),
-  getAssignedMemberCountMock: vi.fn(),
+  memberCountMock: vi.fn(),
   listMembersForAdminOverviewMock: vi.fn(),
   resolveActiveSubscriptionByReferenceIdMock: vi.fn(),
   getLatestSubscriptionByReferenceIdMock: vi.fn(),
@@ -38,8 +38,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
       sumOrganizationOwnedCreditBalancesMock(...args),
   },
   memberRepository: {
-    getAssignedMemberCount: (...args: unknown[]) =>
-      getAssignedMemberCountMock(...args),
     listMembersForAdminOverview: (...args: unknown[]) =>
       listMembersForAdminOverviewMock(...args),
   },
@@ -112,11 +110,19 @@ const MEMBER = {
 
 const POOL_REMAINING_CENTS = 90_246n * 10_000_000_000n;
 
+function createTx() {
+  return {
+    member: {
+      count: memberCountMock,
+    },
+  } as unknown as Prisma.TransactionClient;
+}
+
 describe("buildAdminOrganizationOverviewDetail", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getUniqueOrganizationWithRelationsMock.mockResolvedValue(ORGANIZATION);
-    getAssignedMemberCountMock.mockResolvedValue(0);
+    memberCountMock.mockResolvedValue(0);
     resolveActiveSubscriptionByReferenceIdMock.mockResolvedValue(null);
     getLatestSubscriptionByReferenceIdMock.mockResolvedValue(null);
     sumOrganizationOwnedCreditBalancesMock.mockResolvedValue({
@@ -136,7 +142,7 @@ describe("buildAdminOrganizationOverviewDetail", () => {
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      {} as Prisma.TransactionClient,
+      createTx(),
     );
 
     expect(detail?.totalCredits).toBe(90_246);
@@ -154,11 +160,11 @@ describe("buildAdminOrganizationOverviewDetail", () => {
       cancelAtPeriodEnd: false,
       periodEnd: null,
     });
-    getAssignedMemberCountMock.mockResolvedValue(0);
+    memberCountMock.mockResolvedValue(0);
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      {} as Prisma.TransactionClient,
+      createTx(),
     );
 
     expect(detail?.totalCredits).toBe(90_246);
@@ -183,11 +189,11 @@ describe("buildAdminOrganizationOverviewDetail", () => {
       purchasedSeats: 10,
       isConsumable: true,
     });
-    getAssignedMemberCountMock.mockResolvedValue(2);
+    memberCountMock.mockResolvedValue(2);
 
     const detail = await buildAdminOrganizationOverviewDetail(
       "acme-corp",
-      {} as Prisma.TransactionClient,
+      createTx(),
     );
 
     expect(detail?.totalCredits).toBe(91_446);

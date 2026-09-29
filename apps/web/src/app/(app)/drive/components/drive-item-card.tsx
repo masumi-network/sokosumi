@@ -124,12 +124,12 @@ export function DriveFilePreview({
   children,
 }: DriveFilePreviewProps): ReactElement {
   const isPreviewable = isImage || documentKind !== null;
-  const [isImageViewerOpen, setIsImageViewerOpen] = useState(false);
+  const [openImageSrc, setOpenImageSrc] = useState<string | null>(null);
   const [isDocumentViewerOpen, setIsDocumentViewerOpen] = useState(false);
 
   function activate() {
     if (isImage) {
-      setIsImageViewerOpen(true);
+      setOpenImageSrc(fileUrl);
     } else if (documentKind) {
       setIsDocumentViewerOpen(true);
     }
@@ -144,11 +144,9 @@ export function DriveFilePreview({
           <>
             {isImage ? (
               <ImageViewer
-                open={isImageViewerOpen}
-                onOpenChange={setIsImageViewerOpen}
-                src={fileUrl}
-                alt={name}
-                downloadFilename={name}
+                images={[{ src: fileUrl, alt: name, downloadFilename: name }]}
+                activeSrc={openImageSrc}
+                onActiveSrcChange={setOpenImageSrc}
               />
             ) : null}
             {documentKind ? (

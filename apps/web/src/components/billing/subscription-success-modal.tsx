@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useQueryState } from "nuqs";
 import { useState } from "react";
 import { PurchaseSuccessModal } from "@/components/billing/purchase-success-modal";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -9,7 +9,6 @@ interface SubscriptionSuccessModalProps {
   coworkersPromise: Promise<CoworkerOption[]>;
   description: string;
   headline: string;
-  returnPath: string;
   status: "cancel" | "success" | null;
 }
 
@@ -24,16 +23,16 @@ export function SubscriptionSuccessModal({
   coworkersPromise,
   description,
   headline,
-  returnPath,
   status,
 }: SubscriptionSuccessModalProps) {
-  const router = useRouter();
+  const [, setStatus] = useQueryState("status");
   const [open, setOpen] = useState(status === "success");
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
     if (!nextOpen) {
-      router.replace(returnPath);
+      // Keep the checkout ID so a later consent grant (or reload) can track it.
+      void setStatus(null);
     }
   }
 

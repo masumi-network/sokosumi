@@ -15,3 +15,21 @@ export function getActiveRoomIdFromPathname(
   const roomId = pathname.split("/")[3];
   return roomId || null;
 }
+
+/**
+ * Room id from the optimistic sidebar selection (`useRoomSelection`).
+ *
+ * The highlight follows this on click, before `usePathname` commits. Dim
+ * follows it too, or a read room stays faded under the bar until the route
+ * catches up. The path is `/chat/rooms/<id>` plus an optional query. A path
+ * that continues past the room, or is not a room, means no room is open.
+ */
+export function getActiveRoomIdFromSelection(
+  selectedPath: string,
+): string | null {
+  const path = selectedPath.split("?")[0];
+  const id = path.startsWith("/chat/rooms/")
+    ? path.slice("/chat/rooms/".length)
+    : "";
+  return id && !id.includes("/") ? id : null;
+}

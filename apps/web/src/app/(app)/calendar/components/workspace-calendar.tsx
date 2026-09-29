@@ -3,16 +3,11 @@
 import FullCalendar, { type EventDropInfo } from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/react/daygrid";
 import interactionPlugin from "@fullcalendar/react/interaction";
-import listPlugin from "@fullcalendar/react/list";
 import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
-import {
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
-  isValidTimezone,
-} from "@sokosumi/utils";
+import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
   addMonths,
@@ -22,8 +17,6 @@ import {
   startOfWeek,
 } from "date-fns";
 import {
-  ArrowDown,
-  ArrowUp,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -31,72 +24,67 @@ import {
   Clock3,
   Ellipsis,
   FolderKanban,
-  Plus,
+  Repeat,
+  Share2,
   Sparkles,
 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import {
+  parseAsBoolean,
   parseAsString,
   parseAsStringEnum,
   parseAsStringLiteral,
   useQueryStates,
 } from "nuqs";
-import { type MouseEvent, useEffect, useId, useRef, useState } from "react";
+import {
+  type PointerEvent,
+  type ReactNode,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 import { Temporal } from "temporal-polyfill";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
-import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
-import { loadTaskScheduleSeriesPrecondition } from "@/app/tasks/actions";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
+import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
+import {
+  TASK_SCHEDULES_PATH,
+  taskSchedulePath,
+} from "@/app/tasks/utils/task-schedule-view";
 import {
   FilterDropdownMenu,
   type FilterDropdownMenuSection,
 } from "@/components/common/filter-dropdown-menu";
-import { OccurrenceTimeDialog } from "@/components/schedules/occurrence-time-dialog";
-import { TaskScheduleSection } from "@/components/task-schedule-section";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+  SEGMENTED_TABS_LIST_CLASS_NAME,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { UserProfileAvatar } from "@/components/user/user-profile-avatar";
-import useIsApplePlatform from "@/hooks/use-is-apple-platform";
+import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import {
-  clearTaskSchedule,
-  mutateTaskOccurrence,
-  saveCalendarTaskSchedule,
-} from "@/lib/actions/task/action";
+import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
-  type Task,
   TaskStatus,
   type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
   type WorkspaceCalendarItem,
   type WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
@@ -105,32 +93,27 @@ import {
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
 import { utcToDateTimeLocalInTimezone } from "@/lib/schedules/zoned-datetime";
-import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
+import { schedulableRunAtLocalIso } from "@/lib/utils/task-schedule";
 import {
-  getTaskScheduleOperationId,
-  hasTaskScheduleChanged,
-  metadataToSelection,
-  schedulableOnceLocalIso,
-} from "@/lib/utils/task-schedule";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
+  type ChangeableRun,
+  changeRun,
+  isChangeableRun,
+  useReportRunChangeFailure,
+} from "./run-change";
+import { RunMoveDialog } from "./run-move-dialog";
+import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
+type CalendarView = (typeof CALENDAR_VIEWS)[number];
 const CALENDAR_STATUSES = Object.values(TaskStatus);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
   return value !== null && CALENDAR_STATUSES.some((status) => status === value);
 }
-const SOURCE_PALETTE_CLASSES = {
-  blue: "bg-chart-1",
-  violet: "bg-chart-2",
-  amber: "bg-chart-4",
-} as const;
 
-interface CalendarCoworker {
+export interface CalendarCoworker {
   id: string;
   image?: string;
   name: string;
@@ -170,9 +153,17 @@ function findCalendarPeople(
 }
 
 interface WorkspaceCalendarProps {
+  includeSocialPosts?: boolean;
+  /**
+   * Social's own calendar: Social posts are all this calendar ever shows, so
+   * the toggle, the task filters and task creation are left out rather than
+   * offered and then ignored.
+   */
+  socialPostsOnly?: boolean;
   activeOrganizationId?: string | null;
+  currentUserId?: string | null;
   initialDate: string;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   latestDate?: string;
   sources?: WorkspaceCalendarSource[];
   pagination?: {
@@ -185,6 +176,7 @@ interface WorkspaceCalendarProps {
   };
   coworkers?: CalendarCoworker[];
   lockedProjectId?: string;
+  workspaceId?: string | null;
 }
 
 const calendarParsers = {
@@ -194,6 +186,7 @@ const calendarParsers = {
   projectId: parseAsString,
   sourceId: parseAsString,
   scope: parseAsStringLiteral(["owned", "workspace"]).withDefault("workspace"),
+  socialOnly: parseAsBoolean.withDefault(false),
   status: parseAsStringEnum<TaskStatusValue>(CALENDAR_STATUSES),
   timezone: parseAsString,
   view: parseAsStringLiteral(CALENDAR_VIEWS),
@@ -209,28 +202,6 @@ function parseCalendarDate(value: string, fallback: string): Date {
 
 function getCalendarDayKey(date: Date): string {
   return format(date, "yyyy-MM-dd");
-}
-
-/** The app shell's main column scrolls the page; null outside it. */
-function getAgendaScroller(root: HTMLElement | null): HTMLElement | null {
-  return root?.closest<HTMLElement>("[data-app-main]") ?? null;
-}
-
-/**
- * FullCalendar's list day header for today in the calendar zone, or the
- * first later day: the list only renders headers for days that have events.
- */
-function findTodayHeader(
-  root: HTMLElement | null,
-  timeZone: string,
-): HTMLElement | null {
-  const todayKey = Temporal.Now.plainDateISO(timeZone).toString();
-  const headers = root?.querySelectorAll<HTMLElement>("[data-date]") ?? [];
-  return (
-    Array.from(headers).find(
-      (header) => (header.dataset.date ?? "") >= todayKey,
-    ) ?? null
-  );
 }
 
 function getProjectIdFromSource(
@@ -264,7 +235,7 @@ export function getCalendarItemDateKey(date: Date, timeZone = "UTC"): string {
 function getRangeLabel(
   formatDate: ReturnType<typeof useFormatter>["dateTime"],
   date: Date,
-  view: (typeof CALENDAR_VIEWS)[number],
+  view: CalendarView,
 ) {
   if (view === "week") {
     return `${formatDate(startOfWeek(date), { month: "short", day: "numeric" })} - ${formatDate(endOfWeek(date), { month: "short", day: "numeric", year: "numeric" })}`;
@@ -273,99 +244,48 @@ function getRangeLabel(
   return formatDate(date, { month: "long", year: "numeric" });
 }
 
-function SourceMarker({
-  decorative = false,
-  size = "size-4",
-  source,
-  sourceName,
-}: {
-  decorative?: boolean;
-  size?: string;
-  source: WorkspaceCalendarSource | undefined;
-  sourceName: string;
-}) {
-  if (source?.logoUrl) {
-    return (
-      <Avatar
-        className={`${size} shrink-0 rounded-sm`}
-        data-testid="calendar-source-marker"
-      >
-        <AvatarImage alt={decorative ? "" : sourceName} src={source.logoUrl} />
-        <AvatarFallback aria-hidden={decorative} className="rounded-sm text-xs">
-          {sourceName.slice(0, 1).toUpperCase()}
-        </AvatarFallback>
-      </Avatar>
-    );
-  }
-
+/** A moved Run is planned at a time other than the rule's. */
+function isMovedRun(item: WorkspaceCalendarItem): boolean {
   return (
-    <span
-      aria-hidden={decorative}
-      aria-label={decorative ? undefined : sourceName}
-      className={`${size} shrink-0 rounded-full ${
-        source ? SOURCE_PALETTE_CLASSES[source.paletteToken] : "bg-primary"
-      }`}
-      data-testid="calendar-source-marker"
-    />
+    item.originalScheduledAt !== null &&
+    item.originalScheduledAt.getTime() !== item.scheduledAt.getTime()
   );
 }
 
-/**
- * Only an unreleased occurrence the caller owns can be moved. A released row
- * is history, and a row the caller cannot edit must not be draggable either.
- */
-function isMovableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return item.canMutateOccurrence && item.state === "PLANNED";
-}
-
-function isRestorableCalendarItem(item: WorkspaceCalendarItem): boolean {
-  return (
-    item.canMutateOccurrence &&
-    item.state === "SKIPPED" &&
-    item.originalScheduledAt !== null
-  );
+interface RunHandlers {
+  onMoveRun: (item: ChangeableRun) => void;
+  onRestoreRun: (item: ChangeableRun) => void;
+  onSkipRun: (item: ChangeableRun) => void;
+  onOpen: (path: string) => void;
 }
 
 function CalendarEvent({
   item,
   people,
-  onEditSchedule,
-  onMoveOccurrence,
-  onRestoreOccurrence,
-  onSkipOccurrence,
-  onOpenTask,
+  onMoveRun,
+  onRestoreRun,
+  onSkipRun,
+  onOpen,
   source,
   timeText,
-}: {
+}: RunHandlers & {
   item: WorkspaceCalendarItem;
   people: CalendarPeople;
-  onEditSchedule: (taskId: string) => void;
-  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
-  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
-  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
-  onOpenTask: (taskId: string) => void;
   source: WorkspaceCalendarSource | undefined;
   timeText: string | undefined;
 }) {
   const t = useTranslations("App.Calendar");
   const peopleId = useId();
+  const { scheduleId } = item;
   const [menuOpen, setMenuOpen] = useState(false);
   // Where a mouse drag began on a card FullCalendar will not move.
   const dragAttemptOrigin = useRef<{ x: number; y: number } | null>(null);
+  // That drag's pointerup still clicks. Do not treat it as a tap.
+  const suppressClick = useRef(false);
   const sourceName = source?.displayName ?? t(`source.${item.sourceType}`);
   const sourceMarker = (
     <SourceMarker decorative source={source} sourceName={sourceName} />
   );
-  const accuracyMarker =
-    item.sourceAccuracy !== "EXACT" ? (
-      <span
-        aria-label={t(`accuracy.${item.sourceAccuracy.toLowerCase()}`)}
-        className="text-muted-foreground shrink-0"
-        role="img"
-      >
-        ~
-      </span>
-    ) : null;
   const peopleNames = [people.assignee?.name, people.owner?.name]
     .filter((name): name is string => Boolean(name?.trim()))
     .join(", ");
@@ -396,16 +316,11 @@ function CalendarEvent({
     <DropdownMenuTrigger asChild>
       <button
         aria-describedby={peopleNames ? peopleId : undefined}
-        aria-label={t(
-          item.state === "SKIPPED"
-            ? "event.accessibleNameSkipped"
-            : "event.accessibleName",
-          {
-            source: sourceName,
-            task: item.taskName,
-          },
-        )}
-        className="text-muted-foreground hover:bg-primary-tertiary hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
+        className="text-muted-foreground press hover:bg-muted hover:text-foreground focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring ml-auto flex size-5 shrink-0 cursor-pointer items-center justify-center rounded outline-none focus-visible:ring-2"
         // Radix already toggled on pointerdown; the click must not reach the
         // card's own open handler.
         onClick={(event) => event.stopPropagation()}
@@ -416,6 +331,100 @@ function CalendarEvent({
     </DropdownMenuTrigger>
   );
 
+  const cardClassName =
+    "bg-background text-foreground hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out";
+  // FullCalendar silently ignores a drag on a Run the caller cannot move;
+  // say which ones move once the mouse has clearly started.
+  const dragAttemptHandlers = {
+    onPointerDown: (event: PointerEvent) => {
+      suppressClick.current = false;
+      dragAttemptOrigin.current =
+        event.pointerType !== "touch" && !isChangeableRun(item)
+          ? { x: event.clientX, y: event.clientY }
+          : null;
+    },
+    onPointerLeave: () => {
+      dragAttemptOrigin.current = null;
+    },
+    onPointerMove: (event: PointerEvent) => {
+      const origin = dragAttemptOrigin.current;
+      if (
+        !origin ||
+        Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
+      ) {
+        return;
+      }
+      dragAttemptOrigin.current = null;
+      suppressClick.current = true;
+      toast.info(t("event.moveNotAllowed"));
+    },
+    onPointerUp: () => {
+      dragAttemptOrigin.current = null;
+    },
+  };
+  function onTap(open: () => void) {
+    return () => {
+      if (suppressClick.current) {
+        suppressClick.current = false;
+        return;
+      }
+      open();
+    };
+  }
+  const cardContent = (trailing: ReactNode) => (
+    <>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {sourceMarker}
+        {timeText ? (
+          <span className="text-muted-foreground shrink-0 tabular-nums">
+            {timeText}
+          </span>
+        ) : null}
+        <span className="text-muted-foreground min-w-0 flex-1 truncate">
+          {sourceName}
+        </span>
+        {item.taskStatus ? (
+          <TaskStatusBadge
+            status={item.taskStatus}
+            label={t(`status.${item.taskStatus}`)}
+            showLabel={false}
+            className="size-5 justify-center p-0"
+          />
+        ) : null}
+      </span>
+      <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
+      <span className="flex w-full min-w-0 items-center gap-1">
+        {peopleStack}
+        {trailing}
+      </span>
+    </>
+  );
+
+  // A card with a Task (a released Run or a Run at) opens that Task. Only
+  // Runs still to come, which have no Task yet, carry a menu.
+  const { taskId } = item;
+  if (taskId) {
+    return (
+      <button
+        aria-describedby={peopleNames ? peopleId : undefined}
+        aria-label={t("event.accessibleName", {
+          source: sourceName,
+          task: item.taskName,
+        })}
+        className={cn(
+          cardClassName,
+          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2",
+        )}
+        data-testid="calendar-event"
+        onClick={onTap(() => onOpen(`/tasks/${taskId}`))}
+        type="button"
+        {...dragAttemptHandlers}
+      >
+        {cardContent(null)}
+      </button>
+    );
+  }
+
   return (
     <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
       {/*
@@ -425,80 +434,36 @@ function CalendarEvent({
         drag mirror), so a click on the card is always a plain tap.
       */}
       <div
-        className={cn(
-          "bg-primary-quaternary text-foreground hover:bg-primary-tertiary flex w-full min-w-0 cursor-pointer select-none flex-col items-start gap-0.5 overflow-hidden rounded px-1.5 py-1 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out",
-          item.state === "SKIPPED" && "text-muted-foreground line-through",
-        )}
+        className={cardClassName}
         data-testid="calendar-event"
-        onClick={() => setMenuOpen(true)}
-        // FullCalendar silently ignores a drag on someone else's task; say
-        // who can move it once the mouse has clearly started dragging.
-        onPointerDown={(event) => {
-          dragAttemptOrigin.current =
-            event.pointerType !== "touch" && !item.canEditSchedule
-              ? { x: event.clientX, y: event.clientY }
-              : null;
-        }}
-        onPointerLeave={() => {
-          dragAttemptOrigin.current = null;
-        }}
-        onPointerMove={(event) => {
-          const origin = dragAttemptOrigin.current;
-          if (
-            !origin ||
-            Math.hypot(event.clientX - origin.x, event.clientY - origin.y) < 8
-          ) {
-            return;
-          }
-          dragAttemptOrigin.current = null;
-          toast.info(t("event.moveNotAllowed"));
-        }}
-        onPointerUp={() => {
-          dragAttemptOrigin.current = null;
-        }}
+        onClick={onTap(() => setMenuOpen(true))}
+        {...dragAttemptHandlers}
       >
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {sourceMarker}
-          {timeText ? (
-            <span className="text-muted-foreground shrink-0 tabular-nums">
-              {timeText}
-            </span>
-          ) : null}
-          {accuracyMarker}
-          <span className="text-muted-foreground min-w-0 truncate">
-            {sourceName}
-          </span>
-        </span>
-        <span className="line-clamp-2 w-full min-w-0">{item.taskName}</span>
-        <span className="flex w-full min-w-0 items-center gap-1">
-          {peopleStack}
-          {menuButton}
-        </span>
+        {cardContent(menuButton)}
       </div>
       <DropdownMenuContent align="end">
-        {item.canEditSchedule ? (
-          <DropdownMenuItem onSelect={() => onEditSchedule(item.taskId)}>
-            {t("event.editSchedule")}
-          </DropdownMenuItem>
-        ) : null}
-        {isMovableCalendarItem(item) ? (
+        {isChangeableRun(item) ? (
           <>
-            <DropdownMenuItem onSelect={() => onMoveOccurrence(item)}>
-              {t("event.moveOccurrence")}
+            <DropdownMenuItem onSelect={() => onMoveRun(item)}>
+              {t("event.moveRun")}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onSkipOccurrence(item)}>
-              {t("event.skipOccurrence")}
+            <DropdownMenuItem onSelect={() => onSkipRun(item)}>
+              {t("event.skipRun")}
             </DropdownMenuItem>
+            {isMovedRun(item) ? (
+              <DropdownMenuItem onSelect={() => onRestoreRun(item)}>
+                {t("event.restoreRun")}
+              </DropdownMenuItem>
+            ) : null}
           </>
         ) : null}
-        {isRestorableCalendarItem(item) ? (
-          <DropdownMenuItem onSelect={() => onRestoreOccurrence(item)}>
-            {t("event.restoreOccurrence")}
+        {scheduleId ? (
+          <DropdownMenuItem
+            onSelect={() => onOpen(taskSchedulePath(scheduleId))}
+          >
+            {t("event.openSchedule")}
           </DropdownMenuItem>
         ) : null}
-        <DropdownMenuItem onSelect={() => onOpenTask(item.taskId)}>
-          {t("event.openTask")}
-        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -510,11 +475,8 @@ function CalendarView({
   date,
   items,
   onDateClick,
-  onEventEdit,
-  onMoveOccurrence,
-  onRestoreOccurrence,
-  onSkipOccurrence,
-  onOpenTask,
+  runHandlers,
+  socialOnly,
   sources,
   timeZone,
   view,
@@ -522,33 +484,29 @@ function CalendarView({
   canCreate: boolean;
   coworkers: CalendarCoworker[];
   date: Date;
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   onDateClick: (date: Date) => void;
-  onEventEdit: (taskId: string) => void;
-  onMoveOccurrence: (item: WorkspaceCalendarItem) => void;
-  onRestoreOccurrence: (item: WorkspaceCalendarItem) => void;
-  onSkipOccurrence: (item: WorkspaceCalendarItem) => void;
-  onOpenTask: (taskId: string) => void;
+  runHandlers: RunHandlers;
+  socialOnly: boolean;
   sources: WorkspaceCalendarSource[];
   timeZone: string;
-  view: (typeof CALENDAR_VIEWS)[number];
+  view: CalendarView;
 }) {
   const router = useRouter();
   const formatDate = useFormatter().dateTime;
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
-  const tMove = useTranslations("App.Tasks.Schedule.occurrenceMove");
+  const t = useTranslations("App.Calendar");
+  const reportRunChangeFailure = useReportRunChangeFailure();
   // Optimistic overlay for an in-flight drop: the event renders at the time it
   // was dropped at until Core confirms it or the rollback removes it.
   const [pendingMoves, setPendingMoves] = useState<Record<string, Date>>({});
   const pluginView = {
     month: "dayGridMonth",
     week: "dayGridWeek",
-    agenda: "listMonth",
-  }[view];
+  }[view === "agenda" ? "week" : view];
 
-  function clearPendingMove(occurrenceId: string) {
+  function clearPendingMove(runId: string) {
     setPendingMoves((moves) => {
-      const { [occurrenceId]: _dropped, ...rest } = moves;
+      const { [runId]: _dropped, ...rest } = moves;
       return rest;
     });
   }
@@ -556,123 +514,121 @@ function CalendarView({
   async function handleEventDrop(info: EventDropInfo) {
     const item = items.find(({ id }) => id === info.event.id);
     const scheduledAt = info.event.start;
-    if (!item || !scheduledAt || !isMovableCalendarItem(item)) {
+    if (!item || !scheduledAt || !isChangeableRun(item)) {
       info.revert();
       return;
     }
 
-    const occurrenceId = item.id;
-    setPendingMoves((moves) => ({ ...moves, [occurrenceId]: scheduledAt }));
+    setPendingMoves((moves) => ({ ...moves, [item.id]: scheduledAt }));
 
     try {
-      // Every drop is its own attempt; a retry is a new drag, not a replay.
-      const result = await mutateTaskOccurrence({
-        taskId: item.taskId,
-        occurrenceId,
-        operationId: crypto.randomUUID(),
-        expectedScheduleRevision: item.scheduleRevision,
-        action: "reschedule",
-        scheduledAt: scheduledAt.toISOString(),
-      });
+      const result = await changeRun(item, { action: "move", scheduledAt });
 
       if (!result.ok) {
-        clearPendingMove(occurrenceId);
+        clearPendingMove(item.id);
         info.revert();
-        // The series moved on under us, so the rendered events are stale too.
-        if (
-          result.error.kind ===
-            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
-        ) {
-          router.refresh();
-        }
-        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-        toast.error(feedbackKey ? tSeries(feedbackKey) : tMove("error"), {
-          duration: Infinity,
-        });
+        reportRunChangeFailure(result.error.kind);
         return;
       }
 
       router.refresh();
     } catch {
-      clearPendingMove(occurrenceId);
+      clearPendingMove(item.id);
       info.revert();
-      toast.error(tMove("error"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 
-  const t = useTranslations("App.Calendar");
-  const isApple = useIsApplePlatform();
-  const rootRef = useRef<HTMLDivElement>(null);
   const dateKey = getCalendarDayKey(date);
-  const [agendaScroll, setAgendaScroll] = useState({
-    hasToday: false,
-    isScrolled: false,
-  });
 
-  // The agenda lists the whole month and the page is the scroller, so land
-  // on today's day header whenever the shown month contains it, then keep
-  // track of the scroll position for the jump button.
-  useEffect(() => {
-    if (view !== "agenda") {
-      return;
-    }
-    const root = rootRef.current;
-    const scroller = getAgendaScroller(root);
-    const todayHeader = findTodayHeader(root, timeZone);
-    todayHeader?.scrollIntoView({ block: "start" });
-    const update = () =>
-      setAgendaScroll({
-        hasToday: Boolean(todayHeader),
-        isScrolled: (scroller ? scroller.scrollTop : window.scrollY) > 160,
-      });
-    update();
-    const target: EventTarget = scroller ?? window;
-    target.addEventListener("scroll", update, { passive: true });
-    return () => target.removeEventListener("scroll", update);
-  }, [view, dateKey, timeZone]);
-
-  function handleAgendaJump() {
-    const root = rootRef.current;
-    if (agendaScroll.isScrolled) {
-      (getAgendaScroller(root) ?? window).scrollTo({
-        top: 0,
-        behavior: "smooth",
-      });
-      return;
-    }
-    findTodayHeader(root, timeZone)?.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
+  if (view === "agenda") {
+    const days = Map.groupBy(items, (item) =>
+      getCalendarItemDateKey(item.scheduledAt, timeZone),
+    );
+    return (
+      <div
+        className="bg-card-background flex flex-col gap-4 rounded-xl p-3"
+        data-testid="calendar-agenda"
+      >
+        <h2 className="text-lg font-semibold">{t("agenda.upcoming")}</h2>
+        {items.length === 0 ? (
+          <p className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+          </p>
+        ) : null}
+        {Array.from(days, ([day, dayItems]) => (
+          <section
+            className="bg-background overflow-hidden rounded-lg border border-border"
+            key={day}
+          >
+            <h3 className="bg-muted flex items-center justify-between gap-2 border-b px-3 py-2 text-sm font-semibold">
+              <span>
+                {formatDate(dayItems[0].scheduledAt, {
+                  year: "numeric",
+                  month: "long",
+                  day: "numeric",
+                  timeZone,
+                })}
+              </span>
+              <span>
+                {formatDate(dayItems[0].scheduledAt, {
+                  weekday: "long",
+                  timeZone,
+                })}
+              </span>
+            </h3>
+            <ul className="flex flex-col gap-2 p-3">
+              {dayItems.map((item) => (
+                <li key={item.id}>
+                  {item.kind === "socialPost" ? (
+                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                  ) : (
+                    <CalendarEvent
+                      item={item}
+                      people={findCalendarPeople(item, coworkers)}
+                      {...runHandlers}
+                      source={sources.find(
+                        ({ sourceId }) => sourceId === item.sourceId,
+                      )}
+                      timeText={formatDate(item.scheduledAt, "time", {
+                        timeZone,
+                      })}
+                    />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        ))}
+      </div>
+    );
   }
 
   return (
     <>
       <div
-        className="workspace-calendar-theme -mx-4 overflow-x-auto rounded-none border-0 border-border bg-background md:mx-0 md:rounded-xl md:border"
+        className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
-        ref={rootRef}
       >
         <FullCalendar
           borderless
           dayCellClass={
-            canCreate && view !== "agenda"
-              ? "hover:bg-primary-quaternary motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
+            canCreate
+              ? "hover:bg-muted motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out"
               : undefined
           }
           key={`${dateKey}-${timeZone}-${view}`}
-          plugins={[classicTheme, dayGridPlugin, interactionPlugin, listPlugin]}
+          plugins={[classicTheme, dayGridPlugin, interactionPlugin]}
           initialDate={dateKey}
           initialView={pluginView}
           events={items.map((item) => ({
             id: item.id,
-            title: item.taskName,
+            title: item.kind === "socialPost" ? item.text : item.taskName,
             start: (pendingMoves[item.id] ?? item.scheduledAt).toISOString(),
-            // Per-event: a released or unowned row is visible but not draggable.
-            startEditable: isMovableCalendarItem(item),
+            // Per-event: a released or unowned Run is visible but not draggable.
+            startEditable: isChangeableRun(item),
             durationEditable: false,
           }))}
           timeZone={timeZone}
@@ -690,7 +646,7 @@ function CalendarView({
             const item = movingEvent
               ? items.find(({ id }) => id === movingEvent.id)
               : undefined;
-            return Boolean(item && isMovableCalendarItem(item));
+            return Boolean(item && isChangeableRun(item));
           }}
           eventDrop={(info) => void handleEventDrop(info)}
           eventContent={(eventInfo) => {
@@ -699,15 +655,15 @@ function CalendarView({
               return eventInfo.event.title;
             }
             const start = eventInfo.event.start;
+            if (item.kind === "socialPost")
+              return (
+                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+              );
             return (
               <CalendarEvent
                 item={item}
                 people={findCalendarPeople(item, coworkers)}
-                onEditSchedule={onEventEdit}
-                onMoveOccurrence={onMoveOccurrence}
-                onRestoreOccurrence={onRestoreOccurrence}
-                onSkipOccurrence={onSkipOccurrence}
-                onOpenTask={onOpenTask}
+                {...runHandlers}
                 source={sources.find(
                   ({ sourceId }) => sourceId === item.sourceId,
                 )}
@@ -722,311 +678,13 @@ function CalendarView({
           dateClick={(dateInfo) => onDateClick(dateInfo.date)}
         />
       </div>
-      {/*
-        Sticky, not fixed, so it centers on the agenda's own width instead of
-        the viewport, and it lives outside the wrapper because that wrapper
-        is a scroll container which would pin the sticky box to itself.
-      */}
-      {view === "agenda" &&
-      (agendaScroll.isScrolled || agendaScroll.hasToday) ? (
-        <div
-          className={cn(
-            "pointer-events-none sticky z-40 flex h-0 items-end justify-center md:bottom-6",
-            mobileCreateFabBottom(isApple),
-          )}
-        >
-          <Button
-            className="pointer-events-auto rounded-full shadow-lg"
-            size="sm"
-            variant="outline"
-            onClick={handleAgendaJump}
-          >
-            {agendaScroll.isScrolled ? (
-              <ArrowUp aria-hidden />
-            ) : (
-              <ArrowDown aria-hidden />
-            )}
-            {t(agendaScroll.isScrolled ? "agenda.backToTop" : "agenda.today")}
-          </Button>
-        </div>
-      ) : null}
     </>
   );
 }
 
-interface CalendarEditDialogProps {
-  initialSelection: TaskScheduleSelection;
-  onClose: () => void;
-  task: Task;
-  /** Revision observed when the editor opened; the mutation precondition. */
-  scheduleRevision: number;
-  /**
-   * Durable future exceptions this edit would cancel, read with the revision,
-   * or `null` when the ledger could not be read.
-   */
-  futureExceptionCount: number | null;
-}
-
-function CalendarEditDialog({
-  initialSelection,
-  onClose,
-  task,
-  scheduleRevision,
-  futureExceptionCount: observedFutureExceptionCount,
-}: CalendarEditDialogProps) {
-  const t = useTranslations("App.Calendar");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
-  const router = useRouter();
-  const [clearConfirmationOpen, setClearConfirmationOpen] = useState(false);
-  const [clearError, setClearError] = useState<string | null>(null);
-  const [isClearingSchedule, setIsClearingSchedule] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingDiscard, setPendingDiscard] =
-    useState<TaskScheduleSelection | null>(null);
-  // A revision conflict proves the observed count describes a series that has
-  // since moved on, so from then on this editor treats it as unknown.
-  const [isCountStale, setIsCountStale] = useState(false);
-  const futureExceptionCount = isCountStale
-    ? null
-    : observedFutureExceptionCount;
-  const clearRequestPending = useRef(false);
-  // One UUID per distinct submitted schedule: a retry of the same rule replays
-  // on Core, while editing the rule again is a new operation.
-  const saveOperation = useRef<{ key: string; operationId: string } | null>(
-    null,
-  );
-  // One UUID for the removal the user is confirming, kept across retries so a
-  // second attempt replays the first rather than racing its own revision bump.
-  const clearOperation = useRef<string | null>(null);
-
-  function resolveMutationError(
-    kind: TaskMutationErrorKind,
-    fallback: string,
-  ): string {
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    return feedbackKey ? tSeries(feedbackKey) : fallback;
-  }
-
-  async function submitSave(schedule: TaskScheduleSelection) {
-    setError(null);
-    try {
-      const result = await saveCalendarTaskSchedule({
-        taskId: task.id,
-        operationId: getTaskScheduleOperationId(schedule, saveOperation),
-        expectedScheduleRevision: scheduleRevision,
-        schedule,
-      });
-      if (!result.ok) {
-        if (
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT
-        ) {
-          // The series moved on, so the count read with the old revision no
-          // longer describes it. Nothing here may reuse it as "zero".
-          setIsCountStale(true);
-        }
-        setError(resolveMutationError(result.error.kind, t("edit.saveError")));
-        return;
-      }
-
-      onClose();
-      router.refresh();
-    } catch {
-      setError(t("edit.saveError"));
-    }
-  }
-
-  async function handleSave(schedule: TaskScheduleSelection) {
-    // Core mints a new rule epoch on every full-series edit, so submitting an
-    // untouched rule would churn the audit trail and reset consumed runs.
-    if (!hasTaskScheduleChanged(initialSelection, schedule, true)) {
-      onClose();
-      return;
-    }
-
-    // An unreadable count cannot say what a new rule would cancel, so the edit
-    // is refused instead of discarding silently. Removal states its own
-    // consequence in its confirmation and still proceeds.
-    if (futureExceptionCount === null) {
-      setError(tSeries("unknownCount"));
-      return;
-    }
-
-    if (futureExceptionCount > 0) {
-      setError(null);
-      setPendingDiscard(schedule);
-      return;
-    }
-
-    await submitSave(schedule);
-  }
-
-  async function handleConfirmDiscard() {
-    if (!pendingDiscard) return;
-    const schedule = pendingDiscard;
-    setPendingDiscard(null);
-    await submitSave(schedule);
-  }
-
-  async function handleClearSchedule(event: MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    if (clearRequestPending.current) {
-      return;
-    }
-
-    clearRequestPending.current = true;
-    setIsClearingSchedule(true);
-    setClearError(null);
-    setError(null);
-    try {
-      clearOperation.current ??= crypto.randomUUID();
-      const result = await clearTaskSchedule({
-        taskId: task.id,
-        operationId: clearOperation.current,
-        expectedScheduleRevision: scheduleRevision,
-      });
-      if (!result.ok) {
-        setClearError(
-          resolveMutationError(result.error.kind, t("edit.clearError")),
-        );
-        return;
-      }
-
-      onClose();
-      router.refresh();
-    } catch {
-      setClearError(t("edit.clearError"));
-    } finally {
-      clearRequestPending.current = false;
-      setIsClearingSchedule(false);
-    }
-  }
-
-  function handleClearConfirmationOpenChange(open: boolean) {
-    if (!open && clearRequestPending.current) {
-      return;
-    }
-
-    setClearConfirmationOpen(open);
-    if (!open) {
-      setClearError(null);
-      clearOperation.current = null;
-    }
-  }
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>{t("edit.title")}</DialogTitle>
-          <DialogDescription>
-            {t("edit.description", { name: task.name })}
-          </DialogDescription>
-        </DialogHeader>
-        {error ? (
-          <p className="text-destructive text-sm" role="alert">
-            {error}
-          </p>
-        ) : null}
-        <TaskScheduleSection
-          key={`${task.id}-${initialSelection.mode}-${initialSelection.timezone}-${initialSelection.oneTimeLocalIso ?? ""}-${initialSelection.cron ?? ""}-${initialSelection.customCronExpr ?? ""}`}
-          initialSelection={initialSelection}
-          onCancel={onClose}
-          onClearSchedule={() => {
-            setClearError(null);
-            clearOperation.current = crypto.randomUUID();
-            setClearConfirmationOpen(true);
-          }}
-          onSave={handleSave}
-          canClearSchedule={initialSelection.mode !== "none"}
-          hideHeader
-        />
-        {pendingDiscard ? (
-          <AlertDialog
-            open
-            onOpenChange={(open) => !open && setPendingDiscard(null)}
-          >
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>
-                  {tSeries("discardTitle", {
-                    count: futureExceptionCount ?? 0,
-                  })}
-                </AlertDialogTitle>
-                <AlertDialogDescription>
-                  {tSeries("discardDescription", {
-                    count: futureExceptionCount ?? 0,
-                  })}
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>
-                  {tSeries("discardCancel")}
-                </AlertDialogCancel>
-                <AlertDialogAction onClick={() => void handleConfirmDiscard()}>
-                  {tSeries("discardConfirm")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        ) : null}
-        <AlertDialog
-          open={clearConfirmationOpen}
-          onOpenChange={handleClearConfirmationOpenChange}
-        >
-          <AlertDialogContent
-            onEscapeKeyDown={(event) => {
-              if (clearRequestPending.current) {
-                event.preventDefault();
-              }
-            }}
-          >
-            <AlertDialogHeader>
-              <AlertDialogTitle>{t("edit.clearTitle")}</AlertDialogTitle>
-              <AlertDialogDescription>
-                {t("edit.clearDescription")}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            {clearError ? (
-              <p className="text-destructive text-sm" role="alert">
-                {clearError}
-              </p>
-            ) : null}
-            <p className="sr-only" role="status">
-              {isClearingSchedule ? t("edit.clearPending") : null}
-            </p>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isClearingSchedule}>
-                {t("edit.clearCancel")}
-              </AlertDialogCancel>
-              <AlertDialogAction
-                disabled={isClearingSchedule}
-                onClick={handleClearSchedule}
-              >
-                {t("edit.clearConfirm")}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface CalendarEditState {
-  initialSelection: TaskScheduleSelection;
-  requestId: number;
-  task: Task;
-  scheduleRevision: number;
-  futureExceptionCount: number | null;
-}
-
-interface OccurrenceTimeState {
-  action: "reschedule" | "restore";
-  item: WorkspaceCalendarItem;
-}
-
 export function WorkspaceCalendar({
   activeOrganizationId = null,
+  currentUserId = null,
   initialDate,
   items,
   latestDate,
@@ -1035,10 +693,12 @@ export function WorkspaceCalendar({
   range,
   coworkers = [],
   lockedProjectId,
+  workspaceId = null,
+  includeSocialPosts = false,
+  socialPostsOnly = false,
 }: WorkspaceCalendarProps) {
   const t = useTranslations("App.Calendar");
   const tFilters = useTranslations("App.Tasks.Filters");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const formatDate = useFormatter().dateTime;
   const router = useRouter();
   const { handleOpenWithDefaults } = useCreateTaskModal();
@@ -1046,17 +706,17 @@ export function WorkspaceCalendar({
   const [loadedItems, setLoadedItems] = useState(items);
   const [nextCursor, setNextCursor] = useState(pagination?.nextCursor ?? null);
   const [loadMoreError, setLoadMoreError] = useState(false);
+  const [isLoadingRuns, setIsLoadingRuns] = useState(false);
+  const agendaBoundaryRef = useRef<HTMLDivElement>(null);
   // The page already requested, keyed on the server items too so a refreshed
   // server page that reuses a cursor string drains again.
   const requestedPageRef = useRef<{
     cursor: string;
-    items: WorkspaceCalendarItem[];
+    items: WorkspaceCalendarEntry[];
   } | null>(null);
-  const [editState, setEditState] = useState<CalendarEditState | null>(null);
-  const [timeState, setTimeState] = useState<OccurrenceTimeState | null>(null);
-  const [eventLoadError, setEventLoadError] = useState(false);
+  const [movingRun, setMovingRun] = useState<ChangeableRun | null>(null);
   const [calendarRenderEpoch, setCalendarRenderEpoch] = useState(0);
-  const eventRequestId = useRef(0);
+  const calendarAccessGeneration = useRef(0);
   const hasActivatedRef = useRef(false);
 
   // Reset on a new server page during render, not in an effect, so a stale
@@ -1070,8 +730,11 @@ export function WorkspaceCalendar({
     items !== prevItems ||
     (pagination?.nextCursor ?? null) !== prevServerNextCursor
   ) {
+    // A request from the previous snapshot must not append stale Runs.
+    calendarAccessGeneration.current += 1;
     setPrevItems(items);
     setPrevServerNextCursor(pagination?.nextCursor ?? null);
+    setIsLoadingRuns(false);
     setLoadedItems(items);
     setNextCursor(pagination?.nextCursor ?? null);
     setLoadMoreError(false);
@@ -1125,13 +788,19 @@ export function WorkspaceCalendar({
       : selectedSchedulableSource?.sourceType === "WORKSPACE"
         ? null
         : undefined);
-  const canCreate = sources.some(
-    (source) =>
-      source.isSchedulable &&
-      (source.sourceType === "WORKSPACE" ||
-        getProjectIdFromSource(source) !== null) &&
-      (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
-  );
+  // Social's own calendar is social-only by definition; everywhere else the
+  // reader turns it on, and only where Social posts are on the calendar at all.
+  const socialOnly =
+    socialPostsOnly || (includeSocialPosts && state.socialOnly);
+  const canCreate =
+    !socialPostsOnly &&
+    sources.some(
+      (source) =>
+        source.isSchedulable &&
+        (source.sourceType === "WORKSPACE" ||
+          getProjectIdFromSource(source) !== null) &&
+        (!lockedProjectId || source.sourceId === `project:${lockedProjectId}`),
+    );
 
   useMountEffect(() => {
     if (!isValidTimezone(state.timezone)) {
@@ -1139,19 +808,45 @@ export function WorkspaceCalendar({
     }
   });
 
+  useEffect(() => {
+    if (isMobile && state.view === null) {
+      void setState({ view: "agenda" }, { shallow: false });
+    }
+  }, [isMobile, state.view, setState]);
+
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
     : null;
   const visibleItems = loadedItems
-    .filter(
-      (item) =>
+    .filter((item) => {
+      // Only Social posts survive the toggle. The grid views drain every page
+      // in range before they paint, so filtering the loaded entries here shows
+      // the same posts a Social-only request would have returned.
+      if (socialOnly && item.kind !== "socialPost") return false;
+      if (item.kind === "socialPost")
+        return (
+          (view !== "agenda" ||
+            (["SCHEDULED", "PUBLISHING"].includes(item.status) &&
+              getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+                Temporal.Now.plainDateISO(timeZone).toString())) &&
+          state.assigneeId === null &&
+          state.assigneeUserId === null &&
+          state.status === null &&
+          (selectedSourceId === null || item.sourceId === selectedSourceId)
+        );
+      return (
+        (view !== "agenda" ||
+          (item.state === "PLANNED" &&
+            getCalendarItemDateKey(item.scheduledAt, timeZone) >=
+              Temporal.Now.plainDateISO(timeZone).toString())) &&
         (state.assigneeId === null ||
           item.taskAssigneeId === state.assigneeId) &&
         (state.assigneeUserId === null ||
           item.taskAssigneeUserId === state.assigneeUserId) &&
         (state.status === null || item.taskStatus === state.status) &&
-        (selectedSourceId === null || item.sourceId === selectedSourceId),
-    )
+        (selectedSourceId === null || item.sourceId === selectedSourceId)
+      );
+    })
     .sort(
       (left, right) => left.scheduledAt.getTime() - right.scheduledAt.getTime(),
     );
@@ -1176,7 +871,7 @@ export function WorkspaceCalendar({
     void setState({ date: format(nextDate, "yyyy-MM-dd") }, { shallow: false });
   }
 
-  function handleViewChange(view: (typeof CALENDAR_VIEWS)[number]) {
+  function handleViewChange(view: CalendarView) {
     void setState({ view }, { shallow: false });
   }
 
@@ -1191,14 +886,11 @@ export function WorkspaceCalendar({
     void setState({ projectId: null, sourceId }, { shallow: false });
   }
 
-  function openCreateDialog(oneTimeLocalIso: string) {
-    eventRequestId.current += 1;
-    setEventLoadError(false);
+  function openCreateDialog(localIso: string) {
     handleOpenWithDefaults({
       projectId: selectedCreateProjectId,
-      schedule: {
-        mode: "once",
-        oneTimeLocalIso: schedulableOnceLocalIso(oneTimeLocalIso, timeZone),
+      runAt: {
+        localIso: schedulableRunAtLocalIso(localIso, timeZone),
         timezone: timeZone,
       },
     });
@@ -1215,110 +907,47 @@ export function WorkspaceCalendar({
     openCreateDialog(`${getCalendarDayKey(date)}T12:00`);
   }
 
-  /**
-   * The ledger read carries both the mutation precondition and the exact number
-   * of future exceptions an edit would discard. It is Calendar-beta gated while
-   * removal deliberately is not, so a failure keeps the Task's own revision —
-   * removal still works — while the count stays unknown rather than zero.
-   */
-  async function readSeriesPrecondition(taskId: string) {
+  const reportRunChangeFailure = useReportRunChangeFailure();
+
+  async function handleRunChange(
+    item: ChangeableRun,
+    change: { action: "skip" | "restore" },
+  ) {
     try {
-      return await loadTaskScheduleSeriesPrecondition(taskId);
-    } catch (error) {
-      console.error("Failed to read the schedule series state", error);
-      return null;
-    }
-  }
-
-  async function handleEventEdit(taskId: string) {
-    const requestId = eventRequestId.current + 1;
-    eventRequestId.current = requestId;
-    setEventLoadError(false);
-    try {
-      const [result, occurrencePage] = await Promise.all([
-        coreClient.getTaskById(taskId),
-        readSeriesPrecondition(taskId),
-      ]);
-      if (requestId !== eventRequestId.current) {
-        return;
-      }
-      setEditState({
-        initialSelection: metadataToSelection(
-          result.data.metadata,
-          getDefaultTimezone(),
-        ),
-        requestId,
-        task: result.data,
-        scheduleRevision:
-          occurrencePage?.scheduleRevision ?? result.data.scheduleRevision ?? 0,
-        futureExceptionCount:
-          occurrencePage?.futureExceptionCount ??
-          // A Task with no live rule has nothing to discard, so an unread
-          // ledger only leaves the count unknown for a series that has one.
-          (hasActiveTaskSchedule(result.data.metadata, result.data.nextRunAt)
-            ? null
-            : 0),
-      });
-    } catch {
-      if (requestId === eventRequestId.current) {
-        setEventLoadError(true);
-      }
-    }
-  }
-
-  function handleOpenTask(taskId: string) {
-    router.push(`/tasks/${taskId}`);
-  }
-
-  function handleMoveOccurrence(item: WorkspaceCalendarItem) {
-    setTimeState({ action: "reschedule", item });
-  }
-
-  function handleRestoreOccurrence(item: WorkspaceCalendarItem) {
-    setTimeState({ action: "restore", item });
-  }
-
-  async function handleSkipOccurrence(item: WorkspaceCalendarItem) {
-    try {
-      const result = await mutateTaskOccurrence({
-        taskId: item.taskId,
-        occurrenceId: item.id,
-        operationId: crypto.randomUUID(),
-        expectedScheduleRevision: item.scheduleRevision,
-        action: "skip",
-      });
+      const result = await changeRun(item, change);
       if (!result.ok) {
-        const feedbackKey = taskScheduleSeriesFeedbackKey(result.error.kind);
-        toast.error(
-          feedbackKey ? tSeries(feedbackKey) : t("event.mutationError"),
-          { duration: Infinity },
-        );
-        if (
-          result.error.kind ===
-            CORE_API_ERROR_KINDS.SCHEDULE_REVISION_CONFLICT ||
-          result.error.kind === CORE_API_ERROR_KINDS.SCHEDULE_CURSOR_STALE
-        ) {
-          router.refresh();
-        }
+        reportRunChangeFailure(result.error.kind);
         return;
       }
       router.refresh();
     } catch {
-      toast.error(t("event.mutationError"), { duration: Infinity });
+      reportRunChangeFailure("failed");
     }
   }
 
+  const runHandlers: RunHandlers = {
+    onMoveRun: setMovingRun,
+    onRestoreRun: (item) => void handleRunChange(item, { action: "restore" }),
+    onSkipRun: (item) => void handleRunChange(item, { action: "skip" }),
+    onOpen: (path) => router.push(path),
+  };
+
   async function loadNextPage() {
-    if (!nextCursor || !range) {
+    if (!nextCursor || !range || isLoadingRuns) {
       return;
     }
 
+    const accessGeneration = calendarAccessGeneration.current;
+    setIsLoadingRuns(true);
+    setLoadMoreError(false);
     try {
       const query = {
         from: range.from,
         to: range.to,
+        includeSocialPosts: includeSocialPosts ? ("true" as const) : undefined,
+        agendaOnly: view === "agenda" ? ("true" as const) : undefined,
         cursor: nextCursor,
-        limit: pagination?.limit ?? 100,
+        limit: view === "agenda" ? 10 : (pagination?.limit ?? 100),
         scope: state.scope,
         assigneeId: state.assigneeId ?? undefined,
         assigneeUserId: state.assigneeUserId ?? undefined,
@@ -1332,6 +961,9 @@ export function WorkspaceCalendar({
       const result = lockedProjectId
         ? await coreClient.getProjectsByIdCalendar(lockedProjectId, query)
         : await coreClient.getWorkspaceCalendar(query);
+      if (accessGeneration !== calendarAccessGeneration.current) {
+        return;
+      }
       setLoadedItems((currentItems) => [
         ...currentItems,
         ...result.data.filter(
@@ -1340,15 +972,40 @@ export function WorkspaceCalendar({
       ]);
       setNextCursor(result.meta?.pagination?.nextCursor ?? null);
     } catch {
-      setLoadMoreError(true);
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setLoadMoreError(true);
+      }
+    } finally {
+      if (accessGeneration === calendarAccessGeneration.current) {
+        setIsLoadingRuns(false);
+      }
     }
   }
 
-  // A calendar cannot show "load more": a day holding three of its five
+  function handleCalendarAccessRevoked() {
+    calendarAccessGeneration.current += 1;
+    setLoadedItems([]);
+    setNextCursor(null);
+    setLoadMoreError(false);
+    setMovingRun(null);
+  }
+
+  function handleCalendarInvalidated() {
+    calendarAccessGeneration.current += 1;
+  }
+
+  function handleCalendarResync() {
+    handleCalendarInvalidated();
+    setLoadMoreError(false);
+    setMovingRun(null);
+  }
+
+  // Month/week grids must show every event: a day holding three of its five
   // events looks complete. Drain the remaining pages as soon as one appears.
   useEffect(() => {
     const requested = requestedPageRef.current;
     if (
+      view === "agenda" ||
       !nextCursor ||
       loadMoreError ||
       (requested?.cursor === nextCursor && requested.items === items)
@@ -1357,7 +1014,80 @@ export function WorkspaceCalendar({
     }
     requestedPageRef.current = { cursor: nextCursor, items };
     void loadNextPage();
-  }, [items, nextCursor, loadMoreError, loadNextPage]);
+  }, [view, items, nextCursor, loadMoreError, loadNextPage]);
+
+  useLoadWhenVisible(agendaBoundaryRef, {
+    armed:
+      view === "agenda" &&
+      nextCursor !== null &&
+      !isLoadingRuns &&
+      !loadMoreError,
+    boundaryKey: `${nextCursor}-${visibleItems.length}`,
+    onVisible: () => void loadNextPage(),
+  });
+
+  function runFilterSections(): FilterDropdownMenuSection[] {
+    return [
+      {
+        id: "coworker",
+        label: tFilters("coworkerLabel"),
+        icon: Sparkles,
+        value: state.assigneeId,
+        allLabel: tFilters("all"),
+        options: coworkers
+          .filter((coworker) => coworker.kind !== "user")
+          .map((coworker) => ({
+            value: coworker.id,
+            label: coworker.name,
+            avatarLabel: coworker.name,
+            image: coworker.image,
+          })),
+        onChange: (assigneeId: string | null) =>
+          void setState(
+            { assigneeId, assigneeUserId: null },
+            { shallow: false },
+          ),
+      },
+      {
+        id: "human",
+        label: tFilters("humanLabel"),
+        icon: Sparkles,
+        value: state.assigneeUserId,
+        allLabel: tFilters("all"),
+        options: coworkers
+          .filter((coworker) => coworker.kind === "user")
+          .map((coworker) => ({
+            value: coworker.id,
+            label: coworker.name,
+            avatarLabel: coworker.name,
+            image: coworker.image,
+          })),
+        onChange: (assigneeUserId: string | null) =>
+          void setState(
+            { assigneeUserId, assigneeId: null },
+            { shallow: false },
+          ),
+      },
+      {
+        id: "status",
+        label: tFilters("statusLabel"),
+        icon: CircleDashed,
+        value: state.status,
+        allLabel: tFilters("all"),
+        options: CALENDAR_STATUSES.map((status) => ({
+          value: status,
+          label: tFilters(`statusOptions.${status}`),
+        })),
+        onChange: (status: string | null) =>
+          void setState(
+            {
+              status: isCalendarStatus(status) ? status : null,
+            },
+            { shallow: false },
+          ),
+      },
+    ];
+  }
 
   const filterSections: FilterDropdownMenuSection[] = [
     ...(activeOrganizationId
@@ -1397,58 +1127,9 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    {
-      id: "coworker",
-      label: tFilters("coworkerLabel"),
-      icon: Sparkles,
-      value: state.assigneeId,
-      allLabel: tFilters("all"),
-      options: coworkers
-        .filter((coworker) => coworker.kind !== "user")
-        .map((coworker) => ({
-          value: coworker.id,
-          label: coworker.name,
-          avatarLabel: coworker.name,
-          image: coworker.image,
-        })),
-      onChange: (assigneeId: string | null) =>
-        void setState({ assigneeId, assigneeUserId: null }, { shallow: false }),
-    },
-    {
-      id: "human",
-      label: tFilters("humanLabel"),
-      icon: Sparkles,
-      value: state.assigneeUserId,
-      allLabel: tFilters("all"),
-      options: coworkers
-        .filter((coworker) => coworker.kind === "user")
-        .map((coworker) => ({
-          value: coworker.id,
-          label: coworker.name,
-          avatarLabel: coworker.name,
-          image: coworker.image,
-        })),
-      onChange: (assigneeUserId: string | null) =>
-        void setState({ assigneeUserId, assigneeId: null }, { shallow: false }),
-    },
-    {
-      id: "status",
-      label: tFilters("statusLabel"),
-      icon: CircleDashed,
-      value: state.status,
-      allLabel: tFilters("all"),
-      options: CALENDAR_STATUSES.map((status) => ({
-        value: status,
-        label: tFilters(`statusOptions.${status}`),
-      })),
-      onChange: (status: string | null) =>
-        void setState(
-          {
-            status: isCalendarStatus(status) ? status : null,
-          },
-          { shallow: false },
-        ),
-    },
+    // A coworker, human or task status chosen while Social-only is on would
+    // empty the calendar: a Social post has none of the three.
+    ...(socialOnly ? [] : runFilterSections()),
     {
       id: "timezone",
       label: t("timezone.label"),
@@ -1468,74 +1149,127 @@ export function WorkspaceCalendar({
 
   return (
     <div className="flex w-full flex-col gap-5 pb-6">
-      <div className="flex items-center gap-1">
-        <Button
-          aria-label={t("previous")}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(-1)}
-        >
-          <ChevronLeft aria-hidden />
-        </Button>
-        <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
-          {getRangeLabel(formatDate, date, view)}
-        </span>
-        <Button
-          aria-label={t("next")}
-          disabled={!canNavigateForward}
-          size="icon"
-          variant="outline"
-          onClick={() => handleNavigate(1)}
-        >
-          <ChevronRight aria-hidden />
-        </Button>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Tabs
-          className="flex-1 md:flex-none"
-          value={view}
-          onValueChange={(value) => {
-            const nextView = CALENDAR_VIEWS.find(
-              (candidate) => candidate === value,
-            );
-            if (nextView) {
-              handleViewChange(nextView);
-            }
-          }}
-        >
-          <TabsList className="w-full md:w-fit" data-testid="calendar-views">
-            {CALENDAR_VIEWS.map((calendarView) => (
-              <TabsTrigger key={calendarView} value={calendarView}>
-                {t(`view.${calendarView}`)}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <FilterDropdownMenu
-          buttonLabel={tFilters("title")}
-          emptyResultsLabel={tFilters("emptyResults")}
-          searchPlaceholder={tFilters("searchPlaceholder")}
-          sections={filterSections}
-          showActiveIndicator={
-            state.scope === "owned" ||
-            state.assigneeId !== null ||
-            state.assigneeUserId !== null ||
-            state.status !== null ||
-            selectedSourceId !== null
-          }
+      {currentUserId && workspaceId ? (
+        <CalendarRealtimeBridge
+          currentUserId={currentUserId}
+          workspaceId={workspaceId}
+          onAccessRevoked={handleCalendarAccessRevoked}
+          onResync={handleCalendarResync}
+          onInvalidated={handleCalendarInvalidated}
         />
-        {canCreate ? (
-          <Button
-            className="ml-auto hidden md:inline-flex"
-            size="sm"
-            variant="primary"
-            onClick={handleAgendaCreate}
-          >
-            <Plus aria-hidden />
-            {t("create.title")}
-          </Button>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-4">
+        {view === "month" || view === "week" ? (
+          <div className="flex items-center gap-1 max-sm:w-full">
+            <Button
+              aria-label={t("previous")}
+              size="icon"
+              variant="outline"
+              onClick={() => handleNavigate(-1)}
+            >
+              <ChevronLeft aria-hidden />
+            </Button>
+            <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+              {getRangeLabel(formatDate, date, view)}
+            </span>
+            <Button
+              aria-label={t("next")}
+              disabled={!canNavigateForward}
+              size="icon"
+              variant="outline"
+              onClick={() => handleNavigate(1)}
+            >
+              <ChevronRight aria-hidden />
+            </Button>
+          </div>
         ) : null}
+
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
+          <Tabs
+            className="min-w-0 max-w-full"
+            value={view}
+            onValueChange={(value) => {
+              const nextView = CALENDAR_VIEWS.find(
+                (candidate) => candidate === value,
+              );
+              if (nextView) {
+                handleViewChange(nextView);
+              }
+            }}
+          >
+            <TabsList
+              className={cn(
+                SEGMENTED_TABS_LIST_CLASS_NAME,
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+              )}
+              data-testid="calendar-views"
+            >
+              {CALENDAR_VIEWS.map((calendarView) => (
+                <TabsTrigger
+                  className={cn(
+                    SEGMENTED_TAB_TRIGGER_CLASS_NAME,
+                    "max-sm:px-1.5 max-sm:text-xs",
+                  )}
+                  key={calendarView}
+                  value={calendarView}
+                >
+                  {t(`view.${calendarView}`)}
+                </TabsTrigger>
+              ))}
+            </TabsList>
+          </Tabs>
+          {includeSocialPosts && !socialPostsOnly ? (
+            <Button
+              aria-pressed={socialOnly}
+              data-testid="calendar-social-only"
+              onClick={() =>
+                void setState(
+                  // The task filters cannot apply to a Social post, so they go
+                  // with the runs rather than sitting on as dead narrowing.
+                  {
+                    socialOnly: !state.socialOnly,
+                    assigneeId: null,
+                    assigneeUserId: null,
+                    status: null,
+                  },
+                  { shallow: false },
+                )
+              }
+              size="sm"
+              type="button"
+              variant={socialOnly ? "secondary" : "outline"}
+            >
+              <Share2 aria-hidden className="size-4" />
+              {t("socialOnly.label")}
+            </Button>
+          ) : null}
+          {lockedProjectId && !socialPostsOnly ? (
+            <Button asChild size="sm" variant="outline">
+              <Link
+                href={`${TASK_SCHEDULES_PATH}?projectId=${encodeURIComponent(lockedProjectId)}`}
+              >
+                <Repeat aria-hidden className="size-4" />
+                {t("schedules.link")}
+              </Link>
+            </Button>
+          ) : null}
+          <div>
+            <FilterDropdownMenu
+              buttonLabel={tFilters("title")}
+              emptyResultsLabel={tFilters("emptyResults")}
+              searchPlaceholder={tFilters("searchPlaceholder")}
+              sections={filterSections}
+              showActiveIndicator={
+                state.scope === "owned" ||
+                (!socialOnly &&
+                  (state.assigneeId !== null ||
+                    state.assigneeUserId !== null ||
+                    state.status !== null)) ||
+                selectedSourceId !== null
+              }
+            />
+          </div>
+        </div>
       </div>
       {canCreate ? (
         <ListMobileCreateFab
@@ -1544,68 +1278,49 @@ export function WorkspaceCalendar({
         />
       ) : null}
 
-      {visibleItems.length === 0 ? (
-        <div className="text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm">
-          {t("empty.title")}
+      <div className="flex min-w-0 flex-col gap-4">
+        {visibleItems.length === 0 && view !== "agenda" ? (
+          <div className="bg-background text-muted-foreground rounded-lg border border-border p-8 text-center text-sm">
+            {t(socialOnly ? "empty.socialOnly" : "empty.title")}
+          </div>
+        ) : null}
+        <CalendarView
+          key={calendarRenderEpoch}
+          canCreate={canCreate}
+          coworkers={coworkers}
+          date={date}
+          items={visibleItems}
+          onDateClick={handleDateClick}
+          runHandlers={runHandlers}
+          socialOnly={socialOnly}
+          sources={sources}
+          timeZone={timeZone}
+          view={view}
+        />
+      </div>
+      {view === "agenda" && nextCursor ? (
+        <div className="flex justify-center" ref={agendaBoundaryRef}>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isLoadingRuns}
+            onClick={() => void loadNextPage()}
+          >
+            {t(isLoadingRuns ? "agenda.loading" : "agenda.loadMore")}
+          </Button>
         </div>
-      ) : null}
-      <CalendarView
-        key={calendarRenderEpoch}
-        canCreate={canCreate}
-        coworkers={coworkers}
-        date={date}
-        items={visibleItems}
-        onDateClick={handleDateClick}
-        onEventEdit={(taskId) => void handleEventEdit(taskId)}
-        onMoveOccurrence={handleMoveOccurrence}
-        onRestoreOccurrence={handleRestoreOccurrence}
-        onSkipOccurrence={(item) => void handleSkipOccurrence(item)}
-        onOpenTask={handleOpenTask}
-        sources={sources}
-        timeZone={timeZone}
-        view={view}
-      />
-      {eventLoadError ? (
-        <p className="text-destructive text-sm" role="alert">
-          {t("edit.loadError")}
-        </p>
       ) : null}
       {loadMoreError ? (
         <p className="text-destructive text-sm" role="alert">
           {t("pagination.error")}
         </p>
       ) : null}
-      {editState ? (
-        <CalendarEditDialog
-          key={editState.requestId}
-          initialSelection={editState.initialSelection}
-          onClose={() =>
-            setEditState((currentState) =>
-              currentState?.requestId === editState.requestId
-                ? null
-                : currentState,
-            )
-          }
-          task={editState.task}
-          scheduleRevision={editState.scheduleRevision}
-          futureExceptionCount={editState.futureExceptionCount}
-        />
-      ) : null}
-      {timeState ? (
-        <OccurrenceTimeDialog
-          key={`${timeState.action}:${timeState.item.id}`}
-          action={timeState.action}
-          occurrenceId={timeState.item.id}
-          expectedScheduleRevision={timeState.item.scheduleRevision}
-          scheduledAt={
-            timeState.action === "restore"
-              ? (timeState.item.originalScheduledAt ??
-                timeState.item.scheduledAt)
-              : timeState.item.scheduledAt
-          }
-          taskId={timeState.item.taskId}
+      {movingRun ? (
+        <RunMoveDialog
+          key={movingRun.id}
+          item={movingRun}
           timeZone={timeZone}
-          onClose={() => setTimeState(null)}
+          onClose={() => setMovingRun(null)}
         />
       ) : null}
     </div>

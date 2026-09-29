@@ -22,6 +22,133 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
     return active
   }
 
+  /// What a format control does to the editor: the range it replaces, the text that goes
+  /// there and where the collapsed caret lands.
+  public struct Edit {
+    public let range: NSRange
+    public let replacement: NSAttributedString
+    public let caret: Int
+
+    /// The caret goes to the end of the new text, before the line ending that closes it.
+    init(range: NSRange, replacement: NSAttributedString) {
+      self.range = range
+      self.replacement = replacement
+      caret = range.location + replacement.length - (replacement.string.hasSuffix("\n") ? 1 : 0)
+    }
+  }
+
+  public func edit(in text: NSAttributedString, selection: NSRange) -> Edit {
+    if self == .codeBlock {
+      return Self.unwrappingCode(in: text, selection: selection) ?? Self.wrappingCode(in: text, selection: selection)
+    }
+    let range = (text.string as NSString).paragraphRange(for: selection)
+    return Edit(range: range, replacement: applying(to: text.attributedSubstring(from: range)))
+  }
+
+  /// Web unwraps the block that holds the selection's anchor, whole, into plain lines, and
+  /// leaves the caret at their end. A text view does not say which end of a selection was
+  /// the anchor, so the start stands for it. The fence's language goes with the fence.
+  private static func unwrappingCode(in text: NSAttributedString, selection: NSRange) -> Edit? {
+    guard text.length > 0, selection.location <= text.length else { return nil }
+    // Every block owns its line ending, so the character at the caret is on the caret's
+    // line; past the last line ending the caret still types into the last block.
+    let probe = min(selection.location, text.length - 1)
+    let path = blockPath(in: text, at: probe)
+    guard kind(path.last) == "c" else { return nil }
+    var start = probe
+    var end = probe + 1
+    while start > 0, blockPath(in: text, at: start - 1) == path {
+      start -= 1
+    }
+    while end < text.length, blockPath(in: text, at: end) == path {
+      end += 1
+    }
+    // A paragraph right before the block takes the lines in, so a word wrapped out of a
+    // line rejoins it, as on web.
+    let before = start > 0 ? blockPath(in: text, at: start - 1) : []
+    let joins = kind(before.last) == "p" && before.dropLast() == path.dropLast()
+    let index = path.last?.split(separator: ":").first.map(String.init) ?? "0"
+    let plain = joins ? before : Array(path.dropLast()) + [index + ":p"]
+    // Only the characters leave the fence. A chip leaves the label it shows, not U+FFFC.
+    // A line ending this control inserted, so the caret had a character to sit on, comes
+    // back out when the same line continues past the block.
+    let after = end < text.length ? blockPath(in: text, at: end) : []
+    let replacement = NSMutableAttributedString(attributedString: text.attributedSubstring(from: NSRange(location: start, length: end - start)))
+    // The marked newline was not in the selection, so the text after it is the rest of that
+    // line. Put the characters back on that line's path and drop the newline.
+    let continues = replacement.string.hasSuffix("\n") && kind(after.last) == "p"
+      && replacement.attribute(Self.insertedLineEnd, at: replacement.length - 1, effectiveRange: nil) as? Bool == true
+    let resolved = continues ? after : plain
+    ComposerReferenceText.replaceChipsWithLabels(in: replacement)
+    replacement.enumerateAttribute(ComposerBlockText.listMarker, in: NSRange(location: 0, length: replacement.length)) { marker, run, _ in
+      var attributes: [NSAttributedString.Key: Any] = [ComposerBlockText.path: resolved]
+      if marker as? Bool == true {
+        attributes[ComposerBlockText.listMarker] = true
+      }
+      replacement.setAttributes(attributes, range: run)
+    }
+    if continues {
+      replacement.deleteCharacters(in: NSRange(location: replacement.length - 1, length: 1))
+    }
+    return Edit(range: NSRange(location: start, length: end - start), replacement: replacement)
+  }
+
+  /// Wraps the selection as flat text, or opens an empty block at a collapsed caret. The
+  /// block stays inside the quote it was made in and ends the line it is on.
+  private static func wrappingCode(in text: NSAttributedString, selection: NSRange) -> Edit {
+    let source = text.string as NSString
+    var range = selection
+    // The block brings its own line ending; taking over the selection's keeps a round trip exact.
+    if NSMaxRange(range) < source.length, source.character(at: NSMaxRange(range)) == 10 {
+      range.length += 1
+    }
+    let before = range.location > 0 ? blockPath(in: text, at: range.location - 1) : []
+    let after = NSMaxRange(range) < text.length ? blockPath(in: text, at: NSMaxRange(range)) : []
+    let here = text.length > 0 ? blockPath(in: text, at: min(range.location, text.length - 1)) : []
+    let quotes = Array(here.prefix { kind($0) == "q" })
+    let path = (0...).lazy.map { quotes + ["\($0):c:"] }.first { $0 != before && $0 != after } ?? quotes + ["0:c:"]
+    let replacement = NSMutableAttributedString(string: "")
+    // An empty block opened inside a line would share that line; web's is a block element.
+    if selection.length == 0, range.location > 0, source.character(at: range.location - 1) != 10 {
+      replacement.append(NSAttributedString(string: "\n", attributes: [ComposerBlockText.path: before]))
+    }
+    let code = codeText(text.attributedSubstring(from: selection))
+    replacement.append(NSAttributedString(string: code, attributes: [ComposerBlockText.path: path]))
+    var lineEnd: [NSAttributedString.Key: Any] = [ComposerBlockText.path: path]
+    // The caret has to sit on a character that still belongs to the block. A newline the
+    // selection did not already have is only that anchor; unwrap removes it to rejoin the line.
+    if lineEndWasInserted(selection, range: range, source: source) {
+      lineEnd[Self.insertedLineEnd] = true
+    }
+    replacement.append(NSAttributedString(string: "\n", attributes: lineEnd))
+    return Edit(range: range, replacement: replacement)
+  }
+
+  /// The selection as the characters it shows: list markers out, a reference chip as its label.
+  private static func codeText(_ text: NSAttributedString) -> String {
+    let flat = NSMutableAttributedString(attributedString: withoutMarkers(text))
+    ComposerReferenceText.replaceChipsWithLabels(in: flat)
+    return flat.string
+  }
+
+  private static let insertedLineEnd = NSAttributedString.Key("com.sokosumi.composer.insertedLineEnd")
+
+  /// True when the block's line ending is not a newline the selection already covered.
+  private static func lineEndWasInserted(_ selection: NSRange, range: NSRange, source: NSString) -> Bool {
+    func endsWithLineEnd(_ range: NSRange) -> Bool {
+      range.length > 0 && NSMaxRange(range) <= source.length && source.character(at: NSMaxRange(range) - 1) == 10
+    }
+    return !endsWithLineEnd(selection) && !endsWithLineEnd(range)
+  }
+
+  private static func blockPath(in text: NSAttributedString, at index: Int) -> [String] {
+    text.attribute(ComposerBlockText.path, at: index, effectiveRange: nil) as? [String] ?? ["0:p"]
+  }
+
+  private static func kind(_ token: String?) -> Substring? {
+    token?.split(separator: ":", maxSplits: 2, omittingEmptySubsequences: false).dropFirst().first
+  }
+
   public func applying(to text: NSAttributedString) -> NSAttributedString {
     let document = ComposerBlockText.document(text)
     let blocks = document.blocks.isEmpty ? [.paragraph([])] : document.blocks
@@ -45,7 +172,7 @@ public enum ComposerBlockFormat: String, CaseIterable, Sendable {
         [.orderedList(Self.paragraphs(text))]
       }
     case .codeBlock:
-      [.code(Self.withoutMarkers(text).string, language: "")]
+      [.code(Self.codeText(text), language: "")]
     }
     return ComposerBlockText.attributedText(ComposerDocument(blocks: result))
   }

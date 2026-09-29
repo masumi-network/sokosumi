@@ -1,12 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import {
-  memberRepository,
-  userRepository,
-} from "@sokosumi/database/repositories";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import {
-  getAdminOrganizationBySlug,
   mapAdminOrganizationMemberOverviewItem,
   resolveAdminOrganizationOverviewSubscription,
 } from "@/helpers/admin-organization-overview.js";
@@ -58,22 +54,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { slug } = c.req.valid("param");
     const body = c.req.valid("json");
 
-    const organization = await getAdminOrganizationBySlug(slug, prisma);
+    const organization = await prisma.organization.findUnique({
+      where: { slug },
+      select: { id: true },
+    });
     if (!organization) {
       throw notFound("Organization not found");
     }
 
-    const user = await userRepository.getUserById(body.userId, prisma);
+    const user = await prisma.user.findUnique({
+      where: { id: body.userId },
+    });
     if (!user) {
       throw notFound("User not found");
     }
 
-    const existingMember =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        body.userId,
-        organization.id,
-        prisma,
-      );
+    const existingMember = await prisma.member.findUnique({
+      where: {
+        userId_organizationId: {
+          userId: body.userId,
+          organizationId: organization.id,
+        },
+      },
+    });
     if (existingMember) {
       throw conflict("User is already a member of this organization");
     }
@@ -85,12 +88,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         tx,
         organizationId: organization.id,
       });
-      const created = await memberRepository.createMember(
-        body.userId,
-        organization.id,
-        role,
-        tx,
-      );
+      const created = await tx.member.create({
+        data: {
+          user: {
+            connect: {
+              id: body.userId,
+            },
+          },
+          organization: {
+            connect: {
+              id: organization.id,
+            },
+          },
+          role,
+        },
+      });
       await upgradeGuestChatRoomMembershipsToMember(
         body.userId,
         organization.id,

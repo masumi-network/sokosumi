@@ -51,6 +51,20 @@ export function makeUserChatControlChannelName(userId: string): string {
   return `chat_control:user_${userId}`;
 }
 
+export const CALENDAR_INVALIDATED_EVENT_NAME = "calendar_invalidated";
+export const CALENDAR_ACCESS_REVOKED_EVENT_NAME = "calendar_access_revoked";
+
+export function makeWorkspaceCalendarChannelName(
+  workspaceId: string,
+  userId: string,
+): string {
+  return `calendar:workspace_${workspaceId}:user_${userId}`;
+}
+
+export function makeUserCalendarControlChannelName(userId: string): string {
+  return `calendar_control:user_${userId}`;
+}
+
 /** Shared room-scoped channel for chat_room_message fan-out (SOK-741). */
 const CHAT_ROOM_CHANNEL_PREFIX = "chat_rooms:room_";
 
@@ -70,6 +84,18 @@ export function parseChatRoomIdFromChannelName(
   }
   const roomId = channelName.slice(CHAT_ROOM_CHANNEL_PREFIX.length);
   return roomId.length > 0 ? roomId : null;
+}
+
+/**
+ * Room-scoped channel carrying Typing only (ADR-0033). Separate from
+ * {@link makeChatRoomChannelName} because Ably capabilities are per channel and
+ * operation, never per event name: clients publish Typing here so the message
+ * channel can stay subscribe-only and a room message cannot be forged.
+ */
+const CHAT_TYPING_CHANNEL_PREFIX = "chat_typing:room_";
+
+export function makeChatTypingChannelName(roomId: string): string {
+  return `${CHAT_TYPING_CHANNEL_PREFIX}${roomId}`;
 }
 
 /** Org-scoped Ably Presence channel (ADR-0003). */

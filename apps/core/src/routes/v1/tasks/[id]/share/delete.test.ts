@@ -6,9 +6,8 @@ import mountDeleteTaskShareById from "./delete";
 
 const {
   authContextState,
-  prismaTransactionMock,
-  requireMutableTaskOwnershipMock,
-  deleteByTaskIdMock,
+  requireMutableTaskWriteAccessMock,
+  publicShareDeleteManyMock,
 } = vi.hoisted(() => ({
   authContextState: {
     current: {
@@ -31,14 +30,13 @@ const {
         }
       | null,
   },
-  prismaTransactionMock: vi.fn(),
-  requireMutableTaskOwnershipMock: vi.fn(),
-  deleteByTaskIdMock: vi.fn(),
+  requireMutableTaskWriteAccessMock: vi.fn(),
+  publicShareDeleteManyMock: vi.fn(),
 }));
 
 vi.mock("@/helpers/access-control", () => ({
-  requireMutableTaskOwnership: (...args: unknown[]) =>
-    requireMutableTaskOwnershipMock(...args),
+  requireMutableTaskWriteAccess: (...args: unknown[]) =>
+    requireMutableTaskWriteAccessMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -76,15 +74,15 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   };
 });
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  publicShareRepository: {
-    deleteByTaskId: (...args: unknown[]) => deleteByTaskIdMock(...args),
-  },
-}));
-
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
-    $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
+    publicShare: {
+      deleteMany: (...args: unknown[]) => publicShareDeleteManyMock(...args),
+    },
   },
 }));
 
@@ -103,15 +101,12 @@ describe("DELETE /tasks/{id}/share", () => {
       organizationId: "org_123",
       role: "user",
     };
-    prismaTransactionMock.mockImplementation(
-      async (callback: (tx: unknown) => Promise<unknown>) => await callback({}),
-    );
-    requireMutableTaskOwnershipMock.mockResolvedValue({
+    requireMutableTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       pendingVendorGrantId: null,
     });
-    deleteByTaskIdMock.mockResolvedValue({ count: 1 });
+    publicShareDeleteManyMock.mockResolvedValue({ count: 1 });
   });
 
   it("deletes the share for an owned task", async () => {
@@ -123,10 +118,9 @@ describe("DELETE /tasks/{id}/share", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(deleteByTaskIdMock).toHaveBeenCalledWith(
-      "tsk_123",
-      expect.any(Object),
-    );
+    expect(publicShareDeleteManyMock).toHaveBeenCalledWith({
+      where: { taskId: "tsk_123" },
+    });
     expect(body.data).toEqual({});
   });
 
@@ -139,12 +133,12 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(401);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task is not owned by the caller", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -154,12 +148,12 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the task does not exist", async () => {
     const { notFound } = await import("@/helpers/error");
-    requireMutableTaskOwnershipMock.mockRejectedValue(
+    requireMutableTaskWriteAccessMock.mockRejectedValue(
       notFound("Task not found"),
     );
     const app = createApp();
@@ -169,7 +163,7 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(404);
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -186,7 +180,7 @@ describe("DELETE /tasks/{id}/share", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireMutableTaskOwnershipMock).not.toHaveBeenCalled();
-    expect(deleteByTaskIdMock).not.toHaveBeenCalled();
+    expect(requireMutableTaskWriteAccessMock).not.toHaveBeenCalled();
+    expect(publicShareDeleteManyMock).not.toHaveBeenCalled();
   });
 });

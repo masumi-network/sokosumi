@@ -55,7 +55,7 @@ function EmojiGridButton({
       type="button"
       title={`:${primaryName}:`}
       aria-label={entry.description || primaryName}
-      className="hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
+      className="press hover:bg-muted focus-visible:ring-ring flex size-8 items-center justify-center rounded-md text-lg outline-none transition focus-visible:ring-2"
       onClick={() => onPick(entry.emoji)}
     >
       {entry.emoji}
@@ -210,7 +210,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
       style={{ maxHeight: maxHeightPx }}
       className="flex max-h-full flex-col overflow-hidden"
     >
-      <nav className="border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
+      <nav className="app-scrollbar border-border flex shrink-0 gap-0.5 overflow-x-auto border-b px-1.5 py-1">
         <NavButton
           label={t("searchPlaceholder")}
           active={resolvedActiveNavId === SEARCH_NAV_ID}
@@ -256,7 +256,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
         />
       </div>
 
-      <div className="min-h-[7.5rem] flex-1 touch-pan-y overflow-y-auto overscroll-contain p-2">
+      <div className="app-scrollbar min-h-[7.5rem] flex-1 touch-pan-y overflow-y-auto overscroll-contain p-2">
         {isSearching ? (
           searchResults.length === 0 ? (
             <p className="text-muted-foreground px-1 py-6 text-center text-sm">
@@ -294,7 +294,7 @@ function EmojiPickerPanel({ onPick }: { onPick: (emoji: string) => void }) {
                   }}
                   className="[content-visibility:auto]"
                 >
-                  <h3 className="text-muted-foreground mb-1 px-1 text-xs font-medium tracking-wide uppercase">
+                  <h3 className="text-muted-foreground mb-1 px-1 text-xs font-medium">
                     {heading}
                   </h3>
                   <div className="grid grid-cols-8 gap-0.5">

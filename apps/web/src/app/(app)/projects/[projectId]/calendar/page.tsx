@@ -1,144 +1,23 @@
-import { format } from "date-fns";
-import { notFound } from "next/navigation";
-import { connection } from "next/server";
-import { getFormatter, getTranslations } from "next-intl/server";
-import { CalendarCreateTaskModal } from "@/app/calendar/components/calendar-create-task-modal";
-import { WorkspaceCalendar } from "@/app/calendar/components/workspace-calendar";
-import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
-import { PROJECTS_CALENDAR_SHELL_CLASS } from "@/app/projects/constants";
-import { CreateTaskModalProvider } from "@/app/tasks/components/create-task-modal";
-import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
-import { getSession } from "@/lib/auth/auth.server";
-import { hasCurrentUserCalendarBetaAccess } from "@/lib/calendar-beta-access.server";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import {
-  getCalendarRange,
-  getLatestCalendarDate,
-  resolveCalendarDate,
-} from "@/lib/schedules/calendar-range";
-import { coworkerService } from "@/lib/services/coworker.service";
-import { projectService } from "@/lib/services/project.service";
-import { taskService } from "@/lib/services/task.service";
+import { redirect } from "next/navigation";
 
-interface ProjectCalendarPageProps {
+// Nothing to paint early: this route only resolves where to send the reader.
+export const instant = false;
+
+interface LegacyProjectCalendarPageProps {
   params: Promise<{ projectId: string }>;
-  searchParams: Promise<{
-    assigneeId?: string;
-    assigneeUserId?: string;
-    date?: string;
-    scope?: string;
-    status?: string;
-  }>;
 }
 
-export default async function ProjectCalendarPage({
+/**
+ * Where a project's calendar used to live.
+ *
+ * A project is not a place that contains a calendar any more: `/calendar`
+ * takes a project scope like every other workspace page, and the sidebar's
+ * switcher is how you narrow it. The route survives as a redirect so links
+ * and bookmarks still arrive at the right week for the right project.
+ */
+export default async function LegacyProjectCalendarPage({
   params,
-  searchParams,
-}: ProjectCalendarPageProps) {
-  await connection();
-  const session = await getSession();
-  if (!(await hasCurrentUserCalendarBetaAccess())) {
-    notFound();
-  }
-
+}: LegacyProjectCalendarPageProps) {
   const { projectId } = await params;
-  const project = await projectService.getProjectById(projectId);
-  if (!project) {
-    notFound();
-  }
-
-  const { assigneeId, assigneeUserId, date, scope, status } =
-    await searchParams;
-  const calendarStatus = Object.values(TaskStatus).find(
-    (taskStatus) => taskStatus === status,
-  );
-  const now = new Date();
-  const initialDate = resolveCalendarDate(date, now);
-  const latestCalendarDate = getLatestCalendarDate(now);
-  const range = getCalendarRange(initialDate);
-  const [
-    { items, pagination },
-    sources,
-    coworkers,
-    memberOptions,
-    t,
-    formatter,
-  ] = await Promise.all([
-    projectService.getProjectCalendar(project.id, {
-      ...range,
-      assigneeId,
-      assigneeUserId,
-      limit: 100,
-      scope: scope === "owned" ? "owned" : "workspace",
-      status: calendarStatus,
-    }),
-    taskService.getWorkspaceCalendarSources().catch(() => []),
-    coworkerService.listCoworkers().catch(() => []),
-    listTaskAssigneeMemberOptions(
-      session?.session?.activeOrganizationId ?? null,
-    ),
-    getTranslations("App.Projects.Detail"),
-    getFormatter(),
-  ]);
-  const sourceId = `project:${project.id}`;
-  const projectSource = sources.find((source) => source.sourceId === sourceId);
-  const coworkerOptions = [...memberOptions, ...getCoworkerOptions(coworkers)];
-  const projectOptions = [
-    {
-      id: project.id,
-      name: project.name,
-      logo: project.logo,
-      designMd: project.designMd,
-      briefingUrl: project.briefingUrl,
-      contextMd: project.contextMd,
-    },
-  ];
-
-  return (
-    <CreateTaskModalProvider initialProjectId={project.id}>
-      <div className={PROJECTS_CALENDAR_SHELL_CLASS}>
-        <ProjectDetailHeader
-          backHref={`/projects/${project.id}`}
-          backLabel={t("backToProject")}
-          metadata={[
-            {
-              label: t("header.updated"),
-              value: formatter.dateTime(project.updatedAt, "dateTime"),
-            },
-            {
-              label: t("header.created"),
-              value: formatter.dateTime(project.createdAt, "dateTime"),
-            },
-          ]}
-          projectLogo={project.logo}
-          projectName={project.name}
-          showBackOnMobile
-          websiteUrl={project.websiteUrl}
-        />
-
-        <div className="mt-6 w-full">
-          <WorkspaceCalendar
-            activeOrganizationId={
-              session?.session?.activeOrganizationId ?? null
-            }
-            initialDate={initialDate}
-            items={items}
-            key={`${project.id}-${initialDate}-${scope ?? "workspace"}-${assigneeId ?? "all"}-${calendarStatus ?? "all"}`}
-            latestDate={format(latestCalendarDate, "yyyy-MM-dd")}
-            pagination={pagination}
-            lockedProjectId={project.id}
-            range={range}
-            sources={projectSource ? [projectSource] : []}
-            coworkers={coworkerOptions}
-          />
-        </div>
-        <CalendarCreateTaskModal
-          coworkerOptions={coworkerOptions}
-          projectOptions={projectOptions}
-          lockProjectSelection
-        />
-      </div>
-    </CreateTaskModalProvider>
-  );
+  redirect(`/calendar?projectId=${encodeURIComponent(projectId)}`);
 }

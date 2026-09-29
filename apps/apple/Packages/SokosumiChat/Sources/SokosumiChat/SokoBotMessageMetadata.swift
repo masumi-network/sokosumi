@@ -99,7 +99,7 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     self.init(metadata: message.metadata?.additionalProperties)
   }
 
-  public var isLastHop: Bool {
+  var isLastHop: Bool {
     depth >= maxDepth
   }
 
@@ -108,15 +108,15 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     "\(depth)/\(maxDepth)"
   }
 
-  public var depthDescription: String {
+  private var depthDescription: String {
     "Assistant-to-assistant reply \(depth) of \(maxDepth). A person writing here resets the count."
   }
 
-  public var roomRateDescription: String {
+  private var roomRateDescription: String {
     "\(roomMessagesThisHour) of \(roomMessagesPerHour) assistant messages in this room this hour."
   }
 
-  public static let lastHopDescription = "This is the last hop — it will not wake anyone else."
+  private static let lastHopDescription = "This is the last hop — it will not wake anyone else."
 
   /// Web's tooltip: depth, room rate and, on the final hop, that it ends there.
   public var summary: String {
@@ -136,17 +136,4 @@ public struct SokoBotChainMetadata: Equatable, Sendable {
     default: nil
     }
   }
-}
-
-/// Web's transcript keeps a bodiless mention shell only for coworker senders
-/// (`shouldKeepPersistedMessage`): a Soko Bot's placeholder shows nothing while
-/// its turn runs and nothing after it fails, even though Core writes both. The
-/// row reappears when the answer fills `content`; a tombstone keeps its label.
-public func isHiddenSokoBotMentionShell(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  guard case .case3 = message.sender, message.deletedAt == nil, message.membership == nil, message.quote == nil,
-        message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-        let metadata = message.metadata?.additionalProperties,
-        let mentionId = metadata["mention_id"]?.value as? String, !mentionId.isEmpty
-  else { return false }
-  return metadata["streaming"]?.value as? Bool == true || metadata["mention_failed"]?.value as? Bool == true
 }

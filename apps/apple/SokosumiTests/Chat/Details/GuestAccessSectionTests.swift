@@ -10,7 +10,7 @@
     @MainActor struct GuestAccessSectionTests {
       private func externalRoom(guestName: String, topic: String? = nil) throws -> Components.Schemas.ChatRoom {
         try Components.Schemas.ChatRoom(
-          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false,
+          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false,
           topic: topic, discoverability: .external, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .member,
@@ -31,13 +31,6 @@
                   .init(token: "short", url: "https://app.sokosumi.com/chat/join/short", roomId: "fixture", createdAt: .distantPast,
                         expiresAt: nil, revokedAt: nil, maxUses: nil, useCount: 1)]
         )
-      }
-
-      private func capture(_ host: NSHostingView<some View>, name: String) throws {
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("\(name).png"))
       }
 
       /// The external-channel settings sheet: settings, roster, guest access and Manage channel scroll inside the
@@ -93,7 +86,6 @@
         window.setContentSize(fitting)
         host.layoutSubtreeIfNeeded()
         try await Task.sleep(for: .milliseconds(100))
-        try capture(host, name: "edit-channel-guests-\(dark ? "dark" : "light")")
       }
 
       /// The section alone, loaded, at sheet width: long addresses and URLs truncate in the middle, the link meta line
@@ -120,7 +112,6 @@
         window.setContentSize(host.fittingSize)
         host.layoutSubtreeIfNeeded()
         #expect(model.invitations.count == 1 && model.links.count == 2 && model.guests.count == 1 && !model.loading)
-        try capture(host, name: "guest-access-section-\(dark ? "dark" : "light")")
       }
     }
   }

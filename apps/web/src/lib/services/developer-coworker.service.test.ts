@@ -3,12 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 
 const getOwnedCoworkersMock = vi.fn();
+const getOwnedCoworkerByIdMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
+  CoreApiRequestError: class CoreApiRequestError extends Error {
+    status?: number;
+
+    constructor(message: string, options?: { status?: number }) {
+      super(message);
+      this.name = "CoreApiRequestError";
+      this.status = options?.status;
+    }
+  },
   coreClient: {
     getOwnedCoworkers: (...args: unknown[]) => getOwnedCoworkersMock(...args),
+    getOwnedCoworkerById: (...args: unknown[]) =>
+      getOwnedCoworkerByIdMock(...args),
   },
 }));
+
+import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 import { developerCoworkerService } from "./developer-coworker.service";
 
@@ -59,24 +73,40 @@ describe("developerCoworkerService", () => {
     expect(result).toEqual([activeCoworker]);
   });
 
-  it("returns owned coworker by id from owned list", async () => {
-    getOwnedCoworkersMock.mockResolvedValue({
-      data: [activeCoworker, archivedCoworker],
+  it("fetches owned coworker by id", async () => {
+    getOwnedCoworkerByIdMock.mockResolvedValue({
+      data: activeCoworker,
     });
 
     const result = await developerCoworkerService.getOwnedCoworkerById("cow_1");
 
+    expect(getOwnedCoworkersMock).not.toHaveBeenCalled();
+    expect(getOwnedCoworkerByIdMock).toHaveBeenCalledWith("cow_1");
     expect(result).toEqual(activeCoworker);
   });
 
-  it("returns null when coworker is not in owned list", async () => {
-    getOwnedCoworkersMock.mockResolvedValue({
-      data: [activeCoworker],
-    });
+  it("returns null when owned coworker is missing", async () => {
+    getOwnedCoworkerByIdMock.mockRejectedValue(
+      new CoreApiRequestError("Not found", { status: 404 }),
+    );
 
     const result =
       await developerCoworkerService.getOwnedCoworkerById("cow_other");
 
+    expect(getOwnedCoworkersMock).not.toHaveBeenCalled();
     expect(result).toBeNull();
+  });
+
+  it("rethrows non-404 owned coworker reads", async () => {
+    getOwnedCoworkerByIdMock.mockRejectedValue(
+      new CoreApiRequestError("Forbidden", { status: 403 }),
+    );
+
+    await expect(
+      developerCoworkerService.getOwnedCoworkerById("cow_1"),
+    ).rejects.toMatchObject({
+      name: "CoreApiRequestError",
+      status: 403,
+    });
   });
 });

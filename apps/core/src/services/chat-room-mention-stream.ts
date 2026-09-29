@@ -1,3 +1,5 @@
+import type { Prisma } from "@sokosumi/database";
+
 import { invalidateChatRoomMessageReaders } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtimeById } from "@/helpers/chat-room-message-realtime";
 import { reasoningPartsToMetadata } from "@/helpers/persist-assistant-to-chat-room";
@@ -124,7 +126,7 @@ export async function publishMentionThoughtPlaceholder(params: {
   reasoningSteps: Array<{ type: string; text: string }>;
   thoughtStartedAtMs: number;
 }): Promise<string> {
-  const metadata: Record<string, unknown> = {
+  const metadata: Record<string, Prisma.InputJsonValue> = {
     in_reply_to_message_id: params.sourceMessageId,
     mention_id: params.mentionId,
     streaming: true,

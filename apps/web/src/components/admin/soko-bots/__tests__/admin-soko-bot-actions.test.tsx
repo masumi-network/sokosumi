@@ -25,13 +25,25 @@ vi.mock("@/lib/actions/admin-soko-bots/action", () => ({
 
 import { AdminSokoBotActions } from "../admin-soko-bot-actions.client";
 
+/** Radix opens its menu on pointerdown, not click. */
+async function openMoreMenu(): Promise<void> {
+  const trigger = screen.getAllByRole("button", { name: "more" }).at(-1);
+  if (!trigger) throw new Error("More actions trigger not found");
+  fireEvent.pointerDown(trigger, {
+    button: 0,
+    ctrlKey: false,
+    pointerType: "mouse",
+  });
+  await screen.findByRole("menu");
+}
+
 describe("AdminSokoBotActions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("disables Resume unless admin-paused and Retry without a failed turn", () => {
-    render(
+  it("offers Pause up front, Resume only when admin-paused, and Retry only after a failure", async () => {
+    const { unmount } = render(
       <AdminSokoBotActions
         sokoBotId="bot_1"
         status="RUNNING"
@@ -40,10 +52,16 @@ describe("AdminSokoBotActions", () => {
     );
     expect(screen.getByRole("button", { name: "labels.PAUSE" })).toBeEnabled();
     expect(
-      screen.getByRole("button", { name: "labels.RESUME" }),
-    ).toBeDisabled();
-    // A user-archived bot is PAUSED without an admin pause: no Resume offered.
-    const { unmount } = render(
+      screen.queryByRole("button", { name: "labels.RESUME" }),
+    ).not.toBeInTheDocument();
+    await openMoreMenu();
+    expect(
+      screen.getByRole("menuitem", { name: "labels.RETRY_LAST_FAILED" }),
+    ).toHaveAttribute("data-disabled");
+    unmount();
+
+    // A user-archived bot is PAUSED without an admin pause: nothing to press.
+    render(
       <AdminSokoBotActions
         sokoBotId="bot_2"
         status="PAUSED"
@@ -51,16 +69,7 @@ describe("AdminSokoBotActions", () => {
         hasFailedTurn={false}
       />,
     );
-    expect(
-      screen.getAllByRole("button", { name: "labels.RESUME" }).at(-1),
-    ).toBeDisabled();
-    expect(
-      screen.getAllByRole("button", { name: "labels.PAUSE" }).at(-1),
-    ).toBeDisabled();
-    unmount();
-    expect(
-      screen.getByRole("button", { name: "labels.RETRY_LAST_FAILED" }),
-    ).toBeDisabled();
+    expect(screen.getByRole("button", { name: "labels.PAUSE" })).toBeDisabled();
   });
 
   it(
@@ -123,8 +132,9 @@ describe("AdminSokoBotActions", () => {
       });
 
       // A new action after success gets a fresh operation id.
+      await openMoreMenu();
       fireEvent.click(
-        screen.getByRole("button", { name: "labels.RESET_MEMORY" }),
+        screen.getByRole("menuitem", { name: "labels.RESET_MEMORY" }),
       );
       fireEvent.change(
         await screen.findByLabelText(

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
 import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 
 interface VendorGrantApprovalActionsLabels {
   approve: string;
@@ -101,7 +101,7 @@ export function VendorGrantApprovalActions({
           onClick={() => void runAction("approve", onApprove)}
         >
           {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {labels.approve}
         </Button>
@@ -114,7 +114,7 @@ export function VendorGrantApprovalActions({
           onClick={() => void runAction("deny", onDeny)}
         >
           {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
           ) : null}
           {labels.deny}
         </Button>

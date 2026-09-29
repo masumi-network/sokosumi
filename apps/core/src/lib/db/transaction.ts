@@ -1,4 +1,5 @@
 import { Prisma } from "@sokosumi/database";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { conflict } from "@/helpers/error";
 import { isPrismaTransactionConflict } from "@/helpers/prisma";
@@ -9,7 +10,8 @@ import prisma from "@/lib/db/prisma";
  * semantic conflicts (e.g. an idempotency key reused with different
  * parameters), these are transient and safe to retry verbatim.
  */
-export const CONCURRENCY_CONFLICT_KIND = "concurrency_conflict";
+export const CONCURRENCY_CONFLICT_KIND =
+  CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT;
 
 /**
  * Runs the callback in a Serializable transaction. Postgres aborts such

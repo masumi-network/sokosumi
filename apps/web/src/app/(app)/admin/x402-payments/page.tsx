@@ -21,6 +21,8 @@ import {
   adminTaskX402PaymentService,
 } from "@/lib/services/admin-task-x402-payment.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "x402 payments",
   description: "Inspect and resolve task x402 payments.",

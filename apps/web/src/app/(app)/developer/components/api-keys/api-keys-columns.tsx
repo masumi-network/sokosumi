@@ -3,10 +3,8 @@
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import type { useFormatter, useTranslations } from "next-intl";
 
-import {
-  createAppColumnHelper,
-  DataTableColumnHeader,
-} from "@/components/data-table";
+import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
+import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
 import { Button } from "@/components/ui/button";
 
 import type { ApiKeyRecord } from "./types";

@@ -58,9 +58,13 @@ async function abortBlockedRequest(
   await request.abort("blockedbyclient").catch(() => {});
 }
 
-async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
+async function handlePdfExportRequest(
+  request: HTTPRequest,
+  signal: AbortSignal,
+): Promise<void> {
   const url = request.url();
   try {
+    signal.throwIfAborted();
     if (isAllowedLocalBrowserUrl(url)) {
       await request.continue();
       return;
@@ -79,6 +83,7 @@ async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
     const response = await ssrfSafeFetch(url, {
       method,
       maxResponseBytes: MAX_PDF_RESOURCE_BYTES,
+      signal,
     });
     const body = Buffer.from(await response.arrayBuffer());
     await request.respond({
@@ -97,8 +102,11 @@ async function handlePdfExportRequest(request: HTTPRequest): Promise<void> {
  * (connect-time SSRF filter) and aborts anything else unsafe.
  * Must be called after `page.setRequestInterception(true)`.
  */
-export function installPdfExportRequestGuard(page: Page): void {
+export function installPdfExportRequestGuard(
+  page: Page,
+  signal: AbortSignal,
+): void {
   page.on("request", (request: HTTPRequest) => {
-    void handlePdfExportRequest(request);
+    void handlePdfExportRequest(request, signal);
   });
 }

@@ -24,13 +24,17 @@ export {
 } from "./memory.js";
 export { composeSokoBotIntroduction } from "./persona.js";
 export {
+  capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
+  isSokoBotSandboxCapability,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
+  SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
   type TurnClassification,
@@ -48,13 +52,16 @@ export type {
   RuntimeEventStreamInput,
   RuntimeHealth,
   RuntimeInspectInput,
+  RuntimeJsonValue,
   RuntimeResetInput,
   RuntimeTurnInput,
   RuntimeTurnRef,
   SokoBotContextPacket,
   SokoBotRuntime,
+  SokoBotSourceCoverage,
   SokoBotTurnGrantClaims,
 } from "./runtime.js";
+export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export {
   evaluateScenario,
   type ScenarioCheck,
@@ -68,6 +75,7 @@ export {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotDecisionTarget,
   sokoBotAgentIdInputSchema,
+  sokoBotArchiveTaskInputSchema,
   sokoBotAssignTaskInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
@@ -78,6 +86,7 @@ export {
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,

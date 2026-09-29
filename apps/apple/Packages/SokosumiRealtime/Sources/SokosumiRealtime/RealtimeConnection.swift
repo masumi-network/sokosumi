@@ -1,3 +1,4 @@
+import CoreAPI
 import Foundation
 import SokosumiChat
 
@@ -12,7 +13,7 @@ import SokosumiChat
 /// actor (actors cross isolation) plus values, never over MainActor state.
 /// The workspace slug rides as a provider parameter because it changes on
 /// switch while the provider itself is installed once at connect.
-public typealias RealtimeTokenProvider = @Sendable (String?) async throws -> AblyTokenFields
+public typealias RealtimeTokenProvider = @Sendable (String?) async throws -> Components.Schemas.AblyTokenRequest
 public typealias RealtimeEventHandler = @Sendable (ResolvedRealtimeDelivery) -> Void
 
 public protocol RealtimeConnection: AnyObject, Sendable {
@@ -36,5 +37,10 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   /// Latest presence data for this client. The coordinator throttles; the
   /// transport re-sends it after every (re)authorization.
   func publishPresence(_ data: ChatPresenceMemberData)
+  /// Whether the app is in front of the reader. Enters presence on the
+  /// notifications channel while it is and leaves when it goes behind, so
+  /// Core can hold a notification email back for a reader who is looking
+  /// (SOK-1090). Kept until the channel exists, which is after connect.
+  func setInFront(_ inFront: Bool)
   func disconnect()
 }

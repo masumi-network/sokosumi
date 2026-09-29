@@ -2,6 +2,10 @@ import { SOKO_BOT_SYSTEM_SCHEDULES } from "@sokosumi/soko-bot";
 
 import prisma from "@/lib/db/prisma";
 import {
+  SYSTEM_TURN_ROUTES,
+  systemScheduleRoute,
+} from "@/lib/soko-bot/system-routes";
+import {
   ACTIVE_TURN_STATUSES,
   sokoBotControlPlane,
 } from "@/services/soko-bot-control-plane.service";
@@ -130,6 +134,10 @@ export async function runSokoBotLabIngest(input: {
     // The source the cron would have used, so the turn is classified and
     // capability-scoped exactly as the real rhythm is.
     source: input.beat === "delta" ? "INGEST" : "SCHEDULE",
+    presetRoute:
+      input.beat === "delta"
+        ? SYSTEM_TURN_ROUTES["ingest:delta"]
+        : systemScheduleRoute(input.beat),
   });
   return { turnId: started.turnId };
 }

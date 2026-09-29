@@ -11,7 +11,6 @@ import { ADMIN_MATCHED_CHANNEL_ORG_SNAPSHOT_MAX_MEMBERS } from "@/schemas/admin.
 import mountAddAdminMatchedChannelParticipantsFromOrganization from "./post";
 
 const {
-  getAdminOrganizationBySlugMock,
   organizationFindUniqueMock,
   memberFindManyMock,
   ensureMatchedChannelParticipantMock,
@@ -27,7 +26,6 @@ const {
       role: "admin",
     } as AuthenticationContext,
   },
-  getAdminOrganizationBySlugMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   ensureMatchedChannelParticipantMock: vi.fn(),
@@ -55,11 +53,6 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
     },
   };
 });
-
-vi.mock("@/helpers/admin-organization-overview.js", () => ({
-  getAdminOrganizationBySlug: (...args: unknown[]) =>
-    getAdminOrganizationBySlugMock(...args),
-}));
 
 vi.mock("@/helpers/chat-room-matched-membership.js", () => ({
   ensureMatchedChannelParticipant: (...args: unknown[]) =>
@@ -120,10 +113,6 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
       role: "admin",
     };
     organizationFindUniqueMock.mockResolvedValue({ id: "org_1" });
-    getAdminOrganizationBySlugMock.mockResolvedValue({
-      id: "org_1",
-      slug: "acme",
-    });
     memberFindManyMock.mockResolvedValue([
       { userId: "user_a" },
       { userId: "user_b" },
@@ -191,11 +180,10 @@ describe("POST /admin/matched-channels/{roomId}/participants/from-organization",
   it("resolves the organization by slug", async () => {
     const response = await post({ organizationSlug: "acme" });
     expect(response.status).toBe(200);
-    expect(getAdminOrganizationBySlugMock).toHaveBeenCalledWith(
-      "acme",
-      expect.anything(),
-    );
-    expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(organizationFindUniqueMock).toHaveBeenCalledWith({
+      where: { slug: "acme" },
+      select: { id: true },
+    });
   });
 
   it("returns 404 when the organization is missing", async () => {

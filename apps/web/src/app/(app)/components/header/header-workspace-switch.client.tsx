@@ -5,7 +5,7 @@ import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CreateOrganizationWizard } from "@/components/organizations";
+import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,8 +27,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import useModal from "@/hooks/use-modal";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
+import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
@@ -250,7 +250,7 @@ export default function HeaderWorkspaceSwitch({
         <DropdownMenuTrigger asChild>
           <button
             type="button"
-            className="text-foreground hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
+            className="text-foreground press hover:opacity-80 flex h-8 min-w-0 items-center text-sm transition-opacity md:h-auto"
             disabled={isPending}
             aria-busy={!activeWorkspace}
             aria-label={
@@ -262,7 +262,7 @@ export default function HeaderWorkspaceSwitch({
             <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-x-1.5">
               {activeWorkspace ? (
                 <>
-                  <span className="max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
+                  <span className="max-sm:sr-only max-w-24 truncate text-right leading-none font-medium md:max-w-none md:leading-tight">
                     {activeWorkspace.name}
                   </span>
                   <HeaderWorkspaceAvatar
@@ -354,7 +354,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-personal"
               className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "personal" &&
                   "border-primary bg-card-background",
               )}
@@ -376,7 +376,7 @@ export default function HeaderWorkspaceSwitch({
             <Label
               htmlFor="switcher-workspace-choice-organization"
               className={cn(
-                "border-input hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
+                "border-input press hover:bg-card-background flex cursor-pointer items-start gap-3 rounded-lg border p-4",
                 workspaceChoice === "organization" &&
                   "border-primary bg-card-background",
               )}
@@ -405,7 +405,7 @@ export default function HeaderWorkspaceSwitch({
               }}
             >
               {isCreatingPersonal ? (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {tIdentity("continue")}
             </Button>

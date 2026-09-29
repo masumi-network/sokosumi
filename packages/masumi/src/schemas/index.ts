@@ -1,11 +1,9 @@
-// Agent schemas
 export type {
   StartFreeJobResponseSchemaType,
   StartPaidJobResponseSchemaType,
 } from "./agent/start_job.schema.js";
 export type { JobStatusResponseSchemaType } from "./agent/status.schema.js";
 
-// Input schemas
 export { preprocessBlankNumericInput } from "./input/blank-numeric-input.js";
 export {
   type InputBooleanSchemaType,
@@ -43,7 +41,6 @@ export {
 } from "./input/input.schema.js";
 export type { ValidationSchemaType } from "./input/validation.schema.js";
 
-// x402 schemas
 export { canonicalJsonKey } from "./x402/payment-required.canonical.js";
 // Named, not `export *`: the limits module is mostly internal fence
 // constants for the normalizer stack. Only the names apps actually consume

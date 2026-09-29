@@ -2,6 +2,10 @@ import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 
+import {
+  ComposioToolkitNotFoundError,
+  ComposioToolNotFoundError,
+} from "@composio/core";
 import { Prisma } from "@sokosumi/database";
 import {
   getSokoBotIntegrationProvider,
@@ -23,6 +27,7 @@ export class SokoBotIntegrationError extends Error {
   constructor(
     message: string,
     readonly kind:
+      | "IDENTITY_MISMATCH"
       | "NOT_CONFIGURED"
       | "NOT_FOUND"
       | "UNKNOWN_PROVIDER"
@@ -37,8 +42,18 @@ export function composioEntityId(sokoBotId: string): string {
   return `sokobot:${sokoBotId}`;
 }
 
+function isComposioMissingResource(error: unknown): boolean {
+  return (
+    error instanceof ComposioToolNotFoundError ||
+    error instanceof ComposioToolkitNotFoundError
+  );
+}
+
 /** Any failure talking to Composio surfaces with its message instead of a 500. */
-async function withComposio<T>(what: string, fn: () => Promise<T>): Promise<T> {
+export async function withComposio<T>(
+  what: string,
+  fn: () => Promise<T>,
+): Promise<T> {
   try {
     return await fn();
   } catch (error) {
@@ -55,7 +70,10 @@ async function withComposio<T>(what: string, fn: () => Promise<T>): Promise<T> {
         // Not JSON after all; keep the raw text.
       }
     }
-    throw new SokoBotIntegrationError(`Composio (${what}): ${message}`);
+    throw new SokoBotIntegrationError(
+      `Composio (${what}): ${message}`,
+      isComposioMissingResource(error) ? "NOT_FOUND" : "UPSTREAM",
+    );
   }
 }
 
@@ -180,17 +198,25 @@ async function lookupToolkit(
 ): Promise<{ name: string; logoUrl: string | null }> {
   const composio = requireComposio();
   try {
-    const toolkit = await composio.toolkits.get(slug);
+    const toolkit = await withComposio("toolkit", () =>
+      composio.toolkits.get(slug),
+    );
     return { name: toolkit.name, logoUrl: toolkit.meta?.logo ?? null };
-  } catch {
-    return {
-      name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
-      logoUrl: null,
-    };
+  } catch (error) {
+    if (
+      error instanceof SokoBotIntegrationError &&
+      error.kind === "NOT_FOUND"
+    ) {
+      return {
+        name: getSokoBotIntegrationProvider(slug)?.name ?? slug,
+        logoUrl: null,
+      };
+    }
+    throw error;
   }
 }
 
-async function requireBot(userId: string, workspaceId: string) {
+export async function requireBot(userId: string, workspaceId: string) {
   const bot = await prisma.sokoBot.findFirst({
     where: { userId, workspaceId, archivedAt: null },
     select: { id: true },
@@ -382,6 +408,12 @@ export async function finalizeSokoBotIntegration(input: {
   userId: string;
   workspaceId: string;
   provider: string;
+  /**
+   * The account Composio just verified for this caller. When set, only that
+   * account may be promoted, so a connect attempt that raced in after the
+   * verification cannot be promoted on its behalf.
+   */
+  expectedComposioAccountId?: string;
 }): Promise<SokoBotIntegrationView["status"]> {
   const provider = resolveProvider(input.provider);
   const bot = await requireBot(input.userId, input.workspaceId);
@@ -396,6 +428,14 @@ export async function finalizeSokoBotIntegration(input: {
   if (!row) throw new SokoBotIntegrationError("Not connected", "NOT_FOUND");
   const composio = requireComposio();
   const accountId = row.pendingComposioAccountId ?? row.composioAccountId;
+  if (
+    input.expectedComposioAccountId &&
+    input.expectedComposioAccountId !== accountId
+  ) {
+    throw new SokoBotIntegrationError(
+      "Connection changed; retry finalizing OAuth",
+    );
+  }
   const account = await withComposio("account status", () =>
     composio.connectedAccounts.get(accountId),
   );

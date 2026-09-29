@@ -34,9 +34,9 @@ public struct ChatNotificationEvent: Equatable, Sendable {
   public var messageKey: String
   public var authorName: String?
   public var roomName: String?
-  public var isGroup: Bool
-  public var isDirect: Bool
-  public var messagePreview: String?
+  var isGroup: Bool
+  var isDirect: Bool
+  var messagePreview: String?
   /// `metadata.messageId`, trimmed; nil opens the room without a jump.
   public var messageId: String?
   /// `metadata.workspaceId`; nil navigates without a workspace switch.
@@ -178,7 +178,7 @@ public struct ChatNotificationEvent: Equatable, Sendable {
   }
 }
 
-public let chatNotificationAppTitle = "Sokosumi"
+private let chatNotificationAppTitle = "Sokosumi"
 
 /// What a banner routes to when opened (web `NotificationTarget`, chat fields only).
 public struct ChatNotificationTarget: Equatable, Sendable {

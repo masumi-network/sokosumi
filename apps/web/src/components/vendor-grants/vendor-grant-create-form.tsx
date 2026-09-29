@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 
 type VendorGrantFormNamespace =
   | "App.Account.VendorGrants"
@@ -125,7 +125,9 @@ export function VendorGrantCreateForm({
         className="w-full shrink-0 sm:w-auto"
         disabled={loading || !resolvedVendorId}
       >
-        {loading ? <Loader2 className="size-4 animate-spin" /> : null}
+        {loading ? (
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+        ) : null}
         {t("submit")}
       </Button>
     </form>

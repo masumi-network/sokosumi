@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  renderAccessRequestEmail,
   renderChatRoomInvitationEmail,
   renderJobFailureNotificationEmail,
-  renderJobFinalStatusEmail,
-  renderJobInputRequiredEmail,
+  renderLowBalanceEmail,
   renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "../index.js";
+import { DARK_PALETTE, LIGHT_PALETTE } from "../theme/index.js";
 
 describe("email renderers", () => {
   it("renders verification emails with a subject and html body", async () => {
@@ -26,9 +27,17 @@ describe("email renderers", () => {
     expect(rendered.html).toContain(
       'src="https://igcd4cnfvuav1zto.public.blob.vercel-storage.com/brand/sokosumi-logo-wordmark-black.png"',
     );
-    expect(rendered.html).toContain('alt="Sokosumi kanji"');
+    expect(rendered.html).toMatch(
+      /<img alt=""[^>]*sokosumi-logo-kanji-black\.png/,
+    );
+    expect(rendered.html).toContain('lang="en"');
     expect(rendered.html).toContain('alt="Sokosumi"');
-    expect(rendered.html).toContain("background-color:rgb(245,243,250)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.pageBackground}`,
+    );
+    expect(rendered.html).toContain(
+      `background-color: ${DARK_PALETTE.surface} !important`,
+    );
     expect(rendered.html).toContain("Verify your email address");
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).toContain("https://example.com/verify");
@@ -42,6 +51,8 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Passwort zurücksetzen");
+    expect(rendered.html).not.toContain('lang="en"');
+    expect(rendered.html).toContain('lang="de"');
     expect(rendered.html).toContain("Hallo Andreas");
     expect(rendered.html).toContain("Dein Passwort zur\u00fccksetzen");
   });
@@ -65,8 +76,12 @@ describe("email renderers", () => {
     });
 
     expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
-    expect(rendered.html).toContain("background-color:rgb(106,54,255)");
-    expect(rendered.html).toContain("background-color:rgb(248,245,255)");
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accentSolid};border-radius:10px`,
+    );
+    expect(rendered.html).toContain(
+      `background-color:${LIGHT_PALETTE.accent};font-size:0`,
+    );
     expect(rendered.html).toContain("Hello Andreas");
     expect(rendered.html).not.toContain("one-time token");
     expect(rendered.html).not.toContain("secret-token");
@@ -102,61 +117,6 @@ describe("email renderers", () => {
     );
   });
 
-  it("renders job final status emails with fallback job names in a localized locale", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "es",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Job completado de Planner");
-    expect(rendered.html).toContain("Tu job");
-    expect(rendered.html).toContain("Planner");
-  });
-
-  it("falls back to a generic job greeting for blank recipient names", async () => {
-    const rendered = await renderJobFinalStatusEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobStatus: "completed",
-      locale: "en",
-      recipientName: "   ",
-    });
-
-    expect(rendered.html).toContain("Hi");
-    expect(rendered.html).not.toContain("Hi   ");
-  });
-
-  it("renders job input required emails", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      jobName: "Quarterly review",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.subject).toBe("Sokosumi - Planner needs your input");
-    expect(rendered.html).toContain("Quarterly review");
-    expect(rendered.html).toContain("Provide input");
-  });
-
-  it("renders job input required fallback copy without duplicating the fallback job name", async () => {
-    const rendered = await renderJobInputRequiredEmail({
-      agentName: "Planner",
-      jobLink: "https://example.com/job",
-      locale: "en",
-      recipientName: "Andreas",
-    });
-
-    expect(rendered.html).toContain(
-      "Your job for Planner is waiting for your input to continue.",
-    );
-    expect(rendered.html).not.toContain("Your job Your job");
-  });
-
   it("renders job failure notification emails with formatted output", async () => {
     const rendered = await renderJobFailureNotificationEmail({
       agentBlockchainIdentifier: "agent-blockchain-id",
@@ -172,9 +132,52 @@ describe("email renderers", () => {
       resultHash: "result-hash",
     });
 
-    expect(rendered.subject).toBe("Job Failure Notification - job-id");
+    expect(rendered.subject).toBe("Sokosumi - Job job-id failed");
     expect(rendered.html).toContain("agent-blockchain-id");
     expect(rendered.html).toContain("&quot;error&quot;: &quot;failure&quot;");
     expect(rendered.html).toContain("result-hash");
+  });
+
+  it("renders a low-balance billing email with the remaining credits", async () => {
+    const rendered = await renderLowBalanceEmail({
+      actionUrl: "https://app.sokosumi.com/billing?tab=credits",
+      credits: 12,
+      locale: "en",
+      recipientName: "Sandro",
+    });
+
+    expect(rendered.subject).toBe("Sokosumi - Your credits are running low");
+    expect(rendered.html).toContain("Hi Sandro");
+    expect(rendered.html).toContain("12");
+    expect(rendered.html).toContain(
+      "https://app.sokosumi.com/billing?tab=credits",
+    );
+  });
+
+  it("links the notification settings from the footer", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+      settingsUrl: "https://example.com/account/notifications",
+    });
+
+    expect(rendered.html).toContain(
+      'href="https://example.com/account/notifications"',
+    );
+    expect(rendered.html).toContain(">your notification settings</a>.");
+  });
+
+  it("leaves the footer link out when no settings url is known", async () => {
+    const rendered = await renderAccessRequestEmail({
+      actionUrl: "https://example.com/requests",
+      locale: "en",
+      recipientName: "Andreas",
+      request: "vendor",
+    });
+
+    expect(rendered.html).not.toContain("your notification settings</a>");
+    expect(rendered.html).toContain("your notification settings.");
   });
 });

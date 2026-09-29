@@ -29,7 +29,7 @@ vi.mock("@/lib/services/admin-task-x402-payment.service", () => ({
   },
 }));
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AdminAccessRequiredError } from "@/lib/auth/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 

@@ -40,7 +40,7 @@ export function McpUrlDisplay({ url, className }: McpUrlDisplayProps) {
         onClick={handleCopy}
       >
         {copied ? (
-          <Check className="size-4 text-semantic-success" />
+          <Check className="check-pop size-4 text-semantic-success" />
         ) : (
           <Copy className="h-4 w-4" />
         )}

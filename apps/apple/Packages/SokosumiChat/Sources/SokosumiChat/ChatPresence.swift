@@ -1,21 +1,14 @@
 import CoreAPI
 import Foundation
 
-// Org presence wire contract (ADR 0003), mirroring `@sokosumi/utils`
-// `chat-presence.ts` / `ably-channel.ts` and web's presence hooks.
+// Org presence wire contract (ADR 0003).
 //
 // Humans enter Ably Presence on `presence:org_{organizationId}` for the
 // active organization only, as `{userId}:{instanceId}` members carrying
 // `lastActiveAt` / `visible`. Readers aggregate every member of one user:
 // any device online → online; any device connected otherwise → afk; none →
 // offline. Coworkers and Soko Bots stay always-online (ADR 0003 v1).
-
-/// Connected + activity inside this window → online; connected otherwise → afk.
-public let chatPresenceOnlineWindow: TimeInterval = 5 * 60
-
-/// Activity refreshes `lastActiveAt` just inside the online window so a
-/// throttled refresh lands before teammates age this client to afk.
-public let orgPresencePublishMinInterval: TimeInterval = chatPresenceOnlineWindow - 60
+// Online window is 5m; publish throttle is 4m so a refresh lands before afk.
 
 private let orgPresenceChannelPrefix = "presence:org_"
 
@@ -25,7 +18,7 @@ public func orgPresenceChannelName(organizationId: String) -> String {
 }
 
 /// Inverse of `orgPresenceChannelName`. Nil for other channels or an empty id.
-public func parseOrganizationId(fromPresenceChannelName channelName: String) -> String? {
+func parseOrganizationId(fromPresenceChannelName channelName: String) -> String? {
   guard channelName.hasPrefix(orgPresenceChannelPrefix) else { return nil }
   let organizationId = String(channelName.dropFirst(orgPresenceChannelPrefix.count))
   return organizationId.isEmpty ? nil : organizationId
@@ -33,11 +26,11 @@ public func parseOrganizationId(fromPresenceChannelName channelName: String) -> 
 
 /// User id from a presence member's `{userId}:{instanceId}` client id. Malformed
 /// ids are rejected so a free-form client id cannot spoof another user.
-public func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
+func parseUserId(fromAblyPresenceClientId clientId: String) -> String? {
   guard let separator = clientId.firstIndex(of: ":"), separator > clientId.startIndex else { return nil }
   let userId = String(clientId[..<separator])
   let instanceId = String(clientId[clientId.index(after: separator)...])
-  guard !userId.isEmpty, isValidAblyClientInstanceId(instanceId) else { return nil }
+  guard !userId.isEmpty, isValidRealtimeClientInstanceId(instanceId) else { return nil }
   return userId
 }
 
@@ -101,10 +94,10 @@ public struct ChatPresenceMember: Equatable, Sendable {
 
 /// Aggregates multi-device members into per-user online/afk. Users absent
 /// from the result are offline (callers fall back to the room DTO value).
-public func aggregateChatPresence(
+func aggregateChatPresence(
   members: [ChatPresenceMember],
   now: Date = Date(),
-  onlineWindow: TimeInterval = chatPresenceOnlineWindow
+  onlineWindow: TimeInterval = 5 * 60
 ) -> [String: Components.Schemas.ChatRoomPresence] {
   var byUser: [String: Components.Schemas.ChatRoomPresence] = [:]
   for member in members {
@@ -123,34 +116,34 @@ public func aggregateChatPresence(
 /// presence must not emit Ably messages; activity refreshes `lastActiveAt`
 /// on a throttle just inside the online window; visibility changes, entering
 /// and reconnects force an immediate publish.
-public struct OrgPresencePublisherState: Equatable, Sendable {
-  public private(set) var lastActiveAt: Date
-  public private(set) var visible: Bool
-  public private(set) var lastPublished: ChatPresenceMemberData?
-  public private(set) var lastPublishedAt: Date?
+struct OrgPresencePublisherState: Equatable, Sendable {
+  private(set) var lastActiveAt: Date
+  private(set) var visible: Bool
+  private(set) var lastPublished: ChatPresenceMemberData?
+  private(set) var lastPublishedAt: Date?
 
-  public init(now: Date = Date(), visible: Bool = true) {
+  init(now: Date = Date(), visible: Bool = true) {
     lastActiveAt = now
     self.visible = visible
   }
 
-  public mutating func recordActivity(now: Date = Date()) {
+  mutating func recordActivity(now: Date = Date()) {
     lastActiveAt = now
   }
 
   /// Becoming visible counts as activity, like web's `visibilitychange`.
-  public mutating func setVisible(_ visible: Bool, now: Date = Date()) {
+  mutating func setVisible(_ visible: Bool, now: Date = Date()) {
     self.visible = visible
     if visible {
       lastActiveAt = now
     }
   }
 
-  public var data: ChatPresenceMemberData {
+  var data: ChatPresenceMemberData {
     ChatPresenceMemberData(lastActiveAt: lastActiveAt, visible: visible)
   }
 
-  public func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = orgPresencePublishMinInterval) -> Bool {
+  func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = 4 * 60) -> Bool {
     guard !force, let lastPublished, let lastPublishedAt else { return true }
     let next = data
     if next.visible != lastPublished.visible {
@@ -162,21 +155,21 @@ public struct OrgPresencePublisherState: Equatable, Sendable {
     return now.timeIntervalSince(lastPublishedAt) >= minInterval
   }
 
-  public mutating func markPublished(_ data: ChatPresenceMemberData, now: Date = Date()) {
+  mutating func markPublished(_ data: ChatPresenceMemberData, now: Date = Date()) {
     lastPublished = data
     lastPublishedAt = now
   }
 
   /// Forget what was published so the next attempt is unconditional (org
   /// switch, reconnect).
-  public mutating func resetPublication() {
+  mutating func resetPublication() {
     lastPublished = nil
     lastPublishedAt = nil
   }
 
   /// Local self-approximation for the account chrome, like web's
   /// `useSelfPresence`: unreachable → offline; hidden or idle → afk.
-  public func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = chatPresenceOnlineWindow) -> Components.Schemas.ChatRoomPresence {
+  func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
     guard connected else { return .offline }
     guard visible, now.timeIntervalSince(lastActiveAt) <= onlineWindow else { return .afk }
     return .online

@@ -22,6 +22,15 @@ public struct PreparedTranscript: Sendable {
   public let input: Input
   public let documents: [String: MessageMarkdown]
 
+  /// Markdown is prepared async; chips and edits overlay that snapshot.
+  /// Rows the live transcript already dropped (a deleted message) stay
+  /// dropped — falling back to the snapshot would keep them on screen
+  /// until re-prepare finishes.
+  public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {
+    let byId = Dictionary(live.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+    return input.messages.compactMap { byId[$0.id] }
+  }
+
   public static func prepare(_ input: Input, reusing previous: Self?) async throws -> Self {
     let task = Task.detached(priority: .userInitiated) {
       let reusable = previous.flatMap { previous in

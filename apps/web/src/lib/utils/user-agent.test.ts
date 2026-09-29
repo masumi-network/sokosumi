@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { getOSFromUserAgent, isApplePlatform } from "@/lib/utils";
+import { getOSFromUserAgent, isApplePlatform } from "@/lib/utils/user-agent";
 
 function mockNavigator(userAgent: string) {
   Object.defineProperty(global, "navigator", {

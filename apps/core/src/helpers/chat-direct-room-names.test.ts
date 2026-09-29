@@ -4,7 +4,9 @@ const {
   userMemberFindManyMock,
   coworkerMemberFindManyMock,
   sokoBotMemberFindManyMock,
+  roomFindUniqueMock,
 } = vi.hoisted(() => ({
+  roomFindUniqueMock: vi.fn(),
   userMemberFindManyMock: vi.fn(),
   coworkerMemberFindManyMock: vi.fn(),
   sokoBotMemberFindManyMock: vi.fn(),
@@ -15,6 +17,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomUserMember: { findMany: userMemberFindManyMock },
     chatRoomCoworkerMember: { findMany: coworkerMemberFindManyMock },
     chatRoomSokoBotMember: { findMany: sokoBotMemberFindManyMock },
+    chatRoom: { findUnique: roomFindUniqueMock },
   },
 }));
 
@@ -31,9 +34,27 @@ beforeEach(() => {
   userMemberFindManyMock.mockResolvedValue([]);
   coworkerMemberFindManyMock.mockResolvedValue([]);
   sokoBotMemberFindManyMock.mockResolvedValue([]);
+  roomFindUniqueMock.mockResolvedValue({ groupName: null });
 });
 
 describe("loadDirectRoomNamesByReader", () => {
+  it("gives every reader the Group name of a named group", async () => {
+    roomFindUniqueMock.mockResolvedValue({ groupName: "Launch crew" });
+    userMemberFindManyMock.mockResolvedValue([
+      human("user_ada", "Ada"),
+      human("user_ben", "Ben"),
+      human("user_cara", "Cara"),
+    ]);
+
+    const names = await loadDirectRoomNamesByReader({
+      roomId: ROOM_ID,
+      readerUserIds: ["user_ben", "user_cara"],
+    });
+
+    expect(names.get("user_ben")).toBe("Launch crew");
+    expect(names.get("user_cara")).toBe("Launch crew");
+  });
+
   it("leaves the reader out of their own room name", async () => {
     userMemberFindManyMock.mockResolvedValue([
       human("user_ada", "Ada"),

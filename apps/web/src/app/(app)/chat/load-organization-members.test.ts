@@ -4,7 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const getOrganizationMembersMock = vi.fn();
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getOrganizationMembers: (...args: unknown[]) =>
       getOrganizationMembersMock(...args),

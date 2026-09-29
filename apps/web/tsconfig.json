@@ -27,12 +27,9 @@
       "@/api/*": ["./src/app/api/*"],
       "@/components/*": ["./src/components/*"],
       "@/config/*": ["./src/config/*"],
-      "@/context/*": ["./src/contexts/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/services/*": ["./src/lib/services/*"],
       "@/middleware/*": ["./src/middleware/*"],
-      "@/types/*": ["./src/types/*"],
       "@/messages/*": ["./messages/*"]
     }
   },

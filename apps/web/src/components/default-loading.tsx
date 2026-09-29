@@ -14,7 +14,7 @@ export default function DefaultLoading({ className }: DefaultLoadingProps) {
         className,
       )}
     >
-      <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+      <Loader2 className="mr-2 h-8 w-8 animate-spin motion-reduce:animate-pulse" />
     </div>
   );
 }

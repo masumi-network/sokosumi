@@ -3,7 +3,7 @@
 import { useChannel } from "ably/react";
 import { useEffect, useState } from "react";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
-import { jobStatusDataSchema } from "@/lib/ably";
+import { jobStatusDataSchema } from "@/lib/ably/schema";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 interface TaskJobStatusBadgeProps {

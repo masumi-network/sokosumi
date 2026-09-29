@@ -2,7 +2,10 @@
 
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import { postDriveFiles } from "@/lib/clients/generated/core";
+import {
+  postDriveFiles,
+  postDriveFilesFinalize,
+} from "@/lib/clients/generated/core";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";
@@ -75,15 +78,37 @@ interface DriveFileUploadProgress {
   percentage: number;
 }
 
+/**
+ * Stored Drive file: pathname is the Core identity, fileUrl the public Blob
+ * URL when the PUT response carried one.
+ */
+export interface DriveFileUploadResult {
+  pathname: string;
+  fileUrl: string | null;
+}
+
 type DriveFileUploadOptions = DriveWorkspaceStore & {
   folder?: string;
   onUploadProgress?: (progress: DriveFileUploadProgress) => void;
 };
 
+/** Public Blob URL from the presigned PUT response, or null when absent. */
+function parseUploadedBlobUrl(responseText: string): string | null {
+  try {
+    const body = JSON.parse(responseText) as { url?: unknown };
+    if (typeof body.url === "string" && body.url) {
+      return body.url;
+    }
+  } catch {
+    // Fall through to null: caller reports the missing URL.
+  }
+  return null;
+}
+
 export async function uploadDriveFile(
   file: File,
   options: DriveFileUploadOptions,
-): Promise<void> {
+): Promise<DriveFileUploadResult> {
   const { scope, folder, onUploadProgress } = options;
 
   // Resolve contentType (fallback when File.type is empty)
@@ -136,7 +161,7 @@ export async function uploadDriveFile(
   }
 
   // Upload to Blob storage with XHR for progress tracking
-  await new Promise<void>((resolve, reject) => {
+  return await new Promise<DriveFileUploadResult>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     let hasRealProgress = false;
     let fallbackInterval: ReturnType<typeof setInterval> | null = null;
@@ -172,7 +197,32 @@ export async function uploadDriveFile(
       stopFallbackProgress();
       if (xhr.status >= 200 && xhr.status < 300) {
         onUploadProgress?.({ percentage: 100 });
-        resolve();
+        // The bytes went client → Blob, so Core never saw them land. Tell it,
+        // so the file gets a catalog identity and starts being indexed. A
+        // failure here does not fail the upload: the file is on disk, and the
+        // next search adopts it.
+        try {
+          await postDriveFilesFinalize({
+            client: getBrowserCoreClient(),
+            body: {
+              scope,
+              ...(scope === "org"
+                ? { organizationId: options.organizationId }
+                : {}),
+              pathname: session.pathname,
+            },
+            throwOnError: true,
+          });
+        } catch {
+          // Intentionally quiet: indexing catches up on its own.
+        }
+        // Resolving with the blob's location is main's shape, kept: the
+        // finalize above is an extra step on the way out, not a change to
+        // what the caller is handed.
+        resolve({
+          pathname: session.pathname,
+          fileUrl: parseUploadedBlobUrl(xhr.responseText),
+        });
         return;
       }
 

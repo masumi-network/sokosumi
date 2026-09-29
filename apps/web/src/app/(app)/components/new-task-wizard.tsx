@@ -24,6 +24,7 @@ function toWizardOptions(data: NewTaskWizardData) {
 interface NewTaskWizardProps {
   /** Which open this is; a new number means a fresh wizard with fresh lists. */
   instance: number;
+  defaultProjectId?: string | null;
   /** Runs when the modal closes (dismiss, load error, or success). */
   onClose?: () => void;
 }
@@ -34,23 +35,35 @@ interface NewTaskWizardProps {
  * hands over to `CreateTaskModal`. Closing the modal reports back through
  * `onClose`, and the provider unmounts the wizard.
  */
-export function NewTaskWizard({ instance, onClose }: NewTaskWizardProps) {
+export function NewTaskWizard({
+  instance,
+  defaultProjectId = null,
+  onClose,
+}: NewTaskWizardProps) {
   return (
-    <CreateTaskModalProvider initialOpen onClose={onClose}>
-      <NewTaskWizardModal instance={instance} />
+    <CreateTaskModalProvider
+      initialOpen
+      initialProjectId={defaultProjectId}
+      onClose={onClose}
+    >
+      <NewTaskWizardModal
+        instance={instance}
+        defaultProjectId={defaultProjectId}
+      />
     </CreateTaskModalProvider>
   );
 }
 
 function NewTaskWizardModal({
   instance,
-}: Pick<NewTaskWizardProps, "instance">) {
+  defaultProjectId,
+}: Pick<NewTaskWizardProps, "instance" | "defaultProjectId">) {
   const { handleClose } = useCreateTaskModal();
   const tTasksErrors = useTranslations("App.Tasks.Errors");
   const { data: options, isError } = useQuery({
     // Keyed per open so the lists always belong to the current workspace.
-    queryKey: ["new-task-wizard-options", instance],
-    queryFn: () => loadNewTaskWizardOptions(),
+    queryKey: ["new-task-wizard-options", instance, defaultProjectId],
+    queryFn: () => loadNewTaskWizardOptions(defaultProjectId),
     select: toWizardOptions,
     gcTime: 0,
     refetchOnWindowFocus: false,
@@ -65,6 +78,7 @@ function NewTaskWizardModal({
 
   return (
     <CreateTaskModal
+      defaultProjectId={defaultProjectId}
       coworkerOptions={options?.coworkerOptions ?? []}
       projectOptions={options?.projectOptions ?? []}
       agentNameById={options?.agentNameById}

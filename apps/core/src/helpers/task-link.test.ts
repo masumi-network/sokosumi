@@ -153,30 +153,6 @@ describe("mapTaskLinkForTask", () => {
     });
   });
 
-  it("maps schedule relations relative to the current task", () => {
-    expect(
-      mapTaskLinkForTask(
-        "tsk_a",
-        createLink({
-          type: TaskLinkType.SCHEDULE,
-        }),
-      ),
-    ).toMatchObject({
-      relation: "schedule_run",
-    });
-
-    expect(
-      mapTaskLinkForTask(
-        "tsk_b",
-        createLink({
-          type: TaskLinkType.SCHEDULE,
-        }),
-      ),
-    ).toMatchObject({
-      relation: "schedule_series",
-    });
-  });
-
   it("maps duplicate relations symmetrically", () => {
     expect(
       mapTaskLinkForTask(

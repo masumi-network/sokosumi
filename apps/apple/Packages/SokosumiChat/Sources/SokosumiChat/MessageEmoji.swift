@@ -75,7 +75,7 @@ enum MessageEmoji {
   }
 
   private static func resource<Value: Decodable>(_ name: String) -> Value {
-    guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Emoji") else {
+    guard let url = ChatResources.bundle.url(forResource: name, withExtension: "json", subdirectory: "Emoji") else {
       preconditionFailure("Missing bundled emoji data: \(name)")
     }
     do {

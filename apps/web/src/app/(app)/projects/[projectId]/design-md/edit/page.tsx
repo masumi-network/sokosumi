@@ -17,7 +17,10 @@ export default async function ProjectDesignMdEditPage({
   const t = await getTranslations("App.DesignMd");
   const tProject = await getTranslations("App.Projects.Detail");
   const { projectId } = await params;
-  const returnHref = `/projects/${projectId}`;
+  // Back to the Design tab, which is where the document is read: before it
+  // existed, leaving the editor meant landing on the overview with no sign of
+  // what had just been edited.
+  const returnHref = `/projects/${projectId}/design-md`;
 
   const project = await projectService.getProjectById(projectId);
   if (!project) {

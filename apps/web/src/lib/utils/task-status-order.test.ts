@@ -7,16 +7,16 @@ import {
 } from "@/lib/utils/task-status-order";
 
 describe("canSelectQueuedTaskStatus", () => {
-  it("requires both an agent assignee and an active schedule", () => {
-    expect(
-      canSelectQueuedTaskStatus({ hasSchedule: true, isAgent: true }),
-    ).toBe(true);
-    expect(
-      canSelectQueuedTaskStatus({ hasSchedule: false, isAgent: true }),
-    ).toBe(false);
-    expect(
-      canSelectQueuedTaskStatus({ hasSchedule: true, isAgent: false }),
-    ).toBe(false);
+  it("requires both an agent assignee and a Run at", () => {
+    expect(canSelectQueuedTaskStatus({ hasRunAt: true, isAgent: true })).toBe(
+      true,
+    );
+    expect(canSelectQueuedTaskStatus({ hasRunAt: false, isAgent: true })).toBe(
+      false,
+    );
+    expect(canSelectQueuedTaskStatus({ hasRunAt: true, isAgent: false })).toBe(
+      false,
+    );
   });
 });
 

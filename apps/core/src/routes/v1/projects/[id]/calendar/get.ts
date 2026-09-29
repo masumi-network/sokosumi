@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { requireCalendarBetaAccess } from "@/helpers/calendar-beta-access";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { notFound } from "@/helpers/error";
 import {
@@ -7,20 +6,22 @@ import {
   jsonPaginatedSuccessResponse,
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import prisma from "@/lib/db/prisma";
 import {
   type OpenAPIHonoWithAuth,
   withCoworkerContextHeaderParameters,
 } from "@/lib/hono";
+import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
-  getCalendarTaskWhere,
+  getCalendarAccessWhere,
   parseWorkspaceCalendarQuery,
   readWorkspaceCalendar,
-} from "@/routes/v1/workspaces/[id]/calendar/get";
+} from "@/routes/v1/workspaces/calendar/read";
 import {
   projectCalendarQuerySchema,
-  workspaceCalendarItemSchema,
+  workspaceCalendarEntrySchema,
 } from "@/schemas/workspace-calendar.schema";
 
 const paramsSchema = z.object({
@@ -38,7 +39,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/{id}/calendar",
     description:
-      "List indexed planned and released schedule occurrences for a Project",
+      "List the Task Schedule Runs of a Project: planned ones and the ones that created their Task",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -46,7 +47,7 @@ const route = withCoworkerContextHeaderParameters(
     },
     responses: {
       200: jsonPaginatedSuccessResponse(
-        z.array(workspaceCalendarItemSchema),
+        z.array(workspaceCalendarEntrySchema),
         "Project Calendar items",
       ),
       400: jsonErrorResponse("Bad Request"),
@@ -62,7 +63,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { authContext } = c.var;
     const userContext = await requireAuthorizedUserContext(authContext);
-    await requireCalendarBetaAccess(userContext.userId, prisma);
+    if (c.req.valid("query").includeSocialPosts === "true") {
+      requireInteractiveUserAuthContext(c.var.authContext);
+      await requireSocialBetaAccess(userContext.userId, prisma);
+    }
 
     const workspace = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
@@ -74,7 +78,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw notFound("Project not found");
     }
 
-    const taskWhere = await getCalendarTaskWhere(
+    const access = await getCalendarAccessWhere(
       authContext,
       workspace.workspaceId,
     );
@@ -83,7 +87,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       workspace.workspaceId,
       userContext.userId,
       parseWorkspaceCalendarQuery(c.req.valid("query")),
-      { projectId: project.id, taskWhere },
+      { projectId: project.id, access },
     );
 
     return ok(c, items, pagination);

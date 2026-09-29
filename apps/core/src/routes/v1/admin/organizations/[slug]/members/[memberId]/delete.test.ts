@@ -10,11 +10,13 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 import mountRemoveAdminOrganizationMember from "./delete";
 
 const {
-  getAdminOrganizationBySlugMock,
-  getMemberByIdAndOrganizationIdMock,
+  organizationFindUniqueMock,
+  memberFindFirstMock,
   removeMemberMock,
   applyOrganizationExitChatRevocationMock,
   publishOrganizationExitChatRevocationMock,
+  deliverOrganizationCalendarInvalidationsNowMock,
+  queryRawMock,
   transactionMock,
   authContextState,
 } = vi.hoisted(() => ({
@@ -26,11 +28,13 @@ const {
       role: "admin",
     } as AuthenticationContext,
   },
-  getAdminOrganizationBySlugMock: vi.fn(),
-  getMemberByIdAndOrganizationIdMock: vi.fn(),
+  organizationFindUniqueMock: vi.fn(),
+  memberFindFirstMock: vi.fn(),
   removeMemberMock: vi.fn(),
   applyOrganizationExitChatRevocationMock: vi.fn(),
   publishOrganizationExitChatRevocationMock: vi.fn(),
+  deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
+  queryRawMock: vi.fn(),
   transactionMock: vi.fn(),
 }));
 
@@ -38,18 +42,17 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (callback: (tx: unknown) => unknown) =>
       transactionMock(callback),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      findFirst: (...args: unknown[]) => memberFindFirstMock(...args),
+    },
   },
-}));
-
-vi.mock("@/helpers/admin-organization-overview.js", () => ({
-  getAdminOrganizationBySlug: (...args: unknown[]) =>
-    getAdminOrganizationBySlugMock(...args),
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
-    getMemberByIdAndOrganizationId: (...args: unknown[]) =>
-      getMemberByIdAndOrganizationIdMock(...args),
     removeMember: (...args: unknown[]) => removeMemberMock(...args),
   },
 }));
@@ -59,6 +62,11 @@ vi.mock("@/helpers/chat-room-organization-exit", () => ({
     applyOrganizationExitChatRevocationMock(...args),
   publishOrganizationExitChatRevocation: (...args: unknown[]) =>
     publishOrganizationExitChatRevocationMock(...args),
+}));
+
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverOrganizationCalendarInvalidationsNow: (...args: unknown[]) =>
+    deliverOrganizationCalendarInvalidationsNowMock(...args),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -106,19 +114,29 @@ const MEMBER = {
 describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getAdminOrganizationBySlugMock.mockResolvedValue(ORG);
-    getMemberByIdAndOrganizationIdMock.mockResolvedValue(MEMBER);
+    organizationFindUniqueMock.mockResolvedValue(ORG);
+    memberFindFirstMock.mockResolvedValue(MEMBER);
     removeMemberMock.mockResolvedValue(undefined);
     applyOrganizationExitChatRevocationMock.mockResolvedValue({
       revokedRoomIds: ["room-1"],
       statusMessages: [],
     });
     publishOrganizationExitChatRevocationMock.mockResolvedValue(undefined);
-    transactionMock.mockImplementation(async (callback) => callback({}));
+    deliverOrganizationCalendarInvalidationsNowMock.mockResolvedValue(
+      undefined,
+    );
+    queryRawMock.mockResolvedValue([{ id: MEMBER.id }]);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({ $queryRaw: queryRawMock }),
+    );
   });
 
   it("hard-leaves chat rooms before removing the member, then publishes", async () => {
     const callOrder: string[] = [];
+    queryRawMock.mockImplementation(async () => {
+      callOrder.push("lock");
+      return [{ id: MEMBER.id }];
+    });
     applyOrganizationExitChatRevocationMock.mockImplementation(async () => {
       callOrder.push("apply");
       return { revokedRoomIds: ["room-1"], statusMessages: [] };
@@ -137,16 +155,23 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
 
     expect(response.status).toBe(204);
     expect(applyOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
-      {},
+      expect.objectContaining({ $queryRaw: queryRawMock }),
       "user_target",
       "org_1",
     );
-    expect(removeMemberMock).toHaveBeenCalledWith("mem_1", "org_1", {});
+    expect(removeMemberMock).toHaveBeenCalledWith(
+      "mem_1",
+      "org_1",
+      expect.objectContaining({ $queryRaw: queryRawMock }),
+    );
     expect(publishOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
       "user_target",
       { revokedRoomIds: ["room-1"], statusMessages: [] },
     );
-    expect(callOrder).toEqual(["apply", "removeMember", "publish"]);
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).toHaveBeenCalledWith("org_1", "user_target");
+    expect(callOrder).toEqual(["lock", "apply", "removeMember", "publish"]);
   });
 
   it("does not publish when owner retention blocks remove", async () => {
@@ -159,10 +184,13 @@ describe("DELETE /admin/organizations/{slug}/members/{memberId}", () => {
 
     expect(response.status).toBe(400);
     expect(publishOrganizationExitChatRevocationMock).not.toHaveBeenCalled();
+    expect(
+      deliverOrganizationCalendarInvalidationsNowMock,
+    ).not.toHaveBeenCalled();
   });
 
   it("returns 404 when the organization is missing", async () => {
-    getAdminOrganizationBySlugMock.mockResolvedValueOnce(null);
+    organizationFindUniqueMock.mockResolvedValueOnce(null);
 
     const app = createApp();
     const response = await app.request(

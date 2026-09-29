@@ -1,5 +1,7 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
+import { ProjectScopeGuard } from "@/app/components/project-scope/project-scope-guard";
+import { SidebarScopeMobileChip } from "@/app/components/project-scope/sidebar-project-scope-mobile";
 import BreadcrumbNavigation from "@/components/breadcrumb-navigation/breadcrumb-navigation";
 
 import { HeaderCenter } from "./header/header-center.client";
@@ -28,6 +30,11 @@ export default function Header({ className, session }: HeaderProps) {
       <HeaderCenter>
         <BreadcrumbNavigation className="flex flex-1" />
       </HeaderCenter>
+
+      <Suspense fallback={null}>
+        <SidebarScopeMobileChip />
+        <ProjectScopeGuard />
+      </Suspense>
 
       <HeaderTrailing>
         <HeaderProfileSection session={session} />

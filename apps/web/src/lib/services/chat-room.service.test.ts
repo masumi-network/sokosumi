@@ -15,6 +15,7 @@ const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 const retryChatRoomMentionMock = vi.fn();
 const getChatRoomMessageMock = vi.fn();
+const markChatRoomReadMock = vi.fn();
 
 vi.mock("@/lib/clients/core.client", () => ({
   CoreApiRequestError: class CoreApiRequestError extends Error {
@@ -43,6 +44,7 @@ vi.mock("@/lib/clients/core.client", () => ({
     retryChatRoomMention: (...args: unknown[]) =>
       retryChatRoomMentionMock(...args),
     getChatRoomMessage: (...args: unknown[]) => getChatRoomMessageMock(...args),
+    markChatRoomRead: (...args: unknown[]) => markChatRoomReadMock(...args),
   },
 }));
 
@@ -472,26 +474,27 @@ describe("chatRoomService thread attention", () => {
     );
   });
 
-  it("countUnreadThreads returns Core unread thread count without listing threads", async () => {
+  it("listUnreadThreadReplyCounts returns each unread thread's replies without listing threads", async () => {
+    const threads = [{ parentMessageId: "parent-1", unreadReplyCount: 2 }];
     getChatRoomThreadsUnreadCountMock.mockResolvedValue({
-      data: { count: 4 },
+      data: { count: 1, threads },
     });
 
     const { chatRoomService } = await import("./chat-room.service");
-    const result = await chatRoomService.countUnreadThreads("room-1");
+    const result = await chatRoomService.listUnreadThreadReplyCounts("room-1");
 
     expect(getChatRoomThreadsUnreadCountMock).toHaveBeenCalledWith("room-1");
     expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
-    expect(result).toBe(4);
+    expect(result).toEqual(threads);
   });
 
-  it("countUnreadThreads propagates Core client rejection", async () => {
+  it("listUnreadThreadReplyCounts propagates Core client rejection", async () => {
     getChatRoomThreadsUnreadCountMock.mockRejectedValue(new Error("network"));
 
     const { chatRoomService } = await import("./chat-room.service");
-    await expect(chatRoomService.countUnreadThreads("room-1")).rejects.toThrow(
-      "network",
-    );
+    await expect(
+      chatRoomService.listUnreadThreadReplyCounts("room-1"),
+    ).rejects.toThrow("network");
     expect(getChatRoomThreadsMock).not.toHaveBeenCalled();
   });
 
@@ -581,5 +584,36 @@ describe("chatRoomService.getMessage", () => {
     await expect(chatRoomService.getMessage("room-1", "msg-1")).rejects.toThrow(
       "Boom",
     );
+  });
+});
+
+describe("chatRoomService.markAllUnreadRead", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    markChatRoomReadMock.mockResolvedValue({ data: {} });
+    markChatRoomThreadsReadMock.mockResolvedValue({ data: { markedCount: 1 } });
+  });
+
+  it("reads each room only through the reads it has unread", async () => {
+    const { chatRoomService } = await import("./chat-room.service");
+    await chatRoomService.markAllUnreadRead([
+      { roomId: "channel", readRoom: true, lookThreads: false },
+      { roomId: "threads", readRoom: false, lookThreads: true },
+    ]);
+
+    expect(markChatRoomReadMock.mock.calls).toEqual([["channel"]]);
+    expect(markChatRoomThreadsReadMock.mock.calls).toEqual([["threads"]]);
+  });
+
+  it("finishes every read before reporting the first failure", async () => {
+    markChatRoomReadMock.mockRejectedValueOnce(new Error("room read failed"));
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(
+      chatRoomService.markAllUnreadRead([
+        { roomId: "a", readRoom: true, lookThreads: true },
+      ]),
+    ).rejects.toThrow("room read failed");
+    expect(markChatRoomThreadsReadMock).toHaveBeenCalledWith("a");
   });
 });

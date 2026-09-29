@@ -11,6 +11,8 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${ROOT}"
 
+# packageManager in the root package.json is the single source of truth; it is
+# what Corepack (locally and on Vercel) reads.
 PM="$(node -p "require('./package.json').packageManager")"
 corepack enable
 corepack prepare "${PM}" --activate

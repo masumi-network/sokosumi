@@ -3,19 +3,23 @@
 import {
   Bot,
   CalendarDays,
-  FolderKanban,
   HardDrive,
   History,
+  ImagePlus,
   ListTodo,
   Plus,
+  Repeat,
   Search,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, Fragment, type SVGProps } from "react";
+import { type ComponentType, Fragment, Suspense, type SVGProps } from "react";
 import { useOptionalHistorySearch } from "@/app/components/history-search-dialog-provider";
 import { useOptionalNewTaskWizard } from "@/app/components/new-task-wizard-provider";
+import { useProjectScope } from "@/app/components/project-scope/use-project-scope";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
@@ -24,8 +28,13 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRailSelectionBar,
+  SidebarRowSlot,
   useSidebar,
 } from "@/components/ui/sidebar";
+import {
+  SIDEBAR_ROW_FIXED_LABEL_CLASS,
+  SIDEBAR_ROW_LABEL_CLASS,
+} from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
@@ -40,11 +49,30 @@ interface MenuItemConfig {
   separatorAfter?: boolean;
 }
 
-interface MenuItemsProps {
-  calendarMenuEnabled: boolean;
+/**
+ * `socialMenuEnabled` is off by default so the Instant Nav shell, which has
+ * not resolved the reader's beta membership yet, leaves the row out rather
+ * than guessing it: a row that appears once is cheaper than one that appears
+ * and then goes away.
+ */
+export default function MenuItems({
+  socialMenuEnabled = false,
+}: {
+  socialMenuEnabled?: boolean;
+} = {}) {
+  return (
+    <Suspense fallback={null}>
+      <ScopedMenuItems socialMenuEnabled={socialMenuEnabled} />
+    </Suspense>
+  );
 }
 
-export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
+function ScopedMenuItems({
+  socialMenuEnabled,
+}: {
+  socialMenuEnabled: boolean;
+}) {
+  const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
   const pathname = usePathname();
   // Soft read: Instant Nav shell may mount before HistorySearchDialogProvider.
@@ -61,7 +89,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   }
 
   function handleNewTaskClick() {
-    newTaskWizard?.openNewTaskWizard();
+    newTaskWizard?.openNewTaskWizard({ projectId });
     if (isMobile) {
       setOpenMobile(false);
     }
@@ -82,7 +110,11 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       // Task Manager link, which explains the Seat requirement.
       ...(newTaskWizard && hasAssignedSeat
         ? { onClick: handleNewTaskClick }
-        : { href: "/tasks?create=true" }),
+        : {
+            href: projectId
+              ? `${hrefFor("/tasks")}&create=true`
+              : "/tasks?create=true",
+          }),
       label: t("newTask"),
       Icon: Plus,
       separatorAfter: true,
@@ -102,24 +134,41 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
       Icon: Bot,
     },
     {
-      key: "projects",
-      href: "/projects",
-      label: t("projects"),
-      Icon: FolderKanban,
-    },
-    {
       key: "task-manager",
       href: "/tasks",
       label: t("taskManager"),
       Icon: ListTodo,
     },
-    ...(calendarMenuEnabled
+    {
+      key: "schedules",
+      href: TASK_SCHEDULES_PATH,
+      label: t("schedules"),
+      Icon: Repeat,
+    },
+    {
+      key: "calendar",
+      href: "/calendar",
+      label: t("calendar"),
+      Icon: CalendarDays,
+    },
+    // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
+    // reader's project across without the studio knowing about the switcher.
+    {
+      key: "studio",
+      href: "/studio",
+      label: t("contentStudio"),
+      Icon: ImagePlus,
+    },
+    // Social used to be a tab inside a project. It is a destination of its
+    // own now, scoped the same way the studio is, and it is still behind the
+    // beta so the row only exists where the surface does.
+    ...(socialMenuEnabled
       ? [
           {
-            key: "calendar",
-            href: "/calendar",
-            label: t("calendar"),
-            Icon: CalendarDays,
+            key: "social",
+            href: "/social",
+            label: t("social"),
+            Icon: Share2,
           },
         ]
       : []),
@@ -145,7 +194,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
   return (
     <>
       {/* `px-2` here rather than on the item, so a nav row's
-          `SidebarMenuItem` is the same 40px box a Chat row's is and the rail
+          `SidebarMenuItem` is the same box a Chat row's is and the rail
           selection bar's `-right-2` lands on the rail's edge in both. The
           separator spans the rail rather than the row, so it takes that
           padding back with `-mx-2`. */}
@@ -164,6 +213,13 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                 separatorAfter,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
+                // The pill wears the rail square's 4px inset and 4px padding
+                // at every width, so collapsing only narrows it: its edge
+                // and the + inside it stay where they are.
+                const newTaskClassName =
+                  key === "new-task"
+                    ? "ml-1 w-[calc(100%-0.5rem)] pl-1 bg-secondary text-secondary-foreground hover:bg-secondary-hover hover:text-secondary-foreground active:bg-secondary-hover active:text-secondary-foreground data-[state=open]:hover:bg-secondary-hover data-[state=open]:hover:text-secondary-foreground group-data-[collapsible=icon]:hover:bg-secondary-hover group-data-[collapsible=icon]:active:bg-secondary-hover"
+                    : undefined;
 
                 // Collapsed rail hides the label, so every item needs the hint.
                 const tooltip = shortcutLabel
@@ -181,8 +237,15 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
 
                 const content = (
                   <>
-                    <Icon className="size-4" aria-hidden />
-                    <span className="flex-1 truncate group-data-[collapsible=icon]:sr-only">
+                    <SidebarRowSlot>
+                      <Icon className="size-4" aria-hidden />
+                    </SidebarRowSlot>
+                    <span
+                      className={cn(
+                        SIDEBAR_ROW_LABEL_CLASS,
+                        SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      )}
+                    >
                       {label}
                     </span>
                   </>
@@ -195,17 +258,22 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           asChild
                           isActive={isActive}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
+                          className={newTaskClassName}
                           tooltip={tooltip}
                         >
                           <SheetClose asChild>
                             <Link
-                              href={href}
+                              href={hrefFor(href)}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
-                                "flex min-h-auto w-full items-center gap-2 px-3",
-                                isActive
-                                  ? "text-sidebar-accent-foreground"
-                                  : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                                key === "new-task"
+                                  ? newTaskClassName
+                                  : isActive
+                                    ? "text-sidebar-accent-foreground"
+                                    : "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                               )}
                             >
                               {content}
@@ -216,12 +284,14 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                         <SidebarMenuButton
                           type="button"
                           onClick={onClick}
+                          data-sidebar-new-task={
+                            key === "new-task" ? "" : undefined
+                          }
                           aria-keyshortcuts={ariaKeyshortcuts}
                           tooltip={tooltip}
                           className={cn(
-                            "flex min-h-auto w-full items-center gap-2 px-3",
-                            "text-tertiary-foreground dark:text-muted-foreground",
-                            "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                            newTaskClassName ??
+                              "text-tertiary-foreground dark:text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                           )}
                         >
                           {content}
@@ -241,10 +311,7 @@ export default function MenuItems({ calendarMenuEnabled }: MenuItemsProps) {
                       {isActive ? <SidebarRailSelectionBar /> : null}
                     </SidebarMenuItem>
                     {separatorAfter ? (
-                      <SidebarMenuItem
-                        aria-hidden
-                        className="group-data-[collapsible=icon]:hidden -mx-2 py-2"
-                      >
+                      <SidebarMenuItem aria-hidden className="-mx-2 py-2">
                         <div className="bg-sidebar-border h-px w-full" />
                       </SidebarMenuItem>
                     ) : null}

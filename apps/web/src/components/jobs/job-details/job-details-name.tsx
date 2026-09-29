@@ -17,12 +17,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { updateJobName } from "@/lib/actions/job/action";
 import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/job";
 
 export interface UseJobDetailsNameControllerResult {
   editing: boolean;
@@ -143,7 +145,9 @@ export default function JobDetailsName({
             )}
           />
           <Button size="sm" type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+            {isSubmitting && (
+              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {t("save")}
           </Button>
           <Button

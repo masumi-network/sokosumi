@@ -11,6 +11,8 @@ import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 
 import { loadCreateVersionSearchParams } from "../search-params";
 
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Admin.SokoBots.Versions");
   return {

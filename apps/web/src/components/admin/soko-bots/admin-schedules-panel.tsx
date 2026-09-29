@@ -69,7 +69,7 @@ export async function AdminSchedulesPanel({
                 {schedule.prompt}
               </p>
               {schedule.runs.length > 0 ? (
-                <div className="overflow-x-auto rounded border">
+                <div className="app-scrollbar overflow-x-auto rounded border">
                   <table className="w-full text-xs">
                     <thead className="text-muted-foreground border-b text-left">
                       <tr>

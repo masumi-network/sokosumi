@@ -23,8 +23,8 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
-import { deletePersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
+import { deletePersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
 
 interface DeletePersonalWorkspaceFormProps {
@@ -128,7 +128,7 @@ export function DeletePersonalWorkspaceForm({
                 }}
               >
                 {isSubmitting && (
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                 )}
                 {t("confirm")}
               </Button>

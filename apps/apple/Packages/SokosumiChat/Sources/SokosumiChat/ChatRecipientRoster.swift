@@ -84,9 +84,9 @@ public extension ChatService {
       }.map {
         ChatRecipientTarget(id: .coworker($0.id), name: $0.name, detail: $0.caption ?? "@\($0.slug)", imageURL: $0.image, slug: $0.slug)
       }
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try ChatServiceError.unprocessable(statusCode: 403, message: value.body.json.message)
-    case let .unprocessableContent(value): throw try ChatServiceError.unprocessable(statusCode: 422, message: value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
+    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
+    case let .unprocessableContent(value): throw try rejected(status: 422, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
@@ -113,7 +113,7 @@ public extension ChatService {
         )
       }
       return .init(targets: targets)
-    case let .unauthorized(value): throw try ChatServiceError.unauthorized(value.body.json.message)
+    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
     case .forbidden, .notFound, .internalServerError, .undocumented:
       return .init(targets: [], membersLoadFailed: true)
     }

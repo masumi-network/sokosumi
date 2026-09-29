@@ -25,10 +25,12 @@ vi.mock("@/lib/auth/route-session", () => ({
   readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
+}));
+vi.mock("@/lib/services/organization.service", () => ({
   organizationService: {
     getMyPendingOrganizationInvitations: (...args: unknown[]) =>
       getMyPendingOrganizationInvitationsMock(...args),

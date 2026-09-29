@@ -84,7 +84,7 @@ export function CopyableValue({
     );
 
   const icon = showCheckIcon ? (
-    <Check className="text-semantic-success size-4" />
+    <Check className="check-pop text-semantic-success size-4" />
   ) : (
     <Copy className="size-4" />
   );

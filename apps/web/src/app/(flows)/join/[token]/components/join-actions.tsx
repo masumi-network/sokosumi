@@ -7,8 +7,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { acceptOrganizationInviteLink } from "@/lib/actions";
-import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { acceptOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
 
@@ -116,7 +116,7 @@ export function JoinActions({
           disabled={busy || retryOrganizationId !== null}
         >
           {isJoining && !retryOrganizationId && (
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
           )}
           {isJoining && !retryOrganizationId
             ? t("joining")
@@ -132,7 +132,9 @@ export function JoinActions({
             disabled={busy}
             data-testid="join-retry-activation"
           >
-            {isJoining && <Loader2 className="size-4 animate-spin" />}
+            {isJoining && (
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+            )}
             {t("activateRetry")}
           </Button>
         ) : null}
@@ -145,7 +147,9 @@ export function JoinActions({
           }}
           disabled={busy}
         >
-          {isDeclining && <Loader2 className="size-4 animate-spin" />}
+          {isDeclining && (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          )}
           {t("decline")}
         </Button>
       </div>

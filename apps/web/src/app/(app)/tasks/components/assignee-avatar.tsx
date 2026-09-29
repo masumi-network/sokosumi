@@ -1,6 +1,5 @@
 "use client";
 
-import { UserCog } from "lucide-react";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -12,11 +11,12 @@ export function AssigneeAvatar({
   size = "sm",
 }: {
   assignee: TaskAssigneeView | null | undefined;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
 }) {
   const image = getCoworkerImage(assignee);
-  const sizeClass = size === "sm" ? "size-5" : "size-6";
-  const orbSize = size === "sm" ? 20 : 24;
+  const sizeClass =
+    size === "sm" ? "size-5" : size === "md" ? "size-6" : "size-8";
+  const orbSize = size === "sm" ? 20 : size === "md" ? 24 : 32;
 
   if (
     assignee?.kind === "sokoBot" &&
@@ -35,12 +35,22 @@ export function AssigneeAvatar({
     );
   }
 
+  if (assignee == null) {
+    return (
+      <Avatar className={`${sizeClass} shrink-0`}>
+        <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
+          ?
+        </AvatarFallback>
+      </Avatar>
+    );
+  }
+
   return (
     <Avatar className={`${sizeClass} shrink-0`}>
       {image ? (
         <AvatarImage
           src={image}
-          alt={assignee?.name ?? "Coworker"}
+          alt={assignee.name ?? "Coworker"}
           className="object-cover"
           onError={(event) => {
             event.currentTarget.style.display = "none";
@@ -48,9 +58,7 @@ export function AssigneeAvatar({
         />
       ) : null}
       <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
-        {assignee?.name?.slice(0, 1).toUpperCase() ?? (
-          <UserCog className="size-3" aria-hidden />
-        )}
+        {assignee.name?.slice(0, 1).toUpperCase()}
       </AvatarFallback>
     </Avatar>
   );

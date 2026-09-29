@@ -17,7 +17,7 @@ public enum TimeFormatPreference: String, CaseIterable, Identifiable, Sendable {
 
   /// What Auto resolves to for `locale`. `Locale.current` already carries the
   /// system's 24-hour override, which is what web's browser detection stands for.
-  public static func detected(locale: Locale = .current) -> TimeFormatPreference {
+  static func detected(locale: Locale = .current) -> TimeFormatPreference {
     switch locale.hourCycle {
     case .zeroToTwentyThree, .oneToTwentyFour: .twentyFourHour
     default: .twelveHour

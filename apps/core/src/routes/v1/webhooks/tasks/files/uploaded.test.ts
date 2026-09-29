@@ -62,16 +62,17 @@ vi.mock("@/lib/task-file-upload-completed", () => ({
   registerTaskFileFromUploadCompleted: registerTaskFileFromUploadCompletedMock,
 }));
 
+import webhooksRouter from "../../index";
 import uploadedRouter from "./uploaded";
 
-function createApp() {
+function createApp(router: typeof uploadedRouter = uploadedRouter) {
   const app = new Hono<{ Variables: RequestIdVariables }>();
   app.use("*", async (c, next) => {
     c.set("requestId", "req_blob_webhook_test");
     await next();
   });
   app.onError(errorHandler);
-  app.route("/", uploadedRouter);
+  app.route("/", router);
   return app;
 }
 
@@ -153,5 +154,28 @@ describe("POST /webhooks/tasks/files/uploaded", () => {
 
     expect(response.status).toBe(503);
     expect(handleUploadPresignedMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the public POST /tasks/files/uploaded mount", async () => {
+    const app = createApp(webhooksRouter);
+    const response = await app.request(
+      "http://localhost/tasks/files/uploaded",
+      {
+        method: "POST",
+        body: JSON.stringify({ type: "blob.upload-completed", payload: {} }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(handleUploadPresignedMock).toHaveBeenCalled();
+  });
+
+  it("keeps OpenAPI path /tasks/files/uploaded", () => {
+    const document = webhooksRouter.getOpenAPIDocument({
+      openapi: "3.0.0",
+      info: { title: "test", version: "1" },
+    });
+
+    expect(document.paths?.["/tasks/files/uploaded"]?.post).toBeDefined();
   });
 });

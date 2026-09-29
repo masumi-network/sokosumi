@@ -11,14 +11,24 @@ This directory contains documentation for the Sokosumi monorepo.
 
 ## Agent tooling
 
-- [`agents/issue-tracker.md`](./agents/issue-tracker.md)
-- [`agents/triage-labels.md`](./agents/triage-labels.md)
-- [`agents/domain.md`](./agents/domain.md)
-- [`agents/cloud-agent-database.md`](./agents/cloud-agent-database.md)
+Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-specific files live in [`agents/`](./agents/). Do not restate that list here.
 
 ## Soko Bot
 
 - [`soko-bot/`](./soko-bot/) — in-process Core runtime (deployment and operations)
+
+## Project image studio
+
+- [`image-studio/deployment.md`](./image-studio/deployment.md) — which project carries which key, branch-scoped preview setup, and deploy side effects
+
+## Features
+
+- [`features/task-tags.md`](./features/task-tags.md) — Core task-tag vocabulary, `/sync/task-tags` worker (50 queued + 200 historical), spend bounds, and production-log caution
+- [`intelligent-files/implementation-plan.md`](./intelligent-files/implementation-plan.md) — shipped Files catalog (`FileResource` / `FileVersion` / `FileChunk`; Core Jev; `FILES_JEV_ENABLED` default `"true"`)
+
+## Native tables
+
+- [`native-tables.md`](./native-tables.md) — Files tables storage, Core API, bounds, and isolated `native_tables` verification
 
 ## Wayfinder
 

@@ -42,6 +42,7 @@ function buildTask({
     assigneeId: null,
     assigneeSokoBotId: null,
     assigneeUserId: null,
+    participants: [],
     description: null,
     commentsCount: 0,
     jobsCount: 0,

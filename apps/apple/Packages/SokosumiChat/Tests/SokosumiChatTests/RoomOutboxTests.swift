@@ -5,15 +5,22 @@ import Testing
 
 @MainActor
 struct RoomOutboxTests {
-  private func shell(_ id: String) -> OutboundShell {
-    .init(clientTurnId: id, roomId: testRoomId, content: id,
-          sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
+  private let now = Date(timeIntervalSince1970: 1_700_000_000)
+
+  private func outbox(timeout: Duration = .seconds(30)) -> RoomOutbox {
+    RoomOutbox(timeout: timeout, now: { now })
+  }
+
+  private func shell(_ id: String, createdAt: Date? = nil) -> OutboundShell {
+    .init(
+      clientTurnId: id, roomId: testRoomId, content: id, createdAt: createdAt ?? now,
+      sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online)
+    )
   }
 
   @Test func slowHTTPConfirmationShowsThenExpiresSentFeedback() async throws {
-    let outbox = RoomOutbox()
-    var pending = shell("slow")
-    pending.createdAt = Date().addingTimeInterval(-1)
+    let outbox = outbox()
+    let pending = shell("slow", createdAt: now.addingTimeInterval(-1))
     var response = chatRoomMessage(from: pending)
     response.id = "confirmed"
     let confirmed = response
@@ -31,7 +38,7 @@ struct RoomOutboxTests {
   }
 
   @Test func fastConfirmationSkipsSentFeedback() async {
-    let outbox = RoomOutbox()
+    let outbox = outbox()
     let pending = shell("fast")
     let response = chatRoomMessage(from: pending)
     outbox.enqueue(pending, send: { response }, confirmed: { _ in }, failed: { _ in Issue.record("Unexpected failure") })
@@ -42,9 +49,8 @@ struct RoomOutboxTests {
   }
 
   @Test func realtimeConfirmationShowsSentWithoutRestartingOnHTTPAndResetClearsIt() async {
-    let outbox = RoomOutbox()
-    var pending = shell("realtime")
-    pending.createdAt = Date().addingTimeInterval(-1)
+    let outbox = outbox()
+    let pending = shell("realtime", createdAt: now.addingTimeInterval(-1))
     var response = chatRoomMessage(from: pending)
     response.id = "confirmed"
     let confirmed = response
@@ -71,7 +77,7 @@ struct RoomOutboxTests {
   }
 
   @Test func queuesSendsWithoutBlockingComposition() async throws {
-    let outbox = RoomOutbox()
+    let outbox = outbox()
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)
     var gate: CheckedContinuation<Void, Never>?
     var calls: [String] = []
@@ -100,7 +106,7 @@ struct RoomOutboxTests {
   }
 
   @Test func failureAllowsNextSendAndRetryKeepsID() async throws {
-    let outbox = RoomOutbox()
+    let outbox = outbox()
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)
     var attempts = 0
     var confirmed = false
@@ -126,7 +132,7 @@ struct RoomOutboxTests {
   }
 
   @Test func timeoutFreesQueueAndLateResultCannotOverwriteRetry() async throws {
-    let outbox = RoomOutbox(timeout: .milliseconds(10))
+    let outbox = outbox(timeout: .milliseconds(10))
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)
     var gate: CheckedContinuation<Void, Never>?
     let failures = AsyncStream<Void>.makeStream()
@@ -164,7 +170,7 @@ struct RoomOutboxTests {
   }
 
   @Test func resetRejectsOldCompletionAndDropsQueuedSends() async throws {
-    let outbox = RoomOutbox()
+    let outbox = outbox()
     let response = try #require(await fetchTestMessages([testMessageJSON(id: testRoomId, content: "sent", sender: testUserSender(name: "Me", email: "me@example.com"))]).first)
     var gate: CheckedContinuation<Void, Never>?
     var sendCancelled = false

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 
 import { validateCoworkerDisplayActionInput } from "./apply-display-action-input";
 

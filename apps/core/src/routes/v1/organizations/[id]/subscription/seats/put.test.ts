@@ -21,6 +21,7 @@ const {
   memberFindManyMock,
   memberUpdateMock,
   transactionMock,
+  captureExceptionMock,
   retrieveSubscriptionWithItemsMock,
   updateSubscriptionItemQuantityMock,
 } = vi.hoisted(() => ({
@@ -32,13 +33,24 @@ const {
   memberFindManyMock: vi.fn(),
   memberUpdateMock: vi.fn(),
   transactionMock: vi.fn(),
+  captureExceptionMock: vi.fn(),
   retrieveSubscriptionWithItemsMock: vi.fn(),
   updateSubscriptionItemQuantityMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: (...args: unknown[]) => captureExceptionMock(...args),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     $transaction: (...args: unknown[]) => transactionMock(...args),
+    organization: {
+      findUnique: (...args: unknown[]) => organizationFindUniqueMock(...args),
+    },
+    member: {
+      findUnique: memberFindUniqueMock,
+    },
     subscription: {
       update: (...args: unknown[]) => subscriptionUpdateMock(...args),
     },
@@ -163,6 +175,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     organizationFindUniqueMock.mockResolvedValue(null);
     const response = await updateSeats("missing", 3);
     expect(response.status).toBe(404);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -170,6 +183,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership(null);
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -177,6 +191,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     setMembership("member");
     const response = await updateSeats("org_123", 3);
     expect(response.status).toBe(403);
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -195,6 +210,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(400);
     expect(await response.text()).toContain("active enterprise contract");
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -208,6 +224,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(await response.text()).toContain(
       "An active organization subscription is required before updating seats.",
     );
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -257,6 +274,20 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(memberUpdateMock.mock.calls[0]?.[0].data.seatAssignedAt).toBeNull();
   });
 
+  it("persists the seat change in a serializable transaction", async () => {
+    setMembership("owner");
+
+    const response = await updateSeats("org_123", 5);
+
+    expect(response.status).toBe(200);
+    // Not toHaveBeenCalledWith: that passes when any one call matches, so it
+    // would stay green if a later write dropped back to the default level.
+    expect(transactionMock.mock.calls).toHaveLength(1);
+    expect(transactionMock.mock.calls[0]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
+  });
+
   it("unassigns overflow if the local seat write fails after Stripe", async () => {
     setMembership("owner");
     memberFindManyMock.mockResolvedValue([
@@ -287,7 +318,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
             update: (...args: unknown[]) => subscriptionUpdateMock(...args),
           },
         };
-        if (transactionCalls === 2 || transactionCalls === 3) {
+        if (transactionCalls === 1 || transactionCalls === 2) {
           throw new Error("local seat write failed");
         }
         return callback(tx);
@@ -306,6 +337,68 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(memberUpdateMock.mock.calls.map((call) => call[0].where.id)).toEqual(
       ["m-newest"],
     );
+  });
+
+  it("returns 409 when every seat write loses the serialization race", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([]);
+    transactionMock.mockRejectedValue(
+      Object.assign(new Error("Transaction failed"), { code: "P2034" }),
+    );
+
+    vi.useFakeTimers();
+    try {
+      const pending = updateSeats("org_123", 1);
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      expect(response.status).toBe(409);
+      expect(await response.text()).toContain(
+        "Seat update lost a concurrent update. Try again.",
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("reports the cleanup failure but still surfaces the persist error", async () => {
+    setMembership("owner");
+    memberFindManyMock.mockResolvedValue([]);
+
+    let transactionCalls = 0;
+    transactionMock.mockImplementation(async () => {
+      transactionCalls += 1;
+      // Both persist attempts fail, then the cleanup loses every
+      // serialization race and raises its own 409.
+      if (transactionCalls <= 2) {
+        throw new Error("local seat write failed");
+      }
+      throw Object.assign(new Error("Transaction failed"), { code: "P2034" });
+    });
+
+    vi.useFakeTimers();
+    try {
+      const pending = updateSeats("org_123", 1);
+      await vi.runAllTimersAsync();
+      const response = await pending;
+
+      // 500 from the persist failure, not the cleanup's 409: the caller needs
+      // the error that explains why the seat write never landed.
+      expect(response.status).toBe(500);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    // The cleanup runs serializable too: a read committed cleanup can lose
+    // the race with a concurrent assignment and leave the organization above
+    // the seat count Stripe now bills for.
+    expect(transactionMock.mock.calls[2]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
+    expect(captureExceptionMock.mock.calls).toHaveLength(1);
+    expect(captureExceptionMock.mock.calls[0]?.[1]).toMatchObject({
+      tags: { context: "organization_seat_reduction_cleanup" },
+    });
   });
 
   it("persists seats on retry when the first local write fails after Stripe", async () => {
@@ -338,7 +431,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
             update: (...args: unknown[]) => subscriptionUpdateMock(...args),
           },
         };
-        if (transactionCalls === 2) {
+        if (transactionCalls === 1) {
           throw new Error("local seat write failed");
         }
         return callback(tx);
@@ -375,6 +468,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(body.data).toEqual({ seats: 4 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -386,6 +480,23 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ seats: 6 });
+    expect(
+      assertOrganizationSubscriptionChangeAllowedMock,
+    ).toHaveBeenCalledWith(
+      "org_123",
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+        organization: expect.objectContaining({
+          findUnique: expect.any(Function),
+        }),
+      }),
+    );
+    expect(resolveActiveSubscriptionByReferenceIdMock).toHaveBeenCalledWith(
+      "org_123",
+      expect.objectContaining({
+        $transaction: expect.any(Function),
+      }),
+    );
     expect(retrieveSubscriptionWithItemsMock).toHaveBeenCalledWith(
       "sub_stripe_1",
     );
@@ -410,6 +521,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(500);
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -429,6 +541,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
     expect(body.data).toEqual({ seats: 2 });
     expect(retrieveSubscriptionWithItemsMock).not.toHaveBeenCalled();
     expect(updateSubscriptionItemQuantityMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 
@@ -444,6 +557,7 @@ describe("PUT /organizations/{id}/subscription/seats", () => {
 
     expect(response.status).toBe(403);
     expect(organizationFindUniqueMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
     expect(subscriptionUpdateMock).not.toHaveBeenCalled();
   });
 });

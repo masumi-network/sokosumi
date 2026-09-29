@@ -12,6 +12,8 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
+  TaskScheduleEndsMode,
+  TaskScheduleState,
   TaskStatus,
   TaskVisibility,
 } from "@sokosumi/database";
@@ -41,6 +43,14 @@ export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
 export const taskVisibilitySchema = z
   .enum(TaskVisibility)
   .openapi("TaskVisibility");
+
+export const taskScheduleStateSchema = z
+  .enum(TaskScheduleState)
+  .openapi("TaskScheduleState");
+
+export const taskScheduleEndsModeSchema = z
+  .enum(TaskScheduleEndsMode)
+  .openapi("TaskScheduleEndsMode");
 
 export const agentStatusSchema = z.enum(AgentStatus).openapi("AgentStatus");
 

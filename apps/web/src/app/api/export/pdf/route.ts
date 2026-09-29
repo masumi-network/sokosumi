@@ -1,6 +1,6 @@
 import { sanitizeFileName } from "@sokosumi/utils";
 import { type NextRequest, NextResponse } from "next/server";
-import type { Page } from "puppeteer-core";
+import type { Browser, LaunchOptions, Page } from "puppeteer-core";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -8,8 +8,13 @@ import {
   coreSessionUnavailableJson,
   readRouteSession,
 } from "@/lib/auth/route-session";
+import { withExportOperation } from "@/lib/services/export.service";
+import { awaitExportStep } from "@/lib/utils/export-operation";
 import { installPdfExportRequestGuard } from "@/lib/utils/pdf-export-ssrf";
 import { readRequestJsonWithByteLimit } from "@/lib/utils/read-request-json-limited";
+
+// Vercel terminates noncancelable setup before Core's 120-second lease expires.
+export const maxDuration = 60;
 
 /** Hard cap on HTML payload size to limit Chromium memory/CPU abuse. */
 const MAX_HTML_BYTES = 1_500_000;
@@ -156,7 +161,6 @@ function wrapHtmlDocument(html: string, origin: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  let browser;
   try {
     const sessionRead = await readRouteSession();
     if (sessionRead.status === "unavailable") {
@@ -166,103 +170,164 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const parsed = await readRequestJsonWithByteLimit<GeneratePdfRequest>(
-      request,
-      MAX_HTML_BYTES,
-    );
-    if (!parsed.ok) {
-      if (parsed.error === "too_large") {
-        return NextResponse.json(
-          { error: "HTML payload too large" },
-          { status: 413 },
+    return await withExportOperation(request, async (signal) => {
+      let browser: Browser | undefined;
+      const browserController = new AbortController();
+      const browserSignal = AbortSignal.any([signal, browserController.signal]);
+      try {
+        const parsed = await readRequestJsonWithByteLimit<GeneratePdfRequest>(
+          request,
+          MAX_HTML_BYTES,
+          signal,
         );
-      }
-      if (parsed.error === "invalid_json") {
-        return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-      }
-      return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
-    }
-
-    const rawHtml = (parsed.value.html ?? "").toString();
-    if (!rawHtml) {
-      return NextResponse.json({ error: "Missing 'html'" }, { status: 400 });
-    }
-
-    if (Buffer.byteLength(rawHtml, "utf8") > MAX_HTML_BYTES) {
-      return NextResponse.json(
-        { error: "HTML payload too large" },
-        { status: 413 },
-      );
-    }
-
-    const origin = getTrustedDocumentOrigin();
-    const html = wrapHtmlDocument(rawHtml, origin);
-
-    const isVercel = !!getEnvSecrets().VERCEL_URL;
-
-    let puppeteer: typeof import("puppeteer") | typeof import("puppeteer-core");
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let launchOptions: any = {
-      headless: true,
-    };
-
-    if (isVercel) {
-      const chromium = (await import("@sparticuz/chromium-min")).default;
-      chromium.setGraphicsMode = false;
-
-      puppeteer = await import("puppeteer-core");
-      launchOptions = {
-        ...launchOptions,
-        args: [...chromium.args, "--no-sandbox", "--disable-setuid-sandbox"],
-        executablePath: await chromium.executablePath(
-          getEnvSecrets().CHROMIUM_EXECUTABLE_URL,
-        ),
-      };
-    } else {
-      puppeteer = await import("puppeteer");
-    }
-
-    // Crashes locally? Probably because of missing chromium.
-    // pnpm dlx puppeteer browsers install chrome
-    browser = await puppeteer.launch(launchOptions);
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
-    installPdfExportRequestGuard(page);
-    await page.setContent(html, { waitUntil: "load" });
-    await waitForDocumentImages(page);
-    await page.emulateMediaType("print");
-
-    const pdfBuffer = await page.pdf({
-      format: "A4",
-      printBackground: true,
-      margin: { top: "20mm", right: "20mm", bottom: "20mm", left: "20mm" },
-      headerTemplate: headerWithLogoHtml,
-      footerTemplate: footerWithLogoHtml,
-      displayHeaderFooter: true,
-    });
-
-    const fileName =
-      sanitizeFileName(parsed.value.fileName ?? "result") + ".pdf";
-    const body =
-      pdfBuffer instanceof Blob
-        ? pdfBuffer
-        : new Blob(
-            [
-              (pdfBuffer.buffer as ArrayBuffer).slice(
-                pdfBuffer.byteOffset,
-                pdfBuffer.byteOffset + pdfBuffer.byteLength,
-              ),
-            ],
-            { type: "application/pdf" },
+        if (!parsed.ok) {
+          if (parsed.error === "too_large") {
+            return NextResponse.json(
+              { error: "HTML payload too large" },
+              { status: 413 },
+            );
+          }
+          if (parsed.error === "invalid_json") {
+            return NextResponse.json(
+              { error: "Invalid JSON" },
+              { status: 400 },
+            );
+          }
+          return NextResponse.json(
+            { error: "Missing 'html'" },
+            { status: 400 },
           );
+        }
 
-    return new Response(body, {
-      status: 200,
-      headers: {
-        "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="${fileName}"`,
-        "cache-control": "no-store",
-      },
+        const rawHtml = (parsed.value.html ?? "").toString();
+        if (!rawHtml) {
+          return NextResponse.json(
+            { error: "Missing 'html'" },
+            { status: 400 },
+          );
+        }
+
+        if (Buffer.byteLength(rawHtml, "utf8") > MAX_HTML_BYTES) {
+          return NextResponse.json(
+            { error: "HTML payload too large" },
+            { status: 413 },
+          );
+        }
+
+        const origin = getTrustedDocumentOrigin();
+        const html = wrapHtmlDocument(rawHtml, origin);
+
+        const isVercel = !!getEnvSecrets().VERCEL_URL;
+
+        let puppeteer:
+          | typeof import("puppeteer")
+          | typeof import("puppeteer-core");
+        let launchOptions: LaunchOptions = {
+          headless: true,
+          signal: browserSignal,
+        };
+
+        if (isVercel) {
+          const chromium = (
+            await awaitExportStep(import("@sparticuz/chromium-min"), signal)
+          ).default;
+          chromium.setGraphicsMode = false;
+
+          puppeteer = await awaitExportStep(import("puppeteer-core"), signal);
+          launchOptions = {
+            ...launchOptions,
+            args: [
+              ...chromium.args,
+              "--no-sandbox",
+              "--disable-setuid-sandbox",
+            ],
+            // chromium-min cannot cancel download/extraction. Keep the lease
+            // until it settles; maxDuration bounds this phase on Vercel.
+            executablePath: await chromium.executablePath(
+              getEnvSecrets().CHROMIUM_EXECUTABLE_URL,
+            ),
+          };
+        } else {
+          puppeteer = await awaitExportStep(import("puppeteer"), signal);
+        }
+
+        // Crashes locally? Probably because of missing chromium.
+        // pnpm dlx puppeteer browsers install chrome
+        signal.throwIfAborted();
+        const launching = puppeteer.launch(launchOptions);
+        // A launcher may settle after the deadline. Never abandon a late browser.
+        void launching.then(
+          (instance) => {
+            if (signal.aborted) {
+              browserController.abort();
+              void instance.close().catch(() => {});
+            }
+          },
+          () => {},
+        );
+        browser = await awaitExportStep(launching, signal);
+        const page = await awaitExportStep(browser.newPage(), signal);
+        await awaitExportStep(page.setJavaScriptEnabled(false), signal);
+        await awaitExportStep(page.setRequestInterception(true), signal);
+        installPdfExportRequestGuard(page, browserSignal);
+        await awaitExportStep(
+          page.setContent(html, { waitUntil: "load" }),
+          signal,
+        );
+        await awaitExportStep(waitForDocumentImages(page), signal);
+        await awaitExportStep(page.emulateMediaType("print"), signal);
+
+        const pdfBuffer = await awaitExportStep(
+          page.pdf({
+            format: "A4",
+            printBackground: true,
+            margin: {
+              top: "20mm",
+              right: "20mm",
+              bottom: "20mm",
+              left: "20mm",
+            },
+            headerTemplate: headerWithLogoHtml,
+            footerTemplate: footerWithLogoHtml,
+            displayHeaderFooter: true,
+          }),
+          signal,
+        );
+
+        const fileName =
+          sanitizeFileName(parsed.value.fileName ?? "result") + ".pdf";
+        const body =
+          pdfBuffer instanceof Blob
+            ? pdfBuffer
+            : new Blob(
+                [
+                  (pdfBuffer.buffer as ArrayBuffer).slice(
+                    pdfBuffer.byteOffset,
+                    pdfBuffer.byteOffset + pdfBuffer.byteLength,
+                  ),
+                ],
+                { type: "application/pdf" },
+              );
+
+        return new Response(body, {
+          status: 200,
+          headers: {
+            "content-type": "application/pdf",
+            "content-disposition": `attachment; filename="${fileName}"`,
+            "cache-control": "no-store",
+          },
+        });
+      } finally {
+        if (browser) {
+          try {
+            await awaitExportStep(browser.close(), signal);
+          } catch {
+            // The launch signal below terminates the browser process group.
+          }
+        }
+        // Also stop in-process resource downloads after a successful export.
+        browserController.abort();
+      }
     });
   } catch (error) {
     console.error("PDF generation error", error);
@@ -270,7 +335,5 @@ export async function POST(request: NextRequest) {
       { error: "Failed to generate PDF" },
       { status: 500 },
     );
-  } finally {
-    if (browser) await browser.close().catch(() => {});
   }
 }

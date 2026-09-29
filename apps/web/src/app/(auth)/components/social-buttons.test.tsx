@@ -104,7 +104,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
-vi.mock("@/lib/actions/auth", () => ({}));
+vi.mock("@/lib/actions/auth/action", () => ({}));
 
 vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {

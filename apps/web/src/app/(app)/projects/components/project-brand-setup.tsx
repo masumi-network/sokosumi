@@ -13,8 +13,8 @@ import {
 import {
   DESIGN_MD_TRANSLATION_NAMESPACE,
   type DesignMdOwner,
-  useDesignMdGeneration,
-} from "@/components/design-md";
+} from "@/components/design-md/types";
+import { useDesignMdGeneration } from "@/components/design-md/use-design-md-generation";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   resolveProjectSiteIcon,
@@ -112,7 +112,7 @@ export function ProjectBrandSetup({
       <div className="flex min-h-24 items-center justify-center">
         {isResolvingLogo ? (
           <div className="bg-muted flex size-24 items-center justify-center rounded-lg border">
-            <Loader2 className="text-muted-foreground size-6 animate-spin" />
+            <Loader2 className="text-muted-foreground size-6 animate-spin motion-reduce:animate-pulse" />
           </div>
         ) : brand.status === "completed" && !isResolvingLogo ? (
           <div className="relative">

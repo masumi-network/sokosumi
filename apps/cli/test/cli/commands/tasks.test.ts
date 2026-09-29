@@ -7,8 +7,10 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -27,6 +29,55 @@ test("tasks list emits JSON", async () => {
   assert.equal(parsed.tasks.length, 1);
   assert.equal(parsed.tasks[0].id, "task-1");
   assert.equal(parsed.tasks[0].status, "READY");
+});
+
+test("tasks list sends search as server q and keeps server matches", async () => {
+  const output: string[] = [];
+  const paths: string[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>(path: string) => {
+      paths.push(path);
+      return {
+        data: [
+          { id: "task-1", name: "Build", status: "READY", coworkerId: "cw-1" },
+        ],
+      } as T;
+    },
+    post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
+    patch: async <T>() => ({ data: {} }) as T,
+  };
+  await runTasksCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    options: { search: "review" },
+  });
+  assert.equal(paths[0], "/v1/tasks?q=review");
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.tasks.length, 1);
+  assert.equal(parsed.tasks[0].id, "task-1");
+  assert.equal(parsed.tasks[0].name, "Build");
+});
+
+test("tasks list still applies client limit", async () => {
+  const output: string[] = [];
+  await runTasksCommand({
+    client: clientWith({
+      data: [
+        { id: "task-1", name: "Build", status: "READY" },
+        { id: "task-2", name: "Ship", status: "READY" },
+      ],
+    }),
+    stdout: { write: (value) => output.push(value) },
+    json: true,
+    options: { limit: "1" },
+  });
+  const parsed = JSON.parse(output.join(""));
+  assert.equal(parsed.tasks.length, 1);
+  assert.equal(parsed.tasks[0].id, "task-1");
 });
 
 test("tasks get requires an id", async () => {
@@ -52,8 +103,10 @@ test("tasks create posts the payload and returns the task with details", async (
       calls.push({ method: "POST", path, body });
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -109,14 +162,16 @@ test("tasks create requires a coworker id and a description", async () => {
 test("tasks get returns the task with its events and jobs", async () => {
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
-      if (path.endsWith("/events"))
+      if (path.includes("/events"))
         return { data: [{ id: "ev-1", status: "READY" }] } as T;
       if (path.endsWith("/jobs")) return { data: [{ id: "job-1" }] } as T;
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -168,8 +223,10 @@ test("tasks comment posts the comment and status and returns the event", async (
       body = requestBody;
       return { data: { id: "ev-9" } } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({
@@ -218,13 +275,15 @@ test("tasks create rejects an invalid status", async () => {
 test("tasks get still emits the task when a details fetch fails", async () => {
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
-      if (path.endsWith("/events")) throw new Error("events boom");
+      if (path.includes("/events")) throw new Error("events boom");
       if (path.endsWith("/jobs")) return { data: [] } as T;
       return { data: { id: "task-1", name: "Build", status: "READY" } } as T;
     },
     post: async <T>() => ({ data: {} }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: {} }) as T,
-    delete: async <T>() => ({ data: {} }) as T,
   };
   const output: string[] = [];
   await runTasksCommand({

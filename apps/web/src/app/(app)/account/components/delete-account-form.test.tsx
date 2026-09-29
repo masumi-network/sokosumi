@@ -30,6 +30,8 @@ const translations: Record<string, string> = {
     "A task payment needs administrator review before your account can be deleted. Please contact support.",
   "App.Account.Delete.Errors.userOwnsOrganization":
     "Transfer ownership or delete every organization you own before deleting your account.",
+  "App.Account.Delete.Errors.userIsLastVendorAdmin":
+    "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
   "App.Account.Delete.Errors.inFlightJob":
     "Wait for in-flight jobs to finish before deleting your account.",
   "App.Account.Delete.Errors.unsettledOnChainJob":
@@ -225,6 +227,21 @@ describe("DeleteAccountForm", () => {
       "href",
       "/tasks",
     );
+    expect(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    ).toBeDisabled();
+  });
+
+  it("blocks deletion while the user is the last Vendor admin", async () => {
+    render(<DeleteAccountForm blockers={["USER_IS_LAST_VENDOR_ADMIN"]} />);
+
+    await openDialog();
+
+    expect(
+      screen.getByText(
+        "Promote another Vendor member to admin, or archive the Vendor's coworkers, before deleting your account.",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Yes, delete my account" }),
     ).toBeDisabled();

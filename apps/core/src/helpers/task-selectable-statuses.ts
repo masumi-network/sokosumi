@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/database";
-import { hasActiveTaskSchedule, isAgentOnlyTaskStatus } from "@sokosumi/utils";
+import { isAgentOnlyTaskStatus } from "@sokosumi/utils";
 
 import {
   type AuthenticationContext,
@@ -44,8 +44,7 @@ export interface SelectableStatusesTask {
   status: TaskStatus;
   assigneeId: string | null;
   assigneeSokoBotId: string | null;
-  metadata: string | null;
-  nextRunAt: Date | string | null;
+  runAt: Date | string | null;
 }
 
 /**
@@ -61,17 +60,13 @@ export function getSelectableTaskStatuses(
   const isAgent = isAgentAuthContext(authContext);
   const hasAgentAssignee =
     task.assigneeId !== null || task.assigneeSokoBotId !== null;
-  const hasSchedule = hasActiveTaskSchedule(task.metadata, task.nextRunAt);
 
   return TASK_STATUS_ORDER.filter((status) => {
     if (status === task.status) return false;
     if (!isAgent && !PERSON_SELECTABLE_STATUSES.has(status)) return false;
     if (isAgentOnlyTaskStatus(status) && !hasAgentAssignee) return false;
-    // A live series owns the lifecycle; the one generic move it accepts is
-    // Ready → Queued, which is how a scheduled Task is normalized.
-    if (status === TaskStatus.QUEUED) {
-      return hasSchedule && task.status === TaskStatus.READY;
-    }
-    return !hasSchedule;
+    // Queued waits for a Run at (ADR 0041).
+    if (status === TaskStatus.QUEUED) return task.runAt !== null;
+    return true;
   });
 }

@@ -4,6 +4,9 @@
 @import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+/* Set before paint while a returning reader's Unreads filter is not yet
+   rendered; see `CHAT_UNREADS_FILTER_BOOT_ATTRIBUTE`. */
+@custom-variant chat-unreads-boot (html[data-chat-unreads-boot] &);
 
 @theme inline {
   /* Tailwind's own default is 150ms. The hover steps in this stack travel a
@@ -60,6 +63,8 @@
   --color-senary: var(--senary);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-scrollbar-thumb: var(--scrollbar-thumb);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -127,6 +132,7 @@
   --color-status-working-quaternary: var(--status-working-quaternary);
   --color-status-working-label: var(--status-working-label);
   --color-status-external: var(--status-external);
+  --color-status-external-tertiary: var(--status-external-tertiary);
   --color-status-external-quaternary: var(--status-external-quaternary);
   --color-status-external-label: var(--status-external-label);
   --color-status-done: var(--status-done);
@@ -356,6 +362,14 @@
   --senary: hsla(0, 0.0%, 97.1%, 1);
   --muted: hsla(300, 0%, 96%, 1);
   --muted-foreground: hsla(0, 0.0%, 44.0%, 1);
+  /* An icon-only control that cannot be pressed. The usual `disabled:opacity-50`
+     carries a disabled button because the fill and border stay to hold it; a
+     lone icon at that opacity measures 1.99:1 here and stops reading as an
+     icon. This is the step below --muted-foreground that still clears 3:1 on
+     --card and on --card-background: 3.23 and 3.10. --tertiary is not it,
+     measuring 1.94 in light. */
+  --disabled-foreground: hsla(0, 0.0%, 56.0%, 1);
+  --scrollbar-thumb: hsla(0, 0%, 56%, 1);
   --accent: hsla(300, 0%, 96%, 1);
   --accent-foreground: hsla(330, 0%, 9%, 1);
   --destructive: hsla(0, 74%, 42%, 1);
@@ -411,12 +425,55 @@
      under the threshold without the guard seeing it. */
   --semantic-destructive-label: hsla(0, 95.0%, 38.1%, 1);
 
-  --semantic-warning: hsla(35, 92%, 31%, 1);
-  --semantic-warning-tertiary: hsla(35, 41.3%, 80.7%, 1);
-  --semantic-warning-quaternary: hsla(35, 100.0%, 90.0%, 1);
-  --semantic-warning-quinary: hsla(35, 41.3%, 93.8%, 1);
-  --semantic-warning-label: hsla(26, 95.0%, 34.9%, 1);
-  --semantic-warning-foreground: hsla(55, 100%, 98%, 1);
+  --semantic-warning: hsla(25, 92%, 31%, 1);
+  --semantic-warning-tertiary: hsla(25, 41.3%, 80.7%, 1);
+  /* The light warning ramp is orange at hue 25. Four of its six steps were
+     amber 35; the label was already hue 26 and the foreground a hue-55
+     off-white, so "rotated from 35" describes the tint steps, not the ramp.
+     All six are hue 25 now. Dark stays at 43 and is not part of this change.
+
+     The complaint this answers was that the input-required label reads too
+     dark, not that it fails a floor. It did not fail one: the old hue-26
+     label measured 4.61:1 on the hue-35 tint. What it could not do was get lighter.
+     At 12px it is normal text, so SC 1.4.3 asks 4.5:1 on the tint, and yellow
+     carries more luminance than any other hue, which pinned the label near
+     L35 at the old saturation whatever else was tuned.
+
+     So two things moved together, and only one of them is the hue. Dropping
+     the label from S95 to S55 is what bought the lightness; rotating to hue
+     25 is what let the ramp around it stay legible while that happened. The
+     label ends at L38.0 and 4.53:1, so it is 3 lightness steps lighter at
+     essentially unchanged contrast (4.61 to 4.53, a 0.08 loss). That is the
+     honest summary: the reader gets the lighter text they asked for, and the
+     ratio is held, not improved.
+
+     Everything else on the ramp did improve, because those surfaces are not
+     bound by the tint: notice text on the quinary 4.84 to 5.85, on the page
+     5.47 to 6.70, the indicator's label on the solid 5.41 to 6.42, the glyph
+     on the tint 4.66 to 5.40, and the tint reads as a block more clearly,
+     1.13:1 to 1.19:1 against the card.
+
+     The cost is separation from the fault red, and it is larger than the
+     marks alone. Measured in OKLab dE x100, amber to orange:
+
+       mark   (--semantic-warning vs --semantic-destructive-solid)  12.52 to 8.58
+       fill   (both -quaternary, the badge's largest area)           7.60 to 5.42
+       border (both -tertiary, the outline weight)                   5.03 to 3.42
+
+     Only the mark stays above the 6.0 this model calls comfortably separate.
+     The fill drops under it and the border was already under it and got
+     worse. All three stay well above the 2.0 just-noticeable threshold, and
+     warning and fault never share a board column, but they do stack in one
+     list on the history rows, the needs-attention section and the status
+     picker menu. What keeps them apart there is the glyph and the word, which
+     rule 3 of the status model says carry the status anyway. Recorded here so
+     the next person retuning either ramp starts from the real numbers.
+
+     Hue 25 was chosen from a measured sheet of ten. */
+  --semantic-warning-quaternary: hsla(25, 100.0%, 90.0%, 1);
+  --semantic-warning-quinary: hsla(25, 41.3%, 93.8%, 1);
+  --semantic-warning-label: hsla(25, 55.0%, 38.0%, 1);
+  --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
@@ -427,8 +484,11 @@
 
   /* Online and afk now come straight from --semantic-success and
      --semantic-warning. Those forked here because the old warning reached only
-     2.25:1 on white; the corrected ramps measure 5.07 and 4.95, well past the
-     3:1 that a small non-text mark needs (WCAG 2.2 SC 1.4.11).
+     2.25:1 on white; the corrected ramps measure 5.68 and 6.70 on the light
+     background, well past the 3:1 that a small non-text mark needs (WCAG 2.2
+     SC 1.4.11). The pair read 5.07 and 4.95 when this comment was written and
+     both ramps have moved since: success was retuned, and warning rotated
+     from hue 35 to hue 25, which raised it from 5.47 to 6.70.
      Offline stays its own token: "no signal" is not a semantic state, and
      --muted-foreground is a text role. Measured: 4.85 on white. */
   --presence-offline: hsla(220, 9%, 46%, 1);
@@ -486,6 +546,10 @@
   --status-done-tertiary: hsla(0, 0.0%, 84.6%, 1);
   --status-working-tertiary: hsla(300, 41.2%, 81.5%, 1);
   --status-working-quaternary: hsla(300, 100.0%, 90.0%, 1);
+  /* The outline border for the staged column. Same S and L as
+     --status-working-tertiary, so the two column hues carry the same
+     weight and only the hue separates them. */
+  --status-external-tertiary: hsla(240, 41.2%, 81.5%, 1);
   --status-external-quaternary: hsla(240, 100.0%, 90.0%, 1);
   --status-working-label: hsla(300, 95.0%, 33.4%, 1);
   --status-external-label: hsla(240, 95.0%, 58.7%, 1);
@@ -494,24 +558,28 @@
 
 .dark {
   --radius: 0.625rem;
-  --background: hsla(0, 0%, 4%, 1);
+  --background: #121212;
   --foreground: hsla(0, 0%, 98%, 1);
-  --card: hsla(300, 0%, 4%, 1);
+  --card: var(--background);
   --card-foreground: hsla(0, 0%, 98%, 1);
-  --card-background: hsla(0, 0%, 9%, 1);
+  /* Raised tier. 9% cleared the old 4% page by 1.104:1; against the #121212
+     base it only reaches 1.045:1, so it moves to 11% for 1.111:1. --popover
+     and --sidebar hold the same value: one raised surface, one number. */
+  --card-background: hsla(0, 0%, 11%, 1);
   /* The hover moves towards the page to separate the row from its card.
      The earlier 50% text value required this darker fill for contrast.
      Muted text now uses 72% so it also remains readable on lighter control
-     surfaces. Keep the existing darker hover direction on cards. */
-  --card-background-hover: hsla(0, 0%, 6%, 1);
+     surfaces. Keep the existing darker hover direction on cards. Tracks the
+     card up: 8% under an 11% card is 1.072:1, the 1.069:1 it held at 6%. */
+  --card-background-hover: hsla(0, 0%, 8%, 1);
   /* See the light block. The scrims do not change: they sit over media. */
-  --overlay: hsla(0, 0%, 4%, 0.5);
+  --overlay: color-mix(in srgb, var(--background) 50%, transparent);
   /* Same wash, more alpha: the dark primary is a lighter purple and
      needs 0.32 to reach the same weight. 1.489:1 against the page,
      text under it at 8.73:1. */
   --overlay-primary: hsla(201.9, 46.9%, 48.0%, 0.32);
-  --surface-glass: hsla(0, 0%, 4%, 0.8);
-  --surface-sticky: hsla(0, 0%, 4%, 0.95);
+  --surface-glass: color-mix(in srgb, var(--background) 80%, transparent);
+  --surface-sticky: color-mix(in srgb, var(--background) 95%, transparent);
   --scrim-soft: hsla(0, 0%, 0%, 0.25);
   --scrim: hsla(0, 0%, 0%, 0.5);
   --scrim-strong: hsla(0, 0%, 0%, 0.8);
@@ -522,8 +590,10 @@
   --on-media-muted: hsla(0, 0%, 100%, 0.85);
   --on-media-tertiary: hsla(0, 0%, 100%, 0.15);
   --on-media-quaternary: hsla(0, 0%, 100%, 0.1);
-  --background-muted: hsla(0, 0%, 4%, 0.58);
-  --popover: hsla(330, 0%, 9%, 1);
+  /* The page-side twin of --muted-foreground, so it follows the page. It was
+     left on the literal old 4% base when #5267 moved --background. */
+  --background-muted: color-mix(in srgb, var(--background) 58%, transparent);
+  --popover: hsla(0, 0%, 11%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   /* Dark keeps the hue and the saturation and lifts the lightness to 48%.
      #2B5C78 itself measures 2.74:1 on the dark page, under both the 4.5 text
@@ -553,14 +623,23 @@
   --quaternary: hsla(0, 0.0%, 28.4%, 1);
   --quinary: hsla(0, 0.0%, 17.2%, 1);
   --senary: hsla(0, 0.0%, 8.8%, 1);
-  --muted: hsla(0, 0%, 15%, 1);
+  /* Interaction wash. 15% held 1.308:1 over the old 4% page; 17% holds
+     1.323:1 over #121212. Muted text on it stays at 7.14:1. */
+  --muted: hsla(0, 0%, 17%, 1);
   --muted-foreground: hsla(0, 0.0%, 72.0%, 1);
-  --accent: hsla(0, 0%, 15%, 1);
+  /* 3.41 on --card and 3.10 on --card-background. Nudged 40% -> 41% so it
+     holds that 3.10 now the raised tier sits at 11%; at 40% it fell to 2.97.
+     --tertiary at 41.6% lands within a step of this in dark; it is light
+     mode the two disagree about. */
+  --disabled-foreground: hsla(0, 0.0%, 41.0%, 1);
+  --scrollbar-thumb: hsla(0, 0%, 40%, 1);
+  --accent: hsla(0, 0%, 17%, 1);
   --accent-foreground: hsla(0, 0%, 98%, 1);
   --destructive: hsla(0, 84%, 60%, 1);
   --destructive-foreground: hsla(0, 86%, 97%, 1);
   --border: hsla(0, 0.0%, 20.4%, 1);
-  --input: hsla(0, 0.0%, 36.5%, 1);
+  /* Control edges clear 3:1 on both the base and raised panels. */
+  --input: hsla(0, 0%, 40%, 1);
   --ring: hsla(201.9, 46.9%, 48.0%, 1);
   --ring-halo: hsla(201.9, 46.9%, 48.0%, 0.26);
   --primary-hover: hsla(201.8, 47.3%, 53.1%, 1);
@@ -578,9 +657,17 @@
   --chart-3-quinary: hsla(123, 64.3%, 11.0%, 1);
   --chart-4-quinary: hsla(49, 67.9%, 11.0%, 1);
   --chart-5-quinary: hsla(24, 67.9%, 11.0%, 1);
-  --sidebar: hsla(330, 0%, 9%, 1);
+  /* The chrome is a raised panel, not the page. #5267 pointed this at
+     var(--background) and the sidebar and desktop header (md:bg-sidebar)
+     dissolved into the content area.
+
+     11%, not the 9% it held before #5267. 9% was calibrated against a 4%
+     page and cleared it by 1.104:1; against the #121212 base that same 9%
+     only reaches 1.045:1, under half the old separation. 11% lands on
+     1.099:1, so the seam reads as it did before the base moved. */
+  --sidebar: hsla(0, 0%, 11%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
-  --sidebar-accent: hsla(0, 0%, 15%, 1);
+  --sidebar-accent: hsla(0, 0%, 17%, 1);
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-border: hsla(0, 0.0%, 20.4%, 1);
   --sidebar-ring: hsla(300, 0%, 45%, 1);
@@ -588,9 +675,12 @@
   /* Semantic */
   --semantic-destructive: hsla(0, 84%, 60%, 1);
   /* The fill under a destructive label. Dialled against the near-white
-     --semantic-destructive-foreground: 5.40 on the label, 3.32 against the
-     page and 3.01 against the card, so the button's own edge still reads. */
-  --semantic-destructive-solid: hsla(0, 74.0%, 44.0%, 1);
+     --semantic-destructive-foreground: 5.05 on the label, 3.36 against the
+     page and 3.06 against the card, so the button's own edge still reads.
+     Lifted 44% -> 46% with the raised tier: the card it has to clear moved
+     to 11%, which took the old 44% down to 2.85 and under the 3:1 floor
+     that status-marker.test.tsx holds the fault mark to. */
+  --semantic-destructive-solid: hsla(0, 74.0%, 46.0%, 1);
   --semantic-destructive-tertiary: hsla(0, 50.9%, 26.4%, 1);
   /* Darkened from 18.6% lightness. At 18.6% the step travelled 10.43 OKLab
      dE from the popover surface, far enough that a hover over it read as
@@ -630,6 +720,7 @@
   --status-done-tertiary: hsla(0, 0.0%, 28.0%, 1);
   --status-working-tertiary: hsla(300, 37.5%, 30.4%, 1);
   --status-working-quaternary: hsla(300, 35.0%, 21.2%, 1);
+  --status-external-tertiary: hsla(240, 37.5%, 30.4%, 1);
   --status-external-quaternary: hsla(240, 35.0%, 21.2%, 1);
   --status-working-label: hsla(300, 95.0%, 70.0%, 1);
   --status-external-label: hsla(240, 95.0%, 74.7%, 1);
@@ -667,6 +758,58 @@
   }
 }
 
+/* The app scrollbar. One treatment for every scroll port in the app, and it
+   stays a real native scrollbar: ports that depend on native behaviour (the
+   taskboard's drag and drop and drag-to-scroll, the chat list's reverse
+   column) keep working because nothing here swaps in a widget.
+
+   A utility, not a plain class, so Tailwind puts it in the utilities layer and
+   a port that has to hide its scrollbar in one state can still win on
+   specificity (the sidebar's collapsed icon rail does exactly that).
+
+   High-contrast and forced-colors modes keep the platform's own scrollbar
+   colors and geometry. */
+@utility app-scrollbar {
+  @media (forced-colors: none) and (prefers-contrast: no-preference) {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+
+    @supports selector(::-webkit-scrollbar) {
+      /* Non-auto standard properties override WebKit thumb/track styling. */
+      scrollbar-width: auto;
+      scrollbar-color: auto;
+
+      &::-webkit-scrollbar {
+        width: 12px;
+        height: 12px;
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-track,
+      &::-webkit-scrollbar-corner {
+        background: transparent;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        min-width: 24px;
+        min-height: 24px;
+        border: 3px solid transparent;
+        border-radius: 999px;
+        background-color: var(--scrollbar-thumb);
+        background-clip: padding-box;
+      }
+
+      &::-webkit-scrollbar-thumb:hover {
+        background-color: var(--muted-foreground);
+      }
+
+      &::-webkit-scrollbar-thumb:active {
+        background-color: var(--foreground);
+      }
+    }
+  }
+}
+
 .workspace-calendar-theme {
   --fc-classic-border: var(--border);
   --fc-classic-foreground: var(--foreground);
@@ -674,7 +817,7 @@
   --fc-classic-muted: var(--accent);
   --fc-classic-faint: var(--muted);
   --fc-classic-muted-foreground: var(--muted-foreground);
-  --fc-classic-background: var(--background);
+  --fc-classic-background: var(--card-background);
   --fc-classic-today: var(--primary-quinary);
 }
 
@@ -687,19 +830,6 @@
   .workspace-calendar-theme:not([data-view="agenda"]) > * {
     min-width: 49rem;
   }
-}
-
-/*
- * The agenda (list view) renders a dot element before every event, and
- * FullCalendar joins class-name options across theme and user layers, so no
- * option can remove it. The event element is the listitem without an
- * aria-label (the day group carries one); the dot is its first child when
- * the content follows it. Hiding it also drops the row's 12px flex gap.
- */
-.workspace-calendar-theme[data-view="agenda"]
-  [role="listitem"]:not([aria-label])
-  > :first-child:not(:only-child) {
-  display: none;
 }
 
 @media (hover: hover) {
@@ -782,6 +912,152 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 @utility job-details-width {
   @apply w-full lg:w-[calc(100%-max(480px,32%))];
+}
+
+@utility press {
+  /* Pointer-down feedback (DESIGN.md Motion: scale 0.995). Transform only. */
+  @media (prefers-reduced-motion: no-preference) {
+    &:active:not(:disabled, [aria-disabled="true"]) {
+      transform: scale(0.995);
+    }
+  }
+}
+
+@keyframes content-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes content-in-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Skeleton to content crossfade, page enter and list item enter. Opacity
+   first; the small rise is dropped under reduced motion. */
+@keyframes check-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Confirmation mark: a copy or save landed. */
+@utility check-pop {
+  animation: check-pop 160ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: content-in;
+  }
+}
+
+@property --edge-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --edge-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes edge-top {
+  to {
+    --edge-top: 20px;
+  }
+}
+
+@keyframes edge-bottom {
+  from {
+    --edge-bottom: 20px;
+  }
+  to {
+    --edge-bottom: 0px;
+  }
+}
+
+/* Scroll-edge fade: content softens where it slides under the edge instead
+   of meeting a hard line. Only the edges that have content beyond them fade;
+   browsers without scroll-driven animations keep the plain edge. */
+@utility scroll-edge-y {
+  @supports (animation-timeline: scroll()) {
+    mask-image: linear-gradient(
+      to bottom,
+      transparent,
+      #000 var(--edge-top),
+      #000 calc(100% - var(--edge-bottom)),
+      transparent
+    );
+    animation:
+      edge-top linear both,
+      edge-bottom linear both;
+    animation-timeline: scroll(self), scroll(self);
+    animation-range:
+      0 20px,
+      calc(100% - 20px) 100%;
+  }
+}
+
+@utility content-in {
+  animation: content-in 200ms ease-out both;
+}
+
+@utility content-rise {
+  animation: content-in-rise 200ms ease-out both;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation-name: content-in;
+  }
+}
+
+/* Dates and stamps keep their digits the same width, so a ticking
+   "2 min ago" does not jitter the row. */
+time {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reduced motion: overlays cross-fade in place. No slide, no zoom. */
+@media (prefers-reduced-motion: reduce) {
+  [data-state][data-slot$="-content"] {
+    --tw-enter-scale: 1;
+    --tw-exit-scale: 1;
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+  }
+}
+
+/* Frosted chrome goes solid for people who ask for less transparency. */
+@media (prefers-reduced-transparency: reduce) {
+  [data-slot="dialog-overlay"],
+  [data-slot="sheet-overlay"],
+  [data-chrome="glass"] {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) and (max-width: 767.98px) {
+  [data-chrome="glass"] {
+    background-color: var(--background);
+  }
 }
 
 @utility agent-card-roll-up {
@@ -939,14 +1215,6 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   animation: var(--animate-reasoning-cursor-blink);
 }
 
-.reasoning-steps-viewport {
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-.reasoning-steps-viewport::-webkit-scrollbar {
-  display: none;
-}
-
 /* Respect reduced-motion for the chat "thinking" indicator: freeze the
  * reasoning shimmer to plain foreground text. Defined after the rules
  * above so source order wins. */
@@ -976,6 +1244,12 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    the mark when it ends. */
 [data-chat-message-list] {
   --chat-jump-hold: 4500ms;
+  /* A reader scroll ends the hold early. The mark and the spotlight fade out
+     over this rather than being cut, which reads as a snap. Keep in sync with
+     ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS in
+     apps/web/src/app/(app)/chat/utils/room-message-highlight.ts, which drops
+     the mark when it ends. */
+  --chat-jump-leave: 320ms;
   --chat-jump-dim-opacity: 0.5;
   --chat-jump-dim-blur: 1.5px;
 }
@@ -988,7 +1262,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-dim-blur: 2.5px;
 }
 
-[data-message-id][data-search-landed="true"] {
+[data-message-id][data-search-landed] {
   /* Dark runs stronger: a light primary over a 4% ground lifts far less than
      the same mix of a saturated primary over white. */
   --chat-jump-wash-lead: 16%;
@@ -996,7 +1270,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   --chat-jump-wash-edge: 10%;
 }
 
-.dark [data-message-id][data-search-landed="true"] {
+.dark [data-message-id][data-search-landed] {
   --chat-jump-wash-lead: 26%;
   --chat-jump-wash-mid: 20%;
   --chat-jump-wash-edge: 18%;
@@ -1004,7 +1278,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Wash: tint holds its strength all the way to the right edge so a wide row
    stays marked instead of trailing off. Opens from the centre. */
-[data-message-id][data-search-landed="true"]::before {
+[data-message-id][data-search-landed]::before {
   content: "";
   position: absolute;
   inset: 0;
@@ -1024,7 +1298,7 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 }
 
 /* Rail: marks where the row starts. */
-[data-message-id][data-search-landed="true"]::after {
+[data-message-id][data-search-landed]::after {
   content: "";
   position: absolute;
   top: 0.1875rem;
@@ -1039,9 +1313,23 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
 
 /* Spotlight: the rest of the transcript steps back while the hold lasts. It
    runs on the same timeline as the mark, so the dim never outlives it. */
-[data-chat-message-list]:has([data-search-landed="true"])
-[data-message-id]:not([data-search-landed="true"]) {
+[data-chat-message-list]:has([data-search-landed])
+[data-message-id]:not([data-search-landed]) {
   animation: chat-jump-dim var(--chat-jump-hold) ease-out forwards;
+}
+
+/* Leaving: the reader scrolled, so the hold ends early. The wash, the rail and
+   the spotlight run out on one short clock rather than being cut off mid
+   animation. Written after the rules above, which carry the same weight, so
+   these replace the hold's animation while the mark is still on the row. */
+[data-message-id][data-search-landed="leaving"]::before,
+[data-message-id][data-search-landed="leaving"]::after {
+  animation: chat-jump-leave var(--chat-jump-leave) ease-out forwards;
+}
+
+[data-chat-message-list]:has([data-search-landed="leaving"])
+  [data-message-id]:not([data-search-landed]) {
+  animation: chat-jump-undim var(--chat-jump-leave) ease-out forwards;
 }
 
 @keyframes chat-jump-wash {
@@ -1084,6 +1372,26 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+/* The leave pair. Both start from the state the hold keeps for most of its
+   run, which is where a reader scroll finds them: the mark at full strength,
+   the other rows stepped back. */
+@keyframes chat-jump-leave {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes chat-jump-undim {
+  from {
+    opacity: var(--chat-jump-dim-opacity);
+    filter: blur(var(--chat-jump-dim-blur));
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 @keyframes chat-jump-rail {
   0% {
     opacity: 0;
@@ -1107,15 +1415,22 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
    no spotlight — dimming the surrounding text would take it under the contrast
    floor for the whole hold, which the rail and wash already do without. */
 @media (prefers-reduced-motion: reduce) {
-  [data-message-id][data-search-landed="true"]::before,
-  [data-message-id][data-search-landed="true"]::after {
+  [data-message-id][data-search-landed]::before,
+  [data-message-id][data-search-landed]::after {
     animation: none;
     opacity: 1;
     transform: none;
   }
 
-  [data-chat-message-list]:has([data-search-landed="true"])
-    [data-message-id]:not([data-search-landed="true"]) {
+  /* Leaving drops the mark where the hold would have dropped it: at once, with
+     nothing to watch on the way out. */
+  [data-message-id][data-search-landed="leaving"]::before,
+  [data-message-id][data-search-landed="leaving"]::after {
+    opacity: 0;
+  }
+
+  [data-chat-message-list]:has([data-search-landed])
+    [data-message-id]:not([data-search-landed]) {
     animation: none;
     opacity: 1;
     filter: none;

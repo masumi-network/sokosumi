@@ -16,6 +16,7 @@ import {
   requireOrganizationDriveFileUploadAccess,
   requireUserDriveFileUploadAccess,
 } from "@/helpers/drive-file-access";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import {
   badRequest,
   conflict,
@@ -31,6 +32,7 @@ import {
   createDriveFileUploadSessionRequestSchema,
   driveFileUploadSessionSchema,
 } from "@/schemas/drive-file.schema";
+import { reserveDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "post",
@@ -142,7 +144,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await head(pathname, { token });
       throw conflict("Target pathname already exists");
     } catch (error) {
-      // If it's a not-found error, target doesn't exist (expected)
       if (error instanceof BlobNotFoundError) {
       } else if (
         error &&
@@ -150,7 +151,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         "kind" in error &&
         error.kind === "conflict"
       ) {
-        // Re-throw our own conflict errors
         throw error;
       } else {
         throw error;
@@ -175,6 +175,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       maxSizeBytes: FILE_UPLOAD_MAX_SIZE_BYTES,
       addRandomSuffix: false,
       token,
+    });
+
+    // Reserve the document's identity before any bytes exist, so the
+    // finalize callback has something to authenticate against and an
+    // abandoned grant is visible rather than invisible.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: body.scope,
+      organizationId: body.organizationId,
+    });
+    await reserveDriveUploadResource({
+      key: {
+        workspaceId: workspace.workspaceId,
+        scope: body.scope === "me" ? "user" : "organization",
+        ownerId:
+          body.scope === "me"
+            ? userContext.userId
+            : (body.organizationId as string),
+        pathname: grant.pathname,
+      },
+      displayName,
+      mimeType: resolvedContentType,
+      sizeBytes: body.size,
     });
 
     const session = {

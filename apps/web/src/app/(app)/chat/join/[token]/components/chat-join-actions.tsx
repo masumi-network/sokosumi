@@ -42,7 +42,7 @@ export function ChatJoinActions({
           ? t("alreadyGuest", { room: roomName })
           : t("joined", { room: roomName }),
       );
-      notifyOrganizationChatRoomsChanged();
+      notifyOrganizationChatRoomsChanged({ joinedRoomId: result.value.roomId });
       // Keep loading until navigation unmounts this page — clearing here
       // flashes an idle CTA between accept and redirect.
       router.push(`/chat/rooms/${encodeURIComponent(result.value.roomId)}`);
@@ -67,7 +67,9 @@ export function ChatJoinActions({
         onClick={handleJoin}
         disabled={isJoining}
       >
-        {isJoining && <Loader2 className="size-4 animate-spin" />}
+        {isJoining && (
+          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+        )}
         {isJoining ? t("joining") : t("join", { room: roomName })}
       </Button>
     );

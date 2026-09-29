@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 import { CopyableValue } from "@/components/copyable-value";
-import { OrganizationLogo } from "@/components/organizations";
+import { OrganizationLogo } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
 import {
   Card,
@@ -139,7 +139,7 @@ export default async function OrganizationInformation({
                   key={card.label}
                   className="rounded-2xl border border-border bg-surface-glass px-4 py-4"
                 >
-                  <dt className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+                  <dt className="text-muted-foreground text-xs font-medium">
                     {card.label}
                   </dt>
                   <dd className="mt-3 text-sm">{card.value}</dd>

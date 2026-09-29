@@ -1,6 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { TaskVisibility } from "@sokosumi/database";
-import { publicShareRepository } from "@sokosumi/database/repositories";
 
 import { requireJobShareCollaboration } from "@/helpers/access-control.job-share.js";
 import { badRequest } from "@/helpers/error";
@@ -52,24 +51,29 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
     const { allowSearchIndexing } = c.req.valid("json");
 
-    const share = await prisma.$transaction(async (tx) => {
-      const job = await requireJobShareCollaboration(c.var, id, tx);
+    const job = await requireJobShareCollaboration(c.var, id, prisma);
 
-      if (job.taskId) {
-        const parentTask = await tx.task.findUnique({
-          where: { id: job.taskId },
-          select: { visibility: true },
-        });
-        if (parentTask?.visibility === TaskVisibility.PRIVATE) {
-          throw badRequest("Private tasks cannot be shared publicly");
-        }
+    if (job.taskId) {
+      const parentTask = await prisma.task.findUnique({
+        where: { id: job.taskId },
+        select: { visibility: true },
+      });
+      if (parentTask?.visibility === TaskVisibility.PRIVATE) {
+        throw badRequest("Private tasks cannot be shared publicly");
       }
+    }
 
-      return await publicShareRepository.upsertForJob(
-        id,
+    const share = await prisma.publicShare.upsert({
+      where: { jobId: id },
+      create: {
+        job: { connect: { id } },
         allowSearchIndexing,
-        tx,
-      );
+        token: crypto.randomUUID(),
+      },
+      update: {
+        allowSearchIndexing,
+      },
+      include: { job: true, task: true },
     });
 
     return ok(c, jobShareSchema.parse(share));

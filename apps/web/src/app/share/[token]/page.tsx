@@ -4,8 +4,10 @@ import { getTranslations } from "next-intl/server";
 import JobDetailsView from "@/components/jobs/job-details/job-details-view";
 import { siteConfig } from "@/config/site";
 import { getAgentResolvedImage } from "@/lib/helpers/agent";
-import { shareService } from "@/lib/services";
+import { shareService } from "@/lib/services/share.service";
 import { SharedTaskView } from "../components/shared-task-view";
+
+export const instant = false;
 
 export async function generateMetadata({
   params,

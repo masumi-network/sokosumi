@@ -293,7 +293,7 @@ export function PasskeySettings({
       <CardContent className="space-y-4">
         {isLoadingPasskeys ? (
           <div className="text-muted-foreground flex items-center gap-2 text-sm">
-            <Loader2 className="size-4 animate-spin" />
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             {t("loading")}
           </div>
         ) : hasPasskeyLoadError && sortedPasskeys.length === 0 ? (
@@ -348,7 +348,7 @@ export function PasskeySettings({
                           aria-label={t("save")}
                         >
                           {savingPasskeyId === passkey.id && (
-                            <Loader2 className="size-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                           )}
                           {savingPasskeyId !== passkey.id && (
                             <Check className="size-4" />
@@ -399,7 +399,7 @@ export function PasskeySettings({
                           }}
                         >
                           {removingPasskeyId === passkey.id ? (
-                            <Loader2 className="size-4 animate-spin" />
+                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                           ) : (
                             <Trash2 className="size-4" />
                           )}
@@ -427,7 +427,9 @@ export function PasskeySettings({
             void handleAddPasskey();
           }}
         >
-          {isAddingPasskey && <Loader2 className="mr-2 size-4 animate-spin" />}
+          {isAddingPasskey && (
+            <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+          )}
           {t("add")}
         </Button>
       </CardFooter>

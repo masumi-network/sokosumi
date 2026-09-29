@@ -23,16 +23,15 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
 const {
   prismaTransactionMock,
   requireTaskAssignableCoworkerMock,
-  requireTaskOwnershipMock,
+  requireTaskWriteAccessMock,
   mapTaskMock,
   lockCalendarScopeMock,
   lockTaskRowsMock,
-  refreshTaskSchedulePlannedOccurrencesMock,
   validateTaskAssigneeAssignmentMock,
 } = vi.hoisted(() => ({
   prismaTransactionMock: vi.fn(),
   requireTaskAssignableCoworkerMock: vi.fn(),
-  requireTaskOwnershipMock: vi.fn(),
+  requireTaskWriteAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
     const status = t.status as string | undefined;
@@ -61,6 +60,7 @@ const {
               slug: "organization",
             }
           : null),
+      project: t.project ?? null,
       assigneeSokoBotId:
         (t.assigneeSokoBotId as string | null | undefined) ?? null,
       assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
@@ -167,7 +167,6 @@ const {
   }),
   lockCalendarScopeMock: vi.fn(),
   lockTaskRowsMock: vi.fn(),
-  refreshTaskSchedulePlannedOccurrencesMock: vi.fn(),
   validateTaskAssigneeAssignmentMock: vi.fn(),
 }));
 
@@ -180,18 +179,13 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   requireTaskAssignableSokoBot: vi.fn(),
-  requireTaskOwnership: requireTaskOwnershipMock,
-  requireMutableTaskOwnership: requireTaskOwnershipMock,
+  requireTaskOwnership: requireTaskWriteAccessMock,
+  requireMutableTaskWriteAccess: requireTaskWriteAccessMock,
 }));
 
 vi.mock("@/helpers/calendar-locks", () => ({
   lockCalendarScope: lockCalendarScopeMock,
   lockTaskRows: lockTaskRowsMock,
-}));
-
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  refreshTaskSchedulePlannedOccurrences:
-    refreshTaskSchedulePlannedOccurrencesMock,
 }));
 
 vi.mock("@/helpers/task", () => ({
@@ -230,7 +224,6 @@ describe("task coworker whitelist enforcement", () => {
     vi.clearAllMocks();
     lockCalendarScopeMock.mockResolvedValue(true);
     lockTaskRowsMock.mockResolvedValue(true);
-    refreshTaskSchedulePlannedOccurrencesMock.mockResolvedValue(undefined);
   });
 
   it("rejects task creation when coworker is not whitelisted", async () => {
@@ -286,7 +279,7 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
       assigneeId: null,
@@ -338,7 +331,10 @@ describe("task coworker whitelist enforcement", () => {
       share: null,
       links: [],
       files: [],
+      runAt: null,
+      scheduleId: null,
       selectableStatuses: [],
+      participants: [],
       linksFrom: [],
       linksTo: [],
     });
@@ -352,7 +348,7 @@ describe("task coworker whitelist enforcement", () => {
       return await callback(tx);
     });
 
-    requireTaskOwnershipMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       status: TaskStatus.READY,
       assigneeId: null,

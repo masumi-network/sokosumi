@@ -198,7 +198,7 @@ function DriveFilePickerWorkspace({
 
         <div className="min-w-0 w-full">
           <div className="space-y-3 min-w-0 w-full">
-            <div className="min-w-0 overflow-x-auto">
+            <div className="app-scrollbar min-w-0 overflow-x-auto">
               <nav
                 className="text-muted-foreground flex flex-nowrap items-center gap-1 text-sm"
                 aria-label={t("breadcrumbNavLabel")}
@@ -207,7 +207,7 @@ function DriveFilePickerWorkspace({
                   type="button"
                   onClick={() => navigateToBreadcrumb(-1)}
                   className={cn(
-                    "hover:text-foreground inline-flex shrink-0 items-center whitespace-nowrap transition-colors",
+                    "press hover:text-foreground inline-flex shrink-0 items-center whitespace-nowrap transition-colors",
                     breadcrumbSegments.length === 0 &&
                       "text-foreground font-medium",
                   )}
@@ -231,7 +231,7 @@ function DriveFilePickerWorkspace({
                       type="button"
                       onClick={() => navigateToBreadcrumb(index)}
                       className={cn(
-                        "hover:text-foreground shrink-0 whitespace-nowrap transition-colors",
+                        "press hover:text-foreground shrink-0 whitespace-nowrap transition-colors",
                         index === breadcrumbSegments.length - 1 &&
                           "text-foreground font-medium",
                       )}

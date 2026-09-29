@@ -1,10 +1,12 @@
 import type { Organization, Prisma } from "../generated/prisma/client.js";
 
-export enum MemberRole {
-  OWNER = "owner",
-  ADMIN = "admin",
-  MEMBER = "member",
-}
+export const MemberRole = {
+  OWNER: "owner",
+  ADMIN: "admin",
+  MEMBER: "member",
+} as const;
+
+export type MemberRole = (typeof MemberRole)[keyof typeof MemberRole];
 
 export const organizationMembersCountInclude = {
   _count: {

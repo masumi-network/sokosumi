@@ -7,6 +7,8 @@ import { AgentMetadataForm } from "@/components/admin/agents/agent-metadata-form
 import { Button } from "@/components/ui/button";
 import { adminAgentService } from "@/lib/services/admin-agent.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Agent overrides",
   description: "Edit marketplace metadata overrides for an agent",

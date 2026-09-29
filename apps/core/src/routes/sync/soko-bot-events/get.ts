@@ -5,7 +5,7 @@ import { sokoBotTaskboardSyncService } from "@/services/soko-bot-taskboard-sync.
 
 import { handleSyncRequest } from "../handler.js";
 
-export const SOKO_BOT_EVENTS_SYNC_LOCK_KEY = "soko-bot-events-sync";
+const SOKO_BOT_EVENTS_SYNC_LOCK_KEY = "soko-bot-events-sync";
 
 export default function mount(app: Hono) {
   app.get("/soko-bot-events", async (c) => {

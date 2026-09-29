@@ -17,6 +17,7 @@ import {
 import {
   getChatRoomUnreadCounts,
   getChatRoomUnreadMentionCounts,
+  roomUnreadFields,
 } from "../room-unread";
 
 const paramsSchema = z.object({
@@ -53,10 +54,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const userContext = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
 
-    // Avoid interactive transaction on this read-only path — pool contention
-    // under parallel room-page loads caused P2028 "Unable to start a
-    // transaction in the given time" (SOKOSUMI-Q9). Access check + unread
-    // count do not need a shared snapshot.
     const room = await requireChatRoomUserAccess(
       id,
       userContext.userId,
@@ -79,7 +76,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       c,
       chatRoomSchema.parse(
         await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          unreadCount: unreadCounts.get(room.id) ?? 0,
+          ...(await roomUnreadFields(
+            unreadCounts.get(room.id),
+            room.id,
+            userContext.userId,
+            prisma,
+          )),
           unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
           activeOrganizationId: userContext.organizationId,
           organizationName: organization?.name ?? null,

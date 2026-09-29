@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -21,6 +22,8 @@ export interface UpdateSokoBotScheduleInput {
   userId: string;
   scheduleId?: string;
   scheduleName?: string;
+  workspaceId?: string;
+  sokoBotId?: string;
   name?: string;
   enabled?: boolean;
   timezone?: string;
@@ -33,7 +36,11 @@ export interface UpdateSokoBotScheduleInput {
  * and the bot's own `*_schedule` tools, so a bot can set up its own
  * check-ins without an approval round-trip.
  */
-export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
+export async function createSokoBotSchedule(
+  input: CreateSokoBotScheduleInput,
+  transaction?: Prisma.TransactionClient,
+) {
+  const db = transaction ?? prisma;
   const nextRunAt = computeNextRunWithMinimumInterval(
     { cron: input.cronExpression, timezone: input.timezone },
     MIN_SCHEDULE_INTERVAL_MS,
@@ -50,7 +57,7 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
       "Schedule name and prompt are required",
     );
   }
-  const bot = await prisma.sokoBot.findFirst({
+  const bot = await db.sokoBot.findFirst({
     where: {
       userId: input.userId,
       workspaceId: input.workspaceId,
@@ -59,7 +66,7 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
     select: { id: true },
   });
   if (!bot) throw new SokoBotScheduleNotFoundError("Soko Bot not found");
-  const workspace = await prisma.workspace.findFirst({
+  const workspace = await db.workspace.findFirst({
     where: {
       id: input.workspaceId,
       OR: [
@@ -70,7 +77,7 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
     select: { id: true },
   });
   if (!workspace) throw new SokoBotScheduleNotFoundError("Workspace not found");
-  return serializableTransaction(async (tx) => {
+  const mutate = async (tx: Prisma.TransactionClient) => {
     // Same name = same follow-up: a model retrying or re-planning updates
     // the existing schedule instead of stacking duplicates.
     const existing = await tx.sokoBotSchedule.findFirst({
@@ -111,17 +118,32 @@ export async function createSokoBotSchedule(input: CreateSokoBotScheduleInput) {
         nextRunAt,
       },
     });
-  }, "Soko Bot schedule creation collided with another request");
+  };
+  return transaction
+    ? mutate(transaction)
+    : serializableTransaction(
+        mutate,
+        "Soko Bot schedule creation collided with another request",
+      );
 }
 
 /** Resolves by id first, then exact (case-insensitive) name; the error lists what exists so a caller can correct itself. */
 async function findScheduleForUser(
   userId: string,
-  ref: { scheduleId?: string; scheduleName?: string },
+  ref: {
+    scheduleId?: string;
+    scheduleName?: string;
+    workspaceId?: string;
+    sokoBotId?: string;
+  },
+  transaction?: Prisma.TransactionClient,
 ) {
-  const schedule = await prisma.sokoBotSchedule.findFirst({
+  const db = transaction ?? prisma;
+  const schedule = await db.sokoBotSchedule.findFirst({
     where: {
       userId,
+      workspaceId: ref.workspaceId,
+      sokoBotId: ref.sokoBotId,
       OR: [
         ...(ref.scheduleId ? [{ id: ref.scheduleId }] : []),
         ...(ref.scheduleName
@@ -138,8 +160,8 @@ async function findScheduleForUser(
     },
   });
   if (schedule) return schedule;
-  const existing = await prisma.sokoBotSchedule.findMany({
-    where: { userId },
+  const existing = await db.sokoBotSchedule.findMany({
+    where: { userId, workspaceId: ref.workspaceId, sokoBotId: ref.sokoBotId },
     select: { id: true, name: true },
     orderBy: { createdAt: "asc" },
   });
@@ -150,8 +172,12 @@ async function findScheduleForUser(
   throw new SokoBotScheduleNotFoundError(`Schedule not found. ${hint}`);
 }
 
-export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
-  const schedule = await findScheduleForUser(input.userId, input);
+export async function updateSokoBotSchedule(
+  input: UpdateSokoBotScheduleInput,
+  transaction?: Prisma.TransactionClient,
+) {
+  const db = transaction ?? prisma;
+  const schedule = await findScheduleForUser(input.userId, input, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
   const now = new Date();
@@ -180,7 +206,7 @@ export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
         : undefined,
   };
   if (input.enabled === true && !schedule.enabled) {
-    return serializableTransaction(async (tx) => {
+    const mutate = async (tx: Prisma.TransactionClient) => {
       const activeCount = await tx.sokoBotSchedule.count({
         where: { sokoBotId: schedule.sokoBotId, enabled: true },
       });
@@ -190,22 +216,35 @@ export async function updateSokoBotSchedule(input: UpdateSokoBotScheduleInput) {
         );
       }
       return tx.sokoBotSchedule.update({ where: { id: schedule.id }, data });
-    }, "Soko Bot schedule activation collided with another request");
+    };
+    return transaction
+      ? mutate(transaction)
+      : serializableTransaction(
+          mutate,
+          "Soko Bot schedule activation collided with another request",
+        );
   }
-  return prisma.sokoBotSchedule.update({ where: { id: schedule.id }, data });
+  return db.sokoBotSchedule.update({ where: { id: schedule.id }, data });
 }
 
 export async function deleteSokoBotSchedule(
   userId: string,
-  ref: { scheduleId?: string; scheduleName?: string },
+  ref: {
+    scheduleId?: string;
+    scheduleName?: string;
+    workspaceId?: string;
+    sokoBotId?: string;
+  },
+  transaction?: Prisma.TransactionClient,
 ): Promise<{ id: string; name: string }> {
-  const schedule = await findScheduleForUser(userId, ref);
+  const db = transaction ?? prisma;
+  const schedule = await findScheduleForUser(userId, ref, transaction);
   if (schedule.systemKey) {
     throw new SokoBotScheduleValidationError(
       `"${schedule.name}" is a built-in rhythm; pause it instead of deleting it`,
     );
   }
-  await prisma.sokoBotSchedule.delete({ where: { id: schedule.id } });
+  await db.sokoBotSchedule.delete({ where: { id: schedule.id } });
   return { id: schedule.id, name: schedule.name };
 }
 

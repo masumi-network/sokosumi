@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { inviteOrganizationMembersBulk } from "@/lib/actions/organization";
+import { inviteOrganizationMembersBulk } from "@/lib/actions/organization/action";
 
 interface OrganizationBulkInviteModalProps {
   open: boolean;
@@ -124,18 +124,20 @@ export default function OrganizationBulkInviteModal({
                 onChange={(event) => setRawEmails(event.target.value)}
                 placeholder={t("placeholder")}
                 disabled={isSubmitting}
-                className="max-h-36 min-h-36 max-w-full resize-none overflow-y-auto"
+                className="app-scrollbar max-h-36 min-h-36 max-w-full resize-none overflow-y-auto"
               />
               <p className="text-muted-foreground text-sm">{t("hint")}</p>
             </div>
             <Button type="submit" disabled={isSubmitting} className="w-full">
-              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {t("submit")}
             </Button>
           </form>
         ) : null}
         {hasResults ? (
-          <div className="max-h-56 overflow-y-auto rounded-md border">
+          <div className="app-scrollbar max-h-56 overflow-y-auto rounded-md border">
             <ul className="divide-y">
               {results.map((row) => (
                 <li

@@ -39,3 +39,23 @@ export function stripMarkdownToText(input?: string | null): string | null {
 
   return stripMarkdownFromText(input);
 }
+
+/**
+ * Plain text for a one-line name (task, schedule): removes paired emphasis,
+ * inline code, links and a leading heading marker, but keeps lone `_`, `#`,
+ * `*` or `>` that belong to the name (`fix_login`, `Issue #42`).
+ */
+export function stripInlineMarkdown(name: string): string {
+  const plain = name
+    .replace(MARKDOWN_IMAGE_REGEX, "$1")
+    .replace(MARKDOWN_LINK_REGEX, "$1")
+    .replace(INLINE_CODE_REGEX, "$1")
+    .replace(/(\*\*|__|~~)(\S(?:.*?\S)?)\1/g, "$2")
+    .replace(/\*(\S(?:.*?\S)?)\*/g, "$1")
+    .replace(/(^|[^\w])_(\S(?:.*?\S)?)_(?![\w])/g, "$1$2")
+    .replace(/^#{1,6}\s+/, "")
+    .replace(MULTISPACE_REGEX, " ")
+    .trim();
+
+  return plain || name;
+}

@@ -68,7 +68,7 @@ function FeedbackButtons({ turnId }: { turnId: string }) {
         aria-label={t("feedbackUseful")}
         disabled={isPending}
         onClick={() => send(true)}
-        className="hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
+        className="press hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
       >
         <ThumbsUp aria-hidden className="size-3.5" />
       </button>
@@ -77,12 +77,17 @@ function FeedbackButtons({ turnId }: { turnId: string }) {
         aria-label={t("feedbackNotUseful")}
         disabled={isPending}
         onClick={() => send(false)}
-        className="hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
+        className="press hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
       >
         <ThumbsDown aria-hidden className="size-3.5" />
       </button>
     </span>
   );
+}
+
+/** True when `SokoBotMessageFooter` will render (it always shows the thumbs). */
+export function hasSokoBotMessageFooter(metadata: unknown): boolean {
+  return readSokoBotMetadata(metadata) != null;
 }
 
 /**
@@ -100,7 +105,7 @@ export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
   // The footer always has something to show now: at minimum, the thumbs.
 
   const chip =
-    "border-border bg-card hover:border-tertiary hover:bg-card-background inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
+    "border-border bg-card press hover:border-tertiary hover:bg-card-background inline-flex max-w-full items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs transition-colors";
 
   return (
     <div className="mt-2 flex flex-wrap gap-2">

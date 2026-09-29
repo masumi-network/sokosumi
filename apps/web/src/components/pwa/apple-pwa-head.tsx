@@ -14,7 +14,7 @@ export function ApplePwaHead() {
       />
       <meta
         name="theme-color"
-        content="#0a0a0a"
+        content="#121212"
         media="(prefers-color-scheme: dark)"
       />
       <link

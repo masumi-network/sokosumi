@@ -108,8 +108,39 @@ export const historyJobItemSchema = historyBaseItemSchema
   })
   .openapi("HistoryJobItem");
 
+export const historyImageItemSchema = historyBaseItemSchema
+  .extend({
+    kind: z.literal("image"),
+    /**
+     * Always `active`. Images are immutable and have no lifecycle of their own —
+     * a generation that failed produced no image and therefore no row — so the
+     * field exists only to keep the union's shape uniform.
+     */
+    status: z.literal("active"),
+    /** `id` is the image (asset) id, so a client can deep-link to the version. */
+    assetId: z.string().uuid().openapi({
+      description:
+        "Image version this row is about. Same value as `id`, named so a client does not have to know the feed keys rows by entity id.",
+      example: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    }),
+    projectId: z.string().uuid().nullable().openapi({
+      description: "Project the image was generated in",
+      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+    }),
+    modelLabel: z.string().openapi({
+      description:
+        "Display name of the model that generated the image, resolved from the studio catalog. Falls back to the provider endpoint for a model the catalog no longer lists.",
+      example: "Gemini 3.1 Flash Image",
+    }),
+  })
+  .openapi("HistoryImageItem");
+
 export const historyItemSchema = z
-  .discriminatedUnion("kind", [historyTaskItemSchema, historyJobItemSchema])
+  .discriminatedUnion("kind", [
+    historyTaskItemSchema,
+    historyJobItemSchema,
+    historyImageItemSchema,
+  ])
   .openapi("HistoryItem");
 
 export const historyListSchema = z
@@ -149,6 +180,24 @@ export const historyListResponseExample = {
       agentId: "agent_123",
       agentName: "Research Agent",
       agentIcon: "https://example.com/research.svg",
+      owner: {
+        userId: "550e8400-e29b-41d4-a716-446655440002",
+        name: "Bob Smith",
+        image: null,
+      },
+    },
+    {
+      kind: "image",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      title: "A bold event poster: one dominant subject centred in the upper…",
+      description: "gemini-3.1-flash-image-preview · 8 credits",
+      status: "active",
+      updatedAt: "2025-01-21T11:00:00.000Z",
+      archivedAt: null,
+      credits: 8,
+      assetId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      modelLabel: "Gemini 3.1 Flash Image",
       owner: {
         userId: "550e8400-e29b-41d4-a716-446655440002",
         name: "Bob Smith",

@@ -6,7 +6,7 @@ import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { buildWorkspaceMoveTargets } from "@/app/tasks/components/workspace-move-targets";
-import { OrganizationLogo } from "@/components/organizations";
+import { OrganizationLogo } from "@/components/organizations/organization-logo";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -131,7 +131,7 @@ export function MoveJobToWorkspaceDialog({
                 "flex cursor-pointer items-center gap-3 rounded-md border p-3 transition-colors",
                 selectedValue === option.id
                   ? "border-primary bg-primary-quinary"
-                  : "border-border hover:bg-card-background",
+                  : "border-border press hover:bg-card-background",
               )}
             >
               <RadioGroupItem
@@ -166,7 +166,7 @@ export function MoveJobToWorkspaceDialog({
             disabled={isPending || !selectedOption}
           >
             {isPending ? (
-              <Loader2 className="mr-2 size-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
             ) : null}
             {t("moveToWorkspaceButton")}
           </Button>

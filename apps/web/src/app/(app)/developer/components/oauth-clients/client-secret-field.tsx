@@ -46,7 +46,7 @@ export function ClientSecretField({
             type="button"
             onClick={() => setIsVisible((value) => !value)}
             aria-label={isVisible ? hideLabel : showLabel}
-            className="text-muted-foreground hover:text-foreground absolute inset-y-0 right-0 flex items-center pr-3"
+            className="text-muted-foreground press hover:text-foreground absolute inset-y-0 right-0 flex items-center pr-3"
             tabIndex={-1}
           >
             {isVisible ? (

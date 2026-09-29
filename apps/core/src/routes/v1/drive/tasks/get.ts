@@ -599,7 +599,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
       const items: DriveTasksListItem[] = pagedFiles
         .map((file) => {
-          // fileUrl is non-null (filtered in query)
           if (!file.fileUrl) return null;
           return {
             type: "task-file" as const,

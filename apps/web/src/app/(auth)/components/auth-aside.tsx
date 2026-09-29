@@ -43,7 +43,7 @@ export default async function AuthAside() {
 
       <div
         data-testid="auth-aside-scroll"
-        className="absolute inset-0 z-10 overflow-y-auto p-10 xl:p-12"
+        className="app-scrollbar absolute inset-0 z-10 overflow-y-auto p-10 xl:p-12"
       >
         <div className="relative z-10 max-w-md">
           <h2
@@ -73,13 +73,13 @@ export default async function AuthAside() {
             <div className="flex items-baseline justify-between gap-3">
               <p
                 id="auth-customer-logos-label"
-                className="font-medium text-on-media text-xs uppercase tracking-[0.16em]"
+                className="font-medium text-on-media text-xs"
               >
                 {t("logosLabel")}
               </p>
               <button
                 type="button"
-                className="sr-only rounded-sm text-on-media text-xs uppercase tracking-[0.16em] focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-on-media"
+                className="sr-only rounded-sm text-on-media text-xs focus:not-sr-only focus:px-1.5 focus:py-0.5 focus:ring-2 focus:ring-on-media"
               >
                 {t("pauseLogos")}
               </button>

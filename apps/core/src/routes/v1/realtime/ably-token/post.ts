@@ -18,7 +18,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/ably-token",
     description:
-      "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, always-on chat control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
+      "Mint an Ably TokenRequest for Realtime. Grants per-membership chat room subscribe, exact per-user Calendar workspace subscribe, always-on chat and Calendar control, user task/notification/job wildcards, and org presence (ADR-0003). Pass clientInstanceId as a query param (Ably authParams) for multi-device clientId. Call after join/leave or on revoke so capabilities refresh.",
     tags: ["Realtime"],
     request: {
       query: z.object({
@@ -53,7 +53,7 @@ export default function mount(
       throw badRequest("Invalid clientInstanceId");
     }
 
-    const [roomMemberships, orgMemberships] = await Promise.all([
+    const [roomMemberships, orgMemberships, workspaces] = await Promise.all([
       prisma.chatRoomUserMember.findMany({
         where: { userId: userContext.userId },
         select: { roomId: true },
@@ -62,12 +62,26 @@ export default function mount(
         where: { userId: userContext.userId },
         select: { organizationId: true },
       }),
+      prisma.workspace.findMany({
+        where: {
+          OR: [
+            { userId: userContext.userId },
+            {
+              organization: {
+                members: { some: { userId: userContext.userId } },
+              },
+            },
+          ],
+        },
+        select: { id: true },
+      }),
     ]);
 
     const tokenRequest = await createAblyClientTokenRequest({
       userId: userContext.userId,
       roomIds: roomMemberships.map((m) => m.roomId),
       organizationIds: orgMemberships.map((m) => m.organizationId),
+      workspaceIds: workspaces.map((workspace) => workspace.id),
       clientInstanceId,
     });
 

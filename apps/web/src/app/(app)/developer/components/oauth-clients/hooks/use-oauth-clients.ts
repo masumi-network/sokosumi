@@ -12,11 +12,10 @@ import { authClient } from "@/lib/auth/auth.client";
 
 import type {
   CreateOAuthClientRequest,
-  CreateOAuthClientResult,
   DeleteOAuthClientRequest,
   OAuthClientRecord,
+  OAuthClientSecretResult,
   RotateOAuthClientRequest,
-  RotateOAuthClientResult,
   UpdateOAuthClientRequest,
   UseOAuthClientsReturn,
 } from "../types";
@@ -61,7 +60,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
   const create = useCallback(
     async (
       data: CreateOAuthClientRequest,
-    ): Promise<CreateOAuthClientResult> => {
+    ): Promise<OAuthClientSecretResult> => {
       try {
         const includeCoreApi = data.includeCoreApi ?? false;
         const includeOfflineAccess = data.includeOfflineAccess ?? false;
@@ -86,7 +85,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
             result.error.message ?? t("Messages.createError");
           toast.error(errorMessage);
           return {
-            success: false,
+            ok: false,
             error: { message: errorMessage },
           };
         }
@@ -96,8 +95,8 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           // Reveal credentials immediately; list refresh is non-blocking.
           void refresh();
           return {
-            success: true,
-            data: {
+            ok: true,
+            value: {
               clientId: result.data.client_id,
               clientSecret: result.data.client_secret ?? null,
             },
@@ -107,14 +106,14 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         const errorMessage = t("Messages.createError");
         toast.error(errorMessage);
         return {
-          success: false,
+          ok: false,
           error: { message: errorMessage },
         };
       } catch {
         const errorMessage = t("Messages.createError");
         toast.error(errorMessage);
         return {
-          success: false,
+          ok: false,
           error: { message: errorMessage },
         };
       }
@@ -209,7 +208,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
   const rotateSecret = useCallback(
     async (
       data: RotateOAuthClientRequest,
-    ): Promise<RotateOAuthClientResult> => {
+    ): Promise<OAuthClientSecretResult> => {
       try {
         const result = await authClient.oauth2.client.rotateSecret({
           client_id: data.clientId,
@@ -220,7 +219,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
             result.error.message ?? t("Messages.rotateError");
           toast.error(errorMessage);
           return {
-            success: false,
+            ok: false,
             error: { message: errorMessage },
           };
         }
@@ -230,8 +229,8 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           // Reveal secret immediately; list refresh is non-blocking.
           void refresh();
           return {
-            success: true,
-            data: {
+            ok: true,
+            value: {
               clientId: result.data.client_id,
               clientSecret: result.data.client_secret ?? null,
             },
@@ -241,14 +240,14 @@ export function useOAuthClients(): UseOAuthClientsReturn {
         const errorMessage = t("Messages.rotateError");
         toast.error(errorMessage);
         return {
-          success: false,
+          ok: false,
           error: { message: errorMessage },
         };
       } catch {
         const errorMessage = t("Messages.rotateError");
         toast.error(errorMessage);
         return {
-          success: false,
+          ok: false,
           error: { message: errorMessage },
         };
       }

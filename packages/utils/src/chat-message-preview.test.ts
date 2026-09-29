@@ -154,6 +154,14 @@ describe("buildChatMessagePreview", () => {
     ).toBe("hi @Ada Lovelace");
   });
 
+  it("keeps intraword underscores in an env var name", () => {
+    expect(
+      buildChatMessagePreview(
+        "I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?",
+      ),
+    ).toBe("I see it seems to be the COMPOSIO_X_AUTH_CONFIG_ID, correct?");
+  });
+
   it("names a mention written inside a code span", () => {
     expect(
       buildChatMessagePreview(
@@ -164,16 +172,16 @@ describe("buildChatMessagePreview", () => {
   });
 
   /**
-   * A slug stands in for a name the lookup does not carry. The markdown clean
-   * takes `_` out of what it is handed, and a slug is an ascii rewrite of a
-   * name already, so it says `adalovelace`. The rest of it stays.
+   * A slug stands in for a name the lookup does not carry, and it says the
+   * slug as written: an underscore between word characters is part of the
+   * slug, not an emphasis marker the markdown clean takes out.
    */
   it("says the slug when a name is missing", () => {
     expect(
       buildChatMessagePreview(
         "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada_lovelace hi",
       ),
-    ).toBe("@adalovelace hi");
+    ).toBe("@ada_lovelace hi");
     expect(
       buildChatMessagePreview(
         "@019fc7e4-e4bd-7005-900c-66e44d33f5e4:ada-lovelace hi",

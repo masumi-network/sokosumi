@@ -35,10 +35,6 @@
         #expect((model.room != nil) == valid && !model.loading)
         try await Task.sleep(for: .milliseconds(100))
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("chat-join-\(valid ? "valid" : "expired")-\(dark ? "dark" : "light").png"))
       }
     }
   }

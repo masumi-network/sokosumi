@@ -62,6 +62,13 @@ interface FilterDropdownMenuProps {
   emptyResultsLabel: string;
   sections: FilterDropdownMenuSection[];
   showActiveIndicator?: boolean;
+  /**
+   * Extra classes for the desktop and mobile triggers. Toolbars that set their
+   * own control height need it: `size="sm"` is `h-8` at every width, which is
+   * shorter than the 40px touch target the Files header row uses while it is
+   * stacked.
+   */
+  triggerClassName?: string;
   /** Hide the built-in mobile sheet trigger (e.g. when another control opens the sheet). */
   hideMobileTrigger?: boolean;
   sheetOpen?: boolean;
@@ -78,6 +85,7 @@ export function FilterDropdownMenu({
   emptyResultsLabel,
   sections,
   showActiveIndicator = false,
+  triggerClassName,
   hideMobileTrigger = false,
   sheetOpen: sheetOpenProp,
   onSheetOpenChange,
@@ -111,7 +119,11 @@ export function FilterDropdownMenu({
       {/* Desktop dropdown - hidden on mobile */}
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild className="hidden sm:flex">
-          <Button variant="outline" size="sm" className="relative gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={cn("relative gap-2", triggerClassName)}
+          >
             <ListFilter className="size-4" aria-hidden />
             <span>{buttonLabel}</span>
             {showActiveIndicator ? (
@@ -139,7 +151,7 @@ export function FilterDropdownMenu({
         <Button
           variant="outline"
           size="sm"
-          className="relative gap-2 sm:hidden"
+          className={cn("relative gap-2 sm:hidden", triggerClassName)}
           aria-label={buttonLabel}
           onClick={() => setSheetOpen(true)}
         >
@@ -383,7 +395,7 @@ function FilterDropdownMenuSectionMobile({
       <button
         type="button"
         onClick={onToggle}
-        className="focus:bg-accent flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-3 text-left transition-colors hover:bg-accent"
+        className="focus:bg-accent flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md px-3 py-3 text-left transition-colors press hover:bg-accent"
       >
         <div className="flex min-w-0 w-0 flex-1 items-center gap-2">
           <section.icon

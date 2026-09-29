@@ -7,13 +7,17 @@ import type {
   RuntimeEventStreamInput,
   RuntimeHealth,
   RuntimeInspectInput,
+  RuntimeJsonValue,
   RuntimeResetInput,
   RuntimeTurnInput,
   RuntimeTurnRef,
   SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 
-function event(type: string, data: Record<string, unknown>): RuntimeEvent {
+function event(
+  type: string,
+  data: Record<string, RuntimeJsonValue>,
+): RuntimeEvent {
   return {
     type,
     data,

@@ -31,8 +31,8 @@ describe("AuthenticatedAppFrame session hydration", () => {
       "utf8",
     );
 
-    expect(source).toContain(
-      "<NotificationProvider key={session.user.id} userId={session.user.id}>",
+    expect(source).toMatch(
+      /<NotificationProvider\s+key=\{session\.user\.id\}\s+userId=\{session\.user\.id\}/,
     );
   });
 });

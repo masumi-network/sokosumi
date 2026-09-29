@@ -2,82 +2,53 @@ import type { Member, Prisma } from "../generated/prisma/client.js";
 import { assertOrganizationRetainsOwner } from "../helpers/organization-owner.js";
 import { ensureAssignedSeatsWithinCapacity } from "../helpers/organization-seats.js";
 import {
-  type MemberWithOrganization,
   type MemberWithUser,
   type MemberWithUserAndLastSeen,
   memberOrderBy,
-  memberOrganizationInclude,
-  memberRoleOrderBy,
   memberUserInclude,
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
 
-/**
- * Repository for managing Member entities and related queries.
- * Provides methods for creating members, retrieving member lists,
- * and fetching membership information with related user or organization data.
- */
-export const memberRepository = (() => {
-  /**
-   * Creates a new member in the specified organization with the given role.
-   *
-   * @param userId - The ID of the user to add as a member.
-   * @param organizationId - The ID of the organization.
-   * @param role - The role to assign to the member (e.g., ADMIN, MEMBER).
-   * @param tx - The Prisma transaction client to use.
-   * @returns The created Member object.
-   */
-  async function createMember(
-    userId: string,
-    organizationId: string,
-    role: MemberRole,
-    tx: Prisma.TransactionClient,
-  ): Promise<Member> {
-    return await tx.member.create({
-      data: {
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-        organization: {
-          connect: {
-            id: organizationId,
-          },
-        },
-        role,
-      },
-    });
-  }
+async function getMembersWithUser(
+  where: Prisma.MemberWhereInput,
+  tx: Prisma.TransactionClient,
+): Promise<MemberWithUser[]> {
+  return await tx.member.findMany({
+    where,
+    include: memberUserInclude,
+    orderBy: [...memberOrderBy],
+  });
+}
 
-  /**
-   * Retrieves all memberships for a user, including organization details.
-   *
-   * @param userId - The ID of the user.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of MemberWithOrganization objects.
-   */
-  async function getMembersWithOrganizationByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<MemberWithOrganization[]> {
-    return await tx.member.findMany({
-      where: {
-        userId,
+async function getAssignedMemberCount(
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<number> {
+  return await tx.member.count({
+    where: {
+      organizationId,
+      seatAssignedAt: {
+        not: null,
       },
-      include: memberOrganizationInclude,
-      orderBy: [{ ...memberRoleOrderBy }],
-    });
-  }
+    },
+  });
+}
 
-  /**
-   * Retrieves all organization IDs for which the user is a member.
-   *
-   * @param userId - The ID of the user.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of organization IDs.
-   */
-  async function getMembersOrganizationIdsByUserId(
+async function getMemberByIdAndOrganizationId(
+  memberId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient,
+): Promise<Member | null> {
+  return await tx.member.findFirst({
+    where: {
+      id: memberId,
+      organizationId,
+    },
+  });
+}
+
+export const memberRepository = {
+  async getMembersOrganizationIdsByUserId(
     userId: string,
     tx: Prisma.TransactionClient,
   ): Promise<string[]> {
@@ -86,17 +57,9 @@ export const memberRepository = (() => {
       select: { organizationId: true },
     });
     return userMemberships.map((m) => m.organizationId);
-  }
+  },
 
-  /**
-   * Retrieves a member by user ID and organization ID.
-   *
-   * @param userId - The ID of the user.
-   * @param organizationId - The ID of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns The Member object if found, otherwise null.
-   */
-  async function getMemberByUserIdAndOrganizationId(
+  async getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -109,29 +72,12 @@ export const memberRepository = (() => {
         },
       },
     });
-  }
-
-  async function getMembersWithUser(
-    where: Prisma.MemberWhereInput,
-    tx: Prisma.TransactionClient,
-  ): Promise<MemberWithUser[]> {
-    return await tx.member.findMany({
-      where,
-      include: memberUserInclude,
-      orderBy: [...memberOrderBy],
-    });
-  }
+  },
 
   /**
-   * Retrieves all members of an organization, including user details and a
-   * session-derived `lastSeenAt` timestamp (the most recent
-   * `Session.updatedAt` per user, or `null` if the user has no sessions).
-   *
-   * @param organizationId - The ID of the organization.
-   * @param tx - Prisma transaction client.
-   * @returns An array of MemberWithUserAndLastSeen objects.
+   * `lastSeenAt` is the most recent `Session.updatedAt` per user, or null.
    */
-  async function getMembersWithUserAndLastSeen(
+  async getMembersWithUserAndLastSeen(
     organizationId: string,
     tx: Prisma.TransactionClient,
   ): Promise<MemberWithUserAndLastSeen[]> {
@@ -158,16 +104,9 @@ export const memberRepository = (() => {
       ...member,
       lastSeenAt: lastSeenByUserId.get(member.userId) ?? null,
     }));
-  }
+  },
 
-  /**
-   * Retrieves all members of a given organization.
-   *
-   * @param organizationId - The ID of the organization.
-   * @param tx - The Prisma transaction client to use.
-   * @returns An array of Member objects.
-   */
-  async function getMembersByOrganizationId(
+  async getMembersByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient,
   ): Promise<Member[]> {
@@ -176,36 +115,9 @@ export const memberRepository = (() => {
         organizationId,
       },
     });
-  }
+  },
 
-  async function getAssignedMemberCount(
-    organizationId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<number> {
-    return await tx.member.count({
-      where: {
-        organizationId,
-        seatAssignedAt: {
-          not: null,
-        },
-      },
-    });
-  }
-
-  async function getMemberByIdAndOrganizationId(
-    memberId: string,
-    organizationId: string,
-    tx: Prisma.TransactionClient,
-  ): Promise<Member | null> {
-    return await tx.member.findFirst({
-      where: {
-        id: memberId,
-        organizationId,
-      },
-    });
-  }
-
-  async function assignSeat(
+  async assignSeat(
     memberId: string,
     organizationId: string,
     purchasedSeats: number,
@@ -235,9 +147,9 @@ export const memberRepository = (() => {
         seatAssignedAt: new Date(),
       },
     });
-  }
+  },
 
-  async function updateMemberRole(
+  async updateMemberRole(
     memberId: string,
     organizationId: string,
     role: MemberRole,
@@ -253,9 +165,9 @@ export const memberRepository = (() => {
         role,
       },
     });
-  }
+  },
 
-  async function removeMember(
+  async removeMember(
     memberId: string,
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -267,9 +179,9 @@ export const memberRepository = (() => {
         id: memberId,
       },
     });
-  }
+  },
 
-  async function unassignSeat(
+  async unassignSeat(
     memberId: string,
     organizationId: string,
     tx: Prisma.TransactionClient,
@@ -295,13 +207,10 @@ export const memberRepository = (() => {
         seatAssignedAt: null,
       },
     });
-  }
+  },
 
-  /**
-   * Paginated member listing for the admin organization detail view. Ordered by
-   * role, then user name, with member id as a stable cursor tiebreaker.
-   */
-  async function listMembersForAdminOverview(
+  /** Ordered by role, then user name, with member id as a stable cursor tiebreaker. */
+  async listMembersForAdminOverview(
     params: {
       organizationId: string;
       cursor?: string;
@@ -351,21 +260,5 @@ export const memberRepository = (() => {
       })),
       total,
     };
-  }
-
-  return {
-    assignSeat,
-    createMember,
-    getAssignedMemberCount,
-    getMemberByIdAndOrganizationId,
-    getMembersWithOrganizationByUserId,
-    getMembersOrganizationIdsByUserId,
-    getMemberByUserIdAndOrganizationId,
-    getMembersWithUserAndLastSeen,
-    getMembersByOrganizationId,
-    listMembersForAdminOverview,
-    removeMember,
-    unassignSeat,
-    updateMemberRole,
-  };
-})();
+  },
+};

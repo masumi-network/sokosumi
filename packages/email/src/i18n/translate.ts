@@ -72,6 +72,9 @@ export function createEmailTranslator(locale?: null | string) {
 
   return {
     locale: resolvedLocale,
+    /** Rich text, for a string that carries a tag such as `<settings>`. */
+    rich: (key: string, values: Record<string, unknown>) =>
+      translator.rich(key as never, values as never),
     t: (key: string, values?: TranslationValues) =>
       translator(key as never, values as never),
   };

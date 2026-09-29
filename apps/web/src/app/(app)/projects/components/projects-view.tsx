@@ -10,7 +10,7 @@ import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
   PROJECTS_BROWSE_DIVIDE_CLASS,
-  PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_BROWSE_HEADER_ROW_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
@@ -24,13 +24,13 @@ import {
   useCreateProjectModal,
 } from "./create-project-modal";
 import { ProjectListItem } from "./project-list-item";
+import { ProjectsFilter, type ProjectsFilterLabels } from "./projects-filter";
 
 export interface ProjectsViewLabels {
   newProject: string;
   empty: {
     title: string;
     description: string;
-    action: string;
   };
   loadMore: string;
   loading: string;
@@ -39,11 +39,19 @@ export interface ProjectsViewLabels {
     tasks: string;
     jobs: string;
   };
+  lastActivity: string;
+  created: string;
+  pin: string;
+  unpin: string;
+  pinError: string;
+  filter: ProjectsFilterLabels;
+  noMatches: string;
 }
 
 interface ProjectsViewProps {
   projects: ProjectListItemType[];
   nextCursor: string | null;
+  query: string;
   initialCreateProjectOpen: boolean;
   createProjectModalResetKey: string;
   labels: ProjectsViewLabels;
@@ -61,25 +69,43 @@ function ProjectsMobileCreateFabSlot() {
   );
 }
 
+function browseListKey(query: string, projects: ProjectListItemType[]) {
+  return `${query}|${projects
+    .map((project) => `${project.id}:${project.updatedAt}`)
+    .join("|")}`;
+}
+
 export function ProjectsView({
   projects,
   nextCursor,
+  query,
   initialCreateProjectOpen,
   createProjectModalResetKey,
   labels,
 }: ProjectsViewProps) {
+  const listKey = browseListKey(query, projects);
   const [items, setItems] = useState(projects);
   const [cursor, setCursor] = useState(nextCursor);
+  const [itemsKey, setItemsKey] = useState(listKey);
   const [isPending, startTransition] = useTransition();
+  // Reset appended pages when the server list changes, without remounting
+  // the filter (a `key` on this view was stealing focus after every `q`).
+  if (itemsKey !== listKey) {
+    setItemsKey(listKey);
+    setItems(projects);
+    setCursor(nextCursor);
+  }
   const hasLoadedProjects = items.length > 0;
+  const isFiltering = query.length > 0;
   const showEmptyState = !hasLoadedProjects && cursor === null;
+  const hasNothingAtAll = showEmptyState && !isFiltering;
 
   function handleLoadMore() {
     if (!cursor || isPending) return;
 
     startTransition(async () => {
       try {
-        const result = await loadMoreProjects({ cursor });
+        const result = await loadMoreProjects({ cursor, query });
         setItems((prev) => appendUniqueProjects(prev, result.projects));
         setCursor(result.nextCursor);
       } catch {
@@ -96,31 +122,48 @@ export function ProjectsView({
       <div
         className={cn("flex flex-col gap-5", LIST_MOBILE_CREATE_FAB_CLEARANCE)}
       >
-        <div className="hidden justify-end md:flex">
-          <AddProjectButton label={labels.newProject} className="self-start" />
+        <div
+          data-testid="projects-toolbar"
+          className={PROJECTS_BROWSE_HEADER_ROW_CLASS}
+        >
+          <ProjectsFilter labels={labels.filter} />
+          <AddProjectButton
+            label={labels.newProject}
+            className="hidden md:inline-flex"
+          />
         </div>
-
-        {hasLoadedProjects ? (
+        {hasNothingAtAll ? (
+          <ProjectsEmptyState labels={labels.empty} />
+        ) : (
           <div
             data-testid="projects-browse"
             className={cn(
-              PROJECTS_BROWSE_LAYOUT_CLASS,
+              "bg-card-background overflow-hidden rounded-xl",
               PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
-            <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
-              {items.map((project) => (
-                <ProjectListItem
-                  key={project.id}
-                  project={project}
-                  labels={{ counts: labels.counts }}
-                />
-              ))}
-            </div>
+            {hasLoadedProjects ? (
+              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+                {items.map((project) => (
+                  <ProjectListItem
+                    key={project.id}
+                    project={project}
+                    labels={{
+                      counts: labels.counts,
+                      lastActivity: labels.lastActivity,
+                      created: labels.created,
+                      pin: labels.pin,
+                      unpin: labels.unpin,
+                      pinError: labels.pinError,
+                    }}
+                  />
+                ))}
+              </div>
+            ) : showEmptyState ? (
+              <ProjectsNoMatches message={labels.noMatches} />
+            ) : null}
           </div>
-        ) : showEmptyState ? (
-          <ProjectsEmptyState labels={labels.empty} />
-        ) : null}
+        )}
 
         {cursor ? (
           <div className="flex justify-center">
@@ -131,7 +174,10 @@ export function ProjectsView({
             >
               {isPending ? (
                 <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
                   {labels.loading}
                 </>
               ) : (
@@ -147,6 +193,18 @@ export function ProjectsView({
   );
 }
 
+/** Search feedback stays inside the content group; controls remain above it. */
+function ProjectsNoMatches({ message }: { message: string }) {
+  return (
+    <div
+      data-testid="projects-no-matches"
+      className="flex flex-col items-center justify-center px-6 py-12 text-center"
+    >
+      <p className="text-muted-foreground text-sm">{message}</p>
+    </div>
+  );
+}
+
 function ProjectsEmptyState({
   labels,
 }: {
@@ -155,7 +213,7 @@ function ProjectsEmptyState({
   return (
     <div
       className={cn(
-        "bg-card-background border-border flex flex-col items-center justify-center rounded-xl border px-6 py-12 text-center",
+        "bg-card-background flex flex-col items-center justify-center rounded-xl px-6 py-12 text-center",
         PROJECTS_LIST_CARD_MIN_H_CLASS,
       )}
     >
@@ -166,7 +224,6 @@ function ProjectsEmptyState({
         <p className="text-muted-foreground mt-2 text-sm">
           {labels.description}
         </p>
-        <AddProjectButton label={labels.action} className="mt-6" />
       </div>
     </div>
   );

@@ -50,12 +50,17 @@ export function ThreadMuteButton({
       return;
     }
     let active = true;
-    void getRoomThreadAction(roomId, parentMessageId).then((result) => {
-      if (!active || !result.ok) {
-        return;
-      }
-      setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
-    });
+    void getRoomThreadAction(roomId, parentMessageId)
+      .then((result) => {
+        if (!active || !result.ok) {
+          return;
+        }
+        setKnown({ key: threadKey, muted: result.value.mutedAt !== null });
+      })
+      // A server action rejects instead of answering with a result when the
+      // POST comes back as something other than RSC. Leave the state unknown,
+      // exactly as a failed read does, so the button stays hidden.
+      .catch(() => {});
     return () => {
       active = false;
     };

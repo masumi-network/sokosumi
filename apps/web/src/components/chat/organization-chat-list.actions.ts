@@ -12,8 +12,10 @@ import type {
   ChatRoom,
   StarredChatRoomOrder,
 } from "@/lib/clients/generated/core";
-import { type ChatRoomsPage, chatRoomService } from "@/lib/services";
-
+import {
+  type ChatRoomsPage,
+  chatRoomService,
+} from "@/lib/services/chat-room.service";
 /** Org sidebar / chat list wire shape — ActionResultDto (neverthrow at boundary). */
 export type OrganizationChatListActionResult<T> = ActionResultDto<
   T,
@@ -55,17 +57,6 @@ export async function listOrganizationChatRoomsAction(): Promise<
     return listOk(page);
   } catch {
     return listCatch("Could not load chat rooms.");
-  }
-}
-
-export async function listOrganizationArchivedChatRoomsAction(): Promise<
-  OrganizationChatListActionResult<ChatRoomsPage>
-> {
-  try {
-    const page = await chatRoomService.listArchivedRooms();
-    return listOk(page);
-  } catch {
-    return listCatch("Could not load archived chat rooms.");
   }
 }
 

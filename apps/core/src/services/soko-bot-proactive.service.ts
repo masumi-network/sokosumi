@@ -1,3 +1,4 @@
+import type { Prisma } from "@sokosumi/database";
 import {
   dueFollowUps,
   parseSokoBotMemory,
@@ -9,6 +10,7 @@ import { getEnv } from "@/config/env";
 import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
@@ -162,7 +164,7 @@ export interface AttentionItem {
 
 /**
  * Deterministic "needs attention" rules over the Tasks a bot follows.
- * Returns items not raised in the last 24h; call `stampNudges` after they
+ * Returns items not raised in the last 24h; call `stageSokoBotNudges` after they
  * were handed to the bot.
  */
 export async function findAttentionItems(bot: {
@@ -170,7 +172,29 @@ export async function findAttentionItems(bot: {
   workspaceId: string;
   followWholeBoard: boolean;
   now: Date;
+  cutoverAt?: Date;
 }): Promise<AttentionItem[]> {
+  await prisma.sokoBotNudge.updateMany({
+    where: {
+      sokoBotId: bot.id,
+      state: { in: ["ACTIVE", "SNOOZED", "ACKNOWLEDGED"] },
+      expiresAt: { lte: bot.now },
+    },
+    data: { state: "EXPIRED", pendingTurnId: null, revision: { increment: 1 } },
+  });
+  await prisma.sokoBotNudge.updateMany({
+    where: {
+      sokoBotId: bot.id,
+      state: "SNOOZED",
+      snoozedUntil: { lte: bot.now },
+    },
+    data: {
+      state: "ACTIVE",
+      snoozedUntil: null,
+      nextCheckAt: null,
+      revision: { increment: 1 },
+    },
+  });
   const since = new Date(bot.now.getTime() - 30 * 24 * HOUR_MS);
   const delegated = await prisma.sokoBotDelegation.findMany({
     where: {
@@ -187,14 +211,21 @@ export async function findAttentionItems(bot: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
       status: { in: ["RUNNING", "INPUT_REQUIRED", "FAILED"] },
-      updatedAt: { gte: new Date(bot.now.getTime() - ATTENTION_MAX_AGE_MS) },
+      updatedAt: {
+        gte: new Date(
+          Math.max(
+            bot.now.getTime() - ATTENTION_MAX_AGE_MS,
+            bot.cutoverAt?.getTime() ?? 0,
+          ),
+        ),
+      },
       // Nudges stay on work this bot owns or delegated, whatever
       // `followWholeBoard` says. Following the board is for awareness — it
       // lets the bot answer when a comment names it. Sweeping every stuck or
       // failed Task in the workspace made it chase a week of other people's
       // abandoned work and, now that it can act rather than draft, restart it.
       id: { in: delegatedIds },
-      NOT: { assigneeSokoBotId: bot.id },
+      OR: [{ assigneeSokoBotId: null }, { assigneeSokoBotId: { not: bot.id } }],
     },
     select: {
       id: true,
@@ -207,7 +238,7 @@ export async function findAttentionItems(bot: {
       events: {
         orderBy: { createdAt: "desc" },
         take: 1,
-        select: { createdAt: true, status: true, sokoBotId: true },
+        select: { id: true, createdAt: true, status: true, sokoBotId: true },
       },
     },
     take: 100,
@@ -222,21 +253,21 @@ export async function findAttentionItems(bot: {
       task.assignee?.name ?? task.assigneeSokoBot?.name ?? "the assignee";
     if (task.status === "RUNNING" && age > STALE_RUNNING_MS) {
       candidates.push({
-        key: `stale:${task.id}`,
+        key: `stale:${task.id}:${last?.id ?? "initial"}`,
         taskId: task.id,
         name,
         line: `"${name}" (id ${task.id}) has been RUNNING with ${who} for ${Math.round(age / HOUR_MS)}h without an update.`,
       });
     } else if (task.status === "INPUT_REQUIRED" && age > UNANSWERED_MS) {
       candidates.push({
-        key: `unanswered:${task.id}`,
+        key: `unanswered:${task.id}:${last?.id ?? "initial"}`,
         taskId: task.id,
         name,
         line: `"${name}" (id ${task.id}) has been waiting for input for ${Math.round(age / HOUR_MS)}h.`,
       });
     } else if (task.status === "FAILED" && age > UNHANDLED_FAILURE_MS) {
       candidates.push({
-        key: `failed:${task.id}`,
+        key: `failed:${task.id}:${last?.id ?? "initial"}`,
         taskId: task.id,
         name,
         line: `"${name}" (id ${task.id}) FAILED ${Math.round(age / HOUR_MS)}h ago and nobody picked it up.`,
@@ -248,7 +279,17 @@ export async function findAttentionItems(bot: {
     where: {
       sokoBotId: bot.id,
       key: { in: candidates.map((c) => c.key) },
-      lastAt: { gte: new Date(bot.now.getTime() - NUDGE_COOLDOWN_MS) },
+      OR: [
+        {
+          lastDeliveredAt: {
+            gte: new Date(bot.now.getTime() - NUDGE_COOLDOWN_MS),
+          },
+        },
+        { state: { in: ["ACKNOWLEDGED", "CANCELLED", "RESOLVED", "EXPIRED"] } },
+        { state: "SNOOZED", snoozedUntil: { gt: bot.now } },
+        { nextCheckAt: { gt: bot.now } },
+        { pendingTurnId: { not: null } },
+      ],
     },
     select: { key: true },
   });
@@ -256,18 +297,62 @@ export async function findAttentionItems(bot: {
   return candidates.filter((c) => !cooled.has(c.key)).slice(0, MAX_ATTENTION);
 }
 
-export async function stampNudges(
+export async function stageSokoBotNudges(
   sokoBotId: string,
   keys: string[],
   at: Date,
+  turnId: string,
 ): Promise<void> {
-  for (const key of keys) {
-    await prisma.sokoBotNudge.upsert({
-      where: { sokoBotId_key: { sokoBotId, key } },
-      create: { sokoBotId, key, lastAt: at },
-      update: { lastAt: at },
+  await serializableTransaction(async (tx) => {
+    const turn = await tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: { destinationRoomId: true },
     });
-  }
+    const delivered = await tx.sokoBotDelivery.findFirst({
+      where: {
+        turnId,
+        purpose: "FINAL",
+        destinationKind: "CHAT_ROOM",
+        destinationId: turn?.destinationRoomId ?? "NONE",
+      },
+      select: { id: true, updatedAt: true, status: true, reason: true },
+    });
+    const published =
+      delivered?.status === "PUBLISHED" && delivered.reason !== "SILENT";
+    const terminal =
+      delivered &&
+      ["SUPPRESSED", "BLOCKED", "DEAD_LETTER", "PUBLISHED"].includes(
+        delivered.status,
+      );
+    for (const key of keys) {
+      await tx.sokoBotNudge.upsert({
+        where: { sokoBotId_key: { sokoBotId, key } },
+        create: {
+          sokoBotId,
+          key,
+          lastAt: at,
+          pendingTurnId: terminal ? null : turnId,
+          lastDeliveryId: published ? delivered.id : undefined,
+          lastDeliveredAt: published ? delivered.updatedAt : undefined,
+          nextCheckAt:
+            terminal && !published
+              ? new Date(at.getTime() + 60_000)
+              : undefined,
+          expiresAt: new Date(at.getTime() + 7 * 24 * HOUR_MS),
+        },
+        update: {
+          lastAt: at,
+          pendingTurnId: terminal ? null : turnId,
+          lastDeliveryId: published ? delivered.id : undefined,
+          lastDeliveredAt: published ? delivered.updatedAt : undefined,
+          nextCheckAt:
+            terminal && !published
+              ? new Date(at.getTime() + 60_000)
+              : undefined,
+        },
+      });
+    }
+  }, "Reminder staging collided with delivery");
 }
 
 export function attentionBlock(items: AttentionItem[]): string[] {
@@ -412,4 +497,65 @@ export async function buildSystemBeatMessage(input: {
   }
   lines.push(...(await followUpsBlock(bot.id, bot.ingestTimezone, now)));
   return { message: lines.join("\n").trim(), nudgeKeys };
+}
+
+/** Called inside the runtime mutation transaction, after owner authority checks. */
+export async function manageSokoBotReminder(
+  tx: Prisma.TransactionClient,
+  input: {
+    sokoBotId: string;
+    key: string;
+    action: "ACKNOWLEDGE" | "SNOOZE" | "CANCEL";
+    revision: number;
+    snoozedUntil?: string;
+  },
+  now = new Date(),
+) {
+  const until = input.snoozedUntil ? new Date(input.snoozedUntil) : null;
+  if (
+    input.action === "SNOOZE" &&
+    (!until ||
+      until <= now ||
+      until.getTime() > now.getTime() + 30 * 24 * HOUR_MS)
+  ) {
+    return {
+      applied: false,
+      reason: "Snooze must end within the next 30 days.",
+    };
+  }
+  const changed = await tx.sokoBotNudge.updateMany({
+    where: {
+      sokoBotId: input.sokoBotId,
+      key: input.key,
+      revision: input.revision,
+      state: { in: ["ACTIVE", "ACKNOWLEDGED", "SNOOZED"] },
+    },
+    data: {
+      state:
+        input.action === "ACKNOWLEDGE"
+          ? "ACKNOWLEDGED"
+          : input.action === "SNOOZE"
+            ? "SNOOZED"
+            : "CANCELLED",
+      acknowledgedAt: input.action === "ACKNOWLEDGE" ? now : undefined,
+      snoozedUntil: input.action === "SNOOZE" ? until : null,
+      nextCheckAt: input.action === "SNOOZE" ? until : null,
+      revision: { increment: 1 },
+    },
+  });
+  const reminder =
+    changed.count === 1
+      ? await tx.sokoBotNudge.findUnique({
+          where: {
+            sokoBotId_key: { sokoBotId: input.sokoBotId, key: input.key },
+          },
+          select: { id: true },
+        })
+      : null;
+  return {
+    id: reminder?.id ?? null,
+    applied: changed.count === 1,
+    key: input.key,
+    revision: input.revision + (changed.count === 1 ? 1 : 0),
+  };
 }

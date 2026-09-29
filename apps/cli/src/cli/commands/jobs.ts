@@ -11,8 +11,8 @@ import {
   applyListFilters,
   type CommandContext,
   type CommandOptions,
-  isJson,
   option,
+  optionBoolean,
   optionString,
   parsePositiveInteger,
   readJsonObject,
@@ -58,9 +58,7 @@ function printJob(
     `status: ${String(value.status || "unknown")}`,
     `agent: ${String(value.agentId || "-")}`,
     value.name ? `name: ${String(value.name)}` : undefined,
-    value.credits != null ? `credits: ${String(value.credits)}` : undefined,
     value.result ? `result: ${String(value.result)}` : undefined,
-    value.output ? `output: ${String(value.output)}` : undefined,
   ];
   if (details.inputRequest) lines.push("input request: pending");
   const events = Array.isArray(details.events) ? details.events : [];
@@ -146,12 +144,12 @@ export async function runJobsCommand({
         return [value.id, value.name, value.status, value.agentId];
       },
     });
-    if (isJson({ json })) writeJson(stdout, { jobs: filtered });
+    if (json) writeJson(stdout, { jobs: filtered });
     else printJobList(stdout, filtered);
     return;
   }
   if (command === "input") {
-    const id = positionalId || optionString(options, "id", "job-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("job id is required for `jobs input`");
     const eventId = optionString(options, "event-id")?.trim();
     if (!eventId) throw new Error("--event-id is required for `jobs input`");
@@ -171,7 +169,7 @@ export async function runJobsCommand({
       { eventId, inputData },
       signal,
     );
-    if (isJson({ json })) {
+    if (json) {
       writeJson(stdout, { jobId: id, eventId, input: response.data });
     } else {
       writeText(stdout, [`Submitted input for job ${id}`, `event: ${eventId}`]);
@@ -179,15 +177,13 @@ export async function runJobsCommand({
     return;
   }
   if (command === "get") {
-    const id = positionalId || optionString(options, "id", "job-id");
+    const id = positionalId || optionString(options, "id");
     if (!id) throw new Error("job id is required for `jobs get`");
     const { job } = await fetchJob(client, id, signal);
-    const details =
-      option(options, "details") === true ||
-      option(options, "details") === "true"
-        ? await collectJobDetails(client, id, signal)
-        : {};
-    if (isJson({ json })) writeJson(stdout, { job, ...details });
+    const details = optionBoolean(options, "details")
+      ? await collectJobDetails(client, id, signal)
+      : {};
+    if (json) writeJson(stdout, { job, ...details });
     else printJob(stdout, job, details);
     return;
   }

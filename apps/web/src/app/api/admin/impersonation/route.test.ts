@@ -18,7 +18,7 @@ vi.mock("@/lib/auth/route-session", () => ({
   readRouteSession: (...args: unknown[]) => readRouteSessionMock(...args),
 }));
 
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
 import { DELETE, POST } from "./route";

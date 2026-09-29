@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
   isTaskEditableStatus,
   type TaskAssigneeKind,
@@ -20,6 +21,7 @@ import {
   LucideSquareMousePointer,
   OctagonMinus,
   Pencil,
+  Repeat,
   RotateCcw,
   SquareArrowRightExit,
   SquareMinus,
@@ -32,7 +34,11 @@ import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
+import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
+import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
+import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import {
   AlertDialog,
@@ -74,10 +80,8 @@ import {
 } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
-import {
-  type TaskMutationErrorKind,
-  taskScheduleSeriesFeedbackKey,
-} from "@/lib/utils/task-schedule-feedback";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
+import type { TaskMutationErrorKind } from "@/lib/utils/task-mutation-error-kinds";
 import { MoveTaskToWorkspaceDialog } from "./move-task-to-workspace-dialog";
 import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import {
@@ -92,6 +96,10 @@ import {
   TaskLinkTaskPickerDialog,
 } from "./task-link-task-picker-dialog";
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
+import {
+  type TaskScheduleBlueprintPrefill,
+  TaskScheduleDialog,
+} from "./task-schedule-dialog";
 import { TaskShareButton } from "./task-share-button";
 import { getWorkspaceMoveTargetCount } from "./workspace-move-targets";
 
@@ -148,8 +156,12 @@ interface TaskDetailActionsProps {
   canCancel?: boolean;
   forceReadOnly?: boolean;
   isTaskOwner?: boolean;
-  isOrgOwnerOrAdmin?: boolean;
-  hasActiveSchedule?: boolean;
+  hasAssignedSeat?: boolean;
+  /**
+   * The Task as a Task Schedule blueprint, for "Repeat". Omitted where the
+   * viewer cannot create a schedule; the Task itself is never changed.
+   */
+  repeatBlueprint?: TaskScheduleBlueprintPrefill;
 }
 
 export function TaskDetailActions({
@@ -174,14 +186,13 @@ export function TaskDetailActions({
   canCancel = false,
   forceReadOnly = false,
   isTaskOwner = false,
-  isOrgOwnerOrAdmin = false,
-  hasActiveSchedule = false,
+  hasAssignedSeat = false,
+  repeatBlueprint,
 }: TaskDetailActionsProps) {
   const tApp = useTranslations("App");
   const tDetailActions = useTranslations("App.Tasks.Detail.actions");
   const tNewTask = useTranslations("App.Tasks.NewTask");
   const tTasks = useTranslations("App.Tasks");
-  const tSeries = useTranslations("App.Tasks.Schedule.series");
   const router = useRouter();
   const { showCalendarClientUpgradeModal } = useGlobalModalsContext();
   const isMobile = useIsMobile();
@@ -218,18 +229,27 @@ export function TaskDetailActions({
   const [pendingRemoveLinkId, setPendingRemoveLinkId] = useState<string | null>(
     null,
   );
+  const [repeatOptions, setRepeatOptions] = useState<{
+    coworkerOptions: CoworkerOption[];
+    projectOptions: ProjectFilterOption[];
+  } | null>(null);
+  const [isRepeatLoading, startRepeatTransition] = useTransition();
+
+  const handleRepeat = () => {
+    startRepeatTransition(async () => {
+      try {
+        setRepeatOptions(await loadTaskScheduleDialogOptions());
+      } catch (error) {
+        console.error("Failed to load Task Schedule options", error);
+        toast.error(tDetailActions("repeatError"));
+      }
+    });
+  };
 
   const canMutateTask = !isReadOnly;
-  // Status, archive, and workspace move belong to the schedule series while one
-  // is live — Core rejects them with `schedule_active`. Editing fields and
-  // managing relations stay available.
-  const canManageLifecycle = !hasActiveSchedule;
-  const availableStatusActions = canManageLifecycle
-    ? getTaskStatusActions(status, labels, {
-        assigneeKind:
-          assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
-      })
-    : [];
+  const availableStatusActions = getTaskStatusActions(status, labels, {
+    assigneeKind: assigneeKind ?? (defaultAssigneeId ? "coworker" : "unset"),
+  });
   const statusActions = canMutateTask
     ? availableStatusActions
     : canCancel
@@ -243,46 +263,45 @@ export function TaskDetailActions({
     forceReadOnly,
     taskStatus: status,
     isTaskOwner,
-    isOrgOwnerOrAdmin,
+    isOrganizationTask: currentOrganizationId != null,
+    hasAssignedSeat,
   });
   const canArchiveTask =
-    canManageLifecycle &&
-    (canArchiveParked ||
-      (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly));
+    canArchiveParked ||
+    (isTaskArchivableStatus(status) && !isReadOnly && !forceReadOnly);
   const isFinalized =
     status === TaskStatus.COMPLETED ||
     status === TaskStatus.FAILED ||
     status === TaskStatus.CANCELED;
   const canManageRelations = canMutateTask && !isFinalized;
+  // Move stays owner-only: a member moving the task would take it away from
+  // its owner.
   const canMove =
     canMutateTask &&
-    canManageLifecycle &&
+    isTaskOwner &&
     !isFinalized &&
     getWorkspaceMoveTargetCount(
       currentOrganizationId,
       organizations,
       hasPersonalWorkspace,
     ) > 0;
-  // Manual parent only — schedule_series is system-managed and not removable.
   const parentLinks = useMemo(
     () => taskLinks.filter((link) => link.relation === TaskLinkRelation.CHILD),
     [taskLinks],
   );
-  // System schedule edges (template→run and run→series) cannot be removed by users.
   const removableTaskLinks = useMemo(
     () =>
       taskLinks.filter(
         (link) =>
           link.peerTask.archivedAt === null &&
-          link.relation !== TaskLinkRelation.CHILD &&
-          link.relation !== TaskLinkRelation.SCHEDULE_SERIES &&
-          link.relation !== TaskLinkRelation.SCHEDULE_RUN,
+          link.relation !== TaskLinkRelation.CHILD,
       ),
     [taskLinks],
   );
   const canRemoveRelated = canManageRelations && removableTaskLinks.length > 0;
   const canRemoveParent = canManageRelations && parentLinks.length > 0;
   const hasOverflowMenuActions =
+    repeatBlueprint !== undefined ||
     statusActions.length > 0 ||
     canEdit ||
     canManageRelations ||
@@ -335,7 +354,7 @@ export function TaskDetailActions({
     submit: tNewTask("createTask"),
     createTask: tNewTask("createTask"),
     scheduleTask: tNewTask("scheduleTask"),
-    openSchedule: tNewTask("openSchedule"),
+    openRunAt: tNewTask("openRunAt"),
     cancel: tNewTask("cancel"),
     ctrl: tNewTask("ctrl"),
     privateLabel: tNewTask("privateLabel"),
@@ -343,17 +362,16 @@ export function TaskDetailActions({
   };
 
   /**
-   * A rejected status write is a state, not a crash: every stable series kind
-   * gets its own localized recovery, and only a stale client gets the reload
-   * modal.
+   * A rejected status write is a state, not a crash: a stale status list gets
+   * the status error, and only a stale client gets the reload modal.
    */
   const reportStatusRejection = (kind: TaskMutationErrorKind) => {
-    const feedbackKey = taskScheduleSeriesFeedbackKey(kind);
-    if (!feedbackKey) {
-      showCalendarClientUpgradeModal();
+    if (kind === CORE_API_ERROR_KINDS.STATUS_NOT_SELECTABLE) {
+      toast.error(tTasks("Errors.updateStatus"));
+      router.refresh();
       return;
     }
-    toast.error(tSeries(feedbackKey));
+    showCalendarClientUpgradeModal();
   };
 
   const handleStatusToggle = (action: TaskStatusAction) => {
@@ -426,6 +444,7 @@ export function TaskDetailActions({
     startArchiveTransition(async () => {
       try {
         await deleteTask({ taskId });
+        markTaskArchived(taskId);
         setIsOpen(false);
         router.push("/tasks");
       } catch (error) {
@@ -579,6 +598,23 @@ export function TaskDetailActions({
               </DropdownMenuItem>
             ) : null}
 
+            {repeatBlueprint ? (
+              <DropdownMenuItem
+                disabled={actionsDisabled || isRepeatLoading}
+                onSelect={handleRepeat}
+              >
+                {isRepeatLoading ? (
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
+                ) : (
+                  <Repeat className="size-4" aria-hidden />
+                )}
+                {tDetailActions("repeat")}
+              </DropdownMenuItem>
+            ) : null}
+
             {statusActions.map((action) => {
               const StatusIcon = action.requiresComment
                 ? RotateCcw
@@ -592,7 +628,10 @@ export function TaskDetailActions({
                   onSelect={() => handleStatusToggle(action)}
                 >
                   {isStatusPending && pendingStatusTarget === action.target ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
                   ) : (
                     <StatusIcon className="size-4" aria-hidden />
                   )}
@@ -601,7 +640,7 @@ export function TaskDetailActions({
               );
             })}
 
-            {(canEdit || statusActions.length > 0) &&
+            {(canEdit || repeatBlueprint || statusActions.length > 0) &&
             (canManageRelations || canMove) ? (
               <DropdownMenuSeparator />
             ) : null}
@@ -773,7 +812,7 @@ export function TaskDetailActions({
                                 {isRemoveRelatedPending &&
                                 pendingRemoveLinkId === link.id ? (
                                   <Loader2
-                                    className="size-4 animate-spin"
+                                    className="size-4 animate-spin motion-reduce:animate-pulse"
                                     aria-hidden
                                   />
                                 ) : (
@@ -790,7 +829,7 @@ export function TaskDetailActions({
                                   />
                                 )}
                                 <span className="truncate">
-                                  {link.peerTask.name}
+                                  {stripInlineMarkdown(link.peerTask.name)}
                                 </span>
                               </DropdownMenuItem>
                             );
@@ -825,7 +864,7 @@ export function TaskDetailActions({
                               {isRemoveRelatedPending &&
                               pendingRemoveLinkId === link.id ? (
                                 <Loader2
-                                  className="size-4 animate-spin"
+                                  className="size-4 animate-spin motion-reduce:animate-pulse"
                                   aria-hidden
                                 />
                               ) : (
@@ -841,7 +880,7 @@ export function TaskDetailActions({
                                 />
                               )}
                               <span className="truncate">
-                                {link.peerTask.name}
+                                {stripInlineMarkdown(link.peerTask.name)}
                               </span>
                             </DropdownMenuItem>
                           );
@@ -856,7 +895,10 @@ export function TaskDetailActions({
                     onSelect={handleRemoveParent}
                   >
                     {isParentRemovalPending ? (
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
                     ) : (
                       <SquareArrowRightExit className="size-4" aria-hidden />
                     )}
@@ -883,6 +925,7 @@ export function TaskDetailActions({
             {canArchiveTask &&
             (statusActions.length > 0 ||
               canEdit ||
+              repeatBlueprint ||
               canManageRelations ||
               canMove) ? (
               <DropdownMenuSeparator />
@@ -959,6 +1002,17 @@ export function TaskDetailActions({
         />
       ) : null}
 
+      {repeatBlueprint && repeatOptions ? (
+        <TaskScheduleDialog
+          initialBlueprint={repeatBlueprint}
+          coworkerOptions={repeatOptions.coworkerOptions}
+          projectOptions={repeatOptions.projectOptions}
+          canCreatePrivate={currentOrganizationId != null}
+          onClose={() => setRepeatOptions(null)}
+          onSaved={(scheduleId) => router.push(taskSchedulePath(scheduleId))}
+        />
+      ) : null}
+
       <TaskLinkTaskPickerDialog
         taskId={taskId}
         open={isTaskPickerOpen}
@@ -1006,24 +1060,28 @@ export function TaskDetailActions({
             }
             onCreateTask={async ({
               description,
+              name,
+              tagSuggestionReceipt,
               assigneeId,
               assigneeSokoBotId,
               assigneeUserId,
               projectId,
               status,
-              schedule,
+              runAt,
               context,
               visibility,
             }) => {
               const result = await createTaskAndLink({
                 taskId,
                 description,
+                name,
+                tagSuggestionReceipt,
                 assigneeId,
                 assigneeSokoBotId,
                 assigneeUserId: assigneeUserId ?? null,
                 projectId,
                 status,
-                schedule,
+                runAt,
                 context,
                 visibility,
                 relation: selectedCreateRelatedOption.relation,

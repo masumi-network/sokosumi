@@ -145,7 +145,7 @@ export default function DataTable<TData extends RowData>({
             <TableCell
               aria-label={`Group header for ${currentKey}`}
               colSpan={colSpan}
-              className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
+              className="text-muted-foreground p-2 text-xs font-medium"
             >
               {renderGroupHeader ? renderGroupHeader(currentKey) : currentKey}
             </TableCell>
@@ -179,7 +179,9 @@ export default function DataTable<TData extends RowData>({
 
   const tableElements = (
     <div className={cn("flex min-w-0 flex-col space-y-4", containerClassName)}>
-      <div className={cn("min-w-0 overflow-x-auto", tableClassName)}>
+      <div
+        className={cn("app-scrollbar min-w-0 overflow-x-auto", tableClassName)}
+      >
         <table
           className="w-full caption-bottom text-sm"
           style={{ minWidth: minTableWidth }}

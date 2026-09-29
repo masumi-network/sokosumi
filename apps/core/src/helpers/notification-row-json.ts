@@ -103,9 +103,9 @@ function alreadySaid(rowId: string, field: NotificationRowJsonField): boolean {
  *
  * The reason is synthesized rather than passed on. A parse error carries the
  * opening characters of what it could not read, and those characters are a
- * message preview, an author's name, a room's name. Core's Sentry runs with
- * `sendDefaultPii`, so what goes to it says why the row would not read and
- * nothing of what was in it.
+ * message preview, an author's name, a room's name. Core's Sentry collects
+ * user identity and not request bodies, so what goes to it says why the row
+ * would not read and nothing of what was in it.
  */
 function reportUnreadableRow(
   reason: string,

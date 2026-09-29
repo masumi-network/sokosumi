@@ -263,6 +263,7 @@ export const sokoBotTurnSchema = z
     pendingDecisions: z.array(sokoBotPendingDecisionSchema).optional(),
     toolCalls: z.array(sokoBotToolCallSchema).optional(),
     /** Present on the detail route: what the model was given this turn. */
+    evaluation: z.record(z.string(), z.unknown()).nullable().optional(),
     contextSummary: sokoBotContextSummarySchema.nullable().optional(),
     /** Detail route only: the exact context packet sent to the runtime. */
     contextPacket: z.unknown().nullable().optional(),
@@ -810,6 +811,11 @@ export const sokoBotGatewayModelListSchema = z
 
 export const adminSokoBotQualitySchema = z
   .object({
+    reliability: z.object({
+      fulfillment: z.record(z.string(), z.number().int().nonnegative()),
+      delivery: z.record(z.string(), z.number().int().nonnegative()),
+      invalidActionClaims: z.number().int().nonnegative(),
+    }),
     overall: z.object({
       turns: z.number().int(),
       judged: z.number().int(),
@@ -1068,6 +1074,8 @@ export const sokoBotDeletionResultSchema = z
       chatMessages: z.number().int().nonnegative(),
       /** Files it uploaded onto Tasks; they outlive the assistant. */
       uploadedTaskFiles: z.number().int().nonnegative(),
+      /** Task Schedules it created; the creator FK restricts a hard delete. */
+      taskSchedules: z.number().int().nonnegative(),
     }),
   })
   .openapi("SokoBotDeletionResult");

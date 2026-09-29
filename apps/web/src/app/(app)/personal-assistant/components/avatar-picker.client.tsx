@@ -120,7 +120,10 @@ export function AvatarPicker({
         >
           <RefreshCw
             aria-hidden
-            className={cn("size-3.5", isPending && "animate-spin")}
+            className={cn(
+              "size-3.5",
+              isPending && "animate-spin motion-reduce:animate-pulse",
+            )}
           />
           {t("showOthers")}
         </Button>

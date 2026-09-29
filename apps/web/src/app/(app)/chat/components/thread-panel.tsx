@@ -19,6 +19,7 @@ import {
 } from "@/app/chat/components/transcript-viewport";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import { isCurrentUserMentionerOfFailedShell } from "@/app/chat/utils/coworker-thought";
+import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ import type {
   ChatRoomUserParticipant,
 } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
-import { MembershipStatusRow } from "./membership-status-row";
+import type { ChatRoomMessageLink } from "@/lib/utils/notification-href";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
 import {
@@ -45,6 +46,7 @@ import {
   type RoomSessionSendRequest,
   type RoomSessionSendResult,
 } from "./room-session-composer";
+import { RoomStatusRow } from "./room-status-row";
 import { ThreadMuteButton } from "./thread-mute-button";
 
 function buildThreadTranscriptRows(
@@ -124,7 +126,9 @@ export function ThreadPanel({
   isSavingEdit = false,
   pendingQuote = null,
   onClearPendingQuote,
-  onRestorePendingQuote,
+  onSetPendingQuote,
+  onResolveMessageLink,
+  requireBody,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -178,7 +182,11 @@ export function ThreadPanel({
   isSavingEdit?: boolean;
   pendingQuote?: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
-  onRestorePendingQuote?: (quote: PendingRoomQuote) => void;
+  onSetPendingQuote?: (quote: PendingRoomQuote) => void;
+  onResolveMessageLink?: (
+    link: ChatRoomMessageLink,
+  ) => Promise<PendingRoomQuote | null>;
+  requireBody?: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
@@ -266,8 +274,8 @@ export function ThreadPanel({
     const isParent = message.id === parentMessage.id;
     return (
       <div className="min-w-0 flow-root">
-        {message.membership != null ? (
-          <MembershipStatusRow message={message} />
+        {isRoomStatusMessage(message) ? (
+          <RoomStatusRow message={message} />
         ) : (
           <ChatMessageRow
             message={message}
@@ -294,7 +302,6 @@ export function ThreadPanel({
               isParent ? undefined : outboundSentTickIds?.has(message.id)
             }
             showThreadButton={false}
-            reserveHoverActionGutter={false}
             isContinuation={
               isParent ? false : isMessageContinuation(previousMessage, message)
             }
@@ -389,7 +396,10 @@ export function ThreadPanel({
             />
             {isLoading ? (
               <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
                 {t("Thread.loading")}
               </div>
             ) : replies.length === 0 ? (
@@ -424,7 +434,9 @@ export function ThreadPanel({
             allowAttachments={allowAttachments}
             pendingQuote={pendingQuote}
             onClearPendingQuote={onClearPendingQuote}
-            onRestorePendingQuote={onRestorePendingQuote}
+            onSetPendingQuote={onSetPendingQuote}
+            onResolveMessageLink={onResolveMessageLink}
+            requireBody={requireBody}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}

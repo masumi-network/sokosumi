@@ -235,7 +235,7 @@ export function CreateDirectDialog() {
         </DialogHeader>
         <div
           data-testid="direct-recipient-composer"
-          className="border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
+          className="app-scrollbar border-input focus-within:border-ring focus-within:ring-ring-halo flex max-h-24 min-h-10 min-w-0 shrink-0 cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-md border px-2.5 py-1.5 focus-within:ring-[3px]"
           onClick={() => searchInputRef.current?.focus()}
         >
           <Search
@@ -268,7 +268,7 @@ export function CreateDirectDialog() {
               </span>
               <button
                 type="button"
-                className="hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
+                className="press hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
@@ -306,12 +306,15 @@ export function CreateDirectDialog() {
           <div
             ref={rosterScrollRef}
             data-testid="direct-roster-scrollport"
-            className="absolute inset-0 overflow-y-auto overscroll-contain"
+            className="app-scrollbar absolute inset-0 overflow-y-auto overscroll-contain"
             aria-busy={!rosterLoaded || undefined}
           >
             {!rosterLoaded ? (
               <div className="text-muted-foreground flex h-full items-center justify-center gap-2 text-sm">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
                 {t("loading")}
               </div>
             ) : rosterError ? (
@@ -362,7 +365,10 @@ export function CreateDirectDialog() {
             onClick={handleCreate}
           >
             {isPending ? (
-              <Loader2 className="size-4 animate-spin" aria-hidden />
+              <Loader2
+                className="size-4 animate-spin motion-reduce:animate-pulse"
+                aria-hidden
+              />
             ) : null}
             {isPending ? t("CreateWizard.creating") : t("Dialog.create")}
           </Button>

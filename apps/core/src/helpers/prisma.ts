@@ -122,6 +122,21 @@ export function isSlugUniqueConstraintError(error: unknown): boolean {
 }
 
 /**
+ * Self-service vendor cap. One non-null createdByUserId per user.
+ */
+export function isCreatedByUserUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "createdByUserId");
+}
+
+/**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on an idempotency ledger's `operationId` (with its workspace).
+ */
+export function isOperationIdUniqueConstraintError(error: unknown): boolean {
+  return isPrismaUniqueViolationOnField(error, "operationId");
+}
+
+/**
  * Returns true if the error is a Prisma unique constraint violation (P2002)
  * on `directKey` (including composite `organizationId` + `directKey`).
  */

@@ -1,5 +1,8 @@
 import { z } from "@hono/zod-openapi";
-import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
+import {
+  resolveBetterAuthPublicBaseUrl,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 import { v4 as uuidv4 } from "uuid";
 
@@ -21,6 +24,16 @@ const baseEnvSchema = z.object({
 
   // Database
   DATABASE_URL: z.url(),
+
+  // Task tags use global Jev routing with enforced retention/no-training options.
+  TASK_TAG_CLASSIFICATION_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
+
+  // Redis / Vercel KV (optional; resumable UI streams, coworker stream locks)
+  REDIS_URL: z.string().optional(),
+  KV_URL: z.string().optional(),
 
   WEB_APP_BASE_URL: z.url().default("http://localhost:3000"),
 
@@ -70,6 +83,15 @@ const baseEnvSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.email().default("noreply@sokosumi.com"),
 
+  /**
+   * Credits under which a wallet is told it is running low (SOK-932).
+   *
+   * The same number web draws its low-credit label at
+   * (`NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD`), so the feed and the sidebar
+   * agree about what low means. Zero switches the notification off.
+   */
+  LOW_CREDITS_THRESHOLD: z.coerce.number().min(0).default(100),
+
   // Sentry
   SENTRY_DSN: z.url().optional(),
   SENTRY_ENVIRONMENT: z
@@ -104,17 +126,65 @@ const baseEnvSchema = z.object({
    * model, so a case for changing it can be made with numbers.
    */
   SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  /** Immutable operator-issued preview partition; never accepted from API input. */
+  SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
   /** Score every completed turn with the judge model. */
   SOKO_BOT_TURN_JUDGE_ENABLED: z
     .enum(["true", "false"])
     .default("true")
     .transform((value) => value === "true"),
-  /** fal.ai key for Soko Bot avatar generation; the pool cannot top up without it. */
+  /**
+   * fal.ai key for Soko Bot avatar generation and the Project image studio.
+   * Neither feature can reach the provider without it; both degrade to a
+   * read-only view rather than failing a page render.
+   */
   FAL_KEY: z.string().min(1).optional(),
+  /**
+   * Shared secret the image-studio agent signs its grants with. The agent runs
+   * outside Core, so a grant is how it names the acting user; Core still
+   * re-checks that user's project access on every call. Without it the agent
+   * cannot reach Core at all, which is the safe default.
+   */
+  IMAGE_STUDIO_AGENT_SECRET: z.string().min(32).optional(),
   PROJECT_MEMORY_MODEL: z
     .string()
     .startsWith("mistral/")
     .default("mistral/mistral-medium-3.5"),
+  /**
+   * **On by default**, by an explicit product decision. It was off, on the
+   * grounds that sending document body text to an external provider should
+   * be a decision someone makes rather than a default. That decision has now
+   * been made, and it shipped together with the spend controls rather than
+   * ahead of them: `PER_WORKSPACE_INPUT_TOKENS_PER_DAY` and
+   * `PER_WORKSPACE_USD_PER_DAY` in `lib/files/jev-scheduler.ts`, enforced in
+   * the same admission transaction as the per-minute ceilings.
+   *
+   * Before those existed, the per-minute workspace ceiling sustained for a
+   * day was 2,160,000,000 input tokens — 436× a heavy day's real use. A
+   * default flipped on without a daily bound is how a surprise invoice
+   * happens.
+   *
+   * Reported usage has **not** been reconciled against the ceilings in
+   * `lib/files/jev-request.ts`; that needs live calls we are not authorized
+   * to make. Until recently it could not have been done at all, because the
+   * ceiling counted only the state and missed the transport envelope — ~686
+   * tokens on a relevance call. That was fixed for search, and then an
+   * independent review found it was still wrong for **labels**, which is
+   * the path this branch rewrote: the envelope charged was a rubric that is
+   * never sent, and a 30-label request was under-counted by ~8,300 tokens.
+   * Both paths now measure what actually goes on the wire.
+   *
+   * The honest cost figure to decide from: a label call at the 30-label
+   * maximum measures ~11,200 tokens against a 12,000 ceiling. A search
+   * relevance call is an order of magnitude smaller.
+   *
+   * Disabled means Files ranks with deterministic filename and full-text
+   * order — the product works, it just does not reorder semantically.
+   */
+  FILES_JEV_ENABLED: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((value) => value === "true"),
 
   // First-party Soko Bot control plane and Eve runtime.
   SOKO_BOT_ENABLED: z
@@ -137,12 +207,32 @@ const baseEnvSchema = z.object({
   /** Composio brokers OAuth for Soko Bot integrations (Gmail, Outlook, …). */
   COMPOSIO_API_KEY: z.string().min(1).optional(),
   COMPOSIO_API_BASE_URL: z.url().optional(),
+  COMPOSIO_X_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_TIKTOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_FACEBOOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_YOUTUBE_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /**
+   * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
+   * the web, a shell and a persistent workspace. `in-process`: inside Core,
+   * Sokosumi tools only (preview evaluation runs always use it).
+   */
   SOKO_BOT_RUNTIME_ADAPTER: z
-    .enum(["in-memory", "in-process"])
-    .default("in-process"),
-  SOKO_BOT_CLASSIFIER_MODE: z
-    .enum(["deterministic", "model"])
-    .default("deterministic"),
+    .enum(["in-memory", "in-process", "sandbox"])
+    .default("sandbox"),
+  /**
+   * Public base URL sandboxes call Core on. Defaults to the deployment's own
+   * URL; set it locally to a tunnel, since a sandbox cannot reach localhost.
+   */
+  SOKO_BOT_RUNTIME_PUBLIC_URL: z.url().optional(),
+  /**
+   * Explicit Vercel credentials for creating sandboxes. On Vercel the
+   * function's OIDC token is used instead; locally all three are needed.
+   */
+  VERCEL_SANDBOX_TOKEN: z.string().min(1).optional(),
+  VERCEL_SANDBOX_TEAM_ID: z.string().min(1).optional(),
+  VERCEL_SANDBOX_PROJECT_ID: z.string().min(1).optional(),
   SOKO_BOT_CREDITS_PER_USD: z.coerce.number().positive().default(100),
   SOKO_BOT_MIN_TURN_CREDITS: z.coerce.number().positive().default(0.1),
   /** Most credits one hire may commit on a turn no owner asked for. */
@@ -193,6 +283,23 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Read-write token for the image studio's **own, private-access** Blob
+   * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
+   *
+   * `BLOB_READ_WRITE_TOKEN` names the shared store that project files,
+   * DESIGN.md, avatars and user uploads write to, and that store is created
+   * with `access: "public"` — every object in it is retrievable by anyone who
+   * has its URL, with no credential. Generated images are project assets and
+   * must not be in it. Vercel fixes public-or-private per *store*, not per
+   * object, so the only way to store them privately is a second store created
+   * with `--access private`, which is what this token addresses.
+   *
+   * Absent, the studio refuses to generate rather than falling back to the
+   * shared public store: see `requireStudioBlobToken` in
+   * `services/image-studio-jobs.service.ts`.
+   */
+  IMAGE_STUDIO_BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
+  /**
    * Ed25519 public key (PEM) used to verify Blob `onUploadCompleted` webhooks
    * for presigned client uploads. Required for task-file auto-registration.
    * @see https://vercel.com/docs/vercel-blob/vercel-signed-urls
@@ -221,6 +328,7 @@ const baseEnvSchema = z.object({
   ABLY_PUBLISH_ONLY_KEY: z.string().min(1),
   /** Subscribe-only key used to mint client TokenRequests (SOK-741). */
   ABLY_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_PUSH_ADMIN_KEY: z.string().min(1).optional(),
 
   // Optional outbound webhooks
   WEBHOOK_USER_CREATED: z.url().optional(),
@@ -246,17 +354,42 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
   );
 }
 
+/**
+ * A deployed environment serving real users, as opposed to a preview.
+ *
+ * Previews are throwaway and are the one deployment where Cloudflare's test
+ * keys are a reasonable choice — they let an agent drive the sign-in form
+ * without answering a human check. Production has no such excuse.
+ *
+ * On Vercel, `NODE_ENV` is "production" for every deployment, previews
+ * included, so it cannot tell the two apart and `VERCEL_ENV` is the only
+ * honest signal. Reading both with `||` made every preview a production one,
+ * which killed the very case the paragraph above describes: a preview holding
+ * the always-passes secret exited at boot, so every route answered
+ * FUNCTION_INVOCATION_FAILED instead of warning.
+ *
+ * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
+ * there is.
+ */
+function isProductionEnvironment(
+  value: z.infer<typeof baseEnvSchema>,
+): boolean {
+  if (value.VERCEL_ENV) {
+    return value.VERCEL_ENV === "production";
+  }
+  return value.NODE_ENV === "production";
+}
+
 const envSchema = baseEnvSchema.superRefine((value, context) => {
   if (!value.SOKO_BOT_ENABLED) return;
-  // The agent runs inside Core, so enabling it needs no runtime deployment,
-  // signing key, or allowlist — only a real adapter in a deployed environment.
+  // A deployed environment needs a runtime that actually runs turns.
   if (!isDeployedEnvironment(value)) return;
-  if (value.SOKO_BOT_RUNTIME_ADAPTER !== "in-process") {
+  if (value.SOKO_BOT_RUNTIME_ADAPTER === "in-memory") {
     context.addIssue({
       code: "custom",
       path: ["SOKO_BOT_RUNTIME_ADAPTER"],
       message:
-        "SOKO_BOT_RUNTIME_ADAPTER must be in-process when Soko Bot is enabled in a deployed environment",
+        "SOKO_BOT_RUNTIME_ADAPTER must be sandbox or in-process when Soko Bot is enabled in a deployed environment",
     });
   }
 });
@@ -343,6 +476,31 @@ export function validateEnv(): EnvConfig {
     console.warn(
       "TURNSTILE_SECRET_KEY is unset in a deployed environment; Turnstile captcha verification is disabled and auth email endpoints are unprotected from spam",
     );
+  }
+
+  // Worse than unset, and quieter about it: siteverify succeeds for ANY token,
+  // forged ones included, so the endpoints look protected while they are not.
+  // Every local checkout now carries this secret, which is exactly how it ends
+  // up pasted into a deployment.
+  //
+  // Production refuses to boot rather than warn. An unset secret is honestly
+  // off and its warning is proportionate; this one serves a captcha that
+  // passes everything, and a warning in a build log is not read by anyone.
+  // Previews keep the warning: a test key is a defensible choice there, since
+  // it lets an agent drive sign-in without answering a human check.
+  if (result.data.TURNSTILE_SECRET_KEY === TURNSTILE_ALWAYS_PASS_SECRET) {
+    if (isProductionEnvironment(result.data)) {
+      console.error(
+        "❌ TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret. In production this accepts every captcha token, including forged ones, while the auth endpoints appear protected. Set a real secret from the Turnstile dashboard.",
+      );
+      process.exit(1);
+    }
+
+    if (isDeployedEnvironment(result.data)) {
+      console.warn(
+        "TURNSTILE_SECRET_KEY is Cloudflare's published always-passes testing secret in a preview environment; captcha verification accepts every token, including forged ones. Intended only for driving sign-in without a human check.",
+      );
+    }
   }
 
   return result.data;

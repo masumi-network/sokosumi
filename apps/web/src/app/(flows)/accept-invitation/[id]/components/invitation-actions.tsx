@@ -8,7 +8,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { useCollectUserName } from "@/components/auth/collect-user-name";
 import { Button } from "@/components/ui/button";
-import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate";
+import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
@@ -176,7 +176,7 @@ export default function InvitationActions({
             disabled={loading || retryOrganizationId !== null}
           >
             {loading && action === "accept" && !retryOrganizationId && (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             )}
             {loading && action === "accept" && !retryOrganizationId
               ? t("joining")
@@ -190,7 +190,7 @@ export default function InvitationActions({
               data-testid="invitation-retry-activation"
             >
               {loading && action === "accept" && (
-                <Loader2 className="size-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
               )}
               {t("activateRetry")}
             </Button>
@@ -203,7 +203,7 @@ export default function InvitationActions({
             disabled={loading}
           >
             {loading && action === "reject" && (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             )}
             {t("decline")}
           </Button>
@@ -217,7 +217,7 @@ export default function InvitationActions({
         <div className="flex justify-between gap-2 sm:gap-4">
           <Button variant="outline" onClick={handleLogout}>
             {loading && action === "logout" && (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             )}
             {t("logout")}
           </Button>

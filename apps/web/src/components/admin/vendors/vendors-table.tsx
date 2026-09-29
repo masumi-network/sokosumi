@@ -4,7 +4,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 
 import { getVendorsTableColumns } from "@/components/admin/vendors/vendors-table-columns";
-import { DataTable } from "@/components/data-table";
+import DataTable from "@/components/data-table/data-table";
 import { Input } from "@/components/ui/input";
 import type { Vendor } from "@/lib/clients/generated/core";
 
@@ -66,7 +66,7 @@ export function VendorsTable({ vendors }: VendorsTableProps) {
               : t("empty")}
         </p>
       ) : (
-        <div className="overflow-x-auto rounded-md border">
+        <div className="app-scrollbar overflow-x-auto rounded-md border">
           <DataTable
             columns={columns}
             data={filtered}

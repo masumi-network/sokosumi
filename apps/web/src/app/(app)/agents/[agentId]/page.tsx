@@ -6,7 +6,7 @@ import { mapCoreAgentReviews } from "@/lib/agents/core-dto-mappers";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import { agentService } from "@/lib/services";
+import { agentService } from "@/lib/services/agent.service";
 import { getAgentRatingStats } from "@/lib/types/core-dto";
 
 export default async function AgentDetailPage({

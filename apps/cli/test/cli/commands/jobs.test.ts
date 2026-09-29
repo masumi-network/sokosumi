@@ -7,8 +7,10 @@ function clientWith(response: unknown): CoreHttpClient {
   return {
     get: async <T>() => response as T,
     post: async <T>() => response as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => response as T,
-    delete: async <T>() => response as T,
   };
 }
 
@@ -38,8 +40,10 @@ test("jobs input submits JSON and emits the submitted input", async () => {
         data: { id: "input-1", inputHash: "hash-1", signature: "signature-1" },
       } as T;
     },
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
 
   await runJobsCommand({
@@ -147,8 +151,10 @@ test("jobs get text surfaces the newest Core event result", async () => {
       return { data } as T;
     },
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
 
   await runJobsCommand({
@@ -173,8 +179,10 @@ test("jobs get --details maps events, files, links, and input request", async ()
       return { data: { id: "job-1", agentId: "agent-1" } } as T;
     },
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runJobsCommand({
@@ -203,8 +211,10 @@ test("jobs get --details still emits the job when a detail fetch fails", async (
       return { data: { id: "job-1" } } as T;
     },
     post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
     patch: async <T>() => ({ data: null }) as T,
-    delete: async <T>() => ({ data: null }) as T,
   };
   const output: string[] = [];
   await runJobsCommand({

@@ -31,7 +31,7 @@ export const APP_MAIN_MOBILE_PT_CLASS =
  * `dvh`, not `svh`: iOS home-screen web apps report `svh` off by the
  * status-bar height, which sized the shell past the screen and let the whole
  * room scroll. `dvh` tracks the real layout viewport there. Guarded by
- * `lib/utils/__tests__/shell-height-class-guards.test.ts`.
+ * `lib/utils/__tests__/src-walk-guards.test.ts`.
  */
 export const APP_SHELL_BELOW_HEADER_HEIGHT_CLASS =
   "h-[calc(100dvh-4rem-env(safe-area-inset-top))]" as const;

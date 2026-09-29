@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 @MainActor
@@ -8,7 +8,7 @@ struct GuestAccessTests {
   private func room(access: Components.Schemas.ChatRoomAccess = .member, discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = .external,
                     kind: Components.Schemas.ChatRoom.KindPayload = .channel) throws -> Components.Schemas.ChatRoom {
     try .init(
-      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, topic: nil,
+      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, isGroupDirect: false, topic: nil,
       discoverability: discoverability, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
       unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: access,
       userMembers: [

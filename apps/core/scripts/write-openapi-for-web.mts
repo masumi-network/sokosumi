@@ -50,7 +50,6 @@ const envDefaults: Record<string, string> = {
     "sk-or-v1-test-0000000000000000000000000000000000000000",
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-  SOKO_BOT_CLASSIFIER_MODE: "deterministic",
 };
 
 for (const [key, value] of Object.entries(envDefaults)) {

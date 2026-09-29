@@ -2,8 +2,7 @@
 
 import { QueryClientProvider } from "@tanstack/react-query";
 
-import { getQueryClient } from "@/queries";
-
+import { getQueryClient } from "@/queries/get-query-client";
 export default function QueryProvider({
   children,
 }: {

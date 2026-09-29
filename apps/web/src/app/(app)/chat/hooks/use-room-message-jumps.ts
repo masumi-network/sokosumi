@@ -25,8 +25,12 @@ import {
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
+/** Bounded so a busy room cannot retry an around-read forever. */
+export const TRANSCRIPT_SNAPSHOT_RETRIES = 5;
+
 interface RoomMessageJumpsParams {
   roomId: string | null;
+  captureSnapshot?: () => () => boolean;
   topLevelRoomMessages: ChatRoomMessage[];
   threadParentMessage: ChatRoomMessage | null;
   isStillSelectedRoom: (roomId: string) => boolean;
@@ -63,6 +67,7 @@ interface RoomMessageJumpsParams {
 
 export function useRoomMessageJumps({
   roomId,
+  captureSnapshot,
   topLevelRoomMessages,
   threadParentMessage,
   isStillSelectedRoom,
@@ -92,19 +97,32 @@ export function useRoomMessageJumps({
     aroundId: string,
     isNewestJump: () => boolean,
   ): Promise<boolean> {
-    const result = await listRoomMessagesAction(roomId, {
-      around: aroundId,
-      limit: ROOM_HISTORY_WINDOW_LIMIT,
-    });
-    if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
-      return false;
+    for (
+      let attempt = 0;
+      attempt < TRANSCRIPT_SNAPSHOT_RETRIES &&
+      isStillSelectedRoom(roomId) &&
+      isNewestJump();
+      attempt++
+    ) {
+      const snapshotCurrent = captureSnapshot?.();
+      const result = await listRoomMessagesAction(roomId, {
+        around: aroundId,
+        limit: ROOM_HISTORY_WINDOW_LIMIT,
+      });
+      if (!isStillSelectedRoom(roomId) || !isNewestJump()) {
+        return false;
+      }
+      if (!result.ok) {
+        toast.error(result.error.message);
+        return false;
+      }
+      // Keep the explicit target when realtime changed the transcript during
+      // this read. Each retry captures a new revision; navigation cancels it.
+      if (snapshotCurrent && !snapshotCurrent()) continue;
+      mergeRoomJumpWindow(result.value);
+      return true;
     }
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return false;
-    }
-    mergeRoomJumpWindow(result.value);
-    return true;
+    return false;
   }
 
   async function handleSearchJump(

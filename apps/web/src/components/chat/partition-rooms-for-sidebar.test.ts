@@ -13,6 +13,8 @@ function makeRoom(
     name: overrides.id,
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: overrides.kind === "channel" ? "public" : null,

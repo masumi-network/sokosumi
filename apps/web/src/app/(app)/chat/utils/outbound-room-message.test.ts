@@ -56,6 +56,7 @@ function serverMessage(
       : null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
   };
 }

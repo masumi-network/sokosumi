@@ -4,7 +4,7 @@ import { sokoBotIngestSyncService } from "@/services/soko-bot-ingest.service";
 
 import { handleSyncRequest } from "../handler.js";
 
-export const SOKO_BOT_INGEST_SYNC_LOCK_KEY = "soko-bot-ingest-sync";
+const SOKO_BOT_INGEST_SYNC_LOCK_KEY = "soko-bot-ingest-sync";
 
 export default function mount(app: Hono) {
   app.get("/soko-bot-ingest", async (c) => {

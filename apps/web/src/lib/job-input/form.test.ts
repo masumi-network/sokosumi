@@ -5,7 +5,7 @@ import {
   defaultValues,
   JobInputsFormSchemaType,
   prepareInputValues,
-} from "@/lib/job-input";
+} from "@/lib/job-input/form";
 
 describe("prepareInputValues", () => {
   it("keeps date and datetime-local strings and removes null/undefined entries", () => {

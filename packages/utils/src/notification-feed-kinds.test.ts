@@ -8,7 +8,9 @@ import {
 import {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
+  MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
 } from "./notification-feed-kinds";
 import {
@@ -24,10 +26,6 @@ describe("isBrowserOnlyNotification", () => {
     expect(BROWSER_ONLY_NOTIFICATION_KINDS).toEqual(["CHAT"]);
   });
 
-  /**
-   * The two stored keys. The counted and group keys are what web renders the
-   * row under; Core never writes them, so a row never carries one.
-   */
   it("lets a mention and a room message into the feed", () => {
     expect(isBrowserOnlyNotification("CHAT", CHAT_MENTION_MESSAGE_KEY)).toBe(
       false,
@@ -37,12 +35,6 @@ describe("isBrowserOnlyNotification", () => {
     ).toBe(false);
   });
 
-  /**
-   * Both of them, the direct one included. A reminder arrives once, a day after
-   * the room went quiet, so a list of them is a list of what is still waiting
-   * rather than a second copy of a conversation. A reminder the reader cannot
-   * find again would be the one notification most worth finding.
-   */
   it("lets both chat reminders into the feed", () => {
     expect(
       isBrowserOnlyNotification("CHAT", CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY),
@@ -72,10 +64,6 @@ describe("isBrowserOnlyNotification", () => {
 });
 
 describe("isNeedsActionNotification", () => {
-  /**
-   * The four requests the Needs you view can hold (SOK-1097). Listed by
-   * value, so a key renamed in Core fails here before it fails on screen.
-   */
   it("names the rows that ask the reader something", () => {
     expect(NEEDS_ACTION_MESSAGE_KEYS).toEqual([
       "Notifications.Task.inputRequired",
@@ -96,5 +84,25 @@ describe("isNeedsActionNotification", () => {
       isNeedsActionNotification("Notifications.Task.approvalRequired"),
     ).toBe(false);
     expect(isNeedsActionNotification(CHAT_MENTION_MESSAGE_KEY)).toBe(false);
+  });
+});
+
+describe("isMentionNotification", () => {
+  it("names the rows where someone named the reader", () => {
+    expect(MENTION_MESSAGE_KEYS).toEqual([
+      "Notifications.Chat.mentioned",
+      "Notifications.Chat.mentionedFollowUp",
+    ]);
+    for (const key of MENTION_MESSAGE_KEYS) {
+      expect(isMentionNotification(key)).toBe(true);
+    }
+  });
+
+  it("keeps direct messages and room messages out", () => {
+    expect(isMentionNotification(CHAT_DIRECT_MESSAGE_MESSAGE_KEY)).toBe(false);
+    expect(
+      isMentionNotification(CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY),
+    ).toBe(false);
+    expect(isMentionNotification(CHAT_ROOM_MESSAGE_MESSAGE_KEY)).toBe(false);
   });
 });

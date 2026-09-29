@@ -14,113 +14,6 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id            String    @id @default(uuid(7))
-  name          String
-  email         String
-  emailVerified Boolean
-  image         String?
-  logo          String?
-  metadata      String?
-  role          String    @default("user")
-  banned        Boolean?  @default(false)
-  banReason     String?
-  banExpires    DateTime?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
-  passkeys      Passkey[]
-
-  userAgentRatings UserAgentRating[]
-  transactions     Transaction[]
-  ownedJobs        Job[]             @relation("JobOwner")
-
-  stripeCustomerId        String?
-  preferredOrganizationId String?
-
-  members                        Member[]
-  invitations                    Invitation[]
-  createdOrganizationInviteLinks OrganizationInviteLink[]
-
-  // OAuth Provider relations
-  oauthClients       OauthClient[]
-  oauthAccessTokens  OauthAccessToken[]
-  oauthRefreshTokens OauthRefreshToken[]
-  oauthConsents      OauthConsent[]
-
-  marketingOptIn Boolean @default(false)
-
-  // terms
-  termsAccepted Boolean @default(false)
-
-  // Notifications
-  notificationsOptIn Boolean @default(true) // Whether the user wants to receive notifications
-  pushOptIn          Boolean @default(false) // Whether the user wants OS banners while Sokosumi is closed
-
-  notificationPreferences NotificationPreference[]
-
-  // Chat display preferences. Not delivery: these change what the reader sees,
-  // never which notifications are created or sent.
-  showRoomUnreadCount Boolean @default(false) // Whether chat sidebar rows show a room's unread message count
-
-  // UTM Attribution
-  utmAttribution UTMAttribution?
-
-  // Vendor membership and coworker assignments
-  vendorMembers       VendorMember[]
-  coworkerAssignments CoworkerAssignment[]
-
-  workspace Workspace?
-
-  ownedTasks              Task[]                   @relation("TaskOwner")
-  createdTasks            Task[]                   @relation("TaskCreatorUser")
-  assignedTasks           Task[]                   @relation("TaskAssigneeUser")
-  taskEvents              TaskEvent[]
-  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByUser")
-  coworkerUsages          CoworkerUsage[]
-  sokoBotUsages           SokoBotUsage[]
-  sokoBotTurns            SokoBotTurn[]
-  sokoBotRequestedTurns   SokoBotTurn[] @relation("SokoBotTurnRequestedBy")
-  sokoBotRequestedAvatars SokoBotAvatar[] @relation("SokoBotAvatarRequestedBy")
-  sokoBotPendingDecisions SokoBotPendingDecision[]
-  sokoBotSchedules        SokoBotSchedule[]
-  sokoBotLegacyMessages   SokoBotLegacyMessage[]
-
-  vendorGrantsResolved  VendorGrant[] @relation("VendorGrantResolvedBy")
-  vendorGrantsRequested VendorGrant[] @relation("VendorGrantRequestedBy")
-
-  coworkerWorkspaceAccessResolved  CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessResolvedBy")
-  coworkerWorkspaceAccessRequested CoworkerWorkspaceAccess[] @relation("CoworkerWorkspaceAccessRequestedBy")
-
-  // Credit Buckets
-  creditBuckets CreditBucket[]
-
-  createdChatRooms                 ChatRoom[]                @relation("ChatRoomCreator")
-  chatRoomMemberships              ChatRoomUserMember[]
-  chatRoomMessages                 ChatRoomMessage[]         @relation("ChatRoomUserSender")
-  chatRoomPinnedMessages           ChatRoomPinnedMessage[]   @relation("ChatRoomPinnedMessagePinnedBy")
-  chatRoomReactions                ChatRoomReaction[]
-  chatRoomReadStates               ChatRoomReadState[]
-  chatRoomThreadReadStates         ChatRoomThreadReadState[]
-  chatRoomUserMentions             ChatRoomUserMention[]
-  chatRoomGuestInvitationsInvited  ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationInviter")
-  chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
-  chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
-  noticeAcknowledgments            NoticeAcknowledgment[]
-
-  // Legacy personal-assistant storage. Retained read-only through rollback window.
-  hermesMessages           HermesMessage[]
-  /// Per-user Soko Bot identity and control-plane state.
-  sokoBots                 SokoBot[]
-  hermesPendingConnections HermesPendingConnection[]
-
-  @@unique([email])
-  @@unique([stripeCustomerId])
-  @@map("user")
-  authoredSokoBotVersions SokoBotAuthoredVersion[] @relation("SokoBotAuthoredVersionAuthor")
-}
-
 model Session {
   id             String   @id @default(uuid(7))
   expiresAt      DateTime
@@ -230,16 +123,17 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members            Member[]
-  invitations        Invitation[]
-  inviteLinks        OrganizationInviteLink[]
-  workspace          Workspace?
-  jobs               Job[]
-  tasks              Task[]
-  transactions       Transaction[]
-  coworkerUsages     CoworkerUsage[]
-  sokoBotUsages      SokoBotUsage[]
-  chatRooms          ChatRoom[]
+  members        Member[]
+  invitations    Invitation[]
+  inviteLinks    OrganizationInviteLink[]
+  workspace      Workspace?
+  jobs           Job[]
+  tasks          Task[]
+  taskSchedules  TaskSchedule[]
+  transactions   Transaction[]
+  coworkerUsages CoworkerUsage[]
+  sokoBotUsages  SokoBotUsage[]
+  chatRooms      ChatRoom[]
 
   stripeCustomerId String?
 
@@ -258,6 +152,8 @@ model Workspace {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  dataTables DataTable[]
+
   calendarRevision Int @default(0)
 
   userId String? @unique
@@ -266,19 +162,33 @@ model Workspace {
   organizationId String?       @unique
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  jobs                    Job[]
-  tasks                   Task[]
-  projects                Project[]
-  scheduleOccurrences     TaskScheduleOccurrence[]
+  jobs                     Job[]
+  tasks                    Task[]
+  socialPosts              SocialPost[]
+  taskSchedules            TaskSchedule[]
+  projects                 Project[]
+  taskScheduleRuns         TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
-  calendarInvalidations   CalendarInvalidationOutbox[]
-  vendorGrants            VendorGrant[]
-  coworkerWorkspaceAccess CoworkerWorkspaceAccess[]
-  sokoBotTurns            SokoBotTurn[]
-  sokoBotPendingDecisions SokoBotPendingDecision[]
-  sokoBotSchedules        SokoBotSchedule[]
+  notifications            Notification[]
+  vendorGrants             VendorGrant[]
+  coworkerWorkspaceAccess  CoworkerWorkspaceAccess[]
+  sokoBotTurns             SokoBotTurn[]
+  sokoBotPendingDecisions  SokoBotPendingDecision[]
+  sokoBotSchedules         SokoBotSchedule[]
 
-  sokoBots                SokoBot[]
+  sokoBots SokoBot[]
+
+  imageSessions ProjectImageSession[]
+  imageJobs     ProjectImageJob[]
+  imageAssets   ProjectImageAsset[]
+
+  fileResources      FileResource[]
+  fileEvidenceScopes FileEvidenceScope[]
+  fileLabels         WorkspaceLabel[]
+  fileLineages       FileLineage[]
+  fileCollections    FileCollection[]
+  fileAdmissions     FileAuthorizationAdmission[]
+  fileResultWindows  FileResultWindow[]
 
   @@map("workspace")
 }
@@ -309,10 +219,22 @@ model Vendor {
   logoLight String?
   logoDark  String?
 
+  /// The developer who self-created this vendor (POST /v1/vendors). Null for
+  /// platform-created vendors. Caps self-service vendors per user.
+  createdByUserId String?
+  createdBy       User?   @relation("VendorCreatedBy", fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  /// Whether this vendor shows in the global grant picker (GET /v1/vendors).
+  /// Platform-created vendors are listed; self-service vendors stay unlisted
+  /// until a platform admin lists them.
+  listed Boolean @default(true)
+
   coworkers     Coworker[]
   vendorGrants  VendorGrant[]
   vendorMembers VendorMember[]
+  memberInvites VendorMemberInvite[]
 
+  @@unique([createdByUserId], map: "vendor_createdByUserId_key")
   @@map("vendor")
 }
 
@@ -334,6 +256,50 @@ model VendorMember {
   @@index([userId])
   @@index([vendorId, role])
   @@map("vendor_member")
+}
+
+enum VendorMemberInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// Pending invitation for a user to join a Vendor as a member. A vendor admin
+/// creates it by email; the row exists whether or not the email maps to a
+/// registered account, so member-add cannot enumerate the user directory. A
+/// VendorMember row is created only when the invitee accepts under their own
+/// auth. One live PENDING invite per (vendorId, email) is enforced by a
+/// partial unique index. Emails are normalized before storage.
+model VendorMemberInvite {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vendorId String @db.Uuid
+  vendor   Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+
+  /// Normalized (trim + lowercase) invitee email. Not necessarily registered.
+  email String
+  role  VendorMemberRole
+
+  status    VendorMemberInviteStatus @default(PENDING)
+  expiresAt DateTime
+
+  invitedById String?
+  invitedBy   User?   @relation("VendorMemberInviteInvitedBy", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  /// Set on accept: the account that accepted (email matched at accept time).
+  acceptedByUserId String?
+  acceptedBy       User?     @relation("VendorMemberInviteAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull)
+  resolvedAt       DateTime?
+
+  @@unique([vendorId, email], map: "vendor_member_invite_vendorId_email_pending_key", where: { status: "PENDING" })
+  @@index([vendorId, status])
+  @@index([email, status])
+  @@index([invitedById, createdAt])
+  @@map("vendor_member_invite")
 }
 
 /// Vendor workspace access grant (personal or organization). One row per (vendorId, workspaceId).
@@ -402,6 +368,9 @@ model CoworkerWorkspaceAccess {
 enum HistoryKind {
   TASK
   JOB
+  /// One generated image version. entityId is the ProjectImageAsset id, so the
+  /// row deep-links straight to the image rather than to its job.
+  IMAGE
 }
 
 model History {
@@ -433,55 +402,10 @@ model History {
 enum NotificationKind {
   JOB
   TASK
+  PROJECT
   BILLING
   SYSTEM
   CHAT
-}
-
-model Notification {
-  id            String           @id @default(uuid(7))
-  userId        String
-  kind          NotificationKind
-  referenceId   String
-  eventId       String
-  messageKey    String
-  messageParams String // JSON
-  metadata      String? // JSON
-  isRead        Boolean          @default(false)
-  readAt        DateTime?
-  createdAt     DateTime         @default(now())
-
-  /// Whether this notification is shown in the app at all: the Notification
-  /// Center for a feed kind, the in-app toast for a browser-only one. Decided
-  /// once, when the notification is created, from the reader's preference
-  /// matrix. A reader who turns a category back on does not get back the
-  /// notifications they silenced while it was off.
-  inApp Boolean @default(true)
-
-  @@unique([userId, kind, referenceId, eventId, messageKey])
-  @@index([userId, createdAt(sort: Desc), id(sort: Desc)])
-  @@index([userId, isRead])
-  @@index([eventId])
-  @@index([kind, eventId])
-  /// Reads every notification of one chat room. Chat is the only kind whose
-  /// rows are looked up by what they point at rather than by who they are
-  /// for: editing or deleting a message has to find the copy of it that its
-  /// notifications carry, across every recipient at once.
-  @@index([kind, referenceId])
-  /// SOK-916: reads every notification that is a day old, whoever it is for.
-  /// It asks by age alone, across users. The expectation is that no index
-  /// leading with `userId` can serve that, that without this the read scans
-  /// the table once an hour, that the window is the selective part a page at a
-  /// time, with read state and message key filtered off the heap, and that
-  /// the `id` the run orders by after `createdAt` is the part this single
-  /// column cannot serve, leaving rows that share one instant to be sorted
-  /// after the scan. Every one of those is how the query is expected to run
-  /// and not how it was seen to run: no `EXPLAIN` was taken and nothing here
-  /// was measured. The same expectation is stated as fact in this index's
-  /// migration, which is left alone because editing an applied migration
-  /// changes its checksum and wedges `migrate deploy`.
-  @@index([createdAt])
-  @@map("notification")
 }
 
 /// One user's choice for one Notification category on one delivery channel.
@@ -517,48 +441,264 @@ model Project {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  name                   String
-  filesToken             String?
-  briefing               String?
-  briefingUrl            String?
-  contextMd              String?
-  contextMdUrl           String?
-  contextMdUpdatedAt     DateTime?
-  contextMdModel         String?
-  contextMdUpdatingSince DateTime?
-  contextMdVersion       Int       @default(0)
-  latestUpdateMd         String?
+  name                    String
+  filesToken              String?
+  briefing                String?
+  briefingUrl             String?
+  contextMd               String?
+  contextMdUrl            String?
+  contextMdUpdatedAt      DateTime?
+  contextMdModel          String?
+  contextMdUpdatingSince  DateTime?
+  contextMdVersion        Int       @default(0)
+  latestUpdateMd          String?
   latestUpdateMdUpdatedAt DateTime?
-  websiteUrl             String?
-  logo                   String?
-  designMdUrl            String?
-  designMdExtractionId   String?
+  websiteUrl              String?
+  logo                    String?
+  designMdUrl             String?
+  designMdExtractionId    String?
 
   projectRevision  Int       @default(0)
   calendarRevision Int       @default(0)
   closingAt        DateTime?
   closedAt         DateTime?
 
-  jobs                  Job[]
-  tasks                 Task[]
-  scheduleOccurrences   TaskScheduleOccurrence[]
-  closeOperation        ProjectCloseOperation?
-  events                ProjectEvent[]
-  calendarInvalidations CalendarInvalidationOutbox[]
+  dataTables       DataTable[]
+  jobs             Job[]
+  tasks            Task[]
+  taskSchedules    TaskSchedule[]
+  taskScheduleRuns TaskScheduleRun[]
+  closeOperation   ProjectCloseOperation?
+  events           ProjectEvent[]
+  stars            ProjectStar[]
+
+  socialConnections       ProjectSocialConnection[]
+  socialPosts             SocialPost[]
+  socialConnectionIntents ProjectSocialConnectionIntent[]
+
+  imageSessions ProjectImageSession[]
+  imageJobs     ProjectImageJob[]
+  imageAssets   ProjectImageAsset[]
+
+  fileLinks FileProjectLink[]
 
   @@index([workspaceId])
   @@map("project")
 }
 
+/// One user's Pin on one project: personal, private, and not shared with the
+/// workspace. The sidebar's Projects flyout renders these before any
+/// recently-visited row. API and database name is star (ADR 0017); product UI
+/// stays Pin. Ascending `starredAt` is the order they render in — unlike a
+/// Pinned room there is no reorder mode, so here it really is the pin time.
+/// Closing a project keeps the row; reads filter closed projects out, so
+/// reopening restores the Pin.
+model ProjectStar {
+  id String @id @default(uuid(7)) @db.Uuid
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  starredAt DateTime @default(now())
+
+  @@unique([userId, projectId])
+  @@index([userId, starredAt])
+  // The unique key leads with userId, so deleting a project would otherwise
+  // scan this table to cascade. Same reason NoticeAcknowledgment indexes its
+  // non-leading FK.
+  @@index([projectId])
+  @@map("project_star")
+}
+
+model ProjectSocialConnection {
+  id                         String    @id @default(uuid(7)) @db.Uuid
+  projectId                  String    @db.Uuid
+  provider                   String
+  externalAccountId          String
+  externalHandle             String?
+  composioConnectedAccountId String
+  status                     String
+  activeExternalAccountKey   String?
+  connectorUserId            String
+  connectedAt                DateTime?
+  disconnectedAt             DateTime?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+
+  project     Project                         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  audits      ProjectSocialConnectionAudit[]
+  intents     ProjectSocialConnectionIntent[]
+  socialPosts SocialPost[]
+
+  @@unique([projectId, activeExternalAccountKey])
+  @@map("project_social_connection")
+}
+
+model ProjectSocialConnectionIntent {
+  /// Composio's connection_id, returned when the OAuth flow begins.
+  connectionId String @id
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  initiatingUserId   String
+  provider           String
+  action             String
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+  authConfigId       String
+  callbackRedeemedAt DateTime?
+  expiresAt          DateTime
+  createdAt          DateTime                 @default(now())
+
+  @@index([expiresAt])
+  @@map("project_social_connection_intent")
+}
+
+model ProjectSocialConnectionAudit {
+  id                        String   @id @default(uuid(7)) @db.Uuid
+  projectSocialConnectionId String   @db.Uuid
+  action                    String
+  actorId                   String
+  externalAccountId         String
+  externalHandle            String?
+  connectedAccountId        String?
+  providerOutcome           String?
+  createdAt                 DateTime @default(now())
+
+  projectSocialConnection ProjectSocialConnection @relation(fields: [projectSocialConnectionId], references: [id], onDelete: Cascade)
+
+  @@index([projectSocialConnectionId, createdAt])
+  @@map("project_social_connection_audit")
+}
+
+enum SocialPostStatus {
+  DRAFT
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  MISSED
+  CANCELED
+}
+
+/// One piece of content a Project intends to publish through exactly one
+/// Project social connection at one planned time. Not a Task.
+model SocialPost {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  socialConnectionId String?                  @db.Uuid
+  socialConnection   ProjectSocialConnection? @relation(fields: [socialConnectionId], references: [id], onDelete: SetNull)
+
+  /// Social provider key, e.g. "x".
+  provider String
+  text     String
+  /// Drive files attached to the post (`SocialPostMediaRef[]`). Provider media ids are never stored.
+  media    Json   @default("[]")
+
+  status      SocialPostStatus @default(DRAFT)
+  scheduledAt DateTime?
+  /// IANA zone the scheduling human used. Display only.
+  timezone    String?
+
+  /// Exactly one creator FK is set (enforced by DB check). Immutable after create.
+  /// Restrict deletes so SET NULL cannot violate the exactly-one creator check.
+  creatorUserId String?
+  creatorUser   User?   @relation("SocialPostCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("SocialPostCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("SocialPostCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  scheduledByUserId     String?
+  scheduledByUser       User?     @relation("SocialPostScheduledByUser", fields: [scheduledByUserId], references: [id], onDelete: SetNull)
+  scheduledByCoworkerId String?
+  scheduledByCoworker   Coworker? @relation("SocialPostScheduledByCoworker", fields: [scheduledByCoworkerId], references: [id], onDelete: Restrict)
+
+  canceledAt          DateTime?
+  publishedAt         DateTime?
+  publishedExternalId String?
+  publishedUrl        String?
+  lastError           String?
+
+  /// Publish attempts made so far (scheduler and publish-now alike).
+  attemptCount   Int       @default(0)
+  /// Earliest time the scheduler may retry after a transient failure.
+  nextAttemptAt  DateTime?
+  /// Set while a worker holds the post in PUBLISHING; every status write is fenced on it.
+  leaseToken     String?
+  leaseExpiresAt DateTime?
+  lastAttemptAt  DateTime?
+
+  /// Optimistic-lock counter bumped on every edit/schedule/cancel.
+  revision Int @default(0)
+
+  attempts SocialPostPublishAttempt[]
+
+  @@index([projectId, status, scheduledAt])
+  @@index([status, scheduledAt])
+  @@index([status, nextAttemptAt])
+  @@index([workspaceId, scheduledAt])
+  @@index([socialConnectionId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([scheduledByUserId])
+  @@index([scheduledByCoworkerId])
+  @@map("social_post")
+}
+
+model SocialPostPublishAttempt {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  socialPostId String     @db.Uuid
+  socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
+
+  attempt     Int
+  /// "scheduler" | "publish_now"
+  trigger     String
+  /// Set for publish_now.
+  actorUserId String?
+  startedAt   DateTime  @default(now())
+  finishedAt  DateTime?
+  /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
+  outcome     String?
+  /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
+  errorKind   String?
+  /// Non-secret summary (status code + short message + external id). Never tokens, links, or keys.
+  providerOutcome String?
+  /// "TWITTER_CREATION_OF_A_POST"
+  toolSlug   String?
+  externalId String?
+
+  @@unique([socialPostId, attempt])
+  @@index([socialPostId, startedAt])
+  @@map("social_post_publish_attempt")
+}
+
+
 model Member {
-  id             String       @id @default(uuid(7))
+  id             String         @id @default(uuid(7))
   userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role           String       @default("member")
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String         @default("member")
   seatAssignedAt DateTime?
-  createdAt      DateTime     @default(now())
+  createdAt      DateTime       @default(now())
+  notifications  Notification[] @relation("NotificationOrganizationMember")
 
   @@unique([userId, organizationId])
   @@index([organizationId, seatAssignedAt])
@@ -887,7 +1027,11 @@ model Agent {
   metadataOverride AgentMetadataOverride?
 
   // Summary
-  summary String?
+  summary           String?
+  /// Set when the summary model judged the description too thin to summarise,
+  /// so the summary sync stops retrying it. Cleared with `summary` when the
+  /// registry metadata changes.
+  summaryDeclinedAt DateTime?
 
   jobCount Int @default(0)
 
@@ -1012,15 +1156,18 @@ model Transaction {
   organizationId String?
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
-  job                      Job?               @relation("TransactionJob")
-  refundedJob              Job?               @relation("RefundedTransactionJob")
-  taskEvents               TaskEvent[]        @relation("TransactionTaskEvent")
-  taskPaymentClaim         TaskPaymentClaim?  @relation("TransactionTaskPaymentClaim")
-  refundedTaskPaymentClaim TaskPaymentClaim?  @relation("RefundedTransactionTaskPaymentClaim")
-  taskX402Payment          TaskX402Payment?   @relation("TransactionTaskX402Payment")
-  refundedTaskX402Payment  TaskX402Payment?   @relation("RefundedTransactionTaskX402Payment")
-  coworkerUsage            CoworkerUsage?     @relation("TransactionCoworkerUsage")
-  sokoBotUsage             SokoBotUsage?      @relation("TransactionSokoBotUsage")
+  job                      Job?              @relation("TransactionJob")
+  refundedJob              Job?              @relation("RefundedTransactionJob")
+  taskEvents               TaskEvent[]       @relation("TransactionTaskEvent")
+  taskPaymentClaim         TaskPaymentClaim? @relation("TransactionTaskPaymentClaim")
+  refundedTaskPaymentClaim TaskPaymentClaim? @relation("RefundedTransactionTaskPaymentClaim")
+  taskX402Payment          TaskX402Payment?  @relation("TransactionTaskX402Payment")
+  refundedTaskX402Payment  TaskX402Payment?  @relation("RefundedTransactionTaskX402Payment")
+  coworkerUsage            CoworkerUsage?    @relation("TransactionCoworkerUsage")
+  sokoBotUsage             SokoBotUsage?     @relation("TransactionSokoBotUsage")
+
+  projectImageJob         ProjectImageJob? @relation("TransactionProjectImageJob")
+  refundedProjectImageJob ProjectImageJob? @relation("RefundedTransactionProjectImageJob")
 
   sourceCreditBucket CreditBucket?       @relation("CreditBucketSource")
   creditConsumptions CreditConsumption[]
@@ -1643,14 +1790,19 @@ model Coworker {
   assignments     CoworkerAssignment[]
   workspaceAccess CoworkerWorkspaceAccess[]
 
-  assignedTasks       Task[]                   @relation("TaskAssignee")
-  createdTasks        Task[]                   @relation("TaskCreatorCoworker")
-  taskEvents          TaskEvent[]
-  uploadedTaskFiles   TaskFile[]               @relation("TaskFileUploadedByCoworker")
-  coworkerUsages      CoworkerUsage[]
-  chatRoomMemberships ChatRoomCoworkerMember[]
-  chatRoomMessages    ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
-  chatRoomMentions    ChatRoomMention[]
+  assignedTasks           Task[]                   @relation("TaskAssignee")
+  createdTasks            Task[]                   @relation("TaskCreatorCoworker")
+  createdSocialPosts      SocialPost[]             @relation("SocialPostCreatorCoworker")
+  assignedTaskSchedules   TaskSchedule[]           @relation("TaskScheduleAssignee")
+  createdTaskSchedules    TaskSchedule[]           @relation("TaskScheduleCreatorCoworker")
+  changedTaskScheduleRuns TaskScheduleRun[]        @relation("TaskScheduleRunActorCoworker")
+  taskEvents              TaskEvent[]
+  uploadedTaskFiles       TaskFile[]               @relation("TaskFileUploadedByCoworker")
+  coworkerUsages          CoworkerUsage[]
+  chatRoomMemberships     ChatRoomCoworkerMember[]
+  chatRoomMessages        ChatRoomMessage[]        @relation("ChatRoomCoworkerSender")
+  chatRoomMentions        ChatRoomMention[]
+  scheduledSocialPosts    SocialPost[]             @relation("SocialPostScheduledByCoworker")
 
   @@index([archivedAt])
   @@index([vendorId])
@@ -1692,13 +1844,27 @@ enum SokoBotTurnSource {
 /// Cooldown per proactive nudge (e.g. "stale:<taskId>") so a bot raises the
 /// same thing at most once a day.
 model SokoBotNudge {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  sokoBotId String   @db.Uuid
-  sokoBot   SokoBot  @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
-  key       String
-  lastAt    DateTime
+  id              String    @id @default(uuid(7)) @db.Uuid
+  sokoBotId       String    @db.Uuid
+  sokoBot         SokoBot   @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  key             String
+  lastAt          DateTime
+  state           String    @default("ACTIVE")
+  nextCheckAt     DateTime?
+  snoozedUntil    DateTime?
+  expiresAt       DateTime?
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
+  revision        Int       @default(1)
+  escalationCount Int       @default(0)
+  lastDeliveryId  String?   @db.Uuid
+  lastDeliveredAt DateTime?
+  pendingTurnId   String?   @db.Uuid
 
   @@unique([sokoBotId, key])
+  @@index([pendingTurnId])
+  @@index([sokoBotId, state, expiresAt])
+  @@index([sokoBotId, state, snoozedUntil])
   @@map("soko_bot_nudge")
 }
 
@@ -1716,6 +1882,7 @@ model SokoBotTaskWatch {
   /// Newest task event the bot has been told about.
   lastSeenEventAt DateTime
   lastSeenStatus  String?
+  lastSeenEventId String?
 
   @@unique([sokoBotId, taskId])
   @@index([taskId])
@@ -1818,6 +1985,9 @@ enum SokoBotToolCallStatus {
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
 model SokoBot {
+  eventInbox SokoBotEventInbox[] @relation("EventInboxBot")
+  designatedEventInbox SokoBotEventInbox[] @relation("EventInboxHandler")
+  taskActionClaims SokoBotTaskActionClaim[]
   id         String    @id @default(uuid(7)) @db.Uuid
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -1829,7 +1999,7 @@ model SokoBot {
   /// as a tombstone to keep that provenance resolvable; everything the bot
   /// owned is erased and the owner is free to create a brand-new bot. A bot
   /// nothing references is deleted outright instead of tombstoned.
-  deletedAt DateTime?
+  deletedAt  DateTime?
 
   /// Owner of this Soko Bot. One row per user and workspace (active or archived).
   userId String
@@ -1842,29 +2012,30 @@ model SokoBot {
   /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
 
-  chatRoomMemberships ChatRoomSokoBotMember[]
-  chatRoomMessages    ChatRoomMessage[]            @relation("ChatRoomSokoBotSender")
-  chatRoomMentions    ChatRoomMention[]
-  apiKeys             CoworkerApiKey[]
-  assignedTasks       Task[]                       @relation("TaskAssigneeSokoBot")
-  labRuns  SokoBotLabRun[]
-  installedSkills SokoBotInstalledSkill[]
-  integrations    SokoBotIntegration[]
-  taskWatches     SokoBotTaskWatch[]
-  nudges          SokoBotNudge[]
+  chatRoomMemberships   ChatRoomSokoBotMember[]
+  chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
+  chatRoomMentions      ChatRoomMention[]
+  apiKeys               CoworkerApiKey[]
+  assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
+  assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
+  labRuns               SokoBotLabRun[]
+  installedSkills       SokoBotInstalledSkill[]
+  integrations          SokoBotIntegration[]
+  taskWatches           SokoBotTaskWatch[]
+  nudges                SokoBotNudge[]
 
   /// Timezone for the morning briefing and "today" in ingest packets.
-  ingestTimezone String    @default("Europe/Berlin")
+  ingestTimezone      String    @default("Europe/Berlin")
   /// Follow every open Task on the workspace board, not only its own. On by
   /// default: an assistant that only watches what it created misses most of
   /// what its owner is actually working on.
-  followWholeBoard Boolean @default(true)
+  followWholeBoard    Boolean   @default(true)
   /// Kill switch for everything the bot starts on its own (rhythms, ingest, nudges).
-  proactivePaused Boolean @default(false)
+  proactivePaused     Boolean   @default(false)
   /// Max self-started turns per local day; beyond it the syncs skip the bot.
-  proactiveDailyLimit Int @default(20)
+  proactiveDailyLimit Int       @default(20)
   /// Last morning briefing sent; one per local day.
-  lastBriefingAt DateTime?
+  lastBriefingAt      DateTime?
 
   /// Picked mascot image (see SokoBotAvatar); null → generative orb.
   avatarImageUrl String?
@@ -1876,7 +2047,7 @@ model SokoBot {
   /// Seed for the assistant's deterministic generative "aurora orb" avatar.
   avatarSeed String?
   /// Agent version id (see @sokosumi/soko-bot versions); null = default.
-  versionId String?
+  versionId  String?
 
   /// Personality spectrums 0–100 (tone / detail / style). Null until set.
   personalityTone   Int?
@@ -1909,22 +2080,23 @@ model SokoBot {
   lastSeenInboxAt       DateTime?
   consecutivePollErrors Int       @default(0)
 
-  createdTasks       Task[]                   @relation("TaskCreatorSokoBot")
-  taskEvents         TaskEvent[]
-  uploadedTaskFiles  TaskFile[]               @relation("TaskFileUploadedBySokoBot")
-  sokoBotUsages      SokoBotUsage[]
-  turns              SokoBotTurn[]
-  memoryRevisions    SokoBotMemoryRevision[]
-  legacyMessages     SokoBotLegacyMessage[]
-  pendingDecisions   SokoBotPendingDecision[]
-  schedules          SokoBotSchedule[]
+  createdTasks         Task[]                   @relation("TaskCreatorSokoBot")
+  createdSocialPosts   SocialPost[]             @relation("SocialPostCreatorSokoBot")
+  createdTaskSchedules TaskSchedule[]           @relation("TaskScheduleCreatorSokoBot")
+  taskEvents           TaskEvent[]
+  uploadedTaskFiles    TaskFile[]               @relation("TaskFileUploadedBySokoBot")
+  sokoBotUsages        SokoBotUsage[]
+  turns                SokoBotTurn[]
+  memoryRevisions      SokoBotMemoryRevision[]
+  legacyMessages       SokoBotLegacyMessage[]
+  pendingDecisions     SokoBotPendingDecision[]
+  schedules            SokoBotSchedule[]
 
+  // One LIVE bot per user and workspace. Partial, because a plain unique would
+  // let a tombstone block its owner from ever creating a new bot.
+  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
   @@index([archivedAt])
   @@index([lastPolledAt])
-  // One LIVE bot per user and workspace. Enforced by the partial unique index
-  // `soko_bot_user_workspace_live_key` (see the migrations): Prisma cannot
-  // express `WHERE "deletedAt" IS NULL`, and a plain unique would let a
-  // tombstone block its owner from ever creating a new bot.
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("soko_bot")
@@ -1945,8 +2117,8 @@ model SokoBotAvatar {
   imageUrl   String
   sourceUrl  String?
 
-  claimedBySokoBotId String?  @unique @db.Uuid
-  claimedBySokoBot   SokoBot? @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
+  claimedBySokoBotId String?   @unique @db.Uuid
+  claimedBySokoBot   SokoBot?  @relation(fields: [claimedBySokoBotId], references: [id], onDelete: SetNull)
   claimedAt          DateTime?
 
   /// The user whose top-up caused this image. Null for rows the pool cron made,
@@ -1988,11 +2160,17 @@ model SokoBotLegacyMessage {
 }
 
 model SokoBotTurn {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  eventInbox SokoBotEventInbox[]
+  taskActionClaims SokoBotTaskActionClaim[]
+  intentId         String?        @db.Uuid
+  intentRevision   Int?
+  intent           SokoBotIntent? @relation("TurnIntent", fields: [intentId], references: [id], onDelete: SetNull)
+  originatedIntent SokoBotIntent? @relation("IntentOrigin")
+  id               String         @id @default(uuid(7)) @db.Uuid
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
 
-  sokoBotId String       @db.Uuid
+  sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   userId String
@@ -2001,23 +2179,23 @@ model SokoBotTurn {
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  source       SokoBotTurnSource
-  status       SokoBotTurnStatus @default(QUEUED)
-  route        SokoBotTurnRoute?
-  clientTurnId String
+  source          SokoBotTurnSource
+  status          SokoBotTurnStatus @default(QUEUED)
+  route           SokoBotTurnRoute?
+  clientTurnId    String
   /// Version the turn ran with; null for turns before versions existed.
-  versionId    String?
+  versionId       String?
   /// Judge model's overall 1–5 score for this turn (see soko-bot-lab-judge.service).
   /// Owner thumbs on a proactive message: 1 useful, -1 not.
   ownerFeedback   Int?
   ownerFeedbackAt DateTime?
-  qualityScore   Int?
-  qualityVerdict Json?
-  qualityModel   String?
-  judgedAt       DateTime?
-  labRun         SokoBotLabRun?
-  userMessage  String
-  finalAnswer  String?
+  qualityScore    Int?
+  qualityVerdict  Json?
+  qualityModel    String?
+  judgedAt        DateTime?
+  labRun          SokoBotLabRun?
+  userMessage     String
+  finalAnswer     String?
 
   classification       Json?
   classifierModel      String?
@@ -2068,10 +2246,15 @@ model SokoBotTurn {
   chainDepth Int @default(0)
 
   /// Chat-room mention that started this turn (null for the assistant page and schedules).
-  chatMentionId         String?          @unique @db.Uuid
-  chatMention           ChatRoomMention? @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
+  chatMentionId         String?                 @unique @db.Uuid
+  chatMention           ChatRoomMention?        @relation(fields: [chatMentionId], references: [id], onDelete: SetNull)
   /// Thought placeholder / reply message in the room for a chat-started turn.
-  chatResponseMessageId String?          @db.Uuid
+  chatResponseMessageId String?                 @db.Uuid
+  destinationAudience   Json?
+  destinationRoomId     String?                 @db.Uuid
+  fulfillmentState      SokoBotFulfillmentState @default(UNKNOWN)
+  responseContract      Json?
+  deliveries            SokoBotDelivery[]
 
   contextSnapshot  SokoBotContextSnapshot?
   events           SokoBotEvent[]
@@ -2090,23 +2273,116 @@ model SokoBotTurn {
   @@map("soko_bot_turn")
 }
 
+enum SokoBotActionDisposition {
+  APPLIED
+  ALREADY_SATISFIED
+  REJECTED
+  UNKNOWN
+}
+
+enum SokoBotActionVerification {
+  LOCAL_TRANSACTION
+  PROVIDER_ACK
+  READ_BACK
+  NONE
+}
+
+enum SokoBotFulfillmentState {
+  UNKNOWN
+  IN_PROGRESS
+  FULFILLED
+  PARTIAL
+  BLOCKED
+  FAILED
+  CANCELLED
+}
+
+enum SokoBotDeliveryStatus {
+  PENDING
+  PERSISTED
+  PUBLISHED
+  SUPPRESSED
+  BLOCKED
+  DEAD_LETTER
+}
+
+model SokoBotDelivery {
+  id                String                @id @default(uuid(7)) @db.Uuid
+  turnId            String                @db.Uuid
+  turn              SokoBotTurn           @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  destinationKind   String                @default("CHAT_ROOM")
+  destinationId     String                @default("NONE")
+  purpose           String                @default("FINAL")
+  roomId            String?               @db.Uuid
+  messageId         String?               @db.Uuid
+  status            SokoBotDeliveryStatus @default(PENDING)
+  reason            String?
+  lastErrorCategory String?
+  attempts          Int                   @default(0)
+  leaseToken        String?
+  leaseUntil        DateTime?
+  nextAttemptAt     DateTime              @default(now())
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  publishedAt       DateTime?
+
+  @@unique([turnId, destinationKind, destinationId, purpose])
+  @@index([status, nextAttemptAt])
+  @@map("soko_bot_delivery")
+}
+
+/// Publication obligations for receipt-backed local tool effects.
+model SokoBotEffectOutbox {
+  id                String                @id @default(uuid(7)) @db.Uuid
+  receiptId         String                @db.Uuid
+  receipt           SokoBotToolCall       @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  purpose           String
+  payload           Json
+  status            SokoBotDeliveryStatus @default(PENDING)
+  attempts          Int                   @default(0)
+  leaseToken        String?
+  leaseUntil        DateTime?
+  nextAttemptAt     DateTime              @default(now())
+  lastErrorCategory String?
+  reason            String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  publishedAt       DateTime?
+
+  @@unique([receiptId, purpose])
+  @@index([status, nextAttemptAt])
+  @@map("soko_bot_effect_outbox")
+}
+
 model SokoBotToolCall {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  taskActionClaims SokoBotTaskActionClaim[]
+  replayedReceiptId String?               @db.Uuid
+  effects           SokoBotEffectOutbox[]
+  id                String                @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
 
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
 
-  toolCallId  String
-  capability  String
-  inputHash   String
+  toolCallId      String
+  capability      String
+  inputHash       String
   /// Redacted, bounded copy of the tool input for the step-detail view.
-  input       Json?
-  status      SokoBotToolCallStatus @default(PENDING)
-  result      Json?
-  errorKind   String?
-  errorDetail String?
+  input           Json?
+  status          SokoBotToolCallStatus     @default(PENDING)
+  result          Json?
+  errorKind       String?
+  errorDetail     String?
+  /// Stable semantic operation, scoped to workspace, intent revision, action and target.
+  operationKey    String?                   @unique
+  actorBotId      String?                   @db.Uuid
+  targetId        String?
+  disposition     SokoBotActionDisposition?
+  effectEventId   String?
+  observedVersion String?
+  committedAt     DateTime?
+  verification    SokoBotActionVerification @default(NONE)
 
   @@unique([turnId, toolCallId])
   @@index([turnId, createdAt])
@@ -2149,7 +2425,6 @@ model SokoBotEvent {
  * built-ins in `packages/soko-bot/src/versions`. Built-ins stay the known-good
  * baseline and keep their lab history comparable; an authored version can be
  * edited, tested in the lab, and promoted to the default for new bots.
- *
  * `slug` shares a namespace with the built-in ids (v1, v2, …) so a bot's
  * `versionId` resolves against either; creation rejects a slug a built-in
  * already uses.
@@ -2160,9 +2435,9 @@ model SokoBotAuthoredVersion {
   updatedAt DateTime @updatedAt
 
   /// Stable id a bot's `versionId` points at, e.g. "v13" or "inbox-tuned".
-  slug    String  @unique
+  slug    String @unique
   name    String
-  summary String  @default("")
+  summary String @default("")
 
   /// AI Gateway model id, e.g. "google/gemini-3.6-flash".
   model           String
@@ -2249,7 +2524,7 @@ model SokoBotMemoryRevision {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
 
-  sokoBotId String       @db.Uuid
+  sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   version  Int
@@ -2286,7 +2561,9 @@ model SokoBotDelegation {
   job   Job?    @relation(fields: [jobId], references: [id], onDelete: SetNull)
 
   /// Entity status the bot last reacted to; the events sync wakes the bot when it drifts.
-  lastSeenStatus String?
+  lastSeenStatus  String?
+  lastSeenEventId String?
+  lastSeenEventAt DateTime?
 
   @@unique([turnId, toolCallId])
   @@index([taskId])
@@ -2294,12 +2571,61 @@ model SokoBotDelegation {
   @@map("soko_bot_delegation")
 }
 
-model SokoBotPendingDecision {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model SokoBotIntent {
+  outcomes           SokoBotIntentOutcome[]
+  id                 String                   @id @default(uuid(7)) @db.Uuid
+  createdAt          DateTime                 @default(now())
+  updatedAt          DateTime                 @updatedAt
+  sokoBotId          String                   @db.Uuid
+  workspaceId        String                   @db.Uuid
+  roomId             String?                  @db.Uuid
+  requesterId        String
+  parentIntentId     String?                  @db.Uuid
+  originatingTurnId  String                   @unique @db.Uuid
+  originatingTurn    SokoBotTurn              @relation("IntentOrigin", fields: [originatingTurnId], references: [id], onDelete: Cascade)
+  turns              SokoBotTurn[]            @relation("TurnIntent")
+  decisions          SokoBotPendingDecision[]
+  desiredOutcome     String
+  targetIds          Json
+  allowedActions     Json
+  acceptanceCriteria Json
+  evidenceIds        Json
+  revision           Int                      @default(1)
+  state              String                   @default("ACTIVE")
+  expiresAt          DateTime
 
-  sokoBotId String       @db.Uuid
+  @@index([sokoBotId, workspaceId, roomId, requesterId, state])
+  @@index([targetIds(ops: JsonbPathOps)], type: Gin)
+  @@map("soko_bot_intent")
+}
+
+model SokoBotIntentOutcome {
+  id               String                  @id @default(uuid(7)) @db.Uuid
+  intentId         String                  @db.Uuid
+  intent           SokoBotIntent           @relation(fields: [intentId], references: [id], onDelete: Cascade)
+  intentRevision   Int
+  evidenceRevision String
+  state            SokoBotFulfillmentState @default(UNKNOWN)
+  criteriaResults  Json
+  evidenceIds      Json
+  remainingSteps   Json
+  blockerKind      String?
+  verifierVersion  String
+  assessedAt       DateTime                @default(now())
+
+  @@unique([intentId, intentRevision, evidenceRevision])
+  @@index([intentId, assessedAt(sort: Desc)])
+  @@map("soko_bot_intent_outcome")
+}
+
+model SokoBotPendingDecision {
+  intentId  String?        @db.Uuid
+  intent    SokoBotIntent? @relation(fields: [intentId], references: [id], onDelete: SetNull)
+  id        String         @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   turnId String      @db.Uuid
@@ -2331,7 +2657,7 @@ model SokoBotSchedule {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  sokoBotId String       @db.Uuid
+  sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
   userId String
@@ -2346,7 +2672,7 @@ model SokoBotSchedule {
   cronExpression      String
   prompt              String
   /// External Hermes schedule id. Cutover imports use it for idempotency.
-  legacyScheduleId    String?    @unique
+  legacyScheduleId    String?   @unique
   /// Built-in rhythm (see @sokosumi/soko-bot proactive); null for owner/bot-made schedules.
   systemKey           String?
   nextRunAt           DateTime
@@ -2442,6 +2768,8 @@ model CoworkerApiKey {
 }
 
 model Task {
+  botActionClaims SokoBotTaskActionClaim[]
+  tableScope TableTaskScope?
   id         String    @id @default(uuid(7))
   createdAt  DateTime  @default(now())
   updatedAt  DateTime  @updatedAt
@@ -2456,6 +2784,18 @@ model Task {
 
   name        String
   description String?
+
+  /// Controlled vocabulary IDs. Manual additions and rejections survive content edits.
+  automaticTags String[] @default([])
+  manualTags String[] @default([])
+  rejectedTags String[] @default([])
+  /// Maintained by task_tag_revision trigger for all writers, including schedules.
+  tagContentRevision Int @default(1)
+  tagClassificationState String @default("unclassified")
+  tagClassificationAttempts Int @default(0)
+  tagClassificationLease String?
+  tagClassificationAvailableAt DateTime @default(now())
+  tagVocabularyVersion Int @default(1)
 
   status TaskStatus @default(DRAFT)
 
@@ -2508,17 +2848,22 @@ model Task {
   linksFrom TaskLink[] @relation("TaskLinkFrom")
   linksTo   TaskLink[] @relation("TaskLinkTo")
 
+  /// Humans added by @ in Task comment activity. Not owner or assignee.
+  participants TaskParticipant[]
+
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  metadata         String?
-  nextRunAt        DateTime?
-  scheduleRevision Int       @default(0)
+  /// The Run whose release created this Task.
+  releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
 
-  scheduleOccurrences        TaskScheduleOccurrence[] @relation("ScheduleOccurrenceSeries")
-  releasedScheduleOccurrence TaskScheduleOccurrence?  @relation("ScheduleOccurrenceReleasedTask")
-  scheduleQuarantine         TaskScheduleQuarantine?
-  scheduleCreateOperation    TaskScheduleCreateOperation?
+  /// Task Schedule whose Run created this Task. Deleting the schedule
+  /// keeps the Task (ADR 0041).
+  scheduleId String?       @db.Uuid
+  schedule   TaskSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  /// The one time this Task is set to start instead of now. Never repeats.
+  runAt DateTime?
 
   @@index([organizationId])
   @@index([workspaceId])
@@ -2529,18 +2874,132 @@ model Task {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@index([projectId])
-  @@index([status, nextRunAt])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
   @@index([creatorSokoBotId])
   @@index([workspaceId, visibility])
+  @@index([scheduleId])
+  @@index([status, runAt])
+  @@index([tagClassificationState, tagClassificationAvailableAt], map: "task_tag_queue_idx")
   @@map("task")
 }
 
-/// Idempotency ledger for atomic v2 scheduled Task creation. A key is scoped to
-/// the active workspace, so retries return the original Task without duplicating
-/// its occurrence ledger rows.
+enum TaskScheduleState {
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+enum TaskScheduleEndsMode {
+  NEVER
+  ON
+  AFTER
+}
+
+/// A repeating rule plus the blueprint of the Task each Run creates
+/// (ADR 0041). Not a Task: it has no Task status, only its own state.
+model TaskSchedule {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// Fixed at create so the schedule's access rules never shift.
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  ownerId String
+  owner   User   @relation("TaskScheduleOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// Exactly one creator FK is set (DB check), as on Task.
+  creatorUserId String?
+  creatorUser   User?   @relation("TaskScheduleCreatorUser", fields: [creatorUserId], references: [id], onDelete: Restrict)
+
+  creatorCoworkerId String?
+  creatorCoworker   Coworker? @relation("TaskScheduleCreatorCoworker", fields: [creatorCoworkerId], references: [id], onDelete: Restrict)
+
+  creatorSokoBotId String?  @db.Uuid
+  creatorSokoBot   SokoBot? @relation("TaskScheduleCreatorSokoBot", fields: [creatorSokoBotId], references: [id], onDelete: Restrict)
+
+  state TaskScheduleState @default(ACTIVE)
+
+  /// Rule. `expr` is a cron expression in `timezone`; `intervalDays` > 1 runs
+  /// every N calendar days from `anchorAt` at the anchor's local time instead.
+  expr              String
+  timezone          String
+  intervalDays      Int?
+  anchorAt          DateTime
+  ruleEffectiveFrom DateTime
+  /// Identity of the current rule. A rule edit starts a new epoch, so its
+  /// Runs never collide with those of the rule it replaced.
+  epochId           String   @db.Uuid
+
+  endsMode       TaskScheduleEndsMode @default(NEVER)
+  endsOn         DateTime?
+  targetRunCount Int?
+  releasedCount  Int                  @default(0)
+  nextRunAt      DateTime?
+
+  /// Optimistic concurrency token for PATCH.
+  revision Int @default(0)
+
+  /// Blueprint of the Task each Run creates.
+  name        String
+  description String?
+  projectId   String?        @db.Uuid
+  project     Project?       @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  visibility  TaskVisibility @default(PUBLIC)
+
+  /// At most one assignee FK is set (DB check), as on Task.
+  assigneeId        String?
+  assignee          Coworker? @relation("TaskScheduleAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  assigneeSokoBotId String?   @db.Uuid
+  assigneeSokoBot   SokoBot?  @relation("TaskScheduleAssigneeSokoBot", fields: [assigneeSokoBotId], references: [id], onDelete: SetNull)
+  assigneeUserId    String?
+  assigneeUser      User?     @relation("TaskScheduleAssigneeUser", fields: [assigneeUserId], references: [id], onDelete: SetNull)
+
+  tasks           Task[]
+  runs            TaskScheduleRun[]
+  createOperation TaskScheduleCreateOperation?
+
+  @@index([state, nextRunAt])
+  @@index([workspaceId, createdAt, id])
+  @@index([projectId])
+  @@index([organizationId])
+  @@index([ownerId])
+  @@index([creatorUserId])
+  @@index([creatorCoworkerId])
+  @@index([creatorSokoBotId])
+  @@index([assigneeId])
+  @@index([assigneeSokoBotId])
+  @@index([assigneeUserId])
+  @@map("task_schedule")
+}
+
+/// A workspace member pulled onto a Task by @ in comment activity.
+/// Distinct from Chat Participant. Unique per Task and user. createdAt is join time.
+model TaskParticipant {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("TaskParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId], map: "task_participant_taskId_userId_key")
+  @@index([userId], map: "task_participant_userId_idx")
+  @@index([taskId, createdAt], map: "task_participant_taskId_createdAt_idx")
+  @@map("task_participant")
+}
+
+/// Idempotency ledger for Task Schedule create. A key is scoped to the active
+/// workspace, so a retried create returns the original schedule instead of
+/// making a second one.
 model TaskScheduleCreateOperation {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -2550,12 +3009,12 @@ model TaskScheduleCreateOperation {
 
   operationId String @db.Uuid
 
-  /// SHA-256 of the creation-affecting request payload. Reusing an operation
-  /// ID for a different Task request is a conflict rather than a replay.
+  /// SHA-256 of the create request. Reusing an operation ID for a different
+  /// request is a conflict rather than a replay.
   requestFingerprint String
 
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  scheduleId String       @unique @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   @@unique([workspaceId, operationId])
   @@index([workspaceId, createdAt])
@@ -2605,103 +3064,64 @@ enum TaskLinkType {
   BLOCKS
   PARENT
   DUPLICATE
-  /// Schedule series edge: fromTask = template, toTask = run (system-created).
-  SCHEDULE
 }
 
 enum CalendarSourceType {
   WORKSPACE
   PROJECT
-  LEGACY_UNKNOWN
 }
 
-enum CalendarSourceAccuracy {
-  EXACT
-  INFERRED
-  UNKNOWN
-}
-
-enum CalendarTimeAccuracy {
-  EXACT
-  APPROXIMATE
-}
-
-enum TaskScheduleOccurrenceState {
+enum TaskScheduleRunState {
   PLANNED
   SKIPPED
   CANCELED
   RELEASED
 }
 
-model TaskScheduleOccurrence {
+/// SQL-only checks (Prisma cannot express them): a released Run has its Task
+/// and only a released one does; at most one actor; a PROJECT source has its
+/// project and no other source does.
+model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  seriesTaskId String
-  seriesTask   Task   @relation("ScheduleOccurrenceSeries", fields: [seriesTaskId], references: [id], onDelete: Cascade)
+  scheduleId String       @db.Uuid
+  schedule   TaskSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
 
   releasedTaskId String? @unique
-  releasedTask   Task?   @relation("ScheduleOccurrenceReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
+  releasedTask   Task?   @relation("TaskScheduleRunReleasedTask", fields: [releasedTaskId], references: [id], onDelete: Cascade)
 
-  /// Normal occurrences require epoch/original/timezone identity. Legacy rows
-  /// are distinguished by legacyLinkId. Raw database checks enforce both
-  /// branches because Prisma cannot express conditional field requirements.
-  epochId              String?   @db.Uuid
-  originalScheduledAt  DateTime?
+  /// A Run is identified by its schedule's rule epoch and its rule time;
+  /// a move changes only the effective time.
+  epochId              String   @db.Uuid
+  originalScheduledAt  DateTime
   effectiveScheduledAt DateTime
-  legacyLinkId         String?   @unique
 
-  /// Distinguishes indexed v1 plans from epoch-backed v2 rows and legacy
-  /// released ledger records. Database checks enforce the valid field branch.
-  scheduleVersion Int @default(2)
+  state TaskScheduleRunState
 
-  state TaskScheduleOccurrenceState
-
-  sourceWorkspaceId String                 @db.Uuid
-  sourceWorkspace   Workspace              @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
+  sourceWorkspaceId String             @db.Uuid
+  sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
   sourceType        CalendarSourceType
-  sourceProjectId   String?                @db.Uuid
-  sourceProject     Project?               @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
-  sourceAccuracy    CalendarSourceAccuracy @default(EXACT)
-  timeAccuracy      CalendarTimeAccuracy   @default(EXACT)
+  sourceProjectId   String?            @db.Uuid
+  sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
-  actorUserId  String?
-  timezone     String?
-  ruleSnapshot Json?
+  /// Who last skipped, moved, or restored this Run: a person or a
+  /// Coworker vendor, at most one of them.
+  actorUserId     String?
+  actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  actorCoworkerId String?
+  actorCoworker   Coworker? @relation("TaskScheduleRunActorCoworker", fields: [actorCoworkerId], references: [id], onDelete: SetNull)
+  timezone        String
 
-  @@unique([seriesTaskId, epochId, originalScheduledAt], map: "task_schedule_occurrence_series_epoch_original_key")
-  @@index([seriesTaskId, effectiveScheduledAt, id], map: "task_schedule_occurrence_series_effective_id_idx")
-  @@index([seriesTaskId, originalScheduledAt, id], map: "task_schedule_occurrence_series_original_id_idx")
-  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_occurrence_workspace_effective_id_idx")
-  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_occurrence_project_effective_id_idx")
+  @@unique([scheduleId, epochId, originalScheduledAt], map: "task_schedule_run_schedule_epoch_original_key")
+  @@index([scheduleId, effectiveScheduledAt, id], map: "task_schedule_run_schedule_effective_id_idx")
+  @@index([sourceWorkspaceId, effectiveScheduledAt, id], map: "task_schedule_run_workspace_effective_id_idx")
+  @@index([sourceProjectId, effectiveScheduledAt, id], map: "task_schedule_run_project_effective_id_idx")
   @@index([state, effectiveScheduledAt, id])
-  @@map("task_schedule_occurrence")
-}
-
-enum TaskScheduleQuarantineReason {
-  INVALID_METADATA
-  INVALID_TIMEZONE
-  INVALID_STATUS
-  NEXT_RUN_MISMATCH
-}
-
-model TaskScheduleQuarantine {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  taskId String @unique
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  reason            TaskScheduleQuarantineReason
-  details           String
-  capturedMetadata  String?
-  capturedNextRunAt DateTime?
-  capturedStatus    TaskStatus
-
-  @@index([createdAt, id])
-  @@map("task_schedule_quarantine")
+  @@index([actorUserId])
+  @@index([actorCoworkerId])
+  @@map("task_schedule_run")
 }
 
 enum ProjectCloseOperationState {
@@ -2720,7 +3140,8 @@ model ProjectCloseOperation {
 
   state       ProjectCloseOperationState @default(CLOSING)
   cutoffAt    DateTime
-  actorUserId String
+  actorUserId String?
+  actorUser   User?                      @relation("ProjectCloseOperationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   reason      String?
 
   seriesCursor   String?
@@ -2734,6 +3155,7 @@ model ProjectCloseOperation {
   events ProjectEvent[]
 
   @@index([state, nextAttemptAt])
+  @@index([actorUserId])
   @@map("project_close_operation")
 }
 
@@ -2746,8 +3168,9 @@ enum ProjectEventKind {
 }
 
 model ProjectEvent {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  createdAt DateTime @default(now())
+  id                    String    @id @default(uuid(7)) @db.Uuid
+  createdAt             DateTime  @default(now())
+  notificationHandledAt DateTime?
 
   projectId String  @db.Uuid
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -2758,11 +3181,13 @@ model ProjectEvent {
   eventKey    String           @unique
   kind        ProjectEventKind
   actorUserId String?
+  actorUser   User?            @relation("ProjectEventActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   reason      String?
   payload     Json?
 
   @@index([projectId, createdAt, id])
   @@index([closeOperationId])
+  @@index([actorUserId])
   @@map("project_event")
 }
 
@@ -2770,10 +3195,8 @@ model CalendarInvalidationOutbox {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
 
-  workspaceId String    @db.Uuid
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  projectId   String?   @db.Uuid
-  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  workspaceId String  @db.Uuid
+  projectId   String? @db.Uuid
 
   dedupeKey        String @unique
   calendarRevision Int
@@ -2861,17 +3284,6 @@ enum TaskPaymentClaimStatus {
   REFUNDED
 }
 
-enum TaskScheduleEventKind {
-  CREATED
-  UPDATED
-  REMOVED
-  SOURCE_CHANGED
-  OCCURRENCE_RESCHEDULED
-  OCCURRENCE_SKIPPED
-  OCCURRENCE_RESTORED
-  RELEASED
-}
-
 /// VERIFIED is terminal for the automated flow (PR1-SPEC §4): the node signs
 /// the X-PAYMENT header locally and Soko cannot observe settlement, so nothing
 /// may auto-progress a VERIFIED record until the phased-settlement reconciler
@@ -2923,10 +3335,6 @@ model TaskEvent {
 
   status TaskStatus?
 
-  scheduleKind        TaskScheduleEventKind?
-  schedulePayload     Json?
-  scheduleOperationId String?                @db.Uuid
-
   comment           String?
   cents             BigInt?
   authenticationUrl String?
@@ -2947,7 +3355,6 @@ model TaskEvent {
   paymentClaim TaskPaymentClaim?
   x402Payment  TaskX402Payment?
 
-  @@unique([taskId, scheduleOperationId], map: "taskEvent_taskId_scheduleOperationId_key", where: { scheduleOperationId: { not: null } })
   @@index([transactionId])
   @@index([sokoBotId])
   @@index([taskId, createdAt])
@@ -3364,6 +3771,9 @@ model ChatRoom {
   slug                   String?
   kind                   String    @default("channel")
   directKey              String?
+  /// Group name of a group Direct (ADR-0040). Null means unnamed; always null
+  /// for channels (CHECK). Separate from `name`, the Direct creation snapshot.
+  groupName              String?
   /// Remote coworker Conversations API id for streaming 1:1 directs (not used for channel mention threads).
   providerConversationId String?
   topic                  String?
@@ -3377,19 +3787,24 @@ model ChatRoom {
   createdByUserId String
   createdByUser   User   @relation("ChatRoomCreator", fields: [createdByUserId], references: [id], onDelete: Restrict)
 
-  userMembers     ChatRoomUserMember[]
-  coworkerMembers ChatRoomCoworkerMember[]
-  sokoBotMembers  ChatRoomSokoBotMember[]
-  messages            ChatRoomMessage[]
+  userMembers      ChatRoomUserMember[]
+  coworkerMembers  ChatRoomCoworkerMember[]
+  sokoBotMembers   ChatRoomSokoBotMember[]
+  messages         ChatRoomMessage[]
   pinnedMessages   ChatRoomPinnedMessage[]
   readStates       ChatRoomReadState[]
   guestInvitations ChatRoomGuestInvitation[]
   guestInviteLinks ChatRoomGuestInviteLink[]
 
-  // Uniqueness for org Channel (organizationId, slug) WHERE kind = 'channel',
-  // org-less matched Channel slug WHERE organizationId IS NULL, org/personal
-  // directKey, and Channel/Direct slug CHECK are enforced in SQL migrations —
-  // Prisma cannot express those partial uniques.
+  // The Channel/Direct slug and directKey CHECKs live in SQL migrations only:
+  // Prisma cannot express CHECK constraints.
+  @@unique([organizationId, slug], map: "chat_room_organizationId_channel_slug_key", where: { kind: "channel", slug: { not: null } })
+  // Postgres UNIQUE treats NULL organizationId as distinct, so org-less
+  // matched Channels need their own slug unique.
+  @@unique([slug], map: "chat_room_org_less_channel_slug_key", where: { kind: "channel", organizationId: null, slug: { not: null } })
+  @@unique([organizationId, directKey], map: "chat_room_organizationId_directKey_key", where: { organizationId: { not: null }, directKey: { not: null } })
+  @@unique([directKey], map: "chat_room_personal_directKey_key", where: { organizationId: null, directKey: { not: null } })
+  @@unique([providerConversationId], map: "chat_room_providerConversationId_key", where: { providerConversationId: { not: null } })
   @@index([organizationId, archivedAt, updatedAt])
   @@index([organizationId, kind, updatedAt])
   @@index([organizationId, kind, discoverability, archivedAt])
@@ -3426,7 +3841,7 @@ model ChatRoomUserMember {
 
 /// Room-scoped email invite for external channel guests. Accept creates
 /// `ChatRoomUserMember` with `access=guest` (no org Member / seat). One
-/// pending invite per room+email is enforced by a partial unique index in SQL.
+/// pending invite per room+email (partial unique).
 model ChatRoomGuestInvitation {
   id     String   @id @default(uuid(7)) @db.Uuid
   roomId String   @db.Uuid
@@ -3448,6 +3863,7 @@ model ChatRoomGuestInvitation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([roomId, email], map: "chat_room_guest_invitation_room_email_pending_uidx", where: { status: "pending" })
   @@index([roomId, status])
   @@index([email, status])
   @@index([inviterId, createdAt])
@@ -3523,12 +3939,12 @@ model ChatRoomMessage {
   parentMessage   ChatRoomMessage?  @relation("ChatRoomThread", fields: [parentMessageId], references: [id], onDelete: Cascade)
   replies         ChatRoomMessage[] @relation("ChatRoomThread")
 
-  senderUserId          String?
-  senderUser            User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
-  senderCoworkerId      String?
-  senderCoworker        Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
-  senderSokoBotId String?  @db.Uuid
-  senderSokoBot   SokoBot? @relation("ChatRoomSokoBotSender", fields: [senderSokoBotId], references: [id], onDelete: SetNull)
+  senderUserId     String?
+  senderUser       User?     @relation("ChatRoomUserSender", fields: [senderUserId], references: [id], onDelete: SetNull)
+  senderCoworkerId String?
+  senderCoworker   Coworker? @relation("ChatRoomCoworkerSender", fields: [senderCoworkerId], references: [id], onDelete: SetNull)
+  senderSokoBotId  String?   @db.Uuid
+  senderSokoBot    SokoBot?  @relation("ChatRoomSokoBotSender", fields: [senderSokoBotId], references: [id], onDelete: SetNull)
 
   content   String
   metadata  Json?
@@ -3629,7 +4045,7 @@ model ChatRoomThreadReadState {
   parentMessageId String          @db.Uuid
   parentMessage   ChatRoomMessage @relation(fields: [parentMessageId], references: [id], onDelete: Cascade)
 
-  lastReadAt DateTime @default(now())
+  lastReadAt DateTime  @default(now())
   /// Null = unmuted. Set to now when the user mutes this thread. A muted
   /// thread stops counting toward room unread and stops writing CHAT
   /// notifications for this user, without changing whether they Participate.
@@ -3864,4 +4280,1254 @@ model SokoBotInstalledSkill {
   @@unique([sokoBotId, name])
   @@index([sokoBotId])
   @@map("soko_bot_installed_skill")
+}
+
+model SokoBotEventInbox {
+  bot SokoBot @relation("EventInboxBot", fields: [botId], references: [id], onDelete: Cascade)
+  turn SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  designatedHandler SokoBot? @relation("EventInboxHandler", fields: [designatedHandlerBotId], references: [id], onDelete: SetNull)
+  id                     String   @id @default(uuid(7)) @db.Uuid
+  createdAt              DateTime @default(now())
+  botId                  String   @db.Uuid
+  eventId                String
+  entityId               String
+  purpose                String
+  turnId                 String   @db.Uuid
+  designatedHandlerBotId String?  @db.Uuid
+
+  @@unique([botId, eventId, purpose])
+  @@index([turnId, entityId])
+  @@map("soko_bot_event_inbox")
+}
+
+model SokoBotTaskActionClaim {
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  handlerBot SokoBot @relation(fields: [handlerBotId], references: [id], onDelete: Cascade)
+  turn SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  receipt SokoBotToolCall? @relation(fields: [receiptId], references: [id], onDelete: NoAction)
+  id                String    @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime  @default(now())
+  taskId            String
+  triggeringEventId String
+  actionKind        String
+  handlerBotId      String    @db.Uuid
+  turnId            String    @db.Uuid
+  receiptId         String?   @db.Uuid
+  fencingToken      Int       @default(1)
+  leaseExpiresAt    DateTime?
+
+  @@unique([taskId, triggeringEventId, actionKind])
+  @@map("soko_bot_task_action_claim")
+}
+
+/// Live structured resource in Files. Values are keyed by immutable column IDs.
+model DataTable {
+  id          String           @id @default(uuid(7)) @db.Uuid
+  workspaceId String           @db.Uuid
+  workspace   Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?          @db.Uuid
+  project     Project?         @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  title       String
+  description String           @default("")
+  createdBy   String
+  version     Int              @default(1)
+  archivedAt  DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  columns     TableColumn[]
+  rows        TableRow[]
+  views       TableView[]
+  changes     TableChange[]
+  operations  TableOperation[]
+  taskScopes  TableTaskScope[]
+
+  @@index([workspaceId, archivedAt, createdAt, id])
+  @@index([projectId])
+  @@map("data_table")
+}
+
+model TableColumn {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  tableId     String    @db.Uuid
+  table       DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name        String
+  description String    @default("")
+  type        String
+  options     Json      @default("[]")
+  position    Int
+  version     Int       @default(1)
+
+  @@index([tableId, position])
+  @@map("table_column")
+}
+
+model TableRow {
+  id      String    @id @default(uuid(7)) @db.Uuid
+  tableId String    @db.Uuid
+  table   DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  values  Json      @default("{}")
+  evidence Json @default("{}")
+  version Int @default(1)
+  archivedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tableId, archivedAt, id])
+  @@map("table_row")
+}
+
+model TableView {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tableId    String    @db.Uuid
+  table      DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  name       String
+  definition Json
+  version    Int       @default(1)
+
+  @@index([tableId])
+  @@map("table_view")
+}
+
+model TableChange {
+  sequence  BigInt    @default(autoincrement())
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tableId   String    @db.Uuid
+  table     DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  batchId   String    @db.Uuid
+  actorId   String
+  actorKind String
+  taskId    String?
+  rowId     String?   @db.Uuid
+  columnId  String?   @db.Uuid
+  before    Json
+  after     Json
+  evidence  Json      @default("[]")
+  createdAt DateTime  @default(now())
+
+  @@index([tableId, createdAt, id])
+  @@index([tableId, sequence])
+  @@index([tableId, batchId])
+  @@index([tableId, rowId, columnId])
+  @@map("table_change")
+}
+
+/// Stores the request and exact result in the same transaction as the write.
+model TableOperation {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @db.Uuid
+  actorId     String
+  key         String
+  requestHash String
+  tableId     String    @db.Uuid
+  table       DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  result      Json
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, actorId, key])
+  @@index([tableId])
+  @@map("table_operation")
+}
+
+/// Explicit human-authorized cell scope for an enrichment task.
+model TableTaskScope {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  tableId   String    @db.Uuid
+  table     DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  taskId    String    @unique
+  task      Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  rowIds    String[]
+  columnIds String[]
+  createdBy String
+  createdAt DateTime  @default(now())
+
+  @@index([tableId])
+  @@map("table_task_scope")
+}
+
+// ---------------------------------------------------------------------------
+// Project image studio (SOK — native image creation tab)
+//
+// Four tables, one invariant each:
+//   session — binds an eve conversation to exactly one project, durably
+//   job     — one paid fal request, with a submission machine that can never
+//             resubmit an ambiguously-sent request
+//   asset   — an immutable version; nothing here is ever updated
+//   review  — approve/reject, in its own row so a new version cannot inherit
+//             a decision (there is no field to copy forward)
+// ---------------------------------------------------------------------------
+
+enum ProjectImageJobKind {
+  /// Text to image. Routes to the base fal endpoint, which takes no reference.
+  GENERATE
+  /// Image to image. Routes to the `/edit` endpoint, which takes `image_urls`.
+  EDIT
+}
+
+enum ProjectImageJobStatus {
+  /// Row exists, nothing has been sent. The only status that may be submitted.
+  PENDING
+  /// A submitter holds the lease and may be mid-flight to fal right now.
+  SUBMITTING
+  /// fal acknowledged with a request id.
+  QUEUED
+  /// fal reports the runner picked it up.
+  RUNNING
+  /// Settled with an asset.
+  SUCCEEDED
+  /// Definitively not enqueued, or the runner reported an error. Safe to retry.
+  FAILED
+  /// Cancellation was requested and fal accepted it.
+  CANCELED
+  /// We do not know whether fal received it. NEVER retried automatically:
+  /// an automatic retry here is a duplicate charge.
+  SUBMISSION_UNCERTAIN
+  /// The project went away before settlement; the image was not stored.
+  ORPHANED
+}
+
+enum ProjectImageReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+/// What is known about a conversation's very first message.
+///
+/// A session row is written *before* that message is delivered, so the row's
+/// existence says nothing about delivery. This says what is known, and it is
+/// the only thing a retry is allowed to act on.
+enum ProjectImageInitialTurn {
+  /// No first message was ever meant for this conversation — it was created
+  /// empty and will be spoken to through the ordinary send route.
+  NONE
+  /// A first message is owed and nothing has been dispatched. Safe to deliver.
+  PENDING
+  /// One attempt holds the right to deliver it but has not tried yet. A later
+  /// attempt for the same intent may take that right over: the first one may
+  /// never have learned it held it, and nothing has run either way.
+  CLAIMED
+  /// A dispatch has been attempted and its outcome is not in yet. This is the
+  /// state no retry may take over, because taking it over is the duplicate.
+  DELIVERING
+  /// The runtime accepted it. Delivering again would be a duplicate turn.
+  DELIVERED
+  /// An attempt may or may not have been accepted. Never redelivered
+  /// automatically: that is the duplicate-turn mistake. The conversation is
+  /// resumable, so the person can see what happened and decide.
+  UNCERTAIN
+}
+
+/// One eve conversation, permanently bound to one project.
+///
+/// eve owns the transcript; this row is what makes the transcript
+/// project-scoped. Resuming a session requires finding it here first, so a
+/// session id alone never grants access to a conversation.
+model ProjectImageSession {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  createdByUserId String
+  createdByUser   User   @relation("ProjectImageSessionCreator", fields: [createdByUserId], references: [id], onDelete: Cascade)
+
+  /// The durable eve session. Unique so one eve session can never be claimed
+  /// by a second project.
+  eveSessionId String @unique
+
+  /// The client's own name for the intent that created this conversation,
+  /// carried through every retry of it. This — not possession of an eve
+  /// session id, and not the existence of this row — is what makes a repeated
+  /// creation land on the same conversation instead of starting a second one.
+  ///
+  /// Null for a caller that names no intent; such a caller gets no dedupe,
+  /// which is the eve contract for a create without an `operationId`.
+  clientIntentId String?
+
+  /// What is known about the first message, and the lease on delivering it.
+  ///
+  /// The owner is a token minted for one attempt. A later attempt can take the
+  /// lease while it is only CLAIMED, and the token is what then fences the
+  /// earlier one out: it cannot announce a dispatch it no longer owns, so two
+  /// attempts at one intent still produce one delivery.
+  initialTurn           ProjectImageInitialTurn @default(NONE)
+  initialTurnLeaseAt    DateTime?
+  initialTurnLeaseOwner String?
+
+  title          String?
+  lastActivityAt DateTime @default(now())
+
+  jobs ProjectImageJob[]
+
+  @@unique([projectId, clientIntentId])
+  @@index([projectId, lastActivityAt])
+  @@index([workspaceId])
+  @@index([createdByUserId])
+  @@map("project_image_session")
+}
+
+/// One paid fal request.
+model ProjectImageJob {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sessionId String?              @db.Uuid
+  session   ProjectImageSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  requestedByUserId String
+  requestedByUser   User   @relation("ProjectImageJobRequester", fields: [requestedByUserId], references: [id], onDelete: Cascade)
+
+  kind     ProjectImageJobKind
+  model    String
+  /// User-visible prompt. Persisted so a version can always explain itself.
+  prompt   String
+  /// Provider input minus the references and the prompt: aspect ratio,
+  /// resolution, output format, seed.
+  settings Json
+
+  /// Assets whose bytes were sent as references. Stored as ids, never as URLs:
+  /// a URL in this column would be a durable public handle on a private asset.
+  referenceAssetIds String[] @db.Uuid
+  /// The version this one refines, when the user started from a selection.
+  parentAssetId     String?  @db.Uuid
+
+  status ProjectImageJobStatus @default(PENDING)
+
+  /// Credits for this image in `Transaction.amount` units (10^10 = 1 credit),
+  /// always positive.
+  ///
+  /// Two meanings, in order. Written at submit it is the **quote**: the price the
+  /// person was shown, kept on the row so the figure taken later is the one they
+  /// agreed to even if the catalog refreshes in between. Rewritten when the image
+  /// is delivered, it is what was **actually taken** — which is the quote, unless
+  /// the balance had fallen by then, in which case it becomes 0 and the image is
+  /// given away. The History trigger reads this column, so it has to be the second
+  /// thing, not the first.
+  ///
+  /// Null for jobs created before the studio charged for generation at all.
+  chargedCents BigInt?
+
+  /// The spend, taken when the image was delivered. One per job, null until then.
+  transactionId String?      @unique
+  transaction   Transaction? @relation("TransactionProjectImageJob", fields: [transactionId], references: [id])
+
+  /// Dead. Never written any more.
+  ///
+  /// The studio briefly reserved credits at submit and refunded a failure; it now
+  /// charges on delivery, so a generation that fails moves no money and there is
+  /// nothing to give back. The column is kept rather than dropped because dropping
+  /// one is destructive and these rows exist on preprod: it stays nullable and
+  /// unused, `history_image_amount()` subtracts NULL and is unaffected, and nothing
+  /// reads the relation.
+  refundTransactionId String?      @unique
+  refundTransaction   Transaction? @relation("RefundedTransactionProjectImageJob", fields: [refundTransactionId], references: [id])
+
+  /// Caller-supplied replay guard. Unique per project, so a retried HTTP
+  /// request returns the same job instead of buying a second image.
+  idempotencyKey String
+
+  /// Non-null once a submitter has claimed the row. Set in the same atomic
+  /// update that moves PENDING -> SUBMITTING, so exactly one caller can ever
+  /// reach fal for this row.
+  submitLeaseAt DateTime?
+
+  /// Held by the one worker currently downloading and storing the image.
+  ///
+  /// Separate from `submitLeaseAt` on purpose. Reusing that field made the two
+  /// leases indistinguishable, and an unrelated failed poll — which owns
+  /// neither — released the settler's lease and let a second worker download
+  /// and store the same image concurrently.
+  settleLeaseAt    DateTime?
+  /// Who holds `settleLeaseAt`. A lease is released only by its owner, so a
+  /// failure elsewhere cannot unlock a settlement that is still running.
+  settleLeaseOwner String?
+  /// How many times the row has been claimed for submission. Once this is
+  /// non-zero the row is never auto-submitted again, whatever its status.
+  submitAttempts   Int       @default(0)
+
+  falRequestId String?
+  /// One sentence a person can read, written by the studio and never by the
+  /// provider. A raw transport string — "Unexpected status code: 422" reached a
+  /// person's screen once — is not a thing anybody can act on, so it goes to the
+  /// server log instead and this column carries the studio's own words.
+  error        String?
+  /// The stable code a client localises, from `IMAGE_JOB_FAILURE_REASONS`.
+  ///
+  /// A string rather than a Prisma enum so a new reason is a deploy and not a
+  /// migration — the same reasoning as `NotificationPreference.category`. Core
+  /// validates it on the way out and maps an unrecognised value to `unknown`, so
+  /// a row written by a newer build can never break an older reader. Null for
+  /// every job that failed before this column existed, and for the one outage
+  /// case whose own wording says it better than a code could.
+  failureReason String?
+
+  /// When somebody asked the provider to stop, and it accepted.
+  ///
+  /// Separate from `status` because fal documents that an accepted
+  /// cancellation may still complete: for a request already running it only
+  /// signals the runner. Writing CANCELED as a terminal status here threw away
+  /// images we had paid for. The job keeps reconciling; this field is what the
+  /// UI reads to say "cancellation requested".
+  cancelRequestedAt DateTime?
+
+  submittedAt            DateTime?
+  settledAt              DateTime?
+  /// Last time a reconcile actually reached the provider.
+  polledAt               DateTime?
+  /// Consecutive reconcile attempts that could not reach the provider at all.
+  ///
+  /// A transport failure says nothing about the job, so it must not settle it.
+  pollFailures           Int       @default(0)
+  /// When each dependency's current outage began, one column per dependency;
+  /// each is cleared by a read that gets through to *that* dependency.
+  ///
+  /// The outage is what the grace period bounds, not the age of the request.
+  /// Measuring from `submittedAt` meant a job queued for hours was written off
+  /// by its first failed read.
+  ///
+  /// Tracked separately because these fail independently. A single shared
+  /// timestamp meant a healthy queue-status read reset a continuing result or
+  /// authorization outage — so a job could be reconciled forever without its
+  /// real failure ever reaching the grace period — and a newly failing
+  /// dependency inherited the previous one's start time, reporting a first
+  /// failed provider read as a seven-hour provider outage.
+  statusUnreachableSince DateTime?
+  resultUnreachableSince DateTime?
+  authUnreachableSince   DateTime?
+  /// Which dependency the current `error` describes. Display only.
+  unreachableSource      String?
+  /// Why the last reconcile could not reach the provider. Display only.
+  lastPollError          String?
+
+  asset ProjectImageAsset?
+
+  @@unique([projectId, idempotencyKey])
+  @@unique([falRequestId])
+  @@index([projectId, createdAt])
+  @@index([status, updatedAt])
+  @@index([workspaceId])
+  @@index([sessionId])
+  @@index([requestedByUserId])
+  @@index([parentAssetId])
+  @@map("project_image_job")
+}
+
+/// An immutable version. Rows are inserted and read; never updated.
+model ProjectImageAsset {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// One asset per job. This is what makes settlement idempotent when a
+  /// webhook and a poll race each other.
+  jobId String          @unique @db.Uuid
+  job   ProjectImageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  /// Origin of the whole family, so one indexed read returns a lineage.
+  rootId   String              @db.Uuid
+  /// The version this one was refined from.
+  parentId String?             @db.Uuid
+  parent   ProjectImageAsset?  @relation("ProjectImageAssetLineage", fields: [parentId], references: [id], onDelete: SetNull)
+  children ProjectImageAsset[] @relation("ProjectImageAssetLineage")
+
+  /// Position within the family, starting at 1. Unique per family so two
+  /// concurrent settlements cannot both take the same number.
+  version Int
+
+  model    String
+  prompt   String
+  settings Json
+
+  /// Private blob pathname. Not a URL: the bytes are only reachable through
+  /// the authorized streaming route, which re-checks access per request.
+  blobPathname String
+  contentType  String
+  width        Int
+  height       Int
+  bytes        Int
+  /// sha256 of the stored bytes.
+  checksum     String
+
+  review ProjectImageReview?
+
+  @@unique([rootId, version])
+  @@index([projectId, createdAt])
+  @@index([workspaceId])
+  @@index([parentId])
+  @@map("project_image_asset")
+}
+
+/// A human decision about one immutable version.
+model ProjectImageReview {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assetId String            @unique @db.Uuid
+  asset   ProjectImageAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  decision ProjectImageReviewDecision
+  feedback String?
+
+  decidedByUserId String
+  decidedByUser   User   @relation("ProjectImageReviewDecider", fields: [decidedByUserId], references: [id], onDelete: Cascade)
+
+  decidedAt DateTime @default(now())
+
+  @@index([decidedByUserId])
+  @@map("project_image_review")
+}
+
+// One immutable partition per preview database; no reset/renewal API.
+model SokoBotEvaluationAllowance {
+  id          String  @id
+  bindingHash String
+  calls       Json    @default("[]")
+  frozen      Boolean @default(false)
+}
+
+// ---------------------------------------------------------------------------
+// Intelligent Files — canonical resource catalog
+//
+// The catalog is a derived view over canonical sources (Drive blobs, task
+// outputs, project documents, native tables, studio assets). The source stays
+// authoritative: nothing here grants access, and every read re-checks the
+// source. See docs/intelligent-files/implementation-plan.md.
+//
+// ## Removing this again
+//
+// Written here rather than in the migration SQL because an applied migration
+// must not be edited — Prisma checksums the file, and changing it makes
+// `migrate status` report drift on every database that already ran it. This
+// block is the place a person deleting these models is already looking.
+//
+// The catalog is derived and holds no source of truth. Every row can be
+// rebuilt by re-indexing from the canonical sources, so dropping it loses
+// derived state (extracted chunks, labels, job history, spend records) and no
+// user data. No pre-existing table is altered by any of the eight Files
+// migrations: every column they add belongs to a table they created in the
+// same series, and the only references outward are foreign keys into
+// `workspace` and `project`. So the removal is a drop, not a down-migration.
+//
+// In one transaction, against the target database:
+//
+//   DROP TABLE IF EXISTS
+//     "file_index_artifact", "file_index_job", "file_field_override",
+//     "file_project_link", "file_label", "file_collection", "file_chunk",
+//     "file_version", "file_resource", "file_lineage", "workspace_label",
+//     "file_evidence_scope", "file_result_window",
+//     "file_authorization_admission" CASCADE;
+//
+//   DROP TYPE IF EXISTS
+//     "FileIndexArtifactState", "FileIndexJobState", "FileIndexJobPipeline",
+//     "FileFieldOverrideDecision", "FileMetadataState",
+//     "FileMetadataProvenance", "FileLabelKind", "FileExtractionState",
+//     "FileResourceLifecycle", "FileSourceScope", "FileSourceKind",
+//     "FileResultWindowKind";
+//
+//   DELETE FROM "_prisma_migrations" WHERE "migration_name" LIKE '20260928091%';
+//
+// The prefix is deliberate and it is narrow. These folders were restamped to
+// `20260928091001`..`20260928091008` when main landed migrations stamped
+// above the branch's originals, and the pattern moved with them. It read
+// `'202609271800%'`, which after the restamp matches none of these eight and
+// does match main's `20260927180000_image_studio_credits` — so the old line
+// would have deleted somebody else's row and left every one of ours behind.
+// `'20260928091%'` matches these eight and stops short of main's
+// `20260928090000`..`20260928090003`.
+//
+// Leave the `pg_trgm` extension in place. `20260928091001_file_catalog`
+// creates it with IF NOT EXISTS and other work may since have come to depend
+// on it; dropping it is the one step here that can break something outside
+// Files.
+//
+// Checked, not asserted: run against a database carrying the full migration
+// history, the block above drops 14 tables and 12 types, deletes exactly the
+// Files `_prisma_migrations` rows, and leaves the other 144 tables and the
+// `pg_trgm` extension in place.
+//
+// That check was run when this series was six migrations. It is eight now;
+// the table and type counts are unchanged because both later migrations add
+// a column to a table this series already created and create no table and no
+// type — `grep -c "CREATE TABLE\|CREATE TYPE"` returns 0 for each. The row
+// count the DELETE removes is therefore eight rather than six.
+//
+// Uploaded blobs are not touched by any of this. They live in object storage
+// under their own lifecycle, and rows here only point at them.
+// ---------------------------------------------------------------------------
+
+enum FileSourceKind {
+  DRIVE_UPLOAD
+  TASK_OUTPUT
+  PROJECT_DOCUMENT
+  NATIVE_TABLE
+  STUDIO_ASSET
+}
+
+/// Which store a drive-backed resource lives in. Mirrors the `me` / `org`
+/// scope the Drive routes already use, so a resource maps back to one store.
+enum FileSourceScope {
+  USER
+  ORGANIZATION
+}
+
+enum FileResourceLifecycle {
+  PENDING
+  ACTIVE
+  TOMBSTONED
+}
+
+enum FileExtractionState {
+  PENDING
+  RUNNING
+  INDEXED
+  /// Some text was extracted; coverage says how much. Never reported as full.
+  PARTIAL
+  UNSUPPORTED
+  ENCRYPTED
+  QUARANTINED
+  FAILED
+}
+
+enum FileLabelKind {
+  TAG
+  CATEGORY
+}
+
+/// Where a label, category or project link came from. A model may only ever
+/// propose; a person confirms.
+enum FileMetadataProvenance {
+  MANUAL
+  MODEL
+  RULE
+}
+
+enum FileMetadataState {
+  SUGGESTED
+  CONFIRMED
+  /// Dismissed by a person. Retry and reindex cannot resurrect it.
+  REJECTED
+}
+
+/// A durable decision that survives re-extraction and model changes.
+enum FileFieldOverrideDecision {
+  /// This field is set by hand; suggestions may not overwrite it.
+  PIN
+  /// This label was removed by hand; it may not be re-suggested.
+  REJECT
+  /// Explicitly re-open a pinned field to suggestions.
+  ALLOW
+}
+
+enum FileIndexJobPipeline {
+  EXTRACT
+  SUGGEST
+}
+
+enum FileIndexJobState {
+  QUEUED
+  LEASED
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+enum FileIndexArtifactState {
+  ACTIVE
+  ABANDONED
+  PURGED
+}
+
+/// An authorization predicate, not a user list. A derived field inherits the
+/// intersection of the scopes of everything that contributed to it.
+model FileEvidenceScope {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Canonical source policy reference, e.g. the task id whose visibility
+  /// governs this evidence. Native id, not a catalog id.
+  sourceId    String
+
+  /// Which actor kinds the canonical gate admits at all, e.g.
+  /// ["interactive"] for studio assets. Empty means nobody.
+  actorKinds String[]
+
+  /// Bumped by the canonical mutation that changes who may read this evidence.
+  /// A change invalidates derived metadata and ranked sessions in this scope.
+  scopeVersion Int @default(1)
+
+  /// Where the adoption of pre-existing Drive objects got to.
+  ///
+  /// Backfill used to run only when a store had *zero* catalog rows and read
+  /// one 200-object page, so a larger store permanently exposed its first 200
+  /// files and a store with any new upload was never backfilled at all. The
+  /// cursor lets it resume across visits; `backfilledAt` is set once the
+  /// listing reports no more pages.
+  backfillCursor String?
+  backfilledAt   DateTime?
+
+  chunks    FileChunk[]
+  labels    FileLabel[]
+  links     FileProjectLink[]
+  overrides FileFieldOverride[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_evidence_scope_source_key")
+  @@index([workspaceId, scopeVersion])
+  @@map("file_evidence_scope")
+}
+
+/// One durable identity for one document, whatever its source.
+model FileResource {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Native source id: a blob pathname for uploads, a task id for outputs.
+  /// Source ids stay native so the canonical owner keeps its own naming.
+  sourceId    String
+
+  /// Who owns the canonical source, for the personal-drive owner gate.
+  ownerUserId         String?
+  ownerOrganizationId String?
+
+  /// Provenance links. Read-only in the UI: an inherited source project is not
+  /// the same thing as a confirmed project association.
+  sourceTaskId    String?
+  sourceProjectId String? @db.Uuid
+
+  displayName String
+  /// NFC, case-folded, trimmed. Exact matches on this beat every model score.
+  ///
+  /// SQL-only: the migration also creates
+  /// `file_resource_normalized_name_prefix_idx`, a btree on
+  /// `(workspaceId, normalizedName text_pattern_ops)` for prefix matching.
+  /// Prisma does not read a btree opclass back, so declaring it here makes
+  /// every later diff want to recreate it.
+  normalizedName String
+
+  mimeType String?
+  sizeBytes Int?
+
+  /// For a `NATIVE_TABLE` resource: the `TableChange.sequence` this index
+  /// was built from. A table is stale when `MAX(sequence)` for it exceeds
+  /// this. Null for every other source kind, and for a table never indexed.
+  ///
+  /// The sequence is a global autoincrement, so per table it is monotonic
+  /// but not contiguous — gaps are other tables' changes, never lost ones.
+  sourceSequence BigInt?
+
+  /// Bumped when the bytes change.
+  contentRevision Int @default(1)
+  /// Bumped by a metadata edit that does not change audience.
+  metadataRevision Int @default(1)
+  /// Bumped only when the canonical gate changes. Rejects ranked sessions.
+  aclRevision Int @default(1)
+
+  lifecycle   FileResourceLifecycle @default(PENDING)
+  tombstonedAt DateTime?
+
+  lineageId String?      @db.Uuid
+  lineage   FileLineage? @relation(fields: [lineageId], references: [id], onDelete: SetNull)
+
+  versions  FileVersion[]
+  labels    FileLabel[]
+  links     FileProjectLink[]
+  overrides FileFieldOverride[]
+  jobs      FileIndexJob[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, sourceId], map: "file_resource_source_key")
+  @@index([workspaceId, lifecycle, updatedAt])
+  @@index([workspaceId, normalizedName])
+  @@index([normalizedName(ops: raw("gin_trgm_ops"))], type: Gin, map: "file_resource_normalized_name_trgm_idx")
+  @@index([lineageId])
+  @@index([sourceTaskId])
+  @@index([sourceProjectId])
+  @@map("file_resource")
+}
+
+/// Immutable bytes for one revision of a resource.
+model FileVersion {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  revision Int
+
+  /// Immutable object identity. Never a public URL, and never handed to a
+  /// reader: content is served through the authorized proxy.
+  objectKey String
+  etag      String?
+  /// Not populated by anything yet. Do not read it as a content
+  /// identity: derive one from `contentRevision` instead.
+  checksum  String?
+  sizeBytes Int?
+  mimeType  String?
+
+  extractionState FileExtractionState @default(PENDING)
+  /// 0..1 — how much of the document the extractor actually read. Partial
+  /// coverage is shown as partial, never as full-text coverage.
+  extractionCoverage Float?
+  extractionReason   String?
+  extractorVersion   String?
+
+  /// Bumped when extracted text changes, independently of the bytes.
+  textRevision Int @default(0)
+  /// The index generation these chunks belong to. A rollback swaps this
+  /// atomically and fences the old workers.
+  indexGeneration Int @default(1)
+
+  chunks FileChunk[]
+
+  @@unique([resourceId, revision], map: "file_version_revision_key")
+  @@index([resourceId, createdAt])
+  @@index([extractionState])
+  @@map("file_version")
+}
+
+/// One indexed passage. A chunk never mixes audiences: if two inputs have
+/// different evidence scopes they are two chunks.
+///
+/// SQL-only: a generated `search_vector tsvector` column plus its GIN index
+/// live in the migration. Prisma cannot express a generated column, so the
+/// migration owns them and this comment is the pointer.
+model FileChunk {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  versionId String      @db.Uuid
+  version   FileVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  /// Stable within a version, so an anchor keeps resolving across retries.
+  chunkId String
+  ordinal Int
+
+  /// Where this passage sits in the document, e.g. {"page":3} or {"row":42}.
+  anchor Json?
+
+  text String
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+  scopeVersion    Int
+
+  /// sha256 of the normalized input this chunk was produced from. Keys the
+  /// pair-score cache so a changed input cannot reuse an old score.
+  inputDigest String
+
+  /// `tsvector` has no Prisma type. The indexer fills it with
+  /// `to_tsvector('simple', text)` in the same statement that writes the
+  /// chunk, and only `file-index.service.ts` touches it.
+  searchVector Unsupported("tsvector")? @map("search_vector")
+
+  @@unique([versionId, chunkId], map: "file_chunk_version_key")
+  @@index([versionId, ordinal])
+  @@index([evidenceScopeId])
+  @@index([searchVector], type: Gin, map: "file_chunk_search_vector_idx")
+  @@map("file_chunk")
+}
+
+/// Workspace-scoped vocabulary. Shared vocabulary is not shared assignment.
+model WorkspaceLabel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  kind FileLabelKind
+
+  displayName String
+  /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.
+  normalizedName String
+  /// A category needs a description so suggestions have a stable rubric.
+  description String?
+
+  /// Retired names that still redirect after a merge.
+  aliases String[]
+  /// The label this one was merged into, so old assignments still resolve.
+  mergedIntoId String?         @db.Uuid
+  mergedInto   WorkspaceLabel? @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedFrom   WorkspaceLabel[] @relation("WorkspaceLabelMerge")
+
+  /// Archived labels keep historical assignments readable but take no new ones.
+  archivedAt DateTime?
+
+  /// Bumped by any vocabulary change. Invalidates stale suggestions.
+  vocabularyVersion Int @default(1)
+
+  createdByUserId String?
+
+  labels    FileLabel[]
+  overrides FileFieldOverride[]
+
+  @@unique([workspaceId, kind, normalizedName], map: "workspace_label_name_key")
+  @@index([workspaceId, kind, archivedAt])
+  @@index([mergedIntoId])
+  @@map("workspace_label")
+}
+
+/// One label on one resource, inside one evidence audience.
+model FileLabel {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  labelId String         @db.Uuid
+  label   WorkspaceLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  state      FileMetadataState
+  provenance FileMetadataProvenance
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  /// The exact serialized evidence this decision was made against.
+  evidenceDigest String?
+  /// A short extracted span that answers "Why?". Extracted, never generated.
+  evidenceSnippet String?
+  /// Where that span came from, so the UI can deep link to it.
+  evidenceAnchor Json?
+
+  /// Versions the suggestion was computed against. A newer content or
+  /// vocabulary version makes an unconfirmed suggestion stale.
+  contentRevision   Int
+  vocabularyVersion Int
+
+  decidedByUserId String?
+  decidedAt       DateTime?
+
+  @@unique([resourceId, labelId, evidenceScopeId], map: "file_label_assignment_key")
+  @@index([resourceId, state])
+  @@index([labelId, state])
+  @@index([evidenceScopeId])
+  @@map("file_label")
+}
+
+/// A confirmed association between a file and a project. Never an ACL change.
+model FileProjectLink {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  state      FileMetadataState
+  provenance FileMetadataProvenance
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  evidenceDigest  String?
+  evidenceSnippet String?
+
+  contentRevision Int
+
+  decidedByUserId String?
+  decidedAt       DateTime?
+
+  @@unique([resourceId, projectId, evidenceScopeId], map: "file_project_link_key")
+  @@index([resourceId, state])
+  @@index([projectId, state])
+  @@index([evidenceScopeId])
+  @@map("file_project_link")
+}
+
+/// The durable record of a manual correction. This is what makes "I removed
+/// that tag" survive re-extraction, a new extractor and a new model.
+model FileFieldOverride {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  /// "category" or "tags". A label-scoped override also sets labelId.
+  field String
+
+  labelId String?         @db.Uuid
+  label   WorkspaceLabel? @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  decision FileFieldOverrideDecision
+
+  evidenceScopeId String            @db.Uuid
+  evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
+
+  /// The source revision this decision was made for. A dismissal holds for
+  /// the same revision and vocabulary policy, not forever across new content.
+  contentRevision   Int
+  vocabularyVersion Int
+
+  decidedByUserId String
+  decidedAt       DateTime @default(now())
+
+  @@unique([resourceId, field, labelId, evidenceScopeId], map: "file_field_override_key")
+  @@index([resourceId])
+  @@index([labelId])
+  @@index([evidenceScopeId])
+  @@map("file_field_override")
+}
+
+/// A version family, e.g. a studio image refined three times. Members stay
+/// distinct immutable resources; the group only picks a representative.
+model FileLineage {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  sourceKind  FileSourceKind
+  sourceScope FileSourceScope
+  /// Native root id of the family.
+  rootId      String
+
+  /// Bumped when the representative could change, e.g. a review decision.
+  groupRevision Int @default(1)
+
+  resources FileResource[]
+
+  @@unique([workspaceId, sourceKind, sourceScope, rootId], map: "file_lineage_root_key")
+  @@index([workspaceId])
+  @@map("file_lineage")
+}
+
+/// A saved filtered view. A definition, never a stored result set: each
+/// reader sees their own authorized subset, and no count is cached.
+model FileCollection {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  ownerUserId String
+
+  name String
+  /// Serialized filter definition: query, categories, tags, projects, types,
+  /// sources, modified range, status.
+  definition Json
+  sortBy     String?
+  sortOrder  String?
+
+  /// Private by default. Sharing shares the definition only.
+  isShared Boolean @default(false)
+
+  /// Bumped on every definition edit, so a stale link cannot silently change
+  /// what a reader thought they saved.
+  definitionVersion Int @default(1)
+
+  @@unique([workspaceId, ownerUserId, name], map: "file_collection_name_key")
+  @@index([workspaceId, isShared])
+  @@map("file_collection")
+}
+
+/// One unit of background work against one resource revision.
+model FileIndexJob {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  resourceId String       @db.Uuid
+  resource   FileResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+
+  pipeline FileIndexJobPipeline
+
+  /// Everything that makes this job distinct from a re-run of a different
+  /// shape: resource, content revision, pipeline, required scope, generation.
+  dedupeKey String
+
+  contentRevision   Int
+  requiredScopeVersion Int
+  desiredGeneration Int
+
+  state   FileIndexJobState @default(QUEUED)
+  attempt Int               @default(0)
+  /// Monotonic per job. An old attempt cannot activate after a new one starts.
+  fence   Int               @default(0)
+
+  leaseOwner     String?
+  leaseExpiresAt DateTime?
+
+  runAfter    DateTime  @default(now())
+  lastError   String?
+  completedAt DateTime?
+
+  /// How many times a sweep has brought this job back from FAILED.
+  ///
+  /// Separate from `attempt`, which a revival resets. Bounded on its own so
+  /// a document that fails for its own reasons cannot be retried forever,
+  /// while a backlog that failed because a provider was down for hours can
+  /// still be picked up once the incident is over.
+  revivals Int @default(0)
+
+  artifacts FileIndexArtifact[]
+
+  @@unique([dedupeKey], map: "file_index_job_dedupe_key")
+  @@index([state, runAfter])
+  @@index([resourceId, pipeline])
+  /// The revival sweep's predicate. Without it the sweep is a sequential
+  /// scan of the whole table on every tick that finds nothing to lease.
+  @@index([state, pipeline, updatedAt])
+  @@map("file_index_job")
+}
+
+/// Registered before any sensitive write, so deletion can find every byte a
+/// worker may have produced — including the ones a crashed worker left.
+model FileIndexArtifact {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobId String       @db.Uuid
+  job   FileIndexJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  attempt Int
+  fence   Int
+
+  /// Unique staging prefix or object key this attempt may write to.
+  namespace String
+  kind      String
+
+  state FileIndexArtifactState @default(ACTIVE)
+
+  purgedAt DateTime?
+
+  @@unique([jobId, attempt, namespace], map: "file_index_artifact_namespace_key")
+  @@index([state, createdAt])
+  @@map("file_index_artifact")
+}
+
+/// The audit trail for one outbound model request. Holds no content: a digest
+/// of the serialized input, never the input.
+model FileAuthorizationAdmission {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Stable hash of actor identity, auth method, capabilities and context.
+  actorFingerprint String
+  /// Serialized epoch vector the admission was granted against.
+  epochVector String
+
+  purpose String
+  /// sha256 of the exact serialized request. No query or document text.
+  payloadDigest String
+  provider      String
+  model         String
+
+  inputTokens Int
+  /// Cost the provider reported for this call, from
+  /// `providerMetadata.gateway.cost`. Null until the call dispatches, and
+  /// null for a call that never reached the provider. The daily spend
+  /// budget sums this, which is why a missing value must never read as
+  /// "free" — see `PER_WORKSPACE_USD_PER_DAY`.
+  costUsd Decimal? @db.Decimal(12, 6)
+
+  admittedAt DateTime  @default(now())
+  expiresAt  DateTime
+  dispatchedAt DateTime?
+  outcome    String?
+
+  @@index([workspaceId, admittedAt])
+  /// The shared ceiling counts over `admittedAt` alone, across every
+  /// workspace, so the composite index above cannot serve it.
+  @@index([admittedAt])
+  @@index([payloadDigest])
+  @@map("file_authorization_admission")
+}
+
+/// A search snapshot is a fixed order, not a live query. Paging walks
+/// positions in this list so an entry cannot move between pages, and a bulk
+/// selection materializes from the same snapshot so "select all in this
+/// window" means exactly the rows the reader was shown.
+enum FileResultWindowKind {
+  SEARCH
+  SELECTION
+}
+
+model FileResultWindow {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  kind FileResultWindowKind
+
+  /// Hash of actor identity, auth method and active workspace. A cursor from
+  /// one actor cannot be replayed by another.
+  actorFingerprint String
+  /// Hash of query, filters, sort and index generation. A changed binding is
+  /// a different search, so the cursor restarts instead of paging a stale order.
+  bindingDigest String
+  /// Authorization clocks the order was built under. Any change restarts it.
+  epochVector String
+
+  /// Ordered `[{ r: resourceId, c: contentRevision, m: metadataRevision }]`.
+  /// Positions, not items: a page advances over every position it scans.
+  entries Json
+
+  /// True when a retrieval budget or the window cap was reached, so the UI
+  /// can say "more may match" without claiming a corpus total.
+  truncated Boolean @default(false)
+
+  /// How the stored order was produced: "model" or "deterministic".
+  ///
+  /// A cursor page serves positions out of this order and ranks nothing, so
+  /// it has no way to recompute the mode and used to report the initialiser
+  /// — page one said "model" and page two said "deterministic" for the same
+  /// window. Recorded once, with the order it describes.
+  ///
+  /// Only the mode. The fallback reason belongs to an attempt, and a cursor
+  /// page attempts no ranking, so null stays the honest answer there.
+  rankingMode String @default("deterministic")
+
+  expiresAt DateTime
+
+  @@index([workspaceId, actorFingerprint])
+  @@index([expiresAt])
+  @@map("file_result_window")
 }

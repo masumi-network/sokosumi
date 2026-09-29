@@ -38,12 +38,15 @@ vi.mock("@/lib/auth", () => ({
   },
 }));
 
-vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+vi.mock("@/lib/db/prisma", () => ({
+  default: {
+    user: { findMany: searchUsersMock },
+    organization: { findMany: searchOrganizationsMock },
+  },
+}));
 
 vi.mock("@sokosumi/database/repositories", () => ({
-  userRepository: { searchUsers: searchUsersMock },
   organizationRepository: {
-    searchOrganizations: searchOrganizationsMock,
     getOrganizationLimitedInfoBySlug: getOrgBySlugMock,
   },
 }));
@@ -142,7 +145,17 @@ describe("admin router (real mount, real auth + admin guard)", () => {
     };
 
     expect(response.status).toBe(200);
-    expect(searchUsersMock).toHaveBeenCalledWith("ada", 20, expect.anything());
+    expect(searchUsersMock).toHaveBeenCalledWith({
+      where: {
+        OR: [
+          { name: { contains: "ada", mode: "insensitive" } },
+          { email: { contains: "ada", mode: "insensitive" } },
+        ],
+      },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: 20,
+    });
     expect(body.data).toEqual([
       { id: "user_1", name: "Ada", email: "ada@example.com" },
     ]);

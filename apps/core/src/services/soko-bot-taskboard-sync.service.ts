@@ -1,6 +1,8 @@
+import { createHash } from "node:crypto";
 import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -11,7 +13,7 @@ import {
   findAttentionItems,
   followUpsBlock,
   proactiveGate,
-  stampNudges,
+  stageSokoBotNudges,
 } from "@/services/soko-bot-proactive.service";
 
 const WATCH_WINDOW_MS = 30 * 24 * 60 * 60 * 1_000;
@@ -71,7 +73,10 @@ interface TaskUpdate {
   assignedToBot: boolean;
   /** Bot must act: assigned and waiting for it. */
   work: boolean;
+  cursor?: { at: Date; id: string };
+  designatedHandlerBotId?: string | null;
   events: {
+    id?: string;
     at: Date;
     by: string;
     status: string | null;
@@ -152,8 +157,16 @@ export class SokoBotTaskboardSyncService {
       failed: 0,
     };
     const since = new Date(Date.now() - WATCH_WINDOW_MS);
+    const scan = await prisma.syncMetadata.upsert({
+      where: { key: "soko-taskboard-bots-v2" },
+      create: { key: "soko-taskboard-bots-v2", lastSyncedAt: new Date() },
+      update: {},
+    });
     const bots = await prisma.sokoBot.findMany({
+      orderBy: { id: "asc" },
+      take: 50,
       where: withBetaBotOwner({
+        ...(scan.cursorId ? { id: { gt: scan.cursorId } } : {}),
         archivedAt: null,
         adminPausedAt: null,
       }),
@@ -188,6 +201,7 @@ export class SokoBotTaskboardSyncService {
           },
           since,
           input.abortSignal,
+          scan.createdAt,
         );
         if (woke) result.woken += 1;
       } catch (error) {
@@ -202,6 +216,14 @@ export class SokoBotTaskboardSyncService {
         });
       }
     }
+    if (input.shouldContinue() && !input.abortSignal.aborted)
+      await prisma.syncMetadata.update({
+        where: { key: scan.key },
+        data: {
+          cursorId: bots.length === 50 ? bots.at(-1)?.id : null,
+          lastSyncedAt: new Date(),
+        },
+      });
     return result;
   }
 
@@ -217,69 +239,102 @@ export class SokoBotTaskboardSyncService {
     },
     since: Date,
     abortSignal: AbortSignal,
+    cutoverAt: Date,
   ): Promise<boolean> {
-    const delegated = await prisma.sokoBotDelegation.findMany({
-      where: {
-        taskId: { not: null },
-        createdAt: { gte: since },
-        turn: { sokoBotId: bot.id },
+    const scan = await prisma.syncMetadata.upsert({
+      where: { key: `soko-taskboard-v2:${bot.id}` },
+      create: {
+        key: `soko-taskboard-v2:${bot.id}`,
+        lastSyncedAt: new Date(),
+        createdAt: cutoverAt,
       },
-      select: { taskId: true },
-      distinct: ["taskId"],
+      update: {},
     });
-    const taskIds = new Set(
-      delegated.flatMap((d) => (d.taskId ? [d.taskId] : [])),
-    );
-    const tasks = await prisma.task.findMany({
-      where: {
-        workspaceId: bot.workspaceId,
-        archivedAt: null,
-        AND: [
-          {
-            OR: [
-              {
-                assigneeSokoBotId: bot.id,
-                status: { notIn: [...TERMINAL] },
-              },
-              { id: { in: Array.from(taskIds) }, updatedAt: { gte: since } },
-              ...(bot.followWholeBoard
-                ? [
-                    {
-                      status: { notIn: [...TERMINAL] },
-                      updatedAt: { gte: since },
-                    },
-                  ]
-                : []),
-            ],
-          },
-          buildSokoBotOwnerTaskVisibilityWhere(bot.userId),
-        ],
-      },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        assigneeId: true,
-        assigneeSokoBotId: true,
-        updatedAt: true,
-        sokoBotWatches: {
-          where: { sokoBotId: bot.id },
-          select: { id: true, lastSeenEventAt: true, lastSeenStatus: true },
+    const readTaskPage = (cursor?: string | null) =>
+      prisma.task.findMany({
+        where: {
+          ...(cursor ? { id: { gt: cursor } } : {}),
+          workspaceId: bot.workspaceId,
+          archivedAt: null,
+          AND: [
+            {
+              OR: [
+                {
+                  assigneeSokoBotId: bot.id,
+                  status: { notIn: [...TERMINAL] },
+                },
+                {
+                  sokoBotDelegations: { some: { turn: { sokoBotId: bot.id } } },
+                  updatedAt: { gte: since },
+                },
+                ...(bot.followWholeBoard
+                  ? [
+                      {
+                        status: { notIn: [...TERMINAL] },
+                        updatedAt: { gte: since },
+                      },
+                    ]
+                  : []),
+              ],
+            },
+            buildSokoBotOwnerTaskVisibilityWhere(bot.userId),
+          ],
         },
-      },
-      orderBy: { updatedAt: "desc" },
-      take: 50,
-    });
+        select: {
+          id: true,
+          name: true,
+          status: true,
+          ownerId: true,
+          assigneeId: true,
+          assigneeSokoBotId: true,
+          updatedAt: true,
+          sokoBotDelegations: {
+            where: { turn: { sokoBotId: bot.id } },
+            take: 1,
+            select: { id: true },
+          },
+          sokoBotWatches: {
+            where: { sokoBotId: bot.id },
+            select: {
+              id: true,
+              lastSeenEventAt: true,
+              lastSeenEventId: true,
+              lastSeenStatus: true,
+            },
+          },
+        },
+        orderBy: { id: "asc" },
+        take: 50,
+      });
+    const tasks = await readTaskPage(scan.cursorId);
+    const taskIds = new Set(
+      tasks
+        .filter((task) => task.sokoBotDelegations.length > 0)
+        .map((task) => task.id),
+    );
     const now = new Date();
     const updates: TaskUpdate[] = [];
-    const baselines: { taskId: string; status: string; watchId?: string }[] =
-      [];
+    const baselines: {
+      taskId: string;
+      status: string;
+      watchId?: string;
+      cursor?: { at: Date; id: string };
+    }[] = [];
     for (const task of tasks) {
+      if (abortSignal.aborted) return false;
       const watch = task.sokoBotWatches[0] ?? null;
       const assignedToBot = task.assigneeSokoBotId === bot.id;
       const work = assignedToBot && WORK_STATUSES.has(task.status);
       // Board-only Tasks: the bot neither owns nor created them.
       const boardOnly = !assignedToBot && !taskIds.has(task.id);
+      if (task.updatedAt < scan.createdAt) {
+        baselines.push({
+          taskId: task.id,
+          status: task.status,
+          cursor: { at: scan.createdAt, id: "" },
+        });
+        continue;
+      }
       if (!watch) {
         // First sight: baseline silently unless the Task is waiting for the bot.
         if (!work) {
@@ -290,12 +345,44 @@ export class SokoBotTaskboardSyncService {
       const events = await prisma.taskEvent.findMany({
         where: {
           taskId: task.id,
-          createdAt: { gt: watch?.lastSeenEventAt ?? since },
-          OR: [{ sokoBotId: null }, { sokoBotId: { not: bot.id } }],
+          AND: [
+            {
+              ...(!watch && work
+                ? { createdAt: { gte: scan.createdAt } }
+                : {
+                    OR: [
+                      {
+                        createdAt: {
+                          gt: new Date(
+                            Math.max(
+                              (watch?.lastSeenEventAt ?? since).getTime(),
+                              scan.createdAt.getTime(),
+                            ),
+                          ),
+                        },
+                      },
+                      ...(watch?.lastSeenEventId &&
+                      watch.lastSeenEventAt >= scan.createdAt
+                        ? [
+                            {
+                              createdAt: watch.lastSeenEventAt,
+                              id: { gt: watch.lastSeenEventId },
+                            },
+                          ]
+                        : []),
+                    ],
+                  }),
+            },
+            { OR: [{ sokoBotId: null }, { sokoBotId: { not: bot.id } }] },
+          ],
         },
-        orderBy: { createdAt: "asc" },
-        take: MAX_EVENTS_PER_TASK,
+        orderBy:
+          !watch && work
+            ? [{ createdAt: "desc" }, { id: "desc" }]
+            : [{ createdAt: "asc" }, { id: "asc" }],
+        take: !watch && work ? 1 : MAX_EVENTS_PER_TASK,
         select: {
+          id: true,
           createdAt: true,
           status: true,
           comment: true,
@@ -307,41 +394,77 @@ export class SokoBotTaskboardSyncService {
           sokoBot: { select: { name: true } },
         },
       });
+      const consumed = events.length
+        ? await prisma.sokoBotEventInbox.findMany({
+            where: {
+              botId: bot.id,
+              purpose: "TASK_EVENT",
+              eventId: { in: events.map((event) => event.id) },
+            },
+            select: { eventId: true },
+          })
+        : [];
+      const consumedIds = new Set(consumed.map((entry) => entry.eventId));
+      if (events.length && events.every((event) => consumedIds.has(event.id))) {
+        const last = events[events.length - 1];
+        baselines.push({
+          taskId: task.id,
+          status: task.status,
+          cursor: { at: last.createdAt, id: last.id },
+        });
+        continue;
+      }
       const alreadyHandedOver =
         work && watch?.lastSeenStatus === task.status && events.length === 0;
       if (alreadyHandedOver) continue;
       // Status drift on Tasks the bot delegated is the events sync's job
       // (it wakes with the latest comment); here only comment-only events
       // on those Tasks count, so one change never produces two turns.
-      const meaningful = events.filter((e) =>
-        boardOnly
-          ? Boolean(e.comment) &&
-            isRelevantBoardComment({
-              comment: e.comment ?? "",
-              botName: bot.name,
-              memoryTokens: bot.memoryTokens,
-            })
-          : assignedToBot
-            ? e.comment || e.status
-            : Boolean(e.comment) && !e.status,
-      );
+      const meaningful = events
+        .filter((event) => !consumedIds.has(event.id))
+        .filter((e) =>
+          boardOnly
+            ? Boolean(e.comment) &&
+              isRelevantBoardComment({
+                comment: e.comment ?? "",
+                botName: bot.name,
+                memoryTokens: bot.memoryTokens,
+              })
+            : assignedToBot
+              ? e.comment || e.status
+              : Boolean(e.comment) && !e.status,
+        );
       if (!work && meaningful.length === 0) {
         if (events.length > 0 && watch) {
           baselines.push({
             taskId: task.id,
             status: task.status,
             watchId: watch.id,
+            cursor: {
+              at: events[events.length - 1].createdAt,
+              id: events[events.length - 1].id,
+            },
           });
         }
         continue;
       }
+      // Do not re-enqueue a trailing event already consumed by delegation
+      // sync: its inbox uniqueness would block this earlier pending batch.
+      const cursorEvent = meaningful.at(-1) ?? events.at(-1);
       updates.push({
         taskId: task.id,
         name: task.name ?? "Untitled task",
         status: task.status,
         assignedToBot,
         work,
+        designatedHandlerBotId:
+          task.assigneeSokoBotId ??
+          (taskIds.has(task.id) && task.ownerId === bot.userId ? bot.id : null),
+        cursor: cursorEvent
+          ? { at: cursorEvent.createdAt, id: cursorEvent.id }
+          : undefined,
         events: meaningful.map((e) => ({
+          id: e.id,
           at: e.createdAt,
           by: actorLabel(e),
           status: e.status,
@@ -351,11 +474,20 @@ export class SokoBotTaskboardSyncService {
     }
 
     await this.stamp(bot.id, baselines, now);
+    if (!abortSignal.aborted)
+      await prisma.syncMetadata.update({
+        where: { key: scan.key },
+        data: {
+          cursorId: tasks.length === 50 ? tasks.at(-1)?.id : null,
+          lastSyncedAt: now,
+        },
+      });
     const attention = await findAttentionItems({
       id: bot.id,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
+      cutoverAt: scan.createdAt,
     });
     const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
@@ -381,19 +513,45 @@ export class SokoBotTaskboardSyncService {
     const started = await sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId: bot.workspaceId,
-      clientTurnId: `taskboard:${bot.id}:${now.toISOString().slice(0, 16)}`,
+      clientTurnId: `taskboard:${createHash("sha256")
+        .update(
+          JSON.stringify({
+            botId: bot.id,
+            events: batch
+              .map((u) => [u.taskId, u.cursor?.id ?? u.status])
+              .sort(),
+            attention: attention.map((a) => a.key).sort(),
+            day: now.toISOString().slice(0, 10),
+          }),
+        )
+        .digest("hex")}`,
       message,
       source: "EVENT",
+      presetRoute: SYSTEM_TURN_ROUTES.taskboard,
+      eventBatch: batch.flatMap((item) => {
+        const ids = [
+          ...new Set([
+            ...item.events.flatMap((event) => (event.id ? [event.id] : [])),
+            item.cursor?.id ?? `${item.taskId}:${item.status}`,
+          ]),
+        ];
+        return ids.map((eventId) => ({
+          eventId,
+          entityId: item.taskId,
+          purpose: "TASK_EVENT",
+          status: item.status,
+          designatedHandlerBotId: item.designatedHandlerBotId ?? null,
+          ...(eventId === (item.cursor?.id ?? `${item.taskId}:${item.status}`)
+            ? { taskCursorAt: item.cursor?.at ?? now }
+            : {}),
+        }));
+      }),
     });
-    await this.stamp(
-      bot.id,
-      batch.map((u) => ({ taskId: u.taskId, status: u.status })),
-      now,
-    );
-    await stampNudges(
+    await stageSokoBotNudges(
       bot.id,
       attention.map((item) => item.key),
       now,
+      started.turnId,
     );
     if (
       started.reconciliationLeaseToken &&
@@ -417,7 +575,11 @@ export class SokoBotTaskboardSyncService {
 
   private async stamp(
     sokoBotId: string,
-    items: { taskId: string; status: string }[],
+    items: {
+      taskId: string;
+      status: string;
+      cursor?: { at: Date; id: string };
+    }[],
     at: Date,
   ) {
     for (const item of items) {
@@ -426,10 +588,15 @@ export class SokoBotTaskboardSyncService {
         create: {
           sokoBotId,
           taskId: item.taskId,
-          lastSeenEventAt: at,
+          lastSeenEventAt: item.cursor?.at ?? at,
+          lastSeenEventId: item.cursor?.id ?? null,
           lastSeenStatus: item.status,
         },
-        update: { lastSeenEventAt: at, lastSeenStatus: item.status },
+        update: {
+          lastSeenEventAt: item.cursor?.at ?? at,
+          lastSeenEventId: item.cursor?.id ?? null,
+          lastSeenStatus: item.status,
+        },
       });
     }
   }

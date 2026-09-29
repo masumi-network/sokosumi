@@ -1,5 +1,6 @@
 "use client";
 
+import { COWORKER_IMAGE_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { Bot, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -20,17 +21,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { ActionResultDto } from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import {
   COWORKER_CAPTION_MAX_LENGTH,
   COWORKER_NAME_MIN_LENGTH,
 } from "@/lib/constants/coworker-display";
-import {
-  COWORKER_IMAGE_ACCEPT,
-  COWORKER_IMAGE_MAX_SIZE_BYTES,
-} from "@/lib/constants/coworker-image";
+import { COWORKER_IMAGE_ACCEPT } from "@/lib/constants/coworker-image";
 import type {
   CoworkerImageIntent,
   UpdateCoworkerDisplayResult,
@@ -341,7 +339,7 @@ export function CoworkerDisplayForm({
             <Button type="submit" disabled={isDisabled}>
               {isSavingText ? (
                 <>
-                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                   {t("saving")}
                 </>
               ) : (

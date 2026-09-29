@@ -36,8 +36,11 @@ import {
   archiveAuthoredVersion,
   createAuthoredVersion,
   isKnownSokoBotVersionId,
+  isRunnableSokoBotVersionId,
   listSokoBotVersions,
+  resolveRunnableSokoBotVersion,
   resolveSokoBotVersion,
+  updateAuthoredVersion,
 } from "@/services/soko-bot-version.service";
 
 function authoredRow(overrides: Record<string, unknown> = {}) {
@@ -166,4 +169,59 @@ describe("Soko Bot version resolution", () => {
     );
     expect(updateMock).not.toHaveBeenCalled();
   });
+});
+
+describe("EU model write policy", () => {
+  it.each(["create", "update"])(
+    "rejects an unsupported authored model before %s writes",
+    async (operation) => {
+      vi.clearAllMocks();
+      const input = {
+        slug: "unsafe-model",
+        name: "Test",
+        model: "mistral/mistral-large-3",
+        systemPrompt: "Test",
+        skills: [],
+        capabilities: [],
+      };
+      await expect(
+        operation === "create"
+          ? createAuthoredVersion(input, "owner")
+          : updateAuthoredVersion(input.slug, input),
+      ).rejects.toThrow("approved EU model");
+      expect(createMock).not.toHaveBeenCalled();
+      expect(updateMock).not.toHaveBeenCalled();
+    },
+  );
+  it("rejects a supported model with a US override", async () => {
+    await expect(
+      createAuthoredVersion(
+        {
+          slug: "us-model",
+          name: "Test",
+          model: "google/gemini-3.6-flash",
+          inferenceRegion: "us",
+          systemPrompt: "Test",
+          skills: [],
+          capabilities: [],
+        },
+        "owner",
+      ),
+    ).rejects.toThrow("approved EU model");
+  });
+  it("keeps historical builtins readable while refusing unsafe new pins", async () => {
+    expect(await isKnownSokoBotVersionId("v1")).toBe(true);
+    expect(await isRunnableSokoBotVersionId("v1")).toBe(false);
+    expect(await isRunnableSokoBotVersionId("v16")).toBe(true);
+  });
+});
+
+it("blocks an existing incompatible pin with owner guidance without rewriting it", async () => {
+  vi.clearAllMocks();
+  await expect(resolveRunnableSokoBotVersion("v1")).rejects.toThrow(
+    "choose an approved EU version in assistant settings",
+  );
+  expect(updateMock).not.toHaveBeenCalled();
+  expect(createMock).not.toHaveBeenCalled();
+  expect((await resolveRunnableSokoBotVersion("v16")).id).toBe("v16");
 });

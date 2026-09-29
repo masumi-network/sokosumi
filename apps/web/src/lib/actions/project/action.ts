@@ -1,6 +1,6 @@
 "use server";
 
-import { normalizeWebsiteUrl } from "@sokosumi/utils";
+import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_RULES } from "@sokosumi/utils";
 
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -10,7 +10,8 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-import { type ActionError, CommonErrorCode } from "@/lib/actions/errors";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
   CoreApiRequestError,
   coreClient,
@@ -18,8 +19,15 @@ import {
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
 import type {
+  DisconnectProjectSocialConnectionResponse,
+  InitiateProjectSocialConnectionRequest,
+  InitiateProjectSocialConnectionResponse,
   Project,
+  ProjectCloseStatus,
   ProjectContextMd,
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
 } from "@/lib/clients/generated/core/types.gen";
 import { projectService } from "@/lib/services/project.service";
 import {
@@ -50,8 +58,79 @@ interface GetProjectContextMdParameters extends AuthenticatedRequest {
   projectId: string;
 }
 
-interface DeleteProjectParameters extends AuthenticatedRequest {
+interface CloseProjectParameters extends AuthenticatedRequest {
   projectId: string;
+  operationId: string;
+  expectedProjectRevision: number;
+  reason?: string;
+}
+
+interface RecoverProjectCloseParameters extends AuthenticatedRequest {
+  projectId: string;
+  operationId: string;
+  expectedProjectRevision: number;
+  reason: string;
+}
+
+interface InitiateProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  action: InitiateProjectSocialConnectionRequest["action"];
+  provider?: ProjectSocialConnection["provider"];
+  socialConnectionId?: string;
+}
+
+interface FinalizeProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  connectionId: string;
+}
+
+interface DisconnectProjectSocialConnectionParameters
+  extends AuthenticatedRequest {
+  projectId: string;
+  socialConnectionId: string;
+}
+
+interface CreateProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  text: string;
+  media?: SocialPostMediaRef[];
+  socialConnectionId?: string | null;
+  /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
+  scheduledAt?: string | null;
+  timezone?: string | null;
+}
+
+interface UpdateProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  text?: string;
+  media?: SocialPostMediaRef[];
+  socialConnectionId?: string | null;
+  revision: number;
+}
+
+interface ScheduleProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  /** ISO timestamp; Flight-safe stand-in for the Core `Date` field. */
+  scheduledAt: string;
+  timezone?: string | null;
+  socialConnectionId?: string | null;
+  revision: number;
+}
+
+interface CancelProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  revision: number;
+}
+
+interface PublishProjectSocialPostParameters extends AuthenticatedRequest {
+  projectId: string;
+  postId: string;
+  revision: number;
 }
 
 function normalizeProjectName(name: string): string {
@@ -88,9 +167,58 @@ function revalidateProjectMutationRoutes(projectId: string) {
   revalidatePath(`/projects/${projectId}`);
 }
 
+function revalidateProjectCloseRoutes(projectId: string) {
+  revalidateProjectMutationRoutes(projectId);
+  revalidatePath(`/projects/${projectId}/calendar`);
+  revalidatePath("/calendar");
+  revalidatePath("/tasks");
+}
+
+function revalidateProjectSocialConnectionMutationRoutes(projectId: string) {
+  revalidateProjectMutationRoutes(projectId);
+  revalidatePath(`/projects/${projectId}/edit`);
+}
+
+function revalidateProjectSocialPostMutationRoutes(projectId: string) {
+  revalidatePath(`/projects/${projectId}`);
+  // Social is a top-level destination scoped by `?projectId=`, and a scheduled
+  // post is a Calendar entry, so both surfaces go stale on the same write.
+  revalidatePath("/social");
+  revalidatePath("/calendar");
+}
+
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
   const { message } = toCoreApiActionError(error);
   throw new Error(message ?? fallbackMessage);
+}
+
+const projectCloseSchema = z.object({
+  projectId: z.string().trim().min(1),
+  operationId: z.string().uuid(),
+  expectedProjectRevision: z.number().int().nonnegative(),
+  reason: z.string().trim().min(1).optional(),
+});
+
+const projectCloseRecoverySchema = projectCloseSchema.extend({
+  reason: z.string().trim().min(1),
+});
+
+function parseProjectCloseInput(input: CloseProjectParameters) {
+  const result = projectCloseSchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(result.error.issues[0]?.message ?? "Invalid close request");
+  }
+  return result.data;
+}
+
+function parseProjectCloseRecoveryInput(input: RecoverProjectCloseParameters) {
+  const result = projectCloseRecoverySchema.safeParse(input);
+  if (!result.success) {
+    throw new Error(
+      result.error.issues[0]?.message ?? "Invalid recovery request",
+    );
+  }
+  return result.data;
 }
 
 export const createProject = withSession<
@@ -236,21 +364,429 @@ export const getProjectContextMd = withSession<
   }
 });
 
-export const deleteProject = withSession<
-  DeleteProjectParameters,
-  { projectId: string }
->(async ({ projectId }) => {
+export const closeProject = withSession<
+  CloseProjectParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseInput(input);
+
+  try {
+    const status = await projectService.closeProject(parsed.projectId, {
+      operationId: parsed.operationId,
+      expectedProjectRevision: parsed.expectedProjectRevision,
+      ...(parsed.reason ? { reason: parsed.reason } : {}),
+    });
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
+  } catch (error) {
+    console.error("Failed to close project", error);
+    throwCoreActionError(error, "Failed to close project");
+  }
+});
+
+export const retryProjectClose = withSession<
+  RecoverProjectCloseParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseRecoveryInput(input);
+
+  try {
+    const status = await projectService.retryProjectClose(parsed.projectId, {
+      operationId: parsed.operationId,
+      expectedProjectRevision: parsed.expectedProjectRevision,
+      reason: parsed.reason,
+    });
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
+  } catch (error) {
+    console.error("Failed to retry project close", error);
+    throwCoreActionError(error, "Failed to retry project close");
+  }
+});
+
+export const cancelProjectCloseOwedWork = withSession<
+  RecoverProjectCloseParameters,
+  ProjectCloseStatus
+>(async (input) => {
+  const parsed = parseProjectCloseRecoveryInput(input);
+
+  try {
+    const status = await projectService.cancelProjectCloseOwedWork(
+      parsed.projectId,
+      {
+        operationId: parsed.operationId,
+        expectedProjectRevision: parsed.expectedProjectRevision,
+        reason: parsed.reason,
+      },
+    );
+    revalidateProjectCloseRoutes(parsed.projectId);
+    return status;
+  } catch (error) {
+    console.error("Failed to cancel owed project work", error);
+    throwCoreActionError(error, "Failed to cancel owed project work");
+  }
+});
+
+export const initiateProjectSocialConnection = withSession<
+  InitiateProjectSocialConnectionParameters,
+  ActionResultDto<InitiateProjectSocialConnectionResponse, ActionError>
+>(async ({ projectId, action, socialConnectionId, provider }) => {
   const normalizedProjectId = projectId.trim();
   if (!normalizedProjectId) {
-    throw new Error("Project required");
+    return toActionResult(
+      err({ code: CommonErrorCode.BAD_INPUT, message: "Project required" }),
+    );
+  }
+
+  let input: InitiateProjectSocialConnectionRequest;
+  if (action === "connect") {
+    if (!provider) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Social provider required",
+        }),
+      );
+    }
+    input = { action, provider };
+  } else {
+    const normalizedSocialConnectionId = socialConnectionId?.trim();
+    if (!normalizedSocialConnectionId) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Social connection required",
+        }),
+      );
+    }
+    input = { action, socialConnectionId: normalizedSocialConnectionId };
   }
 
   try {
-    await projectService.deleteProject(normalizedProjectId);
-    revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
+    const connection = await projectService.initiateSocialConnection(
+      normalizedProjectId,
+      input,
+    );
+    return toActionResult(ok(connection));
   } catch (error) {
-    console.error("Failed to delete project", error);
-    throwCoreActionError(error, "Failed to delete project");
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const finalizeProjectSocialConnection = withSession<
+  FinalizeProjectSocialConnectionParameters,
+  ActionResultDto<ProjectSocialConnection, ActionError>
+>(async ({ projectId, connectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedConnectionId = connectionId.trim();
+  if (!normalizedProjectId || !normalizedConnectionId) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project connection required",
+      }),
+    );
+  }
+
+  try {
+    const connection = await projectService.finalizeSocialConnection(
+      normalizedProjectId,
+      normalizedConnectionId,
+    );
+    revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const disconnectProjectSocialConnection = withSession<
+  DisconnectProjectSocialConnectionParameters,
+  ActionResultDto<DisconnectProjectSocialConnectionResponse, ActionError>
+>(async ({ projectId, socialConnectionId }) => {
+  const normalizedProjectId = projectId.trim();
+  const normalizedSocialConnectionId = socialConnectionId.trim();
+  if (!normalizedProjectId || !normalizedSocialConnectionId) {
+    return toActionResult(
+      err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: "Project social connection required",
+      }),
+    );
+  }
+
+  try {
+    const connection = await projectService.disconnectSocialConnection(
+      normalizedProjectId,
+      normalizedSocialConnectionId,
+    );
+    revalidateProjectSocialConnectionMutationRoutes(normalizedProjectId);
+    return toActionResult(ok(connection));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+const trimmedId = z.string().trim().min(1);
+const optionalConnectionId = z.string().trim().min(1).nullish();
+const optionalTimezone = z.string().trim().min(1).nullish();
+const isoTimestamp = z.iso.datetime({ offset: true });
+const revisionSchema = z.number().int().nonnegative();
+
+const socialPostMediaRefSchema = z.object({
+  pathname: z.string().min(1),
+  fileUrl: z.string().url(),
+  name: z.string().min(1),
+  size: z.number().int().nonnegative(),
+  mimeType: z.string().min(1),
+  kind: z.enum(["image", "gif", "video"]),
+});
+
+const socialPostMediaSchema = z
+  .array(socialPostMediaRefSchema)
+  .max(SOCIAL_POST_MEDIA_RULES.x.maxImages);
+
+const createProjectSocialPostSchema = z
+  .object({
+    projectId: trimmedId,
+    text: z.string(),
+    media: socialPostMediaSchema.optional(),
+    socialConnectionId: optionalConnectionId,
+    scheduledAt: isoTimestamp.nullish(),
+    timezone: optionalTimezone,
+  })
+  .refine(
+    (value) => value.text.trim().length > 0 || (value.media?.length ?? 0) > 0,
+    { message: "Text or media is required" },
+  );
+
+const updateProjectSocialPostSchema = z
+  .object({
+    projectId: trimmedId,
+    postId: trimmedId,
+    text: z.string().optional(),
+    media: socialPostMediaSchema.optional(),
+    socialConnectionId: optionalConnectionId,
+    revision: revisionSchema,
+  })
+  .refine(
+    (value) =>
+      value.text === undefined ||
+      value.text.trim().length > 0 ||
+      (value.media?.length ?? 0) > 0,
+    { message: "Text or media is required" },
+  );
+
+const scheduleProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  scheduledAt: isoTimestamp,
+  timezone: optionalTimezone,
+  socialConnectionId: optionalConnectionId,
+  revision: revisionSchema,
+});
+
+const cancelProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  revision: revisionSchema,
+});
+
+const publishProjectSocialPostSchema = z.object({
+  projectId: trimmedId,
+  postId: trimmedId,
+  revision: revisionSchema,
+});
+
+function badSocialPostInput(
+  parsed: z.ZodSafeParseError<unknown>,
+): ActionResultDto<SocialPost, ActionError> {
+  return toActionResult(
+    err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: parsed.error.issues[0]?.message ?? "Invalid Social post input",
+    }),
+  );
+}
+
+export const createProjectSocialPost = withSession<
+  CreateProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(
+  async ({
+    projectId,
+    text,
+    media,
+    socialConnectionId,
+    scheduledAt,
+    timezone,
+  }) => {
+    const parsed = createProjectSocialPostSchema.safeParse({
+      projectId,
+      text,
+      media,
+      socialConnectionId,
+      scheduledAt,
+      timezone,
+    });
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
+
+    try {
+      const post = await projectService.createSocialPost(
+        parsed.data.projectId,
+        {
+          text: parsed.data.text,
+          ...(parsed.data.media ? { media: parsed.data.media } : {}),
+          ...(parsed.data.socialConnectionId
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          ...(parsed.data.scheduledAt
+            ? { scheduledAt: new Date(parsed.data.scheduledAt) }
+            : {}),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
+
+export const updateProjectSocialPost = withSession<
+  UpdateProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, text, media, socialConnectionId, revision }) => {
+  const parsed = updateProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    text,
+    media,
+    socialConnectionId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.updateSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      {
+        ...(parsed.data.text !== undefined ? { text: parsed.data.text } : {}),
+        ...(parsed.data.media !== undefined
+          ? { media: parsed.data.media }
+          : {}),
+        ...(parsed.data.socialConnectionId !== undefined
+          ? { socialConnectionId: parsed.data.socialConnectionId }
+          : {}),
+        revision: parsed.data.revision,
+      },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const scheduleProjectSocialPost = withSession<
+  ScheduleProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(
+  async ({
+    projectId,
+    postId,
+    scheduledAt,
+    timezone,
+    socialConnectionId,
+    revision,
+  }) => {
+    const parsed = scheduleProjectSocialPostSchema.safeParse({
+      projectId,
+      postId,
+      scheduledAt,
+      timezone,
+      socialConnectionId,
+      revision,
+    });
+    if (!parsed.success) {
+      return badSocialPostInput(parsed);
+    }
+
+    try {
+      const post = await projectService.scheduleSocialPost(
+        parsed.data.projectId,
+        parsed.data.postId,
+        {
+          scheduledAt: new Date(parsed.data.scheduledAt),
+          ...(parsed.data.timezone ? { timezone: parsed.data.timezone } : {}),
+          ...(parsed.data.socialConnectionId
+            ? { socialConnectionId: parsed.data.socialConnectionId }
+            : {}),
+          revision: parsed.data.revision,
+        },
+      );
+      revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+      return toActionResult(ok(post));
+    } catch (error) {
+      return toActionResult(err(toCoreApiActionError(error)));
+    }
+  },
+);
+
+export const cancelProjectSocialPost = withSession<
+  CancelProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = cancelProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.cancelSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
+  }
+});
+
+export const publishProjectSocialPost = withSession<
+  PublishProjectSocialPostParameters,
+  ActionResultDto<SocialPost, ActionError>
+>(async ({ projectId, postId, revision }) => {
+  const parsed = publishProjectSocialPostSchema.safeParse({
+    projectId,
+    postId,
+    revision,
+  });
+  if (!parsed.success) {
+    return badSocialPostInput(parsed);
+  }
+
+  try {
+    const post = await projectService.publishSocialPost(
+      parsed.data.projectId,
+      parsed.data.postId,
+      { revision: parsed.data.revision },
+    );
+    revalidateProjectSocialPostMutationRoutes(parsed.data.projectId);
+    return toActionResult(ok(post));
+  } catch (error) {
+    return toActionResult(err(toCoreApiActionError(error)));
   }
 });

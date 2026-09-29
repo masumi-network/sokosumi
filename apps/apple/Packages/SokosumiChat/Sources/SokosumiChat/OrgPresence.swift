@@ -15,7 +15,7 @@ public final class OrgPresence: ObservableObject {
   @Published public private(set) var byUserId: [String: Components.Schemas.ChatRoomPresence] = [:]
   /// Local self-approximation for the account chrome (web `useSelfPresence`).
   @Published public private(set) var selfPresence: Components.Schemas.ChatRoomPresence = .online
-  public private(set) var publisher: OrgPresencePublisherState
+  private var publisher: OrgPresencePublisherState
   private var members: [ChatPresenceMember] = []
   private var reachable = true
 

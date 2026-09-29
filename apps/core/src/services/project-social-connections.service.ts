@@ -1,0 +1,831 @@
+import type { Prisma } from "@sokosumi/database";
+
+import {
+  ComposioApiError,
+  ComposioConfigError,
+  deleteProjectSocialConnectionIntent,
+  getConnectedSocialIdentity,
+  getProjectSocialConnectedAccount,
+  initiateProjectSocialConnection as initiateComposioProjectSocialConnection,
+  revokeProjectSocialConnection,
+} from "@/clients/composio.client";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import {
+  isProjectSocialProvider,
+  PROJECT_SOCIAL_PROVIDERS,
+  type ProjectSocialProvider,
+} from "@/config/social-providers";
+import { lockCalendarScope } from "@/helpers/calendar-locks";
+import { conflict, notFound } from "@/helpers/error";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
+
+const INTENT_TTL_MS = 15 * 60 * 1000;
+
+export interface ProjectSocialConnectionSummary {
+  id: string;
+  provider: ProjectSocialProvider;
+  externalHandle: string | null;
+  status: string;
+  connectedAt: Date | null;
+  disconnectedAt: Date | null;
+}
+
+export type InitiateProjectSocialConnectionInput = {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+} & (
+  | {
+      provider: ProjectSocialProvider;
+      action: "connect";
+      socialConnectionId?: never;
+    }
+  | {
+      action: "reconnect" | "replace";
+      socialConnectionId: string;
+    }
+);
+
+export interface FinalizeProjectSocialConnectionInput {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  connectionId: string;
+}
+
+export interface ListProjectSocialConnectionsInput {
+  projectId: string;
+  workspaceId: string;
+}
+
+export interface DisconnectProjectSocialConnectionInput {
+  projectId: string;
+  workspaceId: string;
+  userId: string;
+  socialConnectionId: string;
+}
+
+interface ProjectSocialConnectionRecord {
+  id: string;
+  projectId: string;
+  provider: string;
+  externalAccountId: string;
+  externalHandle: string | null;
+  composioConnectedAccountId: string;
+  status: string;
+  activeExternalAccountKey: string | null;
+  connectorUserId: string;
+  connectedAt: Date | null;
+  disconnectedAt: Date | null;
+}
+
+function projectConnectorUserId(userId: string): string {
+  return `sokosumi:user:${userId}`;
+}
+
+/** Composio user id under which a Project executes tools on its connected accounts. */
+export function projectExecutorUserId(projectId: string): string {
+  return `sokosumi:project-executor:${projectId}`;
+}
+
+function activeExternalAccountKey(
+  provider: string,
+  externalAccountId: string,
+): string {
+  return `${provider}:${externalAccountId}`;
+}
+
+function mapProjectSocialConnection(
+  connection: ProjectSocialConnectionRecord,
+): ProjectSocialConnectionSummary {
+  if (!isProjectSocialProvider(connection.provider)) {
+    throw notFound("Unsupported social connection provider");
+  }
+  return {
+    id: connection.id,
+    provider: connection.provider,
+    externalHandle: connection.externalHandle,
+    status: connection.status,
+    connectedAt: connection.connectedAt,
+    disconnectedAt: connection.disconnectedAt,
+  };
+}
+
+function requireProjectSocialAuthConfigId(
+  provider: ProjectSocialProvider,
+): string {
+  const { authConfigEnv } = PROJECT_SOCIAL_PROVIDERS[provider];
+  const authConfigId = getEnv()[authConfigEnv];
+  if (!authConfigId) {
+    throw new ComposioConfigError(
+      `${authConfigEnv} is not configured for Project social connections`,
+    );
+  }
+  return authConfigId;
+}
+
+function isConnectionAction(
+  action: string,
+): action is "connect" | "reconnect" | "replace" {
+  return action === "connect" || action === "reconnect" || action === "replace";
+}
+
+function requireInitiationTargetState(
+  target: ProjectSocialConnectionRecord,
+  action: "reconnect" | "replace",
+): void {
+  if (action === "reconnect") {
+    if (target.status === "disconnected") {
+      throw conflict("A disconnected connection requires a new connection");
+    }
+    if (target.status !== "reauthorization_required") {
+      throw conflict(
+        "Only a connection that requires reauthorization can reconnect",
+      );
+    }
+    return;
+  }
+
+  if (target.status === "disconnected") {
+    throw conflict("Only a live connection can be replaced");
+  }
+}
+
+function requireFinalizationTargetState(
+  target: ProjectSocialConnectionRecord,
+  action: "reconnect" | "replace",
+): void {
+  if (action === "reconnect") {
+    requireInitiationTargetState(target, action);
+    return;
+  }
+
+  if (target.status !== "disconnected") {
+    throw conflict("The replacement target was not retired");
+  }
+}
+
+interface ProjectSocialConnectionIntentClaim {
+  projectId: string;
+  initiatingUserId: string;
+  provider: ProjectSocialProvider;
+  action: "connect" | "reconnect" | "replace";
+  socialConnectionId: string | null;
+  authConfigId: string;
+  callbackRedeemedAt: Date | null;
+  expiresAt: Date;
+}
+
+interface ProjectSocialConnectionIntentCandidate
+  extends Omit<ProjectSocialConnectionIntentClaim, "action" | "provider"> {
+  action: string;
+  provider: string;
+}
+
+function isLiveIntent(
+  intent: ProjectSocialConnectionIntentCandidate | null,
+  input: FinalizeProjectSocialConnectionInput,
+): intent is ProjectSocialConnectionIntentClaim {
+  return Boolean(
+    intent &&
+      intent.projectId === input.projectId &&
+      intent.initiatingUserId === input.userId &&
+      isProjectSocialProvider(intent.provider) &&
+      isConnectionAction(intent.action) &&
+      intent.callbackRedeemedAt !== null &&
+      intent.expiresAt > new Date(),
+  );
+}
+
+async function requireScopedProject(
+  input: { projectId: string; workspaceId: string },
+  client: Pick<Prisma.TransactionClient, "project"> = prisma,
+  requireOpen = false,
+): Promise<void> {
+  const project = await client.project.findFirst({
+    where: { id: input.projectId, workspaceId: input.workspaceId },
+    select: { id: true, closingAt: true, closedAt: true },
+  });
+  if (!project) {
+    throw notFound("Project not found");
+  }
+  if (requireOpen && (project.closingAt || project.closedAt)) {
+    throw conflict(
+      "Cannot connect social accounts to a closing or closed Project",
+    );
+  }
+}
+
+async function requireLockedOpenProject(
+  tx: Prisma.TransactionClient,
+  input: { projectId: string; workspaceId: string },
+): Promise<void> {
+  if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
+    throw notFound("Project not found");
+  }
+  await requireScopedProject(input, tx, true);
+}
+
+async function requireTargetConnection(input: {
+  projectId: string;
+  socialConnectionId?: string;
+}): Promise<ProjectSocialConnectionRecord> {
+  if (!input.socialConnectionId) {
+    throw notFound("Project social connection not found");
+  }
+  const connection = await prisma.projectSocialConnection.findFirst({
+    where: { id: input.socialConnectionId, projectId: input.projectId },
+  });
+  if (!connection) {
+    throw notFound("Project social connection not found");
+  }
+  return connection;
+}
+
+async function refreshActiveConnectionStatus(
+  connection: ProjectSocialConnectionRecord,
+): Promise<ProjectSocialConnectionRecord | null> {
+  if (connection.status !== "active") {
+    return connection;
+  }
+
+  let account;
+  try {
+    account = await getProjectSocialConnectedAccount(
+      connection.composioConnectedAccountId,
+    );
+  } catch (error) {
+    if (error instanceof ComposioApiError && error.httpStatus !== 404) {
+      return connection;
+    }
+    if (!(error instanceof ComposioApiError)) {
+      throw error;
+    }
+    account = null;
+  }
+
+  if (
+    account?.id === connection.composioConnectedAccountId &&
+    account.status === "ACTIVE" &&
+    isProjectSocialProvider(connection.provider) &&
+    account.toolkitSlug ===
+      PROJECT_SOCIAL_PROVIDERS[connection.provider].toolkitSlug
+  ) {
+    return connection;
+  }
+
+  return serializableTransaction(async (tx) => {
+    const current = await tx.projectSocialConnection.findUnique({
+      where: { id: connection.id },
+    });
+    if (!current || current.status !== "active") {
+      return current;
+    }
+
+    const updated = await tx.projectSocialConnection.update({
+      where: { id: current.id },
+      data: { status: "reauthorization_required" },
+    });
+    await tx.projectSocialConnectionAudit.create({
+      data: {
+        projectSocialConnectionId: updated.id,
+        action: "reauthorization_required",
+        actorId: "system",
+        externalAccountId: updated.externalAccountId,
+        externalHandle: updated.externalHandle,
+        providerOutcome: account?.status.toLowerCase() ?? "not_found",
+      },
+    });
+    return updated;
+  }, "Project social connection changed. Please retry.");
+}
+
+export async function initiateProjectSocialConnection(
+  input: InitiateProjectSocialConnectionInput,
+): Promise<{ connectionId: string; redirectUrl: string }> {
+  await requireScopedProject(input, prisma, true);
+  if (input.action === "connect" && input.socialConnectionId) {
+    throw conflict("A new connection cannot target an existing social account");
+  }
+  let provider: ProjectSocialProvider;
+  if (input.action === "connect") {
+    provider = input.provider;
+  } else {
+    const target = await requireTargetConnection(input);
+    requireInitiationTargetState(target, input.action);
+    if (!isProjectSocialProvider(target.provider)) {
+      throw notFound("Unsupported social connection provider");
+    }
+    provider = target.provider;
+  }
+
+  const authConfigId = requireProjectSocialAuthConfigId(provider);
+  if (input.action === "replace") {
+    const retiredConnection = await serializableTransaction(async (tx) => {
+      await requireLockedOpenProject(tx, input);
+      const target = await tx.projectSocialConnection.findFirst({
+        where: {
+          id: input.socialConnectionId ?? "",
+          projectId: input.projectId,
+        },
+      });
+      if (!target) {
+        throw notFound("Project social connection not found");
+      }
+      requireInitiationTargetState(target, "replace");
+      if (target.provider !== provider) {
+        throw conflict("The social connection provider changed. Please retry.");
+      }
+
+      return retireProjectSocialConnection(
+        tx,
+        target,
+        input.userId,
+        "replace_retire",
+      );
+    }, "Project social connection changed. Please retry.");
+
+    await revokeRetiredProjectSocialConnection(retiredConnection);
+  }
+
+  const connection = await initiateComposioProjectSocialConnection({
+    authConfigId,
+    connectorUserId: projectConnectorUserId(input.userId),
+    executorUserId: projectExecutorUserId(input.projectId),
+    callbackUrl: `${getWebAppBaseUrl()}/composio/callback`,
+  });
+  try {
+    await serializableTransaction(async (tx) => {
+      await requireLockedOpenProject(tx, input);
+      await tx.projectSocialConnectionIntent.create({
+        data: {
+          connectionId: connection.connectionId,
+          projectId: input.projectId,
+          initiatingUserId: input.userId,
+          provider,
+          action: input.action,
+          socialConnectionId: input.socialConnectionId ?? null,
+          authConfigId,
+          expiresAt: new Date(Date.now() + INTENT_TTL_MS),
+        },
+      });
+    }, "Project changed while connecting a social account");
+  } catch (error) {
+    // The hosted link has not left Core, so this unclaimed account cannot be used.
+    await deleteProjectSocialConnectionIntent({
+      connectedAccountId: connection.connectionId,
+    });
+    throw error;
+  }
+
+  return connection;
+}
+
+export async function finalizeProjectSocialConnection(
+  input: FinalizeProjectSocialConnectionInput,
+): Promise<ProjectSocialConnectionSummary> {
+  await requireScopedProject(input, prisma, true);
+  const intent = await prisma.projectSocialConnectionIntent.findUnique({
+    where: { connectionId: input.connectionId },
+  });
+  if (!isLiveIntent(intent, input)) {
+    throw notFound("Unknown or expired connection");
+  }
+
+  const authConfigId = intent.authConfigId;
+  const connectorUserId = projectConnectorUserId(input.userId);
+  const account = await getProjectSocialConnectedAccount(input.connectionId);
+  if (
+    account.id !== input.connectionId ||
+    account.toolkitSlug !==
+      PROJECT_SOCIAL_PROVIDERS[intent.provider].toolkitSlug ||
+    account.authConfigId !== authConfigId ||
+    account.connectorUserId !== connectorUserId
+  ) {
+    throw notFound("Unknown or expired connection");
+  }
+  if (account.status !== "ACTIVE") {
+    throw conflict("Connection is not active");
+  }
+
+  const identity = await getConnectedSocialIdentity({
+    provider: intent.provider,
+    connectedAccountId: input.connectionId,
+    executorUserId: projectExecutorUserId(input.projectId),
+  });
+  const { summary, retiredConnection } = await serializableTransaction(
+    async (tx) => {
+      await requireLockedOpenProject(tx, input);
+      const now = new Date();
+      const currentIntent = await tx.projectSocialConnectionIntent.findUnique({
+        where: { connectionId: input.connectionId },
+      });
+      if (
+        !isLiveIntent(currentIntent, input) ||
+        currentIntent.provider !== intent.provider ||
+        currentIntent.authConfigId !== intent.authConfigId ||
+        currentIntent.action !== intent.action ||
+        currentIntent.socialConnectionId !== intent.socialConnectionId
+      ) {
+        throw notFound("Unknown or expired connection");
+      }
+      const key = activeExternalAccountKey(currentIntent.provider, identity.id);
+      let target: ProjectSocialConnectionRecord | null = null;
+      if (currentIntent.action !== "connect") {
+        target = await tx.projectSocialConnection.findFirst({
+          where: {
+            id: currentIntent.socialConnectionId ?? "",
+            projectId: input.projectId,
+          },
+        });
+        if (!target) {
+          throw notFound("Project social connection not found");
+        }
+        requireFinalizationTargetState(target, currentIntent.action);
+        if (target.provider !== currentIntent.provider) {
+          throw conflict(
+            "The connection provider must match the existing account",
+          );
+        }
+        if (
+          currentIntent.action === "reconnect" &&
+          target.externalAccountId !== identity.id
+        ) {
+          throw conflict("Reconnect must match the existing account");
+        }
+      }
+
+      if (
+        currentIntent.action === "connect" ||
+        currentIntent.action === "replace"
+      ) {
+        const duplicate = await tx.projectSocialConnection.findFirst({
+          where: {
+            projectId: input.projectId,
+            activeExternalAccountKey: key,
+            ...(target ? { NOT: { id: target.id } } : {}),
+          },
+        });
+        if (duplicate) {
+          throw conflict(
+            "This social account is already connected to the Project",
+          );
+        }
+      }
+
+      let connection: ProjectSocialConnectionRecord;
+      let retiredConnection:
+        | {
+            auditId: string;
+            connectedAccountId: string;
+            socialConnectionId: string;
+          }
+        | undefined;
+      if (currentIntent.action === "reconnect" && target) {
+        if (target.composioConnectedAccountId !== input.connectionId) {
+          const retirementAudit = await tx.projectSocialConnectionAudit.create({
+            data: {
+              projectSocialConnectionId: target.id,
+              action: "reconnect_retire",
+              actorId: input.userId,
+              externalAccountId: target.externalAccountId,
+              externalHandle: target.externalHandle,
+              connectedAccountId: target.composioConnectedAccountId,
+              providerOutcome: "local_disconnect",
+            },
+          });
+          retiredConnection = {
+            auditId: retirementAudit.id,
+            connectedAccountId: target.composioConnectedAccountId,
+            socialConnectionId: target.id,
+          };
+        }
+        connection = await tx.projectSocialConnection.update({
+          where: { id: target.id },
+          data: {
+            composioConnectedAccountId: input.connectionId,
+            connectorUserId,
+            externalHandle: identity.handle,
+            status: "active",
+            activeExternalAccountKey: key,
+            connectedAt: now,
+            disconnectedAt: null,
+          },
+        });
+      } else {
+        connection = await tx.projectSocialConnection.create({
+          data: {
+            projectId: input.projectId,
+            provider: currentIntent.provider,
+            externalAccountId: identity.id,
+            externalHandle: identity.handle,
+            composioConnectedAccountId: input.connectionId,
+            status: "active",
+            activeExternalAccountKey: key,
+            connectorUserId,
+            connectedAt: now,
+          },
+        });
+      }
+
+      await tx.projectSocialConnectionAudit.create({
+        data: {
+          projectSocialConnectionId: connection.id,
+          action: currentIntent.action,
+          actorId: input.userId,
+          externalAccountId: identity.id,
+          externalHandle: identity.handle,
+          providerOutcome: "active",
+        },
+      });
+      await tx.projectSocialConnectionIntent.delete({
+        where: { connectionId: input.connectionId },
+      });
+      return {
+        summary: mapProjectSocialConnection(connection),
+        retiredConnection,
+      };
+    },
+    "Project social connection changed. Please retry.",
+  ).catch((error) => {
+    if (isPrismaUniqueViolation(error)) {
+      throw conflict("This social account is already connected to the Project");
+    }
+    throw error;
+  });
+
+  if (retiredConnection) {
+    await revokeRetiredProjectSocialConnection(retiredConnection);
+  }
+
+  return summary;
+}
+
+async function revokeRetiredProjectSocialConnection(input: {
+  auditId: string;
+  connectedAccountId: string;
+  socialConnectionId: string;
+}): Promise<"revoked" | "skipped_shared" | "failed"> {
+  const stillReferenced = await prisma.projectSocialConnection.findFirst({
+    where: {
+      composioConnectedAccountId: input.connectedAccountId,
+      status: { not: "disconnected" },
+      NOT: { id: input.socialConnectionId },
+    },
+    select: { id: true },
+  });
+  if (stillReferenced) {
+    await prisma.projectSocialConnectionAudit.update({
+      where: { id: input.auditId },
+      data: { providerOutcome: "revocation_skipped_shared" },
+    });
+    return "skipped_shared";
+  }
+
+  try {
+    await revokeProjectSocialConnection({
+      connectedAccountId: input.connectedAccountId,
+    });
+    await prisma.projectSocialConnectionAudit.update({
+      where: { id: input.auditId },
+      data: { providerOutcome: "revoked" },
+    });
+    return "revoked";
+  } catch {
+    await prisma.projectSocialConnectionAudit.update({
+      where: { id: input.auditId },
+      data: { providerOutcome: "revocation_failed" },
+    });
+    return "failed";
+  }
+}
+
+export async function listProjectSocialConnections(
+  input: ListProjectSocialConnectionsInput,
+): Promise<ProjectSocialConnectionSummary[]> {
+  await requireScopedProject(input);
+  const connections = await prisma.projectSocialConnection.findMany({
+    where: {
+      projectId: input.projectId,
+      status: { not: "disconnected" },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+  });
+  const refreshedConnections = await Promise.all(
+    connections.map(refreshActiveConnectionStatus),
+  );
+  return refreshedConnections
+    .filter(
+      (connection): connection is ProjectSocialConnectionRecord =>
+        connection !== null && connection.status !== "disconnected",
+    )
+    .map(mapProjectSocialConnection);
+}
+
+export async function disconnectProjectSocialConnection(
+  input: DisconnectProjectSocialConnectionInput,
+): Promise<{
+  connection: ProjectSocialConnectionSummary;
+  providerRevocation: "succeeded" | "failed" | "skipped";
+}> {
+  await requireScopedProject(input);
+  const existing = await requireTargetConnection({
+    projectId: input.projectId,
+    socialConnectionId: input.socialConnectionId,
+  });
+  if (existing.status === "disconnected") {
+    return {
+      connection: mapProjectSocialConnection(existing),
+      providerRevocation: "skipped",
+    };
+  }
+
+  const now = new Date();
+  const { auditId, connectedAccountId, connection } =
+    await serializableTransaction(async (tx) => {
+      if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId])))
+        throw notFound("Project not found");
+      const current = await tx.projectSocialConnection.findUnique({
+        where: { id: existing.id },
+      });
+      if (!current) throw notFound("Project social connection not found");
+      const retired = await retireProjectSocialConnection(
+        tx,
+        current,
+        input.userId,
+        "disconnect",
+      );
+      return {
+        ...retired,
+        connection: {
+          ...current,
+          status: "disconnected",
+          activeExternalAccountKey: null,
+          disconnectedAt: now,
+        },
+      };
+    }, "Project social connection changed. Please retry.");
+
+  const providerRevocation = await revokeRetiredProjectSocialConnection({
+    auditId,
+    connectedAccountId,
+    socialConnectionId: existing.id,
+  });
+  return {
+    connection: mapProjectSocialConnection(connection),
+    providerRevocation:
+      providerRevocation === "revoked"
+        ? "succeeded"
+        : providerRevocation === "failed"
+          ? "failed"
+          : "skipped",
+  };
+}
+
+interface RetiredProjectSocialConnection {
+  auditId: string;
+  connectedAccountId: string;
+  socialConnectionId: string;
+}
+
+async function retireProjectSocialConnection(
+  tx: Prisma.TransactionClient,
+  connection: ProjectSocialConnectionRecord,
+  actorId: string,
+  action: "disconnect" | "replace_retire" | "project_close",
+): Promise<RetiredProjectSocialConnection> {
+  await tx.projectSocialConnection.update({
+    where: { id: connection.id },
+    data: {
+      status: "disconnected",
+      activeExternalAccountKey: null,
+      disconnectedAt: new Date(),
+    },
+  });
+  const audit = await tx.projectSocialConnectionAudit.create({
+    data: {
+      projectSocialConnectionId: connection.id,
+      action,
+      actorId,
+      externalAccountId: connection.externalAccountId,
+      externalHandle: connection.externalHandle,
+      connectedAccountId: connection.composioConnectedAccountId,
+      providerOutcome: "local_disconnect",
+    },
+  });
+  return {
+    auditId: audit.id,
+    connectedAccountId: connection.composioConnectedAccountId,
+    socialConnectionId: connection.id,
+  };
+}
+
+/** Called inside the transaction that marks the locked Project as closing. */
+export async function retireProjectSocialConnectionsForClose(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+  actorId: string,
+): Promise<void> {
+  const connections = await tx.projectSocialConnection.findMany({
+    where: {
+      projectId,
+      OR: [
+        { status: { not: "disconnected" } },
+        {
+          audits: {
+            some: {
+              action: {
+                in: ["disconnect", "replace_retire", "reconnect_retire"],
+              },
+              providerOutcome: {
+                in: ["local_disconnect", "revocation_failed"],
+              },
+            },
+          },
+        },
+      ],
+    },
+  });
+  for (const connection of connections) {
+    if (connection.status === "disconnected") continue;
+    await retireProjectSocialConnection(
+      tx,
+      connection,
+      actorId,
+      "project_close",
+    );
+  }
+  await tx.projectSocialConnectionIntent.updateMany({
+    where: { projectId },
+    data: { expiresAt: new Date() },
+  });
+}
+
+interface ProjectSocialRevocation {
+  connectedAccountId: string;
+  retirement?: RetiredProjectSocialConnection;
+}
+
+/** Audit outcomes and expired intents retain provider cleanup work across retries. */
+export async function getPendingProjectSocialRevocation(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+): Promise<ProjectSocialRevocation | null> {
+  const audit = await tx.projectSocialConnectionAudit.findFirst({
+    where: {
+      action: {
+        in: [
+          "disconnect",
+          "replace_retire",
+          "reconnect_retire",
+          "project_close",
+        ],
+      },
+      providerOutcome: { in: ["local_disconnect", "revocation_failed"] },
+      projectSocialConnection: { projectId },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    include: { projectSocialConnection: true },
+  });
+  if (audit) {
+    const connection = audit.projectSocialConnection;
+    const connectedAccountId =
+      audit.connectedAccountId ?? connection.composioConnectedAccountId;
+    return {
+      connectedAccountId,
+      retirement: {
+        auditId: audit.id,
+        socialConnectionId: connection.id,
+        connectedAccountId,
+      },
+    };
+  }
+  const intent = await tx.projectSocialConnectionIntent.findFirst({
+    where: { projectId },
+    orderBy: { connectionId: "asc" },
+    select: { connectionId: true },
+  });
+  return intent ? { connectedAccountId: intent.connectionId } : null;
+}
+
+export async function revokeProjectSocialConnectionForClose(
+  pending: ProjectSocialRevocation,
+): Promise<void> {
+  if (pending.retirement) {
+    if (
+      (await revokeRetiredProjectSocialConnection(pending.retirement)) ===
+      "failed"
+    ) {
+      throw new Error("Social account authorization could not be revoked");
+    }
+    return;
+  }
+  await deleteProjectSocialConnectionIntent({
+    connectedAccountId: pending.connectedAccountId,
+  });
+  await prisma.projectSocialConnectionIntent.deleteMany({
+    where: { connectionId: pending.connectedAccountId },
+  });
+}

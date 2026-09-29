@@ -4,7 +4,7 @@ import { syncPendingTaskPaymentClaims } from "@/services/task-payment-claim.serv
 
 import { handleSyncRequest } from "../handler.js";
 
-export const TASK_PAYMENT_CLAIMS_SYNC_LOCK_KEY = "task-payment-claims-sync";
+const TASK_PAYMENT_CLAIMS_SYNC_LOCK_KEY = "task-payment-claims-sync";
 
 export default function mount(app: Hono) {
   app.get("/task-payment-claims", async (c) => {

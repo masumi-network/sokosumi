@@ -53,7 +53,7 @@ export function ProjectBriefing({
               type="button"
               aria-expanded={expanded}
               aria-controls="project-briefing-content"
-              className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+              className="text-muted-foreground press hover:text-foreground text-xs transition-colors"
               onClick={() => setExpanded((current) => !current)}
             >
               {expanded ? showLessLabel : showMoreLabel}

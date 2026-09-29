@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
 import {
   COLUMN_STATUS_COLORS,
   type KanbanColumnId,
 } from "@/app/tasks/types/task-board";
 import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
+import { EmptyState } from "@/components/common/empty-state";
 import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 import { ColumnHeader } from "./column-header";
@@ -123,9 +125,9 @@ export function JobsListView({
   const hasAnyJobs = sortedJobs.length > 0;
 
   const listContent = (
-    <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background overflow-hidden rounded-xl p-2">
       {hasAnyJobs ? (
-        <div className="divide-border divide-y">
+        <div className="flex flex-col gap-2">
           <section className="flex flex-col gap-1">
             <div className="bg-card-background sticky top-0 z-10 px-4 py-2 backdrop-blur-sm">
               <ColumnHeader
@@ -134,7 +136,7 @@ export function JobsListView({
                 statusColorClass={RECENT_SECTION_COLOR_CLASS}
               />
             </div>
-            <div className="divide-border flex flex-col divide-y px-2">
+            <div className="flex flex-col gap-2">
               {recentJobs.length > 0 ? (
                 recentJobs.map((job) => (
                   <JobListItem
@@ -145,7 +147,7 @@ export function JobsListView({
                   />
                 ))
               ) : (
-                <div className="text-muted-foreground px-4 py-3 text-sm">
+                <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                   {labels.emptyRecent}
                 </div>
               )}
@@ -164,7 +166,7 @@ export function JobsListView({
                     statusColorClass={COLUMN_STATUS_COLORS[columnId]}
                   />
                 </div>
-                <div className="divide-border flex flex-col divide-y px-2">
+                <div className="flex flex-col gap-2">
                   {columnJobs.length > 0 ? (
                     columnJobs.map((job) => (
                       <JobListItem
@@ -175,7 +177,7 @@ export function JobsListView({
                       />
                     ))
                   ) : (
-                    <div className="text-muted-foreground px-4 py-3 text-sm">
+                    <div className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 duration-200 px-4 py-3 text-sm">
                       {labels.emptySection}
                     </div>
                   )}
@@ -185,9 +187,10 @@ export function JobsListView({
           })}
         </div>
       ) : (
-        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
-          {labels.emptyList}
-        </div>
+        <EmptyState
+          description={labels.emptyList}
+          action={<NewTaskEmptyAction />}
+        />
       )}
     </div>
   );

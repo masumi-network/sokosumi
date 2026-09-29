@@ -1,0 +1,142 @@
+<!doctype html>
+<html class="dark">
+<head>
+<meta charset="utf-8" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=block" />
+<style>
+/*{{TOKENS}}*/
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1024px; height: 576px; }
+body {
+  position: relative;
+  overflow: hidden;
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Inter, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Frame: the pitch on the left, two captioned mocks on the right. */
+.pitch { position: absolute; left: 48px; top: 124px; width: 330px; }
+.pitch::before { content: "New in Sokosumi"; display: block; color: var(--primary-variant); font-size: 13px; font-weight: 500; }
+.pitch h1 { margin-top: 22px; font-size: 38px; line-height: 1.07; font-weight: 700; letter-spacing: -0.8px; }
+.pitch .lede { margin-top: 20px; color: var(--muted-foreground); font-size: 14.5px; line-height: 1.6; }
+.pitch ul { list-style: none; margin-top: 18px; }
+.pitch li { position: relative; margin-bottom: 11px; padding-left: 24px; font-size: 13.5px; line-height: 18px; white-space: nowrap; }
+.pitch li::before, .pitch li::after { content: ""; position: absolute; left: 0; top: 2px; width: 14px; height: 14px; }
+.pitch li::before { border-radius: 50%; background: var(--primary-tertiary); }
+.pitch li::after {
+  background: var(--primary-variant);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M7 12.5l3.5 3.5L17 9' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 14px no-repeat;
+}
+
+.mocks { position: absolute; left: 412px; right: 48px; top: 128px; display: flex; gap: 18px; }
+.mock { flex: 1 1 0; min-width: 0; }
+.mock figcaption { margin-bottom: 12px; color: var(--muted-foreground); font-size: 13px; white-space: nowrap; }
+.panel {
+  height: 290px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  background: var(--card-background);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  font-size: 11.5px;
+}
+
+/* Mock kit: compose panel contents from these. */
+.icon { width: 1.2em; height: 1.2em; flex: none; }
+.row { display: flex; align-items: center; gap: 6px; color: var(--muted-foreground); font-size: 10.5px; white-space: nowrap; }
+.row b, .card b { color: var(--foreground); font-weight: 600; }
+.row .title { flex: 1; color: var(--foreground); font-size: 11px; font-weight: 500; }
+.when { margin-left: auto; color: var(--disabled-foreground); }
+.push { margin-top: auto; }
+.fade { color: var(--disabled-foreground); }
+.avatar {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary-tertiary);
+  color: var(--foreground);
+  font-size: 9px;
+  font-weight: 600;
+}
+.avatar.sm { width: 14px; height: 14px; font-size: 7px; }
+.status { display: inline-flex; align-items: center; gap: 4px; }
+.status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status.external { color: var(--status-external-label); }
+.status.working { color: var(--status-working-label); }
+.status.warning { color: var(--semantic-warning-label); }
+.status.success { color: var(--semantic-success-label); }
+.card { position: relative; padding: 10px 11px 12px; background: var(--card-background); border: 1px solid var(--border); border-radius: 10px; }
+.card p { margin-top: 8px; line-height: 1.5; }
+.card.highlight { border-color: var(--primary-tertiary); box-shadow: 0 0 0 3px var(--ring-halo); }
+.pill { display: inline-flex; align-items: center; gap: 5px; width: fit-content; padding: 4px 11px; border-radius: 9999px; background: var(--quinary); border: 1px solid var(--border); font-size: 11px; white-space: nowrap; }
+.pill.center { align-self: center; }
+.pill.overlap { position: absolute; left: 50%; bottom: -10px; transform: translateX(-50%); padding: 3px 10px; font-size: 10px; background: var(--card-background); }
+.btn { display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 6px; font-size: 11px; white-space: nowrap; }
+.btn.primary { background: var(--primary-solid); color: var(--primary-solid-foreground); }
+.btn.secondary { background: var(--quinary); }
+.btn.tinted { background: var(--primary-quaternary); border: 1px solid var(--primary-tertiary); }
+.btn.tinted .icon { color: var(--primary-variant); }
+.disabled { opacity: 0.5; }
+.error { color: var(--destructive); }
+.actions { display: flex; justify-content: flex-end; gap: 6px; }
+.message { position: relative; padding-left: 26px; }
+.message > .avatar { position: absolute; left: 0; top: 0; }
+.message .body { margin-top: 4px; line-height: 1.5; }
+.field { padding: 8px 11px; background: var(--card-background); border: 1px solid var(--input); border-radius: 8px; line-height: 1.55; }
+.tag { padding: 1px 5px; border-radius: 4px; background: var(--primary-quaternary); color: var(--primary-variant); font-size: 9px; font-weight: 600; }
+.chip { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 4px 7px; border-radius: 6px; background: var(--quinary); border: 1px solid var(--border); font-size: 10.5px; }
+.mention { color: var(--primary-variant); font-weight: 500; }
+.caret { display: inline-block; width: 1px; height: 13px; margin-left: 1px; vertical-align: -2px; background: var(--foreground); }
+.strip { display: flex; gap: 13px; padding: 0 2px 10px; border-bottom: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px; }
+.composer { flex: 1; display: flex; flex-direction: column; gap: 10px; padding: 11px 11px 9px; background: var(--card-background); border: 1px solid var(--input); border-radius: 14px; font-size: 12px; line-height: 1.55; }
+.toolbar { display: flex; align-items: center; gap: 12px; margin-top: auto; color: var(--muted-foreground); font-size: 11px; font-weight: 600; }
+.send { margin-left: auto; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-solid); color: var(--primary-solid-foreground); }
+.hint { display: flex; align-items: center; gap: 5px; color: var(--disabled-foreground); font-size: 10.5px; white-space: nowrap; }
+kbd { padding: 1px 5px; border-radius: 4px; background: var(--quinary); border: 1px solid var(--border); color: var(--muted-foreground); font-family: inherit; font-size: 9.5px; }
+
+/* Layout guard: render.mjs exits 2 when anything carries this. */
+.overflowing { outline: 2px solid var(--destructive) !important; outline-offset: 2px; }
+</style>
+</head>
+<body>
+<!--{{CONTENT}}-->
+<script>
+  document.fonts.ready.then(() => {
+    const over = (el) =>
+      getComputedStyle(el).display !== "inline" &&
+      (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1);
+    const flagged = [...document.querySelectorAll(".pitch li, .mock figcaption")].filter(over);
+    for (const panel of document.querySelectorAll(".panel")) {
+      const box = panel.getBoundingClientRect();
+      if (over(panel)) flagged.push(panel);
+      for (const el of panel.querySelectorAll("*")) {
+        const r = el.getBoundingClientRect();
+        const escapes = r.width > 0 && (r.left < box.left + 4 || r.right > box.right - 4 || r.bottom > box.bottom - 4);
+        if (escapes || (over(el) && !el.querySelector(":scope > .overlap"))) flagged.push(el);
+      }
+    }
+    const h1 = document.querySelector(".pitch h1");
+    if (h1 && (h1.scrollWidth > h1.clientWidth + 1 || h1.offsetHeight > 38 * 1.07 * 2 + 2)) flagged.push(h1);
+    const pitch = document.querySelector(".pitch");
+    if (pitch && pitch.getBoundingClientRect().bottom > 576 - 32) flagged.push(pitch);
+    for (const el of flagged) el.classList.add("overflowing");
+    const ctx = document.createElement("canvas").getContext("2d");
+    const width = (family) => {
+      ctx.font = `700 40px ${family}`;
+      return ctx.measureText("mmmmmmmmmmlliWQ@").width;
+    };
+    const inter = width("Inter, monospace") !== width("monospace");
+    document.title = `overflow:${flagged.length} inter:${inter}`;
+  });
+</script>
+</body>
+</html>

@@ -10,17 +10,13 @@ const { getInviteLinkByTokenMock, roomFindUniqueMock } = vi.hoisted(() => ({
   roomFindUniqueMock: vi.fn(),
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  chatRoomGuestInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     chatRoom: {
       findUnique: (...args: unknown[]) => roomFindUniqueMock(...args),
+    },
+    chatRoomGuestInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
     },
   },
 }));

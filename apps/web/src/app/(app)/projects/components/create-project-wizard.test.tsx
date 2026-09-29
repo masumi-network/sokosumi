@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { CreateProjectWizard } from "@/app/projects/components/create-project-wizard";
@@ -278,5 +278,28 @@ describe("CreateProjectWizard", () => {
       expect.objectContaining({ id: "project-1" }),
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("hands focus back through onCloseAutoFocus when it closes", async () => {
+    const user = userEvent.setup();
+    const onCloseAutoFocus = vi.fn();
+    function Host() {
+      const [open, setOpen] = useState(true);
+      return (
+        <CreateProjectWizard
+          open={open}
+          onOpenChange={setOpen}
+          onCloseAutoFocus={onCloseAutoFocus}
+        />
+      );
+    }
+    render(<Host />);
+    await screen.findByTestId("create-project-wizard");
+    expect(onCloseAutoFocus).not.toHaveBeenCalled();
+
+    await user.keyboard("{Escape}");
+
+    await waitFor(() => expect(onCloseAutoFocus).toHaveBeenCalledTimes(1));
+    expect(screen.queryByTestId("create-project-wizard")).toBeNull();
   });
 });

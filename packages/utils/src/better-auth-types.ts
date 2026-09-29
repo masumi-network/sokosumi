@@ -22,8 +22,7 @@ export interface SessionUser {
   updatedAt: Date | string;
   termsAccepted: boolean;
   marketingOptIn: boolean;
-  notificationsOptIn?: boolean | null;
-  showRoomUnreadCount?: boolean | null;
+  hideRoomUnreadCount?: boolean | null;
   logo?: string | null;
   metadata?: string | null;
   stripeCustomerId?: string | null;

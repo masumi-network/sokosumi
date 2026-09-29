@@ -24,6 +24,13 @@ export interface ChannelRosterSnapshot {
   sokoBots?: ReadonlyArray<{ id: string; name: string }>;
 }
 
+export type GroupNameChange = {
+  action: "named" | "cleared";
+  /** The new Group name; null when cleared. */
+  name: string | null;
+  actor: { id: string; name: string };
+};
+
 export interface RecordChannelMembershipStatusArgs {
   roomId: string;
   roomKind: string;
@@ -128,7 +135,7 @@ function membershipStatusContent(change: ChannelMembershipChange): string {
 
 function membershipMetadata(
   change: ChannelMembershipChange,
-): Record<string, unknown> {
+): Prisma.InputJsonObject {
   return {
     membership: {
       action: change.action,
@@ -177,6 +184,75 @@ export async function recordChannelMembershipStatus(
     data: { updatedAt: new Date() },
   });
   return messages;
+}
+
+function groupNameChangeContent(change: GroupNameChange): string {
+  return change.action === "named"
+    ? `${change.actor.name} named the group ${change.name}`
+    : `${change.actor.name} removed the group name`;
+}
+
+/**
+ * Persist the one status row a Group name change leaves in its room, in `tx`.
+ * No sender, like the membership rows; unread counts leave it out, so a
+ * rename never marks the room unread. Bumps the room's `updatedAt` like
+ * `recordChannelMembershipStatus`, so the sidebar sorts it as activity.
+ * Callers publish after commit.
+ */
+export async function recordGroupNameChange(
+  tx: Prisma.TransactionClient,
+  args: { roomId: string; change: GroupNameChange },
+): Promise<ChatRoomMessageWithInclude> {
+  const { change } = args;
+  const message = await tx.chatRoomMessage.create({
+    data: {
+      roomId: args.roomId,
+      content: groupNameChangeContent(change),
+      senderUserId: null,
+      senderCoworkerId: null,
+      metadata: { groupNameChange: change },
+    },
+    include: chatRoomMessageInclude,
+  });
+  await tx.chatRoom.update({
+    where: { id: args.roomId },
+    data: { updatedAt: new Date() },
+  });
+  return message;
+}
+
+export function readGroupNameChangeFromMetadata(
+  metadata: Record<string, unknown> | null,
+): GroupNameChange | null {
+  const raw = metadata?.groupNameChange;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    return null;
+  }
+  const candidate = raw as Record<string, unknown>;
+  const actor = candidate.actor as Record<string, unknown> | null | undefined;
+  if (
+    !actor ||
+    typeof actor !== "object" ||
+    typeof actor.id !== "string" ||
+    typeof actor.name !== "string"
+  ) {
+    return null;
+  }
+  if (candidate.action === "named" && typeof candidate.name === "string") {
+    return {
+      action: "named",
+      name: candidate.name,
+      actor: { id: actor.id, name: actor.name },
+    };
+  }
+  if (candidate.action === "cleared") {
+    return {
+      action: "cleared",
+      name: null,
+      actor: { id: actor.id, name: actor.name },
+    };
+  }
+  return null;
 }
 
 export function readMembershipFromMetadata(
@@ -228,5 +304,8 @@ export function assertChatRoomContentMessage(metadata: unknown): void {
       : null;
   if (readMembershipFromMetadata(record) != null) {
     throw badRequest("Cannot modify a membership status message");
+  }
+  if (readGroupNameChangeFromMetadata(record) != null) {
+    throw badRequest("Cannot modify a group name status message");
   }
 }

@@ -3,6 +3,7 @@ import SwiftUI
 
 /// Each code block owns its parsing task so hovering or scrolling a message
 /// does not run the parser again. A changed stream invalidates only that block.
+/// The fence's language picks the grammar and is not shown, as on web.
 struct MessageCodeBlock: View {
   let source: String
   let languageHint: String?
@@ -14,16 +15,11 @@ struct MessageCodeBlock: View {
   }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      if let language = languageHint?.split(whereSeparator: \.isWhitespace).first {
-        Text(String(language)).font(.caption).foregroundStyle(.secondary)
-      }
-      ScrollView(.horizontal) {
-        Text(highlightedInput == input ? highlighted ?? AttributedString(source) : AttributedString(source))
-          .font(.system(.body, design: .monospaced))
-          .fixedSize(horizontal: true, vertical: false)
-          .textSelection(.enabled)
-      }
+    ScrollView(.horizontal) {
+      Text(highlightedInput == input ? highlighted ?? AttributedString(source) : AttributedString(source))
+        .font(.system(.body, design: .monospaced))
+        .fixedSize(horizontal: true, vertical: false)
+        .textSelection(.enabled)
     }
     .padding(10)
     .background(.quaternary.opacity(0.4), in: .rect(cornerRadius: 6))

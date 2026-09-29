@@ -8,36 +8,21 @@ const TASKS_PATH = "/v1/tasks";
 export interface FetchTasksOptions {
   q?: string;
   status?: string | readonly string[];
-  statuses?: string | readonly string[];
   scope?: string;
   coworkerId?: string;
-  cursor?: string;
   take?: number | string;
-  skip?: number | string;
 }
 
 export interface CreateTaskData {
   name?: string;
   description?: string | null;
-  projectId?: string | null;
   coworkerId?: string | null;
-  assigneeId?: string | null;
-  assigneeSokoBotId?: string | null;
-  assigneeUserId?: string | null;
   status?: string;
-  channel?: string;
-  origin?: string;
-  context?: Record<string, unknown>;
 }
 
 export interface CreateTaskEventData {
   status?: string;
   comment?: string;
-  authenticationUrl?: string;
-  credits?: number | null;
-  channel?: string;
-  origin?: string;
-  masumiPayment?: Record<string, unknown>;
 }
 
 function requireId(id: string, name: string): void {
@@ -66,11 +51,8 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   if (options.scope) params.set("scope", String(options.scope).trim());
   if (options.coworkerId)
     params.set("coworkerId", String(options.coworkerId).trim());
-  if (options.cursor) params.set("cursor", String(options.cursor).trim());
   if (options.take !== undefined) params.set("take", String(options.take));
-  if (options.skip !== undefined) params.set("skip", String(options.skip));
-  for (const status of values(options.statuses ?? options.status))
-    params.append("status", status);
+  for (const status of values(options.status)) params.append("status", status);
   const query = params.toString();
   return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;
 }
@@ -141,15 +123,39 @@ export async function fetchTaskEvents(
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown[]>; events: unknown[] }> {
   requireId(taskId, "taskId");
-  const response = listResponse(
-    parseApiResponse(
-      await client.get<unknown>(
-        `${TASKS_PATH}/${encodeURIComponent(taskId)}/events`,
-        signal,
-      ),
-    ),
-  );
-  return { response, events: response.data };
+
+  const events: unknown[] = [];
+  let cursor: string | undefined;
+  let lastResponse: ApiResponse<unknown[]> | undefined;
+
+  for (;;) {
+    const params = new URLSearchParams({ limit: "100" });
+    if (cursor) params.set("cursor", cursor);
+    const path = `${TASKS_PATH}/${encodeURIComponent(taskId)}/events?${params}`;
+    const response = listResponse(
+      parseApiResponse(await client.get<unknown>(path, signal)),
+    );
+    lastResponse = response;
+    events.push(...response.data);
+
+    const pagination =
+      response.meta?.pagination &&
+      typeof response.meta.pagination === "object" &&
+      !Array.isArray(response.meta.pagination)
+        ? (response.meta.pagination as Record<string, unknown>)
+        : null;
+    const next =
+      typeof pagination?.nextCursor === "string" && pagination.nextCursor
+        ? pagination.nextCursor
+        : null;
+    if (!next || next === cursor) break;
+    cursor = next;
+  }
+
+  return {
+    response: { ...(lastResponse ?? { data: [] }), data: events },
+    events,
+  };
 }
 
 export async function createTaskEvent(

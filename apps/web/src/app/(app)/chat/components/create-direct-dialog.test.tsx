@@ -4,7 +4,7 @@ import type { ReactElement } from "react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RoomActionResult } from "@/app/chat/actions";
-import { OrganizationSeatProvider } from "@/contexts/organization-seat-context";
+import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
 import { CreateDirectDialog } from "./create-direct-dialog";
 
@@ -52,9 +52,7 @@ vi.mock("@/components/chat/organization-chat-events", () => ({
 
 function renderSeated(ui: ReactElement) {
   return render(
-    <OrganizationSeatProvider hasAssignedSeat={true}>
-      {ui}
-    </OrganizationSeatProvider>,
+    <OrganizationSeatContext value={true}>{ui}</OrganizationSeatContext>,
   );
 }
 
@@ -401,9 +399,9 @@ describe("CreateDirectDialog", () => {
     });
     const user = userEvent.setup();
     render(
-      <OrganizationSeatProvider hasAssignedSeat={false}>
+      <OrganizationSeatContext value={false}>
         <CreateDirectDialog />
-      </OrganizationSeatProvider>,
+      </OrganizationSeatContext>,
     );
 
     await user.click(screen.getByRole("button", { name: "Draft.title" }));

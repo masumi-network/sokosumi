@@ -1,6 +1,5 @@
 import {
   CoworkerWorkspaceAccessStatus,
-  MemberRole,
   type Prisma,
   TaskStatus,
   TaskVisibility,
@@ -25,21 +24,18 @@ import {
   requireJobOwnership,
   requireJobRead,
   requireJobReadForRouteVars,
-  requireMutableTaskOwnership,
-  requireTaskArchiveAccess,
+  requireMutableTaskWriteAccess,
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
-  requireTaskCancelAccess,
   requireTaskCollaboration,
   requireTaskCommentAccess,
   requireTaskOwnership,
   requireTaskReadForRouteVars,
   requireTaskReadForWorkspace,
-  requireTaskScheduleReadAccess,
-  requireTaskScheduleWriteAccess,
   requireTaskStatusWriteAccess,
   requireTaskWorkspaceMapping,
+  requireTaskWriteAccess,
 } from "./access-control";
 import { buildHumanTaskVisibilityWhere } from "./task-visibility";
 import { buildCoworkerAuthorizedTaskWhere } from "./vendor-siblings";
@@ -48,6 +44,7 @@ const {
   getWorkspaceGrantMock,
   requestWorkspaceGrantMock,
   resolveMemberOrganizationByIdMock,
+  requireAssignedOrganizationSeatMock,
   prismaTransactionMock,
   independentGrantTxClient,
 } = vi.hoisted(() => {
@@ -59,6 +56,7 @@ const {
     getWorkspaceGrantMock: vi.fn(),
     requestWorkspaceGrantMock: vi.fn(),
     resolveMemberOrganizationByIdMock: vi.fn(),
+    requireAssignedOrganizationSeatMock: vi.fn(),
     independentGrantTxClient,
     prismaTransactionMock: vi.fn(
       async (callback: (tx: Prisma.TransactionClient) => Promise<unknown>) =>
@@ -90,6 +88,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("./organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
+}));
+
+vi.mock("./organization-assigned-seat", () => ({
+  requireAssignedOrganizationSeat: requireAssignedOrganizationSeatMock,
 }));
 
 function createTransactionClient() {
@@ -170,16 +172,155 @@ describe("requireTaskOwnership", () => {
   });
 });
 
-describe("requireMutableTaskOwnership", () => {
+const writeAccessWhere = {
+  OR: [
+    { ownerId: "user_123" },
+    {
+      visibility: TaskVisibility.PUBLIC,
+      workspace: {
+        organization: { members: { some: { userId: "user_123" } } },
+      },
+    },
+  ],
+};
+
+describe("requireTaskWriteAccess", () => {
+  beforeEach(() => {
+    requireAssignedOrganizationSeatMock.mockReset();
+  });
+
+  function mockMemberTask(
+    tx: Prisma.TransactionClient,
+    task: { id?: string; organizationId?: string | null },
+    placementOrganizationId: string | null,
+  ) {
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: task.id ?? "tsk_123",
+      ownerId: "user_other",
+      workspaceId,
+      organizationId: task.organizationId ?? null,
+    } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+      organizationId: placementOrganizationId,
+    } as never);
+  }
+
+  it("lets a seated org member act on another member's public task", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: "org_billing" }, "org_placement");
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+
+    expect(tx.task.findFirst).toHaveBeenCalledWith({
+      where: { id: "tsk_123", archivedAt: null, ...writeAccessWhere },
+    });
+    expect(tx.workspace.findUnique).toHaveBeenCalledWith({
+      where: { id: workspaceId },
+      select: { organizationId: true },
+    });
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_placement",
+      tx,
+    );
+  });
+
+  it("seats a moved-in task on the workspace org when billing org is null", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: null }, "org_placement");
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).resolves.toMatchObject({ id: "tsk_123" });
+
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_placement",
+      tx,
+    );
+  });
+
+  it("does not skip the seat when the task workspace has no organization", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: null }, null);
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).rejects.toMatchObject({ status: 404, message: "Task not found" });
+    expect(requireAssignedOrganizationSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an unseated member who does not own the task", async () => {
+    const tx = createTransactionClient();
+    mockMemberTask(tx, { organizationId: "org_billing" }, "org_placement");
+    requireAssignedOrganizationSeatMock.mockRejectedValueOnce(
+      new HTTPException(403, { message: "Seat required" }),
+    );
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("does not check the owner's seat", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_123",
+      ownerId: "user_123",
+      organizationId: "org_123",
+    } as never);
+
+    await requireTaskWriteAccess(sessionUserContext, "tsk_123", tx);
+
+    expect(requireAssignedOrganizationSeatMock).not.toHaveBeenCalled();
+  });
+
+  it("allows parked tasks, so they can still be archived", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
+      id: "tsk_parked",
+      status: TaskStatus.GRANT_PENDING,
+      ownerId: "user_other",
+      workspaceId,
+      organizationId: null,
+    } as never);
+    vi.mocked(tx.workspace.findUnique).mockResolvedValueOnce({
+      organizationId: "org_placement",
+    } as never);
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_parked", tx),
+    ).resolves.toMatchObject({ id: "tsk_parked" });
+    expect(requireAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+      "user_123",
+      "org_placement",
+      tx,
+    );
+  });
+
+  it("returns not found when no task matches", async () => {
+    const tx = createTransactionClient();
+    vi.mocked(tx.task.findFirst).mockResolvedValueOnce(null);
+
+    await expect(
+      requireTaskWriteAccess(sessionUserContext, "tsk_123", tx),
+    ).rejects.toMatchObject({ status: 404, message: "Task not found" });
+  });
+});
+
+describe("requireMutableTaskWriteAccess", () => {
   it("rejects parked tasks", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
       status: TaskStatus.GRANT_PENDING,
+      ownerId: "user_123",
     } as never);
 
     await expect(
-      requireMutableTaskOwnership(sessionUserContext, "tsk_123", tx),
+      requireMutableTaskWriteAccess(sessionUserContext, "tsk_123", tx),
     ).rejects.toSatisfy((error: unknown) => {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
@@ -189,336 +330,32 @@ describe("requireMutableTaskOwnership", () => {
     });
   });
 
-  it("allows non-parked owned tasks", async () => {
+  it("allows non-parked tasks", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      ownerId: "user_123",
       pendingVendorGrantId: null,
     } as never);
 
     await expect(
-      requireMutableTaskOwnership(sessionUserContext, "tsk_123", tx),
+      requireMutableTaskWriteAccess(sessionUserContext, "tsk_123", tx),
     ).resolves.toMatchObject({ id: "tsk_123" });
-  });
-});
-
-function archiveAccessVars(
-  workspaceContext: WorkspaceContext | null = jobReadWorkspaceContext,
-  authContext: UserAuthenticationContext = userAuthContext,
-): EnvVariables["Variables"] {
-  return {
-    isAuthenticated: true,
-    authContext,
-    workspaceContext,
-  };
-}
-
-const scheduledTaskMetadata = JSON.stringify({
-  version: 1,
-  mode: "once",
-  scheduledAt: "2026-08-01T10:00:00.000Z",
-  runAt: "2026-08-01T10:00:00.000Z",
-});
-
-describe("requireTaskArchiveAccess", () => {
-  beforeEach(() => {
-    resolveMemberOrganizationByIdMock.mockReset();
-  });
-
-  it("allows the task owner including parked tasks", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      pendingVendorGrantId: "grant_1",
-      ownerId: "user_123",
-    } as never);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_123", tx),
-    ).resolves.toMatchObject({ id: "tsk_123" });
-  });
-
-  it("allows org owner/admin to archive parked tasks they do not own", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_parked",
-        status: TaskStatus.GRANT_PENDING,
-        ownerId: "user_other",
-        visibility: TaskVisibility.PUBLIC,
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    resolveMemberOrganizationByIdMock.mockResolvedValue({ id: "org_123" });
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked", tx),
-    ).resolves.toMatchObject({ id: "tsk_parked" });
-
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "org_123",
-        userId: "user_123",
-        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-      }),
-    );
-  });
-
-  it("hides private parked tasks from org owner/admin non-owners", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_parked_private",
-        status: TaskStatus.GRANT_PENDING,
-        ownerId: "user_other",
-        visibility: TaskVisibility.PRIVATE,
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked_private", tx),
-    ).rejects.toMatchObject({
-      status: 404,
-      message: "Task not found",
-    });
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps parked+scheduled archive OWNER/ADMIN-only for non-owners", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_parked_scheduled",
-        status: TaskStatus.GRANT_PENDING,
-        ownerId: "user_other",
-        visibility: TaskVisibility.PUBLIC,
-        metadata: scheduledTaskMetadata,
-        nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    resolveMemberOrganizationByIdMock.mockRejectedValue(
-      new HTTPException(404, { message: "Organization not found" }),
-    );
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_parked_scheduled", tx),
-    ).rejects.toThrow();
-
-    // Parked branch must win over scheduled workspace-member path.
-    expect(resolveMemberOrganizationByIdMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "org_123",
-        userId: "user_123",
-        allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
-      }),
-    );
-  });
-
-  it("rejects when task is missing", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(null);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_123", tx),
-    ).rejects.toThrow("Task not found");
-  });
-
-  it("allows an org workspace member who does not own the scheduled task to archive", async () => {
-    const tx = createTransactionClient();
-    const memberAuthContext: UserAuthenticationContext = {
-      actor: "user",
-      userId: "user_member",
-      organizationId: "org_123",
-      role: "user",
-    };
-    const scheduledTask = {
-      id: "tsk_scheduled",
-      status: TaskStatus.READY,
-      ownerId: "user_owner",
-      workspaceId,
-      metadata: scheduledTaskMetadata,
-      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-      workspace: { organizationId: "org_123" },
-    };
-
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(scheduledTask as never)
-      .mockResolvedValueOnce(scheduledTask as never);
-
-    await expect(
-      requireTaskArchiveAccess(
-        archiveAccessVars(jobReadWorkspaceContext, memberAuthContext),
-        "tsk_scheduled",
-        tx,
-      ),
-    ).resolves.toMatchObject({ id: "tsk_scheduled" });
-
-    expect(tx.task.findFirst).toHaveBeenNthCalledWith(3, {
-      where: {
-        id: "tsk_scheduled",
-        archivedAt: null,
-        workspaceId,
-        ...buildHumanTaskVisibilityWhere("user_member"),
-      },
-    });
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects when scheduled task is in a different workspace than the active one", async () => {
-    const tx = createTransactionClient();
-    const otherWorkspaceId = "22222222-2222-7222-8222-222222222222";
-    const scheduledTask = {
-      id: "tsk_scheduled",
-      status: TaskStatus.READY,
-      ownerId: "user_owner",
-      workspaceId: otherWorkspaceId,
-      metadata: scheduledTaskMetadata,
-      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-      workspace: { organizationId: "org_123" },
-    };
-
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(scheduledTask as never)
-      .mockResolvedValueOnce(null);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_scheduled", tx),
-    ).rejects.toThrow("Task not found");
-
-    expect(tx.task.findFirst).toHaveBeenNthCalledWith(3, {
-      where: {
-        id: "tsk_scheduled",
-        archivedAt: null,
-        workspaceId,
-        ...buildHumanTaskVisibilityWhere("user_123"),
-      },
-    });
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects scheduled archive when active workspace context is missing", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_scheduled",
-        status: TaskStatus.READY,
-        ownerId: "user_other",
-        metadata: scheduledTaskMetadata,
-        nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(null), "tsk_scheduled", tx),
-    ).rejects.toThrow("Workspace is missing");
-
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects a personal-workspace non-owner for scheduled archive", async () => {
-    const tx = createTransactionClient();
-    const personalWorkspace: WorkspaceContext = {
-      workspaceId,
-      userId: "user_member",
-      organizationId: null,
-    };
-    const memberAuthContext: UserAuthenticationContext = {
-      actor: "user",
-      userId: "user_member",
-      organizationId: null,
-      role: "user",
-    };
-    const scheduledTask = {
-      id: "tsk_scheduled",
-      status: TaskStatus.READY,
-      ownerId: "user_owner",
-      workspaceId,
-      metadata: null,
-      nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-      workspace: { organizationId: "org_123" },
-    };
-
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(scheduledTask as never)
-      .mockResolvedValueOnce(scheduledTask as never);
-
-    await expect(
-      requireTaskArchiveAccess(
-        archiveAccessVars(personalWorkspace, memberAuthContext),
-        "tsk_scheduled",
-        tx,
-      ),
-    ).rejects.toThrow("Task not found");
-
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects org members for non-scheduled tasks they do not own", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_plain",
-        status: TaskStatus.READY,
-        ownerId: "user_other",
-        metadata: null,
-        nextRunAt: null,
-        workspace: { organizationId: "org_123" },
-      } as never);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_plain", tx),
-    ).rejects.toThrow("Task not found");
-
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects org members for scheduled tasks in a personal workspace", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst)
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "tsk_personal",
-        status: TaskStatus.READY,
-        ownerId: "user_other",
-        metadata: null,
-        nextRunAt: new Date("2026-08-01T10:00:00.000Z"),
-        workspace: { organizationId: null },
-      } as never);
-
-    await expect(
-      requireTaskArchiveAccess(archiveAccessVars(), "tsk_personal", tx),
-    ).rejects.toThrow("Task not found");
-
-    expect(resolveMemberOrganizationByIdMock).not.toHaveBeenCalled();
   });
 });
 
 describe("requireTaskCollaboration", () => {
-  it("uses ownership for users", async () => {
+  it("uses write access for users", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
       id: "tsk_123",
+      ownerId: "user_123",
     } as never);
 
     await requireTaskCollaboration(userAuthContext, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        ownerId: "user_123",
-        archivedAt: null,
-      },
+      where: { id: "tsk_123", archivedAt: null, ...writeAccessWhere },
     });
   });
 
@@ -923,232 +760,6 @@ describe("requireTaskReadForRouteVars", () => {
     };
 
     await requireTaskReadForRouteVars(vars, "tsk_123", tx);
-  });
-});
-
-describe("requireTaskScheduleReadAccess", () => {
-  it("keeps owner-only access for session users", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: userAuthContext,
-      workspaceContext: jobReadWorkspaceContext,
-    };
-
-    await requireTaskScheduleReadAccess(vars, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        ownerId: "user_123",
-        archivedAt: null,
-      },
-    });
-  });
-
-  it("uses the vendor-sibling task read gate for standalone coworker keys", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-    } as never);
-    const coworkerContext = createCoworkerContext("cow_123");
-
-    const vars: EnvVariables["Variables"] = {
-      isAuthenticated: true,
-      authContext: coworkerContext,
-      workspaceContext: jobReadWorkspaceContext,
-    };
-
-    await requireTaskScheduleReadAccess(vars, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: buildCoworkerAuthorizedTaskWhere({
-        taskId: "tsk_123",
-        coworkerId: "cow_123",
-        vendorId: defaultVendorId,
-        workspaceId: null,
-      }),
-    });
-  });
-});
-
-describe("requireTaskScheduleWriteAccess", () => {
-  const scheduledTask = {
-    id: "tsk_123",
-    status: "QUEUED",
-    assigneeId: "cow_sibling",
-  };
-
-  it("lets a contextual coworker edit a same-vendor sibling's schedule", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      assignee: { vendorId: defaultVendorId },
-    } as never);
-
-    const task = await requireTaskScheduleWriteAccess(
-      createCoworkerContext("cow_123", {
-        userId: "user_123",
-        organizationId: null,
-      }),
-      "tsk_123",
-      tx,
-    );
-
-    expect(task).toEqual(scheduledTask);
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: { id: "tsk_123", archivedAt: null, ownerId: "user_123" },
-      include: { assignee: { select: { vendorId: true } } },
-    });
-  });
-
-  it("lets the creating coworker schedule a task assigned to another vendor", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      status: "DRAFT",
-      creatorCoworkerId: "cow_123",
-      assignee: { vendorId: "01960001-0001-7001-8001-00000000beef" },
-    } as never);
-
-    const task = await requireTaskScheduleWriteAccess(
-      createCoworkerContext("cow_123", {
-        userId: "user_123",
-        organizationId: null,
-      }),
-      "tsk_123",
-      tx,
-    );
-
-    expect(task.creatorCoworkerId).toBe("cow_123");
-  });
-
-  it("lets a contextual assignee schedule a DRAFT they did not create", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      status: "DRAFT",
-      assigneeId: "cow_123",
-      creatorCoworkerId: "cow_other",
-      assignee: { vendorId: defaultVendorId },
-    } as never);
-
-    const task = await requireTaskScheduleWriteAccess(
-      createCoworkerContext("cow_123", {
-        userId: "user_123",
-        organizationId: null,
-      }),
-      "tsk_123",
-      tx,
-    );
-
-    expect(task.assigneeId).toBe("cow_123");
-    expect(task.creatorCoworkerId).toBe("cow_other");
-  });
-
-  it("rejects a sibling task from another vendor", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      assignee: { vendorId: "01960001-0001-7001-8001-00000000beef" },
-    } as never);
-
-    await expect(
-      requireTaskScheduleWriteAccess(
-        createCoworkerContext("cow_123"),
-        "tsk_123",
-        tx,
-      ),
-    ).rejects.toMatchObject({ status: 403 });
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: { id: "tsk_123", archivedAt: null, status: { not: "DRAFT" } },
-      include: { assignee: { select: { vendorId: true } } },
-    });
-  });
-
-  it("rejects non-creator siblings on DRAFT", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      status: "DRAFT",
-      assignee: { vendorId: defaultVendorId },
-    } as never);
-
-    await expect(
-      requireTaskScheduleWriteAccess(
-        createCoworkerContext("cow_123", {
-          userId: "user_123",
-          organizationId: null,
-        }),
-        "tsk_123",
-        tx,
-      ),
-    ).rejects.toMatchObject({ status: 403 });
-  });
-
-  it("rejects schedule writes on parked tasks", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.coworker.findFirst).mockResolvedValueOnce({
-      id: "cow_123",
-    } as never);
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      ...scheduledTask,
-      status: TaskStatus.GRANT_PENDING,
-      assignee: { vendorId: defaultVendorId },
-    } as never);
-
-    await expect(
-      requireTaskScheduleWriteAccess(
-        createCoworkerContext("cow_123", {
-          userId: "user_123",
-          organizationId: null,
-        }),
-        "tsk_123",
-        tx,
-      ),
-    ).rejects.toSatisfy((error: unknown) => {
-      expect(error).toBeInstanceOf(HTTPException);
-      expect((error as HTTPException).cause).toMatchObject({
-        kind: "task_parked",
-      });
-      return true;
-    });
-  });
-
-  it("keeps owner-only access for session users", async () => {
-    const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
-      id: "tsk_123",
-      status: "QUEUED",
-    } as never);
-
-    await requireTaskScheduleWriteAccess(userAuthContext, "tsk_123", tx);
-
-    expect(tx.task.findFirst).toHaveBeenCalledWith({
-      where: { id: "tsk_123", ownerId: "user_123", archivedAt: null },
-    });
   });
 });
 
@@ -1557,7 +1168,7 @@ describe("requireTaskCommentAccess", () => {
   });
 });
 
-describe("requireTaskCancelAccess", () => {
+describe("requireTaskStatusWriteAccess cancel", () => {
   it("allows the task owner to cancel", async () => {
     const tx = createTransactionClient();
     vi.mocked(tx.task.findFirst).mockResolvedValueOnce({
@@ -1572,7 +1183,7 @@ describe("requireTaskCancelAccess", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireTaskCancelAccess(vars, "tsk_123", tx);
+    await requireTaskStatusWriteAccess(vars, "tsk_123", tx);
 
     expect(tx.task.findFirst).toHaveBeenCalledWith({
       where: {
@@ -1605,7 +1216,7 @@ describe("requireTaskCancelAccess", () => {
       workspaceContext: jobReadWorkspaceContext,
     };
 
-    await requireTaskCancelAccess(vars, "tsk_123", tx);
+    await requireTaskStatusWriteAccess(vars, "tsk_123", tx);
   });
 
   it("rejects a personal-workspace non-owner", async () => {
@@ -1634,9 +1245,9 @@ describe("requireTaskCancelAccess", () => {
       workspaceContext: personalWorkspace,
     };
 
-    await expect(requireTaskCancelAccess(vars, "tsk_123", tx)).rejects.toThrow(
-      "Task not found",
-    );
+    await expect(
+      requireTaskStatusWriteAccess(vars, "tsk_123", tx),
+    ).rejects.toThrow("Task not found");
   });
 
   it("uses coworker collaboration for coworker actors", async () => {
@@ -1661,7 +1272,7 @@ describe("requireTaskCancelAccess", () => {
       workspaceContext: null,
     };
 
-    await requireTaskCancelAccess(vars, "tsk_123", tx);
+    await requireTaskStatusWriteAccess(vars, "tsk_123", tx);
 
     expect(tx.task.findUnique).toHaveBeenCalledWith({
       where: {
@@ -1688,7 +1299,7 @@ describe("requireTaskCancelAccess", () => {
     };
 
     await expect(
-      requireTaskCancelAccess(vars, "tsk_123", tx),
+      requireTaskStatusWriteAccess(vars, "tsk_123", tx),
     ).rejects.toSatisfy((error: unknown) => {
       expect(error).toBeInstanceOf(HTTPException);
       expect((error as HTTPException).cause).toMatchObject({
@@ -1786,35 +1397,24 @@ describe("requireTaskStatusWriteAccess", () => {
     ).rejects.toThrow("Task not found");
   });
 
-  it("keeps agent-assigned tasks on owner-only collaboration", async () => {
+  it("lets an org member write an agent-assigned task", async () => {
     const tx = createTransactionClient();
-    vi.mocked(tx.task.findFirst).mockImplementation(((args: {
-      where: { ownerId?: string };
-    }) =>
-      Promise.resolve(
-        args.where.ownerId === undefined || args.where.ownerId === "user_123"
-          ? ({
-              id: "tsk_123",
-              ownerId: "user_123",
-              assigneeId: "cow_123",
-              assigneeSokoBotId: null,
-              assigneeUserId: null,
-              pendingVendorGrantId: null,
-            } as never)
-          : null,
-      )) as never);
+    vi.mocked(tx.task.findFirst).mockResolvedValue({
+      id: "tsk_123",
+      ownerId: "user_owner",
+      assigneeId: "cow_123",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      pendingVendorGrantId: null,
+    } as never);
 
-    // Non-owner org member is denied on a coworker-assigned task.
     await expect(
       requireTaskStatusWriteAccess(
         varsFor(orgMemberAuthContext),
         "tsk_123",
         tx,
       ),
-    ).rejects.toThrow("Task not found");
-
-    // Owner is allowed.
-    await requireTaskStatusWriteAccess(varsFor(userAuthContext), "tsk_123", tx);
+    ).resolves.toMatchObject({ id: "tsk_123" });
   });
 });
 

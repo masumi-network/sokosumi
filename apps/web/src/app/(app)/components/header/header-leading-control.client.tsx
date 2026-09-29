@@ -53,7 +53,7 @@ export function HeaderLeadingControl(): React.ReactElement {
       <Link
         href={CHAT_CHATS_LIST_PATH}
         aria-label={t("backToChats")}
-        className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+        className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
       >
         <ChevronLeft className="size-5" aria-hidden />
       </Link>
@@ -75,7 +75,7 @@ export function HeaderLeadingControl(): React.ReactElement {
       <Link
         href={href}
         aria-label={t(appBack.labelKey)}
-        className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+        className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
         onClick={isTasksBack ? handleTasksBackClick : undefined}
       >
         <ChevronLeft className="size-5" aria-hidden />
@@ -87,7 +87,7 @@ export function HeaderLeadingControl(): React.ReactElement {
     <Link
       href={CHAT_CHATS_LIST_PATH}
       aria-label={t("backToChats")}
-      className="text-foreground hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+      className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
     >
       <ChevronLeft className="size-5" aria-hidden />
     </Link>

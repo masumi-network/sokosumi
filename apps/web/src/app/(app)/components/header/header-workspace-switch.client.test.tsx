@@ -3,8 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { WorkspaceGateErrorCode } from "@/lib/actions/errors";
-import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
+import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { authClient } from "@/lib/auth/auth.client";
 import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
@@ -25,7 +25,7 @@ vi.mock("@/hooks/use-modal", () => ({
   }),
 }));
 
-vi.mock("@/lib/actions/workspace-gate", () => ({
+vi.mock("@/lib/actions/workspace-gate/action", () => ({
   createPersonalWorkspaceAction: vi.fn(),
 }));
 

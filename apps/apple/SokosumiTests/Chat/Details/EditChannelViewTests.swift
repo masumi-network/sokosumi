@@ -11,7 +11,7 @@
       @Test(arguments: [false, true], [false, true])
       func rendersSettingsForManagersAndRosterForMembers(dark: Bool, manages: Bool) async throws {
         let room = try Components.Schemas.ChatRoom(
-          id: "fixture", organizationId: "org", name: "Design", slug: "design", kind: .channel, isSelfDirect: false,
+          id: "fixture", organizationId: "org", name: "Design", slug: "design", kind: .channel, isSelfDirect: false, isGroupDirect: false,
           topic: "Discuss designs and share feedback with the team.", discoverability: ._private, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .member,
@@ -56,10 +56,6 @@
         #expect(ChannelEditPermissions.canLeave(room) && model.permissions?.canArchive == manages)
         try await Task.sleep(for: .milliseconds(100))
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let png = try #require(bitmap.representation(using: .png, properties: [:]))
-        try png.write(to: FileManager.default.temporaryDirectory.appendingPathComponent("edit-channel-\(manages ? "manager" : "member")-\(dark ? "dark" : "light").png"))
       }
     }
   }

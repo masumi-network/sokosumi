@@ -37,16 +37,13 @@ vi.mock("@/helpers/organization", () => ({
   resolveMemberOrganizationById: resolveMemberOrganizationByIdMock,
 }));
 
-vi.mock("@sokosumi/database/repositories", () => ({
-  organizationInviteLinkRepository: {
-    getInviteLinkByToken: (...args: unknown[]) =>
-      getInviteLinkByTokenMock(...args),
-    revokeInviteLink: (...args: unknown[]) => revokeInviteLinkMock(...args),
-  },
-}));
-
 vi.mock("@/lib/db/prisma", () => ({
-  default: {},
+  default: {
+    organizationInviteLink: {
+      findUnique: (...args: unknown[]) => getInviteLinkByTokenMock(...args),
+      update: (...args: unknown[]) => revokeInviteLinkMock(...args),
+    },
+  },
 }));
 
 const USER_AUTH_CONTEXT: AuthenticationContext = {
@@ -173,15 +170,13 @@ describe("DELETE /organizations/{id}/invite-links/{token}", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({ ok: true });
-    expect(getInviteLinkByTokenMock).toHaveBeenCalledWith(
-      token,
-      expect.anything(),
-    );
-    expect(revokeInviteLinkMock).toHaveBeenCalledWith(
-      "link_1",
-      NOW,
-      expect.anything(),
-    );
+    expect(getInviteLinkByTokenMock).toHaveBeenCalledWith({
+      where: { token },
+    });
+    expect(revokeInviteLinkMock).toHaveBeenCalledWith({
+      where: { id: "link_1" },
+      data: { revokedAt: NOW },
+    });
   });
 
   it("returns 404 when the token belongs to a different organization", async () => {

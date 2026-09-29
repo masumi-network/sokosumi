@@ -30,7 +30,7 @@ export function buildAuthHeaders(requestHeaders: Headers): HeadersInit {
   return authHeaders;
 }
 
-async function createCoreGeneratedClient() {
+export async function createCoreGeneratedClient() {
   return createClient({
     baseUrl: getServerCoreApiBaseUrl(),
     headers: {

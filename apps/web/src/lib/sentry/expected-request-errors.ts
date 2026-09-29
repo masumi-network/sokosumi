@@ -1,4 +1,5 @@
 import type { ErrorEvent, EventHint } from "@sentry/nextjs";
+import { redactResetPasswordToken } from "./reset-password-token-redaction";
 
 const INVALID_SESSION_MESSAGE = /invalid, expired or missing session/i;
 
@@ -202,5 +203,5 @@ export function beforeSendServerEvent(
     return null;
   }
 
-  return event;
+  return redactResetPasswordToken(event);
 }

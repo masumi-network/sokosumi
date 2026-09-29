@@ -424,7 +424,10 @@ export function useNotificationDelivery(): NotificationDelivery {
 
   function readPushBlock(): PushBlock | null {
     if (push.isSupported === false) {
-      return "unsupported";
+      // An iPhone or iPad outside the installed app reaches here with every
+      // other browser that has no push, and is the only one of them with a
+      // way out. It gets the instruction; the rest keep the plain statement.
+      return push.isInstallable ? "installable" : "unsupported";
     }
 
     if (push.isBlocked) {

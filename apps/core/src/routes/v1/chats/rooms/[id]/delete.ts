@@ -12,7 +12,7 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { CHAT_ROOM_ACCESS } from "@/schemas/chat-room.schema";
 
 import {
-  canPermanentlyDeleteChatRoom,
+  canManageChatRoomLifecycle,
   membershipAccessForUser,
   requireArchivedChatRoomUserAccess,
 } from "../helpers";
@@ -92,7 +92,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         userId: userContext.userId,
         tx,
       });
-      if (!canPermanentlyDeleteChatRoom({ role })) {
+      if (!canManageChatRoomLifecycle({ role })) {
         throw forbidden(
           "Only an organization owner or admin can permanently delete this room.",
         );

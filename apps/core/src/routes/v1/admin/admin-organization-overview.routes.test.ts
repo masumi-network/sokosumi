@@ -11,7 +11,6 @@ const {
   buildAdminOrganizationOverviewItemMock,
   buildAdminOrganizationOverviewDetailMock,
   buildAdminOrganizationMemberOverviewPageMock,
-  getAdminOrganizationBySlugMock,
   authContextState,
 } = vi.hoisted(() => ({
   authContextState: {
@@ -26,7 +25,6 @@ const {
   buildAdminOrganizationOverviewItemMock: vi.fn(),
   buildAdminOrganizationOverviewDetailMock: vi.fn(),
   buildAdminOrganizationMemberOverviewPageMock: vi.fn(),
-  getAdminOrganizationBySlugMock: vi.fn(),
 }));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -59,7 +57,6 @@ vi.mock("@/helpers/admin-organization-overview.js", () => ({
     buildAdminOrganizationOverviewDetailMock,
   buildAdminOrganizationMemberOverviewPage:
     buildAdminOrganizationMemberOverviewPageMock,
-  getAdminOrganizationBySlug: getAdminOrganizationBySlugMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -237,11 +234,6 @@ describe("GET /v1/admin/organizations/{slug}", () => {
 describe("GET /v1/admin/organizations/{slug}/members", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getAdminOrganizationBySlugMock.mockResolvedValue({
-      id: "org_1",
-      name: "Acme Corp",
-      slug: "acme-corp",
-    });
     buildAdminOrganizationMemberOverviewPageMock.mockResolvedValue({
       members: [
         {
@@ -283,7 +275,7 @@ describe("GET /v1/admin/organizations/{slug}/members", () => {
   });
 
   it("returns 404 when organization is missing", async () => {
-    getAdminOrganizationBySlugMock.mockResolvedValue(null);
+    buildAdminOrganizationMemberOverviewPageMock.mockResolvedValue(null);
     const app = createApp(mountListAdminOrganizationMembers);
     const res = await app.request("/missing/members");
 

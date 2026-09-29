@@ -5,10 +5,12 @@ import { getEnv } from "@/config/env";
 import { requireAuthorizedUserContext } from "@/helpers/coworker-user-context-binding";
 import { requireDriveFileAccess } from "@/helpers/drive-file-access";
 import { parseDriveFilePathname } from "@/helpers/drive-file-pathname";
+import { resolveDriveTasksWorkspace } from "@/helpers/drive-tasks-workspace";
 import { notFound, serviceUnavailable } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { deleteDriveFileRequestSchema } from "@/schemas/drive-file.schema";
+import { tombstoneDriveUploadResource } from "@/services/file-catalog.service";
 
 const route = createRoute({
   method: "delete",
@@ -73,6 +75,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     await del(pathname, { token });
+
+    // Tombstone the catalog entry in the same request: a deleted document
+    // must stop matching at once, not when a sweeper next runs.
+    const workspace = await resolveDriveTasksWorkspace({
+      userContext,
+      scope: scope === "user" ? "me" : "org",
+      organizationId: scope === "organization" ? ownerId : undefined,
+    });
+    await tombstoneDriveUploadResource({
+      workspaceId: workspace.workspaceId,
+      scope,
+      pathname,
+    });
 
     return c.body(null, 204);
   });

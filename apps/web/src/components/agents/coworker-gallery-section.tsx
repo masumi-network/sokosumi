@@ -274,7 +274,7 @@ function VendorDashboard({
           columns pad to the bottom so it reaches the closing rule below. */}
       <div className="grid gap-6 md:grid-cols-[13.5rem_1fr] md:gap-0">
         {/* Rail — coworker selector (horizontal on mobile, vertical list on desktop) */}
-        <div className="-mx-1 flex gap-1 overflow-x-auto px-1 pt-6 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pt-6 md:pr-6 md:pb-10">
+        <div className="app-scrollbar -mx-1 flex gap-1 overflow-x-auto px-1 pt-6 pb-1 md:mx-0 md:flex-col md:overflow-visible md:px-0 md:pt-6 md:pr-6 md:pb-10">
           {members.map((member) => {
             const isActive = member.id === active.id;
             return (
@@ -395,7 +395,7 @@ function VendorDashboard({
                     type="button"
                     onClick={() => setShowAllOffers((value) => !value)}
                     className={cn(
-                      "text-muted-foreground hover:text-foreground inline-flex items-center gap-1 rounded-md text-sm font-medium",
+                      "text-muted-foreground press hover:text-foreground inline-flex items-center gap-1 rounded-md text-sm font-medium",
                       FOCUS_RING,
                     )}
                   >
@@ -577,7 +577,7 @@ function CoworkerGallerySectionInner({
               </span>
             </div>
           ) : null}
-          <h2 className="text-foreground text-2xl font-light text-balance md:text-3xl">
+          <h2 className="text-foreground text-2xl font-light text-balance md:text-3xl tracking-tight">
             {t("heroHeadline")}
           </h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
@@ -620,7 +620,7 @@ function CoworkerGallerySectionInner({
                   type="button"
                   onClick={() => setQuery(suggestion)}
                   className={cn(
-                    "bg-card border-border text-muted-foreground hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
+                    "bg-card border-border text-muted-foreground press hover:text-foreground hover:border-border rounded-full border px-3 py-1.5 text-sm transition-colors",
                     FOCUS_RING,
                   )}
                 >
@@ -634,7 +634,7 @@ function CoworkerGallerySectionInner({
 
       {vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className="text-foreground text-xl font-light md:text-2xl">
+          <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
             {t("coworkersTitle")}
           </h2>
           <div>
@@ -672,7 +672,7 @@ function CoworkerGallerySectionInner({
                 type="button"
                 onClick={() => setShowAllCompanies((value) => !value)}
                 className={cn(
-                  "border-border bg-card text-foreground hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
+                  "border-border bg-card text-foreground press hover:bg-card-background inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition-colors",
                   FOCUS_RING,
                 )}
               >

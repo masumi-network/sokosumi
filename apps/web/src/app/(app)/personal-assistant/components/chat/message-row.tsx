@@ -31,7 +31,7 @@ function useTimestamp() {
   };
 }
 
-export function UserRow({
+function UserRow({
   content,
   createdAt,
   userImageUrl,
@@ -71,37 +71,6 @@ export function UserRow({
           {userName?.trim() ? userName.trim().charAt(0).toUpperCase() : "U"}
         </AvatarFallback>
       </Avatar>
-    </div>
-  );
-}
-
-/** Read-only assistant message (imported history). */
-export function AssistantMarkdownRow({
-  content,
-  createdAt,
-  chip,
-  muted = false,
-}: {
-  content: string;
-  createdAt: string;
-  chip?: string | null;
-  muted?: boolean;
-}) {
-  return (
-    <div className="group/message flex min-h-11 w-full items-start gap-3 px-4 py-1.5">
-      <AssistantAvatar className={cn(muted && "opacity-70")} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {chip ? <KindChip>{chip}</KindChip> : null}
-        <Markdown
-          className={cn(
-            "text-foreground pt-1 pr-10 pb-1 text-sm",
-            muted && "text-muted-foreground",
-          )}
-        >
-          {content}
-        </Markdown>
-        <MessageFooter text={content} createdAt={createdAt} />
-      </div>
     </div>
   );
 }
@@ -158,11 +127,11 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground press hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>
-          <Check aria-hidden className="size-3.5" />
+          <Check aria-hidden className="check-pop size-3.5" />
           {t("copied")}
         </>
       ) : (

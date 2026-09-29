@@ -42,7 +42,7 @@ const route = createRoute({
   method: "post",
   path: "/{id}/files",
   description: [
-    "Mint a direct upload session for a task file (owner or assigned agent).",
+    "Mint a direct upload session for a task file (owner, seated organization member on a public task, or assigned agent).",
     "Bytes go client → Vercel Blob (not through this API).",
     "When the Blob PUT completes, Core auto-creates the TaskFile row via",
     "`POST /v1/webhooks/tasks/files/uploaded` (Blob `onUploadCompleted` webhook).",

@@ -12,14 +12,17 @@ import { AuthForm } from "@/auth/components/form/auth-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { signUpFormData } from "@/auth/signup/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
-import { AuthErrorCode } from "@/lib/actions";
-import { handleUtmConversion } from "@/lib/actions/auth";
+import { handleUtmConversion } from "@/lib/actions/auth/action";
+import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signUp } from "@/lib/auth/auth.client";
 import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { type SignUpFormSchemaType, signUpFormSchema } from "@/lib/schemas";
+import {
+  type SignUpFormSchemaType,
+  signUpFormSchema,
+} from "@/lib/schemas/auth";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;

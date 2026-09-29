@@ -1,15 +1,24 @@
 export {
+  CALENDAR_ACCESS_REVOKED_EVENT_NAME,
+  CALENDAR_INVALIDATED_EVENT_NAME,
   makeAgentJobsChannelName,
   makeChatRoomChannelName,
+  makeChatTypingChannelName,
   makeOrgPresenceChannelName,
+  makeUserCalendarControlChannelName,
   makeUserChatControlChannelName,
   makeUserNotificationsChannelName,
   makeUserTasksChannelName,
+  makeWorkspaceCalendarChannelName,
   type NotificationChannelEnvironment,
   parseChatRoomIdFromChannelName,
   parseOrganizationIdFromPresenceChannelName,
 } from "./ably-channel.js";
-export { AUTH_CAPTCHA_ACTION, AUTH_CAPTCHA_HEADER } from "./auth-captcha.js";
+export {
+  AUTH_CAPTCHA_ACTION,
+  AUTH_CAPTCHA_HEADER,
+  TURNSTILE_ALWAYS_PASS_SECRET,
+} from "./auth-captcha.js";
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
@@ -28,7 +37,12 @@ export type {
   SessionRecord,
   SessionUser,
 } from "./better-auth-types.js";
-export { CALENDAR_BETA_ORGANIZATION_SLUG } from "./calendar-beta.js";
+export {
+  BILLING_CREDITS_ADDED_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+  BILLING_SUBSCRIPTION_ENDING_MESSAGE_KEY,
+} from "./billing-notification-message-keys.js";
 export {
   CALENDAR_CLIENT_VERSION,
   CALENDAR_CLIENT_VERSION_HEADER,
@@ -73,6 +87,7 @@ export {
   type ChatPresenceState,
   isValidAblyClientInstanceId,
   type PresenceConnectionInput,
+  parseUserIdFromAblyPresenceClientId,
 } from "./chat-presence.js";
 export { CHAT_PRESENCE_ONLINE_WINDOW_MS } from "./chat-presence-windows.js";
 export {
@@ -96,10 +111,15 @@ export {
   type ChatRoomPinnedMessageAction,
 } from "./chat-room-pinned-message-event.js";
 export {
+  canQuoteIntoRoom,
+  isSelfJoinableChannelDiscoverability,
+} from "./chat-room-quote-audience.js";
+export {
   buildRoomQuoteSnippetParts,
   type ChatRoomQuoteAttachment,
 } from "./chat-room-quote-snippet.js";
 export { MAX_LISTED_CHAT_REACTION_REACTORS } from "./chat-room-reactions.js";
+export { CHAT_ROOM_READ_EVENT_NAME } from "./chat-room-read-event.js";
 export {
   buildChatRoomUnfurlSnapshotPathname,
   CHAT_ROOM_UNFURL_SNAPSHOT_MAX_SIZE_BYTES,
@@ -112,10 +132,7 @@ export {
   type ChatRoomCollection,
 } from "./chat-rooms-changed.js";
 export { isChatUiProviderReasoningPartType } from "./chat-ui-reasoning-part-types.js";
-export {
-  CORE_API_ERROR_KINDS,
-  type CoreApiErrorKind,
-} from "./core-api-error-kind.js";
+export { CORE_API_ERROR_KINDS } from "./core-api-error-kind.js";
 export {
   buildCoworkerImagePathname,
   COWORKER_IMAGE_ALLOWED_MIME_TYPES,
@@ -134,6 +151,17 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export {
+  createDataTableSchema,
+  tableBatchSchema,
+  tableColumnInputSchema,
+  tableEvidenceSchema,
+  tableInsertRowSchema,
+  tableMutationSchema,
+  tableQuerySchema,
+  tableValuesSchema,
+  tableViewDefinitionSchema,
+} from "./data-table.js";
 export { DESIGN_MD_ATTACHMENT_LABEL } from "./design-md-attachment.js";
 export {
   withoutDesignMdMetadata,
@@ -144,7 +172,6 @@ export {
   buildAdHocDesignMdPrefix,
   buildOrganizationDesignMdPathname,
   buildProjectDesignMdPathname,
-  buildProjectDesignMdPrefix,
   buildUserDesignMdPathname,
 } from "./design-md-path.js";
 export { isDesignMdBlobUrl } from "./design-md-url.js";
@@ -160,12 +187,20 @@ export {
   buildUserDriveFolderMarkerPathname,
   buildUserDriveFolderPrefix,
   clampDriveFileName,
+  DRIVE_OWNER_PREFIX_PATTERN,
+  driveFolderPathFromSourceId,
   isDriveFolderMarker,
   isDriveFolderMarkerName,
   normalizeDriveFolderPath,
   sanitizeDriveFileName,
   validateDriveFolderPath,
 } from "./drive-file-path.js";
+export { isVercelBlobPublicHost } from "./entity-image-upload.js";
+export {
+  CURATED_FILE_VOCABULARY,
+  CURATED_VOCABULARY_VERSION,
+  curatedFileVocabularyRows,
+} from "./file-curated-vocabulary.js";
 export {
   getExtensionFromUrl,
   getUrlBasename,
@@ -176,6 +211,26 @@ export {
   isUrlString,
   sanitizeFileName,
 } from "./file-url.js";
+export {
+  checkFileLabelName,
+  FILE_LABEL_DESCRIPTION_MAX_LENGTH,
+  FILE_LABEL_NAME_MAX_GRAPHEMES,
+  FILE_TAGS_PER_RESOURCE_MAX,
+  normalizeFileResourceName,
+} from "./file-vocabulary.js";
+export {
+  isUnexpectedHtmlImport,
+  resolveDownloadableFileUrl,
+} from "./github-file-url.js";
+export {
+  creditsPerImageCents,
+  IMAGE_PRICE_UNITS,
+  type ImagePriceFigures,
+  type ImagePriceUnit,
+  imageOutputDimensions,
+  isAreaPricedUnit,
+} from "./image-credits.js";
+export { readImageDimensionsFromBytes } from "./image-dimensions.js";
 export { sniffImageMimeFromBytes } from "./image-mime.js";
 export {
   normalizeOrganizationLogo,
@@ -226,13 +281,16 @@ export {
   CHAT_FEED_MESSAGE_KEYS,
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
   isBrowserOnlyNotification,
+  isMentionNotification,
   isNeedsActionNotification,
   JOB_INPUT_REQUIRED_MESSAGE_KEY,
+  MENTION_MESSAGE_KEYS,
   NEEDS_ACTION_MESSAGE_KEYS,
   TASK_INPUT_REQUIRED_MESSAGE_KEY,
   VENDOR_GRANT_PENDING_MESSAGE_KEY,
 } from "./notification-feed-kinds.js";
 export {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_DIRECT_FOLLOW_UP_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -296,15 +354,29 @@ export {
 export {
   buildProjectBriefingPathname,
   buildProjectContextMdPathname,
-  buildProjectFilesRootPrefix,
 } from "./project-files-path.js";
 export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
+export {
+  SOCIAL_POST_MEDIA_RULES,
+  SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
+  SOCIAL_POST_TEXT_LIMITS,
+  type SocialPostMediaKind,
+  type SocialPostMediaRef,
+  type SocialPostMediaValidationReason,
+  type SocialPostProvider,
+  socialPostMediaKindForMime,
+  socialPostMimeForFileName,
+  validateSocialPostMedia,
+} from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
 export { hasStripeBillingAddressWithCountry } from "./stripe-billing-address.js";
+export { encodeTableCsv, parseTableCsv } from "./table-csv.js";
+export { validateTableValues } from "./table-value-validation.js";
 export {
   canArchiveTaskStatus,
   getTaskCannotArchiveMessage,
@@ -336,14 +408,6 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
-export {
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  parseTaskScheduleMetadata,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "./task-schedule.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,

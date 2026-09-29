@@ -1,5 +1,5 @@
 import type { InputTimeSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,7 @@ export function TimeInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.TIME, InputTimeSchemaType>) {
+}: JobInputComponentProps<typeof InputType.TIME, InputTimeSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

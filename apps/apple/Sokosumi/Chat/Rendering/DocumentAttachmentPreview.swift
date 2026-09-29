@@ -19,6 +19,7 @@ struct DocumentAttachmentPreview: View {
       } else if let textDocument {
         ScrollView {
           MarkdownBlocksView(blocks: textDocument.blocks, presentsFileAttachments: false)
+            .messageImageGallery(textDocument.imageGallery)
             .textSelection(.enabled)
             .frame(maxWidth: 680, alignment: .leading)
             .padding(24)

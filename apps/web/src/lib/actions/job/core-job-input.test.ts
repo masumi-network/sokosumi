@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { ProvideJobInputSchemaType } from "@/lib/schemas";
+import type { ProvideJobInputSchemaType } from "@/lib/schemas/job";
 
 import { toCoreJobInputData } from "./core-job-input";
 

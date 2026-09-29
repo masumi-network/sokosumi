@@ -1,4 +1,6 @@
+import { NewTaskEmptyAction } from "@/app/components/new-task-empty-action.client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { EmptyState } from "@/components/common/empty-state";
 import type { TaskStatus } from "@/lib/types/core-dto";
 
 import { TaskListItem } from "./task-list-item";
@@ -23,9 +25,9 @@ export function TaskListView({
   const hasAnyTasks = tasks.length > 0;
 
   return (
-    <div className="bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border">
+    <div className="bg-card-background overflow-hidden rounded-xl p-2">
       {hasAnyTasks ? (
-        <div className="divide-border divide-y">
+        <div className="flex flex-col gap-2">
           {tasks.map((task) => (
             <TaskListItem
               key={task.id}
@@ -37,9 +39,10 @@ export function TaskListView({
           {footer ? <div className="py-3">{footer}</div> : null}
         </div>
       ) : (
-        <div className="text-muted-foreground flex items-center justify-center py-16 text-sm">
-          {labels.emptyList}
-        </div>
+        <EmptyState
+          description={labels.emptyList}
+          action={<NewTaskEmptyAction />}
+        />
       )}
     </div>
   );

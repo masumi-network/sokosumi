@@ -1,4 +1,5 @@
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -11,7 +12,7 @@ import { Activity, StrictMode } from "react";
 import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Temporal } from "temporal-polyfill";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
@@ -25,17 +26,26 @@ import {
 } from "./workspace-calendar";
 
 const {
+  calendarRealtimeBridgeMock,
   filterDropdownMenuMock,
   getProjectCalendarMock,
   getWorkspaceCalendarMock,
   pushMock,
   refreshMock,
 } = vi.hoisted(() => ({
+  calendarRealtimeBridgeMock: vi.fn(),
   filterDropdownMenuMock: vi.fn(),
   getProjectCalendarMock: vi.fn(),
   getWorkspaceCalendarMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
+}));
+
+vi.mock("@/lib/ably/calendar-realtime-bridge", () => ({
+  CalendarRealtimeBridge: (props: unknown) => {
+    calendarRealtimeBridgeMock(props);
+    return null;
+  },
 }));
 
 vi.mock("next-intl", async () => {
@@ -70,13 +80,14 @@ vi.mock("@/components/common/filter-dropdown-menu", () => ({
 
 const ITEMS: WorkspaceCalendarItem[] = [
   {
-    id: "occurrence-1",
-    taskId: "task-1",
-    canEditSchedule: true,
-    canMutateOccurrence: true,
+    id: "run-1",
+    kind: "RUN",
+    scheduleId: "schedule-1",
     scheduleRevision: 3,
+    canChangeRun: true,
+    taskId: null,
     taskName: "Prepare release notes",
-    taskStatus: "QUEUED",
+    taskStatus: null,
     taskAssigneeId: "coworker-1",
     taskOwnerId: "user-1",
     scheduledAt: new Date("2026-08-18T09:00:00.000Z"),
@@ -86,19 +97,16 @@ const ITEMS: WorkspaceCalendarItem[] = [
     sourceWorkspaceId: "workspace-1",
     sourceType: "PROJECT",
     sourceProjectId: "project-1",
-    sourceAccuracy: "INFERRED",
-    timeAccuracy: "APPROXIMATE",
   },
 ];
 
-const LEGACY_ITEM: WorkspaceCalendarItem = {
+const WORKSPACE_ITEM: WorkspaceCalendarItem = {
   ...ITEMS[0],
-  id: "occurrence-legacy-1",
-  taskId: "task-legacy-1",
-  taskName: "Review imported schedule",
-  sourceId: "legacy:calendar-1",
+  id: "run-workspace-1",
+  taskName: "Review workspace plan",
+  sourceId: "workspace:workspace-1",
   sourceProjectId: null,
-  sourceType: "LEGACY_UNKNOWN",
+  sourceType: "WORKSPACE",
 };
 
 const CALENDAR_PAGE = {
@@ -131,17 +139,52 @@ const SOURCES: WorkspaceCalendarSource[] = [
     paletteToken: "violet",
     isSchedulable: true,
   },
-  {
-    sourceId: "legacy:calendar-1",
-    sourceType: "LEGACY_UNKNOWN",
-    displayName: "Imported calendar",
-    logoUrl: null,
-    paletteToken: "amber",
-    isSchedulable: false,
-  },
 ];
 
 describe("WorkspaceCalendar", () => {
+  beforeEach(() => {
+    vi.spyOn(Temporal.Now, "plainDateISO").mockReturnValue(
+      Temporal.PlainDate.from("2026-08-18"),
+    );
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+  it("clears Calendar details and pagination immediately when access is revoked", () => {
+    // The next page never answers, so the drain stays in flight for the test.
+    getWorkspaceCalendarMock.mockReturnValue(new Promise(() => {}));
+    render(
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
+        <WorkspaceCalendar
+          currentUserId="user-1"
+          initialDate="2026-08-18"
+          items={ITEMS}
+          pagination={CALENDAR_PAGE.pagination}
+          range={CALENDAR_PAGE.range}
+          sources={SOURCES}
+          workspaceId="workspace-1"
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(1);
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: "cursor-2" }),
+    );
+
+    const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
+      onAccessRevoked: () => void;
+    };
+    act(() => {
+      bridgeProps.onAccessRevoked();
+    });
+
+    expect(screen.queryByTestId("calendar-event")).not.toBeInTheDocument();
+    // Revoking dropped the cursor, so the drain asks for nothing more.
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(1);
+  });
+
   it("renders Calendar items received after the initial client render", async () => {
     const { rerender } = render(
       <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
@@ -265,23 +308,7 @@ describe("WorkspaceCalendar", () => {
     expect(refreshMock).not.toHaveBeenCalled();
   });
 
-  it("places the schedule action at the right edge of the toolbar", () => {
-    render(
-      <NuqsTestingAdapter searchParams="?timezone=UTC">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          sources={SOURCES}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    expect(screen.getByRole("button", { name: "create.title" })).toHaveClass(
-      "ml-auto",
-    );
-  });
-
-  it("shows a plus icon before the schedule action label", () => {
+  it("does not show a schedule task toolbar button", () => {
     render(
       <NuqsTestingAdapter searchParams="?timezone=UTC">
         <WorkspaceCalendar
@@ -293,8 +320,8 @@ describe("WorkspaceCalendar", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "create.title" }).firstElementChild,
-    ).toHaveClass("lucide-plus");
+      screen.queryByRole("button", { name: "create.title" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not render a page heading", () => {
@@ -326,15 +353,13 @@ describe("WorkspaceCalendar", () => {
 
     expect(screen.getByTestId("calendar-week")).toHaveClass(
       "workspace-calendar-theme",
-      "bg-background",
+      "bg-card-background",
       "overflow-x-auto",
-      "-mx-4",
-      "rounded-none",
-      "border-0",
-      "border-border",
-      "md:mx-0",
-      "md:rounded-xl",
-      "md:border",
+      "rounded-xl",
+    );
+    expect(screen.getByTestId("calendar-week")).not.toHaveClass(
+      "border",
+      "bg-background",
     );
   });
 
@@ -382,27 +407,10 @@ describe("WorkspaceCalendar", () => {
     expect(screen.getByTestId("calendar-agenda")).toBeInTheDocument();
     expect(screen.getByText("Release planning")).toBeInTheDocument();
     expect(screen.getByTestId("calendar-source-marker")).toBeInTheDocument();
-    expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
-    expect(
-      screen.queryByLabelText("accuracy.approximate"),
-    ).not.toBeInTheDocument();
     expect(
       screen.getAllByRole("button", { name: /Prepare release notes/ })[0],
     ).toBeInTheDocument();
   });
-
-  it.each(["month", "week", "agenda"] as const)(
-    "marks inferred items in the %s view",
-    (view) => {
-      render(
-        <NuqsTestingAdapter searchParams={`?view=${view}&date=2026-08-18`}>
-          <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
-        </NuqsTestingAdapter>,
-      );
-
-      expect(screen.getByLabelText("accuracy.inferred")).toBeInTheDocument();
-    },
-  );
 
   it("uses the task-style scope filter", async () => {
     const onUrlUpdate = vi.fn();
@@ -460,12 +468,6 @@ describe("WorkspaceCalendar", () => {
         image: "https://example.com/release-planning.png",
         label: "Release planning",
         value: "project:project-1",
-      },
-      {
-        avatarLabel: "Imported calendar",
-        image: null,
-        label: "Imported calendar",
-        value: "legacy:calendar-1",
       },
     ]);
 
@@ -601,7 +603,7 @@ describe("WorkspaceCalendar", () => {
     expect(updates).toContain("timezone=UTC&status=READY");
   });
 
-  it.each(["workspace:workspace-1", "legacy:calendar-1"])(
+  it.each(["workspace:workspace-1"])(
     "stores the selected non-Project source %s in the Calendar URL",
     async (sourceId) => {
       const onUrlUpdate = vi.fn();
@@ -612,7 +614,7 @@ describe("WorkspaceCalendar", () => {
         >
           <WorkspaceCalendar
             initialDate="2026-08-18"
-            items={[...ITEMS, LEGACY_ITEM]}
+            items={[...ITEMS, WORKSPACE_ITEM]}
             sources={SOURCES}
           />
         </NuqsTestingAdapter>,
@@ -646,7 +648,7 @@ describe("WorkspaceCalendar", () => {
     render(
       <NuqsTestingAdapter
         onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&sourceId=legacy%3Acalendar-1"
+        searchParams="?timezone=UTC&sourceId=workspace%3Aworkspace-1"
       >
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -680,7 +682,7 @@ describe("WorkspaceCalendar", () => {
     render(
       <NuqsTestingAdapter
         onUrlUpdate={onUrlUpdate}
-        searchParams="?timezone=UTC&projectId=project-1&sourceId=legacy%3Acalendar-1"
+        searchParams="?timezone=UTC&projectId=project-1&sourceId=workspace%3Aworkspace-1"
       >
         <WorkspaceCalendar
           initialDate="2026-08-18"
@@ -813,155 +815,152 @@ describe("WorkspaceCalendar", () => {
     }
   });
 
-  it("scrolls the agenda to today's day header", async () => {
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${today}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
-      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
-        "data-date",
-        today,
-      );
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-    }
-  });
-
-  it("scrolls the agenda to the next day header when today has no events", async () => {
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const today = Temporal.Now.plainDateISO("UTC");
-    const tomorrow = today.add({ days: 1 }).toString();
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today.toString()}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today.toString()}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${tomorrow}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
-      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
-        "data-date",
-        tomorrow,
-      );
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-    }
-  });
-
-  it("offers Today at the top of the agenda and Back to top once scrolled", async () => {
-    const user = userEvent.setup();
-    const scrollIntoView = vi.fn();
-    const originalScrollIntoView = Element.prototype.scrollIntoView;
-    Element.prototype.scrollIntoView = scrollIntoView;
-    const scrollTo = vi.fn();
-    vi.stubGlobal("scrollTo", scrollTo);
-    vi.stubGlobal("scrollY", 0);
-    const today = new Intl.DateTimeFormat("en-CA", {
-      timeZone: "UTC",
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-    }).format(new Date());
-
-    try {
-      render(
-        <NuqsTestingAdapter
-          searchParams={`?view=agenda&date=${today}&timezone=UTC`}
-        >
-          <WorkspaceCalendar
-            initialDate={today}
-            items={[
-              {
-                ...ITEMS[0],
-                scheduledAt: new Date(`${today}T09:00:00.000Z`),
-                originalScheduledAt: new Date(`${today}T09:00:00.000Z`),
-              },
-            ]}
-          />
-        </NuqsTestingAdapter>,
-      );
-
-      await waitFor(() => expect(scrollIntoView).toHaveBeenCalled());
-      scrollIntoView.mockClear();
-      await user.click(screen.getByRole("button", { name: "agenda.today" }));
-      expect(scrollIntoView.mock.instances[0]).toHaveAttribute(
-        "data-date",
-        today,
-      );
-
-      vi.stubGlobal("scrollY", 400);
-      fireEvent.scroll(window);
-      await user.click(
-        await screen.findByRole("button", { name: "agenda.backToTop" }),
-      );
-      expect(scrollTo).toHaveBeenCalledWith(
-        expect.objectContaining({ top: 0 }),
-      );
-    } finally {
-      Element.prototype.scrollIntoView = originalScrollIntoView;
-      vi.unstubAllGlobals();
-    }
-  });
-
-  // globals.css hides the agenda's list-item dot with a structural selector
-  // because FullCalendar joins class-name options across theme and user
-  // layers. Pin the DOM shape that selector relies on.
-  it("keeps the agenda dot as the first child before the event card", () => {
-    const { container } = render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
-        <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
+  it("shows upcoming planned tasks from today across months, without date navigation", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&date=2025-01-01&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            {
+              ...ITEMS[0],
+              id: "later",
+              taskName: "Next month",
+              scheduledAt: new Date("2026-09-02T09:00:00Z"),
+            },
+            {
+              ...ITEMS[0],
+              id: "past",
+              taskName: "Yesterday",
+              scheduledAt: new Date("2026-08-17T09:00:00Z"),
+            },
+            {
+              ...ITEMS[0],
+              id: "released",
+              state: "RELEASED",
+              taskName: "Already ran",
+            },
+            ITEMS[0],
+          ]}
+        />
       </NuqsTestingAdapter>,
     );
+    expect(
+      screen.getByRole("heading", { name: "agenda.upcoming" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByTestId("calendar-event").map((card) => card.textContent),
+    ).toEqual([
+      expect.stringContaining("Prepare release notes"),
+      expect.stringContaining("Next month"),
+    ]);
+    expect(
+      screen.queryByRole("button", { name: "previous" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "next" }),
+    ).not.toBeInTheDocument();
+  });
 
-    const dots = container.querySelectorAll(
-      '[data-view="agenda"] [role="listitem"]:not([aria-label]) > :first-child:not(:only-child)',
+  it("starts on the nearest upcoming day when today is empty", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={[
+            { ...ITEMS[0], scheduledAt: new Date("2026-09-02T09:00:00Z") },
+          ]}
+        />
+      </NuqsTestingAdapter>,
     );
-    expect(dots.length).toBeGreaterThan(0);
-    for (const dot of dots) {
-      expect(dot.querySelector('[data-testid="calendar-event"]')).toBeNull();
-      expect(
-        dot.nextElementSibling?.querySelector('[data-testid="calendar-event"]'),
-      ).not.toBeNull();
-    }
+    expect(screen.getByRole("heading", { level: 3 })).toHaveTextContent(
+      "September 2, 2026",
+    );
+    expect(screen.queryByText("August 18, 2026")).not.toBeInTheDocument();
+  });
+
+  it("loads ten more Runs only when the agenda boundary becomes visible", async () => {
+    let showBoundary = () => {};
+    vi.stubGlobal(
+      "IntersectionObserver",
+      vi.fn(function (
+        callback: (entries: { isIntersecting: boolean }[]) => void,
+      ) {
+        showBoundary = () => callback([{ isIntersecting: true }]);
+        return { observe: vi.fn(), disconnect: vi.fn() };
+      }),
+    );
+    const firstPage = Array.from({ length: 10 }, (_, index) => ({
+      ...ITEMS[0],
+      id: `item-${index}`,
+      taskName: `Task ${index}`,
+    }));
+    getWorkspaceCalendarMock.mockResolvedValue({
+      data: [
+        firstPage[0],
+        {
+          ...ITEMS[0],
+          id: "later",
+          taskName: "Next month",
+          scheduledAt: new Date("2026-09-02T09:00:00Z"),
+        },
+      ],
+      meta: { pagination: { nextCursor: null } },
+    });
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={firstPage}
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(10);
+    expect(getWorkspaceCalendarMock).not.toHaveBeenCalled();
+    await act(async () => showBoundary());
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith(
+      expect.objectContaining({ cursor: "cursor-2", limit: 10 }),
+    );
+    expect(screen.getAllByTestId("calendar-event")).toHaveLength(11);
+    expect(screen.getByText("Next month")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "agenda.loadMore" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps loaded agenda items on failure and retries with the project and filters", async () => {
+    getProjectCalendarMock
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValueOnce({
+        data: [{ ...ITEMS[0], id: "later", taskName: "Later task" }],
+        meta: { pagination: { nextCursor: null } },
+      });
+    render(
+      <NuqsTestingAdapter searchParams="?view=agenda&timezone=UTC&scope=owned&assigneeId=coworker-1">
+        <WorkspaceCalendar
+          initialDate="2026-08-18"
+          items={ITEMS}
+          lockedProjectId="project-1"
+          {...CALENDAR_PAGE}
+        />
+      </NuqsTestingAdapter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "agenda.loadMore" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "pagination.error",
+    );
+    expect(screen.getByText("Prepare release notes")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "agenda.loadMore" }));
+    await screen.findByText("Later task");
+    expect(getProjectCalendarMock).toHaveBeenLastCalledWith(
+      "project-1",
+      expect.objectContaining({
+        scope: "owned",
+        assigneeId: "coworker-1",
+        limit: 10,
+      }),
+    );
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("defaults to the week view and offers every view switch", () => {
@@ -977,7 +976,7 @@ describe("WorkspaceCalendar", () => {
   });
 
   it("uses event cards without the all-day row in the week view", () => {
-    const { container } = render(
+    render(
       <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18">
         <WorkspaceCalendar items={ITEMS} initialDate="2026-08-18" />
       </NuqsTestingAdapter>,
@@ -987,9 +986,10 @@ describe("WorkspaceCalendar", () => {
       "data-view",
       "week",
     );
-    expect(
-      container.querySelector("[class~='bg-primary-quaternary']"),
-    ).toHaveClass("bg-primary-quaternary");
+    expect(screen.getByTestId("calendar-event")).toHaveClass(
+      "bg-background",
+      "border",
+    );
     expect(screen.queryByText("all-day")).not.toBeInTheDocument();
   });
 
@@ -999,7 +999,7 @@ describe("WorkspaceCalendar", () => {
       meta: { pagination: { nextCursor: null } },
     });
     const { rerender } = render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1016,7 +1016,7 @@ describe("WorkspaceCalendar", () => {
     // pages are now available — the render-time guard must react to this
     // even though `items` itself did not change.
     rerender(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&timezone=UTC">
+      <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
         <WorkspaceCalendar
           items={ITEMS}
           initialDate="2026-08-18"
@@ -1034,80 +1034,179 @@ describe("WorkspaceCalendar", () => {
     );
   });
 
-  it("loads and renders the next calendar page without being asked", async () => {
-    getWorkspaceCalendarMock.mockResolvedValue({
-      data: [
-        {
-          ...LEGACY_ITEM,
-          id: "occurrence-2",
-          taskId: "task-2",
-          taskName: "Publish release notes",
+  it.each([false, true])(
+    "loads the next calendar page with Social opt-in %s",
+    async (includeSocialPosts) => {
+      getWorkspaceCalendarMock.mockResolvedValue({
+        data: [
+          {
+            ...WORKSPACE_ITEM,
+            id: "run-2",
+            taskName: "Publish release notes",
+          },
+        ],
+        meta: {
+          pagination: {
+            cursor: "cursor-2",
+            limit: 100,
+            total: 101,
+            nextCursor: null,
+          },
         },
-      ],
-      meta: {
-        pagination: {
-          cursor: "cursor-2",
-          limit: 100,
-          total: 101,
-          nextCursor: null,
-        },
-      },
-    });
+      });
 
-    render(
-      <NuqsTestingAdapter searchParams="?view=agenda&date=2026-08-18&status=QUEUED&sourceId=legacy%3Acalendar-1">
-        <WorkspaceCalendar
-          items={ITEMS}
-          initialDate="2026-08-18"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
+      render(
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&sourceId=workspace%3Aworkspace-1">
+          <WorkspaceCalendar
+            includeSocialPosts={includeSocialPosts}
+            items={ITEMS}
+            initialDate="2026-08-18"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
 
-    expect(
-      await screen.findAllByRole("button", { name: /Publish release notes/ }),
-    ).toHaveLength(1);
-    expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
-      from: new Date("2026-08-01T00:00:00.000Z"),
-      to: new Date("2026-09-01T00:00:00.000Z"),
-      cursor: "cursor-2",
-      limit: 100,
-      scope: "workspace",
-      assigneeId: undefined,
-      status: "QUEUED",
-      sourceId: "legacy:calendar-1",
-    });
-  });
-
-  it("loads more Project Calendar items through the Project endpoint", async () => {
-    getProjectCalendarMock.mockResolvedValue({
-      data: [],
-      meta: { pagination: { nextCursor: null } },
-    });
-
-    render(
-      <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
-        <WorkspaceCalendar
-          initialDate="2026-08-18"
-          items={ITEMS}
-          lockedProjectId="project-1"
-          {...CALENDAR_PAGE}
-        />
-      </NuqsTestingAdapter>,
-    );
-
-    await waitFor(() =>
-      expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+      expect(await screen.findAllByText("Publish release notes")).toHaveLength(
+        1,
+      );
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledWith({
         from: new Date("2026-08-01T00:00:00.000Z"),
         to: new Date("2026-09-01T00:00:00.000Z"),
+        includeSocialPosts: includeSocialPosts ? "true" : undefined,
+        agendaOnly: undefined,
         cursor: "cursor-2",
         limit: 100,
-        scope: "owned",
-        assigneeId: "coworker-1",
-        status: "QUEUED",
+        scope: "workspace",
+        assigneeId: undefined,
+        status: undefined,
+        sourceId: "workspace:workspace-1",
+      });
+    },
+  );
+
+  it.each(["onAccessRevoked", "onResync", "onInvalidated"] as const)(
+    "rejects pending pages after %s",
+    async (callback) => {
+      let resolvePage: ((value: unknown) => void) | undefined;
+      getWorkspaceCalendarMock.mockReturnValue(
+        new Promise((resolve) => {
+          resolvePage = resolve;
+        }),
+      );
+      render(
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
+          <WorkspaceCalendar
+            currentUserId="user-1"
+            initialDate="2026-08-18"
+            items={ITEMS}
+            sources={SOURCES}
+            workspaceId="workspace-1"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      // The drain already asked for the next page; the answer arrives after
+      // access is gone.
+      expect(getWorkspaceCalendarMock).toHaveBeenCalledTimes(1);
+      const bridgeProps = calendarRealtimeBridgeMock.mock.calls.at(-1)?.[0] as {
+        onAccessRevoked: () => void;
+        onResync: () => void;
+        onInvalidated: () => void;
+      };
+      act(() => {
+        bridgeProps[callback]();
+      });
+      await act(async () => {
+        resolvePage?.({
+          data: [
+            {
+              ...ITEMS[0],
+              id: "run-after-revoke",
+              taskName: "Secret after revoke",
+            },
+          ],
+          meta: { pagination: { nextCursor: null } },
+        });
+        await Promise.resolve();
+      });
+
+      expect(screen.queryByText(/Secret after revoke/)).not.toBeInTheDocument();
+    },
+  );
+
+  it("rejects a previous snapshot's pending page after a server refresh", async () => {
+    let resolvePage: ((value: unknown) => void) | undefined;
+    getWorkspaceCalendarMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePage = resolve;
       }),
     );
+    function calendar(
+      items: WorkspaceCalendarItem[],
+      nextCursor: string | null,
+    ) {
+      return (
+        <NuqsTestingAdapter searchParams="?view=week&date=2026-08-18&timezone=UTC">
+          <WorkspaceCalendar
+            currentUserId="user-1"
+            initialDate="2026-08-18"
+            items={items}
+            sources={SOURCES}
+            workspaceId="workspace-1"
+            range={CALENDAR_PAGE.range}
+            pagination={{ limit: 100, nextCursor }}
+          />
+        </NuqsTestingAdapter>
+      );
+    }
+    const view = render(calendar(ITEMS, "cursor-2"));
+    expect(getWorkspaceCalendarMock).toHaveBeenCalledOnce();
+    view.rerender(calendar([], null));
+    await act(async () => {
+      resolvePage?.({
+        data: [{ ...ITEMS[0], id: "removed-run", taskName: "Removed task" }],
+        meta: { pagination: { nextCursor: null } },
+      });
+    });
+    expect(screen.queryByText(/Removed task/)).not.toBeInTheDocument();
   });
+
+  it.each([false, true])(
+    "loads the next Project Calendar page with Social opt-in %s",
+    async (includeSocialPosts) => {
+      getProjectCalendarMock.mockResolvedValue({
+        data: [],
+        meta: { pagination: { nextCursor: null } },
+      });
+
+      render(
+        <NuqsTestingAdapter searchParams="?assigneeId=coworker-1&scope=owned&status=QUEUED&projectId=project-2&sourceId=workspace%3Aworkspace-1">
+          <WorkspaceCalendar
+            includeSocialPosts={includeSocialPosts}
+            initialDate="2026-08-18"
+            items={ITEMS}
+            lockedProjectId="project-1"
+            {...CALENDAR_PAGE}
+          />
+        </NuqsTestingAdapter>,
+      );
+
+      await waitFor(() =>
+        expect(getProjectCalendarMock).toHaveBeenCalledWith("project-1", {
+          from: new Date("2026-08-01T00:00:00.000Z"),
+          to: new Date("2026-09-01T00:00:00.000Z"),
+          includeSocialPosts: includeSocialPosts ? "true" : undefined,
+          agendaOnly: undefined,
+          cursor: "cursor-2",
+          limit: 100,
+          scope: "owned",
+          assigneeId: "coworker-1",
+          status: "QUEUED",
+        }),
+      );
+    },
+  );
 
   it("shows an empty state after filters exclude all calendar items", () => {
     render(
@@ -1117,6 +1216,39 @@ describe("WorkspaceCalendar", () => {
     );
 
     expect(screen.getByText("empty.title")).toBeInTheDocument();
+  });
+
+  it("links a Project Calendar to that Project's schedules", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=week&timezone=UTC">
+        <WorkspaceCalendar
+          items={[]}
+          initialDate="2026-08-18"
+          lockedProjectId="project-1"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "schedules.link" }),
+    ).toHaveAttribute("href", "/schedules?projectId=project-1");
+  });
+
+  it("leaves the schedules link off the workspace Calendar", () => {
+    render(
+      <NuqsTestingAdapter searchParams="?view=week&timezone=UTC">
+        <WorkspaceCalendar
+          items={[]}
+          initialDate="2026-08-18"
+          sources={SOURCES}
+        />
+      </NuqsTestingAdapter>,
+    );
+
+    expect(
+      screen.queryByRole("link", { name: "schedules.link" }),
+    ).not.toBeInTheDocument();
   });
 
   it("renders loading and retry states", async () => {

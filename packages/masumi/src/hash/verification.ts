@@ -13,13 +13,8 @@ export interface ResultVerificationOptions {
 }
 
 /**
- * Verifies whether a given input hash matches the computed hash for the provided input data.
- *
  * Checks if the provided input hash matches either the current or deprecated input hash format
  * for backward compatibility.
- *
- * @param options - An object containing input data, input hash, and identifier.
- * @returns True if the provided hash matches the computed hash, false otherwise.
  */
 export function isInputHashVerified(
   options: InputVerificationOptions,
@@ -32,12 +27,6 @@ export function isInputHashVerified(
   );
 }
 
-/**
- * Verifies whether a given result hash matches the computed hash for the provided result data.
- *
- * @param options - An object containing result data, result hash, and identifier.
- * @returns True if the provided hash matches the computed hash, false otherwise.
- */
 export function isResultHashVerified(
   options: ResultVerificationOptions,
 ): boolean {
@@ -49,18 +38,6 @@ export function isResultHashVerified(
   );
 }
 
-/**
- * Compares a provided hash with the computed hash for input or result data.
- *
- * This utility supports verification of both input and result hashes.
- * For input hashes, also attempts a deprecated hash function for backward compatibility.
- *
- * @param mode - Either "input" or "result", determines which hash function is used
- * @param hash - The hash value to verify
- * @param data - The raw input/result data (JSON string for input, string for result)
- * @param identifierFromPurchaser - Unique identifier from the purchaser, used in the hash computation
- * @returns True if the provided hash matches the computed hash (including deprecated formats if applicable), false otherwise
- */
 function verifyHashMatch(
   mode: "input" | "result",
   hash: string | null,
@@ -71,22 +48,6 @@ function verifyHashMatch(
   return isHashMatching(mode, identifierFromPurchaser, data, hash);
 }
 
-/**
- * Returns the matching hash (input or result) supporting deprecated input hash.
- *
- * For input verification:
- * - First attempts to match using the current hash format (hashInput)
- * - Falls back to deprecated hash format (hashInputDeprecated) for backward compatibility
- *
- * For result verification:
- * - Uses hashResult only (no deprecated format)
- *
- * @param mode - "input" or "result" to determine which hash function to use
- * @param identifierFromPurchaser - Unique identifier from the purchaser used in hash computation
- * @param data - JSON string for input mode, string for result mode
- * @param hashToMatch - The hash value to verify against
- * @returns The matched hash string if verification succeeds, null if no match found
- */
 function isHashMatching(
   mode: "input" | "result",
   identifierFromPurchaser: string,

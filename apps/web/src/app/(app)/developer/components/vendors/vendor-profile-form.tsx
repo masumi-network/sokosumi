@@ -1,6 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
+} from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
@@ -20,11 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import type { VendorMembership } from "@/lib/clients/generated/core";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   ClientTimeoutError,
   raceWithTimeout,
@@ -255,7 +255,9 @@ export function VendorProfileForm({
         </div>
 
         <Button type="submit" disabled={isDisabled}>
-          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+          {isSaving ? (
+            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+          ) : null}
           {t("save")}
         </Button>
       </form>

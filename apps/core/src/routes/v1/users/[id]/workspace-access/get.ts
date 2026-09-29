@@ -52,8 +52,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    // Read-only GET: default client + concurrent queries (not interactive tx —
-    // Promise.all on interactive transaction clients is unsupported; #2559).
     const access = await loadWorkspaceAccess(resolvedUserId, prisma);
 
     c.header("Cache-Control", "no-store");

@@ -107,7 +107,7 @@ export function FullPageMarkdownEditor({
                 editorClassName="max-h-none min-h-0 flex-1"
               />
             </div>
-            <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
+            <div className="app-scrollbar min-h-0 overflow-y-auto p-4 sm:p-6">
               <Markdown>{value}</Markdown>
             </div>
           </div>
@@ -137,7 +137,7 @@ export function FullPageMarkdownEditor({
             </TabsContent>
             <TabsContent
               value="preview"
-              className="mt-0 min-h-0 flex-1 overflow-y-auto"
+              className="app-scrollbar mt-0 min-h-0 flex-1 overflow-y-auto"
             >
               <Markdown>{value}</Markdown>
             </TabsContent>
@@ -156,7 +156,7 @@ export function FullPageMarkdownEditor({
             </Button>
             <Button type="button" disabled={!canSave} onClick={onSave}>
               {isSaving ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {isSaving ? labels.saving : labels.save}
             </Button>

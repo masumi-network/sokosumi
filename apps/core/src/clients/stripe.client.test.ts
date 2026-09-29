@@ -383,6 +383,26 @@ describe("stripeClient.createAdminInvoice", () => {
     );
   });
 
+  it("retrieves a Stripe customer by id", async () => {
+    stripeCustomersRetrieveMock.mockResolvedValue({
+      deleted: false,
+      id: "cus_1",
+      metadata: { customerType: "user", userId: "user_1" },
+    });
+    const { stripeClient } = await import("./stripe.client");
+
+    await expect(stripeClient.retrieveCustomer("cus_1")).resolves.toEqual({
+      deleted: false,
+      id: "cus_1",
+      metadata: { customerType: "user", userId: "user_1" },
+    });
+    expect(stripeCustomersRetrieveMock).toHaveBeenCalledWith(
+      "cus_1",
+      {},
+      undefined,
+    );
+  });
+
   it("retrieves billing details with expanded tax ids", async () => {
     stripeCustomersRetrieveMock.mockResolvedValue({
       id: "cus_1",

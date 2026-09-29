@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 
 import { getAgentListColumns } from "@/components/admin/agents/agent-list-columns";
-import { DataTable } from "@/components/data-table";
+import DataTable from "@/components/data-table/data-table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";

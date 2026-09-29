@@ -1,7 +1,9 @@
 # Run Soko Bot inside Core
 
-**Superseded 2026-08-27.** The original decision — a monorepo-owned Eve service
-in `apps/soko-bot` with Core as control plane — is recorded at the bottom.
+- Status: Accepted
+
+The original Eve-service decision was superseded 2026-08-27. That text is
+recorded at the bottom.
 
 Soko Bot's agent loop runs inside `apps/core` behind the existing
 `SokoBotRuntime` port, as the `in-process` adapter. Core remains sole owner of

@@ -12,7 +12,9 @@ public extension WorkspaceState {
   /// Retry is offered to the mentioner only, and only while the source human
   /// message is loaded in the room or the open thread (web `mentionRetrySourceMessages`).
   func canRetryMention(_ shell: Components.Schemas.ChatRoomMessage) -> Bool {
-    guard shell.roomId == transcriptRoomId else { return false }
+    // Ordinary rows reach this while scrolling; reject them before copying the transcript.
+    guard shell.roomId == transcriptRoomId,
+          case .failed(_, _?) = CoworkerMentionShell(message: shell) else { return false }
     return CoworkerMentionShell.canRetry(shell, currentUserId: currentUserId, sources: mentionRetrySources)
   }
 
@@ -20,7 +22,7 @@ public extension WorkspaceState {
   /// Success merges the returned source message (mentions reset to pending);
   /// the shell's own progress returns over realtime. Any failure restores the
   /// failed shell and rethrows so the row can show Core's reason.
-  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws {
+  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState, now: Date = Date()) async throws {
     guard shell.roomId == transcriptRoomId,
           case let .failed(mentionId, sourceMessageId?) = CoworkerMentionShell(message: shell) else { return }
     let request = MentionRetryRequest(generation: timeline.generation, shellId: shell.id)
@@ -30,7 +32,7 @@ public extension WorkspaceState {
     }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }
-    replaceLoadedMessage(CoworkerMentionShell.retrying(shell, startedAt: Date()))
+    replaceLoadedMessage(CoworkerMentionShell.retrying(shell, startedAt: now))
     do {
       let source = try await ChatService().retryMention(
         client: client, roomId: shell.roomId, messageId: sourceMessageId, mentionId: mentionId,

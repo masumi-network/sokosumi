@@ -19,7 +19,8 @@ import {
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import type { AgentRatingStats } from "@/lib/types/core-dto";
-import { cn, generateGradientBorder } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import { generateGradientBorder } from "@/lib/utils/gradient";
 import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
@@ -33,9 +34,9 @@ const agentCardVariants = cva(
   {
     variants: {
       size: {
-        xs: "hover:bg-card-background w-64 flex-row items-center gap-2.5 transition-colors",
-        sm: "hover:bg-card-background w-80 flex-row items-center gap-4 transition-colors",
-        md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:hover:bg-card-background md:w-80 md:gap-2 md:transition-colors",
+        xs: "hover:bg-card-background-hover press w-64 flex-row items-center gap-2.5 transition-colors",
+        sm: "hover:bg-card-background-hover press w-80 flex-row items-center gap-4 transition-colors",
+        md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 press md:hover:bg-card-background-hover md:w-80 md:gap-2 md:transition-colors",
         lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:flex-row md:gap-2",
       },
     },
@@ -258,7 +259,7 @@ function AgentCard({
           />
         </div>
         <div className="flex items-center gap-2">
-          <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium tracking-wide uppercase">
+          <span className="bg-muted text-muted-foreground rounded-md px-2 py-0.5 text-xs font-medium">
             {kindLabel}
           </span>
           {linksToDetail ? <AgentVerifiedBadge /> : null}
@@ -309,7 +310,7 @@ function AgentCard({
                 </div>
               ) : (
                 <div className="flex items-center justify-end truncate">
-                  <p className="truncate text-xs uppercase">
+                  <p className="truncate text-xs">
                     {getShortAgentAuthorName(agent)}
                   </p>
                 </div>

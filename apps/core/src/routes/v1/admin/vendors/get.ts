@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { mapVendor } from "@/helpers/vendor";
+import { mapAdminVendor } from "@/helpers/vendor";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { vendorSchema } from "@/schemas/vendor.schema";
+import { adminVendorSchema } from "@/schemas/vendor.schema";
 
-const vendorListSchema = z.array(vendorSchema).openapi("VendorList");
+const vendorListSchema = z.array(adminVendorSchema).openapi("AdminVendorList");
 
 const route = createRoute({
   method: "get",
@@ -45,6 +45,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       orderBy: [{ name: "asc" }, { slug: "asc" }],
     });
 
-    return ok(c, vendorListSchema.parse(vendors.map(mapVendor)));
+    return ok(c, vendorListSchema.parse(vendors.map(mapAdminVendor)));
   });
 }

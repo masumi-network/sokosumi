@@ -10,9 +10,8 @@ import type {
 import {
   type ChatRoomsPage,
   chatRoomService,
-  userService,
-} from "@/lib/services";
-
+} from "@/lib/services/chat-room.service";
+import { userService } from "@/lib/services/user.service";
 export function privateSidebarUserTag(userId: string): string {
   return `app-sidebar-user-${userId}`;
 }

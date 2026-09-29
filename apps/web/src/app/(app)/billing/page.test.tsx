@@ -27,6 +27,7 @@ const enterpriseContractSummaryMock = vi.fn();
 const getFeaturedCoworkersMock = vi.fn();
 const subscriptionSuccessModalMock = vi.fn();
 const creditsCheckoutReturnMock = vi.fn();
+const subscriptionCheckoutReturnMock = vi.fn();
 
 vi.mock("next/headers", () => ({
   headers: async () => new Headers(),
@@ -73,10 +74,12 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/organization-seat.service", () => ({
   organizationSeatService: {
     getSeatSummary: (...args: unknown[]) => getSeatSummaryMock(...args),
   },
+}));
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getActiveOrganization: (...args: unknown[]) =>
       getActiveOrganizationMock(...args),
@@ -171,6 +174,13 @@ vi.mock("@/components/billing/personal-subscription-section", () => ({
 vi.mock("@/components/billing/subscription-success-modal", () => ({
   SubscriptionSuccessModal: (props: unknown) => {
     subscriptionSuccessModalMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/components/billing/subscription-checkout-return", () => ({
+  SubscriptionCheckoutReturn: (props: unknown) => {
+    subscriptionCheckoutReturnMock(props);
     return null;
   },
 }));
@@ -465,9 +475,31 @@ describe("BillingPage", () => {
       expect.objectContaining({
         coworkersPromise,
         headline: 'subscriptionTitle:{"plan":"Plans.pro.name"}',
-        returnPath: "/billing?tab=subscription",
         status: "success",
       }),
+    );
+  });
+
+  it("threads the subscription checkout session id into SubscriptionCheckoutReturn", async () => {
+    getActiveOrganizationMock.mockResolvedValue(null);
+
+    const { default: BillingPage } = await import("./page");
+
+    render(
+      await BillingPage({
+        searchParams: Promise.resolve({
+          checkout_session_id: "cs_test_sub",
+          status: "success",
+          tab: "subscription",
+        }),
+      }),
+    );
+
+    expect(subscriptionCheckoutReturnMock).toHaveBeenCalledWith({
+      sessionId: "cs_test_sub",
+    });
+    expect(creditsCheckoutReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({ sessionId: undefined }),
     );
   });
 
@@ -538,7 +570,6 @@ describe("BillingPage", () => {
       expect.objectContaining({
         coworkersPromise,
         headline: 'subscriptionTitle:{"plan":"Plans.free.name"}',
-        returnPath: "/billing?tab=subscription",
         status: null,
       }),
     );
@@ -562,6 +593,7 @@ describe("BillingPage", () => {
     render(
       await BillingPage({
         searchParams: Promise.resolve({
+          checkout_session_id: "cs_test_org",
           status: "success",
           tab: "subscription",
         }),
@@ -575,6 +607,9 @@ describe("BillingPage", () => {
         status: "success",
       }),
     );
+    expect(subscriptionCheckoutReturnMock).toHaveBeenCalledWith({
+      sessionId: "cs_test_org",
+    });
   });
 
   it("shows the billing portal for organization plans with a Stripe customer", async () => {

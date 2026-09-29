@@ -56,8 +56,8 @@ export function RotateOAuthClientDialog({
     setIsSubmitting(true);
     try {
       const result = await rotateSecret({ clientId: client.client_id });
-      if (result.success && result.data?.clientSecret) {
-        setRotatedSecret(result.data.clientSecret);
+      if (result.ok && result.value.clientSecret) {
+        setRotatedSecret(result.value.clientSecret);
         onSuccess?.();
         onOpenChange(false);
       }
@@ -106,7 +106,7 @@ export function RotateOAuthClientDialog({
               onClick={() => void handleRotate()}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" />
+                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
               ) : null}
               {t("RotateDialog.confirmButton")}
             </Button>

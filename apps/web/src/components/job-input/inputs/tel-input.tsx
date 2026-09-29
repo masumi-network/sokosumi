@@ -1,5 +1,5 @@
 import type { InputTelSchemaType } from "@sokosumi/masumi/schemas";
-import type { InputType } from "@sokosumi/masumi/types";
+import { InputType } from "@sokosumi/masumi/types";
 
 import { Input } from "@/components/ui/input";
 
@@ -10,7 +10,7 @@ export function TelInput({
   field,
   jobInputSchema,
   controlProps,
-}: JobInputComponentProps<InputType.TEL, InputTelSchemaType>) {
+}: JobInputComponentProps<typeof InputType.TEL, InputTelSchemaType>) {
   const { data } = jobInputSchema;
 
   return (

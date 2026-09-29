@@ -71,12 +71,16 @@ const COWORKER = {
   image: "",
   vendor: { id: "vendor-1", name: "Vendor", slug: "vendor", logos: {} },
 };
-const PROJECT = { id: "project-1", name: "Project One" };
+const PROJECT = {
+  id: "project-1",
+  name: "Project One",
+  contextMd: "Project context",
+};
 
-function renderWizard() {
+function renderWizard(defaultProjectId?: string | null) {
   return render(
     <QueryClientProvider client={new QueryClient()}>
-      <NewTaskWizard instance={1} />
+      <NewTaskWizard instance={1} defaultProjectId={defaultProjectId} />
     </QueryClientProvider>,
   );
 }
@@ -87,6 +91,7 @@ function getLatestTaskFormProps() {
     projectOptions: Array<{ id: string }>;
     agentNameById: Map<string, string>;
     initialDesignMdAttachment: { url: string } | null;
+    initialValues: { projectId: string | null };
   };
 }
 
@@ -129,6 +134,30 @@ describe("NewTaskWizard", () => {
     });
     expect(loadCreateTaskModalDataMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { projectId: PROJECT.id, expected: PROJECT.id },
+    { projectId: null, expected: null },
+  ])(
+    "defaults the task to $expected for project $projectId",
+    async ({ projectId, expected }) => {
+      loadNewTaskWizardOptionsMock.mockImplementation(
+        async (selectedProjectId?: string | null) => ({
+          coworkerOptions: [COWORKER],
+          projectOptions: selectedProjectId === PROJECT.id ? [PROJECT] : [],
+          agentNameById: {},
+          designMdAttachment: null,
+        }),
+      );
+      renderWizard(projectId);
+      await waitFor(() => expect(taskFormPropsSpy).toHaveBeenCalled());
+      expect(getLatestTaskFormProps().initialValues.projectId).toBe(expected);
+      expect(loadNewTaskWizardOptionsMock).toHaveBeenCalledWith(projectId);
+      expect(getLatestTaskFormProps().projectOptions).toEqual(
+        projectId ? [PROJECT] : [],
+      );
+    },
+  );
 
   it("closes with an error toast when the lists fail to load", async () => {
     loadNewTaskWizardOptionsMock.mockRejectedValue(new Error("core down"));

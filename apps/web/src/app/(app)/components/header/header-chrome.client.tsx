@@ -30,6 +30,7 @@ export function HeaderChrome({ className, children }: HeaderChromeProps) {
 
   return (
     <header
+      data-chrome="glass"
       className={cn(
         // `fixed` / `md:sticky` already form the absolute underlay containing block.
         // Do not add `relative` — it conflicts with `fixed` in the Tailwind cascade.

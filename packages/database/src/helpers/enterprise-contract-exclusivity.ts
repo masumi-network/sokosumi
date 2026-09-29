@@ -4,7 +4,7 @@ import {
 } from "../generated/prisma/client.js";
 import { subscriptionRepository } from "../repositories/subscription.repository.js";
 import { creditBucketActivatesAtOrBefore } from "./credit.js";
-import { fetchOrganizationMemberUserIds } from "./organization-subscription-credit-audience.js";
+import { getSortedUniqueUserIds } from "./organization-seats.js";
 import { LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS } from "./subscription.js";
 
 export interface PaidSubscriptionBlocker {
@@ -73,9 +73,17 @@ export async function findPaidSubscriptionsBlockingEnterpriseActivation(
   tx: Prisma.TransactionClient,
   now: Date = new Date(),
 ): Promise<PaidSubscriptionBlocker | null> {
-  const memberUserIds = await fetchOrganizationMemberUserIds(
-    organizationId,
-    tx,
+  const members = await tx.member.findMany({
+    where: {
+      organizationId,
+    },
+    select: {
+      userId: true,
+    },
+    orderBy: [{ userId: "asc" }],
+  });
+  const memberUserIds = getSortedUniqueUserIds(
+    members.map((member) => member.userId),
   );
 
   const organizationSubscription =

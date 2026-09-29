@@ -18,6 +18,8 @@ import {
 import { ConsentActions } from "./consent-actions";
 import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
 
+export const instant = false;
+
 interface ConsentPageProps {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }

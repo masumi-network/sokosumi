@@ -41,7 +41,7 @@ export async function AdminLegacyHistoryPanel({
           <summary className="text-muted-foreground hover:text-foreground cursor-pointer select-none px-4 py-2 text-xs font-medium">
             {t("toggle", { count: messages.length })}
           </summary>
-          <div className="max-h-[40rem] overflow-y-auto border-t">
+          <div className="app-scrollbar max-h-[40rem] overflow-y-auto border-t">
             <LegacyHistory messages={messages} diagnostics />
           </div>
         </details>

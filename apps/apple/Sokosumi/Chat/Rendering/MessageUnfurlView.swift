@@ -24,6 +24,7 @@ struct MessageUnfurlView: View {
     preview.description?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
   }
 
+  /// A failed image drops to text only; the card itself stays, as on web.
   private var imageURL: URL? {
     guard let value = preview.imageUrl?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
     guard let url = URL(string: value), url != failedImageURL else { return nil }
@@ -31,7 +32,7 @@ struct MessageUnfurlView: View {
   }
 
   var body: some View {
-    if !description.isEmpty || imageURL != nil, let destination = URL(string: preview.url) {
+    if unfurlCardHasPreviewContent(preview), let destination = URL(string: preview.url) {
       Link(destination: destination) {
         VStack(alignment: .leading, spacing: 4) {
           if let site = preview.siteName, !site.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {

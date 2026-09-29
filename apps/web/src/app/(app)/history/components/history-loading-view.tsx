@@ -15,15 +15,18 @@ export function HistoryPageSkeleton(): React.ReactElement {
           <Skeleton className="h-10 min-w-0 flex-1 rounded-md" />
           <Skeleton className="size-10 shrink-0 rounded-md" />
         </div>
-        <ul data-testid="history-loading-list" className="flex flex-col gap-3">
+        <ul
+          data-testid="history-loading-list"
+          className="bg-card-background flex flex-col gap-2 rounded-xl p-2"
+        >
           {Array.from({ length: 6 }, (_, index) => (
             <li
               key={index}
-              className="flex items-start gap-3 rounded-lg border border-border p-3"
+              className="bg-background flex items-start gap-3 rounded-lg border border-border p-3"
             >
               <Skeleton className="size-8 shrink-0 rounded-md" />
               <div className="min-w-0 flex-1 space-y-2">
-                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-4 w-full max-w-48" />
                 <Skeleton className="h-3 w-full max-w-md" />
                 <Skeleton className="h-3 w-24" />
               </div>

@@ -1,58 +1,12 @@
-import { TaskStatus } from "@sokosumi/database";
-import {
-  CORE_API_ERROR_KINDS,
-  hasActiveTaskSchedule,
-  hasReachedTaskScheduleReleaseTarget,
-  isValidTimezone,
-  type TaskScheduleMetadata,
-  type TaskScheduleMetadataV1,
-  type TaskScheduleMetadataV2,
-} from "@sokosumi/utils";
+import { TaskScheduleEndsMode } from "@sokosumi/database";
+import { isValidTimezone } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
-import { badRequest, conflict, unprocessableEntity } from "@/helpers/error";
+import { badRequest, unprocessableEntity } from "@/helpers/error";
 
-import type { TaskScheduleInput } from "@/schemas/task-schedule.schema";
+import type { TaskScheduleRule } from "@/schemas/task-schedule.schema";
 
 const LOCAL_DATE_PATTERN = /^(\d{4})-(\d{2})-(\d{2})$/;
-
-const LEGACY_INTERVAL_DAYS_CRON_PATTERN = /^(\d+) (\d+) \*\/(\d+) \* \*$/;
-
-const SCHEDULABLE_TASK_STATUSES: ReadonlySet<TaskStatus> = new Set([
-  TaskStatus.DRAFT,
-  TaskStatus.READY,
-  TaskStatus.QUEUED,
-]);
-
-export function isSchedulableTaskStatus(status: TaskStatus): boolean {
-  return SCHEDULABLE_TASK_STATUSES.has(status);
-}
-
-/**
- * Guard for generic Task mutations that must not run while a Calendar schedule
- * series is active: status/cancel/archive and every workspace or project move
- * path. Series lifecycle belongs to the revision-safe schedule endpoints.
- */
-export function assertTaskScheduleInactive(
-  task: { metadata: string | null; nextRunAt: Date | null },
-  message: string,
-): void {
-  if (hasActiveTaskSchedule(task.metadata, task.nextRunAt)) {
-    throw conflict(message, {
-      kind: CORE_API_ERROR_KINDS.SCHEDULE_ACTIVE,
-    });
-  }
-}
-
-export function inferLegacyIntervalDaysFromCron(expr: string): number | null {
-  const match = LEGACY_INTERVAL_DAYS_CRON_PATTERN.exec(expr.trim());
-  if (!match) {
-    return null;
-  }
-
-  const intervalDays = Number(match[3]);
-  return intervalDays > 1 ? intervalDays : null;
-}
 
 function pad2(value: number): string {
   return String(value).padStart(2, "0");
@@ -217,432 +171,61 @@ export function computeIntervalNextRun(
   }
 
   const daysSinceAnchor = calendarDaysBetween(anchorAt, from, timeZone);
-  const periods = Math.floor(daysSinceAnchor / intervalDays) + 1;
-  return addCalendarDays(anchorAt, periods * intervalDays, timeZone);
-}
-
-function resolveRecurringIntervalDays(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-): number | null {
-  if (metadata.intervalDays != null && metadata.intervalDays > 1) {
-    return metadata.intervalDays;
+  // The calendar day of an interval can still be ahead of `from`. Step forward
+  // only once that slot's local time has passed (or is exactly `from`).
+  const periods = Math.floor(daysSinceAnchor / intervalDays);
+  const candidate = addCalendarDays(anchorAt, periods * intervalDays, timeZone);
+  if (candidate > from) {
+    return candidate;
   }
-
-  return inferLegacyIntervalDaysFromCron(metadata.expr);
-}
-
-function resolveRecurringAnchorAt(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-): Date | null {
-  if (metadata.anchorAt) {
-    return new Date(metadata.anchorAt);
-  }
-
-  return metadata.version === 1 ? new Date(metadata.scheduledAt) : null;
-}
-
-export function buildTaskScheduleMetadata(
-  input: TaskScheduleInput,
-  scheduledAt: Date,
-): TaskScheduleMetadataV1 {
-  const scheduledAtIso = scheduledAt.toISOString();
-
-  if (input.mode === "once") {
-    return {
-      version: 1,
-      mode: "once",
-      scheduledAt: scheduledAtIso,
-      runAt: input.runAt,
-    };
-  }
-
-  return {
-    version: 1,
-    mode: "recurring",
-    scheduledAt: scheduledAtIso,
-    expr: input.expr,
-    timezone: input.timezone ?? "UTC",
-    endsMode: input.endsMode ?? "never",
-    ...(input.endsOn ? { endsOn: input.endsOn } : {}),
-    ...(input.occurrences != null ? { occurrences: input.occurrences } : {}),
-    ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
-    ...(input.anchorAt ? { anchorAt: input.anchorAt } : {}),
-  };
-}
-
-export function buildTaskScheduleMetadataV2(
-  input: TaskScheduleInput,
-  createdAt: Date,
-  epochId: string,
-): TaskScheduleMetadataV2 {
-  const createdAtIso = createdAt.toISOString();
-
-  if (input.mode === "once") {
-    return {
-      version: 2,
-      epochId,
-      mode: "once",
-      createdAt: createdAtIso,
-      ruleEffectiveFrom: createdAtIso,
-      timezone: "UTC",
-      sourceRunAt: input.runAt,
-      effectiveRunAt: input.runAt,
-    };
-  }
-
-  return {
-    version: 2,
-    epochId,
-    mode: "recurring",
-    createdAt: createdAtIso,
-    ruleEffectiveFrom: createdAtIso,
-    timezone: input.timezone ?? "UTC",
-    expr: input.expr,
-    endsMode: input.endsMode ?? "never",
-    ...(input.endsOn ? { endsOn: input.endsOn } : {}),
-    ...(input.occurrences != null
-      ? { targetReleaseCount: input.occurrences }
-      : {}),
-    ...(input.intervalDays != null ? { intervalDays: input.intervalDays } : {}),
-    anchorAt: input.anchorAt ?? createdAtIso,
-    epochReleaseCount: 0,
-  };
+  return addCalendarDays(anchorAt, (periods + 1) * intervalDays, timeZone);
 }
 
 /**
- * Starts a fresh mutable epoch without changing the series rule. Finite
- * schedules carry only the releases still owed into the new epoch.
+ * Rejects a Task Schedule rule that never produces a Run: an unknown
+ * timezone, a cron expression with no next time, or an end on or before the
+ * first Run.
  */
-export function rebuildTaskScheduleMetadataV2ForNewEpoch(
-  current: TaskScheduleMetadata,
-  createdAt: Date,
-  epochId: string,
-): TaskScheduleMetadataV2 {
-  if (current.mode === "once") {
-    return buildTaskScheduleMetadataV2(
-      {
-        mode: "once",
-        runAt: current.version === 1 ? current.runAt : current.sourceRunAt,
-      },
-      createdAt,
-      epochId,
-    );
-  }
-
-  const remainingOccurrences =
-    current.version === 1
-      ? current.occurrences
-      : current.targetReleaseCount == null
-        ? undefined
-        : current.targetReleaseCount - current.epochReleaseCount;
-
-  return buildTaskScheduleMetadataV2(
-    {
-      mode: "recurring",
-      expr: current.expr,
-      timezone: current.timezone,
-      endsMode: current.endsMode,
-      ...(current.endsOn ? { endsOn: current.endsOn } : {}),
-      ...(remainingOccurrences != null
-        ? { occurrences: remainingOccurrences }
-        : {}),
-      ...(current.intervalDays != null
-        ? { intervalDays: current.intervalDays }
-        : {}),
-      ...(current.anchorAt ? { anchorAt: current.anchorAt } : {}),
-    },
-    createdAt,
-    epochId,
-  );
-}
-
-function taskScheduleRuleMatchesInput(
-  metadata: TaskScheduleMetadataV2,
-  input: TaskScheduleInput,
-): boolean {
-  if (metadata.mode !== input.mode) {
-    return false;
-  }
-
-  if (metadata.mode === "once" && input.mode === "once") {
-    return metadata.effectiveRunAt === input.runAt;
-  }
-  if (metadata.mode !== "recurring" || input.mode !== "recurring") {
-    return false;
-  }
-
-  const remainingOccurrences =
-    metadata.targetReleaseCount == null
-      ? undefined
-      : metadata.targetReleaseCount - metadata.epochReleaseCount;
-  const intervalDays = input.intervalDays ?? undefined;
-  return (
-    metadata.expr === input.expr &&
-    metadata.timezone === (input.timezone ?? "UTC") &&
-    metadata.endsMode === (input.endsMode ?? "never") &&
-    metadata.endsOn === input.endsOn &&
-    remainingOccurrences === input.occurrences &&
-    metadata.intervalDays === intervalDays &&
-    (intervalDays == null ||
-      intervalDays <= 1 ||
-      metadata.anchorAt === input.anchorAt)
-  );
-}
-
-export function buildUpdatedTaskScheduleMetadataV2(
-  input: TaskScheduleInput,
-  current: TaskScheduleMetadataV2,
-  changedAt: Date,
-  nextEpochId: string,
-): TaskScheduleMetadataV2 {
-  return taskScheduleRuleMatchesInput(current, input)
-    ? current
-    : buildTaskScheduleMetadataV2(input, changedAt, nextEpochId);
-}
-
-export function computeScheduleNextRun(
-  metadata: TaskScheduleMetadata,
-  from?: Date,
-): Date | null {
-  if (metadata.mode === "once") {
-    return new Date(
-      metadata.version === 1 ? metadata.runAt : metadata.effectiveRunAt,
-    );
-  }
-
-  const intervalDays = resolveRecurringIntervalDays(metadata);
-  if (intervalDays != null) {
-    const anchorAt = resolveRecurringAnchorAt(metadata);
-    if (!anchorAt || Number.isNaN(anchorAt.getTime())) {
-      return null;
-    }
-
-    return computeIntervalNextRun(
-      anchorAt,
-      intervalDays,
-      from ?? new Date(),
-      metadata.timezone,
-    );
-  }
-
-  return computeNextRun({
-    cron: metadata.expr,
-    timezone: metadata.timezone,
-    from,
-  });
-}
-
-export interface TaskScheduleOccurrenceProjection {
-  id: string;
-  scheduledAt: Date;
-  originalScheduledAt: Date;
-}
-
-/**
- * The rule occurrence a recurring series has consumed up to. `Task.nextRunAt`
- * is the ledger's wake time for v2 and is no longer a rule time once an
- * occurrence is moved, so projection and release advance from this anchor.
- */
-export function resolveTaskScheduleRuleAnchor(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-): Date {
-  return new Date(
-    metadata.version === 2
-      ? (metadata.lastProcessedSourceAt ?? metadata.ruleEffectiveFrom)
-      : metadata.scheduledAt,
-  );
-}
-
-/**
- * The first rule occurrence the series has not consumed yet, derived from the
- * stored anchor rather than from `Task.nextRunAt`.
- */
-export function computeNextRuleOccurrence(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-): Date | null {
-  return computeScheduleNextRun(
-    metadata,
-    resolveTaskScheduleRuleAnchor(metadata),
-  );
-}
-
-function getProjectedRecurringMetadata(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-  scheduledAt: Date,
-): Extract<TaskScheduleMetadata, { mode: "recurring" }> {
-  if (metadata.version === 2) {
-    return {
-      ...metadata,
-      epochReleaseCount: metadata.epochReleaseCount + 1,
-      lastProcessedSourceAt: scheduledAt.toISOString(),
-    };
-  }
-
-  if (metadata.endsMode === "after" && metadata.occurrences != null) {
-    return {
-      ...metadata,
-      lastRunAt: scheduledAt.toISOString(),
-      occurrences: metadata.occurrences - 1,
-    };
-  }
-
-  return {
-    ...metadata,
-    lastRunAt: scheduledAt.toISOString(),
-  };
-}
-
-function getOccurrenceProjection(
-  taskId: string,
-  metadata: TaskScheduleMetadata,
-  scheduledAt: Date,
-): TaskScheduleOccurrenceProjection {
-  const originalScheduledAt =
-    metadata.version === 2 && metadata.mode === "once"
-      ? new Date(metadata.sourceRunAt)
-      : new Date(scheduledAt);
-  const id =
-    metadata.version === 1
-      ? `v1:${taskId}:${metadata.scheduledAt}:${originalScheduledAt.toISOString()}`
-      : `v2:${metadata.epochId}:${originalScheduledAt.toISOString()}`;
-
-  return {
-    id,
-    scheduledAt: new Date(scheduledAt),
-    originalScheduledAt,
-  };
-}
-
-export function* iterateTaskScheduleOccurrences(
-  taskId: string,
-  metadata: TaskScheduleMetadata,
-  nextRunAt: Date,
-  from: Date,
-  to: Date,
-  maxOccurrences = Number.POSITIVE_INFINITY,
-): Generator<TaskScheduleOccurrenceProjection> {
-  if (metadata.mode === "once") {
-    if (nextRunAt >= from && nextRunAt < to) {
-      yield getOccurrenceProjection(taskId, metadata, nextRunAt);
-    }
-    return;
-  }
-
-  // The scheduler must consume overdue finite recurrences before their
-  // remaining release count can be projected accurately.
-  if (nextRunAt < from && metadata.endsMode === "after") {
-    return;
-  }
-
-  let occurrenceCount = 0;
-  let projectedMetadata = metadata;
-  let projectedNextRunAt: Date | null =
-    nextRunAt < from
-      ? computeScheduleNextRun(projectedMetadata, from)
-      : new Date(nextRunAt);
-
-  while (projectedNextRunAt && projectedNextRunAt < to) {
-    if (isDueRunPastScheduleEnd(projectedMetadata, projectedNextRunAt)) {
-      break;
-    }
-
-    if (projectedNextRunAt >= from) {
-      yield getOccurrenceProjection(
-        taskId,
-        projectedMetadata,
-        projectedNextRunAt,
-      );
-      occurrenceCount += 1;
-      if (occurrenceCount === maxOccurrences) {
-        return;
-      }
-    }
-
-    projectedMetadata = getProjectedRecurringMetadata(
-      projectedMetadata,
-      projectedNextRunAt,
-    );
-    projectedNextRunAt = computeScheduleNextRun(
-      projectedMetadata,
-      projectedNextRunAt,
-    );
-  }
-}
-
-export function validateScheduleInput(input: TaskScheduleInput): void {
-  if (input.mode === "once") {
-    const runAt = new Date(input.runAt);
-    if (Number.isNaN(runAt.getTime())) {
-      throw badRequest("runAt must be a valid datetime");
-    }
-
-    if (runAt <= new Date()) {
-      throw unprocessableEntity("runAt must be in the future");
-    }
-
-    return;
-  }
-
-  const timezone = input.timezone ?? "UTC";
-  if (!isValidTimezone(timezone)) {
+export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
+  if (!isValidTimezone(rule.timezone)) {
     throw badRequest("timezone is invalid");
   }
 
   let nextRun: Date | null;
-  if (input.intervalDays != null && input.intervalDays > 1) {
-    if (!input.anchorAt) {
+  if (rule.intervalDays != null && rule.intervalDays > 1) {
+    if (!rule.anchorAt) {
       throw badRequest(
         "anchorAt is required when intervalDays is greater than 1",
       );
     }
 
-    const anchorAt = new Date(input.anchorAt);
+    const anchorAt = new Date(rule.anchorAt);
     if (Number.isNaN(anchorAt.getTime())) {
       throw badRequest("anchorAt must be a valid datetime");
     }
 
     nextRun = computeIntervalNextRun(
       anchorAt,
-      input.intervalDays,
+      rule.intervalDays,
       new Date(),
-      timezone,
+      rule.timezone,
     );
   } else {
-    nextRun = computeNextRun({
-      cron: input.expr,
-      timezone,
-    });
+    nextRun = computeNextRun({ cron: rule.expr, timezone: rule.timezone });
   }
 
   if (!nextRun) {
     throw badRequest("expr is not a valid cron expression for the timezone");
   }
 
-  if (input.endsMode === "on" && input.endsOn) {
-    const endsOn = new Date(input.endsOn);
+  if (rule.endsMode === TaskScheduleEndsMode.ON && rule.endsOn) {
+    const endsOn = new Date(rule.endsOn);
     if (endsOn <= new Date()) {
       throw unprocessableEntity("endsOn must be in the future");
     }
 
     if (endsOn <= nextRun) {
-      throw unprocessableEntity(
-        "endsOn must be after the first scheduled occurrence",
-      );
+      throw unprocessableEntity("endsOn must be after the first scheduled Run");
     }
   }
-}
-
-export function isDueRunPastScheduleEnd(
-  metadata: Extract<TaskScheduleMetadata, { mode: "recurring" }>,
-  dueAt: Date,
-): boolean {
-  if (metadata.endsMode === "on" && metadata.endsOn) {
-    return dueAt > new Date(metadata.endsOn);
-  }
-
-  if (metadata.endsMode === "after") {
-    return hasReachedTaskScheduleReleaseTarget(metadata);
-  }
-
-  return false;
 }

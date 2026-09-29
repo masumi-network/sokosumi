@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
-import { organizationInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
@@ -74,17 +73,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     );
     const maxUses = body.maxUses ?? null;
 
-    const link = await organizationInviteLinkRepository.createInviteLink(
-      {
+    const link = await prisma.organizationInviteLink.create({
+      data: {
         token,
-        organizationId: organization.id,
+        organization: { connect: { id: organization.id } },
         role: MemberRole.MEMBER,
-        createdByUserId: userContext.userId,
+        createdBy: { connect: { id: userContext.userId } },
         expiresAt,
         maxUses,
       },
-      prisma,
-    );
+    });
 
     return created(c, toOrganizationInviteLinkResponse(link));
   });

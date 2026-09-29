@@ -5,13 +5,12 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
-  getTaskStatusUpdateDataForEvent,
   mapTask,
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
   taskAssigneeKind,
-  validateQueuedRequiresSchedule,
+  validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
 } from "./task";
@@ -71,19 +70,6 @@ describe("validateStatusTransition", () => {
   });
 });
 
-describe("getTaskStatusUpdateDataForEvent", () => {
-  it("clears schedule fields when canceling", () => {
-    expect(getTaskStatusUpdateDataForEvent(TaskStatus.CANCELED)).toEqual({
-      status: TaskStatus.CANCELED,
-      metadata: null,
-      nextRunAt: null,
-    });
-    expect(getTaskStatusUpdateDataForEvent(TaskStatus.READY)).toEqual({
-      status: TaskStatus.READY,
-    });
-  });
-});
-
 describe("validateTaskAssigneeAssignment", () => {
   it("resolves coworker, human, and unset kinds", () => {
     expect(taskAssigneeKind({ assigneeId: "cow_1" })).toBe("coworker");
@@ -131,33 +117,24 @@ describe("validateTaskAssigneeAssignment", () => {
     ).not.toThrow();
   });
 
-  it("rejects QUEUED without an active schedule", () => {
+  it("rejects QUEUED without a Run at", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
-        status: TaskStatus.QUEUED,
-        metadata: null,
-        nextRunAt: null,
-      }),
-    ).toThrow("A schedule is required before moving a task to Queued");
+      validateQueuedRequiresRunAt({ status: TaskStatus.QUEUED, runAt: null }),
+    ).toThrow("Set a Run at on the task to move it to Queued");
   });
 
-  it("allows QUEUED when nextRunAt is set", () => {
+  it("allows QUEUED when the Task has a Run at", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
+      validateQueuedRequiresRunAt({
         status: TaskStatus.QUEUED,
-        metadata: null,
-        nextRunAt: new Date("2099-01-01T09:00:00.000Z"),
+        runAt: new Date("2099-01-01T09:00:00.000Z"),
       }),
     ).not.toThrow();
   });
 
-  it("ignores non-QUEUED statuses for the schedule guard", () => {
+  it("ignores non-QUEUED statuses for the Run at guard", () => {
     expect(() =>
-      validateQueuedRequiresSchedule({
-        status: TaskStatus.READY,
-        metadata: null,
-        nextRunAt: null,
-      }),
+      validateQueuedRequiresRunAt({ status: TaskStatus.READY, runAt: null }),
     ).not.toThrow();
   });
 
@@ -219,9 +196,6 @@ function buildTaskEventFixture(
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
     updatedAt: new Date("2025-01-01T00:00:00.000Z"),
     status: TaskStatus.RUNNING,
-    scheduleKind: null,
-    schedulePayload: null,
-    scheduleOperationId: null,
     comment: null,
     authenticationUrl: null,
     channel: Channel.SOKOSUMI,
@@ -453,6 +427,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -492,6 +468,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -555,6 +533,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: null,
@@ -616,6 +596,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -673,6 +655,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -746,6 +730,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -843,6 +829,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -918,6 +906,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -995,6 +985,8 @@ describe("mapTask", () => {
       updatedAt: new Date("2026-01-01T00:00:00.000Z"),
       ownerId: "user_123",
       organizationId: null,
+      projectId: null,
+      project: null,
       owner: defaultTaskUser,
       organization: null,
       assigneeId: "cow_123",
@@ -1045,6 +1037,93 @@ describe("mapTask", () => {
 
     expect(result.credits).toBe(2);
     expect(result.events[0]?.credits).toBe(5);
+  });
+
+  it("maps project summary from a loaded project relation", () => {
+    const project = {
+      id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      name: "Autumn",
+      logo: "https://example.com/logo.png",
+    };
+    const task = {
+      id: "tsk_project",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: project.id,
+      project,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Task with project",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      projectId: project.id,
+      project,
+    });
+  });
+
+  it("maps project to null when projectId is null", () => {
+    const task = {
+      id: "tsk_no_project",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Task without project",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH)).toMatchObject({
+      projectId: null,
+      project: null,
+    });
   });
 });
 

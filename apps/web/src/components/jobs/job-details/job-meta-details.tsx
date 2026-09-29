@@ -27,7 +27,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
 
   return (
     <div className="space-y-4">
-      <h3 className="text-muted-foreground text-xs font-semibold tracking-wider uppercase">
+      <h3 className="text-muted-foreground text-xs font-semibold">
         {t("propertiesTitle")}
       </h3>
 
@@ -61,7 +61,7 @@ export function JobMetaDetails({ job, projectName }: JobMetaDetailsProps) {
         {job.credits > 0 ? (
           <KeyValueRow label={t("credits")}>
             <span className="text-muted-foreground text-sm">
-              {formatCreditsForDisplay(job.credits)}
+              {formatter.number(formatCreditsForDisplay(job.credits))}
             </span>
           </KeyValueRow>
         ) : null}

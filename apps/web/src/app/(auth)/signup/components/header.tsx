@@ -10,7 +10,9 @@ export default function SignUpHeader({ invitationId }: SignUpHeaderProps) {
   return (
     <div className="p-6">
       <div className="flex items-end gap-2">
-        <h1 className="text-2xl font-light">{t("title")}</h1>
+        <h1 className="text-2xl font-light text-balance tracking-tight">
+          {t("title")}
+        </h1>
         {invitationId && (
           <p className="text-sm text-muted-foreground italic">
             {t("viaInvitation")}

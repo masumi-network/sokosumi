@@ -80,7 +80,7 @@ export default function AnnouncementCards() {
                   : "absolute inset-x-0 top-0 h-full max-h-full",
                 "shadow-xs",
                 isPrimaryCard &&
-                  "hover:bg-sidebar-accent focus-visible:ring-sidebar-ring cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
+                  "press hover:bg-sidebar-accent focus-visible:ring-sidebar-ring cursor-pointer transition-colors focus-visible:ring-2 focus-visible:outline-hidden",
                 isBackCard && "pointer-events-none",
               )}
               style={{

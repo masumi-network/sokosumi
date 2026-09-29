@@ -232,7 +232,7 @@ function Tile({
           ? "border-semantic-destructive-tertiary bg-semantic-destructive-quinary hover:bg-semantic-destructive-quaternary"
           : active
             ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-            : "hover:border-primary-tertiary hover:bg-primary-quinary",
+            : "press hover:border-primary-tertiary hover:bg-primary-quinary",
       )}
     >
       <StatusDot

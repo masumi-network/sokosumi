@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { CommonErrorCode, WorkspaceGateErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createMyPersonalWorkspaceMock = vi.fn();

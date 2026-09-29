@@ -14,13 +14,47 @@ import {
 } from "@/app/chat/chat-message-list";
 
 /**
- * How long a landed row stays marked. Long enough to still be running when a
- * reader closes the thread panel a jump opened, because the row it marks in
- * the transcript sits behind that panel.
+ * The longest a landed row stays marked. A reader scroll cuts it short.
+ * Long enough to still be running when a reader closes the thread panel a
+ * jump opened, because the row it marks in the transcript sits behind that
+ * panel.
  *
  * Keep in sync with --chat-jump-hold in globals.css, which draws the mark.
  */
 export const ROOM_MESSAGE_HIGHLIGHT_MS = 4500;
+
+/**
+ * How long the mark takes to fade once a reader scroll ends the hold early.
+ * Cutting it instead reads as a snap, on the marked row and on every other
+ * row coming back out of the spotlight at the same moment.
+ *
+ * Keep in sync with --chat-jump-leave in globals.css, which draws the fade.
+ */
+export const ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS = 320;
+
+/**
+ * What the mark says while it fades. globals.css draws the fade from this
+ * value, and keeps the rest of the mark's styling on the attribute itself, so
+ * the wash and the rail carry on from where the hold had them.
+ */
+const LEAVING = "leaving";
+
+/**
+ * The stretch of the hold the mark spends at full strength, as shares of the
+ * hold: the mark opens over the first, holds, then fades out over the last.
+ *
+ * The leave fade only reads right from inside that stretch. It opens at full
+ * strength, because that is where the stylesheet's rules leave the mark, so
+ * starting it while the hold is still opening the mark, or already fading it
+ * out, snaps the row back to full and fades it a second time. A scroll in
+ * either end ends the mark outright, and the reader sees less of a jump from
+ * that than from the mark coming back to say goodbye.
+ *
+ * Read from the chat-jump-wash, chat-jump-rail and chat-jump-dim keyframes in
+ * globals.css, which all run the same stops.
+ */
+export const ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE = 0.1;
+export const ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE = 0.76;
 
 /**
  * One mark per message list. A thread jump marks two rows at once: the reply
@@ -32,8 +66,58 @@ export const ROOM_MESSAGE_HIGHLIGHT_MS = 4500;
  */
 const activeHighlights = new Map<
   Element,
-  { element: HTMLElement; timer: number }
+  {
+    element: HTMLElement;
+    timer: number;
+    landedAt: number;
+    stopWatchingScroll: () => void;
+  }
 >();
+
+/**
+ * The reader's own scrolling, as input rather than as movement. A `scroll`
+ * event cannot stand for it: the jump scrolls the list itself, and the
+ * virtualizer writes `scrollTop` again as the rows around the landing measure
+ * (`keepRowsInPlace` in `components/transcript-viewport.tsx`). Those writes
+ * raise the same event the reader's scrolling does, and they carry on after
+ * the mark is set, which is why that file waits `LANDING_FRAMES` for a
+ * landing to settle. A wheel and a touch drag only ever come from the reader.
+ *
+ * Scrolling by keyboard, and moving the scrollbar itself, raise neither, so
+ * those leave the mark standing until the hold ends. The hold is short, so
+ * that costs the reader a moment of the spotlight rather than a stuck mark.
+ */
+const READER_SCROLL_EVENTS = ["wheel", "touchmove"] as const;
+
+/**
+ * Drop the mark as soon as the reader scrolls the list they landed in. The
+ * mark is a landing cue, and the spotlight it casts dims every other row, so
+ * neither has a job once the reader moves.
+ *
+ * Watched from the window in the capture phase, so this module does not have
+ * to know the shape of the markup around the list. The event has to come from
+ * inside the list itself: the room transcript and the open thread each hold a
+ * mark of their own, and scrolling one says nothing about the other. An
+ * ancestor both sit in would answer for both.
+ */
+function watchReaderScroll(list: Element): () => void {
+  const onReaderScroll = (event: Event) => {
+    if (event.target instanceof Node && list.contains(event.target)) {
+      fadeOutHighlight(list);
+    }
+  };
+  for (const type of READER_SCROLL_EVENTS) {
+    window.addEventListener(type, onReaderScroll, {
+      capture: true,
+      passive: true,
+    });
+  }
+  return () => {
+    for (const type of READER_SCROLL_EVENTS) {
+      window.removeEventListener(type, onReaderScroll, { capture: true });
+    }
+  };
+}
 
 function clearHighlight(list: Element): void {
   const active = activeHighlights.get(list);
@@ -41,14 +125,48 @@ function clearHighlight(list: Element): void {
     return;
   }
   window.clearTimeout(active.timer);
+  active.stopWatchingScroll();
   delete active.element.dataset.searchLanded;
   activeHighlights.delete(list);
 }
 
 /**
+ * End the hold the way a reader scroll should: hand the mark to the leave
+ * fade, and drop it when that fade has run. A scroll outside the stretch the
+ * fade can pick up ends the mark instead. The watch stops either way, because
+ * the mark is on its way out and a second scroll has nothing left to end.
+ */
+function fadeOutHighlight(list: Element): void {
+  const active = activeHighlights.get(list);
+  if (!active || active.element.dataset.searchLanded === LEAVING) {
+    return;
+  }
+  window.clearTimeout(active.timer);
+  active.stopWatchingScroll();
+  const held = Date.now() - active.landedAt;
+  if (
+    held < ROOM_MESSAGE_HIGHLIGHT_OPEN_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS ||
+    held >=
+      ROOM_MESSAGE_HIGHLIGHT_FULL_STRENGTH_SHARE * ROOM_MESSAGE_HIGHLIGHT_MS
+  ) {
+    clearHighlight(list);
+    return;
+  }
+  active.element.dataset.searchLanded = LEAVING;
+  activeHighlights.set(list, {
+    ...active,
+    stopWatchingScroll: () => {},
+    timer: window.setTimeout(() => {
+      clearHighlight(list);
+    }, ROOM_MESSAGE_HIGHLIGHT_LEAVE_MS),
+  });
+}
+
+/**
  * Scroll the row into view and mark it as landed for a moment. The mark is
  * styled from `data-search-landed` in globals.css, so a React re-render inside
- * that moment cannot wipe it, as it would a class added here.
+ * that moment cannot wipe it, as it would a class added here. A reader scroll
+ * ends the moment early.
  */
 function landOn(list: Element, target: HTMLElement): void {
   target.scrollIntoView({ behavior: "auto", block: "center" });
@@ -63,9 +181,11 @@ function landOn(list: Element, target: HTMLElement): void {
   target.dataset.searchLanded = "true";
   activeHighlights.set(list, {
     element: target,
+    landedAt: Date.now(),
     timer: window.setTimeout(() => {
       clearHighlight(list);
     }, ROOM_MESSAGE_HIGHLIGHT_MS),
+    stopWatchingScroll: watchReaderScroll(list),
   });
 }
 

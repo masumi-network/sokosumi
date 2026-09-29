@@ -8,7 +8,7 @@ import {
   CreateTaskModalProvider,
 } from "@/app/tasks/components/create-task-modal";
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
-import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents";
+import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
@@ -118,7 +118,7 @@ async function AllAgentsTier() {
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-foreground text-xl font-light md:text-2xl">
+        <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
           {t("allAgentsTitle")}
         </h2>
         <p className="text-muted-foreground text-sm md:text-base">

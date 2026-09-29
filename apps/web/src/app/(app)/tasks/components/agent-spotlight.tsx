@@ -44,8 +44,6 @@ interface AgentSpotlightProps {
 
 const FOCUS_RING =
   "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2";
-const SCROLLBAR =
-  "[&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-tertiary [&::-webkit-scrollbar-track]:bg-transparent [scrollbar-width:thin]";
 
 function initials(name: string): string {
   return name.slice(0, 2).toUpperCase();
@@ -286,12 +284,7 @@ export function AgentSpotlight({
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
       {/* Rail (mobile) — horizontal strip of coworkers */}
-      <div
-        className={cn(
-          "flex shrink-0 gap-2 overflow-x-auto border-b pb-3 md:hidden",
-          SCROLLBAR,
-        )}
-      >
+      <div className="app-scrollbar flex shrink-0 gap-2 overflow-x-auto border-b pb-3 md:hidden">
         {options.map((option) => (
           <RailItem
             key={option.id}
@@ -304,12 +297,7 @@ export function AgentSpotlight({
       </div>
 
       {/* Rail (desktop) — coworker selector grouped by company */}
-      <div
-        className={cn(
-          "hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-4 md:pr-3",
-          SCROLLBAR,
-        )}
-      >
+      <div className="app-scrollbar hidden md:flex md:w-52 md:shrink-0 md:flex-col md:gap-4 md:overflow-y-auto md:py-4 md:pr-3">
         {groups.map((group) => (
           <div key={group.vendorId} className="space-y-1">
             <p className="text-muted-foreground px-2 text-xs font-medium">
@@ -331,12 +319,9 @@ export function AgentSpotlight({
       {/* Detail — spotlight + ready-to-run tasks */}
       <div
         key={current.id}
-        className={cn(
-          // See AgentSpotlightSkeleton: the divider spans the panel only while
-          // the vertical padding sits on this column, not on the modal body.
-          "border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:py-4 md:pl-6",
-          SCROLLBAR,
-        )}
+        // See AgentSpotlightSkeleton: the divider spans the panel only while
+        // the vertical padding sits on this column, not on the modal body.
+        className="app-scrollbar border-border animate-in fade-in-0 min-w-0 flex-1 space-y-5 overflow-y-auto pt-4 md:border-l md:py-4 md:pl-6"
       >
         <div className="flex items-start gap-4">
           <Avatar className="ring-border size-16 shrink-0 rounded-full ring-1">

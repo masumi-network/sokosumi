@@ -8,6 +8,15 @@ export function getHistoryRowSubtitle(
   item: HistoryItem,
   labels: HistorySubtitleLabels,
 ): string {
+  // An image row's `description` is Core's search text, not display text: it
+  // carries the raw provider endpoint ("fal-ai/flux-2-pro") because SQL cannot
+  // see the studio catalog's labels, and Core resolves the readable name into
+  // `modelLabel` for exactly this purpose. The title is already the prompt, so
+  // the model is what the second line is for.
+  if (item.kind === "image") {
+    return item.modelLabel.trim() || labels.noDescription;
+  }
+
   const description = item.description?.trim();
   if (description) return description;
 

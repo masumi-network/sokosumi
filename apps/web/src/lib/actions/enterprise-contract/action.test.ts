@@ -62,7 +62,9 @@ describe("enterprise contract actions", () => {
 
   it("returns UNAUTHORIZED when a signed-in non-admin invokes list action", async () => {
     const { listEnterpriseContractsAction } = await import("./action");
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
 
     const result = await listEnterpriseContractsAction({
       session: memberSession,

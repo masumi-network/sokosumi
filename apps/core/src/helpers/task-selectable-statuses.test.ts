@@ -29,8 +29,7 @@ function task(
     status: TaskStatus.READY,
     assigneeId: "cow_1",
     assigneeSokoBotId: null,
-    metadata: null,
-    nextRunAt: null,
+    runAt: null,
     ...overrides,
   };
 }
@@ -81,34 +80,55 @@ describe("getSelectableTaskStatuses", () => {
     ]);
   });
 
-  it("offers only Queued from Ready while a series is live", () => {
-    const scheduled = task({ nextRunAt: new Date("2026-10-01T09:00:00Z") });
-    expect(getSelectableTaskStatuses(scheduled, userActor)).toEqual([
+  it("offers Queued only when the Task has a Run at", () => {
+    const runAt = new Date("2026-10-01T09:00:00Z");
+    expect(getSelectableTaskStatuses(task(), userActor)).not.toContain(
       TaskStatus.QUEUED,
+    );
+    expect(
+      getSelectableTaskStatuses(
+        task({ status: TaskStatus.DRAFT, runAt }),
+        userActor,
+      ),
+    ).toEqual([
+      TaskStatus.QUEUED,
+      TaskStatus.READY,
+      TaskStatus.RUNNING,
+      TaskStatus.AWAITING_EXTERNAL,
+      TaskStatus.COMPLETED,
+      TaskStatus.CANCELED,
     ]);
-    expect(
-      getSelectableTaskStatuses(
-        { ...scheduled, status: TaskStatus.QUEUED },
-        userActor,
-      ),
-    ).toEqual([]);
-    expect(
-      getSelectableTaskStatuses(
-        { ...scheduled, status: TaskStatus.DRAFT },
-        userActor,
-      ),
-    ).toEqual([]);
   });
 
-  it("does not offer Queued while a series is live if nothing is assigned to run it", () => {
+  it("does not offer Queued with a Run at if nothing is assigned to run it", () => {
     expect(
       getSelectableTaskStatuses(
         task({
+          status: TaskStatus.DRAFT,
           assigneeId: null,
-          nextRunAt: new Date("2026-10-01T09:00:00Z"),
+          runAt: new Date("2026-10-01T09:00:00Z"),
         }),
         userActor,
       ),
-    ).toEqual([]);
+    ).not.toContain(TaskStatus.QUEUED);
+  });
+
+  it("lets a person move a Queued Task anywhere a person may", () => {
+    expect(
+      getSelectableTaskStatuses(
+        task({
+          status: TaskStatus.QUEUED,
+          runAt: new Date("2026-10-01T09:00:00Z"),
+        }),
+        userActor,
+      ),
+    ).toEqual([
+      TaskStatus.DRAFT,
+      TaskStatus.READY,
+      TaskStatus.RUNNING,
+      TaskStatus.AWAITING_EXTERNAL,
+      TaskStatus.COMPLETED,
+      TaskStatus.CANCELED,
+    ]);
   });
 });

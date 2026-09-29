@@ -8,6 +8,8 @@ import { TASK_DETAIL_CONTEXT_STRIP_CLASS } from "@/app/tasks/constants";
 import { Button } from "@/components/ui/button";
 import { adminTaskService } from "@/lib/services/admin-task.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Task",
   description: "Admin task detail",

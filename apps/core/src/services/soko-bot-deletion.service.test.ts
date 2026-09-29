@@ -31,6 +31,7 @@ const {
     usage: 0,
     chatMessage: 0,
     uploadedTaskFile: 0,
+    taskSchedule: 0,
   },
   deleteManyCalls: [] as string[],
   revokeIntegrationsMock: vi.fn(),
@@ -97,6 +98,7 @@ vi.mock("@/lib/db/transaction", () => ({
       sokoBotUsage: { count: vi.fn(async () => counts.usage) },
       chatRoomMessage: { count: vi.fn(async () => counts.chatMessage) },
       taskFile: { count: vi.fn(async () => counts.uploadedTaskFile) },
+      taskSchedule: { count: vi.fn(async () => counts.taskSchedule) },
     }),
   ),
 }));
@@ -148,6 +150,16 @@ describe("deleteSokoBot", () => {
     expect(data.avatarSeed).toBeNull();
     expect(data.memoryHash).toBeNull();
     expect(data.versionId).toBeNull();
+  });
+
+  it("tombstones a bot that created a Task Schedule, whose creator FK restricts deletion", async () => {
+    counts.taskSchedule = 1;
+
+    const result = await deleteSokoBot(BOT_ID);
+
+    expect(result.outcome).toBe("tombstoned");
+    expect(result.retained.taskSchedules).toBe(1);
+    expect(txBotDeleteMock).not.toHaveBeenCalled();
   });
 
   it("tombstones for billing usage alone, so payment records survive", async () => {

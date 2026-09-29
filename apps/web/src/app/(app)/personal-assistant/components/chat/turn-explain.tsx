@@ -159,7 +159,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-[0.6875rem] font-medium"
+        className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1 text-[0.6875rem] font-medium"
       >
         <ChevronRight
           aria-hidden
@@ -169,7 +169,7 @@ function Raw({ label, value }: { label: string; value: unknown }) {
         <span className="text-muted-foreground tabular-nums">· {size}</span>
       </button>
       {open ? (
-        <pre className="bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+        <pre className="app-scrollbar bg-card-background text-foreground mt-1 max-h-96 overflow-auto rounded-md p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
           {text}
         </pre>
       ) : null}
@@ -270,7 +270,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
       </div>
 
       <div className="px-4 py-2">
-        <p className="text-muted-foreground py-1.5 text-xs font-medium uppercase tracking-wide">
+        <p className="text-muted-foreground py-1.5 text-xs font-medium">
           {t("chain")}
         </p>
         {chain.length === 0 ? (
@@ -304,7 +304,7 @@ function Explanation({ turn }: { turn: ChatTurnDetail }) {
                     {toolLabel(item.toolName)}
                   </span>
                   {item.input ? (
-                    <pre className="text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs">
+                    <pre className="app-scrollbar text-muted-foreground mt-1 overflow-x-auto whitespace-pre-wrap break-words font-mono text-xs">
                       {prettyInput(item.input)}
                     </pre>
                   ) : null}
@@ -418,7 +418,7 @@ export function TurnExplain({
         type="button"
         onClick={() => setOpen((value) => !value)}
         aria-expanded={open}
-        className="text-muted-foreground hover:text-foreground focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
+        className="text-muted-foreground press hover:text-foreground focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded text-xs font-medium transition-colors outline-none focus-visible:ring-2"
       >
         <ListTree aria-hidden className="size-3" />
         {open ? t("hide") : t("toggle")}

@@ -4,8 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const readRouteSessionMock = vi.fn();
 const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
-const hasCurrentUserCalendarBetaAccessMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
+const hasSocialBetaAccessMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -27,20 +27,27 @@ vi.mock("@sokosumi/utils", async (importOriginal) => ({
   hasAdminRole: () => false,
 }));
 
-vi.mock("@/lib/calendar-beta-access.server", () => ({
-  hasCurrentUserCalendarBetaAccess: () =>
-    hasCurrentUserCalendarBetaAccessMock(),
+vi.mock("@/lib/services/organization-seat.service", () => ({
+  organizationSeatService: {
+    hasAssignedSeat: (...args: unknown[]) =>
+      hasAssignedOrganizationSeatMock(...args),
+  },
 }));
 
-vi.mock("@/lib/services/organization-assigned-seat.service", () => ({
-  hasAssignedOrganizationSeat: (...args: unknown[]) =>
-    hasAssignedOrganizationSeatMock(...args),
-}));
-
-vi.mock("@/lib/services", () => ({
+vi.mock("@/lib/services/user.service", () => ({
   userService: {
     getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
+}));
+
+vi.mock("@/lib/social-beta-access.server", () => ({
+  hasCurrentUserSocialBetaAccess: () => hasSocialBetaAccessMock(),
+}));
+
+vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
+  AuthenticatedRoomCache: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
 }));
 
 // Heavy chrome deps — not exercised by gate redirect tests.
@@ -122,7 +129,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       },
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(false);
+    hasSocialBetaAccessMock.mockResolvedValue(false);
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
@@ -156,7 +163,6 @@ describe("AuthenticatedAppFrame workspace gate", () => {
   });
 
   it("allows ready users through to the app chrome", async () => {
-    hasCurrentUserCalendarBetaAccessMock.mockResolvedValue(true);
     getWorkspaceAccessMock.mockResolvedValue({
       gate: "ready",
       hasPersonalWorkspace: true,
@@ -172,8 +178,37 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     render(ui);
     expect(redirectMock).not.toHaveBeenCalled();
     expect(ui).toBeTruthy();
-    expect(privateCachedAppSidebarMock).toHaveBeenCalledWith(
-      expect.objectContaining({ calendarMenuEnabled: true }),
+    // The sidebar no longer takes a Calendar flag: everyone sees Calendar.
+    expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "calendarMenuEnabled",
     );
   });
+
+  /**
+   * Social is still beta-gated, and the sidebar is a client component, so the
+   * frame is the only place that can answer for it. It resolves alongside the
+   * seat gate rather than after it: nav paints once both are in.
+   */
+  it.each([true, false])(
+    "hands the sidebar the Social beta answer: %s",
+    async (enabled) => {
+      hasSocialBetaAccessMock.mockResolvedValue(enabled);
+      getWorkspaceAccessMock.mockResolvedValue({
+        gate: "ready",
+        hasPersonalWorkspace: true,
+        hasOrganizationMembership: false,
+        hasPendingOrganizationInvites: false,
+      });
+
+      const { default: AuthenticatedAppFrame } = await import(
+        "../authenticated-app-frame"
+      );
+
+      render(await AuthenticatedAppFrame({ children: <div>app</div> }));
+
+      expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
+        socialMenuEnabled: enabled,
+      });
+    },
+  );
 });

@@ -1,5 +1,8 @@
 import { NotificationKind } from "@sokosumi/database";
 import {
+  BILLING_FOLLOW_UP_MESSAGE_KEY,
+  BILLING_LOW_BALANCE_MESSAGE_KEY,
+  BILLING_PAYMENT_FAILED_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_FOLLOW_UP_MESSAGE_KEY,
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_FOLLOW_UP_MESSAGE_KEY,
@@ -138,7 +141,12 @@ describe("buildFollowUpEmail", () => {
     expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks/task-1`);
   });
 
-  it("sends a job reminder to the job, under its agent", async () => {
+  /**
+   * SOK-930 removed the job reminder with the job notifications it reminded
+   * of. A row stored before that still reads in the Notification Center; it
+   * is no longer mailed.
+   */
+  it("sends nothing for a job reminder", async () => {
     const email = await buildFollowUpEmail(
       input({
         kind: NotificationKind.JOB,
@@ -149,25 +157,7 @@ describe("buildFollowUpEmail", () => {
       }),
     );
 
-    expect(email?.subject).toBe(
-      "Sokosumi - Nightly report is still waiting for you",
-    );
-    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/agents/agent-1/jobs/job-1`);
-  });
-
-  /** No agent id, no job URL. Web sends the reader to the list rather than nowhere. */
-  it("falls back to the task list for a job with no agent", async () => {
-    const email = await buildFollowUpEmail(
-      input({
-        kind: NotificationKind.JOB,
-        referenceId: "job-1",
-        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
-        messageParams: { jobName: "Nightly report" },
-        metadata: null,
-      }),
-    );
-
-    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/tasks`);
+    expect(email).toBeNull();
   });
 
   it("names the thing generically when the row does not name it", async () => {
@@ -270,24 +260,6 @@ describe("buildFollowUpEmail", () => {
     expect(text).toContain("Project: Billing");
   });
 
-  it("says what the job stopped for, and which agent it is", async () => {
-    const email = await buildFollowUpEmail(
-      input({
-        kind: NotificationKind.JOB,
-        referenceId: "job-1",
-        messageKey: JOB_FOLLOW_UP_MESSAGE_KEY,
-        sourceMessageKey: "Notifications.Job.paymentFailed",
-        messageParams: { agentName: "Reporter", jobName: "Nightly report" },
-        metadata: { agentId: "agent-1" },
-      }),
-    );
-
-    const text = textIn(email?.html ?? "");
-
-    expect(text).toContain("The payment for Nightly report failed a day ago");
-    expect(text).toContain("Agent: Reporter");
-  });
-
   /**
    * A key added to a family later has no sentence written for it. The email
    * falls back to the family's own body rather than asking the catalog for a
@@ -308,6 +280,42 @@ describe("buildFollowUpEmail", () => {
     expect(textIn(email?.html ?? "")).toContain(
       "Invoice run stopped a day ago because it needs you",
     );
+  });
+
+  it("sends a low-balance reminder to the credits tab, naming what was left", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.BILLING,
+        referenceId: "org-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: BILLING_LOW_BALANCE_MESSAGE_KEY,
+        messageParams: { credits: 42 },
+        metadata: { workspaceId: "ws-1", organizationId: "org-1" },
+      }),
+    );
+
+    expect(email?.subject).toBe(
+      "Sokosumi - Your billing still needs your attention",
+    );
+    expect(textIn(email?.html ?? "")).toContain(
+      "Your credits were running low a day ago, with 42 left",
+    );
+    expect(linkIn(email?.html ?? "")).toBe(`${BASE}/billing?tab=credits`);
+  });
+
+  it("does not mail a failed payment, which Stripe already mailed", async () => {
+    const email = await buildFollowUpEmail(
+      input({
+        kind: NotificationKind.BILLING,
+        referenceId: "user-1",
+        messageKey: BILLING_FOLLOW_UP_MESSAGE_KEY,
+        sourceMessageKey: BILLING_PAYMENT_FAILED_MESSAGE_KEY,
+        messageParams: {},
+        metadata: { workspaceId: "ws-1", organizationId: null },
+      }),
+    );
+
+    expect(email).toBeNull();
   });
 
   it("has no email for a message key that is not a reminder", async () => {

@@ -24,7 +24,7 @@ test("selector stays at zero when it has no items", () => {
   assert.equal(moveSelectionIndex(4, 1, 0), 0);
 });
 
-test("TestV45 q does not select a row; arrows plus Enter remain the only selector action", async () => {
+test("q does not select a row; arrows plus Enter remain the only selector action", async () => {
   type TestStdin = PassThrough & NodeJS.ReadStream;
   type TestStdout = PassThrough & NodeJS.WriteStream;
   const stdin = new PassThrough() as TestStdin;

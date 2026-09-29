@@ -14,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { acknowledgeNoticeAction } from "@/lib/actions/notice";
+import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
 import type { Notice } from "@/lib/clients/generated/core";
 import { NoticeKind } from "@/lib/clients/generated/core";
 import { isVideoUrl } from "@/lib/utils/file-preview";
@@ -170,7 +170,7 @@ export function NoticeDialog({
           </div>
         </DialogHeader>
 
-        <div className="max-h-[45dvh] overflow-y-auto pr-1">
+        <div className="app-scrollbar max-h-[45dvh] overflow-y-auto pr-1">
           <Markdown>{parsedTemplate.bodyMarkdown}</Markdown>
         </div>
 
@@ -183,7 +183,10 @@ export function NoticeDialog({
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {actionLabel ?? t("actions.openLink")}
             </Button>
@@ -196,7 +199,10 @@ export function NoticeDialog({
               disabled={isSubmitting}
             >
               {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
+                <Loader2
+                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
               ) : null}
               {t("actions.confirm")}
             </Button>

@@ -21,7 +21,6 @@ const envDefaults: Record<string, string> = {
   REQUIRE_PERSONAL_WORKSPACE: "false",
   SOKO_BOT_ENABLED: "true",
   SOKO_BOT_RUNTIME_ADAPTER: "in-memory",
-  SOKO_BOT_CLASSIFIER_MODE: "deterministic",
   CRON_SECRET: "test-cron-secret",
   STRIPE_SECRET_KEY: "sk_test_example",
   STRIPE_STARTER_SUBSCRIPTION_PRODUCT_ID: "prod_starter_test",
@@ -36,6 +35,7 @@ const envDefaults: Record<string, string> = {
   INSTANCE_ID: "test-instance-id",
   SHOW_AGENTS_BY_DEFAULT: "true",
   MAINTENANCE_MODE: "false",
+  COMPOSIO_X_AUTH_CONFIG_ID: "test-composio-x-auth-config-id",
   ABLY_PUBLISH_ONLY_KEY: "local-test",
   ABLY_SUBSCRIBE_ONLY_KEY: "local-test-subscribe",
   JOB_FAILURE_NOTIFICATION_EMAILS: "",
@@ -56,3 +56,7 @@ for (const [key, value] of Object.entries(envDefaults)) {
   }
   process.env[key] = value;
 }
+
+// Tests use BETTER_AUTH_SECRET alone. A BETTER_AUTH_SECRETS value from the
+// shell would switch Better Auth to versioned keys.
+delete process.env.BETTER_AUTH_SECRETS;

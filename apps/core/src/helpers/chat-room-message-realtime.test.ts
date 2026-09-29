@@ -86,6 +86,27 @@ describe("publishChatRoomMessageRealtime", () => {
     mapChatRoomMessageMock.mockReturnValue(viewerNeutralDto);
   });
 
+  it("propagates a transport failure for durable outbox callers", async () => {
+    findUniqueMessageMock.mockResolvedValue(baseMessage);
+    publishChatRoomMessageEventMock.mockRejectedValue(
+      new Error("transport unavailable"),
+    );
+    await expect(
+      publishChatRoomMessageRealtimeById(baseMessage.id, "create", {
+        throwOnError: true,
+      }),
+    ).rejects.toThrow("transport unavailable");
+  });
+
+  it("rejects a missing message for durable outbox callers", async () => {
+    findUniqueMessageMock.mockResolvedValue(null);
+    await expect(
+      publishChatRoomMessageRealtimeById(baseMessage.id, "create", {
+        throwOnError: true,
+      }),
+    ).rejects.toThrow("Chat message no longer exists");
+  });
+
   it("invalidates all members after committed membership messages, but not generic replay", async () => {
     findRoomMembersMock.mockResolvedValueOnce([
       { userId: "user_a" },

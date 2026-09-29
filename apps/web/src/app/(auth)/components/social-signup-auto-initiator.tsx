@@ -12,7 +12,7 @@ import {
   buildAuthCallbackUrl,
   buildOAuthConsentReturnUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
-import type { SocialProviderId } from "@/lib/schemas";
+import type { SocialProviderId } from "@/lib/schemas/auth";
 
 interface SocialSignupAutoInitiatorProps {
   provider: SocialProviderId;
@@ -105,7 +105,7 @@ export default function SocialSignupAutoInitiator({
         </div>
         {isInitiating && (
           <div className="flex justify-center">
-            <div className="border-primary size-8 animate-spin rounded-full border-4 border-t-transparent" />
+            <div className="border-primary size-8 animate-spin motion-reduce:animate-pulse rounded-full border-4 border-t-transparent" />
           </div>
         )}
       </div>

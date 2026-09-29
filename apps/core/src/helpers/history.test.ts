@@ -110,6 +110,70 @@ describe("mapHistoryRow", () => {
     });
   });
 
+  it("maps an image row to the image variant, resolving the model label live", () => {
+    const row = createHistoryRow({
+      entityId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      kind: HistoryKind.IMAGE,
+      status: "active",
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      title: "A bold event poster",
+      // What the trigger writes: the endpoint, then the credits. SQL cannot see
+      // the studio catalog's display labels, so they are resolved here.
+      description: "fal-ai/gemini-3.1-flash-image-preview · 8 credits",
+      amount: 80_000_000_000n,
+      agentId: null,
+    });
+
+    expect(mapHistoryRow(row)).toEqual({
+      kind: "image",
+      id: row.entityId,
+      assetId: row.entityId,
+      title: "A bold event poster",
+      description: "fal-ai/gemini-3.1-flash-image-preview · 8 credits",
+      status: "active",
+      updatedAt: row.sortAt.toISOString(),
+      archivedAt: null,
+      credits: 8,
+      projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
+      modelLabel: "Gemini 3.1 Flash Image",
+      owner: null,
+    });
+  });
+
+  it("still names the model for an endpoint the catalog no longer lists", () => {
+    // A withdrawn model must not take the feed down, and the endpoint is still
+    // true about what made the image.
+    const row = createHistoryRow({
+      entityId: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      kind: HistoryKind.IMAGE,
+      status: "active",
+      description: "fal-ai/withdrawn-last-year · 3 credits",
+      amount: 30_000_000_000n,
+      agentId: null,
+    });
+
+    expect(mapHistoryRow(row)).toMatchObject({
+      kind: "image",
+      modelLabel: "withdrawn-last-year",
+      credits: 3,
+    });
+  });
+
+  it("reads a refunded image row as having cost nothing", () => {
+    const row = createHistoryRow({
+      entityId: "dddddddd-dddd-4ddd-8ddd-dddddddddddd",
+      kind: HistoryKind.IMAGE,
+      status: "active",
+      description: "fal-ai/gemini-3.1-flash-image-preview · 0 credits",
+      // The trigger writes the charge net of any refund, so a failure that was
+      // paid back reads as zero rather than as money the person bore.
+      amount: 0n,
+      agentId: null,
+    });
+
+    expect(mapHistoryRow(row)).toMatchObject({ kind: "image", credits: 0 });
+  });
+
   it("maps archivedAt for archived task rows", () => {
     const archivedAt = new Date("2026-04-03T10:00:00.000Z");
     const row = createHistoryRow({
@@ -296,6 +360,30 @@ describe("buildHistoryStatusFilter", () => {
   });
 });
 
+describe("image rows in the status filter", () => {
+  it("includes image rows for `active` and for no status filter at all", () => {
+    for (const statuses of [["active"], []]) {
+      expect(
+        buildHistoryStatusFilter(statuses, [HistoryKind.IMAGE], undefined),
+      ).toEqual({
+        OR: [{ kind: HistoryKind.IMAGE, archivedAt: null }],
+      });
+    }
+  });
+
+  it("excludes image rows from a filter naming task or job states", () => {
+    // An image has no status of its own — the row exists because the image does
+    // — so "show me everything that failed" is not a question about images.
+    expect(
+      buildHistoryStatusFilter(
+        [TaskStatus.FAILED],
+        [HistoryKind.IMAGE],
+        undefined,
+      ),
+    ).toEqual({ id: { in: [] } });
+  });
+});
+
 describe("findJobHistoryEntityIdsMatchingStatuses", () => {
   it("queries computed job status in SQL", async () => {
     const queryRawMock = vi.fn().mockResolvedValue([{ entityId: "job_123" }]);
@@ -335,7 +423,7 @@ describe("buildHistoryWhere", () => {
     const where = await buildHistoryWhere(
       {
         scope: "workspace",
-        types: [HistoryKind.TASK, HistoryKind.JOB],
+        types: [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE],
         userContext: { source: "session", ...orgAuthContext },
         workspaceContext: {
           workspaceId: "11111111-1111-7111-8111-111111111111",
@@ -363,7 +451,11 @@ describe("buildHistoryWhere", () => {
         {
           OR: [
             {
-              kind: { in: [HistoryKind.TASK, HistoryKind.JOB] },
+              // Images are workspace-scoped too: a generation belongs to a
+              // project, which belongs to a workspace.
+              kind: {
+                in: [HistoryKind.TASK, HistoryKind.JOB, HistoryKind.IMAGE],
+              },
               workspaceId: "11111111-1111-7111-8111-111111111111",
             },
           ],

@@ -28,6 +28,7 @@ Commands:
   describe          [issueId]             - Print the issue title and Linear-issue trailer                            
   commits           [issueId]             - Show all commits for a Linear issue (jj only)                             
   pull-request, pr  [issueId]             - Create a GitHub pull request with issue details                           
+  archive           [issueId]             - Archive an issue                                                          
   delete, d         [issueId]             - Delete an issue                                                           
   create                                  - Create a linear issue                                                     
   update            [issueId]             - Update a linear issue                                                     
@@ -96,6 +97,32 @@ Options:
   -h, --help           - Show this help.                      
   --workspace  <slug>  - Target workspace (uses credentials)  
   -j, --json           - Output as JSON
+```
+
+### archive
+
+> Archive an issue
+
+```
+Usage:   linear issue archive [issueId]
+
+Description:
+
+  Archive an issue                                                                                                                      
+                                                                                                                                        
+  Linear archives closed issues on its own, and its docs say "archiving happens automatically with no option to manually archive items".
+  Prefer closing (issue update --state) and letting auto-archive run, or issue delete to trash. This command calls the issueArchive     
+  mutation, which the Linear app and its official MCP server do not expose; archived issues drop out of list, query, and search results 
+  unless --include-archived is passed. See https://linear.app/docs/delete-archive-issues                                                
+
+Options:
+
+  -h, --help               - Show this help.                                              
+  --workspace    <slug>    - Target workspace (uses credentials)                          
+  -y, --confirm            - Skip confirmation prompt                                     
+  --bulk         <ids...>  - Archive multiple issues by identifier (e.g., TC-123 TC-124)  
+  --bulk-file    <file>    - Read issue identifiers from a file (one per line)            
+  --bulk-stdin             - Read issue identifiers from stdin
 ```
 
 ### attach
@@ -278,6 +305,11 @@ Options:
   --cycle                    <cycle>        - Cycle name, number, 'active'/'now', 'next', 'previous', or a relative offset  
                                               like +1 (use --cycle=-1 for negatives)                                        
   --no-use-default-template                 - Do not use default template for the issue                                     
+  --template                 <template>     - Issue template to apply, by name or ID (the team's templates plus workspace   
+                                              ones). Takes the place of the team's default template. The template fills in  
+                                              anything you do not pass: explicit flags override it, --label merges with     
+                                              the template's labels, and --description replaces the template body (omit it  
+                                              to keep the body). Makes --title optional.                                    
   --no-interactive                          - Disable interactive prompts                                                   
   -t, --title                <title>        - Title of the issue
 ```

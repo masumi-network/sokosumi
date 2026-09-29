@@ -37,8 +37,12 @@ import { Prisma, Agent, User, Job } from "@sokosumi/database";
 ### Client Export (`@sokosumi/database/client`)
 
 - **Purpose**: Factory function to create Prisma client instances
-- **Includes**: `createPrismaClient(databaseUrl: string)` and `PrismaRaw` (client Prisma namespace for tagged SQL)
+- **Includes**: `createPrismaClient(poolOrUrl: string | Pool, options?: PrismaClientPoolOptions)` and `PrismaRaw` (client Prisma namespace for tagged SQL)
 - **Use in**: Server-side code only
+
+Connection-string callers receive TCP keepalive with a 10-second initial delay.
+Supplied pools retain caller-owned configuration and lifetime: Prisma disconnect
+does not close them. Options expose `onPoolError` and `onConnectionError` callbacks.
 
 ```typescript
 import { createPrismaClient } from "@sokosumi/database/client";
@@ -111,14 +115,15 @@ export const userRepository = {
 - Create migrations with `pnpm prisma:migrate:dev`
 - Migration files are in `prisma/migrations/`
 - Use descriptive migration names
-- **Timestamps must be unique.** Prisma applies folders by the 14-digit prefix (`YYYYMMDDHHMMSS`), then the rest of the name. Do not reuse a nearby `YYYYMMDD120000` noon stamp from another PR — bump from the current tip. Two historical collisions are allowlisted in `src/helpers/migration-prefix-uniqueness.ts` (already applied in production); do not add a third folder with those prefixes, and do not rename the existing folders.
-- **Vercel (Core):** `pnpm vercel-build` runs this package’s `prisma:generate`, then this package’s `build`, then Core `tsup`, then `prisma migrate deploy` (Production and Preview). Order is generate-and-compile then migrate (do not migrate if the app fails to compile). Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma.config.ts` runs `checkMigrateDeployEnv` only for DB-mutating CLI commands (`migrate …`, `db …`): Preview without `DATABASE_URL_UNPOOLED` fails closed (including raw `prisma migrate deploy`); other Vercel envs warn if unpooled is missing. `prisma generate` skips the preflight. Web Vercel installs use `pnpm install --frozen-lockfile --filter web...` and never install this package. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
+- **Mirror hand-written SQL in the schema.** Every index, unique, and constraint a migration creates gets a declaration in `schema.prisma` under the same `map:` name; partial uniques use `@@unique([...], map: "...", where: { ... })`. Only what Prisma cannot express (CHECKs, expression indexes) stays SQL-only, with a comment on the model saying so.
+- **Drift shows up as unrelated drops.** When `migrate dev` generates `DROP INDEX`, `DROP CONSTRAINT`, or `RENAME CONSTRAINT` for objects your change never touched, the schema has drifted: declare those objects (bullet above) and regenerate, so the migration holds only your change. `pnpm prisma:check-drift` against a database with every migration applied (a scratch Postgres after `pnpm prisma:migrate:deploy`) prints the drift SQL and exits 2; Test Core runs it.
+- **One timestamp per folder, after the current tip.** Prisma orders folders by the 14-digit prefix (`YYYYMMDDHHMMSS`) and applies an older-dated pending folder without warning, so a stamp below `main`'s newest migration runs in a different order on fresh databases than in production. Take a fresh stamp above the tip instead of a round `YYYYMMDD120000` another PR may share. Test Packages fails a PR that adds a folder without a stamp or stamped at or below the newest one on its base branch (usually `main`), or that deletes or renames a folder the base has. The check does not run again when a PR's base branch changes, so push again after you change it. A folder only the PR has can take a fresh stamp, because production never applied it. If the PR's Preview already applied the old name, comment `/reset-db <network>` on the PR. Applied folders keep their names forever, because renaming one re-runs its SQL; to undo one, add a new migration. The historical collisions are allowlisted in `src/helpers/migration-prefix-uniqueness.ts`.
+- **Vercel (Core):** `pnpm vercel-build` runs this package’s `prisma:generate`, then Core `tsup`, then `prisma migrate deploy` (Production and Preview). Order is generate-and-compile then migrate (do not migrate if the app fails to compile). Core’s `tsup` inlines this package from source (`noExternal`) and keeps `pg` / `@prisma/client` / `@prisma/adapter-pg` external. Prisma CLI prefers `DATABASE_URL_UNPOOLED` (injected by the Vercel Neon integration), then `DATABASE_URL`. `prisma.config.ts` runs `checkMigrateDeployEnv` only for DB-mutating CLI commands (`migrate …`, `db …`): Preview without `DATABASE_URL_UNPOOLED` fails closed (including raw `prisma migrate deploy`); other Vercel envs warn if unpooled is missing. `prisma generate` skips the preflight. Web Vercel installs use `pnpm install --frozen-lockfile --filter web...` and never install this package. Keep migrations backward-compatible with the previous Core release for the brief window before the new deployment activates.
 
 ## Package-Specific Commands
 
 | Command                      | Purpose                       |
 | ---------------------------- | ----------------------------- |
-| `pnpm database:build`        | Build TypeScript to JS        |
 | `pnpm --filter @sokosumi/database lint` | Lint package code             |
 | `pnpm --filter @sokosumi/database format` | Format code with Biome        |
 | `pnpm prisma:generate`       | Generate Prisma client        |
@@ -131,12 +136,12 @@ export const userRepository = {
 
 **Only Core** creates a Prisma client (`apps/core/src/lib/db/prisma.ts`). Web must not import `@sokosumi/database` or create a client — it reaches data through the Core API.
 
-```typescript
-// apps/core/src/lib/db/prisma.ts
-import { createPrismaClient } from "@sokosumi/database/client";
+Core's singleton owns a `pg.Pool`, preserves TCP keepalive, attaches Vercel's idle
+connection cleanup, and reports adapter errors to Sentry. Import that singleton
+in routes and services; do not construct additional pools there.
 
-const prisma = createPrismaClient(process.env.DATABASE_URL!);
-export default prisma;
+```typescript
+import prisma from "@/lib/db/prisma";
 ```
 
 ## Best Practices
@@ -160,10 +165,13 @@ export default prisma;
 
 ### Build Issues
 
+This package has no build. Core consumes its TypeScript source directly and
+bundles it ([ADR 0035](../../docs/adr/0035-database-consumed-from-source.md)),
+so there is no `dist` to go stale and nothing to clean. A type error here is a
+real type error — do not look for a missing rebuild.
+
 ```bash
-# Clean build cache and dist folder
-pnpm --filter @sokosumi/database clean
-pnpm --filter @sokosumi/database build
+pnpm --filter @sokosumi/database typecheck
 ```
 
 ### Prisma Client Not Found
@@ -175,8 +183,7 @@ pnpm prisma:generate
 ### Type Errors After Schema Changes
 
 1. Regenerate Prisma client: `pnpm prisma:generate`
-2. Rebuild the package: `pnpm database:build`
-3. Restart TypeScript server
+2. Restart TypeScript server
 
 ## Additional Rules
 

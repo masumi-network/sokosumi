@@ -16,11 +16,8 @@
  * ```
  */
 export async function setupDomContext(): Promise<() => void> {
-  // Check if we're already in a browser environment
-  if (typeof document !== "undefined") {
-    return () => {};
-  }
-
+  // Always build a fresh window. Reusing an existing `document` would hand the
+  // caller another caller's DOM and a cleanup that restores nothing.
   const { Window } = await import("happy-dom");
   const window = new Window();
   if (!window) {

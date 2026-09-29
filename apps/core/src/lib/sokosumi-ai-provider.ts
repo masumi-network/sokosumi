@@ -1,6 +1,6 @@
 import { createSokosumi } from "@sokosumi/ai-provider";
 
-import { getBetterAuthPublicBaseUrl } from "@/config/env";
+import { getBetterAuthPublicBaseUrl, getEnv } from "@/config/env";
 
 type SokosumiProvider = ReturnType<typeof createSokosumi>;
 
@@ -9,7 +9,7 @@ let cachedOpenRouterApiKey: string | null = null;
 let cachedOpenRouterHttpReferer: string | null = null;
 
 export function getOpenRouterChatApiKeyForProvider(): string {
-  return process.env.OPENROUTER_CHAT_API_KEY ?? "";
+  return getEnv().OPENROUTER_CHAT_API_KEY ?? "";
 }
 
 export function getSokosumiProvider(): SokosumiProvider {

@@ -13,6 +13,8 @@ import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 import SignInForm from "./components/form";
 import SignInHeader from "./components/header";
 
+export const instant = false;
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Pages.SignIn.Metadata");
 

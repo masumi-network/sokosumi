@@ -53,7 +53,10 @@ enum ChatMessagePreview {
     text = replace(#"`{2,}"#, in: text, with: "`")
     text = replace(#"`([^`]+)`"#, in: text, with: "$1")
     text = replace(#"\[([^\]\[]+)\]\([^)]+\)"#, in: text, with: "$1")
-    text = replace(#"[*_~>#]+"#, in: text, with: "")
+    text = replace(#"[*~>#]+"#, in: text, with: "")
+    // A run flanked by Unicode letters or digits opens no emphasis in
+    // CommonMark. Match it from the first underscore, or `foo__bar` loses one.
+    text = replace(#"(?<![\p{L}\p{N}_])_+(?!_)|(?<!_)_+(?![\p{L}\p{N}_])"#, in: text, with: "")
     return replace(#"[^\S\n]+"#, in: text, with: " ").trimmingCharacters(in: .whitespacesAndNewlines)
   }
 

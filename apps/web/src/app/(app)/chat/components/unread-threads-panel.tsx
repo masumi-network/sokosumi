@@ -5,8 +5,8 @@ import {
   ROOM_COUNT_CAP,
   roomCountLabel,
 } from "@/components/chat/room-count-label";
+import { CornerCountBadge } from "@/components/common/corner-count-badge";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 export interface UnreadThreadsPanelLabels {
   open: string;
@@ -22,32 +22,31 @@ interface UnreadThreadsPanelProps {
   onToggle: () => void;
   /** Unread threads in this room (Core `unread-count`, Participant-gated). */
   unreadCount: number;
-  /** The reader's opt-in numeric chat counts. */
-  showUnreadCount: boolean;
 }
 
 /**
  * The room-header threads trigger.
  *
- * It speaks the sidebar's attention language: a mark says *something is here*,
- * the number says *how much*, and the number only appears for a reader who
- * asked for numbers. Opening the panel suppresses neither: looking at a list is
- * not reading it, so the mark stands until a Look or a Mark all actually zeroes
- * the count. The sidebar row makes the same call for the room it is open on.
+ * Unread threads show as a primary badge holding the count on the button's
+ * corner, the same badge the notification bell wears in the same filled
+ * primary, so one header states counts one way. Opening the panel does not
+ * hide it: looking at a list is not reading it, so the badge stands until a
+ * Look or a Mark all actually zeroes the count. The sidebar row makes the same
+ * call for the room it is open on.
  *
- * Without a number the mark has to carry the whole statement, so it is a dot,
- * not a heavier glyph: a stroke going from 2 to 2.5 on a 16px icon is not a
- * difference a reader notices in a header full of icons. The dot is the same
- * `bg-primary` dot the thread list puts beside an unread thread, so one mark
- * means one thing across the threads surface. When the number shows, the dot
- * stands down rather than saying the same thing twice.
+ * The badge shows even for a reader who switched numeric counts off. That
+ * switch thins the sidebar, where every room would otherwise carry a number;
+ * here there is one control, and the count is what makes it worth opening.
+ * The sidebar row still honours the switch; this control deliberately does
+ * not (ADR-0038).
  *
- * The unread statement rides the button's `aria-label`. A label on the button
- * replaces anything its children say, so `sr-only` text inside would never be
- * announced. It states the unread threads whether or not the reader turned
- * numeric counts on: that preference sets how dense the chrome looks, and a
- * spoken name has no density to save. The sidebar row drops its spoken count
- * with the preference; this deliberately does not.
+ * It shares `MentionCountPill`'s geometry but not its colour. That pill says
+ * *you were named*: a tint with an `@`, capped at 9. This is a solid fill that
+ * says *how much*, capped where the room counts cap.
+ *
+ * The unread statement rides the button's `aria-label`; the badge is hidden
+ * from it. A label on the button replaces anything its children say, so
+ * `sr-only` text inside would never be announced.
  *
  * Past the cap the name says "more than 99" rather than the exact figure,
  * so a reader who hears the button and a reader who sees it are told the same
@@ -58,10 +57,8 @@ export function UnreadThreadsPanel({
   isOpen,
   onToggle,
   unreadCount,
-  showUnreadCount,
 }: UnreadThreadsPanelProps) {
   const hasUnread = unreadCount > 0;
-  const showCount = hasUnread && showUnreadCount;
   const spokenUnread =
     unreadCount > ROOM_COUNT_CAP
       ? labels.unreadThreadsCapped(ROOM_COUNT_CAP)
@@ -76,28 +73,19 @@ export function UnreadThreadsPanel({
       aria-expanded={isOpen}
       data-testid="unread-threads-trigger"
       data-unread={hasUnread ? "true" : "false"}
-      className={cn("relative size-8", showCount && "w-auto gap-1 px-2")}
+      className="relative size-8"
       onClick={onToggle}
     >
-      <span className="relative flex items-center">
-        <MessagesSquare className={cn("size-4", hasUnread && "stroke-[2.5]")} />
-        {hasUnread && !showCount ? (
-          // Ringed in the header's own ground so the dot stays a dot where it
-          // overlaps the glyph.
-          <span
-            aria-hidden="true"
-            data-testid="unread-threads-dot"
-            className="bg-primary ring-background absolute -top-0.5 -right-1 size-2 rounded-full ring-2"
-          />
-        ) : null}
-      </span>
-      {showCount ? (
-        <span
-          aria-hidden="true"
-          className="text-foreground text-xs leading-4 font-semibold tabular-nums"
+      <MessagesSquare className="size-4" />
+      {hasUnread ? (
+        // The ghost Button's 1px border moves the anchor in a pixel; the
+        // offset puts the badge where the bell's sits.
+        <CornerCountBadge
+          data-testid="unread-threads-badge"
+          className="bg-primary-solid text-primary-solid-foreground -top-0.75 -right-0.75"
         >
           {roomCountLabel(unreadCount)}
-        </span>
+        </CornerCountBadge>
       ) : null}
     </Button>
   );

@@ -57,7 +57,6 @@ export const resetPasswordFormSchema = (
     .object({
       password: passwordSchema(t),
       confirmPassword: confirmPasswordSchema(t),
-      token: z.string(),
     })
     .refine(({ password, confirmPassword }) => password === confirmPassword, {
       path: ["confirmPassword"],

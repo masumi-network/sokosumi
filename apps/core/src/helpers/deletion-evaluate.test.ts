@@ -18,6 +18,7 @@ const {
   enterpriseContractFindFirstMock,
   taskX402PaymentFindFirstMock,
   memberFindFirstMock,
+  vendorMemberFindFirstMock,
   jobFindFirstMock,
   taskFindFirstMock,
   getMembersByOrganizationIdMock,
@@ -29,6 +30,7 @@ const {
   enterpriseContractFindFirstMock: vi.fn(),
   taskX402PaymentFindFirstMock: vi.fn(),
   memberFindFirstMock: vi.fn(),
+  vendorMemberFindFirstMock: vi.fn(),
   jobFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   getMembersByOrganizationIdMock: vi.fn(),
@@ -68,6 +70,9 @@ function createPrisma() {
     },
     member: {
       findFirst: memberFindFirstMock,
+    },
+    vendorMember: {
+      findFirst: vendorMemberFindFirstMock,
     },
     job: {
       findFirst: jobFindFirstMock,
@@ -168,6 +173,7 @@ describe("evaluateUserDeletion", () => {
     enterpriseContractFindFirstMock.mockResolvedValue(null);
     taskX402PaymentFindFirstMock.mockResolvedValue(null);
     memberFindFirstMock.mockResolvedValue(null);
+    vendorMemberFindFirstMock.mockResolvedValue(null);
     jobFindFirstMock.mockResolvedValue(null);
     taskFindFirstMock.mockResolvedValue(null);
     mockX402Lookups({});
@@ -369,6 +375,45 @@ describe("evaluateUserDeletion", () => {
     });
   });
 
+  it("blocks deletion when the user is the last admin of a Vendor someone still depends on", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue({ id: "vendor_admin_member" });
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toEqual({
+      blockers: ["USER_IS_LAST_VENDOR_ADMIN"],
+      reviewRequiredClaim: null,
+      ...EMPTY_X402_EVALUATION,
+    });
+    // A sole admin with no other member and only archived coworkers leaves
+    // nothing behind that needs an admin, so the Vendor must match one of
+    // the two dependents below to block.
+    expect(vendorMemberFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        userId: "user_delete",
+        role: "admin",
+        vendor: {
+          vendorMembers: {
+            none: { userId: { not: "user_delete" }, role: "admin" },
+          },
+          OR: [
+            { vendorMembers: { some: { userId: { not: "user_delete" } } } },
+            { coworkers: { some: { archivedAt: null } } },
+          ],
+        },
+      },
+      select: { id: true },
+    });
+  });
+
+  it("allows deletion when another Vendor admin remains", async () => {
+    vendorMemberFindFirstMock.mockResolvedValue(null);
+
+    await expect(
+      evaluateUserDeletion("user_delete", createPrisma() as never),
+    ).resolves.toMatchObject({ blockers: [] });
+  });
+
   it("returns USER_OWNS_ORGANIZATION when the User still has owner role among multiple owners", async () => {
     memberFindFirstMock.mockResolvedValue({ id: "member_owner_self" });
     const memberCountMock = vi.fn();
@@ -504,6 +549,7 @@ describe("evaluateUserDeletion", () => {
   it("returns owner-role, in-flight work, and claim blockers together", async () => {
     const reviewRequiredAt = new Date("2026-08-04T10:00:00.000Z");
     memberFindFirstMock.mockResolvedValue({ id: "member_owner" });
+    vendorMemberFindFirstMock.mockResolvedValue({ id: "vendor_admin_member" });
     mockJobLookups({
       inFlight: { id: "job_running" },
       unsettled: { id: "job_locked" },
@@ -519,6 +565,7 @@ describe("evaluateUserDeletion", () => {
     ).resolves.toEqual({
       blockers: [
         "USER_OWNS_ORGANIZATION",
+        "USER_IS_LAST_VENDOR_ADMIN",
         "IN_FLIGHT_JOB",
         "UNSETTLED_ON_CHAIN_JOB",
         "IN_FLIGHT_TASK",

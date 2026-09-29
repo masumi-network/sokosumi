@@ -9,6 +9,7 @@ const getTranslationsMock = vi.fn();
 const notFoundMock = vi.fn();
 const taskDetailViewMock = vi.fn();
 const taskWorkspaceSwitchDialogMock = vi.fn();
+const projectScopeMarkerMock = vi.fn();
 
 const sessionUser = {
   createdAt: "2025-01-01T00:00:00.000Z",
@@ -51,6 +52,13 @@ vi.mock("@/app/tasks/components/task-workspace-switch-dialog", () => ({
   TaskWorkspaceSwitchDialog: (props: unknown) => {
     taskWorkspaceSwitchDialogMock(props);
     return <div data-testid="task-workspace-switch-dialog" />;
+  },
+}));
+
+vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
+  ProjectScopeMarker: (props: unknown) => {
+    projectScopeMarkerMock(props);
+    return null;
   },
 }));
 
@@ -172,6 +180,29 @@ describe("TaskDetailPage", () => {
       task,
     });
     expect(screen.getByTestId("task-detail-view")).toBeInTheDocument();
+    // A task with no project reports the workspace.
+    expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+  });
+
+  it("reports the task's project to the project switchers", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_workspace" },
+      user: sessionUser,
+    });
+    getTaskByIdMock.mockResolvedValue({
+      id: "task_1",
+      name: "Quarterly report",
+      projectId: "project_1",
+    });
+
+    const { default: TaskDetailPage } = await import("./page");
+    render(
+      await TaskDetailPage({ params: Promise.resolve({ taskId: "task_1" }) }),
+    );
+
+    expect(projectScopeMarkerMock).toHaveBeenCalledWith({
+      projectId: "project_1",
+    });
   });
 
   it("returns not found when the task cannot be resolved in any accessible workspace", async () => {

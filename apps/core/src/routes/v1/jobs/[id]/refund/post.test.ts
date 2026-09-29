@@ -118,8 +118,12 @@ vi.mock("@/clients/masumi-payment.client.js", () => ({
   }),
 }));
 
-vi.mock("@/lib/db/prisma", () => ({
+vi.mock("@/lib/db/prisma", async () => ({
   default: {
+    member: {
+      findUnique: (await import("@/test-fixtures/organization-membership"))
+        .stubMemberFindUnique,
+    },
     $transaction: (...args: unknown[]) => prismaTransactionMock(...args),
   },
 }));

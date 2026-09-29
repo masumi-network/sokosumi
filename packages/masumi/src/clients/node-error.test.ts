@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { extractNodeErrorMessage, readNodeErrorMessage } from "./node-error.js";
+import {
+  extractNodeErrorMessage,
+  extractNodeErrorMessageForLog,
+  readNodeErrorMessage,
+} from "./node-error.js";
 
 describe("extractNodeErrorMessage", () => {
   it("keeps the payment node's documented envelope message", () => {
@@ -63,5 +67,22 @@ describe("readNodeErrorMessage", () => {
         new DOMException("The operation was aborted.", "TimeoutError"),
       ),
     ).toBeNull();
+  });
+});
+
+describe("extractNodeErrorMessageForLog", () => {
+  it("caps an envelope message that extractNodeErrorMessage returns whole", () => {
+    const envelope = { error: { message: "E".repeat(20_000) } };
+    expect(extractNodeErrorMessage(envelope)).toHaveLength(20_000);
+
+    const logged = extractNodeErrorMessageForLog(envelope);
+    expect(logged).toHaveLength(300);
+    expect(logged).toContain("(truncated from");
+  });
+
+  it("leaves a short envelope message alone", () => {
+    expect(
+      extractNodeErrorMessageForLog({ error: { message: "cursor expired" } }),
+    ).toBe("cursor expired");
   });
 });

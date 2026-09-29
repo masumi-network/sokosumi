@@ -1,5 +1,5 @@
 import CoreAPI
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 private typealias Reaction = Components.Schemas.ChatRoomMessageReaction

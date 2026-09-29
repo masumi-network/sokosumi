@@ -34,7 +34,7 @@ const nextErrorLayoutStyles = {
   },
 };
 
-const nextErrorBodyStyles = `body{color:#000;background:#fff;margin:0}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}}`;
+const nextErrorBodyStyles = `body{color:#000;background:#fff;margin:0}@media (prefers-color-scheme:dark){body{color:#fff;background:#121212}}`;
 
 function applyStoredThemeToBody() {
   try {
@@ -44,7 +44,7 @@ function applyStoredThemeToBody() {
       (theme !== "light" &&
         window.matchMedia("(prefers-color-scheme: dark)").matches);
 
-    document.body.style.background = isDark ? "#000" : "#fff";
+    document.body.style.background = isDark ? "#121212" : "#fff";
     document.body.style.color = isDark ? "#fff" : "#000";
   } catch {
     // localStorage may be unavailable

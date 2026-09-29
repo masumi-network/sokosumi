@@ -32,12 +32,6 @@ export const VendorPermissionApi = {
 export type VendorPermissionApiValue =
   (typeof VendorPermissionApi)[keyof typeof VendorPermissionApi];
 
-export function toApiVendorPermission(
-  _permission: VendorPermission,
-): VendorPermissionApiValue {
-  return VendorPermissionApi.WORKSPACE;
-}
-
 function workspaceGrantUniqueWhere(vendorId: string, workspaceId: string) {
   return {
     vendorId_workspaceId: {
@@ -246,7 +240,11 @@ export async function notifyWorkspaceApproversOfPendingGrant(
 ): Promise<void> {
   const workspace = await tx.workspace.findUnique({
     where: { id: params.workspaceId },
-    select: { userId: true, organizationId: true },
+    select: {
+      userId: true,
+      organizationId: true,
+      organization: { select: { slug: true } },
+    },
   });
 
   if (!workspace) {
@@ -277,6 +275,8 @@ export async function notifyWorkspaceApproversOfPendingGrant(
     select: { name: true, slug: true },
   });
 
+  const organizationSlug = workspace.organization?.slug ?? null;
+
   for (const userId of recipientUserIds) {
     await createNotification(
       {
@@ -285,17 +285,21 @@ export async function notifyWorkspaceApproversOfPendingGrant(
         referenceId: params.grantId,
         eventId: params.grantId,
         messageKey: VENDOR_GRANT_PENDING_MESSAGE_KEY,
+        workspaceId: params.workspaceId,
         messageParams: {
           vendorName: vendor?.name ?? params.vendorId,
           vendorSlug: vendor?.slug ?? null,
           permission: VendorPermissionApi.WORKSPACE,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          organizationSlug,
         },
         metadata: {
           vendorId: params.vendorId,
           workspaceId: params.workspaceId,
           organizationId: workspace.organizationId,
+          // The review page resolves by slug, so the id alone is a 404.
+          organizationSlug,
           permission: VendorPermissionApi.WORKSPACE,
         },
       },
@@ -487,7 +491,7 @@ export function toVendorGrantApiShape(grant: VendorGrantWithVendor) {
     vendorName: grant.vendor.name,
     vendorSlug: grant.vendor.slug,
     workspaceId: grant.workspaceId,
-    permission: toApiVendorPermission(grant.permission),
+    permission: VendorPermissionApi.WORKSPACE,
     status: grant.status,
     requestedByUserId: grant.requestedByUserId,
     resolvedAt: grant.resolvedAt,

@@ -1,37 +1,49 @@
 import {
   type CoreHttpClient,
   createCoreHttpClient,
+  validateOrganizationSlug,
 } from "../api/http-client.js";
 import {
   type AuthEnvironment,
   type AuthManager,
-  getAuthManager,
 } from "../auth/auth-manager.js";
-import { resolveInitialAuth } from "../auth/bootstrap.js";
 import {
-  type CliTargetConfig,
-  MAINNET_API_URL,
-  PREPROD_API_URL,
-  resolveCliConfig,
-  resolveTargetScope,
-  targetFromUserApiKey,
-} from "../auth/config.js";
-import { loadCliEnvironment } from "../config/loader.js";
+  bootstrapCliSession,
+  type CliSession,
+  requireAuthenticatedSession,
+} from "../auth/bootstrap.js";
+import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
-import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
+import {
+  isNetworkSelectionLocked,
+  renderStatusApp,
+  type StatusAppOptions,
+} from "../tui/status-app.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
+import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
+import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
+import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
-import { runDiscoverCommand } from "./commands/discover.js";
+import {
+  formatCliCommandHelpLines,
+  formatUnknownCommandUsage,
+  runDiscoverCommand,
+} from "./commands/discover.js";
 import { runJobsCommand } from "./commands/jobs.js";
+import {
+  type RuntimeDependencies,
+  runRuntimeCommand,
+} from "./commands/runtime.js";
+import { runSkillsCommand } from "./commands/skills.js";
 import { runTasksCommand } from "./commands/tasks.js";
+import { runVendorsCommand } from "./commands/vendors.js";
+import { runWorkspacesCommand } from "./commands/workspaces.js";
+import { buildJsonError, CliError } from "./errors.js";
 import { CLI_VERSION } from "./metadata.js";
-
-interface TextOutput {
-  write(value: string): unknown;
-}
+import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
 type ValueOptionName =
   | "auth-url"
@@ -43,10 +55,8 @@ type ValueOptionName =
   | "limit"
   | "scope"
   | "capability"
-  | "capabilities"
   | "channel"
   | "id"
-  | "q"
   | "metadata-json"
   | "metadata-file"
   | "name"
@@ -60,7 +70,6 @@ type ValueOptionName =
   | "priority"
   | "api-key-name"
   | "api-key-expires-at"
-  | "expires-at"
   | "coworker-id"
   | "event-id"
   | "status"
@@ -69,7 +78,19 @@ type ValueOptionName =
   | "input-json"
   | "input-file"
   | "max-credits"
-  | "vendor-id";
+  | "vendor-id"
+  | "workspace-id"
+  | "organization-id"
+  | "organization-slug"
+  | "provider"
+  | "model"
+  | "hermes-path"
+  | "hermes-home"
+  | "runtime-directory"
+  | "timeout-ms"
+  | "result-file"
+  | "email"
+  | "slug";
 
 type CliOptionValue = string | string[];
 
@@ -88,10 +109,8 @@ interface CliOptions {
   limit?: string;
   scope?: string;
   capability?: CliOptionValue;
-  capabilities?: CliOptionValue;
   channel?: CliOptionValue;
   id?: string;
-  q?: string;
   "metadata-json"?: string;
   "metadata-file"?: string;
   name?: string;
@@ -105,30 +124,31 @@ interface CliOptions {
   priority?: string;
   "api-key-name"?: string;
   "api-key-expires-at"?: string;
-  "expires-at"?: string;
   "coworker-id"?: string;
   "event-id"?: string;
-  status?: CliOptionValue;
+  status?: string;
   comment?: string;
   agent?: string;
   "input-json"?: string;
   "input-file"?: string;
   "max-credits"?: string;
   "vendor-id"?: string;
+  "organization-slug"?: string;
+  slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
-  "with-api-key"?: boolean;
   details?: boolean;
 }
 
 export interface CliDependencies {
   env?: AuthEnvironment;
-  stdout?: TextOutput;
+  stdout?: CommandOutput;
   tuiFn?: (options: StatusAppOptions) => Promise<CliResult> | CliResult;
   authManager?: AuthManager;
   coreClient?: CoreHttpClient;
   loginFn?: AuthLoginOptions["loginFn"];
   readStdin?: () => string;
+  runtime?: RuntimeDependencies;
 }
 
 export interface CliResult {
@@ -140,61 +160,138 @@ export interface CliResult {
   target?: CliTargetConfig["target"];
   apiUrl?: string;
   expiresAt?: string | null;
+  user?: AuthWhoamiResult["user"];
   tui?: boolean;
 }
 
-const HELP_TEXT = `Sokosumi CLI v${CLI_VERSION}
+export const GLOBAL_VALUE_OPTIONS = [
+  "api-url",
+  "auth-url",
+  "client-id",
+  "oauth-port",
+  "oauth-timeout-ms",
+] as const satisfies readonly ValueOptionName[];
+
+const GLOBAL_VALUE_PLACEHOLDERS: Record<
+  (typeof GLOBAL_VALUE_OPTIONS)[number],
+  string
+> = {
+  "api-url": "URL",
+  "auth-url": "URL",
+  "client-id": "ID",
+  "oauth-port": "PORT",
+  "oauth-timeout-ms": "MS",
+};
+
+export const GLOBAL_BOOLEAN_FLAG_BY_TOKEN = {
+  "--preprod": "preprod",
+  "--api-key-stdin": "api-key-stdin",
+  "--json": "json",
+  "-h": "help",
+  "--help": "help",
+  "-v": "version",
+  "--version": "version",
+} as const satisfies Record<string, keyof CliOptions>;
+
+const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+
+function formatGlobalOptionHelp(): string[] {
+  const booleanLines: string[] = [];
+  const seen = new Set<string>();
+  for (const [token, option] of Object.entries(GLOBAL_BOOLEAN_FLAG_BY_TOKEN)) {
+    if (seen.has(option)) {
+      booleanLines[booleanLines.length - 1] += `, ${token}`;
+      continue;
+    }
+    seen.add(option);
+    booleanLines.push(token);
+  }
+  return [
+    ...GLOBAL_VALUE_OPTIONS.map(
+      (name) => `--${name} ${GLOBAL_VALUE_PLACEHOLDERS[name]}`,
+    ),
+    ...booleanLines,
+  ];
+}
+
+function formatHelpText(): string {
+  return `Sokosumi CLI v${CLI_VERSION}
 
 Usage:
   sokosumi
-  sokosumi discover [--json]
-  sokosumi auth login [--json]
-  sokosumi auth status [--json]
-  sokosumi auth logout [--json]
-  sokosumi agents list [--search TEXT] [--limit N] [--json]
-  sokosumi agents hire AGENT_ID --input-json JSON [--max-credits N]
-  sokosumi coworkers list [--scope SCOPE] [--capability CAPABILITY]
-  sokosumi coworkers register [--vendor-id ID] [options]
-  sokosumi coworkers update COWORKER_ID [options]
-  sokosumi coworkers api-key COWORKER_ID [options]
-  sokosumi coworkers me
-  sokosumi tasks list [options]
-  sokosumi tasks create --coworker-id ID --description TEXT
-  sokosumi tasks get TASK_ID
-  sokosumi tasks events TASK_ID
-  sokosumi tasks jobs TASK_ID
-  sokosumi tasks comment TASK_ID [--comment TEXT] [--status STATUS]
-  sokosumi jobs list [--search TEXT] [--limit N]
-  sokosumi jobs get JOB_ID [--details]
-  sokosumi jobs input JOB_ID --event-id EVENT_ID [--input-json JSON|--input-file FILE]
+${formatCliCommandHelpLines()}
 
 Empty argv opens the TUI. Use arrows, then Enter. Press Esc to go back.
 
 Global options:
-  --api-url URL
-  --auth-url URL
-  --client-id ID
-  --preprod
-  --api-key-stdin
-  --json
-  -h, --help
-  -v, --version
+${formatGlobalOptionHelp()
+  .map((line) => `  ${line}`)
+  .join("\n")}
+
+Account checks:
+  auth whoami asks Core for the signed-in email and platform role. auth status shows authentication state.
+  Before switching browser accounts, clear SOKOSUMI_API_KEY and SOKOSUMI_AUTH_TOKEN from the shell. They override saved OAuth credentials.
+  Sign in as the intended account in the browser, run auth login, then auth whoami.
+  auth logout clears local credentials; it does not switch the browser account.
+
+Skills for agents:
+  sokosumi skills lists the SKILL.md guides bundled with this package. sokosumi skills path prints their directory.
+  Point your agent at the "sokosumi" skill first; it walks through login, Coworker setup, and running Tasks.
+
+Developer setup on Preprod:
+  1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
+  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+  4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
+  5. Before organization Tasks, check Seat eligibility: sokosumi --preprod workspaces check ORGANIZATION_ID
+  Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
+
+Organizer setup on Preprod (platform admin):
+  Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
+  For an existing Preprod account, use the selected Workspace slug:
+  sokosumi --preprod admin members WORKSPACE_SLUG
+  sokosumi --preprod admin add-member WORKSPACE_SLUG --email EMAIL
+  sokosumi --preprod admin assign-seat WORKSPACE_SLUG --email EMAIL
+  Admin commands require a live platform-admin identity. Core authorizes each request.
+  Free Workspace members need no Seat assignment. Paid Seat capacity is managed separately in Web billing.
+  Member lookup uses the account's exact email. It does not select the developer's Vendor.
+  Ask each developer for their Vendor ID and final Coworker name.
+  Verify your account: sokosumi --preprod auth whoami
+  Provision checks the live platform role. Core still authorizes creation.
+  sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
+  Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
+  Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
+
+Organization Tasks:
+  Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
+  Core checks Workspace membership and Task permissions. The selected network stays unchanged.
+  Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
+  Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+
+Agent runtime tools on Preprod:
+  runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
+  runtime start, complete, and run require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  Runtime commands do not read developer credentials or target configuration.
+  runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
+  runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
+  Use --json for tools. Run one executor per Task; inspect state before any retry.
+
+Optional Hermes runner:
+  runtime run requires --hermes-home EXISTING_PROFILE_DIR --runtime-directory ABSOLUTE_DIR.
+  Optional overrides: --provider NAME --model NAME --hermes-path EXECUTABLE --timeout-ms MS (default: 300000).
+  Run one READY Task using the developer's configured Hermes profile.
+  The adapter preserves the profile's tools and model. It does not poll for more work.
 `;
+}
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
-  "auth-url",
-  "api-url",
-  "client-id",
-  "oauth-port",
-  "oauth-timeout-ms",
+  ...GLOBAL_VALUE_OPTIONS,
   "search",
   "limit",
   "scope",
   "capability",
-  "capabilities",
   "channel",
   "id",
-  "q",
   "metadata-json",
   "metadata-file",
   "name",
@@ -208,7 +305,6 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "priority",
   "api-key-name",
   "api-key-expires-at",
-  "expires-at",
   "coworker-id",
   "event-id",
   "status",
@@ -218,19 +314,33 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "input-file",
   "max-credits",
   "vendor-id",
+  "workspace-id",
+  "organization-id",
+  "organization-slug",
+  "provider",
+  "model",
+  "hermes-path",
+  "hermes-home",
+  "runtime-directory",
+  "timeout-ms",
+  "result-file",
+  "email",
+  "slug",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
   "capability",
   "channel",
-  "status",
 ]);
 
-const BOOLEAN_OPTIONS = new Set(["create-api-key", "with-api-key", "details"]);
+const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
 const CORE_COMMAND_SECTIONS = new Set([
+  "admin",
   "discover",
   "agents",
   "coworkers",
+  "vendors",
+  "workspaces",
   "tasks",
   "jobs",
 ]);
@@ -244,24 +354,12 @@ export function parseArgv(argv: string[]): ParsedArgv {
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
     if (token === "--") continue;
-    if (token === "--json") {
-      options.json = true;
-      continue;
-    }
-    if (token === "--api-key-stdin") {
-      options["api-key-stdin"] = true;
-      continue;
-    }
-    if (token === "--preprod") {
-      options.preprod = true;
-      continue;
-    }
-    if (token === "-h" || token === "--help") {
-      options.help = true;
-      continue;
-    }
-    if (token === "-v" || token === "--version") {
-      options.version = true;
+    if (Object.hasOwn(GLOBAL_BOOLEAN_FLAG_BY_TOKEN, token)) {
+      const optionName =
+        GLOBAL_BOOLEAN_FLAG_BY_TOKEN[
+          token as keyof typeof GLOBAL_BOOLEAN_FLAG_BY_TOKEN
+        ];
+      options[optionName] = true;
       continue;
     }
     if (!token.startsWith("--")) {
@@ -277,17 +375,20 @@ export function parseArgv(argv: string[]): ParsedArgv {
       equalsIndex === -1 ? undefined : optionToken.slice(equalsIndex + 1);
     if (BOOLEAN_OPTIONS.has(name)) {
       if (inlineValue !== undefined) {
-        throw new Error(`Option --${name} does not accept a value`);
+        throw new CliError(
+          "VALIDATION",
+          `Option --${name} does not accept a value`,
+        );
       }
       options[name] = true;
       continue;
     }
     if (!VALUE_OPTIONS.has(name as ValueOptionName)) {
-      throw new Error(`Unknown option: --${name}`);
+      throw new CliError("VALIDATION", `Unknown option: --${name}`);
     }
     const value = inlineValue === undefined ? argv[index + 1] : inlineValue;
     if (value === undefined || value === "" || value.startsWith("--")) {
-      throw new Error(`Option --${name} requires a value`);
+      throw new CliError("VALIDATION", `Option --${name} requires a value`);
     }
     const optionName = name as ValueOptionName;
     const optionMap = options as Record<
@@ -310,77 +411,27 @@ export function parseArgv(argv: string[]): ParsedArgv {
   return { positionals, options };
 }
 
-export function applyGlobalEnv(
-  env: AuthEnvironment,
-  options: CliOptions,
-): AuthEnvironment {
-  const next: Record<string, string | undefined> = { ...env };
-  if (options.preprod) next.SOKOSUMI_API_URL = PREPROD_API_URL;
-  if (options["api-url"]) next.SOKOSUMI_API_URL = options["api-url"];
-  return next;
-}
-
-function resolveCommandConfig(
-  env: AuthEnvironment,
-  options: CliOptions,
-): CliTargetConfig {
-  const detectedApiKeyTarget = targetFromUserApiKey(
-    String(env.SOKOSUMI_API_KEY || ""),
-  );
-  const explicitApiUrl = options["api-url"];
-  const apiUrl =
-    explicitApiUrl ||
-    (options.preprod
-      ? PREPROD_API_URL
-      : env.SOKOSUMI_API_URL ||
-        (detectedApiKeyTarget === "preprod"
-          ? PREPROD_API_URL
-          : MAINNET_API_URL));
-  return resolveCliConfig({
-    env,
-    apiUrl,
-    authBaseUrl: options["auth-url"],
-    clientId: options["client-id"],
-    preprod: options.preprod,
-  });
-}
-
-function getManager(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
-  authManager?: AuthManager,
-): AuthManager {
-  return (
-    authManager ||
-    getAuthManager({
-      targetScope: resolveTargetScope(config.target, config.apiUrl),
-      clientId: config.clientId,
-      environment: env,
-    })
-  );
-}
-
 function getCoreClient(
-  config: CliTargetConfig,
-  env: AuthEnvironment,
+  session: CliSession,
   dependencies: CliDependencies,
+  organizationSlug?: string,
 ): CoreHttpClient {
-  const manager = getManager(config, env, dependencies.authManager);
   return (
     dependencies.coreClient ||
     createCoreHttpClient({
-      apiUrl: config.apiUrl,
-      authManager: manager,
-      authBaseUrl: config.authBaseUrl,
-      clientId: config.clientId,
-      clientSecret: config.clientSecret,
-      environment: env,
+      apiUrl: session.config.apiUrl,
+      authManager: session.authManager,
+      authBaseUrl: session.config.authBaseUrl,
+      clientId: session.config.clientId,
+      clientSecret: session.config.clientSecret,
+      environment: session.env,
+      organizationSlug,
     })
   );
 }
 
 function writeJsonError(
-  stdout: TextOutput,
+  stdout: CommandOutput,
   error: unknown,
   environment?: AuthEnvironment,
 ): void {
@@ -390,7 +441,7 @@ function writeJsonError(
     environment?.SOKOSUMI_OAUTH_CLIENT_SECRET,
   ].filter((secret): secret is string => Boolean(secret));
   const message = redactErrorMessage(error, knownSecrets);
-  stdout.write(`${JSON.stringify({ error: message })}\n`);
+  stdout.write(`${JSON.stringify(buildJsonError(message, error))}\n`);
 }
 export async function runCli(
   argv: string[] = process.argv.slice(2),
@@ -405,9 +456,13 @@ export async function runCli(
     throw error;
   }
   const { positionals, options } = parsed;
+  const coworkerRegistration =
+    positionals[0] === "coworkers" &&
+    ["register", "provision", "connect"].includes(positionals[1]);
+  const adminOnboarding = positionals[0] === "admin";
 
   if (options.help) {
-    stdout.write(HELP_TEXT);
+    stdout.write(formatHelpText());
     return { help: true };
   }
   if (options.version) {
@@ -415,42 +470,106 @@ export async function runCli(
     return { version: CLI_VERSION };
   }
 
-  let env: AuthEnvironment;
-  let config: CliTargetConfig;
+  if (positionals[0] === "skills") {
+    try {
+      await runSkillsCommand({
+        subcommand: positionals[1],
+        stdout,
+        json: options.json,
+      });
+      return {};
+    } catch (error) {
+      if (options.json) writeJsonError(stdout, error);
+      throw error;
+    }
+  }
+
+  if (positionals[0] === "runtime") {
+    try {
+      await runRuntimeCommand({
+        positionals,
+        options,
+        stdout,
+        readStdin: dependencies.readStdin,
+        dependencies: dependencies.runtime,
+      });
+      return {};
+    } catch (error) {
+      if (options.json) writeJsonError(stdout, error);
+      throw error;
+    }
+  }
+
+  let organizationSlug: string | undefined;
   try {
-    env = applyGlobalEnv(
-      loadCliEnvironment({
-        environment: dependencies.env || process.env,
-        loadFiles: dependencies.env === undefined,
-      }),
-      options,
-    );
-    config = resolveCommandConfig(env, options);
+    if (
+      positionals[0] === "tasks" &&
+      (options["organization-id"] !== undefined ||
+        options["workspace-id"] !== undefined)
+    ) {
+      throw new Error(
+        "Task commands do not accept --organization-id or --workspace-id. Use --organization-slug WORKSPACE_SLUG.",
+      );
+    }
+    if (options["organization-slug"] !== undefined) {
+      if (positionals[0] !== "tasks") {
+        throw new Error(
+          "--organization-slug is only supported by tasks commands",
+        );
+      }
+      organizationSlug = validateOrganizationSlug(options["organization-slug"]);
+    }
   } catch (error) {
     if (options.json)
       writeJsonError(stdout, error, dependencies.env || process.env);
     throw error;
   }
-  const targetExplicit = Boolean(
-    options.preprod || options["api-url"] || env.SOKOSUMI_API_URL,
-  );
+
+  let session: CliSession;
+  try {
+    session = bootstrapCliSession({
+      environment: dependencies.env || process.env,
+      loadFiles: dependencies.env === undefined,
+      preprod: options.preprod,
+      preprodDefault: coworkerRegistration || adminOnboarding,
+      apiUrl: options["api-url"],
+      authUrl: options["auth-url"],
+      clientId: options["client-id"],
+      authManager: dependencies.authManager,
+    });
+  } catch (error) {
+    if (options.json)
+      writeJsonError(stdout, error, dependencies.env || process.env);
+    throw error;
+  }
+  const { env, config, targetExplicit, authManager } = session;
+  const networkSelectionLocked = isNetworkSelectionLocked(config, {
+    preprod: options.preprod,
+    apiUrl: options["api-url"],
+  });
 
   try {
     if (positionals.length === 0) {
-      const authManager = getManager(config, env, dependencies.authManager);
       const tuiFn = dependencies.tuiFn || renderStatusApp;
       return await tuiFn({
         authManager,
-        coreClient: getCoreClient(config, env, dependencies),
         env,
         config,
         clientIdOverride: options["client-id"],
         targetExplicit,
+        networkSelectionLocked,
+        ...(dependencies.coreClient
+          ? { coreClient: dependencies.coreClient }
+          : {}),
         loginFn: dependencies.loginFn,
         oauthPort:
           options["oauth-port"] === undefined
             ? undefined
             : Number(options["oauth-port"]),
+        oauthTimeoutMs:
+          options["oauth-timeout-ms"] === undefined
+            ? undefined
+            : Number(options["oauth-timeout-ms"]),
       });
     }
 
@@ -458,25 +577,41 @@ export async function runCli(
     if (rest.length > 0) {
       throw new Error(`Unexpected argument: ${rest[0]}`);
     }
-    if (CORE_COMMAND_SECTIONS.has(section)) {
-      const auth = await resolveInitialAuth({
-        authManager: getManager(config, env, dependencies.authManager),
-        config,
-        environment: env,
-        targetExplicit,
+    if (coworkerRegistration) {
+      requirePreprodCoworkerRegistration(config.target);
+    }
+    if (adminOnboarding) {
+      validateAdminCommand({
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
       });
-      if (!auth.authenticated) {
-        throw new Error(
-          "Authentication required. Run `sokosumi auth login` first.",
-        );
-      }
+    }
+    if (
+      CORE_COMMAND_SECTIONS.has(section) ||
+      (section === "auth" && command === "whoami" && positionalId === undefined)
+    ) {
+      await requireAuthenticatedSession(session);
     }
     if (section === "discover" && command === undefined) {
       await runDiscoverCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         config,
         stdout,
         json: options.json,
+      });
+      return {};
+    }
+    if (section === "admin") {
+      await runAdminCommand({
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
       });
       return {};
     }
@@ -485,7 +620,7 @@ export async function runCli(
       (command === undefined || command === "list" || command === "hire")
     ) {
       await runAgentsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -497,15 +632,52 @@ export async function runCli(
     if (
       section === "coworkers" &&
       (command === undefined ||
-        ["list", "register", "update", "api-key", "me"].includes(command))
+        [
+          "list",
+          "register",
+          "provision",
+          "connect",
+          "update",
+          "api-key",
+          "me",
+        ].includes(command))
     ) {
       await runCoworkersCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        target: config.target,
+        subcommand: command,
+        positionalId,
+        options,
+      });
+      return {};
+    }
+    if (
+      section === "vendors" &&
+      (command === "me" || command === "create") &&
+      positionalId === undefined
+    ) {
+      await runVendorsCommand({
+        client: getCoreClient(session, dependencies),
+        stdout,
+        json: options.json,
+        subcommand: command,
+        options,
+      });
+      return {};
+    }
+    if (
+      section === "workspaces" &&
+      ((command === "list" && positionalId === undefined) ||
+        (command === "check" && positionalId !== undefined))
+    ) {
+      await runWorkspacesCommand({
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
         positionalId,
-        options,
       });
       return {};
     }
@@ -517,7 +689,7 @@ export async function runCli(
         ))
     ) {
       await runTasksCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
         json: options.json,
         subcommand: command,
@@ -531,7 +703,7 @@ export async function runCli(
       (command === undefined || ["list", "get", "input"].includes(command))
     ) {
       await runJobsCommand({
-        client: getCoreClient(config, env, dependencies),
+        client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
@@ -541,20 +713,30 @@ export async function runCli(
       return {};
     }
     if (
+      section === "auth" &&
+      command === "whoami" &&
+      positionalId === undefined
+    ) {
+      return await runAuthWhoami({
+        client: getCoreClient(session, dependencies),
+        config,
+        stdout,
+        json: options.json,
+      });
+    }
+    if (
       section !== "auth" ||
       (command !== "login" && command !== "logout" && command !== "status") ||
       positionalId !== undefined
     ) {
-      throw new Error(
-        "Usage: sokosumi discover | agents list | coworkers | tasks | jobs | auth login|status|logout",
-      );
+      throw new Error(formatUnknownCommandUsage());
     }
 
     if (command === "logout") {
       return await runAuthLogout({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
       });
@@ -563,7 +745,7 @@ export async function runCli(
       return await runAuthStatus({
         env,
         config,
-        authManager: dependencies.authManager,
+        authManager,
         stdout,
         json: options.json,
         targetExplicit,
@@ -587,7 +769,7 @@ export async function runCli(
           : Number(options["oauth-timeout-ms"]),
       apiKeyStdin: options["api-key-stdin"],
       json: options.json,
-      authManager: dependencies.authManager,
+      authManager,
       stdout,
     });
   } catch (error) {

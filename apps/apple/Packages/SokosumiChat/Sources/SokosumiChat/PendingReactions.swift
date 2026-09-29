@@ -1,7 +1,7 @@
 import CoreAPI
 
 /// Cap on named reactors Core returns per emoji; `count` may still exceed it.
-public let maxListedReactionReactors = 20
+let maxListedReactionReactors = 20
 
 /// The viewer's add or remove of one emoji on one message, shown before Core confirms (ADR 0032).
 public struct PendingReaction: Hashable, Sendable {
@@ -80,8 +80,8 @@ public struct PendingReactions: Equatable, Sendable {
 }
 
 /// One intent over a confirmed message. A message that already matches the intent comes back unchanged.
-public func applyingPendingReaction(_ pending: PendingReaction, to message: Components.Schemas.ChatRoomMessage,
-                                    viewer: PendingReactionViewer) -> Components.Schemas.ChatRoomMessage {
+func applyingPendingReaction(_ pending: PendingReaction, to message: Components.Schemas.ChatRoomMessage,
+                             viewer: PendingReactionViewer) -> Components.Schemas.ChatRoomMessage {
   let index = message.reactions.firstIndex { $0.emoji == pending.emoji }
   let entry = index.map { message.reactions[$0] }
   guard (entry?.reactedByCurrentUser ?? false) != pending.reacted else { return message }

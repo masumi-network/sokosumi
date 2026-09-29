@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 
 public enum AttachmentUpload {
-  public static let maximumSize = 100 * 1024 * 1024
+  private static let maximumSize = 100 * 1024 * 1024
 
   public enum Failure: LocalizedError {
     case invalidFile, tooLarge, unsupportedType, invalidResponse
@@ -82,6 +82,6 @@ public enum AttachmentUpload {
     struct Response: Decodable { let url: String }
     guard let result = try? JSONDecoder().decode(Response.self, from: data) else { throw Failure.invalidResponse }
     guard let url = URL(string: result.url), url.scheme == "https", url.host != nil else { throw Failure.invalidResponse }
-    return ComposeAttachment(url: result.url, fileName: filename, mediaType: contentType)
+    return ComposeAttachment(url: result.url, fileName: filename, mediaType: contentType, size: size)
   }
 }

@@ -11,6 +11,7 @@ import { convertCentsToCredits, SokosumiJobStatus } from "@sokosumi/utils";
 
 import { getAgentIcon, getAgentName } from "@/helpers/agent";
 import type prisma from "@/lib/db/prisma";
+import { findImageModelForEndpoint } from "@/lib/image-studio/catalog";
 import type { UserContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import type { HistoryItem } from "@/schemas/history.schema";
@@ -192,6 +193,26 @@ export function buildHistoryStatusFilter(
     appendKindBranches(branches, taskBranches);
   }
 
+  if (types.includes(HistoryKind.IMAGE)) {
+    // Images have no status of their own: the row exists because an image
+    // exists. A status filter naming task or job states therefore excludes them,
+    // and `active` — or no status filter at all — includes them.
+    const imageBranches: Prisma.HistoryWhereInput[] = [];
+    if (
+      includesActive ||
+      (taskStatuses.length === 0 && kindStatuses.length === 0)
+    ) {
+      imageBranches.push({ kind: HistoryKind.IMAGE, archivedAt: null });
+    }
+    if (includesArchived) {
+      imageBranches.push({
+        kind: HistoryKind.IMAGE,
+        archivedAt: { not: null },
+      });
+    }
+    appendKindBranches(branches, imageBranches);
+  }
+
   if (types.includes(HistoryKind.JOB)) {
     const jobBranches: Prisma.HistoryWhereInput[] = [];
 
@@ -299,8 +320,14 @@ export async function buildHistoryWhere(
   params: BuildHistoryWhereParams,
   prismaClient: HistoryPrismaClient,
 ): Promise<Prisma.HistoryWhereInput> {
+  // Every kind in this feed is workspace-scoped. Images included: a generation
+  // belongs to a project, which belongs to a workspace, and the `owned` scope
+  // narrows it to the person who asked for it.
   const workspaceKinds = params.types.filter(
-    (kind) => kind === HistoryKind.TASK || kind === HistoryKind.JOB,
+    (kind) =>
+      kind === HistoryKind.TASK ||
+      kind === HistoryKind.JOB ||
+      kind === HistoryKind.IMAGE,
   );
 
   const visibilityBranches: Prisma.HistoryWhereInput[] = [
@@ -510,6 +537,18 @@ export async function loadUserPreviewsByIds(
   );
 }
 
+/**
+ * The provider endpoint the IMAGE trigger wrote into `description`.
+ *
+ * The trigger writes `<endpoint> · <credits> credits` because SQL cannot see the
+ * studio catalog's display labels, and a label frozen into the row would be wrong
+ * the moment the provider renamed the model. Parsing it back here is what lets
+ * the label be resolved live.
+ */
+function imageEndpointFromDescription(description: string | null): string {
+  return (description ?? "").split(" · ")[0]?.trim() ?? "";
+}
+
 export function mapHistoryRow(
   row: HistoryRowForApi,
   options?: {
@@ -570,10 +609,30 @@ export function mapHistoryRow(
         agentIcon: agentPreview?.icon ?? null,
       };
     }
+    case HistoryKind.IMAGE: {
+      // The catalog is the authority on a model's display name, and it is live,
+      // so this resolves at read time rather than being frozen into the row by
+      // the trigger. A model fal has since withdrawn falls back to the endpoint
+      // the trigger wrote, which is still true about the image.
+      const endpoint = imageEndpointFromDescription(row.description);
+      return {
+        ...baseItem,
+        kind: "image",
+        status: "active",
+        credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
+        assetId: row.entityId,
+        projectId: row.projectId,
+        modelLabel:
+          findImageModelForEndpoint(endpoint)?.label ??
+          // A model the catalog no longer lists. The endpoint still names what
+          // made the image, which is more use than "Unknown model".
+          (endpoint.replace(/^[^/]+\//, "") || "Unknown model"),
+      };
+    }
     default: {
-      // Exhaustiveness for HistoryKind (TASK | JOB after rooms cutover). Also
-      // keeps typecheck green if a local Prisma client still lists removed
-      // values (e.g. CONVERSATION) until `pnpm prisma:generate` is re-run.
+      // Exhaustiveness for HistoryKind (TASK | JOB | IMAGE). Also keeps
+      // typecheck green if a local Prisma client still lists removed values
+      // (e.g. CONVERSATION) until `pnpm prisma:generate` is re-run.
       throw new Error(`Unsupported history kind: ${String(row.kind)}`);
     }
   }

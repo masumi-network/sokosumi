@@ -641,11 +641,13 @@ function FileUploadRoot(props: FileUploadRootProps) {
 interface FileUploadDropzoneProps
   extends React.ComponentPropsWithoutRef<"div"> {
   asChild?: boolean;
+  noClick?: boolean;
 }
 
 function FileUploadDropzone(props: FileUploadDropzoneProps) {
   const {
     asChild,
+    noClick = false,
     className,
     onClick: onClickProp,
     onDragOver: onDragOverProp,
@@ -666,7 +668,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
     (event: React.MouseEvent<HTMLDivElement>) => {
       onClickProp?.(event);
 
-      if (event.defaultPrevented) return;
+      if (noClick || event.defaultPrevented) return;
 
       const target = event.target;
 
@@ -678,7 +680,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
         context.inputRef.current?.click();
       }
     },
-    [context.inputRef, onClickProp],
+    [context.inputRef, noClick, onClickProp],
   );
 
   const onDragOver = React.useCallback(
@@ -797,6 +799,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
       if (event.currentTarget !== event.target) return;
 
       if (
+        !noClick &&
         !event.defaultPrevented &&
         (event.key === "Enter" || event.key === " ")
       ) {
@@ -804,7 +807,7 @@ function FileUploadDropzone(props: FileUploadDropzoneProps) {
         context.inputRef.current?.click();
       }
     },
-    [context.inputRef, onKeyDownProp],
+    [context.inputRef, noClick, onKeyDownProp],
   );
 
   const DropzonePrimitive = asChild ? Slot : "div";
@@ -908,7 +911,7 @@ function FileUploadList(props: FileUploadListProps) {
       {...listProps}
       className={cn(
         "data-[state=inactive]:fade-out-0 data-[state=active]:fade-in-0 data-[state=inactive]:slide-out-to-top-2 data-[state=active]:slide-in-from-top-2 flex flex-col gap-2 data-[state=active]:animate-in data-[state=inactive]:animate-out",
-        orientation === "horizontal" && "flex-row overflow-x-auto p-1.5",
+        orientation === "horizontal" && "app-scrollbar flex-row overflow-x-auto p-1.5",
         className,
       )}
     />

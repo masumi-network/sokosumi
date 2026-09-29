@@ -21,24 +21,22 @@ public final class DirectStreamSession: ObservableObject {
   private var sender: Components.Schemas.ChatRoomUserParticipant?
   private var coworker: Components.Schemas.ChatRoomCoworkerParticipant?
   private var generation = UUID()
-  private var responseDate = Date()
+  private var responseDate: Date
   private var hasResponse = false
   private let service = ChatService()
   private var scope: [String]?
   private var retainedParents: [[String]: String] = [:]
+  private let now: () -> Date
+  private let makeId: () -> String
 
-  public init() {}
+  public init(now: @escaping () -> Date = Date.init, makeId: @escaping () -> String = { UUID().uuidString }) {
+    self.now = now
+    self.makeId = makeId
+    responseDate = now()
+  }
 
   public var isBusy: Bool {
     phase != .idle
-  }
-
-  public var reasoning: String {
-    response.reasoning
-  }
-
-  public var latestThought: String? {
-    response.latestThought
   }
 
   public static func supports(_ room: Components.Schemas.ChatRoom) -> Bool {
@@ -74,6 +72,9 @@ public final class DirectStreamSession: ObservableObject {
     return text
   }
 
+  /// The user turn and the coworker row. The coworker row carries its reasoning
+  /// in `metadata.reasoning`, as web's overlay does, so `CoworkerThought` reads
+  /// the whole trace from it.
   public var overlayMessages: [Components.Schemas.ChatRoomMessage] {
     var messages = userMessage.map { [$0] } ?? []
     if hasResponse, let roomId, let coworker {
@@ -83,7 +84,7 @@ public final class DirectStreamSession: ObservableObject {
         deletedAt: nil, editedAt: nil,
         sender: .case2(.init(_type: .coworker, coworker: coworker)),
         mentions: [], reactions: [], threadReplyCount: 0, threadLastReplyAt: nil,
-        metadata: nil, quote: nil, membership: nil, unfurls: nil
+        metadata: CoworkerThought.metadata(reasoning: response.reasoningParts), quote: nil, membership: nil, unfurls: nil
       ))
     }
     return messages
@@ -126,8 +127,10 @@ public final class DirectStreamSession: ObservableObject {
       retainedParents[scope] = parentMessageId
     }
     clearOverlay()
-    let id = UUID().uuidString
-    var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: roomId, content: draft.text, quote: quote, sender: sender))
+    let id = makeId()
+    var message = chatRoomMessage(from: .init(
+      clientTurnId: id, roomId: roomId, content: draft.text, quote: quote, createdAt: now(), sender: sender
+    ))
     message.id = "stream:" + id
     message.metadata = nil
     message.parentMessageId = parentMessageId
@@ -165,7 +168,7 @@ public final class DirectStreamSession: ObservableObject {
         }
         guard generation == token, !Task.isCancelled else { return }
         hasResponse = true
-        responseDate = Date()
+        responseDate = now()
         phase = .streaming
         try await consume(body, token: token)
         guard generation == token, !Task.isCancelled else { return }

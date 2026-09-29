@@ -1,9 +1,10 @@
 import { getSession } from "@/lib/auth/auth.server";
-import { organizationService } from "@/lib/services";
-
+import { organizationService } from "@/lib/services/organization.service";
 import InvitationCard, {
   InvitationErrorCard,
 } from "./components/invitation-card";
+
+export const instant = false;
 
 export default async function AcceptInvitationPage({
   params,

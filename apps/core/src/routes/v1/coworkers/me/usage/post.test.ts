@@ -19,10 +19,25 @@ const {
   prepareConsumptionMock,
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
+  waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
   prepareConsumptionMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
+  waitUntilCapturedPromises: [] as Promise<unknown>[],
+}));
+
+const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
+
+vi.mock("@/helpers/billing-notifications", () => ({
+  notifyLowBalanceAfterCharge: (...args: unknown[]) =>
+    notifyLowBalanceAfterChargeMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    waitUntilCapturedPromises.push(promise);
+  },
 }));
 
 vi.mock("@sokosumi/database/repositories", () => ({
@@ -119,6 +134,7 @@ function mockTransaction(tx: TransactionMock) {
 describe("POST /me/usage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    waitUntilCapturedPromises.length = 0;
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
   });
 
@@ -223,6 +239,12 @@ describe("POST /me/usage", () => {
 
     const body = await response.json();
     expect(body.data.userId).toBe(TARGET_USER_ID);
+    expect(waitUntilCapturedPromises).toHaveLength(1);
+    await waitUntilCapturedPromises[0];
+    expect(notifyLowBalanceAfterChargeMock).toHaveBeenCalledWith({
+      userId: TARGET_USER_ID,
+      organizationId: ORGANIZATION_ID,
+    });
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {
@@ -419,6 +441,8 @@ describe("POST /me/usage", () => {
     expect(tx.transaction.create).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
+    expect(waitUntilCapturedPromises).toHaveLength(0);
+    expect(notifyLowBalanceAfterChargeMock).not.toHaveBeenCalled();
   });
 
   it("returns 400 when user is not a member of the provided organization", async () => {

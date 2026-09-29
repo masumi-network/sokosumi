@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { AgentJobStatus, NotificationKind } from "@sokosumi/database";
+import { AgentJobStatus } from "@sokosumi/database";
 import {
   jobEventRepository,
   jobPurchaseRepository,
@@ -9,8 +9,6 @@ import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
 import {
   type JobFailureNotificationEmailProps,
   renderJobFailureNotificationEmail,
-  renderJobFinalStatusEmail,
-  renderJobInputRequiredEmail,
 } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
@@ -21,10 +19,8 @@ import {
 } from "@sokosumi/utils";
 import type { SendEmailInput } from "@/clients/email.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
-import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { getEnv } from "@/config/env";
 import { getAgentName } from "@/helpers/agent";
-import { markSettledAttentionRead } from "@/helpers/notification-read";
-import { createNotification } from "@/helpers/notifications";
 import { transformPurchaseToJobUpdate } from "@/helpers/purchase";
 import { publishJobStatusData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
@@ -72,10 +68,6 @@ function jobStatusToAgentJobStatus(jobStatus: JobStatusValue): AgentJobStatus {
   }
 }
 
-function buildJobLink(job: JobWithSokosumiStatus): string {
-  return `${getWebAppBaseUrl()}/agents/${job.agentId}/jobs/${job.id}`;
-}
-
 function buildFailureNotificationData(
   job: JobWithSokosumiStatus,
 ): JobFailureNotificationEmailProps {
@@ -96,105 +88,10 @@ function buildFailureNotificationData(
   };
 }
 
-async function dispatchJobInAppNotification(
-  job: JobWithSokosumiStatus,
-  jobStatus: SokosumiJobStatus,
-): Promise<void> {
-  const eventId = job.events.at(0)?.id;
-  if (!eventId) {
-    return;
-  }
-
-  // Awaited so the sync run's waitUntil covers the notification write and its
-  // Ably publish. A detached promise is not covered, so both can be cut off
-  // when the isolate freezes.
-  await dispatchJobNotification(job, jobStatus, eventId);
-}
-
-async function dispatchFinalStatusNotification(
-  job: JobWithSokosumiStatus,
-  jobStatus: SokosumiJobStatus,
-  enqueueEmail: (input: SendEmailInput) => void,
-): Promise<void> {
-  await dispatchJobInAppNotification(job, jobStatus);
-
-  // The account-wide opt-in is the email gate now. The notification answers to
-  // the preference matrix instead, one row per category and channel.
-  if (!job.owner.notificationsOptIn) {
-    return;
-  }
-
-  try {
-    const agentName = getAgentName(job.agent);
-    const email = await renderJobFinalStatusEmail({
-      recipientName: job.owner.name,
-      agentName,
-      jobName: job.name ?? undefined,
-      jobStatus,
-      jobLink: buildJobLink(job),
-      locale: "en",
-    });
-
-    enqueueEmail({
-      to: job.owner.email,
-      tag: "job-final-status",
-      subject: email.subject,
-      html: email.html,
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        jobId: job.id,
-        userId: job.ownerId,
-        notificationType: "job-final-status",
-      },
-    });
-  }
-}
-
-async function dispatchInputRequiredNotification(
-  job: JobWithSokosumiStatus,
-  enqueueEmail: (input: SendEmailInput) => void,
-): Promise<void> {
-  await dispatchJobInAppNotification(job, SokosumiJobStatus.INPUT_REQUIRED);
-
-  if (!job.owner.notificationsOptIn) {
-    return;
-  }
-
-  try {
-    const agentName = getAgentName(job.agent);
-    const email = await renderJobInputRequiredEmail({
-      recipientName: job.owner.name,
-      agentName,
-      jobName: job.name ?? undefined,
-      jobLink: buildJobLink(job),
-      locale: "en",
-    });
-
-    enqueueEmail({
-      to: job.owner.email,
-      tag: "job-input-required",
-      subject: email.subject,
-      html: email.html,
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        jobId: job.id,
-        userId: job.ownerId,
-        notificationType: "job-input-required",
-      },
-    });
-  }
-}
-
 async function dispatchJobFailureNotification(
   job: JobWithSokosumiStatus,
   enqueueEmail: (input: SendEmailInput) => void,
 ): Promise<void> {
-  await dispatchJobInAppNotification(job, job.status);
-
   try {
     const notificationData = buildFailureNotificationData(job);
     const webhookUrl = getEnv().JOB_FAILURE_WEBHOOK_URL;
@@ -269,76 +166,6 @@ async function dispatchJobFailureNotification(
   }
 }
 
-async function dispatchJobNotification(
-  job: JobWithSokosumiStatus,
-  jobStatus: SokosumiJobStatus,
-  eventId: string,
-): Promise<void> {
-  try {
-    const agentName = getAgentName(job.agent);
-    const jobName = job.name ?? "Untitled job";
-
-    let messageKey: string;
-    switch (jobStatus) {
-      case SokosumiJobStatus.COMPLETED:
-        messageKey = "Notifications.Job.completed";
-        break;
-      case SokosumiJobStatus.REFUND_RESOLVED:
-        messageKey = "Notifications.Job.refundResolved";
-        break;
-      case SokosumiJobStatus.DISPUTE_RESOLVED:
-        messageKey = "Notifications.Job.disputeResolved";
-        break;
-      case SokosumiJobStatus.FAILED:
-        messageKey = "Notifications.Job.failed";
-        break;
-      case SokosumiJobStatus.PAYMENT_FAILED:
-        messageKey = "Notifications.Job.paymentFailed";
-        break;
-      case SokosumiJobStatus.INPUT_REQUIRED:
-        messageKey = "Notifications.Job.inputRequired";
-        break;
-      default:
-        return;
-    }
-
-    // As for tasks: a job that has settled stops waiting on the reader, so
-    // what it left unread stops being a question. Before the write, and at
-    // the same cost, for the reasons given there. One reader, because a job
-    // has one.
-    await markSettledAttentionRead(
-      job.ownerId,
-      NotificationKind.JOB,
-      job.id,
-      messageKey,
-    );
-
-    await createNotification({
-      userId: job.ownerId,
-      kind: NotificationKind.JOB,
-      referenceId: job.id,
-      eventId,
-      messageKey,
-      messageParams: {
-        agentName,
-        jobName,
-      },
-      metadata: {
-        agentId: job.agentId,
-        workspaceId: job.workspaceId,
-      },
-    });
-  } catch (error) {
-    Sentry.captureException(error, {
-      extra: {
-        jobId: job.id,
-        userId: job.ownerId,
-        notificationType: "job-notification",
-      },
-    });
-  }
-}
-
 export async function finalizeJobSyncResult(
   oldJobStatus: SokosumiJobStatus,
   transactionResult: JobSyncTransactionResult,
@@ -368,20 +195,13 @@ export async function finalizeJobSyncResult(
     return;
   }
 
+  // A job reaching a final status tells its owner nothing they can act on in
+  // the app: SOK-803 ended in-app Hire, so a job is started through the API
+  // and read there (SOK-930). The failure alert stays because its audience is
+  // the agent author and the stakeholder list, not the owner (SOK-24).
+  //
   // Await render+enqueue; Resend batch flush runs at end of syncUnfinishedJobs.
   switch (newJobStatus) {
-    case SokosumiJobStatus.COMPLETED:
-    case SokosumiJobStatus.REFUND_RESOLVED:
-    case SokosumiJobStatus.DISPUTE_RESOLVED:
-      await dispatchFinalStatusNotification(
-        updatedJob,
-        newJobStatus,
-        enqueueEmail,
-      );
-      break;
-    case SokosumiJobStatus.INPUT_REQUIRED:
-      await dispatchInputRequiredNotification(updatedJob, enqueueEmail);
-      break;
     case SokosumiJobStatus.FAILED:
     case SokosumiJobStatus.PAYMENT_FAILED:
       await dispatchJobFailureNotification(updatedJob, enqueueEmail);

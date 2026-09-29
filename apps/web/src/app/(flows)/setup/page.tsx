@@ -13,7 +13,8 @@ import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
-import { organizationService, userService } from "@/lib/services";
+import { organizationService } from "@/lib/services/organization.service";
+import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
 import { isWorkspaceReady } from "@/lib/workspace-gate";
 import {

@@ -12,14 +12,8 @@ interface Choice {
   onChange: (next: boolean) => void;
 }
 
-/** Every value each account row was handed, in the order it was handed them. */
-const painted: Record<
-  "email" | "news",
-  { enabled: boolean; saving: boolean }[]
-> = {
-  email: [],
-  news: [],
-};
+/** Every value the marketing row was handed, in the order it was handed them. */
+const painted: { enabled: boolean; saving: boolean }[] = [];
 
 /** What the toast rendered, once the write it followed had settled. */
 const toasted: string[] = [];
@@ -35,35 +29,25 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 /**
- * Stood in for, so the assertions read the props rather than two cells of a
- * grid. What the grid does with them has its own tests; this file is about the
- * writes behind them, and both account switches are rows of that grid now.
+ * Stood in for, so the assertions read the props rather than a cell of a grid.
+ * What the grid does with them has its own tests; this file is about the write
+ * behind them, and the marketing switch is a row of that grid now.
  */
 vi.mock("./notification-kinds", () => ({
-  NotificationKinds: ({ email, news }: { email: Choice; news: Choice }) => {
-    painted.email.push({ enabled: email.enabled, saving: email.saving });
-    painted.news.push({ enabled: news.enabled, saving: news.saving });
+  NotificationKinds: ({ news }: { news: Choice }) => {
+    painted.push({ enabled: news.enabled, saving: news.saving });
 
     return (
-      <>
-        {(["email", "news"] as const).map((name) => {
-          const choice = name === "email" ? email : news;
-
-          return (
-            <button
-              key={name}
-              type="button"
-              aria-pressed={choice.enabled}
-              aria-disabled={choice.saving || undefined}
-              onClick={() => {
-                choice.onChange(!choice.enabled);
-              }}
-            >
-              {name}
-            </button>
-          );
-        })}
-      </>
+      <button
+        type="button"
+        aria-pressed={news.enabled}
+        aria-disabled={news.saving || undefined}
+        onClick={() => {
+          news.onChange(!news.enabled);
+        }}
+      >
+        news
+      </button>
     );
   },
 }));
@@ -90,20 +74,17 @@ vi.mock("sonner", () => ({
 }));
 
 function renderPreferences() {
-  return render(
-    <NotificationPreferences notificationsOptIn marketingOptIn={false} />,
-  );
+  return render(<NotificationPreferences marketingOptIn={false} />);
 }
 
-function cell(name: "email" | "news") {
-  return screen.getByRole("button", { name });
+function newsCell() {
+  return screen.getByRole("button", { name: "news" });
 }
 
 describe("NotificationPreferences", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    painted.email.length = 0;
-    painted.news.length = 0;
+    painted.length = 0;
     toasted.length = 0;
     updateUser.mockResolvedValue({ data: {}, error: null });
   });
@@ -122,32 +103,20 @@ describe("NotificationPreferences", () => {
     );
   });
 
+  /**
+   * The marketing switch is a row of the grid rather than a control under it,
+   * so the card hands it down and reads the press back. The field it writes is
+   * named here: a row wired to another one would still look right on screen.
+   */
   it("shows the picked value before the write lands", async () => {
     const user = userEvent.setup();
     updateUser.mockReturnValue(new Promise(() => {}));
     renderPreferences();
 
-    await user.click(cell("email"));
-
-    expect(updateUser).toHaveBeenCalledWith({ notificationsOptIn: false });
-    expect(painted.email.at(-1)).toEqual({ enabled: false, saving: true });
-  });
-
-  /**
-   * The marketing switch is a row of the grid rather than a control under it,
-   * so the card has to hand it down the same way. Written apart from the email
-   * row, because the two write different fields and a row wired to the wrong
-   * one would still look right on screen.
-   */
-  it("writes the marketing field from its own row", async () => {
-    const user = userEvent.setup();
-    updateUser.mockReturnValue(new Promise(() => {}));
-    renderPreferences();
-
-    await user.click(cell("news"));
+    await user.click(newsCell());
 
     expect(updateUser).toHaveBeenCalledWith({ marketingOptIn: true });
-    expect(painted.news.at(-1)).toEqual({ enabled: true, saving: true });
+    expect(painted.at(-1)).toEqual({ enabled: true, saving: true });
   });
 
   /**
@@ -169,47 +138,47 @@ describe("NotificationPreferences", () => {
     });
     renderPreferences();
 
-    await user.click(cell("email"));
+    await user.click(newsCell());
 
     await waitFor(() => {
-      expect(painted.email.at(-1)).toEqual({ enabled: true, saving: false });
+      expect(painted.at(-1)).toEqual({ enabled: false, saving: false });
     });
     // The state the write failed to store is never on screen unbusy.
-    expect(painted.email).not.toContainEqual({ enabled: false, saving: false });
+    expect(painted).not.toContainEqual({ enabled: true, saving: false });
   });
 
   it("keeps the picked value when the write lands", async () => {
     const user = userEvent.setup();
     renderPreferences();
 
-    await user.click(cell("email"));
+    await user.click(newsCell());
 
     await waitFor(() => {
-      expect(painted.email.at(-1)).toEqual({ enabled: false, saving: false });
+      expect(painted.at(-1)).toEqual({ enabled: true, saving: false });
     });
   });
 
   /**
-   * Both rows write through one handler, so the wording is the only thing that
-   * says which setting moved. Named for the wrong one, the toast would report
-   * a change to a setting the reader can see is untouched.
+   * One handler, two wordings, and the value decides which one the reader
+   * reads. A toast that named the other direction would report a change the
+   * reader can see did not happen.
    */
-  it("names the setting the write actually moved", async () => {
+  it("names the direction the write actually moved", async () => {
     const user = userEvent.setup();
     renderPreferences();
 
-    await user.click(cell("email"));
+    await user.click(newsCell());
 
     await waitFor(() => {
-      expect(toasted).toEqual(["jobStatusEmailsDisabledSuccess"]);
+      expect(toasted).toEqual(["marketingEmailsEnabledSuccess"]);
     });
 
-    await user.click(cell("news"));
+    await user.click(newsCell());
 
     await waitFor(() => {
       expect(toasted).toEqual([
-        "jobStatusEmailsDisabledSuccess",
         "marketingEmailsEnabledSuccess",
+        "marketingEmailsDisabledSuccess",
       ]);
     });
   });
@@ -219,7 +188,7 @@ describe("NotificationPreferences", () => {
     updateUser.mockResolvedValue({ data: null, error: { message: "nope" } });
     renderPreferences();
 
-    await user.click(cell("news"));
+    await user.click(newsCell());
 
     await waitFor(() => {
       expect(toasted).toEqual(["error"]);
@@ -229,40 +198,39 @@ describe("NotificationPreferences", () => {
   /**
    * The flag is set before the write starts, so a client that throws on the
    * way out rather than rejecting would leave it set for the life of the page:
-   * every control dimmed, every press refused, nothing to do but reload.
+   * the control dimmed, every press refused, nothing to do but reload.
    */
-  it("frees the controls when the write throws instead of rejecting", async () => {
+  it("frees the control when the write throws instead of rejecting", async () => {
     const user = userEvent.setup();
     updateUser.mockImplementation(() => {
       throw new Error("boom");
     });
     renderPreferences();
 
-    await user.click(cell("email"));
+    await user.click(newsCell());
 
     await waitFor(() => {
-      expect(painted.email.at(-1)).toEqual({ enabled: true, saving: false });
+      expect(painted.at(-1)).toEqual({ enabled: false, saving: false });
     });
   });
 
   /**
-   * The handler refuses a second write while one is in flight, so both rows
-   * report busy and neither writes. They share one flag because they share one
-   * handler, and a row that looked free while its press did nothing would read
-   * as broken.
+   * The handler refuses a second write while one is in flight, and the row
+   * reports itself busy so the refusal is visible. A row that looked free
+   * while its press did nothing would read as broken.
    */
-  it("reports the other row busy while a write is in flight", async () => {
+  it("refuses a second press while a write is in flight", async () => {
     const user = userEvent.setup();
     updateUser.mockReturnValue(new Promise(() => {}));
     renderPreferences();
 
-    await user.click(cell("email"));
+    await user.click(newsCell());
 
     await waitFor(() => {
-      expect(painted.news.at(-1)).toEqual({ enabled: false, saving: true });
+      expect(painted.at(-1)).toEqual({ enabled: true, saving: true });
     });
 
-    await user.click(cell("news"));
+    await user.click(newsCell());
 
     expect(updateUser).toHaveBeenCalledTimes(1);
   });

@@ -53,6 +53,51 @@ const STRING_DUMMIES = {
 };
 
 /**
+ * Cloudflare's published Turnstile testing keys.
+ *
+ * Both Turnstile vars ship commented out, so a fresh checkout renders no
+ * challenge at all — until someone pastes a real key in and every later
+ * sign-in, including every browser-driving agent's, hits a "confirm you are
+ * human" box. These keys make the widget solve itself instead.
+ *
+ * Local machines only. The secret makes Cloudflare's siteverify succeed for
+ * ANY token, including a forged one, so a deployed environment carrying it
+ * renders a captcha that protects nothing — see apps/core/.env.example.
+ * https://developers.cloudflare.com/turnstile/troubleshooting/testing/
+ */
+const TURNSTILE_TEST_KEYS = {
+  NEXT_PUBLIC_TURNSTILE_SITE_KEY: "1x00000000000000000000AA",
+  TURNSTILE_SECRET_KEY: "1x0000000000000000000000000000000AA",
+};
+
+/**
+ * Turn each commented-out Turnstile key into a working local value.
+ *
+ * Only rewrites the key's own commented assignment, so each file gets the key
+ * it actually reads, and only when nothing has set it — a real key someone put
+ * there on purpose survives untouched.
+ *
+ * @param {string} contents
+ */
+export function applyTurnstileTestKeys(contents) {
+  let out = contents;
+
+  for (const [key, value] of Object.entries(TURNSTILE_TEST_KEYS)) {
+    if (readEnvValue(out, key) !== undefined) {
+      continue;
+    }
+
+    out = out.replace(
+      new RegExp(`^#[ \\t]*${key}=[ \\t]*$`, "m"),
+      // Own line, not a trailing comment: not every dotenv parser strips those.
+      `# Cloudflare test key — always passes. Local only, never a deployment.\n${key}=${value}`,
+    );
+  }
+
+  return out;
+}
+
+/**
  * @param {string} value
  */
 export function isPlaceholderValue(value) {
@@ -142,7 +187,7 @@ export function sanitizeEnvContents(contents) {
     out.push(line);
   }
 
-  return `${out.join("\n").replace(/\n+$/, "\n")}`;
+  return applyTurnstileTestKeys(`${out.join("\n").replace(/\n+$/, "\n")}`);
 }
 
 /**

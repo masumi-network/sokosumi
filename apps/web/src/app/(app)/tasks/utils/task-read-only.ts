@@ -1,12 +1,6 @@
 import { TaskStatus } from "@/lib/clients/generated/core";
 
 interface ReadOnlyForViewerParams {
-  /** Organization of the task's workspace; `null` for a personal workspace. */
-  taskWorkspaceOrganizationId: string | null;
-  /** Owner of the task. */
-  taskOwnerId: string;
-  /** Viewer's user id, or null/undefined when unauthenticated. */
-  sessionUserId: string | null | undefined;
   /**
    * Locks the view read-only regardless of ownership. Set by the admin task
    * detail view, where the viewer is never the owner and must not be able to
@@ -21,51 +15,58 @@ interface ReadOnlyForViewerParams {
   hasAssignedSeat?: boolean;
 }
 
+interface OrgCollaboratorViewerParams extends ReadOnlyForViewerParams {
+  /** Organization of the task's workspace; `null` for a personal workspace. */
+  taskWorkspaceOrganizationId: string | null;
+  /** Owner of the task. */
+  taskOwnerId: string;
+  /** Viewer's user id, or null/undefined when unauthenticated. */
+  sessionUserId: string | null | undefined;
+}
+
 function isGrantPendingStatus(status: string): boolean {
   return status === TaskStatus.GRANT_PENDING;
 }
 
 /**
- * The task detail view is read-only unless the viewer owns the task.
+ * Whether the task detail view is read-only for this viewer. Every member may
+ * act on an organization-workspace task, not just its owner; a
+ * personal-workspace task is only reachable by its owner.
  *
- * - `forceReadOnly` (admin view) always wins.
- * - Otherwise: read-only for a non-owner on an organization-workspace task
- *   (workspace collaborators inspect but do not edit). Personal-workspace owners
- *   and organization-task owners stay editable.
+ * Read-only for the admin view (`forceReadOnly`), a parked task, or a viewer
+ * without an assigned seat.
  */
 export function isReadOnlyForViewer({
-  taskWorkspaceOrganizationId,
-  taskOwnerId,
-  sessionUserId,
   forceReadOnly,
   taskStatus,
   hasAssignedSeat = false,
 }: ReadOnlyForViewerParams): boolean {
-  if (forceReadOnly || isGrantPendingStatus(taskStatus) || !hasAssignedSeat) {
-    return true;
-  }
-  return taskWorkspaceOrganizationId !== null && sessionUserId !== taskOwnerId;
+  return forceReadOnly || isGrantPendingStatus(taskStatus) || !hasAssignedSeat;
 }
 
+/**
+ * A parked task can still be archived: by its owner, or by any seated member
+ * when it sits in an organization workspace.
+ */
 export function canArchiveParkedTaskForViewer({
   forceReadOnly,
   taskStatus,
   isTaskOwner,
-  isOrgOwnerOrAdmin,
+  isOrganizationTask,
+  hasAssignedSeat,
 }: {
   forceReadOnly: boolean;
   taskStatus: string;
   isTaskOwner: boolean;
-  isOrgOwnerOrAdmin: boolean;
+  isOrganizationTask: boolean;
+  hasAssignedSeat: boolean;
 }): boolean {
   if (forceReadOnly || !isGrantPendingStatus(taskStatus)) {
     return false;
   }
 
-  return isTaskOwner || isOrgOwnerOrAdmin;
+  return isTaskOwner || (isOrganizationTask && hasAssignedSeat);
 }
-
-type OrgCollaboratorViewerParams = ReadOnlyForViewerParams;
 
 /**
  * Owner or authenticated org-workspace collaborator, excluding force-read-only
@@ -94,8 +95,8 @@ function canOrgCollaboratorActOnTaskForViewer({
 }
 
 /**
- * Organization workspace collaborators may comment without owning the task.
- * Mutations stay gated by {@link isReadOnlyForViewer}.
+ * Organization workspace collaborators may comment without owning the task,
+ * given an assigned seat. Other mutations use {@link isReadOnlyForViewer}.
  */
 export function canCommentOnTaskForViewer(
   params: OrgCollaboratorViewerParams,
@@ -107,8 +108,9 @@ export function canCommentOnTaskForViewer(
 }
 
 /**
- * Organization workspace collaborators may cancel without owning the task.
- * Other mutations stay gated by {@link isReadOnlyForViewer}.
+ * Organization workspace collaborators may cancel without owning the task,
+ * even without an assigned seat. Other mutations use
+ * {@link isReadOnlyForViewer}.
  */
 export function canCancelTaskForViewer(
   params: OrgCollaboratorViewerParams,

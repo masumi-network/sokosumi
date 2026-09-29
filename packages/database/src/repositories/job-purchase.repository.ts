@@ -39,9 +39,6 @@ interface UpdateJobPurchaseData {
   errorNoteKey?: string | null;
 }
 
-/**
- * Builds a Prisma update data object by only including fields that are explicitly provided (not undefined).
- */
 function buildUpdateData(
   data: UpdateJobPurchaseData,
 ): Prisma.JobPurchaseUpdateInput {

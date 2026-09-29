@@ -18,6 +18,10 @@ import {
 } from "@/helpers/active-ui-stream-room-metadata";
 import { deleteChatRoomMessageMetadataKeys } from "@/helpers/chat-room-message-metadata-patch";
 import {
+  trackLateCoworkerResponse,
+  untrackLateCoworkerResponse,
+} from "@/helpers/coworker-late-responses";
+import {
   clearPendingResponseMirror,
   getPendingResponseMirror,
   renewPendingResponseMirror,
@@ -176,7 +180,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id: roomId } = c.req.valid("param");
     const {
       messages,
-      model,
       parentMessageId: requestedParentMessageId,
       quote: requestedQuote,
     } = c.req.valid("json");
@@ -185,8 +188,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw unprocessableEntity(AI_SDK_CHAT_MESSAGES_REQUIREMENT);
     }
 
-    const room = await prisma.$transaction(async (tx) =>
-      requireChatRoomUserWriteAccess(roomId, userContext.userId, tx),
+    const room = await requireChatRoomUserWriteAccess(
+      roomId,
+      userContext.userId,
+      prisma,
     );
 
     // Match web `isCoworkerOnlyDirectRoom` and message-POST skip-mention:
@@ -204,24 +209,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
-    const { parentMessageId, userMessageMetadata } = await prisma.$transaction(
-      async (tx) => {
-        const parentMessageId = await resolveThreadParentMessageId(
-          tx,
-          room.id,
-          requestedParentMessageId,
-        );
-        const quote = await resolveRoomQuoteSnapshot(
-          tx,
-          room.id,
-          requestedQuote?.messageId,
-        );
-        return {
-          parentMessageId,
-          userMessageMetadata: mergeChatRoomMessageMetadata(null, quote),
-        };
-      },
+    const parentMessageId = await resolveThreadParentMessageId(
+      prisma,
+      room.id,
+      requestedParentMessageId,
     );
+    const quote = await resolveRoomQuoteSnapshot(
+      prisma,
+      room.id,
+      requestedQuote?.messageId,
+    );
+    const userMessageMetadata = mergeChatRoomMessageMetadata(null, quote);
 
     const roomCoworker = room.coworkerMembers[0]!.coworker;
     const workspaceId = await resolveWorkspaceIdForChatRoom({
@@ -508,6 +506,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         onResponseStarted: async (responseId: string) => {
           responsesApiResponseIdRef.current = responseId;
           await setPendingResponseMirror(pendingResponseScope, responseId);
+          // Delivered by the late-responses sync if it outlives this request.
+          await trackLateCoworkerResponse({
+            responseId,
+            roomId: room.id,
+            parentMessageId: parentMessageId ?? null,
+            coworkerId: coworker.id,
+            userId: userContext.userId,
+            organizationId: roomOrganizationId,
+            startedAtMs: Date.now(),
+          });
         },
         onResponseCompleted: async () => {
           await clearPendingResponseMirror(pendingResponseScope);
@@ -516,7 +524,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       };
 
       const result = streamText({
-        model: getSokosumiProvider()(model ?? null),
+        model: getSokosumiProvider()(null),
         messages: modelMessages,
         allowSystemInMessages: true,
         maxRetries: 0,
@@ -551,6 +559,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           for (let attempt = 0; attempt < 3; attempt += 1) {
             try {
               await persistAssistantToChatRoom(persistArgs);
+              if (responsesApiResponseIdRef.current) {
+                await untrackLateCoworkerResponse(
+                  responsesApiResponseIdRef.current,
+                );
+              }
               return;
             } catch (error) {
               lastError = error;

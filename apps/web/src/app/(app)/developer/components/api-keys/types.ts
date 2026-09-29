@@ -1,5 +1,6 @@
 import type { useTranslations } from "next-intl";
 
+import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { authClient } from "@/lib/auth/auth.client";
 
 export type ApiKeyRecord = NonNullable<
@@ -19,15 +20,10 @@ export interface CreateApiKeyRequest {
   name: string;
 }
 
-export interface CreateApiKeyResult {
-  success: boolean;
-  data?: {
-    key: string;
-  };
-  error?: {
-    message: string;
-  };
-}
+export type CreateApiKeyResult = ActionResultDto<
+  { key: string },
+  { message: string }
+>;
 
 export interface UpdateApiKeyRequest {
   keyId: string;

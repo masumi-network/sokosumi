@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { OrganizationDetailPanel } from "@/components/admin/organizations/organization-detail-panel";
 import { adminOrganizationService } from "@/lib/services/admin-organization.service";
 
+export const instant = false;
+
 export const metadata: Metadata = {
   title: "Organization",
   description: "Admin organization overview",

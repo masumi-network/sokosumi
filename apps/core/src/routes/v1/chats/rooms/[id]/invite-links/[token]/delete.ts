@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -59,10 +58,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await requireRoomMemberCanInviteGuests(roomId, userContext.userId, prisma);
 
-    const link = await chatRoomGuestInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.chatRoomGuestInviteLink.findUnique({
+      where: { token },
+    });
     // Scope token to the path room so a host of room A cannot revoke a link
     // belonging to room B by guessing its token.
     if (!link || link.roomId !== roomId) {
@@ -70,11 +68,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (!link.revokedAt) {
-      await chatRoomGuestInviteLinkRepository.revokeInviteLink(
-        link.id,
-        new Date(),
-        prisma,
-      );
+      await prisma.chatRoomGuestInviteLink.update({
+        where: { id: link.id },
+        data: { revokedAt: new Date() },
+      });
     }
 
     return ok(c, responseSchema.parse({ ok: true }));

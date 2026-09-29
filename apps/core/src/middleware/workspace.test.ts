@@ -107,17 +107,6 @@ describe("workspaceMiddleware", () => {
       userId: "user_123",
       organizationId: null,
     });
-
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        oauthAccessToken: {
-          findUnique: vi.fn(),
-        },
-        oauthConsent: {
-          findFirst: vi.fn(),
-        },
-      });
-    });
   });
 
   it("keeps workspaceContext null when the middleware is not included", async () => {
@@ -129,6 +118,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
+    memberFindUniqueMock.mockResolvedValue({ id: "member_123" });
 
     const app = createApp(false);
     const response = await app.request("http://localhost/");
@@ -250,6 +240,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
+    memberFindUniqueMock.mockResolvedValue({ id: "member_123" });
     resolveWorkspaceForContextMock.mockResolvedValueOnce({
       id: "workspace_created",
       userId: null,
@@ -285,6 +276,7 @@ describe("workspaceMiddleware", () => {
         id: "user_123",
       },
     });
+    memberFindUniqueMock.mockResolvedValue({ id: "member_123" });
     resolveWorkspaceForContextMock.mockRejectedValueOnce(
       new Error("workspace failed"),
     );

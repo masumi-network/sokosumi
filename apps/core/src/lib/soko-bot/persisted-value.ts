@@ -1,5 +1,6 @@
 import {
   containsSokoBotSensitiveMaterial,
+  type RuntimeJsonValue,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 
@@ -16,7 +17,7 @@ export function sanitizePersistedValue(
   value: unknown,
   depth = 0,
   seen = new WeakSet<object>(),
-): unknown {
+): RuntimeJsonValue {
   if (value === null || typeof value === "boolean") return value;
   if (typeof value === "string") return redactSokoBotSensitiveText(value);
   if (typeof value === "number") return Number.isFinite(value) ? value : null;
@@ -28,14 +29,14 @@ export function sanitizePersistedValue(
   }
   seen.add(value);
   if (Array.isArray(value)) {
-    const items = value
+    const items: RuntimeJsonValue[] = value
       .slice(0, PERSISTED_COLLECTION_MAX_ITEMS)
       .map((item) => sanitizePersistedValue(item, depth + 1, seen));
     if (value.length > items.length) items.push("[Truncated]");
     return items;
   }
 
-  const result: Record<string, unknown> = {};
+  const result: Record<string, RuntimeJsonValue> = {};
   const entries = Object.entries(value).slice(
     0,
     PERSISTED_COLLECTION_MAX_ITEMS,

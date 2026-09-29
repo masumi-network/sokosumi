@@ -1,10 +1,37 @@
 import type { Prisma } from "@sokosumi/database";
 
+import { conflict } from "@/helpers/error";
+
+interface CalendarProjectReadClient {
+  project: Pick<Prisma.TransactionClient["project"], "findFirst">;
+}
+
+type CalendarLockClient = Pick<Prisma.TransactionClient, "$queryRaw">;
+
+/** Lock an interactive actor before any Workspace, Project, or Task row. */
+export async function lockCalendarActor(
+  tx: CalendarLockClient,
+  userId: string,
+): Promise<boolean> {
+  const user = await tx.$queryRaw<Array<{ id: string }>>`
+    SELECT id
+    FROM "user"
+    WHERE id = ${userId}
+    FOR KEY SHARE
+  `;
+  return user.length === 1;
+}
+
 export async function lockCalendarScope(
-  tx: Prisma.TransactionClient,
+  tx: CalendarLockClient,
   workspaceId: string,
   projectIds: Array<string | null | undefined>,
+  actorUserId?: string,
 ): Promise<boolean> {
+  if (actorUserId && !(await lockCalendarActor(tx, actorUserId))) {
+    return false;
+  }
+
   const workspace = await tx.$queryRaw<Array<{ id: string }>>`
     SELECT id
     FROM "workspace"
@@ -33,7 +60,7 @@ export async function lockCalendarScope(
 }
 
 export async function lockTaskRows(
-  tx: Prisma.TransactionClient,
+  tx: CalendarLockClient,
   taskIds: string[],
 ): Promise<boolean> {
   const uniqueTaskIds = [...new Set(taskIds)].sort();
@@ -50,4 +77,20 @@ export async function lockTaskRows(
   }
 
   return true;
+}
+
+export async function requireOpenCalendarProject(
+  tx: CalendarProjectReadClient,
+  workspaceId: string,
+  projectId: string | null,
+): Promise<void> {
+  if (!projectId) return;
+
+  const project = await tx.project.findFirst({
+    where: { id: projectId, workspaceId },
+    select: { closingAt: true, closedAt: true },
+  });
+  if (!project || project.closingAt || project.closedAt) {
+    throw conflict("Cannot change a schedule in a closing or closed Project");
+  }
 }

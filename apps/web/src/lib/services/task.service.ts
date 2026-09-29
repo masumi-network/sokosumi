@@ -2,18 +2,19 @@ import "server-only";
 
 import { coreClient } from "@/lib/clients/core.client";
 import type {
-  CreateScheduledTaskRequest,
   CreateTaskContext,
   GetWorkspacesCalendarData,
   JobSummary,
   Task,
   TaskActivitySummary,
   TaskEvent,
+  TaskEventsPaginationMetadata,
   TaskLink,
   TaskLinkDeleted,
+  TaskParticipant,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
-  WorkspaceCalendarItem,
+  WorkspaceCalendarEntry,
   WorkspaceCalendarSource,
 } from "@/lib/clients/generated/core";
 import { TaskStatus } from "@/lib/clients/generated/core";
@@ -30,7 +31,9 @@ interface ListTasksParams {
   visibility?: "PUBLIC" | "PRIVATE";
   cursor?: string | null;
   limit?: number;
-  sort?: "nextRunAt";
+  sort?: "createdAt";
+  /** Only the Tasks this Task Schedule created. */
+  scheduleId?: string;
 }
 
 interface ListJobsParams {
@@ -43,6 +46,7 @@ interface ListJobsParams {
 }
 
 interface CreateTaskInput {
+  tagSuggestionReceipt?: string;
   name?: string;
   description: string | null;
   assigneeId: string | null;
@@ -51,6 +55,8 @@ interface CreateTaskInput {
   projectId?: string | null;
   context?: CreateTaskContext;
   status?: Extract<TaskStatus, "DRAFT" | "READY">;
+  /** Start at this future time: Core creates the Task Queued. */
+  runAt?: Date;
   visibility?: "PUBLIC" | "PRIVATE";
 }
 
@@ -62,17 +68,14 @@ interface PatchTaskInput {
   assigneeUserId?: string | null;
   projectId?: string | null;
   context?: CreateTaskContext;
-  /**
-   * Required by Core while the Task has an active schedule series: field edits
-   * serialize against release under the same revision, and the returned Task
-   * carries the incremented value the following schedule write must send.
-   */
-  expectedScheduleRevision?: number;
+  /** A future time queues the Task; null clears a saved Run at. */
+  runAt?: Date | null;
 }
 
 interface CreateTaskEventInput {
   status?: TaskStatus;
   comment?: string;
+  mentionedUserIds?: string[];
 }
 
 interface CreateTaskLinkInput {
@@ -125,7 +128,7 @@ function assigneeWriteFields(
 }
 
 export interface WorkspaceCalendarPage {
-  items: WorkspaceCalendarItem[];
+  items: WorkspaceCalendarEntry[];
   pagination: {
     cursor: string | null;
     limit: number;
@@ -148,6 +151,7 @@ export const taskService = (() => {
           ? { assigneeUserId: params.assigneeUserId }
           : { assigneeId: params.assigneeId }),
       projectId: params.projectId,
+      scheduleId: params.scheduleId,
       q: params.q,
       scope: params.scope,
       ...(params.visibility ? { visibility: params.visibility } : {}),
@@ -213,6 +217,108 @@ export const taskService = (() => {
     }
   }
 
+  async function listTaskEvents(
+    taskId: string,
+    params: { cursor?: string | null; limit?: number } = {},
+  ): Promise<{
+    events: TaskEvent[];
+    pagination: TaskEventsPaginationMetadata;
+  }> {
+    const result = await coreClient.getTaskEvents(taskId, {
+      cursor: params.cursor ?? undefined,
+      limit: params.limit,
+    });
+
+    return {
+      events: result.data,
+      pagination: result.meta.pagination,
+    };
+  }
+
+  /**
+   * Load every TaskEvent page (oldest → newest) for Activities.
+   */
+  async function listAllTaskEvents(taskId: string): Promise<{
+    events: TaskEvent[];
+    pagination: TaskEventsPaginationMetadata;
+  }> {
+    const events: TaskEvent[] = [];
+    let cursor: string | undefined;
+    let pagination: TaskEventsPaginationMetadata | null = null;
+
+    for (;;) {
+      const page = await listTaskEvents(taskId, {
+        cursor,
+        limit: 100,
+      });
+      events.push(...page.events);
+      pagination = page.pagination;
+      const next = page.pagination.nextCursor;
+      if (!next || next === cursor) {
+        break;
+      }
+      cursor = next;
+    }
+
+    if (!pagination) {
+      throw new Error("Failed to list task events");
+    }
+
+    return { events, pagination };
+  }
+
+  /**
+   * Initial Activities window: all non-comment events + the newest 5 comments.
+   * Older comments load on expand via `listTaskEventsBefore`.
+   */
+  async function listTaskActivityFeed(taskId: string): Promise<{
+    events: TaskEvent[];
+    pagination: TaskEventsPaginationMetadata;
+  }> {
+    const { events, pagination } = await listAllTaskEvents(taskId);
+    if (pagination.commentCount <= 5) {
+      return { events, pagination };
+    }
+
+    const comments = events.filter((event) => event.comment != null);
+    const keepCommentIds = new Set(comments.slice(-5).map((event) => event.id));
+    return {
+      events: events.filter(
+        (event) => event.comment == null || keepCommentIds.has(event.id),
+      ),
+      pagination,
+    };
+  }
+
+  /**
+   * Events strictly before `untilEventId` (ascending), for expanding older comments.
+   */
+  async function listTaskEventsBefore(
+    taskId: string,
+    untilEventId: string,
+  ): Promise<TaskEvent[]> {
+    const older: TaskEvent[] = [];
+    let cursor: string | undefined;
+
+    for (;;) {
+      const page = await listTaskEvents(taskId, {
+        cursor,
+        limit: 100,
+      });
+      for (const event of page.events) {
+        if (event.id === untilEventId) {
+          return older;
+        }
+        older.push(event);
+      }
+      const next = page.pagination.nextCursor;
+      if (!next || next === cursor) {
+        return older;
+      }
+      cursor = next;
+    }
+  }
+
   async function getTaskWorkspace(
     taskId: string,
   ): Promise<TaskWorkspace | null> {
@@ -222,6 +328,14 @@ export const taskService = (() => {
     } catch {
       return null;
     }
+  }
+
+  async function suggestTaskTags(input: {
+    name?: string;
+    description?: string | null;
+  }) {
+    const result = await coreClient.suggestTaskTags(input);
+    return result.data;
   }
 
   async function createTask(input: CreateTaskInput): Promise<Task> {
@@ -236,18 +350,6 @@ export const taskService = (() => {
 
     if (!result.data) {
       throw new Error("Failed to create task");
-    }
-
-    return result.data;
-  }
-
-  async function createScheduledTask(
-    input: CreateScheduledTaskRequest,
-  ): Promise<Task> {
-    const result = await coreClient.createScheduledTask(input);
-
-    if (!result.data) {
-      throw new Error("Failed to create scheduled task");
     }
 
     return result.data;
@@ -332,6 +434,31 @@ export const taskService = (() => {
     return result.data;
   }
 
+  async function removeTaskParticipant(
+    taskId: string,
+    userId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.deleteTaskParticipant(taskId, userId);
+
+    if (!result.data) {
+      throw new Error("Failed to remove task participant");
+    }
+
+    return result.data.participants;
+  }
+
+  async function subscribeTaskParticipant(
+    taskId: string,
+  ): Promise<TaskParticipant[]> {
+    const result = await coreClient.subscribeTaskParticipant(taskId);
+
+    if (!result.data) {
+      throw new Error("Failed to subscribe to task");
+    }
+
+    return result.data.participants;
+  }
+
   async function deleteTask(taskId: string): Promise<Task> {
     const result = await coreClient.deleteTask(taskId);
 
@@ -372,11 +499,17 @@ export const taskService = (() => {
     listTasks,
     getTaskById,
     getTaskWorkspace,
+    listTaskEvents,
+    listAllTaskEvents,
+    listTaskActivityFeed,
+    listTaskEventsBefore,
     createTask,
-    createScheduledTask,
+    suggestTaskTags,
     createTaskLink,
     createTaskEvent,
     deleteTaskLink,
+    removeTaskParticipant,
+    subscribeTaskParticipant,
     moveTaskToWorkspace,
     patchTask,
     listTaskLinks,

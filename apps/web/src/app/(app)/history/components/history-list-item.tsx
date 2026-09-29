@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useFormatter } from "next-intl";
 import {
   HistoryMetaTime,
   HistoryOwnerAvatar,
@@ -26,6 +27,7 @@ export interface HistoryListItemLabels {
   kind: {
     task: string;
     job: string;
+    image: string;
   };
   taskStatus: Record<TaskStatus, string>;
 }
@@ -42,17 +44,18 @@ export function HistoryListItem({
   activeOrganizationId,
 }: HistoryListItemProps) {
   const { formatTimeAgo } = useLocalizedDateTime();
+  const formatter = useFormatter();
   const description = getHistoryRowSubtitle(item, labels);
-  const credits = formatHistoryCredits(item.credits, labels);
+  const credits = formatHistoryCredits(item.credits, labels, formatter.number);
   const showOwner = activeOrganizationId !== null;
   const rowClassName = cn(
-    "group grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 rounded-lg px-4 py-3 transition-colors",
+    "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
       ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px_80px] sm:items-center sm:gap-4"
       : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px_80px] sm:items-center sm:gap-4",
     isArchivedHistoryItem(item)
       ? "cursor-default"
-      : "hover:bg-card-background active:scale-[0.995]",
+      : "hover:bg-card-background-hover press content-in",
   );
   const content = (
     <HistoryListItemContent
@@ -165,7 +168,7 @@ export function HistoryTypeColumn({
       >
         <HistoryTypeIcon item={item} />
       </span>
-      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium tracking-wider uppercase hidden sm:block">
+      <span className="text-muted-foreground w-full rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>
@@ -186,6 +189,13 @@ function HistoryStatus({
     );
   }
 
+  // An image has no lifecycle of its own — Core types its status as the literal
+  // `"active"` for that reason. A badge here would be a job status word
+  // ("Started", "Payment failed") applied to a finished picture.
+  if (item.kind === "image") {
+    return null;
+  }
+
   return <JobStatusBadge status={item.status as SokosumiJobStatus} />;
 }
 
@@ -195,11 +205,12 @@ function formatHistoryCredits(
     HistoryListItemLabels,
     "credit" | "credits" | "creditsUnavailable"
   >,
+  formatNumber: (value: number) => string,
 ): string {
   if (credits === null) return labels.creditsUnavailable;
 
   const formattedCredits = formatCreditsForDisplay(credits);
   const unit = formattedCredits === 1 ? labels.credit : labels.credits;
 
-  return `${formattedCredits} ${unit}`;
+  return `${formatNumber(formattedCredits)} ${unit}`;
 }

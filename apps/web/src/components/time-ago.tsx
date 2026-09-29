@@ -32,6 +32,11 @@ interface TimeAgoProps {
    * to false.
    */
   strict?: boolean;
+  /**
+   * Names what the timestamp measures in the hover title, e.g. "Last
+   * activity". Without it the title is the absolute stamp alone.
+   */
+  titlePrefix?: string;
   className?: string;
 }
 
@@ -52,7 +57,7 @@ function TimeAgoStamp({ dateObj, label, title, className }: TimeAgoStampProps) {
 
 interface TimeAgoRelativeProps {
   dateObj: Date;
-  absolute: string;
+  title: string;
   addSuffix: boolean;
   strict: boolean;
   locale: string;
@@ -61,7 +66,7 @@ interface TimeAgoRelativeProps {
 
 function TimeAgoRelative({
   dateObj,
-  absolute,
+  title,
   addSuffix,
   strict,
   locale,
@@ -77,7 +82,7 @@ function TimeAgoRelative({
     <TimeAgoStamp
       dateObj={dateObj}
       label={label}
-      title={absolute}
+      title={title}
       className={className}
     />
   );
@@ -98,6 +103,7 @@ export function TimeAgo({
   date,
   addSuffix = true,
   strict = false,
+  titlePrefix,
   className,
 }: TimeAgoProps) {
   const format = useFormatter();
@@ -108,6 +114,7 @@ export function TimeAgo({
   }
 
   const absolute = format.dateTime(dateObj, "dateTime");
+  const title = titlePrefix ? `${titlePrefix}: ${absolute}` : absolute;
 
   return (
     <Suspense
@@ -115,14 +122,14 @@ export function TimeAgo({
         <TimeAgoStamp
           dateObj={dateObj}
           label={absolute}
-          title={absolute}
+          title={title}
           className={className}
         />
       }
     >
       <TimeAgoRelative
         dateObj={dateObj}
-        absolute={absolute}
+        title={title}
         addSuffix={addSuffix}
         strict={strict}
         locale={locale}

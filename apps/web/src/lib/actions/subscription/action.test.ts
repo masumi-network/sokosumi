@@ -55,7 +55,9 @@ describe("subscription actions", () => {
   });
 
   it("returns BAD_INPUT for invalid immediate organization seat update", async () => {
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -109,7 +111,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -139,7 +143,9 @@ describe("subscription actions", () => {
       ),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -167,7 +173,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -194,7 +202,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -220,7 +230,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -246,7 +258,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -272,7 +286,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -298,7 +314,9 @@ describe("subscription actions", () => {
       }),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({
@@ -328,7 +346,9 @@ describe("subscription actions", () => {
       ),
     );
 
-    const { CommonErrorCode } = await import("@/lib/actions/errors");
+    const { CommonErrorCode } = await import(
+      "@/lib/actions/errors/error-codes/common"
+    );
     const { updateOrganizationSubscriptionSeats } = await import("./action");
 
     const result = await updateOrganizationSubscriptionSeats({

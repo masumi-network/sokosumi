@@ -50,7 +50,7 @@ export function MessageBotButton({
       type="button"
       disabled={isPending}
       onClick={open}
-      className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-xs disabled:opacity-60"
+      className="text-muted-foreground press hover:text-foreground inline-flex items-center gap-1.5 text-xs disabled:opacity-60"
     >
       <MessageSquare aria-hidden className="size-3" />
       {label}

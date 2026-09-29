@@ -1,16 +1,17 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { MemberRole } from "@sokosumi/database";
+import { memberRepository } from "@sokosumi/database/repositories";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
 import { organizationSeatUnassignmentSchema } from "@/schemas/organization-seat.schema";
 import {
   mapSeatRepositoryError,
-  unassignOrganizationMemberSeat,
+  SEAT_RELEASE_CONFLICT_MESSAGE,
 } from "@/services/organization-seat.service";
 
 const params = z.object({
@@ -54,6 +55,7 @@ const route = createRoute({
       "Forbidden - You must be an organization owner or admin",
     ),
     404: jsonErrorResponse("Not Found - Organization or member not found"),
+    409: jsonErrorResponse("Conflict"),
     500: jsonErrorResponse("Internal Server Error"),
   },
 });
@@ -64,7 +66,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, memberId } = c.req.valid("param");
 
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      // Serializable to match the assignment routes (SOK-1007). Releasing a
+      // seat cannot exceed capacity, but SSI only sees an anomaly when both
+      // sides run at this level: a Read Committed release racing a
+      // serializable assignment lets the assignment answer 200 with a seat the
+      // release has already cleared.
+      const result = await serializableTransaction(async (tx) => {
         const { organization } = await resolveMemberOrganizationById({
           id,
           userId: userContext.userId,
@@ -72,8 +79,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           allowedRoles: [MemberRole.OWNER, MemberRole.ADMIN],
         });
 
-        return unassignOrganizationMemberSeat(organization.id, memberId, tx);
-      });
+        const member = await memberRepository.unassignSeat(
+          memberId,
+          organization.id,
+          tx,
+        );
+
+        return {
+          memberId: member.id,
+        };
+      }, SEAT_RELEASE_CONFLICT_MESSAGE);
 
       return ok(c, organizationSeatUnassignmentSchema.parse(result));
     } catch (error) {

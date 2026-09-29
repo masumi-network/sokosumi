@@ -54,3 +54,7 @@ next-env.d.ts
 /openapi-core.snapshot.json
 # next-agents-md
 .next-docs/
+
+# eve agent build artifacts
+.eve/
+.output/

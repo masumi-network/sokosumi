@@ -11,14 +11,72 @@ public struct MessageMarkdownBlock: Identifiable, Equatable, Sendable {
   public fileprivate(set) var taskChecked: Bool?
 }
 
+/// The message's text blocks and whitespace-separated file runs, in source order.
+public struct MessageMarkdownSegment: Identifiable, Equatable, Sendable {
+  public let id: Int
+  public let blocks: [MessageMarkdownBlock]
+  public struct File: Identifiable, Equatable, Sendable {
+    /// The source link's offset distinguishes repeated URLs without losing occurrence order.
+    public let id: Int
+    public let attachment: MessageAttachment
+  }
+
+  public let files: [File]
+  public var attachments: [MessageAttachment] {
+    files.map(\.attachment)
+  }
+
+  public var usesLargeImage: Bool {
+    files.count == 1 && files[0].attachment.kind == .image
+  }
+}
+
 public struct MessageMarkdown: Equatable, Sendable {
   public let blocks: [MessageMarkdownBlock]
+  public let segments: [MessageMarkdownSegment]
+  /// True unless some whitespace-only run of file links is exactly one image.
+  public let clampsLongBody: Bool
+  /// The images the body's viewer steps through.
+  public let imageGallery: MessageImageGallery
 
   public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
     let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    let document = Markdown.Document(parsing: MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified())
+    let linkified = MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified()
+    let document = Markdown.Document(parsing: linkified)
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
-    blocks = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
+    let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
+    blocks = built
+    let runs = MarkdownBareDomains(linkified).attachmentRuns()
+    if runs.isEmpty {
+      segments = [MessageMarkdownSegment(id: 0, blocks: built, files: [])]
+    } else {
+      let characters = Array(linkified)
+      var cursor = 0
+      var rendered: [MessageMarkdownSegment] = []
+      func appendText(through end: Int) {
+        let source = String(characters[cursor ..< end])
+        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let parsed = Markdown.Document(parsing: source)
+        let blocks = parsed.children.flatMap { builder.blocks(for: $0) }
+          .map { $0.resolving(mentions: mentions, channels: channels) }
+        rendered.append(MessageMarkdownSegment(id: cursor, blocks: blocks, files: []))
+      }
+      for run in runs {
+        appendText(through: run.range.lowerBound)
+        rendered.append(MessageMarkdownSegment(id: run.range.lowerBound, blocks: [], files: zip(run.offsets, run.attachments).map { .init(id: $0, attachment: $1) }))
+        cursor = run.range.upperBound
+      }
+      appendText(through: characters.count)
+      segments = rendered
+    }
+    // Rendering, clamping and the gallery share the same source runs. Parsed HTML images
+    // still participate through their text segment's native Markdown blocks.
+    clampsLongBody = runs.isEmpty
+      ? !Self.attachmentRows(in: built).contains { $0.count == 1 && $0[0].kind == .image }
+      : !segments.contains(where: \.usesLargeImage)
+    imageGallery = MessageImageGallery(segments.flatMap { segment in
+      segment.attachments + Self.attachmentRows(in: segment.blocks).flatMap(\.self)
+    })
   }
 }
 
@@ -84,19 +142,28 @@ private struct MarkdownBlockBuilder {
     return result
   }
 
-  mutating func block(_ node: any Markup, kind override: PresentationIntent.Kind? = nil) -> MessageMarkdownBlock {
+  mutating func block(
+    _ node: any Markup,
+    kind override: PresentationIntent.Kind? = nil,
+    tableColumnCount: Int = 0
+  ) -> MessageMarkdownBlock {
     nextID += 1
     var result = MessageMarkdownBlock(id: nextID, kind: override ?? kind(node))
     if let code = node as? CodeBlock {
       result.text = AttributedString(code.code)
     } else if let table = node as? Markdown.Table {
-      result.children = [block(table.head, kind: .tableHeaderRow)]
+      let columnCount = table.columnAlignments.count
+      result.children = [block(table.head, kind: .tableHeaderRow, tableColumnCount: columnCount)]
       result.children += table.body.children.enumerated().map { index, row in
-        block(row, kind: .tableRow(rowIndex: index + 1))
+        block(row, kind: .tableRow(rowIndex: index + 1), tableColumnCount: columnCount)
       }
     } else if node is Markdown.Table.Head || node is Markdown.Table.Row {
       result.children = node.children.enumerated().map { index, cell in
         block(cell, kind: .tableCell(columnIndex: index))
+      }
+      while result.children.count < tableColumnCount {
+        nextID += 1
+        result.children.append(MessageMarkdownBlock(id: nextID, kind: .tableCell(columnIndex: result.children.count)))
       }
     } else if node is OrderedList || node is UnorderedList {
       let start = Int((node as? OrderedList)?.startIndex ?? 1)

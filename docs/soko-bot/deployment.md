@@ -32,13 +32,25 @@ Optional, per network:
   the avatar picker offers no pictures and the sidebar shows a plain icon
   instead of the bot faces. `/sync/soko-bot-avatars` keeps the pool topped up
   every 30 minutes and is a no-op while the key is unset.
-- `SOKO_BOT_CLASSIFIER_MODE=model` — route classification by model instead of
-  the deterministic default.
+- `AI_GATEWAY_API_KEY` — also routes every turn. Jev (`typesafe-ai/jev`)
+  picks the route through the Gateway evaluation API. It has no EU region, so
+  this is an owner-approved exception to the EU-only model policy; requests set
+  zero data retention and no prompt training. Without the key every turn
+  falls back to read-only CLARIFY. Only text a person wrote is classified:
+  turns whose prompt Core writes (task-board and delegation events, inbox
+  sync, the stand-up and weekly wrap) run on fixed routes in
+  `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
 
 ## Move the avatar pool prefix
+
+**Status:** Prisma rewrite `20260904170000_rewrite_soko_bot_avatar_blob_urls`
+is in-tree and runs on Core deploy. New puts use `soko-bots/avatars/`. The
+copy/delete-legacy steps below are leftover Blob cleanup if objects still
+exist under `soko-bot-avatars/` — not a first-run step on every deploy.
+Confirm DB URLs and the Blob listing before deleting.
 
 The mascot pool in Vercel Blob is `soko-bots/avatars/{key}-{hash12}.png`.
 Older objects used `soko-bot-avatars/`. Chat files stay under
@@ -47,8 +59,8 @@ Older objects used `soko-bot-avatars/`. Chat files stay under
 `GET /v1/soko-bots/avatars` is the picker HTTP API. It is not the Blob folder.
 The cron that tops up the pool stays at `/sync/soko-bot-avatars`.
 
-Copy the objects, deploy Core so new puts and the SQL rewrite land, then delete
-the old prefix.
+If Blob still has objects under `soko-bot-avatars/`, copy them, then delete
+the old prefix after DB URLs are clean:
 
 1. Dry-run, then copy:
 
@@ -57,9 +69,9 @@ the old prefix.
    pnpm --filter @sokosumi/core soko-bot:copy-avatars -- --copy
    ```
 
-2. Deploy Core. The deploy runs Prisma migrations, which rewrite
-   `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl`. `sourceUrl` is
-   unchanged.
+2. If any stored URLs still use the old prefix, Core deploy rewrites them
+   (idempotent migration `20260904170000_rewrite_soko_bot_avatar_blob_urls`).
+   `sourceUrl` stays the fal origin.
 
 3. After every Core instance writes the new prefix, confirm that
    `soko_bot_avatar.imageUrl` and `soko_bot.avatarImageUrl` contain no
@@ -71,20 +83,27 @@ the old prefix.
 
 ## Runtime shape
 
-- `SOKO_BOT_RUNTIME_ADAPTER` is `in-process` everywhere except tests, which use
-  `in-memory`. A deployed environment with Soko Bot enabled rejects any other
-  value at env-validation time, so a misconfigured deploy fails to boot rather
-  than silently running a stub.
-- A turn is accepted by the control plane and executed in the background of the
-  same Core function (`waitUntil`). The loop appends to `soko_bot_runtime_event`
-  as it goes, and the existing `/sync/soko-bot-turns` cron drains that log and
-  settles the turn — unchanged from when the runtime was a separate service.
-- Turns are bounded by Core's function `maxDuration` (300s, set in
-  `apps/core/vercel.json`) and by `MAX_STEPS` in the runtime.
-- Tools execute in-process against `sokoBotRuntimeService`. Capability scoping,
-  the pinned context snapshot, lease and deadline checks, and administrator
-  pause all still gate every call — they read the turn row rather than a signed
-  grant.
+- `SOKO_BOT_RUNTIME_ADAPTER` defaults to `sandbox`: each turn runs in a fresh
+  Vercel Sandbox VM in `fra1` with web search/fetch, a shell, and the bot's
+  workspace mounted from a per-bot Vercel Drive. See
+  [ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md). `in-process`
+  runs the loop inside Core without sandbox tools; preview evaluation runs
+  always use it. Tests use `in-memory`, which a deployed environment rejects.
+- On Vercel, sandboxes are created with the function's OIDC token (the Core
+  project needs OIDC enabled). Locally, set `VERCEL_SANDBOX_TOKEN`,
+  `VERCEL_SANDBOX_TEAM_ID` and `VERCEL_SANDBOX_PROJECT_ID`, and
+  `SOKO_BOT_RUNTIME_PUBLIC_URL` to a URL the sandbox can reach — or run a turn
+  with `scripts/soko-bot-runner-local.mts`, which needs neither.
+- The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
+  per-turn token its network proxy injects. Core serves the prompt, executes
+  Sokosumi tools, proxies and meters every model call under the EU policy, and
+  settles the turn through `soko_bot_runtime_event` and the
+  `/sync/soko-bot-turns` drain as before.
+- Turns are bounded by the 15-minute turn deadline and `SOKO_BOT_MAX_STEPS`.
+- Capability scoping, the pinned context snapshot, lease and deadline checks,
+  and administrator pause gate every Sokosumi tool call. After a turn reads the
+  web or runs a command, outward actions (hire, job input, integrations,
+  uploads, chat posts) are refused until the owner approves.
 
 ## History
 

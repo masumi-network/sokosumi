@@ -1,9 +1,25 @@
 import type { SokoBotCapability, SokoBotRoute } from "./policy.js";
 
-export interface SokoBotActorContext {
+interface SokoBotActorContext {
   userId: string;
   sokoBotId: string;
   workspaceId: string;
+}
+
+export interface SokoBotSourceCoverage {
+  source: string;
+  checkedAt: string | null;
+  filters: Record<string, string>;
+  scannedCount: number;
+  includedCount: number;
+  omittedCount: number;
+  completeness: "COMPLETE" | "TRUNCATED" | "NOT_CHECKED";
+  availability:
+    | "AVAILABLE"
+    | "DISCONNECTED"
+    | "PERMISSION_DENIED"
+    | "QUERY_FAILED"
+    | "NOT_FETCHED";
 }
 
 export interface SokoBotContextPacket {
@@ -40,6 +56,7 @@ export interface SokoBotContextPacket {
   memory: { version: number; hash: string | null; markdown: string };
   counts: Record<string, number>;
   omissions: Record<string, number>;
+  sourceCoverage?: Record<string, SokoBotSourceCoverage>;
 }
 
 export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
@@ -57,7 +74,7 @@ export interface SokoBotTurnGrantClaims extends SokoBotActorContext {
   expiresAt: number;
 }
 
-export interface RuntimeSessionRef {
+interface RuntimeSessionRef {
   sessionId: string;
   runtimeVersion: string;
 }
@@ -72,9 +89,21 @@ export interface RuntimeTurnRef extends RuntimeSessionRef {
   acceptedAt: string;
 }
 
+/**
+ * A JSON value. Event payloads are persisted verbatim into a Json column, so
+ * the contract says so rather than leaving them `unknown` — see ADR 0035.
+ */
+export type RuntimeJsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | RuntimeJsonValue[]
+  | { [key: string]: RuntimeJsonValue };
+
 export interface RuntimeEvent {
   type: string;
-  data: Record<string, unknown>;
+  data: Record<string, RuntimeJsonValue>;
   meta: { id: string; at: string };
 }
 
@@ -118,3 +147,9 @@ export interface SokoBotRuntime {
   resetSession(input: RuntimeResetInput): Promise<void>;
   inspectSession(input: RuntimeInspectInput): Promise<RuntimeHealth>;
 }
+
+/**
+ * Header carrying a sandboxed turn's credential to Core. The sandbox network
+ * proxy adds it; no process in the sandbox holds the value.
+ */
+export const SOKO_BOT_TURN_TOKEN_HEADER = "x-soko-bot-turn-token";

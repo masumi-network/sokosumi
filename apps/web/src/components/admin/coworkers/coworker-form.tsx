@@ -39,7 +39,7 @@ import {
   updateAdminCoworkerDisplayAction,
   updateAdminCoworkerWhitelistAction,
 } from "@/lib/actions/admin-coworkers/action";
-import { CommonErrorCode } from "@/lib/actions/errors";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import type {
   Coworker,
   CoworkerWorkspaceAccess,

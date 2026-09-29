@@ -1,11 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import {
-  createAppColumnHelper,
-  DataTableColumnHeader,
-} from "@/components/data-table";
-import { OrganizationRoleBadge } from "@/components/organizations";
+import { createAppColumnHelper } from "@/components/data-table/create-data-table-hook";
+import DataTableColumnHeader from "@/components/data-table/data-table-column-header";
+import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { TimeAgo } from "@/components/time-ago";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import InvitationActionsDropdown from "./invitation-actions-dropdown";

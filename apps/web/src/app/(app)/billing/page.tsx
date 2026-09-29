@@ -14,6 +14,7 @@ import { EnterpriseContractSummary } from "@/components/billing/enterprise-contr
 import { getFeaturedCoworkers } from "@/components/billing/get-featured-coworkers";
 import { OrganizationSubscriptionSection } from "@/components/billing/organization-subscription-section";
 import { PersonalSubscriptionSection } from "@/components/billing/personal-subscription-section";
+import { SubscriptionCheckoutReturn } from "@/components/billing/subscription-checkout-return";
 import {
   getPlanTranslationKey,
   type SubscriptionPlanView,
@@ -23,8 +24,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { MemberRole } from "@/lib/clients/generated/core";
-import { organizationSeatService, userService } from "@/lib/services";
 import { getEnterpriseContractBillingSummary } from "@/lib/services/enterprise-contract-summary.service";
+import { organizationSeatService } from "@/lib/services/organization-seat.service";
+import { userService } from "@/lib/services/user.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 const PLAN_ORDER = [
@@ -37,6 +39,7 @@ const PLAN_ORDER = [
 interface BillingPageProps {
   searchParams: Promise<{
     cancel?: string;
+    checkout_session_id?: string;
     session_id?: string;
     status?: string;
     tab?: string;
@@ -280,9 +283,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               `Plans.${getPlanTranslationKey(currentPlan)}.name`,
             ),
           })}
-          returnPath="/billing?tab=subscription"
           status={subscriptionStatus}
         />
+        <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />
       </div>
     );
   }
@@ -393,9 +396,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             `Plans.${getPlanTranslationKey(currentPlan)}.name`,
           ),
         })}
-        returnPath="/billing?tab=subscription"
         status={subscriptionStatus}
       />
+      <SubscriptionCheckoutReturn sessionId={query.checkout_session_id} />
     </div>
   );
 }

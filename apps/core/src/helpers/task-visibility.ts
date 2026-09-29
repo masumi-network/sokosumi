@@ -1,15 +1,16 @@
-import { type Prisma, TaskVisibility } from "@sokosumi/database";
+import { type Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { PrismaRaw } from "@sokosumi/database/client";
 
 export type SokoBotPacketAudience = "OWNER" | "TEAMMATE" | "ASSISTANT";
 
 /**
- * Human reader for a private Task is the Task owner (the member under whose
- * user context it was created). Creator FKs can be re-pointed on user
- * deletion; ownerId is the durable private-reader identity (SOK-1046).
+ * Human reader for a private Task or Task Schedule is its owner (the member
+ * under whose user context it was created). Creator FKs can be re-pointed on
+ * user deletion; ownerId is the durable private-reader identity (SOK-1046).
  */
 export function buildHumanTaskVisibilityWhere(
   userId: string,
-): Prisma.TaskWhereInput {
+): Prisma.TaskWhereInput & Prisma.TaskScheduleWhereInput {
   return {
     OR: [
       { visibility: TaskVisibility.PUBLIC },
@@ -135,7 +136,7 @@ export function buildSokoBotAudienceJobParentTaskWhere(
 export function buildCoworkerPrivateTaskVisibilityWhere(params: {
   coworkerId: string;
   vendorId: string;
-}): Prisma.TaskWhereInput {
+}): Prisma.TaskWhereInput & Prisma.TaskScheduleWhereInput {
   return {
     OR: [
       { visibility: TaskVisibility.PUBLIC },
@@ -191,4 +192,70 @@ export function buildCoworkerJobParentTaskWhere(params: {
       },
     },
   };
+}
+
+export interface CoworkerTaskAccessSqlParams {
+  coworkerId: string;
+  vendorId: string;
+  hasWorkspaceGrant: boolean;
+}
+
+function buildCoworkerVendorFamilySql(
+  coworkerId: string,
+  vendorId: string,
+): PrismaRaw.Sql {
+  return PrismaRaw.sql`
+    (
+      t."assigneeId" = ${coworkerId}
+      OR (
+        t."assigneeId" IS DISTINCT FROM ${coworkerId}
+        AND EXISTS (
+          SELECT 1
+          FROM coworker c
+          WHERE c.id = t."assigneeId"
+            AND c."vendorId" = ${vendorId}::uuid
+        )
+      )
+    )
+  `;
+}
+
+export function buildCoworkerTaskAccessSql(
+  params: CoworkerTaskAccessSqlParams,
+): PrismaRaw.Sql {
+  const vendorFamily = buildCoworkerVendorFamilySql(
+    params.coworkerId,
+    params.vendorId,
+  );
+
+  if (params.hasWorkspaceGrant) {
+    // GRANTED opens public non-draft Tasks, but private stays on vendor family.
+    return PrismaRaw.sql`
+      AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+      AND (
+        t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+        OR (
+          t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+          AND ${vendorFamily}
+        )
+      )
+    `;
+  }
+
+  return PrismaRaw.sql`
+    AND t.status != ${TaskStatus.DRAFT}::"TaskStatus"
+    AND ${vendorFamily}
+  `;
+}
+
+export function buildHumanTaskVisibilitySql(userId: string): PrismaRaw.Sql {
+  return PrismaRaw.sql`
+    AND (
+      t.visibility = ${TaskVisibility.PUBLIC}::"TaskVisibility"
+      OR (
+        t.visibility = ${TaskVisibility.PRIVATE}::"TaskVisibility"
+        AND t."ownerId" = ${userId}
+      )
+    )
+  `;
 }

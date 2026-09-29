@@ -18,7 +18,7 @@ struct ChannelLifecycleTests {
     members: [Components.Schemas.ChatRoomUserParticipant] = []
   ) -> Components.Schemas.ChatRoom {
     .init(
-      id: id, organizationId: "org", name: name, slug: id, kind: kind, isSelfDirect: false, topic: nil, discoverability: discoverability,
+      id: id, organizationId: "org", name: name, slug: id, kind: kind, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: discoverability,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
       markedUnread: false, myAccess: access, userMembers: members, coworkerMembers: [], sokoBotMembers: []
     )

@@ -1,15 +1,13 @@
 "use client";
 
+import { ORGANIZATION_LOGO_MAX_SIZE_BYTES } from "@sokosumi/utils";
 import { Building2, CloudUpload, Loader2, X } from "lucide-react";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FileUpload, FileUploadTrigger } from "@/components/ui/file-upload";
-import {
-  ORGANIZATION_LOGO_ACCEPT,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_ACCEPT } from "@/lib/constants/organization-logo";
 import { cn } from "@/lib/utils";
 
 export interface OrganizationLogoUploadLabels {
@@ -116,7 +114,7 @@ export function OrganizationLogoUploadField({
                 )}
               >
                 {isUploading ? (
-                  <Loader2 className="size-4 animate-spin" />
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 ) : (
                   <CloudUpload className="size-4" />
                 )}
@@ -138,13 +136,13 @@ export function OrganizationLogoUploadField({
               aria-label={labels.remove}
               disabled={disabled || isRemoving}
               className={cn(
-                "bg-background text-muted-foreground hover:bg-muted hover:text-foreground",
+                "bg-background text-muted-foreground press hover:bg-muted hover:text-foreground",
                 "focus-visible:ring-ring absolute -top-2 -right-2 z-10 flex size-6 items-center justify-center rounded-full border shadow-sm",
                 "outline-none focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
               )}
             >
               {isRemoving ? (
-                <Loader2 className="size-3 animate-spin" />
+                <Loader2 className="size-3 animate-spin motion-reduce:animate-pulse" />
               ) : (
                 <X className="size-3.5" strokeWidth={2.5} />
               )}

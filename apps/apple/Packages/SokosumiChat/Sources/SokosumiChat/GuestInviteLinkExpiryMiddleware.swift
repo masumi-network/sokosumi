@@ -9,12 +9,12 @@ import OpenAPIRuntime
 /// `ChatService.createGuestInviteLink` binds the task-local expiry around the call; only that operation's
 /// JSON object is rewritten, everything else passes through untouched.
 public struct GuestInviteLinkExpiryMiddleware: ClientMiddleware {
-  public enum Expiry: Equatable, Sendable {
+  enum Expiry: Equatable, Sendable {
     case days(Int)
     case never
   }
 
-  @TaskLocal public static var expiry: Expiry?
+  @TaskLocal static var expiry: Expiry?
   static let operationID = "post/chats/rooms/{id}/invite-links"
 
   public init() {}

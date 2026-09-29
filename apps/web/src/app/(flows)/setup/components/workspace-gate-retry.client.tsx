@@ -20,7 +20,9 @@ export function WorkspaceGateRetry() {
       disabled={isPending}
       data-workspace-gate-retry
     >
-      {isPending && <Loader2 className="size-4 animate-spin" />}
+      {isPending && (
+        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+      )}
       {t("retry")}
     </Button>
   );

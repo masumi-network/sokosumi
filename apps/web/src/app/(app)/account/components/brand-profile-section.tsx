@@ -7,6 +7,8 @@ import {
   getUserMetadata,
   normalizeOrganizationLogo,
   normalizeWebsiteUrl,
+  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
+  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   parseUserMetadata,
   serializeMetadataRecord,
 } from "@sokosumi/utils";
@@ -17,10 +19,8 @@ import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  DesignMdProfileSection,
-  type DesignMdProfileValue,
-} from "@/components/design-md";
+import { DesignMdProfileSection } from "@/components/design-md/design-md-profile-section";
+import type { DesignMdProfileValue } from "@/components/design-md/types";
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,15 +42,11 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
-  ORGANIZATION_LOGO_MAX_SIZE_BYTES,
-  ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS,
-} from "@/lib/constants/organization-logo";
+import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   type BrandProfileFormType,
   brandProfileFormSchema,
-} from "@/lib/schemas";
+} from "@/lib/schemas/account";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import {
   ClientTimeoutError,
@@ -240,7 +236,7 @@ export function BrandProfileSection({
       <Card>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <fieldset disabled={isBusy}>
+            <fieldset className="space-y-6" disabled={isBusy}>
               <CardHeader>
                 <CardTitle>{t("title")}</CardTitle>
                 <CardDescription>{t("description")}</CardDescription>
@@ -307,7 +303,7 @@ export function BrandProfileSection({
                   className="w-full"
                 >
                   {form.formState.isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin" />
+                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
                   ) : null}
                   {form.formState.isSubmitting ? t("saving") : t("submit")}
                 </Button>

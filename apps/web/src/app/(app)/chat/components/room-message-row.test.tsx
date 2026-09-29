@@ -46,6 +46,9 @@ vi.mock("next-intl", () => ({
       if (key === "jump" && values) {
         return `Jump to message from ${values.author}`;
       }
+      if (key === "position" && values) {
+        return `${values.current} / ${values.total}`;
+      }
       if (key === "MentionAll.label") {
         return "Everyone";
       }
@@ -105,19 +108,23 @@ vi.mock("@/components/ui/file-chip-mini-preview", () => ({
     fileName,
     sizeClass,
     variant,
+    onOpenImage,
   }: {
     fileName: string;
     url: string;
     sizeClass?: string;
     variant?: "thumb" | "large";
+    onOpenImage: () => void;
   }) => (
-    <span
+    <button
+      type="button"
       data-testid="chip"
       data-variant={variant ?? "thumb"}
       data-size-class={sizeClass ?? ""}
+      onClick={onOpenImage}
     >
       {fileName}
-    </span>
+    </button>
   ),
 }));
 
@@ -157,6 +164,7 @@ function userMessage(
     metadata: null,
     quote: null,
     membership: null,
+    groupNameChange: null,
     unfurls: null,
     sender: {
       type: "user",
@@ -191,6 +199,25 @@ function coworkerMessage(
   };
 }
 
+function sokoBotMessage(
+  overrides: Partial<ChatRoomMessage> = {},
+): ChatRoomMessage {
+  return {
+    ...userMessage(overrides),
+    sender: {
+      type: "sokoBot",
+      sokoBot: {
+        id: "bot-1",
+        name: "Joseph",
+        caption: null,
+        image: null,
+        avatarSeed: "seed-1",
+        presence: "online",
+      },
+    },
+  };
+}
+
 function renderRow({
   message = userMessage(),
   isContinuation = false,
@@ -216,14 +243,12 @@ function renderRow({
   isSavingEdit = false,
   coworkersById = new Map(),
   usersById,
-  reserveHoverActionGutter,
   isPinned,
 }: {
   message?: ChatRoomMessage;
   isPinned?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
-  reserveHoverActionGutter?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
   showPinButton?: boolean;
@@ -274,7 +299,6 @@ function renderRow({
       isSavingEdit={isSavingEdit}
       isContinuation={isContinuation}
       isFirstOfDay={isFirstOfDay}
-      reserveHoverActionGutter={reserveHoverActionGutter}
       isPinned={isPinned}
     />,
   );
@@ -1016,38 +1040,18 @@ describe("ChatMessageRow", () => {
     }
   });
 
-  it("reserves hover-only right gutter on article", () => {
+  /**
+   * The text runs the full width and the opaque pill draws over it, as
+   * Slack's does. The row used to give up 16rem forever so that one hovered
+   * row had somewhere to put eight buttons.
+   */
+  it("reserves no gutter for the hover pill", () => {
     renderRow();
 
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-64");
-    expect(article.className.split(/\s+/)).not.toContain("pr-64");
-  });
-
-  it("widens the gutter when the pill carries the soko bot chain badge", () => {
-    renderRow({
-      message: userMessage({
-        metadata: {
-          soko_bot_chain: {
-            depth: 2,
-            max_depth: 4,
-            room_messages_this_hour: 3,
-            room_messages_per_hour: 20,
-          },
-        },
-      }),
-    });
-
-    const article = screen.getByRole("article");
-    expect(article.className).toContain("[@media(hover:hover)]:pr-72");
-    expect(article.className).not.toContain("pr-64");
-  });
-
-  it("skips the hover action gutter so a narrow thread can use full width", () => {
-    renderRow({ reserveHoverActionGutter: false });
-
-    const article = screen.getByRole("article");
-    expect(article.className).not.toContain("pr-64");
+    const tokens = screen.getByRole("article").className.split(/\s+/);
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-64");
+    expect(tokens).not.toContain("[@media(hover:hover)]:pr-72");
+    expect(tokens).toContain("px-2");
   });
 
   it("gives the hover pill the pointer only while it shows", async () => {
@@ -1064,6 +1068,27 @@ describe("ChatMessageRow", () => {
       "[@media(hover:hover)]:group-hover:pointer-events-auto",
     );
     expect(pillClasses).toContain("focus-within:pointer-events-auto");
+  });
+
+  /**
+   * A row with a name-and-time header has an empty right half on that line
+   * for the pill to park in, hiding nothing. A continuation has no header, so
+   * it lifts clear onto the line above instead of covering its own first one.
+   */
+  it("parks the hover pill on the header line", async () => {
+    const user = userEvent.setup();
+    renderRow();
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-1/4");
+  });
+
+  it("lifts the hover pill clear of a row that has no header", async () => {
+    const user = userEvent.setup();
+    renderRow({ isContinuation: true });
+    await user.hover(screen.getByRole("article"));
+
+    expect(hoverPill()?.className.split(/\s+/)).toContain("-translate-y-3/4");
   });
 
   it("keeps the hover pill inert while its More menu is open", async () => {
@@ -1300,6 +1325,93 @@ describe("ChatMessageRow", () => {
     const chip = screen.getByTestId("chip");
     expect(chip).toHaveAttribute("data-variant", "thumb");
     expect(chip).toHaveAttribute("data-size-class", "size-16");
+  });
+
+  describe("message image gallery", () => {
+    function openedImageName(): string | null {
+      return (
+        screen
+          .getByTestId("image-viewer-stage")
+          .querySelector("img[data-zoom]")
+          ?.getAttribute("alt") ?? null
+      );
+    }
+
+    it("steps through the message's images across rows, skipping other files", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "Three photos from yesterday",
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg) [agenda.pdf](https://cdn.example/agenda.pdf)",
+            "",
+            "And the room:",
+            "[crowd.jpg](https://cdn.example/crowd.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+
+      expect(openedImageName()).toBe("panel.jpg");
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "2 / 3",
+      );
+
+      await user.keyboard("{ArrowRight}");
+      expect(openedImageName()).toBe("crowd.jpg");
+    });
+
+    it("closes when an edit removes the open image and stays closed when it returns", async () => {
+      const user = userEvent.setup();
+      const withImages = userMessage({
+        content:
+          "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+      });
+      const row = (message: ChatRoomMessage) => (
+        <ChatMessageRow
+          message={message}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+        />
+      );
+      const { rerender } = render(row(withImages));
+
+      await user.click(screen.getByRole("button", { name: "panel.jpg" }));
+      expect(openedImageName()).toBe("panel.jpg");
+
+      rerender(
+        row({
+          ...withImages,
+          content: "[stage.jpg](https://cdn.example/stage.jpg)",
+        }),
+      );
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+
+      rerender(row(withImages));
+      expect(screen.queryByTestId("image-viewer")).not.toBeInTheDocument();
+    });
+
+    it("counts an image linked twice once", async () => {
+      const user = userEvent.setup();
+      renderRow({
+        message: userMessage({
+          content: [
+            "[stage.jpg](https://cdn.example/stage.jpg) [panel.jpg](https://cdn.example/panel.jpg)",
+            "",
+            "again:",
+            "[stage.jpg](https://cdn.example/stage.jpg)",
+          ].join("\n"),
+        }),
+      });
+
+      await user.click(screen.getAllByRole("button", { name: "stage.jpg" })[1]);
+
+      expect(screen.getByTestId("image-viewer-toolbar")).toHaveTextContent(
+        "1 / 2",
+      );
+    });
   });
 
   it("does not line-clamp bodies that include a large solo image attachment", () => {
@@ -1827,7 +1939,7 @@ describe("ChatMessageRow", () => {
     ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
-  it("renders inline editor when isEditing without Save/Cancel buttons", () => {
+  it("shows enabled Save and Cancel controls while editing a changed draft", () => {
     renderRow({
       message: userMessage({ content: "Original" }),
       currentUserId: "user-1",
@@ -1842,12 +1954,119 @@ describe("ChatMessageRow", () => {
     const editor = screen.getByRole("textbox");
     expect(editor).toHaveTextContent("Original fixed");
     expect(screen.queryByText("Original")).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit.save" }),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole("button", { name: "Edit.cancel" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeEnabled();
+  });
+
+  it("saves through the Save control and cancels through the Cancel control", async () => {
+    const user = userEvent.setup();
+    const onSaveEdit = vi.fn();
+    const onCancelEdit = vi.fn();
+
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit,
+      onSaveEdit,
+    });
+
+    await user.click(screen.getByRole("button", { name: "Edit.save" }));
+    expect(onSaveEdit).toHaveBeenCalledTimes(1);
+    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+    expect(onCancelEdit).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Edit.cancel" }));
+    expect(onCancelEdit).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the Save control disabled while the draft is unchanged", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeEnabled();
+  });
+
+  it("keeps the Save control disabled over the length limit", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "x".repeat(10_001),
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+  });
+
+  it("disables both controls while the edit is saving", () => {
+    renderRow({
+      message: userMessage({ content: "Original" }),
+      currentUserId: "user-1",
+      onStartEdit: vi.fn(),
+      isEditing: true,
+      editDraft: "Original fixed",
+      onEditDraftChange: vi.fn(),
+      onCancelEdit: vi.fn(),
+      onSaveEdit: vi.fn(),
+      isSavingEdit: true,
+    });
+
+    expect(screen.getByRole("button", { name: "Edit.save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Edit.cancel" })).toBeDisabled();
+  });
+
+  it("inserts a newline on Enter instead of saving on touch devices", () => {
+    const matchMediaSpy = vi
+      .spyOn(window, "matchMedia")
+      .mockImplementation((query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }));
+    const onSaveEdit = vi.fn();
+
+    try {
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original fixed",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit: vi.fn(),
+        onSaveEdit,
+      });
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      fireEvent.keyDown(editor, { key: "Enter" });
+
+      expect(onSaveEdit).not.toHaveBeenCalled();
+      expect(editor.querySelector("br")).not.toBeNull();
+    } finally {
+      matchMediaSpy.mockRestore();
+    }
   });
 
   it("places the caret at the end of the draft when edit mode opens", () => {
@@ -1992,56 +2211,60 @@ describe("ChatMessageRow", () => {
   });
 
   it("does not cancel on blur when draft is dirty", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
+    vi.useFakeTimers();
+    try {
+      const onCancelEdit = vi.fn();
 
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original fixed",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original fixed",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      await act(async () => {
+        fireEvent.blur(editor);
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("does not cancel on blur when live DOM is dirty but draft prop is stale", async () => {
-    const user = userEvent.setup();
-    const onCancelEdit = vi.fn();
+    vi.useFakeTimers();
+    try {
+      const onCancelEdit = vi.fn();
 
-    renderRow({
-      message: userMessage({ content: "Original" }),
-      currentUserId: "user-1",
-      onStartEdit: vi.fn(),
-      isEditing: true,
-      editDraft: "Original",
-      onEditDraftChange: vi.fn(),
-      onCancelEdit,
-      onSaveEdit: vi.fn(),
-    });
-
-    const editor = screen.getByRole("textbox");
-    editor.focus();
-    editor.textContent = "Original fixed live";
-    await user.tab();
-    await act(async () => {
-      await new Promise((resolve) => {
-        setTimeout(resolve, 200);
+      renderRow({
+        message: userMessage({ content: "Original" }),
+        currentUserId: "user-1",
+        onStartEdit: vi.fn(),
+        isEditing: true,
+        editDraft: "Original",
+        onEditDraftChange: vi.fn(),
+        onCancelEdit,
+        onSaveEdit: vi.fn(),
       });
-    });
-    expect(onCancelEdit).not.toHaveBeenCalled();
+
+      const editor = screen.getByRole("textbox");
+      editor.focus();
+      editor.textContent = "Original fixed live";
+      await act(async () => {
+        fireEvent.blur(editor);
+        await vi.advanceTimersByTimeAsync(200);
+      });
+      expect(onCancelEdit).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("cancels on Enter when draft is empty", async () => {
@@ -2066,7 +2289,7 @@ describe("ChatMessageRow", () => {
     expect(onCancelEdit).toHaveBeenCalledTimes(1);
   });
 
-  it("saves on Ctrl+Enter as an alias while editing", async () => {
+  it("inserts a newline on Ctrl+Enter instead of saving while editing", async () => {
     const user = userEvent.setup();
     const onSaveEdit = vi.fn();
 
@@ -2081,9 +2304,11 @@ describe("ChatMessageRow", () => {
       onSaveEdit,
     });
 
-    screen.getByRole("textbox").focus();
+    const editor = screen.getByRole("textbox");
+    editor.focus();
     await user.keyboard("{Control>}{Enter}{/Control}");
-    expect(onSaveEdit).toHaveBeenCalledWith("Original fixed");
+    expect(onSaveEdit).not.toHaveBeenCalled();
+    expect(editor.querySelector("br")).not.toBeNull();
   });
 
   it("chips a roster User mention in the edit composer", () => {
@@ -2868,6 +3093,27 @@ describe("ChatMessageRow coworker Thought", () => {
     expect(
       screen.queryByTestId("coworker-loading-state"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows the Thought trace on a Soko Bot mention placeholder", () => {
+    renderRow({
+      message: sokoBotMessage({
+        id: "msg-bot-1",
+        content: "",
+        metadata: {
+          streaming: true,
+          mention_id: "mention-1",
+          reasoning: [{ type: "reasoning", text: "Creating a Task" }],
+        },
+      }),
+    });
+
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("reasoning.thinking");
+    expect(screen.getByTestId("coworker-thought-body")).toHaveTextContent(
+      "Creating a Task",
+    );
   });
 
   it("shows working Thought trace with live beat on stream overlay", () => {

@@ -52,7 +52,12 @@ vi.mock("@/services/soko-bot-control-plane.service", async (importOriginal) => {
   };
 });
 
-import app from "./index";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+
+import nestedApp from "./index";
+
+const app = new OpenAPIHonoWithAuth();
+app.route("/", nestedApp);
 
 describe("admin Soko Bot route precedence", () => {
   beforeEach(() => {

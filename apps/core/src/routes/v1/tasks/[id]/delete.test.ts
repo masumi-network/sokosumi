@@ -1,4 +1,4 @@
-import { TaskLinkType, TaskStatus } from "@sokosumi/database";
+import { TaskStatus } from "@sokosumi/database";
 import { getTaskCannotArchiveMessage } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,16 +18,16 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  deliverCalendarInvalidationsNowMock,
   mapTaskMock,
   markTaskArchivedReadMock,
   prismaTransactionMock,
-  removeTaskSchedulePlannedOccurrencesMock,
-  requireTaskArchiveAccessMock,
+  requireTaskWriteAccessMock,
 } = vi.hoisted(() => ({
   markTaskArchivedReadMock: vi.fn(),
+  deliverCalendarInvalidationsNowMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
-  requireTaskArchiveAccessMock: vi.fn(),
-  removeTaskSchedulePlannedOccurrencesMock: vi.fn(),
+  requireTaskWriteAccessMock: vi.fn(),
   mapTaskMock: vi.fn((task: unknown) => {
     const t = task as Record<string, unknown>;
     const status = t.status as string | undefined;
@@ -56,6 +56,7 @@ const {
               slug: "organization",
             }
           : null),
+      project: t.project ?? null,
       assigneeSokoBotId:
         (t.assigneeSokoBotId as string | null | undefined) ?? null,
       assigneeUserId: (t.assigneeUserId as string | null | undefined) ?? null,
@@ -165,13 +166,12 @@ vi.mock("@/helpers/task-notifications", () => ({
   markTaskArchivedRead: markTaskArchivedReadMock,
 }));
 
-vi.mock("@/helpers/access-control", () => ({
-  requireTaskArchiveAccess: requireTaskArchiveAccessMock,
+vi.mock("@/helpers/calendar-invalidation", () => ({
+  deliverCalendarInvalidationsNow: deliverCalendarInvalidationsNowMock,
 }));
 
-vi.mock("@/helpers/task-schedule-occurrence-index", () => ({
-  removeTaskSchedulePlannedOccurrences:
-    removeTaskSchedulePlannedOccurrencesMock,
+vi.mock("@/helpers/access-control", () => ({
+  requireTaskWriteAccess: requireTaskWriteAccessMock,
 }));
 
 vi.mock("@/helpers/task", async (importOriginal) => {
@@ -230,8 +230,6 @@ const archivedTask = {
   assigneeId: null,
   name: "Archived task",
   description: null,
-  metadata: null,
-  nextRunAt: null,
   credits: 0,
   events: [],
   jobs: [],
@@ -243,23 +241,13 @@ const archivedTask = {
   share: null,
   links: [],
   files: [],
+  runAt: null,
+  scheduleId: null,
   selectableStatuses: [],
+  participants: [],
   linksFrom: [],
   linksTo: [],
 };
-
-const ACTIVE_SCHEDULE_METADATA = JSON.stringify({
-  version: 2,
-  epochId: "11111111-1111-4111-8111-111111111111",
-  mode: "recurring",
-  createdAt: "2026-09-01T09:00:00.000Z",
-  ruleEffectiveFrom: "2026-09-01T09:00:00.000Z",
-  timezone: "UTC",
-  expr: "0 9 * * *",
-  endsMode: "never",
-  anchorAt: "2026-09-01T09:00:00.000Z",
-  epochReleaseCount: 0,
-});
 
 describe("DELETE /tasks/{id}", () => {
   beforeEach(() => {
@@ -288,7 +276,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.READY,
@@ -323,7 +311,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.READY,
@@ -336,6 +324,9 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(deliverCalendarInvalidationsNowMock).toHaveBeenCalledWith(
+      "22222222-2222-7222-8222-222222222222",
+    );
     expect(updateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -347,10 +338,6 @@ describe("DELETE /tasks/{id}", () => {
           archivedAt: expect.any(Date),
         }),
       }),
-    );
-    expect(removeTaskSchedulePlannedOccurrencesMock).toHaveBeenCalledWith(
-      expect.anything(),
-      "tsk_123",
     );
     expect(findFirstOrThrowMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -382,7 +369,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.RUNNING,
@@ -418,7 +405,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_other",
       status: TaskStatus.GRANT_PENDING,
@@ -453,7 +440,7 @@ describe("DELETE /tasks/{id}", () => {
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_other",
       status: TaskStatus.GRANT_PENDING,
@@ -475,75 +462,24 @@ describe("DELETE /tasks/{id}", () => {
     );
   });
 
-  it("rejects archiving a Task whose schedule series is still active", async () => {
-    const updateManyMock = vi.fn();
+  it("archives a Queued Task with a Run at like any other Task", async () => {
+    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
     prismaTransactionMock.mockImplementation(async (callback) => {
       return await callback({
         task: {
           updateMany: updateManyMock,
-          findFirstOrThrow: vi.fn(),
+          findFirstOrThrow: vi.fn().mockResolvedValue(archivedTask),
         },
       });
     });
 
-    requireTaskArchiveAccessMock.mockResolvedValue({
+    requireTaskWriteAccessMock.mockResolvedValue({
       id: "tsk_123",
       ownerId: "user_123",
       status: TaskStatus.QUEUED,
       workspaceId: "22222222-2222-7222-8222-222222222222",
-      metadata: ACTIVE_SCHEDULE_METADATA,
-      nextRunAt: new Date("2026-09-10T09:00:00.000Z"),
-    });
-
-    const app = createApp();
-    const response = await app.request("http://localhost/tsk_123", {
-      method: "DELETE",
-    });
-
-    expect(response.status).toBe(409);
-    expect((await response.json()).kind).toBe("schedule_active");
-    expect(updateManyMock).not.toHaveBeenCalled();
-  });
-
-  it("archives an inactive historical template while a released Task is running", async () => {
-    const RELEASED_RUN_ID = "tsk_released_run";
-    const updateManyMock = vi.fn().mockResolvedValue({ count: 1 });
-    // The template still owns a released run that has not finished. Archiving
-    // the template must write the template row only — released Tasks are
-    // independent and are never archived with their template.
-    const taskLinkFindManyMock = vi.fn().mockResolvedValue([
-      {
-        type: TaskLinkType.SCHEDULE,
-        sourceTaskId: "tsk_123",
-        targetTaskId: RELEASED_RUN_ID,
-        targetTask: {
-          id: RELEASED_RUN_ID,
-          status: TaskStatus.RUNNING,
-          archivedAt: null,
-        },
-      },
-    ]);
-    const findFirstOrThrowMock = vi.fn().mockResolvedValue(archivedTask);
-
-    prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({
-        task: {
-          updateMany: updateManyMock,
-          findFirstOrThrow: findFirstOrThrowMock,
-        },
-        taskLink: {
-          findMany: taskLinkFindManyMock,
-        },
-      });
-    });
-
-    requireTaskArchiveAccessMock.mockResolvedValue({
-      id: "tsk_123",
-      ownerId: "user_123",
-      status: TaskStatus.DRAFT,
-      workspaceId: "22222222-2222-7222-8222-222222222222",
-      metadata: null,
-      nextRunAt: null,
+      runAt: new Date("2026-09-10T09:00:00.000Z"),
+      scheduleId: "33333333-3333-7333-8333-333333333333",
     });
 
     const app = createApp();
@@ -552,21 +488,10 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(200);
-    // The running released run is never looked up, and the single write is
-    // pinned to the template id — no `in` list, no released Task id.
-    expect(taskLinkFindManyMock).not.toHaveBeenCalled();
-    expect(updateManyMock).toHaveBeenCalledTimes(1);
     expect(updateManyMock).toHaveBeenCalledWith({
-      where: {
-        id: "tsk_123",
-        archivedAt: null,
-        status: TaskStatus.DRAFT,
-      },
+      where: { id: "tsk_123", archivedAt: null, status: TaskStatus.QUEUED },
       data: { archivedAt: expect.any(Date) },
     });
-    expect(JSON.stringify(updateManyMock.mock.calls)).not.toContain(
-      RELEASED_RUN_ID,
-    );
   });
 
   it("returns 403 for coworker context even when X-Context-User-Id matches owner", async () => {
@@ -582,6 +507,6 @@ describe("DELETE /tasks/{id}", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(requireTaskArchiveAccessMock).not.toHaveBeenCalled();
+    expect(requireTaskWriteAccessMock).not.toHaveBeenCalled();
   });
 });

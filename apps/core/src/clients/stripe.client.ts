@@ -273,6 +273,13 @@ export const stripeClient = {
     return await stripe.customers.del(customerId, undefined, requestOptions);
   },
 
+  async retrieveCustomer(
+    customerId: string,
+    requestOptions?: Stripe.RequestOptions,
+  ): Promise<Stripe.Customer | Stripe.DeletedCustomer> {
+    return await stripe.customers.retrieve(customerId, {}, requestOptions);
+  },
+
   async retrieveCustomerBillingDetails(
     customerId: string,
     requestOptions?: Stripe.RequestOptions,

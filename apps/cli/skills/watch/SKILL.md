@@ -11,12 +11,14 @@ Use one watcher for one task or job. Keep the resource ID and the IDs of events 
 
 ## Poll
 
+[VERIFIED: `apps/cli/src/cli/index.ts`, `apps/cli/src/api/http-client.ts`; Core `apps/core/src/middleware/auth.ts:617`] Keep the selected API target and Workspace from Task creation. For organization Tasks, use `--organization-slug WORKSPACE_SLUG` on every Task read and comment below. Without it, Core uses the credential's default context; OAuth defaults to the personal Workspace. Omit the flag only when that default context is intended. The flag does not change the network and is rejected on `jobs` commands.
+
 For a task, poll its state, events, and linked jobs:
 
 ```bash
-sokosumi tasks get TASK_ID --json
-sokosumi tasks events TASK_ID --json
-sokosumi tasks jobs TASK_ID --json
+sokosumi tasks get TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi tasks events TASK_ID --organization-slug WORKSPACE_SLUG --json
+sokosumi tasks jobs TASK_ID --organization-slug WORKSPACE_SLUG --json
 ```
 
 For each linked job, poll details:
@@ -34,7 +36,7 @@ When the task status is `INPUT_REQUIRED` and its latest task event contains a cl
 Submit the human's answer once:
 
 ```bash
-sokosumi tasks comment TASK_ID --comment "TEXT" --json
+sokosumi tasks comment TASK_ID --organization-slug WORKSPACE_SLUG --comment "TEXT" --json
 ```
 
 Do not pass `--status` to answer the request. Do not move the task to `READY` or `RUNNING`; the assigned coworker controls the next task transition. Poll the task again after submission.
@@ -55,8 +57,12 @@ Use `tasks comment` only for task-level `INPUT_REQUIRED`. Use `jobs input` only 
 
 ## Feedback and completion
 
-Surface new task comments, task status events, job messages, and job status changes. Ask the human before sending a reply, changing status, retrying, or switching coworkers. Use `sokosumi tasks comment TASK_ID --comment "TEXT" --json` only when the user asks for feedback to be sent.
+Surface new task comments, task status events, job messages, and job status changes. Ask the human before sending a reply, changing status, retrying, or switching coworkers. Use the Task comment command above only when the user asks for feedback to be sent. Preserve its Workspace slug.
 
 Pause when the task status is `INPUT_REQUIRED` or a job reports a pending input request. Resume after the matching human answer is submitted. Stop only when the task or job reports success, failure, or cancellation. Fetch final details and report status, IDs, errors, output files, links, and the next user action. A pending input request never means the work is complete.
 
-Credentials come from `SOKOSUMI_API_KEY` or `SOKOSUMI_AUTH_TOKEN` in the environment. Never put them in commands, files, logs, or feedback. `watch` is a skill, not a `sokosumi watch` command.
+[VERIFIED: `apps/cli/src/auth/auth-manager.ts`, `apps/cli/src/cli/auth-whoami.ts`] Use stored CLI credentials or operator-configured environment or stdin input. Run `auth whoami --json` on the selected target before setup writes. Before switching browser accounts, clear `SOKOSUMI_API_KEY` and `SOKOSUMI_AUTH_TOKEN`; they override saved OAuth credentials. Switch the browser account, run `auth login`, then verify identity. Never request credentials in chat or put them in arguments, plaintext files, logs, or Task content.
+
+Use existing user authorization for writes. If it does not cover the intended change, ask before that change. Inspect state before repeating an uncertain write.
+
+`watch` is a Skill, not a `sokosumi watch` command.

@@ -1,10 +1,17 @@
 // Centralized cron parsing and helpers for schedules
 import { CronExpressionParser as cronParser } from "cron-parser";
+import type { useFormatter } from "next-intl";
 
 import {
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
 } from "@/lib/schedules/zoned-datetime";
+
+/** next-intl `useFormatter()` / `getFormatter()` — enough to format schedule labels. */
+export type DateTimeFormatter = Pick<
+  ReturnType<typeof useFormatter>,
+  "dateTime"
+>;
 
 export const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
@@ -133,15 +140,13 @@ function pad2(value: number): string {
 export function formatTime(
   hour: number,
   minute: number,
+  formatter: DateTimeFormatter,
   timezone?: string,
 ): string {
   if (!timezone) {
     const base = new Date();
     base.setHours(hour, minute, 0, 0);
-    return new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-    }).format(base);
+    return formatter.dateTime(base, "time");
   }
 
   const todayInTimezone = utcToDateTimeLocalInTimezone(
@@ -156,14 +161,14 @@ export function formatTime(
     return `${hour}:${pad2(minute)}`;
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-    timeZone: timezone,
-  }).format(instant);
+  return formatter.dateTime(instant, "time", { timeZone: timezone });
 }
 
-export function formatWeekday(dow: Dow, timezone?: string): string {
+export function formatWeekday(
+  dow: Dow,
+  formatter: DateTimeFormatter,
+  timezone?: string,
+): string {
   const dowIndex = DOW.indexOf(dow);
   const calendarDay = 4 + dowIndex;
   const dateIso = `2026-01-${pad2(calendarDay)}`;
@@ -177,10 +182,10 @@ export function formatWeekday(dow: Dow, timezone?: string): string {
     date = new Date(2026, 0, calendarDay, 12, 0, 0);
   }
 
-  return new Intl.DateTimeFormat(undefined, {
+  return formatter.dateTime(date, {
     weekday: "long",
     ...(timezone ? { timeZone: timezone } : {}),
-  }).format(date);
+  });
 }
 
 function getDaysInMonth(year: number, monthIndex: number): number {

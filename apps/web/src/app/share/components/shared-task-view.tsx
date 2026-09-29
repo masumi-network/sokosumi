@@ -6,13 +6,13 @@ import {
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getLocale, getTranslations } from "next-intl/server";
-
 import { APP_MAIN_MOBILE_PT_CLASS } from "@/app/components/app-shell-safe-area";
 import { TaskFiles } from "@/app/tasks/components/task-files";
 import {
   getTaskStatusBorderColorClass,
   getTaskStatusDotColorClass,
   TaskStatusBadge,
+  TaskStatusInline,
 } from "@/app/tasks/components/task-status-badge";
 import {
   TASK_DETAIL_GRID_CLASS,
@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { formatTimeAgo } from "@/lib/utils/datetime";
 import { formatMentionsAsMarkdownLinks } from "@/lib/utils/mention-parser";
+import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 import { getInitials } from "@/lib/utils/text";
 import { getFileNameFromUrl } from "@/lib/utils/url";
 
@@ -133,7 +134,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             className={cn("space-y-4 md:pt-4", APP_MAIN_MOBILE_PT_CLASS)}
           >
             <div className="flex flex-wrap items-center gap-3">
-              <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
+              <span className="text-muted-foreground text-xs font-medium">
                 {tTaskShare("eyebrow")}
               </span>
               <TaskStatusBadge
@@ -142,7 +143,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
               />
             </div>
             <h1 className="max-w-3xl text-3xl font-light tracking-tight md:text-4xl">
-              {task.name}
+              {stripInlineMarkdown(task.name)}
             </h1>
             {publicDescription ? (
               <ExpandableMarkdown
@@ -164,11 +165,17 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
         </aside>
 
         <div className={cn(TASK_DETAIL_MAIN_CLASS, "pb-20")}>
-          <TaskFiles title={tTaskDetail("files")} files={task.files ?? []} />
+          <TaskFiles
+            taskId={task.id}
+            title={tTaskDetail("files")}
+            files={task.files ?? []}
+            expandLabel={tTaskDetail("expand")}
+            collapseLabel={tTaskDetail("collapse")}
+          />
 
           {task.jobs.length > 0 ? (
             <div>
-              <h2 className="text-muted-foreground mb-4 text-xs font-medium tracking-[0.24em] uppercase">
+              <h2 className="text-muted-foreground mb-4 text-xs font-medium">
                 {tTaskDetail("jobs")}
               </h2>
               <ul className="space-y-3">
@@ -360,13 +367,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                               </span>
                               {event.status ? (
                                 <>
-                                  <TaskStatusBadge
+                                  <TaskStatusInline
                                     status={event.status}
                                     label={statusLabels[event.status]}
-                                    // The share page carries the same history
-                                    // as the activity feed: a status someone
-                                    // set hours ago, since superseded.
-                                    live={false}
                                   />
                                   <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
                                     <span>{originFromLabel}</span>

@@ -107,9 +107,13 @@ describe("useOAuthClients", () => {
       scope: "openid",
       grant_types: ["authorization_code"],
     });
-    expect(createResult!.success).toBe(true);
-    expect(createResult!.data?.clientId).toBe("client_2");
-    expect(createResult!.data?.clientSecret).toBe("secret");
+    expect(createResult!).toEqual({
+      ok: true,
+      value: {
+        clientId: "client_2",
+        clientSecret: "secret",
+      },
+    });
     // List refresh is fire-and-forget after credentials are returned.
     await waitFor(() => {
       expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
@@ -312,9 +316,13 @@ describe("useOAuthClients", () => {
       application_type: "native",
       token_endpoint_auth_method: "none",
     });
-    expect(createResult!.success).toBe(true);
-    expect(createResult!.data?.clientId).toBe("client_public");
-    expect(createResult!.data?.clientSecret).toBeNull();
+    expect(createResult!).toEqual({
+      ok: true,
+      value: {
+        clientId: "client_public",
+        clientSecret: null,
+      },
+    });
   });
 
   it("omits token_endpoint_auth_method for confidential clients", async () => {
@@ -630,9 +638,13 @@ describe("useOAuthClients", () => {
     expect(rotateClientSecretMock).toHaveBeenCalledWith({
       client_id: "client_1",
     });
-    expect(rotateResult!.success).toBe(true);
-    expect(rotateResult!.data?.clientId).toBe("client_1");
-    expect(rotateResult!.data?.clientSecret).toBe("new-secret");
+    expect(rotateResult!).toEqual({
+      ok: true,
+      value: {
+        clientId: "client_1",
+        clientSecret: "new-secret",
+      },
+    });
     await waitFor(() => {
       expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
     });

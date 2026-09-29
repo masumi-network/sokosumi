@@ -26,6 +26,8 @@ export function makeRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     slug: "general",
     kind: "channel",
     isSelfDirect: false,
+    isGroupDirect: false,
+    groupName: null,
     directKey: null,
     topic: null,
     discoverability: "public",

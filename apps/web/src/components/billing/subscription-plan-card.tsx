@@ -78,7 +78,7 @@ export function SubscriptionPlanCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        <p className="text-2xl font-medium md:text-3xl">
+        <p className="text-2xl font-medium md:text-3xl tabular-nums tracking-tight">
           {formatPlanPrice({
             formatCurrency: (amount) =>
               formatter.number(amount, {

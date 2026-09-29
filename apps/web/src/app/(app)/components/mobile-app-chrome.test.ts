@@ -15,6 +15,7 @@ describe("mobile-app-chrome", () => {
       expect(isMainAppMobileChromePathname("/agents")).toBe(true);
       expect(isMainAppMobileChromePathname("/history")).toBe(true);
       expect(isMainAppMobileChromePathname("/calendar")).toBe(true);
+      expect(isMainAppMobileChromePathname("/schedules")).toBe(true);
       expect(isMainAppMobileChromePathname("/personal-assistant")).toBe(true);
       expect(isMainAppMobileChromePathname("/admin")).toBe(true);
       expect(isMainAppMobileChromePathname("/notifications")).toBe(true);
@@ -34,7 +35,7 @@ describe("mobile-app-chrome", () => {
       expect(resolveMobileAppBackTarget("/history")).toBeNull();
     });
 
-    it("sends agents, drive and calendar roots back to home", () => {
+    it("sends agents, drive, calendar and schedules roots back to home", () => {
       expect(resolveMobileAppBackTarget("/agents")).toEqual({
         href: "/",
         labelKey: "back",
@@ -45,6 +46,17 @@ describe("mobile-app-chrome", () => {
       });
       expect(resolveMobileAppBackTarget("/calendar")).toEqual({
         href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/schedules")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+    });
+
+    it("sends a schedule back to the Schedules list", () => {
+      expect(resolveMobileAppBackTarget("/schedules/schedule-1")).toEqual({
+        href: "/schedules",
         labelKey: "back",
       });
     });

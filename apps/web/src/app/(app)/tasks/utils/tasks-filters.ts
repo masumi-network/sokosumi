@@ -1,4 +1,3 @@
-import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
@@ -352,24 +351,6 @@ export function applyProjectIdSearchParam(
   return nextSearchParams;
 }
 
-export function mergeProjectFilterOptions(
-  primary: readonly ProjectFilterOption[],
-  extra: readonly ProjectFilterOption[],
-): ProjectFilterOption[] {
-  const seen = new Set<string>();
-  const next: ProjectFilterOption[] = [];
-
-  for (const project of [...primary, ...extra]) {
-    if (seen.has(project.id)) {
-      continue;
-    }
-    seen.add(project.id);
-    next.push(project);
-  }
-
-  return next;
-}
-
 export function getTasksFiltersResetKey(
   filters: TasksFilters,
   activeOrganizationId: string | null,
@@ -411,49 +392,4 @@ export function hasActiveTasksFilters(
   }
 
   return hasNonScopeFilter;
-}
-
-export function isTaskOwnerEditable(
-  task: Pick<TaskWithCoworker, "ownerId">,
-  sessionUserId: string | null | undefined,
-  filters: TasksFilters,
-  activeOrganizationId: string | null,
-): boolean {
-  const isWorkspaceScope =
-    activeOrganizationId !== null && filters.scope === "workspace";
-
-  if (!isWorkspaceScope) {
-    return true;
-  }
-
-  return sessionUserId != null && task.ownerId === sessionUserId;
-}
-
-/**
- * Drag permissions must stay consistent with both the URL (route) and the last
- * server render (initial). When those disagree during a filter transition,
- * `isTaskOwnerEditable` can be wrong for stale list rows (e.g. workspace rows
- * while the URL already says owned). Require both to allow drag.
- */
-export function isTaskDraggableForViewFilters(
-  task: Pick<TaskWithCoworker, "ownerId">,
-  sessionUserId: string | null | undefined,
-  routeFilters: TasksFilters,
-  initialFilters: TasksFilters,
-  activeOrganizationId: string | null,
-): boolean {
-  return (
-    isTaskOwnerEditable(
-      task,
-      sessionUserId,
-      routeFilters,
-      activeOrganizationId,
-    ) &&
-    isTaskOwnerEditable(
-      task,
-      sessionUserId,
-      initialFilters,
-      activeOrganizationId,
-    )
-  );
 }

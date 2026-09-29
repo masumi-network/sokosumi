@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { Prisma } from "@sokosumi/database";
 import { extractFileLikeLinks, extractHttpLinks } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
@@ -127,7 +128,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           data: {
             deletedAt: new Date(),
             content: "",
-            metadata: null,
+            // Prisma needs `DbNull` (not `null`) to write SQL NULL into a
+            // nullable Json column; plain `null` is rejected at query time.
+            metadata: Prisma.DbNull,
           },
         });
         const newlySoftDeleted = softDelete.count === 1;

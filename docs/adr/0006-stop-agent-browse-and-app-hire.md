@@ -1,8 +1,8 @@
-# Ban app marketplace Hire; Jobs live at `/jobs/{jobId}`
+# Ban app marketplace Hire; Jobs live at `/agents/{agentId}/jobs/{jobId}`
 
 - Status: Partially superseded by [ADR-0024](./0024-restore-agent-catalog-browse-without-app-hire.md). The app Hire ban remains in force; only the “stop agent browse” decision is superseded.
 
-The app no longer offers **Hire**. Users must not start a new Job from gallery or Agent detail. **Core Hire APIs stay.** **Soko Bot** still Hires via orchestrator `POST /v1/agents/{id}/jobs`. **Coworker** still Hires via `POST /v1/tasks/{id}/jobs`. Task UI assigns a Coworker; it does not Hire an Agent. Existing Jobs stay. Canonical Job URL is `/jobs/{jobId}` so Agent detail can be deleted later without moving Jobs again.
+The app no longer offers **Hire**. Users must not start a new Job from gallery or Agent detail. **Core Hire APIs stay.** **Soko Bot** still Hires via orchestrator `POST /v1/agents/{id}/jobs`. **Coworker** still Hires via `POST /v1/tasks/{id}/jobs`. Task UI assigns a Coworker; it does not Hire an Agent. Existing Jobs stay. Live Job URL is `/agents/{agentId}/jobs/{jobId}` (Core job reads stay `GET /v1/jobs/{id}`). There is no app `/jobs/{jobId}` route.
 
 **Why not delete Agent detail now:** Jobs and “your Jobs for this Agent” still hang off `/agents/{id}`. Removal is a later decision.
 

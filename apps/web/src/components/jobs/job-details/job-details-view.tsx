@@ -104,7 +104,7 @@ export default function JobDetailsView({
             {publicJobLayout ? (
               <>
                 <div className="flex flex-wrap items-center gap-3">
-                  <span className="text-muted-foreground text-xs font-medium tracking-[0.24em] uppercase">
+                  <span className="text-muted-foreground text-xs font-medium">
                     {t("eyebrow")}
                   </span>
                   <JobStatusBadge status={job.status} />
@@ -360,7 +360,7 @@ function CollapsedEventsButton({
     <button
       type="button"
       onClick={onExpand}
-      className="text-muted-foreground hover:text-muted-foreground mx-3 my-4 flex w-[calc(100%-1.5rem)] cursor-pointer items-center justify-between gap-2 py-4 pb-2 transition-colors hover:underline"
+      className="text-muted-foreground press hover:text-muted-foreground mx-3 my-4 flex w-[calc(100%-1.5rem)] cursor-pointer items-center justify-between gap-2 py-4 pb-2 transition-colors hover:underline"
     >
       <div className="flex shrink-0 items-center gap-2">
         <List className="size-4" />

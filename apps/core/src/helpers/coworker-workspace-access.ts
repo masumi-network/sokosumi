@@ -588,6 +588,7 @@ export async function notifyWorkspaceApproversOfPendingCoworkerAccess(
         referenceId: params.accessId,
         eventId: params.accessId,
         messageKey: COWORKER_ACCESS_PENDING_MESSAGE_KEY,
+        workspaceId: params.workspaceId,
         messageParams: {
           coworkerName: coworker?.name ?? params.coworkerId,
           coworkerSlug: coworker?.slug ?? null,

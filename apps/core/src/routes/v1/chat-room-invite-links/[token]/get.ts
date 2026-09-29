@@ -1,5 +1,4 @@
 import { createRoute, type OpenAPIHono, z } from "@hono/zod-openapi";
-import { chatRoomGuestInviteLinkRepository } from "@sokosumi/database/repositories";
 import { evaluateInviteLinkStatus } from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -37,10 +36,9 @@ const route = createRoute({
 export default function mount(app: OpenAPIHono) {
   app.openapi(route, async (c) => {
     const { token } = c.req.valid("param");
-    const link = await chatRoomGuestInviteLinkRepository.getInviteLinkByToken(
-      token,
-      prisma,
-    );
+    const link = await prisma.chatRoomGuestInviteLink.findUnique({
+      where: { token },
+    });
     const status = evaluateInviteLinkStatus(link, new Date());
 
     if (status !== "valid" || !link) {

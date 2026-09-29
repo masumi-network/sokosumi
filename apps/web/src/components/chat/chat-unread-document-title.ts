@@ -1,7 +1,12 @@
-interface ChatRoomUnreadAttention {
+import {
+  type RoomAttentionCounts,
+  resolveRoomAttention,
+} from "./room-attention";
+
+interface ChatRoomUnreadAttention
+  extends Omit<RoomAttentionCounts, "unreadMentionCount"> {
   id: string;
-  unreadCount: number;
-  markedUnread?: boolean;
+  unreadMentionCount?: number;
   mutedAt?: string | Date | null;
 }
 
@@ -18,11 +23,16 @@ export function countChatRoomsWithUnreadAttention(
   let total = 0;
 
   for (const room of rooms) {
-    if (room.mutedAt != null) {
-      continue;
-    }
-
-    if (room.unreadCount > 0 || room.markedUnread === true) {
+    // Asked of the resolver rather than restated, so the title cannot count a
+    // room its own row leaves quiet.
+    const { bold } = resolveRoomAttention({
+      unreadCount: room.unreadCount,
+      channelUnreadCount: room.channelUnreadCount,
+      unreadMentionCount: room.unreadMentionCount ?? 0,
+      markedUnread: room.markedUnread,
+      isMuted: room.mutedAt != null,
+    });
+    if (bold) {
       total += 1;
     }
   }

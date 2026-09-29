@@ -62,7 +62,7 @@ export function NotificationReadToggle({
               ? t("markUnread", { message: notificationMessage })
               : t("markRead", { message: notificationMessage })
           }
-          className="text-muted-foreground size-7 shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 [@media(hover:hover)]:group-focus-within/row:opacity-100"
+          className="text-muted-foreground size-8 shrink-0 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover/row:opacity-100 [@media(hover:hover)]:group-focus-within/row:opacity-100"
           // A click must not leave focus here. The row shows this control
           // while focus is inside it, so a control that kept focus stayed on
           // screen after the pointer left. Tab and Enter still reach it.
