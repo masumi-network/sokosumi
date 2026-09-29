@@ -48,7 +48,7 @@ Optional, per network:
   web search itself, which Perplexity runs through the Gateway, carries only
   the search terms and keeps no prompt training but not zero retention, which
   Perplexity does not offer. The search terms are written by the model and can
-  quote the owner's request. EU-pinned versions (v19, on
+  quote the owner's request. EU-pinned versions (v20, on
   Gemini 3.8) stay available, and the lab judge and preview evaluation runs
   stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
 
