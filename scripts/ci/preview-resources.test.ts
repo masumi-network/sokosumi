@@ -589,6 +589,73 @@ test("resolvePreviewPullNumber looks up the workflow run then commit pulls", asy
   );
 });
 
+test("resolvePreviewPullNumber resolves an unmerged close from display_title bound to the head SHA", async () => {
+  // Real GitHub: closed runs list no pulls, and commits/{sha}/pulls omits
+  // PRs closed without merging. Only the signal run-name identifies the PR.
+  const repo = "acme/sokosumi";
+  const calls: string[] = [];
+  const fetchImpl: typeof fetch = async (input) => {
+    const url = String(input);
+    calls.push(url);
+    if (url.endsWith("/pulls/7")) {
+      return Response.json({
+        number: 7,
+        head: { sha: "abc123", repo: { full_name: repo } },
+      });
+    }
+    throw new Error(`unexpected ${url}`);
+  };
+  assert.equal(
+    await resolvePreviewPullNumber({
+      event: {
+        workflow_run: {
+          id: 99,
+          head_sha: "abc123",
+          display_title: "7",
+          pull_requests: [],
+        },
+      },
+      githubToken: "tok",
+      repoOwner: "acme",
+      repoName: "sokosumi",
+      env: { PREVIEW_PR_NUMBER: "" },
+      fetchImpl,
+    }),
+    7,
+  );
+  assert.deepEqual(calls, [`https://api.github.com/repos/${repo}/pulls/7`]);
+});
+
+test("resolvePreviewPullNumber ignores a display_title PR with another head or repo", async () => {
+  const repo = "acme/sokosumi";
+  for (const head of [
+    { sha: "def456", repo: { full_name: repo } },
+    { sha: "abc123", repo: { full_name: "evil/fork" } },
+  ]) {
+    await assert.rejects(
+      resolvePreviewPullNumber({
+        event: {
+          workflow_run: { id: 99, head_sha: "abc123", display_title: "7" },
+        },
+        githubToken: "tok",
+        repoOwner: "acme",
+        repoName: "sokosumi",
+        env: {},
+        fetchImpl: async (input) => {
+          const url = String(input);
+          if (url.endsWith("/pulls/7")) return Response.json({ head });
+          if (url.endsWith("/actions/runs/99")) {
+            return Response.json({ pull_requests: [] });
+          }
+          if (url.endsWith("/commits/abc123/pulls")) return Response.json([]);
+          throw new Error(`unexpected ${url}`);
+        },
+      }),
+      /A valid PR number is required/,
+    );
+  }
+});
+
 test("resolvePreviewPullNumber fails when commit pulls are not a unique head SHA match", async () => {
   const repo = "acme/sokosumi";
   const options = {

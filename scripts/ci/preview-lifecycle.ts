@@ -32,14 +32,19 @@ interface WorkflowRunEvent {
   workflow_run?: {
     id?: number | string;
     head_sha?: string;
+    display_title?: string;
     pull_requests?: { number?: number }[];
   };
 }
 
 /**
  * PR number for preview close/renew. workflow_run.pull_requests is often
- * empty, so fall back to the Actions run, then the unique same-repo
- * commit-associated pull whose head SHA matches the signal. First-match
+ * empty (always for closed PRs), so fall back to the signal run-name
+ * (display_title), then the Actions run, then the unique same-repo
+ * commit-associated pull whose head SHA matches the signal. display_title
+ * comes from head YAML, so it only counts when that PR is same-repo and its
+ * head is the signal's head SHA. commits/{sha}/pulls omits PRs closed
+ * without merging, so it cannot serve close on its own. First-match
  * is unsafe: that API lists PRs that contain the commit, and the later
  * open/closed re-check still deletes if the wrong PR is also closed.
  */
@@ -70,6 +75,18 @@ export async function resolvePreviewPullNumber(options: {
   const repo = `${options.repoOwner}/${options.repoName}`;
   const runId = env.WORKFLOW_RUN_ID || options.event.workflow_run?.id;
   const headSha = env.HEAD_SHA || options.event.workflow_run?.head_sha;
+
+  const fromTitle = Number(options.event.workflow_run?.display_title);
+  if (headSha && Number.isSafeInteger(fromTitle) && fromTitle > 0) {
+    const pull = await githubJson(
+      fetchImpl,
+      options.githubToken,
+      `https://api.github.com/repos/${repo}/pulls/${fromTitle}`,
+    );
+    if (pull?.head?.repo?.full_name === repo && pull?.head?.sha === headSha) {
+      return fromTitle;
+    }
+  }
 
   if (runId) {
     const run = await githubJson(
