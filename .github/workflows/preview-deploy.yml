@@ -3,9 +3,15 @@ name: Preview deploy
 on:
   issue_comment:
     types: [created]
-  # Renewal and cleanup run trusted default-branch code, including docs-only PRs.
-  pull_request_target:
-    types: [closed, synchronize]
+  # Close and renew listen to unprivileged pull_request signals. workflow_run
+  # always loads THIS file from the default branch. Do not switch back to
+  # pull_request_target: that event loads YAML from the PR base, so a
+  # same-repo branch that replaces this file can run with VERCEL_TOKEN and
+  # NEON_API_KEY. `/deploy` and `/reset-db` stay on issue_comment (already
+  # default-branch YAML).
+  workflow_run:
+    workflows: ["PR closed", "PR synchronize"]
+    types: [completed]
   schedule:
     - cron: "17 3 * * *"
   workflow_dispatch:
@@ -122,17 +128,24 @@ jobs:
 
   closed:
     name: Closed preview
+    # workflow_run is default-branch YAML. Skip failed/cancelled signals and
+    # fork heads. The script re-checks the PR is closed and same-repo.
     if: >
-      github.event_name == 'pull_request_target' &&
-      github.event.action == 'closed' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.name == 'PR closed' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    # Closed runs have an empty pull_requests array. display_title is the
+    # signal run-name (the PR number) so this stays on the deploy/reset queue.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
       cancel-in-progress: false
       queue: max
     environment: preview-database
     permissions:
       contents: read
+      actions: read
       pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -155,21 +168,33 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
           NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node scripts/ci/preview-lifecycle.ts
 
   renew:
     name: Renew preview expiry
+    # Known gap: pull_request workflows do not run while a PR has merge
+    # conflicts, so PR synchronize never fires and pushes to a conflicted PR
+    # do not renew. Its preview DB expires after PREVIEW_TTL_MS (24h); resolve
+    # the conflict and push, or comment /deploy, to recreate it.
     if: >
-      github.event_name == 'pull_request_target' &&
-      github.event.action == 'synchronize' &&
-      github.event.pull_request.head.repo.full_name == github.repository
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.name == 'PR synchronize' &&
+      github.event.workflow_run.head_repository.full_name == github.repository
+    # Same queue key as closed. pull_requests[0] when present, else the
+    # signal run-name via display_title. workflow_run.id is not a PR key.
     concurrency:
-      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number }}
+      group: ${{ github.workflow }}-${{ github.event.issue.number || github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || github.event.workflow_run.display_title || github.event.workflow_run.id }}
       cancel-in-progress: false
       queue: max
     environment: preview-database
     permissions:
       contents: read
+      actions: read
       pull-requests: read
     runs-on: ubuntu-latest
     timeout-minutes: 40
@@ -192,6 +217,9 @@ jobs:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
           NEON_PREVIEW_PROJECT_ID_MAINNET: ${{ vars.NEON_PREVIEW_PROJECT_ID_MAINNET }}
           NEON_PREVIEW_PROJECT_ID_PREPROD: ${{ vars.NEON_PREVIEW_PROJECT_ID_PREPROD }}
+          PREVIEW_PR_NUMBER: ${{ github.event.workflow_run.pull_requests[0].number }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
         run: node scripts/ci/preview-lifecycle.ts renew
 
   inventory:
