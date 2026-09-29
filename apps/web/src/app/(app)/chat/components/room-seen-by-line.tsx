@@ -195,8 +195,8 @@ interface RoomSeenByLineProps {
  * the same faces, cap and order as the header stack, so the two surfaces never
  * disagree.
  *
- * Quiet and named on demand. Small, unringed faces in slightly muted colour
- * read as chrome rather than as the end of the sentence; clicking them answers the
+ * Quiet at rest and named on demand. Grey, unringed faces in the corner read
+ * as chrome rather than as the end of the sentence; clicking them answers the
  * question the count only gestures at, without sending anyone to the Members
  * panel to get it.
  *
@@ -217,11 +217,14 @@ export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
+          // `group/seen-by`: the faces go colour on hover, focus and open of
+          // this trigger alone, not of the message row around it.
+          //
           // 16px of faces is not a touch target, so the pseudo-element takes
           // it to 44. Out here in the corner it overlaps no words, which is
           // exactly what it could not have done on the last line of a
           // paragraph. Pointers do not need it, so it is gone above md.
-          className="relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden"
+          className="group/seen-by relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden"
           aria-label={summary}
           title={summary}
           data-testid="room-seen-by-line"
