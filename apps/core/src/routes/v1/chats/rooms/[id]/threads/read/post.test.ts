@@ -21,6 +21,12 @@ const {
   memberFindUniqueMock,
   queryRawUnsafeMock,
   threadReadUpsertMock,
+  threadReadFindManyMock,
+  messageFindManyMock,
+  notificationFindManyMock,
+  notificationUpdateManyAndReturnMock,
+  publishClearedNotificationsMock,
+  cancelNotificationEmailsMock,
   prismaTransactionMock,
 } = vi.hoisted(() => ({
   roomFindFirstMock: vi.fn(),
@@ -28,6 +34,12 @@ const {
   memberFindUniqueMock: vi.fn(),
   queryRawUnsafeMock: vi.fn(),
   threadReadUpsertMock: vi.fn(),
+  threadReadFindManyMock: vi.fn(),
+  messageFindManyMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
+  notificationUpdateManyAndReturnMock: vi.fn(),
+  publishClearedNotificationsMock: vi.fn(),
+  cancelNotificationEmailsMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
 }));
 
@@ -50,6 +62,25 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("@/helpers/notifications", () => ({
+  publishClearedNotifications: (...args: unknown[]) =>
+    publishClearedNotificationsMock(...args),
+}));
+
+vi.mock("@/helpers/notification-email-dispatch", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/helpers/notification-email-dispatch")
+  >()),
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void Promise.resolve(promise).catch(() => {});
+  },
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const PARENT_ID_1 = "550e8400-e29b-41d4-a716-446655440001";
 const PARENT_ID_2 = "550e8400-e29b-41d4-a716-446655440002";
@@ -62,7 +93,17 @@ const tx = {
   organization: { findUnique: organizationFindUniqueMock },
   member: { findUnique: memberFindUniqueMock },
   $queryRawUnsafe: queryRawUnsafeMock,
-  chatRoomThreadReadState: { upsert: threadReadUpsertMock },
+  chatRoomThreadReadState: {
+    upsert: threadReadUpsertMock,
+    findMany: threadReadFindManyMock,
+  },
+  chatRoomMessage: { findMany: messageFindManyMock },
+  chatRoomUserMention: { findMany: vi.fn().mockResolvedValue([]) },
+  chatRoomMention: { findMany: vi.fn().mockResolvedValue([]) },
+  notification: {
+    findMany: notificationFindManyMock,
+    updateManyAndReturn: notificationUpdateManyAndReturnMock,
+  },
 };
 
 function createApp(authContext: AuthVariables["authContext"]) {
@@ -129,6 +170,33 @@ function unreadAggregate(parentMessageId: string) {
   };
 }
 
+/**
+ * Answers the Thread-reply read with `replies`, and says the reader wrote
+ * every parent, so each Thread counts as Participated.
+ */
+function answerThreadReplies(
+  replies: Array<{
+    id: string;
+    roomId: string;
+    parentMessageId: string;
+    createdAt: Date;
+  }>,
+) {
+  messageFindManyMock.mockImplementation(async ({ where }) => {
+    if (where.parentMessageId?.not === null) {
+      return replies;
+    }
+    if (where.id) {
+      // The reader wrote every parent: a Thread they Participate in.
+      return replies.map((reply) => ({
+        id: reply.parentMessageId,
+        senderUserId: USER_ID,
+      }));
+    }
+    return [];
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
@@ -136,6 +204,10 @@ beforeEach(() => {
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   threadReadUpsertMock.mockResolvedValue({});
+  threadReadFindManyMock.mockResolvedValue([]);
+  messageFindManyMock.mockResolvedValue([]);
+  notificationFindManyMock.mockResolvedValue([]);
+  notificationUpdateManyAndReturnMock.mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms/{id}/threads/read", () => {
@@ -187,6 +259,55 @@ describe("POST /chats/rooms/{id}/threads/read", () => {
 
     const body = await response.json();
     expect(body.data).toEqual({ markedCount: 2 });
+  });
+
+  /**
+   * SOK-1217. The Looks are what read these Threads, so they clear the
+   * Threads' rows. A Thread the Looks skipped keeps its rows.
+   */
+  it("clears the rows for the replies the Looks cover", async () => {
+    const replyAt = new Date("2026-07-02T11:00:00.000Z");
+    queryRawUnsafeMock.mockResolvedValue([unreadAggregate(PARENT_ID_1)]);
+    notificationFindManyMock.mockResolvedValue([
+      { id: "n-looked", referenceId: ROOM_ID, eventId: "msg-1" },
+      { id: "n-skipped", referenceId: ROOM_ID, eventId: "msg-2" },
+    ]);
+    answerThreadReplies([
+      {
+        id: "msg-1",
+        roomId: ROOM_ID,
+        parentMessageId: PARENT_ID_1,
+        createdAt: replyAt,
+      },
+      {
+        id: "msg-2",
+        roomId: ROOM_ID,
+        parentMessageId: PARENT_ID_2,
+        createdAt: replyAt,
+      },
+    ]);
+    threadReadFindManyMock.mockResolvedValue([
+      {
+        parentMessageId: PARENT_ID_1,
+        lastReadAt: new Date("2026-07-02T12:00:00.000Z"),
+      },
+    ]);
+    const cleared = [{ id: "n-looked", emailId: null, emailScheduledAt: null }];
+    notificationUpdateManyAndReturnMock.mockResolvedValue(cleared);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["n-looked"] }, userId: USER_ID, isRead: false },
+      }),
+    );
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["n-looked"]);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
   });
 
   it("returns markedCount 0 when no unread threads exist", async () => {
