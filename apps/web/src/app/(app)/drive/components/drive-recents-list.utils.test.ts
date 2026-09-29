@@ -1,7 +1,6 @@
+import type { DriveRecentsItem } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import { buildDriveRecentsDayGroups } from "@/app/drive/components/drive-recents-list.utils";
-import type { DriveRecentsItem } from "@/lib/clients/generated/core";
 
 function driveFile(activityAt: string, pathname: string): DriveRecentsItem {
   return {

@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+import { MemberRole } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
-import { MemberRole } from "@/lib/clients/generated/core";
 
 const getSessionMock = vi.fn();
 const getActiveOrganizationMock = vi.fn();
@@ -16,6 +16,8 @@ const getCreditTopUpPriceCatalogMock = vi.fn();
 const getMyStripeCustomerMock = vi.fn();
 const getOrganizationStripeCustomerMock = vi.fn();
 const getSeatSummaryMock = vi.fn();
+const getWorkspaceAccessMock = vi.fn();
+const personalPlanNoticeMock = vi.fn();
 const balanceBillingPortalLinkMock = vi.fn();
 const creditsSectionMock = vi.fn();
 const billingTabsMock = vi.fn();
@@ -85,6 +87,7 @@ vi.mock("@/lib/services/user.service", () => ({
       getActiveOrganizationMock(...args),
     getMyMemberInOrganization: (...args: unknown[]) =>
       getMyMemberInOrganizationMock(...args),
+    getWorkspaceAccess: (...args: unknown[]) => getWorkspaceAccessMock(...args),
   },
 }));
 
@@ -164,6 +167,13 @@ vi.mock("@/components/billing/organization-subscription-section", () => ({
   },
 }));
 
+vi.mock("@/components/billing/personal-plan-notice", () => ({
+  PersonalPlanNotice: (props: unknown) => {
+    personalPlanNoticeMock(props);
+    return <div data-testid="personal-plan-notice" />;
+  },
+}));
+
 vi.mock("@/components/billing/personal-subscription-section", () => ({
   PersonalSubscriptionSection: (props: unknown) => {
     personalSubscriptionSectionMock(props);
@@ -225,6 +235,7 @@ function mockSelfServeOrganizationBillingPlan(
       isConsumable: false,
       purchasedSeats,
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-03-01T00:00:00.000Z"),
     },
   });
@@ -241,6 +252,7 @@ function mockEnterpriseOrganizationBillingPlan(
       isConsumable,
       purchasedSeats,
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     },
   });
@@ -251,6 +263,8 @@ const coworkersPromise = Promise.resolve([]);
 describe("BillingPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    getWorkspaceAccessMock.mockResolvedValue({ hasPersonalWorkspace: true });
 
     getFeaturedCoworkersMock.mockReturnValue(coworkersPromise);
     getSessionMock.mockResolvedValue({
@@ -438,9 +452,8 @@ describe("BillingPage", () => {
     );
     expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancelAtPeriodEnd: false,
-        currentPeriodEnd: "2026-03-01T00:00:00.000Z",
         returnPath: "/billing?tab=subscription",
+        scheduledCancelDate: null,
         status: null,
       }),
     );
@@ -449,6 +462,69 @@ describe("BillingPage", () => {
         coworkersPromise,
         status: null,
       }),
+    );
+  });
+
+  it("passes a flexible-mode cancel date to the personal subscription section", async () => {
+    const cancelAt = new Date("2026-03-01T00:00:00.000Z");
+    getActiveOrganizationMock.mockResolvedValue(null);
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: {
+        subscription: {
+          cancelAt,
+          cancelAtPeriodEnd: false,
+          periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+          plan: "pro",
+          seats: 1,
+          status: "active",
+        },
+      },
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(personalSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledCancelDate: cancelAt }),
+    );
+  });
+
+  it("passes a flexible-mode cancel date to the organization subscription section", async () => {
+    const cancelAt = new Date("2026-03-01T00:00:00.000Z");
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    getOrganizationBillingPlanMock.mockResolvedValue({
+      data: {
+        mode: "self_serve",
+        plan: "pro",
+        isConsumable: false,
+        purchasedSeats: 2,
+        cancelAtPeriodEnd: false,
+        cancelAt,
+        periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+      },
+    });
+    getSeatSummaryMock.mockResolvedValue({
+      assignedCount: 2,
+      memberCount: 2,
+      paidPlan: null,
+      purchasedSeats: 2,
+      unusedSeats: 0,
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledCancelDate: cancelAt }),
     );
   });
 
@@ -557,13 +633,12 @@ describe("BillingPage", () => {
 
     expect(organizationSubscriptionSectionMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        cancelAtPeriodEnd: false,
         currentPlan: "free",
-        currentPeriodEnd: new Date("2026-03-01T00:00:00.000Z"),
         currentSeats: 5,
         isEnterpriseConsumable: false,
         isEnterpriseContract: false,
         memberCount: 2,
+        scheduledCancelDate: null,
       }),
     );
     expect(subscriptionSuccessModalMock).toHaveBeenCalledWith(
@@ -575,6 +650,104 @@ describe("BillingPage", () => {
     );
     expect(balanceBillingPortalLinkMock).not.toHaveBeenCalled();
     expect(view.queryByTestId("balance-billing-portal-link")).toBeNull();
+  });
+
+  it("shows the personal plan and its cancel date in the organization view", async () => {
+    const cancelAt = new Date("2026-03-01T00:00:00.000Z");
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    mockSelfServeOrganizationBillingPlan("free", 1);
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: {
+        subscription: {
+          cancelAt,
+          cancelAtPeriodEnd: false,
+          plan: "pro",
+          status: "active",
+        },
+      },
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(personalPlanNoticeMock).toHaveBeenCalledWith({
+      canSwitchToPersonal: true,
+      planName: "Plans.pro.name",
+      scheduledCancelDate: cancelAt,
+    });
+  });
+
+  it("shows the personal plan to an organization member without billing access", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.MEMBER,
+    });
+    getWorkspaceAccessMock.mockResolvedValue({ hasPersonalWorkspace: false });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(personalPlanNoticeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        canSwitchToPersonal: false,
+        planName: "Plans.pro.name",
+        scheduledCancelDate: null,
+      }),
+    );
+  });
+
+  it("renders organization billing when the personal plan read fails", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    mockSelfServeOrganizationBillingPlan("free", 1);
+    getMyActiveSubscriptionMock.mockRejectedValue(new Error("timeout"));
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(organizationSubscriptionSectionMock).toHaveBeenCalled();
+    expect(personalPlanNoticeMock).not.toHaveBeenCalled();
+  });
+
+  it("hides the personal plan notice when the personal plan is free", async () => {
+    getActiveOrganizationMock.mockResolvedValue({
+      id: "org-1",
+      name: "Org One",
+      slug: "org-one",
+    });
+    getMyMemberInOrganizationMock.mockResolvedValue({
+      role: MemberRole.OWNER,
+    });
+    mockSelfServeOrganizationBillingPlan("free", 1);
+    getMyActiveSubscriptionMock.mockResolvedValue({
+      data: { subscription: { plan: "free", status: "active" } },
+    });
+
+    const { default: BillingPage } = await import("./page");
+
+    render(await BillingPage({ searchParams: Promise.resolve({}) }));
+
+    expect(personalPlanNoticeMock).not.toHaveBeenCalled();
   });
 
   it("threads the status query param into the organization subscription success modal", async () => {

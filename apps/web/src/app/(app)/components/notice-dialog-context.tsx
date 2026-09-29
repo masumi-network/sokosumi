@@ -1,5 +1,7 @@
 "use client";
 
+import type { Notice } from "@sokosumi/core-client";
+import { NoticeKind } from "@sokosumi/core-client";
 import {
   createContext,
   useCallback,
@@ -8,8 +10,6 @@ import {
   useState,
 } from "react";
 import { getPendingNoticesAction } from "@/lib/actions/notice/action";
-import type { Notice } from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
 
 import { NoticeDialog } from "./notice-dialog";
 

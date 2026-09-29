@@ -1,11 +1,11 @@
 "use client";
 
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -19,7 +19,6 @@ import {
   revokeMyCoworkerAccess,
   revokeOrganizationCoworkerAccess,
 } from "@/lib/actions/workspace-approval-action";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import {
   isWorkspaceApprovalGranted,
   isWorkspaceApprovalPending,

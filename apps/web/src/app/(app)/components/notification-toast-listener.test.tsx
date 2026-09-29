@@ -1,3 +1,4 @@
+import { NotificationKind } from "@sokosumi/core-client";
 import {
   CHAT_ROOM_MESSAGE_MESSAGE_KEY,
   CHAT_ROOM_MESSAGE_TITLE_MESSAGE_KEY,
@@ -6,7 +7,6 @@ import { render } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { NotificationEventData } from "@/lib/ably/schema";
-import { NotificationKind } from "@/lib/clients/generated/core";
 import { COWORKER_ACCESS_PENDING_MESSAGE_KEY } from "@/lib/utils/workspace-approval";
 
 const onNotificationRef = {

@@ -3,8 +3,8 @@ import type {
   ChatRoomMessageMention,
   ChatRoomMessageQuote,
   ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
-import { ChatRoomMentionStatus } from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { ChatRoomMentionStatus } from "@sokosumi/core-client";
 
 /** Local-only row id: `pending:{clientTurnId}`. Never a server message id. */
 export const OUTBOUND_LOCAL_ID_PREFIX = "pending:" as const;

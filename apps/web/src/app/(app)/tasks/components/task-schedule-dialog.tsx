@@ -1,11 +1,11 @@
 "use client";
 
+import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
 import { Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useMemo, useState } from "react";
 import { toast } from "sonner";
-
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import { taskScheduleAssigneeId } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -26,10 +26,6 @@ import {
   type TaskScheduleBlueprintInput,
   updateTaskSchedule,
 } from "@/lib/actions/task-schedule/action";
-import {
-  type TaskSchedule,
-  TaskVisibility,
-} from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";

@@ -1,7 +1,7 @@
+import type { Member } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import type { Member } from "@/lib/clients/generated/core";
 import { ParticipantCheckboxes } from "./participant-checkboxes";
 
 vi.mock("next-intl", () => ({

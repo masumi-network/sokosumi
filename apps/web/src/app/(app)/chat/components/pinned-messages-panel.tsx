@@ -1,16 +1,16 @@
 "use client";
 
-import type { ChannelLinkTarget } from "@sokosumi/utils";
-import { Loader2, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { listPinnedMessagesAction } from "@/app/chat/actions";
-import { Button } from "@/components/ui/button";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomPinnedMessageListItem,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import type { ChannelLinkTarget } from "@sokosumi/utils";
+import { Loader2, Pin, PinOff, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { listPinnedMessagesAction } from "@/app/chat/actions";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { ChatParticipantHoverProfile } from "./room-helpers";

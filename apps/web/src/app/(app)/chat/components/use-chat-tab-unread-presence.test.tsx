@@ -1,9 +1,8 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "@/components/chat/organization-chat-events";
-
 import { setAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 let mockPathname = "/chat";
 let mockUserId = "user-1";

@@ -105,7 +105,10 @@ describe("GitHub OIDC remote cache wiring", () => {
 
   it("Web/Core/Packages jobs invoke turbo run test:ci", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    assert.match(jobBlock(test, "web"), /turbo run test:ci --filter=web\n/);
+    assert.match(
+      jobBlock(test, "web"),
+      /turbo run test:ci --filter=web --filter=cmo\n/,
+    );
     assert.match(
       jobBlock(test, "core"),
       /turbo run test:ci --filter=@sokosumi\/core\n/,
@@ -288,10 +291,13 @@ describe("GitHub OIDC remote cache wiring", () => {
   it("per-leg filters only drop what the leg cannot reach", async () => {
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
     assert.match(filter, /^web:\n  - \*js\n  - "!apps\/core\/\*\*"\n\n/m);
-    assert.match(filter, /^core:\n  - \*js\n  - "!apps\/web\/\*\*"\n\n/m);
     assert.match(
       filter,
-      /^packages:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/core\/\*\*"\n\n/m,
+      /^core:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/cmo\/\*\*"\n\n/m,
+    );
+    assert.match(
+      filter,
+      /^packages:\n  - \*js\n  - "!apps\/web\/\*\*"\n  - "!apps\/core\/\*\*"\n  - "!apps\/cmo\/\*\*"\n\n/m,
     );
   });
 

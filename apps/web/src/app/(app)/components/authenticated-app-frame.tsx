@@ -1,3 +1,4 @@
+import type { Notice } from "@sokosumi/core-client";
 import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -12,7 +13,6 @@ import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
-import type { Notice } from "@/lib/clients/generated/core";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";

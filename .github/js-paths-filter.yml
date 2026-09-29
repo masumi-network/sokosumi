@@ -19,9 +19,10 @@ cli:
   - "apps/cli/**"
 
 # Per-leg filters for the required test jobs. Each is `js` minus the
-# sibling apps its turbo filter cannot reach: web and core share no
-# workspace dependency in either direction, and packages depend on
-# neither app. Root files, packages, and CI changes still run all three.
+# sibling apps its turbo filter cannot reach: web, core, and cmo share no
+# workspace dependency in any direction, and packages depend on no app.
+# The web leg also tests cmo. Root files, packages, and CI changes still
+# run all three.
 web:
   - *js
   - "!apps/core/**"
@@ -29,11 +30,13 @@ web:
 core:
   - *js
   - "!apps/web/**"
+  - "!apps/cmo/**"
 
 packages:
   - *js
   - "!apps/web/**"
   - "!apps/core/**"
+  - "!apps/cmo/**"
 
 # Advisory legs: the files their `node --test` suites import or read.
 # These are positive lists, so `every` needs one pattern each — a file
@@ -47,7 +50,7 @@ cloud-agent-db:
 
 # The doc-script check reads every Markdown file and package.json; the
 # turbo and Vercel contract tests read the workflows, turbo.json, the
-# workspace file, both vercel.json files, and the web build wrapper. The
+# workspace file, every app vercel.json, and the web build wrapper. The
 # migration step test reads the migration order test. The /reset-db tests
 # import the Neon client.
 ci-config:

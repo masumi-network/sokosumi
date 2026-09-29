@@ -1,6 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import type { Job } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import {
@@ -16,7 +17,6 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,

@@ -1,10 +1,10 @@
-import { isValidTimezone } from "@sokosumi/utils";
-import { CronExpressionParser as cronParser } from "cron-parser";
 import type {
   TaskSchedule,
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { isValidTimezone } from "@sokosumi/utils";
+import { CronExpressionParser as cronParser } from "cron-parser";
 import { DOW, parseCron } from "@/lib/schedules/cron";
 import {
   endOfLocalDateInTimezone,

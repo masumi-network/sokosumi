@@ -135,6 +135,19 @@ describe("AppMobileChrome", () => {
     );
   });
 
+  it("hides bottom nav and clearance on studio", () => {
+    mockPathname = "/studio";
+
+    const { container } = render(
+      <AppMobileChrome>
+        <div>child</div>
+      </AppMobileChrome>,
+    );
+
+    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
+    expect(getTabBarSpacer(container)).toBeNull();
+  });
+
   it("hides bottom nav and clearance on room surface", () => {
     mockPathname = "/chat/rooms/room-1";
 

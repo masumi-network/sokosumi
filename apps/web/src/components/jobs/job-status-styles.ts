@@ -1,8 +1,8 @@
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import {
   MARKER_ICONS,
   type StatusMarkerSpec,
 } from "@/components/ui/status-marker";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 /**
  * The job scale on the same three rules as the task scale, so a job and a

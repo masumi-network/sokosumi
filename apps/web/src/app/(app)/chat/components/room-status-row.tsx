@@ -1,8 +1,7 @@
 "use client";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /** A room's own timeline note: someone joined or left, or the group was named. */
 export function RoomStatusRow({ message }: { message: ChatRoomMessage }) {

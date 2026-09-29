@@ -1,11 +1,11 @@
 "use client";
 
+import type { ProjectCloseStatus } from "@sokosumi/core-client";
 import { CircleCheck, CircleX, Clock3, LoaderCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +24,6 @@ import {
   cancelProjectCloseOwedWork,
   retryProjectClose,
 } from "@/lib/actions/project/action";
-import type { ProjectCloseStatus } from "@/lib/clients/generated/core";
 
 interface ProjectCloseStatusProps {
   status: ProjectCloseStatus;

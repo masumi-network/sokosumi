@@ -1,5 +1,5 @@
+import type { SokoBotAdminAction } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { Panel } from "@/components/soko-bot/panel";
 import {
   formatRedactedValue,
@@ -9,7 +9,6 @@ import {
   StatusBadge,
   type StatusTone,
 } from "@/components/soko-bot/status-badge";
-import type { SokoBotAdminAction } from "@/lib/clients/generated/core";
 
 import { type AuditOutcome, groupAuditOperations } from "./audit-operations";
 

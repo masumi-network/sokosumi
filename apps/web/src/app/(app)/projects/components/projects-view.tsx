@@ -1,10 +1,10 @@
 "use client";
 
+import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
@@ -14,7 +14,6 @@ import {
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 import { AddProjectButton } from "./add-project-button";

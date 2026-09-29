@@ -1,6 +1,6 @@
+import type { TableColumn, TableRow } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { TableColumn, TableRow } from "@/lib/clients/generated/core";
 import { TableCell } from "./table-cell";
 
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));

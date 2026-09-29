@@ -1,15 +1,14 @@
 "use client";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { ReadonlyURLSearchParams } from "next/navigation";
 import { useRef } from "react";
-
 import { getRoomMessageAction } from "@/app/chat/message-actions";
 import { pathWithSearch } from "@/app/chat/utils/chat-route-base";
 import {
   performRoomNotificationJump,
   type RoomNotificationLookup,
 } from "@/app/chat/utils/room-notification-jump";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
 import { useMessageParamJump } from "./use-message-param-jump";

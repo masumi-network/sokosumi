@@ -1,9 +1,9 @@
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ImgHTMLAttributes } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OrganizationLogo } from "@/components/organizations/organization-logo";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 import { stubPendingImageLoad } from "@/test/stub-pending-image-load";
 
 vi.mock("next/image", () => ({

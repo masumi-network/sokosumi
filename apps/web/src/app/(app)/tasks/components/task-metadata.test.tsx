@@ -1,11 +1,11 @@
+import type { Task } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskMetadata } from "@/app/tasks/components/task-metadata";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { Task } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

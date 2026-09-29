@@ -1,9 +1,8 @@
+import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { ProjectsView } from "@/app/projects/components/projects-view";
 import { PROJECTS_BROWSE_HEADER_ROW_CLASS } from "@/app/projects/constants";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("nuqs", () => ({
   useQueryState: () => ["", vi.fn()],
