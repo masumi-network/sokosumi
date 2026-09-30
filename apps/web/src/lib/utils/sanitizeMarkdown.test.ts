@@ -86,6 +86,12 @@ describe("sanitizeMarkdown", () => {
     expect(sanitizeMarkdown(markdown)).toContain("&gt; quoted");
   });
 
+  it("drops an authored mark and keeps its text", () => {
+    expect(
+      sanitizeMarkdown('a <mark class="bg-primary-tertiary">found</mark> word'),
+    ).toBe("a found word");
+  });
+
   it("encodes bare URL ampersands for the Markdown parser", () => {
     expect(sanitizeMarkdown("see https://a.test/?p=1&c=1&d=2.")).toBe(
       "see https://a.test/?p=1&amp;c=1&amp;d=2.",
