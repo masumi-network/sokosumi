@@ -184,3 +184,39 @@ test("production URL falls back to fallback URL when Vercel URL missing", () => 
     "https://app.example.com/auth",
   );
 });
+
+// Core hands both values to the OAuth proxy, which steps aside only when they
+// match. If they drift apart, production proxies its own sign-ins.
+test.each(["https://core.example.com/", undefined])(
+  "production's public base URL is the production URL (VERCEL_PROJECT_PRODUCTION_URL: %s)",
+  (vercelProductionUrl) => {
+    const fallbackUrl = "https://app.example.com/";
+
+    assert.equal(
+      resolveBetterAuthPublicBaseUrl({
+        vercelEnv: "production",
+        vercelUrl: "https://core-abc123.preview.example.com",
+        vercelBranchUrl: "https://core-git-x.preview.example.com",
+        vercelProductionUrl,
+        fallbackUrl,
+      }),
+      resolveBetterAuthProductionUrl({ vercelProductionUrl, fallbackUrl }),
+    );
+  },
+);
+
+test("a preview's public base URL is never the production URL", () => {
+  const vercelProductionUrl = "https://core.example.com";
+  const fallbackUrl = "https://app.example.com";
+
+  assert.notEqual(
+    resolveBetterAuthPublicBaseUrl({
+      vercelEnv: "preview",
+      vercelUrl: "https://core-abc123.preview.example.com",
+      vercelBranchUrl: "https://core-git-x.preview.example.com",
+      vercelProductionUrl,
+      fallbackUrl,
+    }),
+    resolveBetterAuthProductionUrl({ vercelProductionUrl, fallbackUrl }),
+  );
+});
