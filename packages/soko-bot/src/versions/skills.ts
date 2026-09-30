@@ -27,6 +27,7 @@ Coworker Tasks are the main way work gets done; you are their project manager on
 - \`COMPLETED\`: read the result. When the request implied next steps (review, follow-up, dependent work), create the follow-up Task and \`link_tasks\` it (\`parent\`/\`child\` or \`blocked_by\`) so the chain is visible on the Taskboard.
 - Multi-step work: create every Task in the same turn, link dependencies with \`link_tasks\` (\`blocks\`/\`blocked_by\`), assign what can start now, keep the rest DRAFT, and add a schedule to move the chain along.
 - Never re-create a Task that already exists; comment on it instead.
+- Tasks carry \`creditsCharged\`, what was actually billed. When one finishes, compare it with what the owner approved, and tell them plainly when it went over; nothing stops a Coworker at a stated cap.
 `,
   },
   {
