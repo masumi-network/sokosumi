@@ -41,6 +41,16 @@ export const ACTION_LABELS: Record<string, string> = {
   publish_social_post: "Published social post",
 };
 
+/** A comment that also changed the status says which change it was. */
+function actionLabel(call: { capability: string; result?: unknown }): string {
+  const reply = z
+    .object({ statusChanged: z.literal(true), status: z.string() })
+    .safeParse(call.result);
+  if (call.capability === "reply_to_task" && reply.success)
+    return reply.data.status === "CANCELED" ? "Canceled task" : "Resumed task";
+  return ACTION_LABELS[call.capability] ?? call.capability;
+}
+
 const TABLE_CAPABILITIES = new Set([
   "create_table",
   "write_table_rows",
@@ -476,7 +486,7 @@ export async function buildActionResponse(
           `${call.turnId !== turnId ? "Previously verified: " : ""}${[
             call.disposition === "ALREADY_SATISFIED"
               ? "Already satisfied"
-              : ACTION_LABELS[call.capability],
+              : actionLabel(call),
             actionTarget(call, tasks, jobAgents, assignedTaskIds),
           ]
             .filter(Boolean)
