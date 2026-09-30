@@ -19,7 +19,10 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
 
 import { readCmoAuthConfig } from "./auth-config";
-import { SOKOSUMI_OAUTH_PROVIDER_ID } from "./sokosumi-oauth";
+import {
+  SIGNED_OUT_COOKIE,
+  SOKOSUMI_OAUTH_PROVIDER_ID,
+} from "./sokosumi-oauth";
 
 export interface CmoAuthConfig {
   /** CMO's own public origin, the base of its OAuth callback. */
@@ -170,6 +173,15 @@ export function createCmoAuth(config: CmoAuthConfig) {
         }
       }),
       after: createAuthMiddleware(async (ctx) => {
+        if (ctx.context.newSession && ctx.getCookie(SIGNED_OUT_COOKIE)) {
+          // The sign-in after a CMO sign-out has completed.
+          ctx.setCookie(SIGNED_OUT_COOKIE, "", {
+            httpOnly: true,
+            maxAge: 0,
+            path: "/",
+          });
+          return;
+        }
         if (ctx.path !== "/get-access-token") return;
         const tokens = ctx.context.returned;
         if (

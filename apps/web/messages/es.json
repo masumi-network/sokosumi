@@ -1333,7 +1333,14 @@
       "errorTitle": "No se puede continuar",
       "errorTitleFor": "No se puede continuar a {client}",
       "errorDescription": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a la aplicación desde la que llegaste y empieza de nuevo.",
-      "errorDescriptionFor": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a {client} y empieza de nuevo."
+      "errorDescriptionFor": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a {client} y empieza de nuevo.",
+      "chooseAccountTitle": "Elige una cuenta",
+      "chooseAccountTitleFor": "Elige una cuenta para {client}",
+      "signedInAs": "Sesión iniciada en Sokosumi como <account>{email}</account>",
+      "continueAs": "Continuar como {account}",
+      "useAnotherAccount": "Usar otra cuenta",
+      "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
+      "signOutError": "No se pudo cerrar la sesión. Inténtalo de nuevo."
     },
     "SignInError": {
       "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un Magic Link y luego conecta Google o Microsoft en Conexiones.",

@@ -1333,7 +1333,14 @@
       "errorTitle": "Unable to continue",
       "errorTitleFor": "Unable to continue to {client}",
       "errorDescription": "This sign-in request has expired or is no longer valid. Go back to the app you came from and start again.",
-      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again."
+      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again.",
+      "chooseAccountTitle": "Choose an account",
+      "chooseAccountTitleFor": "Choose an account for {client}",
+      "signedInAs": "Signed in to Sokosumi as <account>{email}</account>",
+      "continueAs": "Continue as {account}",
+      "useAnotherAccount": "Use another account",
+      "accountCheckError": "Could not check your account. Try again.",
+      "signOutError": "Could not sign out. Try again."
     },
     "SignInError": {
       "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or a Magic Link first, then connect Google or Microsoft under Connections.",
