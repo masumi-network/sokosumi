@@ -2432,7 +2432,8 @@
             "post": "Beitrag",
             "mediaPost": "Bild- oder Videobeitrag",
             "video": "Video (Text wird Titel und Beschreibung)"
-          }
+          },
+          "publishNow": "Jetzt posten"
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2449,7 +2450,8 @@
           "unauthenticated": "Melde dich an, um fortzufahren.",
           "unauthenticatedAction": "Anmelden",
           "published": "Beitrag veröffentlicht.",
-          "publishFailed": "Veröffentlichung fehlgeschlagen: {error}"
+          "publishFailed": "Veröffentlichung fehlgeschlagen: {error}",
+          "publishedMany": "{count, plural, one {Beitrag veröffentlicht.} other {# Beiträge veröffentlicht.}}"
         },
         "needsReconnect": "Konto muss neu verbunden werden",
         "needsReconnectLink": "Konto erneut verbinden",
