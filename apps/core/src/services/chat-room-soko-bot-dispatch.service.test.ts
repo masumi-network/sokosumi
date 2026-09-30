@@ -1,16 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { findMember, claim, fail, placeholder, startTurn, reconcileTurn } =
-  vi.hoisted(() => ({
-    findMember: vi.fn(),
-    claim: vi.fn(),
-    fail: vi.fn(),
-    placeholder: vi.fn(),
-    startTurn: vi.fn(),
-    reconcileTurn: vi.fn(),
-  }));
+const {
+  findMember,
+  findTurn,
+  claim,
+  fail,
+  placeholder,
+  startTurn,
+  reconcileTurn,
+  TurnInProgress,
+} = vi.hoisted(() => ({
+  findMember: vi.fn(),
+  findTurn: vi.fn(),
+  claim: vi.fn(),
+  fail: vi.fn(),
+  placeholder: vi.fn(),
+  startTurn: vi.fn(),
+  reconcileTurn: vi.fn(),
+  TurnInProgress: class extends Error {},
+}));
 vi.mock("@/lib/db/prisma", () => ({
-  default: { chatRoomSokoBotMember: { findUnique: findMember } },
+  default: {
+    chatRoomSokoBotMember: { findUnique: findMember },
+    sokoBotTurn: { findFirst: findTurn },
+  },
 }));
 vi.mock("./chat-room-mention-state", () => ({
   claimMentionForDispatch: claim,
@@ -21,10 +34,15 @@ vi.mock("./chat-room-mention-stream", () => ({
   publishMentionThoughtPlaceholder: placeholder,
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  ACTIVE_TURN_STATUSES: ["QUEUED", "STARTING", "RUNNING", "CANCEL_REQUESTED"],
+  SokoBotTurnInProgressError: TurnInProgress,
   sokoBotControlPlane: { startTurn, reconcileTurn },
 }));
 
-import { runSokoBotMentionDispatch } from "./chat-room-soko-bot-dispatch.service";
+import {
+  acceptOnceIdle,
+  runSokoBotMentionDispatch,
+} from "./chat-room-soko-bot-dispatch.service";
 
 function input(
   message: { content: string; metadata: unknown } = {
@@ -118,5 +136,39 @@ describe("Soko Bot mention dispatch", () => {
     );
     expect(claim).not.toHaveBeenCalled();
     expect(startTurn).not.toHaveBeenCalled();
+  });
+});
+
+describe("a message sent while the bot is still answering", () => {
+  it("waits for the running turn, then starts its own", async () => {
+    const accept = vi
+      .fn()
+      .mockRejectedValueOnce(new TurnInProgress("Soko Bot is already working"))
+      .mockResolvedValue({ turnId: "turn-b" });
+    findTurn.mockResolvedValueOnce({ id: "turn-a" }).mockResolvedValue(null);
+    await expect(
+      acceptOnceIdle(accept, "bot-a", { pollMs: 1, waitMs: 5_000 }),
+    ).resolves.toEqual({ turnId: "turn-b" });
+    expect(accept).toHaveBeenCalledTimes(2);
+    expect(findTurn).toHaveBeenCalledTimes(2);
+  });
+
+  it("gives up once the wait runs out", async () => {
+    const busy = new TurnInProgress("Soko Bot is already working");
+    const accept = vi.fn().mockRejectedValue(busy);
+    findTurn.mockResolvedValue({ id: "turn-a" });
+    await expect(
+      acceptOnceIdle(accept, "bot-a", { pollMs: 1, waitMs: 20 }),
+    ).rejects.toBe(busy);
+  });
+
+  it("does not wait on any other refusal", async () => {
+    const paused = new Error(
+      "This Soko Bot's owner has paused unprompted work",
+    );
+    const accept = vi.fn().mockRejectedValue(paused);
+    await expect(acceptOnceIdle(accept, "bot-a")).rejects.toBe(paused);
+    expect(accept).toHaveBeenCalledTimes(1);
+    expect(findTurn).not.toHaveBeenCalled();
   });
 });

@@ -567,7 +567,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   workspace_read:
     "Read a text file from your workspace. Paths are relative to the workspace root.",
   workspace_write:
-    "Create or overwrite a text file in your workspace, or append to it. Files persist between turns. To give the owner a file, use upload_file.",
+    "Create or overwrite a text file in your workspace, or append to it. Files persist between turns. Only you can see them: a file the owner asks for goes to their Files with upload_file.",
   workspace_list:
     "List files in your workspace, optionally under a path or matching a glob pattern such as **/*.csv.",
   workspace_search:
@@ -609,7 +609,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
-    "Write a text file into the owner\u2019s Drive (a brief, a summary, notes). Give a filename with an extension; the file appears in their Drive straight away.",
+    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. When the owner asked for the file, write it; no need to confirm first. The result says where it was saved: tell the owner that, not more.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:

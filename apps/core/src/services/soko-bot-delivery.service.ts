@@ -161,7 +161,13 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
   try {
     const { emitChatHumanMentionNotifications, persistChatHumanMentions } =
       await import("@/helpers/chat-human-mentions");
+    // A ref: assigned inside the transaction callback, which control flow
+    // analysis cannot see.
+    const withdrawn: {
+      current: { placeholderId: string; mentionId: string } | null;
+    } = { current: null };
     const persisted = await serializableTransaction(async (tx) => {
+      withdrawn.current = null;
       // Lock and fence before writes. A reclaimed worker cannot commit a message.
       const owned = await tx.sokoBotDelivery.updateMany({
         where: { id, leaseToken, leaseUntil: { gt: new Date() } },
@@ -191,6 +197,38 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
           delivery.destinationId === turn.destinationRoomId
         )
           await releasePendingNudges(tx, turn.id);
+        // A chat reply has a "Thinking…" placeholder already in the room.
+        // Suppressing the answer without closing it left that bubble
+        // spinning for good; withdraw it the way a silent reply does.
+        if (
+          turn.source === "CHAT" &&
+          turn.chatResponseMessageId &&
+          turn.chatMentionId
+        ) {
+          await tx.chatRoomMention.updateMany({
+            where: {
+              id: turn.chatMentionId,
+              status: { in: ["pending", "sent"] },
+            },
+            data: {
+              status: "failed",
+              error: "The room changed before the reply was ready",
+            },
+          });
+          const closed = await tx.chatRoomMessage.updateMany({
+            where: {
+              id: turn.chatResponseMessageId,
+              senderSokoBotId: turn.sokoBotId,
+              deletedAt: null,
+            },
+            data: { deletedAt: new Date() },
+          });
+          if (closed.count === 1)
+            withdrawn.current = {
+              placeholderId: turn.chatResponseMessageId,
+              mentionId: turn.chatMentionId,
+            };
+        }
         return null;
       }
       if (delivery.status === "PERSISTED") return delivery;
@@ -250,11 +288,24 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
         include: { turn: true },
       });
     }, "Soko Bot delivery collided with another operation");
-    if (!persisted?.messageId || !persisted.roomId) return false;
-    // Publication may happen twice after a crash. Both events carry the same ID.
     const { publishChatRoomMessageRealtimeById } = await import(
       "@/helpers/chat-room-message-realtime"
     );
+    if (withdrawn.current) {
+      const { placeholderId, mentionId } = withdrawn.current;
+      await publishChatRoomMessageRealtimeById(placeholderId, "delete");
+      const mention = await prisma.chatRoomMention.findUnique({
+        where: { id: mentionId },
+        select: { messageId: true },
+      });
+      if (mention)
+        await publishChatRoomMessageRealtimeById(
+          mention.messageId,
+          "mention_status",
+        );
+    }
+    if (!persisted?.messageId || !persisted.roomId) return false;
+    // Publication may happen twice after a crash. Both events carry the same ID.
     const publicationLease = await prisma.sokoBotDelivery.updateMany({
       where: {
         id,
