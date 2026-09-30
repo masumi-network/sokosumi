@@ -2274,7 +2274,7 @@
         "description": "Conecta cuentas de redes sociales a este proyecto. Redacta, programa y publica en cualquier plataforma conectada.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
-        "connectAccount": "Conectar cuenta",
+        "connectAccount": "Conectar X, YouTube, LinkedIn…",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
@@ -2438,6 +2438,11 @@
           "title": "¿Publicar esta publicación ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
+        },
+        "connectPrompt": {
+          "title": "Conecta una cuenta para empezar a publicar",
+          "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
+          "action": "Conectar X, YouTube, LinkedIn…"
         }
       },
       "Detail": {
@@ -2748,7 +2753,7 @@
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Cuentas sociales",
+        "title": "Conectar X, YouTube, LinkedIn…",
         "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
       },
       "draftsNeedProject": {
