@@ -228,6 +228,29 @@ describe("SocialButtons", () => {
     };
   }
 
+  it("sends a failed social sign-in back to this page without its old error", async () => {
+    const startPage = window.location.href;
+    window.history.replaceState(
+      null,
+      "",
+      "/signin?returnUrl=%2Fchat&error=account_not_linked",
+    );
+    try {
+      render(<SocialButtons />);
+
+      await clickGoogleButton();
+
+      await waitFor(() => {
+        expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+      });
+      expect(mockSocialSignIn.mock.calls[0]?.[0]).toMatchObject({
+        errorCallbackURL: `${window.location.origin}/signin?returnUrl=%2Fchat`,
+      });
+    } finally {
+      window.history.replaceState(null, "", startPage);
+    }
+  });
+
   it("passes provided returnUrl to social sign-in callbacks", async () => {
     render(<SocialButtons returnUrl="/oauth/consent?client_id=prop-client" />);
 
@@ -579,6 +602,7 @@ describe("SocialButtons", () => {
         fetchOptions: captchaFetchOptions,
         email: "login-user@example.com",
         callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
+        errorCallbackURL: window.location.href,
       });
     });
 
