@@ -616,8 +616,8 @@ export const auth = betterAuth({
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
       // Without this the plugin compares the production URL to the request
-      // URL, which is always plain HTTP behind Vercel's TLS termination, so
-      // production would proxy its own sign-ins.
+      // URL. That was plain HTTP behind Vercel's TLS termination until
+      // `withPublicScheme`, so production proxied its own sign-ins.
       currentURL: betterAuthBaseUrl,
       secret: env.OAUTH_PROXY_SECRET,
     }),
