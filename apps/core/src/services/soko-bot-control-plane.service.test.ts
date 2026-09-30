@@ -586,12 +586,18 @@ describe("SokoBotControlPlane lifecycle", () => {
         turnId: "turn_1",
         status: "COMPLETED",
       });
-      const answerText = `The requested outcome is blocked. ${detail} 1 acceptance criterion remains unverified.\n\nSorry, the post was not created.`;
+      // The owner reads one plain sentence; the verifier's wording stays on
+      // the contract for the admin view.
+      const answerText =
+        "This isn't done yet.\n\nSorry, the post was not created.";
       expect(turnUpdateMock).toHaveBeenCalledWith({
         where: { id: "turn_1" },
         data: {
           finalAnswer: answerText,
-          responseContract: expect.objectContaining({ answerText }),
+          responseContract: expect.objectContaining({
+            answerText,
+            outcomeSummary: `The requested outcome is blocked. ${detail} 1 acceptance criterion remains unverified.`,
+          }),
         },
       });
     },
@@ -629,7 +635,7 @@ describe("SokoBotControlPlane lifecycle", () => {
       status: "COMPLETED",
     });
     const answerText =
-      "The requested outcome is blocked. An action outcome is uncertain; reconciliation is required before retrying. 1 acceptance criterion remains unverified.\n\nCreated task.";
+      "I couldn't confirm whether this went through, so I'll check before trying again.\n\nCreated task.";
     expect(turnUpdateMock).toHaveBeenCalledWith({
       where: { id: "turn_1" },
       data: {

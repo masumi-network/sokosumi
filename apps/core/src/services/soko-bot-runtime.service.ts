@@ -468,6 +468,8 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
+/** Internal: an archive the owner did not name exactly becomes an approval card. */
+class ArchiveNeedsOwnerApproval extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRuntimeValidationError {}
@@ -2537,7 +2539,7 @@ export class SokoBotRuntimeService {
   }
 
   private async createDecision(
-    authorized: AuthorizedSokoBotRuntime,
+    authorized: SokoBotActionContext,
     toolName: SokoBotDecisionTarget,
     proposal: unknown,
     toolCallId: string,
@@ -2750,6 +2752,42 @@ export class SokoBotRuntimeService {
       capability === "archive_task"
         ? { ...taskArchiveInputSchema.parse(rawInput), archive: true }
         : { ...taskUpdateInputSchema.parse(rawInput), archive: false };
+    try {
+      return await this.applyTaskMutation(
+        authorized,
+        rawInput,
+        toolCallId,
+        input,
+        capability,
+        approved,
+      );
+    } catch (error) {
+      if (!(error instanceof ArchiveNeedsOwnerApproval)) throw error;
+      const decision = await this.createDecision(
+        authorized,
+        "archive_task",
+        rawInput,
+        toolCallId,
+        true,
+      );
+      return {
+        approvalRequired: true,
+        decision,
+        message: `${DECISION_PENDING_MESSAGE} The owner sees an approval card for archiving this Task; archiving several Tasks creates one card each.`,
+      };
+    }
+  }
+
+  private async applyTaskMutation(
+    authorized: SokoBotActionContext,
+    rawInput: unknown,
+    toolCallId: string,
+    input: ReturnType<typeof taskUpdateInputSchema.parse> & {
+      archive: boolean;
+    },
+    capability: "update_task" | "archive_task",
+    approved: boolean,
+  ) {
     return serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, approved, capability);
       if (input.archive) {
@@ -2778,10 +2816,6 @@ export class SokoBotRuntimeService {
               /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
             ) ?? [];
           const targets = [...new Set([...references, ...explicitIds])];
-          if (targets.length !== 1 || targets[0] !== input.taskId)
-            throw new SokoBotRuntimeAuthorizationError(
-              "Archive requires one explicitly identified task; ask the owner to confirm the exact target",
-            );
           const priorArchive = await tx.sokoBotToolCall.findFirst({
             where: {
               turnId: authorized.turn.id,
@@ -2792,10 +2826,30 @@ export class SokoBotRuntimeService {
             },
             select: { id: true },
           });
-          if (priorArchive)
-            throw new SokoBotRuntimeAuthorizationError(
-              "Only one task may be archived per owner request",
-            );
+          // Anything but one Task the owner named themselves ("yes", "archive
+          // all my test tasks", a second archive in one turn) goes to the
+          // owner as an approval card instead of failing: the bot can still
+          // do the job, and the owner still decides which Tasks go.
+          if (
+            targets.length !== 1 ||
+            targets[0] !== input.taskId ||
+            priorArchive
+          ) {
+            const target = await tx.task.findFirst({
+              where: {
+                id: input.taskId,
+                workspaceId: authorized.turn.workspaceId,
+                ownerId: authorized.turn.userId,
+                archivedAt: null,
+              },
+              select: { id: true },
+            });
+            if (!target)
+              throw new SokoBotRuntimeValidationError(
+                "Task not found among the owner's open Tasks",
+              );
+            throw new ArchiveNeedsOwnerApproval();
+          }
         }
       }
       const claim = await claimTaskEventAction(
@@ -5348,6 +5402,11 @@ export class SokoBotRuntimeService {
           `decision:${decision.id}`,
           { capability: decision.toolName, approved: true },
         );
+        // An approved call skips the gate that asks for approval.
+        if ("approvalRequired" in updated)
+          throw new SokoBotRuntimeConflictError(
+            "An approved Task change asked for approval again",
+          );
         resultingEntityId = updated.id;
       } else if (decision.toolName === "assign_task") {
         const updated = await this.assignTask(

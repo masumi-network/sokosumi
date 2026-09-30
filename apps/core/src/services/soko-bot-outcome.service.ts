@@ -71,6 +71,33 @@ export function sokoBotOutcomeSummary(
     .filter(Boolean)
     .join(" ");
 }
+/**
+ * What the owner reads when the outcome is not done: one plain sentence. The
+ * assessment wording above names verifier states and acceptance criteria, so
+ * it stays in the turn's response contract for the admin view.
+ */
+export function sokoBotOutcomeNote(
+  outcome:
+    | { state: SokoBotFulfillmentState; blockerKind: string | null }
+    | null
+    | undefined,
+): string | null {
+  if (!outcome || outcome.blockerKind === "NO_ACCEPTANCE_CRITERIA") return null;
+  switch (outcome.state) {
+    case "PARTIAL":
+      return "Only part of this is done so far.";
+    case "BLOCKED":
+      return outcome.blockerKind === "UNCERTAIN_ACTION"
+        ? "I couldn't confirm whether this went through, so I'll check before trying again."
+        : "This isn't done yet.";
+    case "FAILED":
+      return "This didn't go through.";
+    case "CANCELLED":
+      return "This was cancelled.";
+    default:
+      return null;
+  }
+}
 const criteriaSchema = z
   .array(
     z.discriminatedUnion("kind", [

@@ -6,8 +6,37 @@ import {
   JevTurnClassifier,
   type RouteEvaluator,
   SOKO_BOT_ROUTE_MODEL,
+  unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
 import { jevRoute } from "@/test/jev-routes";
+
+describe("unwrapTitleTags", () => {
+  it("unwraps bracket tags Jev reads as placeholders, not links", () => {
+    expect(unwrapTitleTags("Archive [TEST] Launch QA.")).toBe(
+      "Archive TEST Launch QA.",
+    );
+    expect(unwrapTitleTags("See [the brief](https://x.test/a)")).toBe(
+      "See [the brief](https://x.test/a)",
+    );
+  });
+
+  it("sends Jev the unwrapped message", async () => {
+    const evaluate = vi.fn<RouteEvaluator>().mockRejectedValue(new Error("x"));
+    await new JevTurnClassifier(evaluate).classify(
+      "Archive [TEST] Launch QA.",
+      {
+        projectIds: [],
+        coworkerIds: [],
+        agentIds: [],
+        taskIds: [],
+        jobIds: [],
+      },
+    );
+    expect(evaluate.mock.calls[0]?.[0].state.message).toBe(
+      "Archive TEST Launch QA.",
+    );
+  });
+});
 
 const EMPTY_CONTEXT: ClassifierContextSummary = {
   projectIds: [],
