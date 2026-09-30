@@ -1,12 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookiesMock = vi.fn();
 const getMock = vi.fn();
-const socialButtonsMock = vi.fn();
-const signUpFormMock = vi.fn();
+const signUpFlowMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
-const headerMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
@@ -28,36 +27,15 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
 
-vi.mock("@/auth/components/divider", () => ({
-  __esModule: true,
-  default: () => <div data-testid="divider" />,
-}));
-
-vi.mock("@/auth/components/social-buttons", () => ({
-  __esModule: true,
-  default: (props: unknown) => {
-    socialButtonsMock(props);
-    return <div data-testid="social-buttons" />;
-  },
-}));
-
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("./components/form", () => ({
+vi.mock("./components/sign-up-flow", () => ({
   __esModule: true,
-  default: (props: unknown) => {
-    signUpFormMock(props);
-    return <div data-testid="sign-up-form" />;
-  },
-}));
-
-vi.mock("./components/header", () => ({
-  __esModule: true,
-  default: (props: unknown) => {
-    headerMock(props);
-    return <div data-testid="sign-up-header" />;
+  default: ({ children, ...props }: { children?: ReactNode }) => {
+    signUpFlowMock(props);
+    return <div data-testid="sign-up-flow">{children}</div>;
   },
 }));
 
@@ -113,6 +91,30 @@ describe("SignUp page", () => {
     );
   });
 
+  it("hands the invitation email and the last-used provider to the flow", async () => {
+    getMock.mockReturnValue({ value: "google" });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          email: "ada@example.com",
+          invitationId: "inv_1",
+          returnUrl: "/agents",
+        }),
+      }),
+    );
+
+    expect(signUpFlowMock).toHaveBeenCalledWith({
+      invitationId: "inv_1",
+      clientName: undefined,
+      prefilledEmail: "ada@example.com",
+      returnUrl: "/agents",
+      lastUsedMethod: "google",
+      showMagicLink: true,
+    });
+  });
+
   it("says that creating an account accepts the terms", async () => {
     const { default: Page } = await import("./page");
 
@@ -131,7 +133,7 @@ describe("SignUp page", () => {
       "cmo",
       OAUTH_QUERY,
     );
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: "CMO" }),
     );
   });
@@ -143,7 +145,7 @@ describe("SignUp page", () => {
 
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: undefined }),
     );
   });
@@ -154,10 +156,10 @@ describe("SignUp page", () => {
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: undefined }),
     );
-    expect(screen.getByTestId("sign-up-form")).toBeInTheDocument();
+    expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
   });
 
   it("hands a signed-in person with an OAuth request back to the provider", async () => {
@@ -170,7 +172,7 @@ describe("SignUp page", () => {
       oauthQuery: OAUTH_QUERY,
       clientName: "CMO",
     });
-    expect(screen.queryByTestId("sign-up-form")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
   });
 
   it("asks a signed-in person to sign in again when the request demands it", async () => {
@@ -187,7 +189,7 @@ describe("SignUp page", () => {
     );
 
     expect(handBackMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId("sign-up-form")).toBeInTheDocument();
+    expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
   });
 
   it("offers a magic link without an OAuth request", async () => {
@@ -195,7 +197,7 @@ describe("SignUp page", () => {
 
     render(await Page({ searchParams: Promise.resolve({}) }));
 
-    expect(socialButtonsMock).toHaveBeenCalledWith(
+    expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ showMagicLink: true }),
     );
   });
@@ -205,7 +207,7 @@ describe("SignUp page", () => {
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
-    expect(socialButtonsMock).toHaveBeenCalledWith(
+    expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ showMagicLink: false }),
     );
   });

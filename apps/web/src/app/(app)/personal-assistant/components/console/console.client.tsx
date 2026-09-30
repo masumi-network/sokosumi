@@ -31,7 +31,7 @@ import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
-import { describeCron } from "@/lib/soko-bot/describe-cron";
+import { describeSchedule } from "@/lib/soko-bot/describe-cron";
 import { cn } from "@/lib/utils";
 import { ArchiveSokoBotButton } from "../archive-soko-bot-button.client";
 import { AvatarPicker } from "../avatar-picker.client";
@@ -384,7 +384,7 @@ export function SokoBotConsole({
                                   className="text-muted-foreground text-xs"
                                   title={`${schedule.cronExpression} · ${schedule.timezone}`}
                                 >
-                                  {describeCron(schedule.cronExpression)}
+                                  {describeSchedule(schedule)}
                                 </p>
                               </div>
                               <ScheduleRowActions

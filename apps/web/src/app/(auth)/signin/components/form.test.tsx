@@ -10,6 +10,7 @@ import {
   it,
   vi,
 } from "vitest";
+import { rememberSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
@@ -199,6 +200,52 @@ describe("SignInForm", () => {
         screen.getByRole("button", { name: "PasswordToggle.hide" }),
       ).toBeInTheDocument();
     });
+  });
+
+  it("starts from the email sign-up handed over, editable, with focus on the password", async () => {
+    const user = userEvent.setup();
+    rememberSignInEmailHint("ada@example.com");
+
+    render(<SignInForm />);
+
+    const email = screen.getByPlaceholderText("Fields.Email.placeholder");
+    await waitFor(() => {
+      expect(email).toHaveValue("ada@example.com");
+      expect(
+        screen.getByPlaceholderText("Fields.Password.placeholder"),
+      ).toHaveFocus();
+    });
+    expect(email).toBeEnabled();
+
+    await user.type(email, ".uk");
+    expect(email).toHaveValue("ada@example.com.uk");
+  });
+
+  it("uses the handed-over email once", async () => {
+    rememberSignInEmailHint("ada@example.com");
+    const first = render(<SignInForm />);
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText("Fields.Email.placeholder"),
+      ).toHaveValue("ada@example.com");
+    });
+    first.unmount();
+
+    render(<SignInForm />);
+
+    expect(screen.getByPlaceholderText("Fields.Email.placeholder")).toHaveValue(
+      "",
+    );
+  });
+
+  it("keeps a locked invitation email over a handed-over one", () => {
+    rememberSignInEmailHint("ada@example.com");
+
+    render(<SignInForm prefilledEmail="invited@example.com" />);
+
+    const email = screen.getByPlaceholderText("Fields.Email.placeholder");
+    expect(email).toHaveValue("invited@example.com");
+    expect(email).toBeDisabled();
   });
 
   it("focuses the password field when submit hits a missing password error", async () => {

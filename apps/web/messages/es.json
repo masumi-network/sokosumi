@@ -1152,7 +1152,8 @@
     "SocialButtons": {
       "continueWith": "Continuar con {provider}",
       "passwordDivider": "o iniciar sesión con contraseña",
-      "emailDivider": "o registrarte con correo electrónico",
+      "orDivider": "o",
+      "magicLinkDivider": "o sin contraseña",
       "success": "Sesión iniciada correctamente",
       "error": "Error al iniciar sesión",
       "lastUsed": "Usado por última vez",
@@ -1236,13 +1237,24 @@
         },
         "Form": {
           "submit": "Registrarse",
+          "continueWithEmail": "Continuar con email",
+          "AccountExists": {
+            "title": "Ya tienes una cuenta",
+            "description": "Inicia sesión con este email o introduce otro para registrarte.",
+            "logIn": "Iniciar sesión"
+          },
+          "change": "Cambiar",
+          "changeEmail": "Cambiar email",
           "error": "Error al registrarse",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             },
-            "Name": {
-              "placeholder": "Nombre"
+            "FirstName": {
+              "label": "Nombre"
+            },
+            "LastName": {
+              "label": "Apellido"
             },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -1258,7 +1270,7 @@
               "invalidEmail": "Introduce un email válido para ver o crear organizaciones"
             },
             "Password": {
-              "placeholder": "Contraseña"
+              "label": "Contraseña"
             }
           },
           "Errors": {
@@ -3992,7 +4004,8 @@
           "working": "Procesando…",
           "actionDone": "Acción de programación completada.",
           "actionError": "No se pudo completar la acción de programación.",
-          "noRuns": "Aún no hay ejecuciones."
+          "noRuns": "Aún no hay ejecuciones.",
+          "runOnce": "Una sola vez"
         },
         "Memory": {
           "title": "Memoria",
@@ -4514,8 +4527,8 @@
     "Account": {
       "Name": {
         "title": "Cambiar nombre",
-        "description": "Actualizar tu nombre de visualización",
-        "newName": "Nuevo nombre",
+        "description": "Actualizar tu nombre y tu nombre de visualización",
+        "displayName": "Nombre de visualización",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar nombre",
         "success": "Nombre actualizado correctamente",
@@ -7337,8 +7350,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Nombre",
-        "placeholder": "Tu nombre",
+        "firstNameLabel": "Nombre",
+        "lastNameLabel": "Apellido",
         "persistError": "No pudimos actualizar tu nombre."
       },
       "Schema": {
@@ -7351,6 +7364,15 @@
           "max": "El nombre no puede superar los 128 caracteres.",
           "invalid": "El nombre debe ser una cadena válida.",
           "required": "El nombre es obligatorio"
+        },
+        "FirstName": {
+          "required": "El nombre es obligatorio"
+        },
+        "LastName": {
+          "required": "El apellido es obligatorio"
+        },
+        "FullName": {
+          "max": "El nombre y el apellido juntos no pueden superar los 128 caracteres, incluido el espacio."
         },
         "Organization": {
           "invalid": "La organización debe ser una cadena válida.",
@@ -7537,8 +7559,6 @@
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
     "retry": "Reintentar",
     "Identity": {
-      "nameLabel": "Nombre",
-      "namePlaceholder": "Tu nombre",
       "choiceLabel": "¿Cómo quieres trabajar?",
       "choiceHint": "Puedes añadir otro espacio de trabajo en cualquier momento.",
       "personalTitle": "Personal",

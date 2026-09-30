@@ -109,6 +109,9 @@ async function AccountPageContent() {
               />
             ) : undefined
           }
+          userName={session?.user.name}
+          userFirstName={session?.user.firstName}
+          userLastName={session?.user.lastName}
           userImage={session?.user.image}
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}

@@ -3378,50 +3378,90 @@ describe("SokoBotRuntimeService chat reading", () => {
     ]);
   });
 
-  it("shows the owner's unread counts on an owner turn, only for their rooms", async () => {
-    chatRoomFindManyMock.mockResolvedValue([
-      {
-        id: "room_dm",
-        name: "Joseph",
-        groupName: null,
-        kind: "direct",
-        updatedAt: new Date("2026-09-30T10:00:00.000Z"),
-        _count: { messages: 9 },
-        userMembers: [{ userId: SCOPE.userId }],
-      },
-      {
-        id: "room_other",
-        name: "Test",
-        groupName: null,
-        kind: "channel",
-        updatedAt: new Date("2026-09-30T09:00:00.000Z"),
-        _count: { messages: 4 },
-        userMembers: [],
-      },
-    ]);
+  it("lists the owner's unread chats on an owner turn, including rooms the bot is not in", async () => {
+    // First query: the bot's own rooms. Second: every room of the owner's.
+    chatRoomFindManyMock
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          updatedAt: new Date("2026-09-30T10:00:00.000Z"),
+          _count: { messages: 9 },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+          userMembers: [{ mutedAt: null }],
+        },
+        {
+          id: "room_marketing",
+          name: "Marketing",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: new Date("2026-09-01T00:00:00.000Z") }],
+        },
+        {
+          id: "room_read",
+          name: "Design",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: null }],
+        },
+      ]);
     unreadCountsMock.mockResolvedValue(
-      new Map([["room_dm", { channel: 2, thread: 1, total: 3 }]]),
+      new Map([
+        ["room_dm", { channel: 2, thread: 1, total: 3 }],
+        ["room_marketing", { channel: 5, thread: 0, total: 5 }],
+      ]),
     );
 
     const owner = await new SokoBotRuntimeService()["listChats"]({
       turn: SCOPE_TURN,
       askedByKind: "OWNER",
     } as never);
+    expect(chatRoomFindManyMock.mock.calls[1][0].where).toEqual({
+      archivedAt: null,
+      organizationId: "org_1",
+      userMembers: { some: { userId: SCOPE.userId } },
+    });
     expect(unreadCountsMock).toHaveBeenCalledWith(
-      ["room_dm"],
+      ["room_dm", "room_marketing", "room_read"],
       SCOPE.userId,
       expect.anything(),
     );
-    expect(owner.rooms).toEqual([
-      expect.objectContaining({ roomId: "room_dm", ownerUnread: 3 }),
-      expect.not.objectContaining({ ownerUnread: expect.anything() }),
+    expect(owner.ownerUnread).toEqual([
+      {
+        roomId: "room_dm",
+        name: "Joseph",
+        kind: "direct",
+        unread: 3,
+        youAreMember: true,
+      },
+      {
+        roomId: "room_marketing",
+        name: "Marketing",
+        kind: "channel",
+        unread: 5,
+        youAreMember: false,
+        muted: true,
+      },
     ]);
 
+    chatRoomFindManyMock.mockResolvedValue([]);
     const teammate = await new SokoBotRuntimeService()["listChats"]({
       turn: SCOPE_TURN,
       askedByKind: "TEAMMATE",
     } as never);
-    expect(teammate.rooms.some((room) => "ownerUnread" in room)).toBe(false);
+    expect("ownerUnread" in teammate).toBe(false);
   });
 
   it("names a read group by its Group name", async () => {

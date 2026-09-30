@@ -1152,7 +1152,8 @@
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
       "passwordDivider": "oder mit Passwort anmelden",
-      "emailDivider": "oder mit E-Mail registrieren",
+      "orDivider": "oder",
+      "magicLinkDivider": "oder ohne Passwort",
       "success": "Anmeldung erfolgreich",
       "error": "Anmeldung fehlgeschlagen",
       "lastUsed": "Zuletzt verwendet",
@@ -1236,13 +1237,24 @@
         },
         "Form": {
           "submit": "Registrieren",
+          "continueWithEmail": "Weiter mit E-Mail",
+          "AccountExists": {
+            "title": "Du hast bereits ein Konto",
+            "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
+            "logIn": "Anmelden"
+          },
+          "change": "Ändern",
+          "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
             "Email": {
-              "placeholder": "E-Mail"
+              "label": "E-Mail"
             },
-            "Name": {
-              "placeholder": "Name"
+            "FirstName": {
+              "label": "Vorname"
+            },
+            "LastName": {
+              "label": "Nachname"
             },
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
@@ -1258,7 +1270,7 @@
               "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
             },
             "Password": {
-              "placeholder": "Passwort"
+              "label": "Passwort"
             }
           },
           "Errors": {
@@ -3992,7 +4004,8 @@
           "working": "Wird ausgeführt…",
           "actionDone": "Zeitplan-Aktion abgeschlossen.",
           "actionError": "Zeitplan-Aktion konnte nicht abgeschlossen werden.",
-          "noRuns": "Noch keine Läufe."
+          "noRuns": "Noch keine Läufe.",
+          "runOnce": "Einmalig"
         },
         "Memory": {
           "title": "Gedächtnis",
@@ -4514,8 +4527,8 @@
     "Account": {
       "Name": {
         "title": "Name ändern",
-        "description": "Deinen Anzeigenamen aktualisieren",
-        "newName": "Neuer Name",
+        "description": "Deinen Namen und Anzeigenamen aktualisieren",
+        "displayName": "Anzeigename",
         "currentPassword": "Aktuelles Passwort",
         "submit": "Name aktualisieren",
         "success": "Name erfolgreich aktualisiert",
@@ -7337,8 +7350,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Name",
-        "placeholder": "Dein Name",
+        "firstNameLabel": "Vorname",
+        "lastNameLabel": "Nachname",
         "persistError": "Wir konnten deinen Namen nicht aktualisieren."
       },
       "Schema": {
@@ -7351,6 +7364,15 @@
           "max": "Name darf maximal 128 Zeichen lang sein.",
           "invalid": "Name muss eine gültige Zeichenkette sein.",
           "required": "Name ist erforderlich"
+        },
+        "FirstName": {
+          "required": "Vorname ist erforderlich"
+        },
+        "LastName": {
+          "required": "Nachname ist erforderlich"
+        },
+        "FullName": {
+          "max": "Vor- und Nachname dürfen zusammen maximal 128 Zeichen lang sein, einschließlich des Leerzeichens."
         },
         "Organization": {
           "invalid": "Organisation muss eine gültige Zeichenkette sein.",
@@ -7537,8 +7559,6 @@
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
     "retry": "Erneut versuchen",
     "Identity": {
-      "nameLabel": "Name",
-      "namePlaceholder": "Dein Name",
       "choiceLabel": "Wie möchtest du arbeiten?",
       "choiceHint": "Du kannst jederzeit einen weiteren Arbeitsbereich hinzufügen.",
       "personalTitle": "Persönlich",

@@ -234,14 +234,16 @@ export class SokoBotSchedulesSyncService {
     }
 
     const scheduledFor = due.nextRunAt;
-    const nextRunAt = computeNextRunWithMinimumInterval(
-      {
-        cron: due.cronExpression,
-        timezone: due.timezone,
-        from: new Date(Math.max(scheduledFor.getTime(), Date.now())),
-      },
-      MIN_SCHEDULE_INTERVAL_MS,
-    );
+    const nextRunAt = due.runOnce
+      ? scheduledFor
+      : computeNextRunWithMinimumInterval(
+          {
+            cron: due.cronExpression,
+            timezone: due.timezone,
+            from: new Date(Math.max(scheduledFor.getTime(), Date.now())),
+          },
+          MIN_SCHEDULE_INTERVAL_MS,
+        );
     if (!nextRunAt) {
       await prisma.sokoBotSchedule.update({
         where: { id: due.id },
@@ -262,7 +264,11 @@ export class SokoBotSchedulesSyncService {
           enabled: true,
           nextRunAt: scheduledFor,
         },
-        data: { nextRunAt, lastRunAt: scheduledFor },
+        // A one-time schedule is spent by its claim; a failed run retries
+        // through its run row, not the schedule.
+        data: due.runOnce
+          ? { enabled: false, lastRunAt: scheduledFor }
+          : { nextRunAt, lastRunAt: scheduledFor },
       });
       if (moved.count === 0) return null;
       return tx.sokoBotScheduleRun.create({

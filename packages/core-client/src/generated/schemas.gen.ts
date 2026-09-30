@@ -2220,6 +2220,9 @@ export const SokoBotScheduleSchema = {
         cronExpression: {
             type: 'string'
         },
+        runOnce: {
+            type: 'boolean'
+        },
         prompt: {
             type: 'string'
         },

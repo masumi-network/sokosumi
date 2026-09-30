@@ -55,6 +55,8 @@ interface MappedSocialProfile extends MappedProfileNameImage {
 async function mapProfileToUser(profile: {
   name: string;
   picture: string;
+  given_name?: string;
+  family_name?: string;
 }): Promise<MappedSocialProfile> {
   let mapped: MappedProfileNameImage;
   try {
@@ -75,7 +77,13 @@ async function mapProfileToUser(profile: {
       image: undefined,
     };
   }
-  return { ...mapped, emailVerified: true };
+  return {
+    ...mapped,
+    // Prefills the onboarding form. A provider may leave either claim out.
+    firstName: profile.given_name?.trim() || undefined,
+    lastName: profile.family_name?.trim() || undefined,
+    emailVerified: true,
+  };
 }
 
 async function mapProfileToUserInner(profile: {

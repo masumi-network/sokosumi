@@ -507,6 +507,7 @@ export type SokoBotSchedule = {
     enabled: boolean;
     timezone: string;
     cronExpression: string;
+    runOnce?: boolean;
     prompt: string;
     systemKey?: string | null;
     nextRunAt: Date;

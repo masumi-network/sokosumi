@@ -12,6 +12,7 @@ import { AuthForm } from "@/auth/components/form/auth-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { signInFormData } from "@/auth/signin/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
@@ -21,6 +22,7 @@ import {
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
+import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
@@ -71,6 +73,17 @@ export default function SignInForm({
   useEffect(() => {
     fireGTMEvent.viewLoginArea();
   }, []);
+
+  // Sign-up sends a person who already has an account here with the email
+  // they typed. It is a starting value, not a locked one like `prefilledEmail`.
+  useMountEffect(() => {
+    const emailHint = takeSignInEmailHint();
+    if (!emailHint || prefilledEmail) {
+      return;
+    }
+    form.setValue("email", emailHint);
+    form.setFocus("currentPassword");
+  });
 
   // when user starts typing in the form
   useEffect(() => {
