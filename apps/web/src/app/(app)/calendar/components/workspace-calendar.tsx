@@ -1214,6 +1214,18 @@ export function WorkspaceCalendar({
             </Button>
           </div>
         ) : null}
+        {socialPostsOnly ? (
+          // A post goes out at one instant; say which zone the grid reads it
+          // in, since the zone picker sits behind the filters. On a phone it
+          // goes under the controls rather than between their two rows.
+          <span
+            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-sm:order-last max-sm:w-full"
+            data-testid="calendar-timezone"
+          >
+            <Clock3 className="size-3.5" aria-hidden />
+            {t("timezone.showing", { zone: timeZone.replaceAll("_", " ") })}
+          </span>
+        ) : null}
 
         <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between">
           <Tabs

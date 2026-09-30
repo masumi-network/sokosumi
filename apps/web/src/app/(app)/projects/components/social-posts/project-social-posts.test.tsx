@@ -132,6 +132,11 @@ const MESSAGES: Record<string, string> = {
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
   "composer.accounts": "Post to",
+  "composer.platforms": "Limits per platform",
+  "composer.platformLimit": "{provider} {format} · {count} / {limit}",
+  "composer.formats.post": "post",
+  "composer.formats.mediaPost": "image or video post",
+  "composer.formats.video": "video",
   "composer.accountOption": "{provider} {handle}",
   "composer.noAccounts": "No accounts connected yet.",
   "composer.unknownHandle": "Unknown X account",
@@ -161,6 +166,9 @@ const MESSAGES: Record<string, string> = {
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
+  "composer.timezone.yours": "Times are in your time zone, {zone}.",
+  "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
+  "composer.timezone.postZone": "Scheduled as {date} in {zone}.",
   quickPicks: "Quick picks",
   "quick.inAnHour": "In an hour ({time})",
   "quick.tomorrowMorning": "Tomorrow {time}",
@@ -501,7 +509,10 @@ describe("ProjectSocialPosts", () => {
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(within(draftRow).getByText("No account")).toBeVisible();
     expect(within(draftRow).getByText("User · Alice")).toBeVisible();
-    expect(within(draftRow).queryByText("Draft")).not.toBeInTheDocument();
+    // Every card leads with its status, the way a task card does.
+    expect(
+      within(draftRow).getByTestId("social-post-status-DRAFT"),
+    ).toHaveTextContent("Draft");
 
     expect(
       screen.queryByTestId("social-post-post-scheduled"),
@@ -638,7 +649,8 @@ describe("ProjectSocialPosts", () => {
     expect(within(row).getByText("Scheduled text")).toBeVisible();
     expect(within(row).getByText("@sokosumi")).toBeVisible();
     expect(within(row).getByText("Coworker · Scout")).toBeVisible();
-    expect(within(row).getByText("Oct 1, 10:00 AM")).toBeVisible();
+    // The time names its zone, so nobody reads it as their own.
+    expect(within(row).getByText(/^Oct 1, 10:00 AM \S+/)).toBeVisible();
     expect(within(row).getByText("Scheduled")).toBeVisible();
     expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
   });
@@ -756,6 +768,46 @@ describe("ProjectSocialPosts", () => {
         name: "LinkedIn @sokosumi-co",
       }),
     ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("counts the text against each picked platform's own limit", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+
+    const x = within(dialog).getByTestId("social-post-platform-x");
+    const linkedIn = within(dialog).getByTestId(
+      "social-post-platform-linkedin",
+    );
+    expect(x).toHaveTextContent("X post · 300 / 280");
+    expect(x).toHaveClass("text-destructive");
+    expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
+    expect(linkedIn).not.toHaveClass("text-destructive");
+    // One text goes to both, so the stricter limit blocks saving.
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
   });
 
   it("retries only the accounts that failed after a partial save", async () => {
@@ -1844,6 +1896,53 @@ describe("ProjectSocialPosts", () => {
         );
     expect(option(10, 0)).toBeDisabled();
     expect(option(10, 15)).toBeEnabled();
+  });
+
+  it("names the viewer's time zone and the time a post goes out", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const zone = Intl.DateTimeFormat()
+      .resolvedOptions()
+      .timeZone.replaceAll("_", " ");
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const line = within(dialog).getByTestId("social-post-timezone");
+    expect(line).toHaveTextContent(`Times are in your time zone, ${zone}.`);
+
+    await pickInAnHour(user, dialog);
+    expect(line).toHaveTextContent(
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zone}).`,
+    );
+  });
+
+  it("shows a post's own time zone when it differs from the viewer's", async () => {
+    const user = userEvent.setup();
+    const otherZone =
+      Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Tokyo"
+        ? "Europe/Berlin"
+        : "Asia/Tokyo";
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...SCHEDULED_POST, timezone: otherZone }]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
+    expect(
+      within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
+    ).toHaveTextContent(`in ${otherZone.replaceAll("_", " ")}.`);
   });
 
   it("schedules from the date and time pickers", async () => {

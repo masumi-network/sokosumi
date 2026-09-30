@@ -1238,6 +1238,20 @@ describe("core auth config", () => {
     });
   });
 
+  it("encrypts the OAuth proxy hand-off with its own secret", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      OAUTH_PROXY_SECRET: "proxy-secret",
+    });
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://example.com/auth",
+      secret: "proxy-secret",
+    });
+  });
+
   it("enables Better Auth cookie cache for core sessions", async () => {
     await import("./auth");
 
@@ -2379,6 +2393,43 @@ describe("core auth config", () => {
         body: { termsAccepted: true },
         path: "/sign-up/email",
       }),
+    ).resolves.toBeUndefined();
+  });
+
+  it.each(["/callback/:id/oauth-proxy", "/oauth-proxy-callback"])(
+    "refuses a proxied sign-in on %s outside a preview",
+    async (path) => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        VERCEL_ENV: "production",
+      });
+
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { before: (ctx: { path: string }) => Promise<void> } }]
+      >;
+
+      await expect(config.hooks.before({ path })).rejects.toMatchObject({
+        status: "NOT_FOUND",
+      });
+    },
+  );
+
+  it("completes a proxied sign-in on a preview", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "preview",
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ hooks: { before: (ctx: { path: string }) => Promise<void> } }]
+    >;
+
+    await expect(
+      config.hooks.before({ path: "/callback/:id/oauth-proxy" }),
     ).resolves.toBeUndefined();
   });
 
