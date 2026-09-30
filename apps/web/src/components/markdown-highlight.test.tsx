@@ -48,7 +48,7 @@ describe("Markdown search term highlight", () => {
   });
 
   it("keeps a bare URL whole when the term matches inside it", () => {
-    const url = "https://a.test/path?p=1";
+    const url = "https://a.test/?p=1&c=1";
     const container = renderHighlighted(url);
 
     const link = container.querySelector("a");

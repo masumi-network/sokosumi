@@ -21,6 +21,55 @@ import {
 } from "@/lib/utils/file-preview";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
+interface AutolinkNode {
+  type: string;
+  url?: string;
+  value?: string;
+  children?: AutolinkNode[];
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
+}
+
+// Only GFM bare links retain sanitize-html's ampersands as literal entities.
+// Explicit links, HTML attributes and code keep their existing decoding rules.
+function remarkBareUrlAmpersands() {
+  return (tree: AutolinkNode, file: { value: unknown }) => {
+    const source = String(file.value);
+    function visit(parent: AutolinkNode) {
+      parent.children?.forEach((node, index) => {
+        const start = node.position?.start?.offset;
+        let end = node.position?.end?.offset;
+        if (
+          node.type === "link" &&
+          start !== undefined &&
+          end !== undefined &&
+          /^(?:https?:\/\/|www\.)/i.test(source.slice(start, end))
+        ) {
+          node.url = node.url?.replaceAll("&amp;", "&");
+          const label = node.children?.[0];
+          if (label?.type !== "text") return;
+          label.value = label.value?.replaceAll("&amp;", "&");
+          // GFM places a terminal &amp; in the following text node. Reattach
+          // the query delimiter that was only split because of HTML escaping.
+          const next = parent.children?.[index + 1];
+          while (
+            source.startsWith("&amp;", end) &&
+            next?.type === "text" &&
+            next.value?.startsWith("&")
+          ) {
+            node.url += "&";
+            label.value += "&";
+            next.value = next.value.slice(1);
+            end += "&amp;".length;
+          }
+          return;
+        }
+        if (node.type !== "link") visit(node);
+      });
+    }
+    visit(tree);
+  };
+}
+
 function isInternalAppPath(href: string | undefined): href is string {
   return Boolean(href?.startsWith("/") && !href.startsWith("//"));
 }
@@ -304,6 +353,7 @@ export default function Markdown({
         remarkPlugins={[
           remarkBreaks,
           remarkGfm,
+          remarkBareUrlAmpersands,
           [remarkEmoji, { emoticon: true }],
         ]}
         rehypePlugins={[
