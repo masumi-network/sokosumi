@@ -162,6 +162,28 @@ _Avoid_: Per-post approval, connector approval
 One piece of content a Project intends to publish through exactly one Project social connection at one planned time. Not a Job or a Task.
 _Avoid_: Job, Task
 
+### Ads
+
+**Ad connection**:
+A Project's Composio authorization to one ads provider (Google Ads or Meta Ads), granted by an interactive human user who belongs to the Project's Workspace. It may expose several Ad accounts.
+_Avoid_: Integration, Social connection
+
+**Ad account**:
+A provider ad account (Google customer, Meta `act_…`) that a Project chose to manage through an Ad connection.
+_Avoid_: Social account, advertiser
+
+**Campaign**:
+A provider ad campaign inside an Ad account. Sokosumi manages Campaigns only, not ad sets or ads. New Campaigns are always created paused.
+_Avoid_: Ad, Task, Job
+
+**Market profile**:
+A Project's keywords, country, and language that scope its market lookups.
+_Avoid_: Audience, targeting
+
+**Market ads**:
+Other advertisers' recent ads found for a Market profile, shown with preview images. Not the Project's own Campaigns.
+_Avoid_: Competitor ads, ad library
+
 ### Task payments
 
 **Task payment claim**:
