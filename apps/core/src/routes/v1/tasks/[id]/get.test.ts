@@ -13,6 +13,7 @@ import {
 } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 import mountGetTaskById from "./get";
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
@@ -245,20 +246,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -275,20 +266,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -436,20 +417,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -462,20 +433,10 @@ describe("GET /tasks/{id}", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
