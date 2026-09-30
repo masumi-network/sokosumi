@@ -473,6 +473,18 @@ describe("Vercel web turbo build command", () => {
     }
   });
 
+  it("keeps the clone's .git for the ignore step", async () => {
+    // Vercel deletes .vercelignore matches from a Git deployment before the
+    // Ignored Build Step. Without .git, turbo fails and every app builds.
+    const patterns = (await readRepoFile(".vercelignore"))
+      .split("\n")
+      .filter((line) => line && !line.startsWith("#"));
+    assert.equal(
+      patterns.some((pattern) => /^\/?\.git(\/|$)/.test(pattern)),
+      false,
+    );
+  });
+
   it("builds every app for root install configuration changes", async (t) => {
     const fixture = await mkdtemp(path.join(tmpdir(), "vercel-ignore-"));
     t.after(() => rm(fixture, { recursive: true, force: true }));
