@@ -897,6 +897,80 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
   });
 
+  it("never saves a new draft with ⌘Enter in the schedule dialog", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost({ socialConnection: null })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Schedule" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.keyDown(
+      within(dialog).getByRole("heading", { name: "Schedule post" }),
+      { key: "Enter", metaKey: true },
+    );
+
+    // No time yet, so nothing happens; it never falls back to Save draft.
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("posts again only to the accounts a Post now missed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hi", revision: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+      });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...PUBLISHED_POST, id: "post-x", text: "Hi" },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hi");
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+    });
+    // X is live already, so it leaves the selection.
+    expect(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("posts now with ⌘Enter, and schedules with it once a time is picked", async () => {
     freezeClock();
     const user = userEvent.setup();

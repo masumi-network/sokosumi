@@ -372,6 +372,10 @@ export function SocialPostComposerDialog({
     setPending("publish");
     let published = 0;
     let failure: string | null = null;
+    // Accounts whose post now exists, live or in Needs attention. If the run
+    // stops early they leave the selection, so Post now again never posts a
+    // second copy to them.
+    const done: string[] = [];
     try {
       for (const connection of selectedConnections) {
         const created = await createProjectSocialPost({
@@ -389,6 +393,7 @@ export function SocialPostComposerDialog({
           postId: created.value.id,
           revision: created.value.revision,
         });
+        done.push(connection.id);
         if (!result.ok) {
           onSaved(created.value);
           onError(result.error);
@@ -414,12 +419,19 @@ export function SocialPostComposerDialog({
       onError(toActionRejectionError(error));
     } finally {
       setPending(null);
+      if (done.length > 0 && done.length < selectedConnections.length) {
+        setConnectionIds((current) =>
+          current.filter((id) => !done.includes(id)),
+        );
+      }
     }
   }
 
   /** What ⌘/Ctrl+Enter runs: the main action for what the reader has filled. */
   const shortcutAction: Exclude<PendingSubmit, null> =
-    scheduledAt !== ""
+    // Picking a time is all the schedule dialog does, so there it schedules
+    // (or waits for a time) and never saves a new draft.
+    scheduledAt !== "" || isScheduleOnly
       ? "schedule"
       : mode.kind === "create"
         ? "publish"
@@ -587,7 +599,12 @@ export function SocialPostComposerDialog({
           if (
             event.key === "Enter" &&
             (event.metaKey || event.ctrlKey) &&
-            !event.nativeEvent.isComposing
+            !event.nativeEvent.isComposing &&
+            // Keys bubble through portals: ⌘Enter in the Drive picker or a
+            // date or time popover belongs to them, not to this dialog.
+            !pickerOpen &&
+            event.target instanceof Node &&
+            event.currentTarget.contains(event.target)
           ) {
             event.preventDefault();
             handleSubmitShortcut();
