@@ -2274,7 +2274,7 @@
         "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectAccount": "Connect account",
+        "connectAccount": "Connect X, YouTube, LinkedIn…",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
@@ -2327,7 +2327,6 @@
         "loadMore": "Load more",
         "loading": "Loading…",
         "title": "Social posts",
-        "description": "Draft, schedule, and publish posts on this Project’s connected social accounts.",
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
@@ -2335,17 +2334,16 @@
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
         },
         "sections": {
-          "upcoming": "Upcoming",
+          "calendar": "Calendar",
           "drafts": "Drafts",
-          "attention": "Needs attention"
+          "attention": "Needs attention",
+          "accounts": "Accounts"
         },
         "selectedPost": "Selected post",
         "empty": {
-          "upcoming": "No scheduled posts yet.",
           "drafts": "No drafts yet."
         },
         "emptyHint": {
-          "upcoming": "Schedule a post and it shows up here and on the calendar.",
           "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
@@ -2440,6 +2438,11 @@
           "title": "Publish this post now?",
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
+        },
+        "connectPrompt": {
+          "title": "Connect an account to start posting",
+          "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
+          "action": "Connect X, YouTube, LinkedIn…"
         }
       },
       "Detail": {
@@ -2735,14 +2738,10 @@
       "title": "Social",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "calendar": {
-        "title": "Posting schedule",
-        "description": "Every scheduled post for this project, and nothing else."
-      },
       "newPost": {
         "label": "New post",
         "options": "New post options",
-        "manual": "Write it myself",
+        "manual": "Manual post",
         "manualHint": "Pick the account, media, and time.",
         "sokoBot": "Post with Soko Bot",
         "sokoBotHint": "Chat it through, Soko Bot drafts and schedules.",
@@ -2753,13 +2752,13 @@
         "chooseProjectTitle": "Choose a project for this post",
         "chooseProjectBody": "A post is published from the accounts connected to one project."
       },
-      "allProjectsCalendar": {
-        "title": "Posting schedule",
-        "description": "Scheduled posts across every project in this workspace."
-      },
       "accountsNeedProject": {
-        "title": "Social accounts",
+        "title": "Connect X, YouTube, LinkedIn…",
         "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
+      },
+      "draftsNeedProject": {
+        "title": "Drafts",
+        "body": "Drafts are kept per project. Choose a project to see and finish its drafts."
       },
       "loading": "Loading Social…"
     },
