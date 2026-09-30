@@ -15,7 +15,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { ImagePlus, Loader2, Upload } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
@@ -50,6 +50,7 @@ import {
 } from "@/lib/utils/drive-file-upload.client";
 import {
   socialPostComposerAccept,
+  socialPostComposerFormat,
   socialPostComposerIssue,
   socialPostComposerProviders,
 } from "./social-post-composer-rules";
@@ -87,6 +88,11 @@ function formatHandle(handle: string | null): string {
   return handle.startsWith("@") ? handle : `@${handle}`;
 }
 
+/** An IANA zone as people read it: `America/New_York` → `America/New York`. */
+function zoneName(timezone: string): string {
+  return timezone.replaceAll("_", " ");
+}
+
 function resolveTimezone(): string {
   return Intl.DateTimeFormat().resolvedOptions().timeZone;
 }
@@ -101,6 +107,8 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const viewerTimezone = resolveTimezone();
   const textId = useId();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
@@ -388,7 +396,7 @@ export function SocialPostComposerDialog({
     if (!canSchedule || !scheduledDate) return;
     setPending("schedule");
     const scheduledAtIso = scheduledDate.toISOString();
-    const timezone = resolveTimezone();
+    const timezone = viewerTimezone;
     try {
       if (mode.kind === "create") {
         const created = await createForEachAccount((socialConnectionId) =>
@@ -575,6 +583,45 @@ export function SocialPostComposerDialog({
                     })}
                   </span>
                 </div>
+                {/* One platform: the count above already is its limit. */}
+                {providers.length > 1 ? (
+                  <ul
+                    aria-label={t("composer.platforms")}
+                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                    data-testid="social-post-platforms"
+                  >
+                    {providers.map((candidate) => {
+                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
+                      const over = text.length > limit;
+                      return (
+                        <li
+                          className={cn(
+                            "inline-flex items-center gap-1.5",
+                            over ? "text-destructive" : "text-muted-foreground",
+                          )}
+                          data-testid={`social-post-platform-${candidate}`}
+                          key={candidate}
+                        >
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={candidate}
+                          />
+                          <span>
+                            {t("composer.platformLimit", {
+                              provider: socialPostProviderLabel(candidate),
+                              format: t(
+                                `composer.formats.${socialPostComposerFormat(candidate)}`,
+                              ),
+                              count: text.length,
+                              limit,
+                            })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
                 <Textarea
                   id={textId}
                   aria-invalid={overLimit || undefined}
@@ -643,7 +690,7 @@ export function SocialPostComposerDialog({
                     data-testid="social-post-requirement-hint"
                   >
                     {t(`composer.requirements.${requirementHint}`, {
-                      provider: socialPostProviderLabel(provider),
+                      provider: socialPostProviderLabel(issueProvider),
                     })}
                   </p>
                 ) : null}
@@ -664,6 +711,40 @@ export function SocialPostComposerDialog({
               onChange={setScheduledAt}
               value={scheduledAt}
             />
+            <div
+              className="text-muted-foreground space-y-0.5 text-xs"
+              data-testid="social-post-timezone"
+            >
+              {/* A post goes out at one instant; the picker and this line
+                  read it in the viewer's zone, and name that zone. */}
+              <p>
+                {scheduledAtValid && scheduledDate
+                  ? t("composer.timezone.goesOut", {
+                      date: formatter.dateTime(
+                        scheduledDate,
+                        "dateTimeWithYear",
+                      ),
+                      zone: zoneName(viewerTimezone),
+                    })
+                  : t("composer.timezone.yours", {
+                      zone: zoneName(viewerTimezone),
+                    })}
+              </p>
+              {post?.scheduledAt &&
+              post.timezone &&
+              post.timezone !== viewerTimezone ? (
+                <p>
+                  {t("composer.timezone.postZone", {
+                    date: formatter.dateTime(
+                      post.scheduledAt,
+                      "dateTimeWithYear",
+                      { timeZone: post.timezone },
+                    ),
+                    zone: zoneName(post.timezone),
+                  })}
+                </p>
+              ) : null}
+            </div>
             {scheduledAtTooSoon ? (
               <p id={scheduledAtErrorId} className="text-destructive text-sm">
                 {t("composer.scheduledAtTooSoon")}

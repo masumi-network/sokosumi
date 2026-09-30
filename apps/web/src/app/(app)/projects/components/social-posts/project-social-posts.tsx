@@ -92,9 +92,6 @@ interface ProjectSocialPostsProps {
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
 
-/** Statuses the tab already names, so a badge on the row would only repeat it. */
-const TAB_STATUSES: readonly SocialPostStatus[] = ["DRAFT"];
-
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
 }
@@ -355,7 +352,9 @@ export function ProjectSocialPosts({
       <li
         key={post.id}
         id={`social-post-${post.id}`}
-        className="flex flex-wrap items-start gap-3 p-3"
+        // The Task board's card: one border weight, the primary border on
+        // hover, and the status badge leading like a task's.
+        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
         <span
@@ -371,16 +370,18 @@ export function ProjectSocialPosts({
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
                 dateTime={post.scheduledAt.toISOString()}
               >
-                {formatter.dateTime(post.scheduledAt, "dateTime")}
+                {/* Named, so a reader in another zone does not misread it. */}
+                {formatter.dateTime(post.scheduledAt, "dateTime", {
+                  timeZoneName: "short",
+                })}
               </time>
             ) : null}
             <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
-            {TAB_STATUSES.includes(post.status) ? null : (
-              <SocialPostStatusBadge
-                label={t(`status.${post.status}`)}
-                status={post.status}
-              />
-            )}
+            <SocialPostStatusBadge
+              className="order-first"
+              label={t(`status.${post.status}`)}
+              status={post.status}
+            />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
           {post.media.length > 0 ? (
@@ -546,7 +547,7 @@ export function ProjectSocialPosts({
       >
         {t("selectedPost")}
       </h3>
-      <ul className="rounded-lg border">{renderPost(selectedUnlistedPost)}</ul>
+      <ul className="grid gap-2">{renderPost(selectedUnlistedPost)}</ul>
     </section>
   ) : null;
 
@@ -658,9 +659,7 @@ export function ProjectSocialPosts({
                 value={section}
               >
                 {sectionPosts.length > 0 ? (
-                  <ul className="divide-y rounded-lg border">
-                    {sectionPosts.map(renderPost)}
-                  </ul>
+                  <ul className="grid gap-2">{sectionPosts.map(renderPost)}</ul>
                 ) : cursor ? null : (
                   <div className="rounded-lg border border-dashed px-4 py-8 text-center">
                     <p className="text-sm font-medium">
