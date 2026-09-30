@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -461,6 +470,87 @@ describe("Vercel web turbo build command", () => {
         config.ignoreCommand,
         `node ../../scripts/ci/vercel-ignore.mjs ${name}`,
       );
+    }
+  });
+
+  it("builds every app for root install configuration changes", async (t) => {
+    const fixture = await mkdtemp(path.join(tmpdir(), "vercel-ignore-"));
+    t.after(() => rm(fixture, { recursive: true, force: true }));
+    const rootPackage = {
+      name: "fixture",
+      private: true,
+      packageManager: "pnpm@12.8.1",
+    };
+    await writeFile(
+      path.join(fixture, "package.json"),
+      JSON.stringify(rootPackage),
+    );
+    await writeFile(
+      path.join(fixture, "turbo.json"),
+      await readRepoFile("turbo.json"),
+    );
+    await writeFile(
+      path.join(fixture, "pnpm-workspace.yaml"),
+      "packages:\n  - apps/*\n",
+    );
+    await writeFile(
+      path.join(fixture, "pnpm-lock.yaml"),
+      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n",
+    );
+    for (const [app, name] of [
+      ["web", "web"],
+      ["core", "@sokosumi/core"],
+      ["cmo", "cmo"],
+    ]) {
+      await mkdir(path.join(fixture, "apps", app), { recursive: true });
+      await writeFile(
+        path.join(fixture, "apps", app, "package.json"),
+        JSON.stringify({ name }),
+      );
+    }
+    const git = (...args) =>
+      execFileSync("git", args, { cwd: fixture, encoding: "utf8" }).trim();
+    git("init", "-q");
+    git("config", "user.name", "CI fixture");
+    git("config", "user.email", "ci@example.invalid");
+    git("add", ".");
+    git("commit", "-qm", "initial fixture");
+    for (const [file, content, expected] of [
+      [
+        "package.json",
+        JSON.stringify({ ...rootPackage, engines: { node: "24.x" } }),
+        1,
+      ],
+      [
+        "pnpm-workspace.yaml",
+        "packages:\n  - apps/*\nverifyDepsBeforeRun: warn\n",
+        1,
+      ],
+      ["README.md", "Documentation change\n", 0],
+    ]) {
+      const base = git("rev-parse", "HEAD");
+      await writeFile(path.join(fixture, file), content);
+      git("add", file);
+      git("commit", "-qm", `change ${file}`);
+      for (const name of ["web", "@sokosumi/core", "cmo"]) {
+        const result = spawnSync(
+          path.join(repoRoot, "node_modules/.bin/turbo"),
+          [
+            "query",
+            "affected",
+            `--base=${base}`,
+            "--packages",
+            name,
+            "--exit-code",
+          ],
+          { cwd: fixture, encoding: "utf8" },
+        );
+        assert.equal(
+          result.status,
+          expected,
+          `${file}: ${name}: ${result.stdout} ${result.stderr}`,
+        );
+      }
     }
   });
 
