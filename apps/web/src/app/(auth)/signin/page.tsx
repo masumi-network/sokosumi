@@ -38,7 +38,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
   const env = getEnvSecrets();
   const { returnUrl, email } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
-  if (oauthRequest?.handBack) {
+  if (oauthRequest?.canHandBack) {
     return (
       <OAuthHandBack
         oauthQuery={oauthRequest.query}

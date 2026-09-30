@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getOAuthClientPublic, getSession } from "./auth.server";
+import { getOAuthClientPublicPrelogin, getSession } from "./auth.server";
 import {
   type AuthRedirectSearchParams,
   buildSignedOAuthQueryFromSearchParams,
@@ -16,7 +16,7 @@ export interface OAuthRequest {
    * The person is signed in and the request does not ask them to sign in
    * again, so it goes back to the provider instead of showing a form.
    */
-  handBack: boolean;
+  canHandBack: boolean;
 }
 
 /**
@@ -37,7 +37,7 @@ export async function readOAuthRequest(
 
   const [session, client] = await Promise.all([
     getSession(),
-    getOAuthClientPublic(clientId),
+    getOAuthClientPublicPrelogin(clientId, query),
   ]);
   // Handing such a request back would only return the person to this page.
   const requiresSignIn =
@@ -46,7 +46,7 @@ export async function readOAuthRequest(
 
   return {
     query,
-    clientName: client.unwrapOr(null)?.client_name || undefined,
-    handBack: session != null && !requiresSignIn,
+    clientName: client?.client_name || undefined,
+    canHandBack: session != null && !requiresSignIn,
   };
 }

@@ -1126,9 +1126,6 @@
         "invalid": "Password must be a valid string.",
         "min": "Password must be at least 8 characters",
         "max": "Password must be at most 128 characters",
-        "lowercase": "Password must contain at least one lowercase letter.",
-        "uppercase": "Password must contain at least one uppercase letter.",
-        "number": "Password must contain at least one number.",
         "required": "Password is required"
       },
       "CurrentPassword": {

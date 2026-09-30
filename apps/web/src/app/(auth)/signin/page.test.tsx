@@ -1,5 +1,4 @@
 import { render, screen } from "@testing-library/react";
-import { err, ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookiesMock = vi.fn();
@@ -10,7 +9,7 @@ const getEnvSecretsMock = vi.fn();
 const headerMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
-const getOAuthClientPublicMock = vi.fn();
+const getOAuthClientPublicPreloginMock = vi.fn();
 
 const OAUTH_SEARCH_PARAMS = {
   client_id: "cmo",
@@ -77,8 +76,8 @@ vi.mock("@/auth/components/oauth-hand-back", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
-  getOAuthClientPublic: (clientId: string) =>
-    getOAuthClientPublicMock(clientId),
+  getOAuthClientPublicPrelogin: (clientId: string, oauthQuery: string) =>
+    getOAuthClientPublicPreloginMock(clientId, oauthQuery),
 }));
 
 describe("SignIn page", () => {
@@ -94,9 +93,10 @@ describe("SignIn page", () => {
       VERCEL_ENV: undefined,
     });
     getSessionMock.mockResolvedValue(null);
-    getOAuthClientPublicMock.mockResolvedValue(
-      ok({ client_id: "cmo", client_name: "CMO" }),
-    );
+    getOAuthClientPublicPreloginMock.mockResolvedValue({
+      client_id: "cmo",
+      client_name: "CMO",
+    });
   });
 
   it("reads the last-login cookie using the configured prefix", async () => {
@@ -126,7 +126,11 @@ describe("SignIn page", () => {
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
-    expect(getOAuthClientPublicMock).toHaveBeenCalledWith("cmo");
+    // Asked with the signed request: the person is not signed in yet.
+    expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledWith(
+      "cmo",
+      OAUTH_QUERY,
+    );
     expect(headerMock).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: "CMO" }),
     );
@@ -137,7 +141,7 @@ describe("SignIn page", () => {
 
     render(await Page({ searchParams: Promise.resolve({}) }));
 
-    expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(headerMock).toHaveBeenCalledWith(
       expect.objectContaining({ clientName: undefined }),
@@ -145,9 +149,7 @@ describe("SignIn page", () => {
   });
 
   it("falls back to the plain header when the product cannot be loaded", async () => {
-    getOAuthClientPublicMock.mockResolvedValue(
-      err({ path: "/auth/oauth2/public-client", reason: "timeout" }),
-    );
+    getOAuthClientPublicPreloginMock.mockResolvedValue(null);
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));

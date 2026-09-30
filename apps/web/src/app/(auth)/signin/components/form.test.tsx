@@ -342,6 +342,22 @@ describe("SignInForm", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it("says to start again when the OAuth request has expired", async () => {
+    mockSignInEmail.mockResolvedValue({
+      data: null,
+      error: { status: 400, error: "invalid_signature" },
+    });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenLastCalledWith("errorDescription");
+    });
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
   it("carries the OAuth request on the register link", () => {
     mockSearchParams = new URLSearchParams({
       client_id: "cmo",

@@ -18,6 +18,7 @@ import {
   buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
+  isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
@@ -39,6 +40,7 @@ export default function SignInForm({
   isLastUsedEmailLogin = false,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const oauthT = useTranslations("Auth.OAuthHandBack");
   const loginAreaFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const {
@@ -91,6 +93,11 @@ export default function SignInForm({
       });
 
       if (result.error) {
+        if (isRejectedOAuthRequestError(result.error)) {
+          toast.error(oauthT("errorDescription"));
+          return;
+        }
+
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 

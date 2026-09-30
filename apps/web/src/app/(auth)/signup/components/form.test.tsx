@@ -228,6 +228,21 @@ describe("SignUpForm OAuth workflow", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it("says to start again when the OAuth request has expired", async () => {
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: { status: 400, error: "invalid_signature" },
+    });
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenLastCalledWith("errorDescription");
+    });
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
   it("does not register when verification is cancelled", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
     render(<SignUpForm />);
@@ -372,6 +387,7 @@ describe("SignUpForm OAuth workflow", () => {
 
     await waitFor(() => {
       expect(fireGTMEvent.signUp).toHaveBeenCalledWith("credential");
+      expect(mockHandleUtmConversion).toHaveBeenCalledTimes(1);
     });
     // Better Auth's client follows the provider's answer. A second
     // navigation would deliver the authorization code twice.

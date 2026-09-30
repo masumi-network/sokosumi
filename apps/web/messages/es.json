@@ -1126,9 +1126,6 @@
         "invalid": "La contraseña debe ser una cadena válida.",
         "min": "La contraseña debe tener al menos 8 caracteres",
         "max": "La contraseña no puede superar los 128 caracteres",
-        "lowercase": "La contraseña debe contener al menos una letra minúscula.",
-        "uppercase": "La contraseña debe contener al menos una letra mayúscula.",
-        "number": "La contraseña debe contener al menos un número.",
         "required": "La contraseña es obligatoria"
       },
       "CurrentPassword": {

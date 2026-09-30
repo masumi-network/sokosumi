@@ -42,7 +42,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
   const env = getEnvSecrets();
   const { email, invitationId, returnUrl } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
-  if (oauthRequest?.handBack) {
+  if (oauthRequest?.canHandBack) {
     return (
       <OAuthHandBack
         oauthQuery={oauthRequest.query}

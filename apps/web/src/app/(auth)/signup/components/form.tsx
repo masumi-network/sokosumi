@@ -14,7 +14,10 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signUp } from "@/lib/auth/auth.client";
-import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import {
+  buildOAuthResumeUrlFromSearchParams,
+  isRejectedOAuthRequestError,
+} from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -35,6 +38,7 @@ export default function SignUpForm({
   returnUrl,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const oauthT = useTranslations("Auth.OAuthHandBack");
   const registerFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const {
@@ -88,6 +92,11 @@ export default function SignUpForm({
       });
 
       if (result.error) {
+        if (isRejectedOAuthRequestError(result.error)) {
+          toast.error(oauthT("errorDescription"));
+          return;
+        }
+
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
@@ -104,10 +113,6 @@ export default function SignUpForm({
         return;
       }
 
-      // Record UTM attribution for every successful signup, including one
-      // that carries an OAuth request.
-      await handleUtmConversion();
-
       // No `callbackURL`: Better Auth would hard-redirect and every line
       // here would be racing the unload, which is how the credential
       // `sign_up` event went missing. See apps/web/TRACKING.md. It also
@@ -120,6 +125,9 @@ export default function SignUpForm({
         provider: "credential",
         returnUrl: effectiveReturnUrl,
         result: result.data,
+        // Record UTM attribution for every successful signup, including one
+        // that carries an OAuth request.
+        beforeLeaving: handleUtmConversion,
       });
     });
   };

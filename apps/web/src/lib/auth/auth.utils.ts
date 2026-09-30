@@ -304,7 +304,7 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
 }
 
-function normalizeOAuthConsentQueryValue(key: string, value: string): string {
+function normalizeOAuthQueryValue(key: string, value: string): string {
   // Better Auth signs with standard base64. Its magic-link verifier decodes an
   // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
   // query parsing turns that `+` into a space. Restore the signature before
@@ -312,16 +312,13 @@ function normalizeOAuthConsentQueryValue(key: string, value: string): string {
   return key === "sig" ? value.replaceAll(" ", "+") : value;
 }
 
-export function serializeOAuthConsentSearchParams(
+export function serializeOAuthSearchParams(
   searchParams: URLSearchParams,
 ): string {
   const normalizedSearchParams = new URLSearchParams();
 
   for (const [key, value] of searchParams.entries()) {
-    normalizedSearchParams.append(
-      key,
-      normalizeOAuthConsentQueryValue(key, value),
-    );
+    normalizedSearchParams.append(key, normalizeOAuthQueryValue(key, value));
   }
 
   return normalizedSearchParams.toString();
@@ -355,7 +352,7 @@ export function buildSignedOAuthQueryFromSearchParams(
     }
   }
 
-  return serializeOAuthConsentSearchParams(signedSearchParams);
+  return serializeOAuthSearchParams(signedSearchParams);
 }
 
 /**
@@ -369,4 +366,18 @@ export function buildOAuthResumeUrlFromSearchParams(
 ): string | undefined {
   const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
   return oauthQuery ? buildAuthPageUrl("/signin", { oauthQuery }) : undefined;
+}
+
+/**
+ * Core's OAuth provider refused the signed OAuth request the page carries: it
+ * is older than ten minutes, or it was altered. Retrying cannot succeed; the
+ * person has to start again from the product that sent them.
+ */
+export function isRejectedOAuthRequestError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "error" in error &&
+    error.error === "invalid_signature"
+  );
 }

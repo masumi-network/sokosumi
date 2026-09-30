@@ -53,7 +53,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
   const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
   let revocationEndpoint: Promise<string> | undefined;
 
-  function asCurrentUser(accessToken: string) {
+  function currentUserRequest(accessToken: string) {
     return {
       client: coreClient,
       path: { id: "me" },
@@ -62,7 +62,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
   }
 
   function getCoreUser(accessToken: string) {
-    return getUsersById(asCurrentUser(accessToken));
+    return getUsersById(currentUserRequest(accessToken));
   }
 
   /**
@@ -71,14 +71,14 @@ export function createCmoAuth(config: CmoAuthConfig) {
    */
   async function ensurePersonalWorkspace(accessToken: string) {
     const access = await getUsersByIdWorkspaceAccess(
-      asCurrentUser(accessToken),
+      currentUserRequest(accessToken),
     );
     if (!access.data) return false;
     const { hasPersonalWorkspace, hasOrganizationMembership } =
       access.data.data;
     if (hasPersonalWorkspace || hasOrganizationMembership) return true;
     const created = await postUsersByIdPersonalWorkspace(
-      asCurrentUser(accessToken),
+      currentUserRequest(accessToken),
     );
     // 409: another request created it a moment earlier.
     return created.data !== undefined || created.response?.status === 409;

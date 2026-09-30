@@ -14,8 +14,13 @@ interface FinishAuthInPlaceOptions {
   eventType: "signIn" | "signUp";
   provider: AuthMethodId;
   returnUrl: string | undefined;
-  /** What the sign-in or sign-up call returned. */
-  result?: unknown;
+  /**
+   * What the sign-in or sign-up call returned. Required: it is how the finish
+   * learns that the OAuth provider has already answered.
+   */
+  result: unknown;
+  /** Work that must be on its way before the page leaves. */
+  beforeLeaving?: () => Promise<unknown>;
 }
 
 /**
@@ -34,12 +39,31 @@ function isOAuthProviderRedirect(result: unknown): boolean {
   );
 }
 
+function countConversion(
+  eventType: FinishAuthInPlaceOptions["eventType"],
+  provider: AuthMethodId,
+): void {
+  switch (eventType) {
+    case "signUp":
+      fireGTMEvent.signUp(provider);
+      break;
+    case "signIn":
+      fireGTMEvent.signIn(provider);
+      break;
+  }
+}
+
 /**
  * Completes a sign-in or sign-up that did not hand Better Auth a
  * `callbackURL` (credential sign-in, credential sign-up, passkey): wait for
  * the session cookie to settle, count the conversion only if a session
- * exists, then navigate to the destination, unless the OAuth provider has
- * already answered with one.
+ * exists, then navigate to the destination.
+ *
+ * When the OAuth provider has already answered, the page is leaving for that
+ * answer and this navigates nowhere: a second navigation would deliver the
+ * authorization code twice, and Core revokes a confidential client's tokens
+ * for that. The provider only answers once a session exists, so the
+ * conversion is counted at once; anything later races the unload.
  *
  * The navigation is a full document load, not `router.replace`. The Next
  * client router cache still holds the pre-login middleware result for the
@@ -56,7 +80,15 @@ export async function finishAuthInPlace({
   provider,
   returnUrl,
   result,
+  beforeLeaving,
 }: FinishAuthInPlaceOptions): Promise<void> {
+  if (isOAuthProviderRedirect(result)) {
+    countConversion(eventType, provider);
+    await beforeLeaving?.();
+    return;
+  }
+
+  await beforeLeaving?.();
   const session = await waitForAuthSession({
     context: eventType === "signUp" ? "signup" : "login",
     getSession: createAuthSessionGetter(() => authClient.getSession()),
@@ -66,19 +98,7 @@ export async function finishAuthInPlace({
   });
 
   if (session) {
-    switch (eventType) {
-      case "signUp":
-        fireGTMEvent.signUp(provider);
-        break;
-      case "signIn":
-        fireGTMEvent.signIn(provider);
-        break;
-    }
-  }
-  // Navigate once. A second navigation would deliver the authorization code
-  // twice, and Core revokes a confidential client's tokens for that.
-  if (isOAuthProviderRedirect(result)) {
-    return;
+    countConversion(eventType, provider);
   }
   window.location.replace(normalizeAuthReturnUrl(returnUrl));
 }
