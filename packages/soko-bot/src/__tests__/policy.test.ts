@@ -6,7 +6,6 @@ import {
   limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
 } from "../policy.js";
 import {
   applyVersionCapabilities,
@@ -127,50 +126,12 @@ describe("Soko Bot route capability ceilings", () => {
     ] as const) {
       expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain("archive_task");
     }
-    expect(SOKO_BOT_TEAMMATE_CAPABILITIES).not.toContain("archive_task");
     expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain("archive_task");
-  });
-
-  it("keeps the owner's private surfaces off the teammate ceiling", () => {
-    // A teammate mention answers into a shared room, so anything that reads
-    // the owner's own data would publish it to the room.
-    const ownerPrivate = [
-      "read_memory",
-      "update_memory",
-      "search_inbox",
-      "read_email",
-      "list_calendar_events",
-      "list_files",
-      "list_tables",
-      "read_table",
-      "upload_file",
-      "create_table",
-      "write_table_rows",
-      "update_table_columns",
-      "list_chats",
-      "read_chat",
-      "post_chat",
-      "list_integrations",
-      "list_integration_tools",
-      "run_integration_tool",
-      "list_schedules",
-    ] as const;
-    const allowed = SOKO_BOT_TEAMMATE_CAPABILITIES as readonly string[];
-    for (const capability of ownerPrivate) {
-      expect(allowed).not.toContain(capability);
-    }
-  });
-
-  it("keeps the teammate ceiling inside the CLARIFY ceiling", () => {
-    const clarify = SOKO_BOT_ROUTE_CAPABILITIES.CLARIFY as readonly string[];
-    for (const capability of SOKO_BOT_TEAMMATE_CAPABILITIES) {
-      expect(clarify).toContain(capability);
-    }
   });
 });
 
 describe("bot-to-bot ceiling", () => {
-  it("can answer, and can do nothing else a teammate could not", () => {
+  it("can answer, and can only read status", () => {
     // Without post_chat a bot could be summoned but never reply, so a chain
     // could never reach its second hop.
     // A consulted assistant answers by finishing its turn; the reply is posted
@@ -180,9 +141,12 @@ describe("bot-to-bot ceiling", () => {
     expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES as readonly string[]).not.toContain(
       "post_chat",
     );
-    expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual(
-      [...SOKO_BOT_TEAMMATE_CAPABILITIES].sort(),
-    );
+    expect([...SOKO_BOT_BOT_TO_BOT_CAPABILITIES].sort()).toEqual([
+      "get_job_status",
+      "get_task_status",
+      "list_tasks",
+      "refresh_context",
+    ]);
   });
 
   it("cannot be widened back by an authored version", () => {

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
@@ -24,11 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * every person and the Soko Bot they built.
  */
 export default async function SokoBotsPage() {
-  const session = await getSessionOrRedirect();
-  // Same beta gate as the assistant route.
-  if (!hasSokoBotBetaAccess(session.user)) {
-    notFound();
-  }
+  await getSessionOrRedirect();
   const [t, team, avatars] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {

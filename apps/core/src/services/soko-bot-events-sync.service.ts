@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 import { getEnv } from "@/config/env";
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -134,11 +133,11 @@ export class SokoBotEventsSyncService {
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
           turn: {
-            sokoBot: withBetaBotOwner({
+            sokoBot: {
               archivedAt: null,
               adminPausedAt: null,
               proactivePaused: false,
-            }),
+            },
           },
         },
         // Stable keyset rotation visits old unresolved work without rescanning

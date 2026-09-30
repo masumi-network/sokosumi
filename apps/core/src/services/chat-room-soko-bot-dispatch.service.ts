@@ -115,9 +115,9 @@ export async function runSokoBotMentionDispatch(params: {
     await failWithShell("This Soko Bot is no longer active");
     return;
   }
-  // Teammates may talk to the bot in organization rooms; the turn runs as
-  // the owner (their bot, their credits) with a read-only ceiling, and the
-  // console shows who asked. Personal rooms stay owner-only.
+  // Teammates may talk to the bot in organization rooms, direct chats
+  // included; the turn runs as the owner (their bot, their credits, their
+  // tools), and the console shows who asked. Personal rooms stay owner-only.
   const isOwner = bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");

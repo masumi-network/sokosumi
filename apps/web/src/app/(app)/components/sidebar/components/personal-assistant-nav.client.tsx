@@ -47,7 +47,7 @@ export default function PersonalAssistantNav({
   );
 
   useMountEffect(() => {
-    // Session memory for Instant `/chat` (SOK-903): mount means beta chrome is on.
+    // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
     publishPersonalAssistantChromeVisible(true);
   });
 

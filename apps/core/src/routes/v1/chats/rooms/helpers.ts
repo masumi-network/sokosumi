@@ -1794,6 +1794,7 @@ export async function validateChatSokoBotIds(
   actorUserId: string,
   alreadyInRoomIds: readonly string[],
   tx: Prisma.TransactionClient,
+  options: { anyOwner?: boolean } = {},
 ): Promise<string[]> {
   const uniqueIds = normalizeUniqueStrings(sokoBotIds);
   if (uniqueIds.length === 0) {
@@ -1821,7 +1822,7 @@ export async function validateChatSokoBotIds(
   for (const id of uniqueIds) {
     if (already.has(id)) continue;
     const bot = found.get(id);
-    if (bot && bot.userId !== actorUserId) {
+    if (bot && bot.userId !== actorUserId && !options.anyOwner) {
       throw forbidden("Only the owner can add this personal assistant");
     }
   }
@@ -2345,12 +2346,15 @@ export async function createOrGetDirectRoom(params: {
           personalUserId: currentUserId,
           tx,
         });
+        // In an organization any member may talk to a colleague's assistant
+        // one-to-one; adding it to a group room still needs its owner.
         const sokoBotIds = await validateChatSokoBotIds(
           requestedSokoBotIds,
           workspaceId,
           sokoBotActorUserId,
           [],
           tx,
+          { anyOwner: activeOrganizationId != null },
         );
         const directKey = buildDirectParticipantRoomKey({
           currentUserId,
