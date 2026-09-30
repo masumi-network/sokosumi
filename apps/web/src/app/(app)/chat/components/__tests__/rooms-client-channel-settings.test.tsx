@@ -7,9 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   channelRoom,
+  coworkerParticipant,
   type RoomsClientProps,
   renderRoomsClient,
   updateRoomAction,
+  userParticipant,
 } from "./rooms-client-harness";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -42,6 +44,11 @@ vi.mock("../thread-panel", () => ({
 
 vi.mock("../thread-list-panel", () => ({
   ThreadListPanel: () => null,
+}));
+
+// External channels mount guest invites; their loads are not under test here.
+vi.mock("../guest-invite-section", () => ({
+  GuestInviteSection: () => null,
 }));
 
 /** The org roster failed to load: Core soft-fails it to an empty list. */
@@ -94,6 +101,53 @@ describe("RoomsClient channel settings without the org roster", () => {
         memberUserIds: ["user-1"],
         coworkerIds: [],
         sokoBotIds: [],
+      });
+    });
+  });
+
+  // The picker list is empty, so the saved roster must come from the room
+  // itself: every host human, coworker and bot stays; guests are never sent.
+  it("keeps the room's participants when an owner or admin changes visibility with the roster failed", async () => {
+    const user = userEvent.setup();
+    renderRoom(
+      membersFailed({
+        isOrgOwnerOrAdmin: true,
+        rooms: [
+          channelRoom({
+            discoverability: "external",
+            userMembers: [
+              { ...userParticipant("user-1", "Ada"), access: "member" },
+              { ...userParticipant("user-2", "Bob"), access: "member" },
+              { ...userParticipant("guest-1", "Gus"), access: "guest" },
+            ],
+            coworkerMembers: [coworkerParticipant("cow-1", "Soupie")],
+            sokoBotMembers: [
+              {
+                id: "bot-1",
+                name: "Soko",
+                caption: null,
+                image: null,
+                avatarSeed: null,
+                presence: "online",
+              },
+            ],
+          }),
+        ],
+      }),
+    );
+    await user.click(screen.getByTestId("room-open-title"));
+
+    await user.click(screen.getByLabelText("Visibility.private"));
+    await user.click(screen.getByRole("button", { name: "Dialog.save" }));
+
+    await waitFor(() => {
+      expect(updateRoomAction).toHaveBeenCalledWith("room-channel", {
+        name: "general",
+        topic: "",
+        discoverability: "private",
+        memberUserIds: ["user-1", "user-2"],
+        coworkerIds: ["cow-1"],
+        sokoBotIds: ["bot-1"],
       });
     });
   });
