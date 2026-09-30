@@ -43,15 +43,19 @@ export function urlsIn(value: unknown): string[] {
       Object.values(node).forEach(walk);
   };
   walk(value);
-  const urls = texts.flatMap((text) => [
-    ...findMarkdownLinks(text).map((link) =>
-      unescapeMarkdownLinkUrl(link.rawUrl),
-    ),
-    ...findHttpAutolinks(text).map((hit) => hit.url),
-    ...findBareHttpUrlHits(text, collectMarkdownUrlExcludedRanges(text)).map(
-      (hit) => hit.url,
-    ),
-  ]);
+  // Read bare domains ("cmo.xyz") the way the answer check does, as links:
+  // a Task named after a site is grounds to name that site.
+  const urls = texts
+    .map(linkifyBareDomainsInMarkdown)
+    .flatMap((text) => [
+      ...findMarkdownLinks(text).map((link) =>
+        unescapeMarkdownLinkUrl(link.rawUrl),
+      ),
+      ...findHttpAutolinks(text).map((hit) => hit.url),
+      ...findBareHttpUrlHits(text, collectMarkdownUrlExcludedRanges(text)).map(
+        (hit) => hit.url,
+      ),
+    ]);
   return [...new Set(urls.filter((url) => url.length <= MAX_SOURCE_LENGTH))];
 }
 

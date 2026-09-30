@@ -364,7 +364,7 @@ describe("authoritative action responses", () => {
     );
     expect(result.appliedReceiptIds).toEqual([]);
     expect(result.answerText).toBe(
-      "Outcome unknown: integration acknowledged operation. It has to be checked before trying again.",
+      "I couldn't confirm whether this went through: integration acknowledged operation. Check before trying again.",
     );
     expect(result.unfulfilledActions[0].reason).toBe("UNKNOWN");
   });
@@ -540,7 +540,7 @@ describe("authoritative action responses", () => {
     const unknown = await buildActionResponse(prisma, "turn-current", "Done.");
     expect(unknown.appliedReceiptIds).toEqual([]);
     expect(unknown.answerText).toBe(
-      `Outcome unknown: ${label.toLowerCase()}. It has to be checked before trying again.`,
+      `I couldn't confirm whether this went through: ${label.toLowerCase()}. Check before trying again.`,
     );
   });
 
@@ -821,7 +821,9 @@ describe("authoritative action responses", () => {
   it("always reports an attempt whose outcome is unknown", async () => {
     refusedThenCreated({ status: "COMPLETED", disposition: "UNKNOWN" });
     const response = await buildActionResponse(prisma, "turn-current", "Done.");
-    expect(response.answerText).toContain("Outcome unknown: created task.");
+    expect(response.answerText).toContain(
+      "I couldn't confirm whether this went through: created task.",
+    );
   });
 
   it("still reports a refused attempt nothing replaced", async () => {

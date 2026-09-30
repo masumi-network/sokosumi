@@ -48,6 +48,11 @@ function actionLabel(call: { capability: string; result?: unknown }): string {
     .safeParse(call.result);
   if (call.capability === "reply_to_task" && reply.success)
     return reply.data.status === "CANCELED" ? "Canceled task" : "Resumed task";
+  if (
+    call.capability === "upload_file" &&
+    z.object({ replaced: z.literal(true) }).safeParse(call.result).success
+  )
+    return "Updated file";
   return ACTION_LABELS[call.capability] ?? call.capability;
 }
 
@@ -527,7 +532,7 @@ export async function buildActionResponse(
     const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
     if (action.reason === "UNKNOWN")
       actionText.push(
-        `Outcome unknown: ${label}. It has to be checked before trying again.`,
+        `I couldn't confirm whether this went through: ${label}. Check before trying again.`,
       );
     else if (ownerAsked) actionText.push(`Not confirmed: ${label}.`);
   }

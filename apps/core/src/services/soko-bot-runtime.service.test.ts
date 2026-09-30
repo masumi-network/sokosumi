@@ -137,6 +137,7 @@ const {
   files: {
     list: vi.fn(),
     put: vi.fn(),
+    head: vi.fn(),
     search: vi.fn(),
     loadLive: vi.fn(),
     adopt: vi.fn(),
@@ -247,7 +248,11 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
-vi.mock("@vercel/blob", () => ({ list: files.list, put: files.put }));
+vi.mock("@vercel/blob", () => ({
+  head: files.head,
+  list: files.list,
+  put: files.put,
+}));
 vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
   listHireableAgents: marketplace.list,
@@ -503,6 +508,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
   SokoBotRuntimeService,
@@ -4565,6 +4571,29 @@ describe("external effect receipt finalization", () => {
     ).rejects.toThrow("reconciliation");
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
+
+  it("records a refusal before anything was sent as rejected, not unknown", async () => {
+    const { service, dispatch } = prepare();
+    dispatch.mockRejectedValueOnce(
+      new SokoBotRefusedUnsentError('A file named "notes.md" already exists.'),
+    );
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("already exists");
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          disposition: "REJECTED",
+        }),
+      }),
+    );
+  });
 });
 
 describe("Soko Bot project social tools", () => {
@@ -5245,6 +5274,57 @@ describe("Drive file tools", () => {
     });
     // The public blob URL would let anyone read the file without signing in.
     expect(JSON.stringify(result)).not.toContain("blob.example");
+  });
+
+  it("replaces an existing text file only when asked to", async () => {
+    const existing = {
+      pathname: "",
+      url: "https://blob.example/notes.md",
+    };
+    files.list.mockImplementation(async ({ prefix }: { prefix: string }) => ({
+      blobs: [{ ...existing, pathname: prefix }],
+    }));
+    files.head.mockResolvedValue({ contentType: "text/markdown" });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v2" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+
+    const refused = service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+    });
+    await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+    await expect(refused).rejects.toThrow("overwrite: true");
+    expect(files.put).not.toHaveBeenCalled();
+
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+      overwrite: true,
+    });
+    expect(files.put).toHaveBeenCalledWith(
+      expect.any(String),
+      "Hello again",
+      expect.objectContaining({ allowOverwrite: true }),
+    );
+    expect(result).toMatchObject({
+      id: "file-9",
+      replaced: true,
+      link: "/drive/files/file-9",
+    });
+
+    // A file that is not text is never replaced by text.
+    files.put.mockClear();
+    files.head.mockResolvedValue({ contentType: "application/pdf" });
+    await expect(
+      service["uploadFile"](authorized as never, {
+        filename: "notes.md",
+        content: "Hello again",
+        overwrite: true,
+      }),
+    ).rejects.toThrow("not a text file");
+    expect(files.put).not.toHaveBeenCalled();
+    files.list.mockReset();
   });
 
   it("writes into the organization Drive the owner sees in an organization workspace", async () => {

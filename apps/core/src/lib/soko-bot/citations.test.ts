@@ -35,6 +35,15 @@ describe("urlsIn", () => {
     ).toEqual(["https://x.example/offer"]);
   });
 
+  it("keeps a site a tool result names bare, so the answer may name it too", () => {
+    const fromTools = new Set(
+      citationsIn({ tasks: [{ name: "Build cmo.xyz landing page" }] }),
+    );
+    expect(
+      dropUnverifiedLinks("Build cmo.xyz landing page is running.", fromTools),
+    ).toEqual({ text: "Build cmo.xyz landing page is running.", dropped: 0 });
+  });
+
   it("drops addresses too long to keep", () => {
     expect(urlsIn(`https://x.example/${"a".repeat(2_100)}`)).toEqual([]);
   });
