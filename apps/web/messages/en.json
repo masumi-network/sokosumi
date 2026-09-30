@@ -1238,7 +1238,11 @@
         "Form": {
           "submit": "Register",
           "continueWithEmail": "Continue with email",
-          "logInInstead": "Log in instead",
+          "AccountExists": {
+            "title": "You already have an account",
+            "description": "Log in with this email, or enter a different one to register.",
+            "logIn": "Log in"
+          },
           "registeringAs": "Registering as {email}.",
           "changeEmail": "Change email",
           "error": "Register failed",
@@ -1271,8 +1275,7 @@
           },
           "Errors": {
             "emailDomainNotAllowed": "Email domain not allowed",
-            "badInput": "Please input form correctly.",
-            "emailExists": "An account with this email already exists."
+            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -153,19 +153,29 @@ describe("SignUpFlow", () => {
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
   });
 
-  it("points a person who already has an account at sign-in", async () => {
+  function notice() {
+    return screen.getByTestId("sign-up-account-exists");
+  }
+
+  function logInLink() {
+    return screen.getByRole("link", { name: "AccountExists.logIn" });
+  }
+
+  function continueButton() {
+    return screen.getByRole("button", { name: "continueWithEmail" });
+  }
+
+  it("grows a notice around the button for a person who already has an account", async () => {
     const user = userEvent.setup();
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
     mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
     render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    // Closed: the notice is there for the transition, but says and offers
+    // nothing.
+    expect(notice()).toHaveAttribute("data-state", "closed");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(logInLink()).toHaveAttribute("inert");
+    expect(continueButton()).not.toHaveAttribute("inert");
 
-    // happy-dom focuses disabled descendants; browsers do not. Model that
-    // boundary so focus requested while the network call is pending fails.
-    const emailInput = emailField();
-    const focus = emailInput.focus.bind(emailInput);
-    vi.spyOn(emailInput, "focus").mockImplementation(() => {
-      if (!emailInput.closest("fieldset[disabled]")) focus();
-    });
     let resolveStatus:
       | ((result: { data: { exists: boolean }; error: null }) => void)
       | undefined;
@@ -175,40 +185,84 @@ describe("SignUpFlow", () => {
       }),
     );
     await continueWith(user, "ada@example.com");
-    expect(emailInput.closest("fieldset")).toBeDisabled();
+    expect(emailField().closest("fieldset")).toBeDisabled();
+    expect(notice()).toHaveAttribute("data-state", "closed");
     resolveStatus?.({ data: { exists: true }, error: null });
 
-    expect(await screen.findByText("Errors.emailExists")).toBeVisible();
-    expect(emailField()).toHaveAccessibleDescription("Errors.emailExists");
     await waitFor(() => {
-      expect(emailField()).toHaveFocus();
+      expect(notice()).toHaveAttribute("data-state", "open");
     });
-    expect(screen.getByRole("link", { name: "logInInstead" })).toHaveAttribute(
-      "href",
-      "/signin?returnUrl=%2Fagents",
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "AccountExists.title. AccountExists.description",
     );
-    expect(
-      screen.queryByRole("button", { name: "continueWithEmail" }),
-    ).not.toBeInTheDocument();
+    // The pressed button is out of reach; the one in its place has focus and
+    // is described by the notice.
+    expect(continueButton()).toHaveAttribute("inert");
+    expect(logInLink()).not.toHaveAttribute("inert");
+    await waitFor(() => {
+      expect(logInLink()).toHaveFocus();
+    });
+    expect(logInLink()).toHaveAccessibleDescription(
+      "AccountExists.title. AccountExists.description",
+    );
+    expect(logInLink()).toHaveAttribute("href", "/signin?returnUrl=%2Fagents");
+    // The submit button is positioned for its spinner. Unless the link is
+    // positioned too, it paints underneath and the old label shows through.
+    expect(logInLink()).toHaveClass("relative");
+    // Having an account is not a mistake in the field.
+    expect(emailField()).not.toHaveAttribute("aria-invalid", "true");
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
-  it("hands the typed email to sign-in when the person logs in instead", async () => {
-    const user = userEvent.setup();
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
-    await continueWith(user, "ada@example.com");
-    const link = await screen.findByRole("link", { name: "logInInstead" });
-    // The address is not in the link: sign-in locks an email that arrives in
-    // its query.
-    expect(link).toHaveAttribute("href", "/signin");
+  describe("after the notice has opened", () => {
+    let now = 0;
 
-    fireEvent.click(link);
+    beforeEach(() => {
+      now = 1_000;
+      vi.spyOn(performance, "now").mockImplementation(() => now);
+      emailStatusMock.mockResolvedValue({
+        data: { exists: true },
+        error: null,
+      });
+    });
 
-    expect(takeSignInEmailHint()).toBe("ada@example.com");
+    afterEach(() => {
+      vi.mocked(performance.now).mockRestore();
+    });
+
+    async function openNotice() {
+      const user = userEvent.setup();
+      render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+      await continueWith(user, "ada@example.com");
+      await waitFor(() => {
+        expect(notice()).toHaveAttribute("data-state", "open");
+      });
+    }
+
+    it("hands the typed email to sign-in when the person logs in", async () => {
+      await openNotice();
+      // The address is not in the link: sign-in locks an email that arrives
+      // in its query.
+      expect(logInLink()).toHaveAttribute("href", "/signin");
+
+      now += 401;
+      fireEvent.click(logInLink());
+
+      expect(takeSignInEmailHint()).toBe("ada@example.com");
+    });
+
+    it("ignores the second click of a double-click on the button it replaced", async () => {
+      await openNotice();
+
+      now += 150;
+      const followed = fireEvent.click(logInLink());
+
+      expect(followed).toBe(false);
+      expect(takeSignInEmailHint()).toBeNull();
+    });
   });
 
-  it("offers to continue again once the address is edited", async () => {
+  it("folds the notice away once the address is edited", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValueOnce({
       data: { exists: true },
@@ -216,16 +270,18 @@ describe("SignUpFlow", () => {
     });
     render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
-    await screen.findByRole("link", { name: "logInInstead" });
+    await waitFor(() => {
+      expect(notice()).toHaveAttribute("data-state", "open");
+    });
 
     await user.type(emailField(), ".uk");
 
-    expect(
-      screen.queryByRole("link", { name: "logInInstead" }),
-    ).not.toBeInTheDocument();
-    expect(screen.queryByText("Errors.emailExists")).not.toBeInTheDocument();
+    expect(notice()).toHaveAttribute("data-state", "closed");
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(logInLink()).toHaveAttribute("inert");
+    expect(continueButton()).not.toHaveAttribute("inert");
 
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    await user.click(continueButton());
 
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "ada@example.com.uk" }),
@@ -332,11 +388,11 @@ describe("SignUpFlow", () => {
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
 
     const recoveryLink = await screen.findByRole("link", {
-      name: "logInInstead",
+      name: "AccountExists.logIn",
     });
     await waitFor(() => expect(recoveryLink).toHaveFocus());
     expect(emailField()).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Errors.emailExists");
+    expect(screen.getByRole("status")).toHaveTextContent("AccountExists.title");
     expect(recoveryLink).toHaveAttribute(
       "href",
       "/signin?returnUrl=%2Faccept-invitation%2Finv_1",

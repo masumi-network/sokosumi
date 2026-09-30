@@ -1238,7 +1238,11 @@
         "Form": {
           "submit": "Registrieren",
           "continueWithEmail": "Weiter mit E-Mail",
-          "logInInstead": "Stattdessen anmelden",
+          "AccountExists": {
+            "title": "Du hast bereits ein Konto",
+            "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
+            "logIn": "Anmelden"
+          },
           "registeringAs": "Registrierung als {email}.",
           "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
@@ -1271,8 +1275,7 @@
           },
           "Errors": {
             "emailDomainNotAllowed": "E-Mail-Domain nicht erlaubt",
-            "badInput": "Bitte fülle das Formular korrekt aus.",
-            "emailExists": "Für diese E-Mail gibt es bereits ein Konto."
+            "badInput": "Bitte fülle das Formular korrekt aus."
           },
           "Login": {
             "message": "Bereits ein Konto?",
