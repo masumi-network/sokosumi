@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import {
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -1521,9 +1520,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
-  it("grants a teammate mention only the teammate ceiling", async () => {
-    // The bot answers into a shared room, so the owner's private reads must
-    // not be on the grant and the packet must be built for a teammate.
+  it("grants a teammate mention the route's tools, not a read-only ceiling", async () => {
+    // The turn runs as the owner, on the owner's accounts and credits; the
+    // packet still records who asked.
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
     turnFindUniqueMock.mockResolvedValue(null);
@@ -1560,17 +1559,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     const granted = turnCreateMock.mock.calls[0]?.[0]?.data
       ?.capabilityNames as string[];
-    expect(granted).toEqual([...SOKO_BOT_TEAMMATE_CAPABILITIES]);
-    for (const ownerPrivate of [
-      "search_inbox",
-      "read_email",
-      "list_calendar_events",
-      "list_files",
-      "read_memory",
-      "read_chat",
-    ]) {
-      expect(granted).not.toContain(ownerPrivate);
-    }
+    expect(granted).toEqual(
+      expect.arrayContaining(["search_inbox", "list_files"]),
+    );
     // The packet's `actor` is the owner on every turn, so the asker's id has
     // to travel with the audience or the bot cannot tell who it is answering.
     expect(contextBuilder.build).toHaveBeenCalledWith(

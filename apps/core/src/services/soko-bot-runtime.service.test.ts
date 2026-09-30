@@ -5498,13 +5498,20 @@ describe("Content Studio image tools", () => {
 
   it.each([
     ["a scheduled turn", { turn: { ...ownerChat.turn, source: "SCHEDULE" } }],
-    ["a teammate", { askedByKind: "TEAMMATE" }],
+    ["another assistant", { askedByKind: "ASSISTANT" }],
     ["another bot", { turn: { ...ownerChat.turn, chainDepth: 1 } }],
   ])("refuses to spend for %s", async (_label, override) => {
     await expect(
       generate({ ...ownerChat, ...override }, request, "call-3"),
-    ).rejects.toThrow("only when your owner asks in chat");
+    ).rejects.toThrow("only when a person asks in chat");
     expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("generates for a teammate who asks in chat, on the owner's credits", async () => {
+    await expect(
+      generate({ ...ownerChat, askedByKind: "TEAMMATE" }, request, "call-7"),
+    ).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalled();
   });
 
   it("passes the studio's refusal to the model in its own words", async () => {

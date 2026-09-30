@@ -1599,10 +1599,10 @@ export class SokoBotRuntimeService {
     if (
       authorized.turn.source !== "CHAT" ||
       authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind !== "OWNER"
+      authorized.askedByKind === "ASSISTANT"
     )
       throw new SokoBotRuntimeAuthorizationError(
-        "Images are generated only when your owner asks in chat. Describe the image you would make instead.",
+        "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
     const started = await prisma.sokoBotToolCall.count({
       where: {
@@ -3987,7 +3987,7 @@ export class SokoBotRuntimeService {
       .parse(rawInput);
     const ownerChat =
       authorized.turn.source === "CHAT" &&
-      (!authorized.askedByKind || authorized.askedByKind === "OWNER") &&
+      authorized.askedByKind !== "ASSISTANT" &&
       authorized.turn.chainDepth === 0;
     if (!ownerChat && !taskId)
       throw new SokoBotRuntimeAuthorizationError(
@@ -4003,10 +4003,10 @@ export class SokoBotRuntimeService {
   ) {
     if (
       authorized.turn.chainDepth > 0 ||
-      (authorized.askedByKind && authorized.askedByKind !== "OWNER")
+      authorized.askedByKind === "ASSISTANT"
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "Project social tools are only available to the bot's owner",
+        "Project social tools are only available when a person asks",
       );
     }
     const owner = await tx.user.findUnique({

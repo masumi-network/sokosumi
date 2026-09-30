@@ -1,7 +1,6 @@
 import type { SessionUser } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { OrganizationChatList } from "@/components/chat/organization-chat-list.client";
-import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { getPrivateCachedChatListChrome } from "./private-sidebar-cache";
 import Sidebar from "./sidebar";
@@ -30,12 +29,9 @@ export default function PrivateCachedAppSidebar({
   adminMenuEnabled,
   socialMenuEnabled,
 }: PrivateCachedAppSidebarProps) {
-  const sokoBotMenuEnabled = hasSokoBotBetaAccess(sessionUser);
-
   return (
     <Sidebar
       socialMenuEnabled={socialMenuEnabled}
-      sokoBotMenuEnabled={sokoBotMenuEnabled}
       chatList={
         <Suspense
           fallback={
