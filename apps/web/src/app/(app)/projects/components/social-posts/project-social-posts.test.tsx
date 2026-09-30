@@ -736,6 +736,72 @@ describe("ProjectSocialPosts", () => {
     ).toHaveAttribute("aria-pressed", "false");
   });
 
+  it("retries only the accounts that failed after a partial save", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hello" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hello",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+    });
+    // X is saved already, so it leaves the selection; LinkedIn stays.
+    expect(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(3);
+    });
+    expect(createProjectSocialPost).toHaveBeenLastCalledWith(
+      expect.objectContaining({ socialConnectionId: "connection-2" }),
+    );
+  });
+
   it("saves one draft per account picked", async () => {
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost)

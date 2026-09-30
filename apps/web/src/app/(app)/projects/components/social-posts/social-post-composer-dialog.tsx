@@ -319,7 +319,9 @@ export function SocialPostComposerDialog({
   /**
    * One post per selected account, in the order they were picked; a draft
    * with no account is a single post. Stops at the first failure so the
-   * reader sees one error, and returns how many were saved.
+   * reader sees one error, and returns how many were saved. Accounts saved
+   * before a failure leave the selection, so trying again covers only the
+   * ones that failed instead of saving a second copy for the others.
    */
   async function createForEachAccount(
     create: (
@@ -331,16 +333,26 @@ export function SocialPostComposerDialog({
         ? selectedConnections.map((connection) => connection.id)
         : [null];
     let created = 0;
-    for (const socialConnectionId of targets) {
-      const result = await create(socialConnectionId);
-      if (!result.ok) {
-        onError(result.error);
-        return 0;
+    const saved: string[] = [];
+    try {
+      for (const socialConnectionId of targets) {
+        const result = await create(socialConnectionId);
+        if (!result.ok) {
+          onError(result.error);
+          return 0;
+        }
+        onSaved(result.value);
+        if (socialConnectionId) saved.push(socialConnectionId);
+        created += 1;
       }
-      onSaved(result.value);
-      created += 1;
+      return created;
+    } finally {
+      if (created < targets.length && saved.length > 0) {
+        setConnectionIds((current) =>
+          current.filter((id) => !saved.includes(id)),
+        );
+      }
     }
-    return created;
   }
 
   async function handleSaveDraft(): Promise<void> {
