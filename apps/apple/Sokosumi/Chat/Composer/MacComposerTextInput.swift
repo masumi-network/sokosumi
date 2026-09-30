@@ -70,6 +70,10 @@
       input.onPaste = onPaste
       input.mentions = mentions
       input.channels = channels
+      // Nothing is typed yet, so the saved draft is shown from the first frame.
+      if !text.isEmpty {
+        input.restoreDraft(text)
+      }
       commands?.refresh()
       scroll.documentView = input
       return scroll
@@ -102,14 +106,14 @@
         }
       }
       if input.serializedDraft != text, !input.hasMarkedText() {
-        if text.isEmpty {
-          input.clearAfterSend()
-        } else {
-          input.restoreDraft(text)
+        // This update's draft can be older than the editor's: SwiftUI gives each pending
+        // transaction the `@State` as it stood before the later ones, so a workspace change
+        // queued just ahead of a keystroke arrives with the text before it. Off the update
+        // the binding reads the live draft.
+        Task { @MainActor [weak input, coordinator = context.coordinator] in
+          guard let input else { return }
+          coordinator.adoptOutsideDraft(in: input)
         }
-        // Send and a draft swap replace the text under a button-opened list. Web
-        // closes it through the editor's blur; the Send button here takes no focus.
-        Task { @MainActor [weak commands] in commands?.closeMentionPicker() }
       }
     }
 
@@ -159,6 +163,21 @@
 
       init(_ parent: MacComposerTextInput) {
         self.parent = parent
+      }
+
+      /// Replaces the editor's text with a draft it does not hold: the cleared one after Send, a
+      /// restored one. The person's own edits reach the binding from `textDidChange` and match.
+      func adoptOutsideDraft(in input: InputView) {
+        let text = parent.text
+        guard input.serializedDraft != text, !input.hasMarkedText() else { return }
+        if text.isEmpty {
+          input.clearAfterSend()
+        } else {
+          input.restoreDraft(text)
+        }
+        // Send and a draft swap replace the text under a button-opened list. Web
+        // closes it through the editor's blur; the Send button here takes no focus.
+        parent.commands?.closeMentionPicker()
       }
 
       func textDidChange(_ notification: Notification) {
