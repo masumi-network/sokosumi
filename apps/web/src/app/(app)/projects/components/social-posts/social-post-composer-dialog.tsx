@@ -14,9 +14,8 @@ import {
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-import { format } from "date-fns";
 import { ImagePlus, Loader2, Upload } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
@@ -31,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -61,6 +59,10 @@ import {
   sameSocialPostMedia,
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
+import {
+  SocialPostSchedulePicker,
+  toScheduleValue,
+} from "./social-post-schedule-picker";
 
 /** Composer entry points: a new post, editing text/account, or only picking a time. */
 export type SocialPostComposerMode =
@@ -80,16 +82,14 @@ interface SocialPostComposerDialogProps {
 
 type PendingSubmit = "save" | "schedule" | null;
 
-const DATETIME_LOCAL_FORMAT = "yyyy-MM-dd'T'HH:mm";
-const DATETIME_LOCAL_STEP_MS = 60 * 1000;
-
-function toDateTimeLocalValue(date: Date | null): string {
-  return date ? format(date, DATETIME_LOCAL_FORMAT) : "";
-}
-
 function formatHandle(handle: string | null): string {
   if (!handle) return "";
   return handle.startsWith("@") ? handle : `@${handle}`;
+}
+
+/** An IANA zone as people read it: `America/New_York` → `America/New York`. */
+function zoneName(timezone: string): string {
+  return timezone.replaceAll("_", " ");
 }
 
 function resolveTimezone(): string {
@@ -106,6 +106,8 @@ export function SocialPostComposerDialog({
   projectId,
 }: SocialPostComposerDialogProps) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const formatter = useFormatter();
+  const viewerTimezone = resolveTimezone();
   const textId = useId();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
@@ -130,7 +132,7 @@ export function SocialPostComposerDialog({
     return initial ? [initial] : [];
   });
   const [scheduledAt, setScheduledAt] = useState(
-    toDateTimeLocalValue(post?.scheduledAt ?? null),
+    post?.scheduledAt ? toScheduleValue(post.scheduledAt) : "",
   );
   const [pending, setPending] = useState<PendingSubmit>(null);
   const [uploadPending, setUploadPending] = useState(false);
@@ -173,13 +175,6 @@ export function SocialPostComposerDialog({
       ? composerIssue
       : null;
   const earliestScheduledAt = Date.now() + SOCIAL_POST_MIN_SCHEDULE_LEAD_MS;
-  const minScheduledAt = toDateTimeLocalValue(
-    new Date(
-      Math.floor(earliestScheduledAt / DATETIME_LOCAL_STEP_MS) *
-        DATETIME_LOCAL_STEP_MS +
-        DATETIME_LOCAL_STEP_MS,
-    ),
-  );
   const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
   const scheduledAtTooSoon =
     scheduledDate !== null &&
@@ -400,7 +395,7 @@ export function SocialPostComposerDialog({
     if (!canSchedule || !scheduledDate) return;
     setPending("schedule");
     const scheduledAtIso = scheduledDate.toISOString();
-    const timezone = resolveTimezone();
+    const timezone = viewerTimezone;
     try {
       if (mode.kind === "create") {
         const created = await createForEachAccount((socialConnectionId) =>
@@ -664,19 +659,52 @@ export function SocialPostComposerDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor={scheduledAtId}>{t("composer.scheduledAt")}</Label>
-            <Input
-              id={scheduledAtId}
-              aria-describedby={
-                scheduledAtTooSoon ? scheduledAtErrorId : undefined
-              }
-              aria-invalid={scheduledAtTooSoon || undefined}
+            <p className="text-sm font-medium" id={scheduledAtId}>
+              {t("composer.scheduledAt")}
+            </p>
+            <SocialPostSchedulePicker
+              describedBy={scheduledAtTooSoon ? scheduledAtErrorId : undefined}
               disabled={isBusy}
-              min={minScheduledAt}
-              onChange={(event) => setScheduledAt(event.target.value)}
-              type="datetime-local"
+              earliest={new Date(earliestScheduledAt)}
+              invalid={scheduledAtTooSoon}
+              labelledBy={scheduledAtId}
+              onChange={setScheduledAt}
               value={scheduledAt}
             />
+            <div
+              className="text-muted-foreground space-y-0.5 text-xs"
+              data-testid="social-post-timezone"
+            >
+              {/* A post goes out at one instant; the picker and this line
+                  read it in the viewer's zone, and name that zone. */}
+              <p>
+                {scheduledAtValid && scheduledDate
+                  ? t("composer.timezone.goesOut", {
+                      date: formatter.dateTime(
+                        scheduledDate,
+                        "dateTimeWithYear",
+                      ),
+                      zone: zoneName(viewerTimezone),
+                    })
+                  : t("composer.timezone.yours", {
+                      zone: zoneName(viewerTimezone),
+                    })}
+              </p>
+              {post?.scheduledAt &&
+              post.timezone &&
+              post.timezone !== viewerTimezone ? (
+                <p>
+                  {t("composer.timezone.postZone", {
+                    date: formatter.dateTime(
+                      post.scheduledAt,
+                      "dateTimeWithYear",
+                      { timeZone: post.timezone },
+                    ),
+                    zone: zoneName(post.timezone),
+                  })}
+                </p>
+              ) : null}
+            </div>
             {scheduledAtTooSoon ? (
               <p id={scheduledAtErrorId} className="text-destructive text-sm">
                 {t("composer.scheduledAtTooSoon")}
