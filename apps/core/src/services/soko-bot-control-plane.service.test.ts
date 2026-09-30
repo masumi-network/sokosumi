@@ -520,7 +520,8 @@ describe("SokoBotControlPlane lifecycle", () => {
         turnId: "turn_1",
         status: "COMPLETED",
       });
-      expect(turnUpdateMock).not.toHaveBeenCalled();
+      for (const [call] of turnUpdateMock.mock.calls)
+        expect(call.data).not.toHaveProperty("finalAnswer");
       expect(buildActionResponse).toHaveBeenCalledWith(
         expect.anything(),
         "turn_1",
@@ -548,7 +549,7 @@ describe("SokoBotControlPlane lifecycle", () => {
     ],
     ["RESULT_EVIDENCE_UNAVAILABLE", "Result evidence is not yet available."],
   ] as const)(
-    "keeps a blocked direct action visible when nothing committed: %s",
+    "keeps the verifier's summary off the answer: %s",
     async (blockerKind, detail) => {
       turnFindUniqueMock.mockResolvedValueOnce({
         sokoBotId: BOT_ID,
@@ -586,16 +587,12 @@ describe("SokoBotControlPlane lifecycle", () => {
         turnId: "turn_1",
         status: "COMPLETED",
       });
-      // The owner reads one plain sentence; the verifier's wording stays on
-      // the contract for the admin view.
-      const answerText =
-        "This isn't done yet.\n\nSorry, the post was not created.";
+      // The owner reads the model's own words; the verifier's wording stays
+      // on the contract for the admin view.
       expect(turnUpdateMock).toHaveBeenCalledWith({
         where: { id: "turn_1" },
         data: {
-          finalAnswer: answerText,
           responseContract: expect.objectContaining({
-            answerText,
             outcomeSummary: `The requested outcome is blocked. ${detail} 1 acceptance criterion remains unverified.`,
           }),
         },
@@ -634,13 +631,12 @@ describe("SokoBotControlPlane lifecycle", () => {
       turnId: "turn_1",
       status: "COMPLETED",
     });
-    const answerText =
-      "I couldn't confirm whether this went through, so I'll check before trying again.\n\nCreated task.";
     expect(turnUpdateMock).toHaveBeenCalledWith({
       where: { id: "turn_1" },
       data: {
-        finalAnswer: answerText,
-        responseContract: expect.objectContaining({ answerText }),
+        responseContract: expect.objectContaining({
+          outcomeSummary: expect.any(String),
+        }),
       },
     });
     expect(turnUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(

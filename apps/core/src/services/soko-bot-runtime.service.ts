@@ -11,7 +11,6 @@ import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
-  sokoBotDecisionInputSchema as decisionInputSchema,
   exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
@@ -234,8 +233,6 @@ const MAX_BOT_COMMENTS_PER_TASK_PER_DAY = 3;
 
 const ACTIVE_STATUSES = ["STARTING", "RUNNING", "CANCEL_REQUESTED"] as const;
 const DECISION_TTL_MS = 24 * 60 * 60 * 1_000;
-const DECISION_PENDING_MESSAGE =
-  "Owner approval requested. Do not call this tool again with the same input; tell the owner what is pending and finish the turn.";
 const TOOL_CALL_STALE_MS = 2 * 60 * 1_000;
 const TOOL_CALL_LIMIT_PER_TURN = 64;
 /** The limit is on Core's tools; sandbox reads are recorded but not counted. */
@@ -468,8 +465,6 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
-/** Internal: an archive the owner did not name exactly becomes an approval card. */
-class ArchiveNeedsOwnerApproval extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
 /** The studio refused an image before sending it: nothing happened. */
 export class SokoBotImageRefusedError extends SokoBotRuntimeValidationError {}
@@ -945,20 +940,39 @@ export class SokoBotRuntimeService {
       toolName,
       proposal,
       toolCallId,
-      false,
     );
     const resolved = await this.resolveDecision(
       authorized.turn.userId,
       decision.id,
       true,
       false,
-    );
+    ).catch(async (error: unknown) => {
+      // Nobody will answer a card, so one that failed must not linger as
+      // "approval waiting" or be picked up by a later "yes".
+      await this.expireDecision(decision.id);
+      throw error;
+    });
     return {
       executed: resolved.status === "ACCEPTED",
       decisionId: resolved.id,
       status: resolved.status,
       resultingEntityId: resolved.resultingEntityId,
     };
+  }
+
+  private async expireDecision(decisionId: string) {
+    const expired = await prisma.sokoBotPendingDecision.updateMany({
+      where: { id: decisionId, status: "PENDING" },
+      data: { status: "EXPIRED", resolvedAt: new Date() },
+    });
+    if (expired.count === 0) return;
+    await prisma.sokoBotIntent.updateMany({
+      where: {
+        decisions: { some: { id: decisionId } },
+        state: "AWAITING_CONFIRMATION",
+      },
+      data: { state: "CANCELLED", revision: { increment: 1 } },
+    });
   }
 
   /** Everything a project manager needs to act on a Task without opening it. */
@@ -2557,7 +2571,6 @@ export class SokoBotRuntimeService {
     toolName: SokoBotDecisionTarget,
     proposal: unknown,
     toolCallId: string,
-    approvalRequired: boolean,
   ) {
     const parsedProposal = parseDecisionProposal(toolName, proposal);
     const proposalJson = jsonInput(parsedProposal);
@@ -2575,21 +2588,7 @@ export class SokoBotRuntimeService {
         },
         select: { id: true, status: true, expiresAt: true },
       });
-      if (existing) {
-        const duplicate = {
-          approvalRequired: true,
-          decision: existing,
-          duplicate: true,
-          message: DECISION_PENDING_MESSAGE,
-        };
-        await tx.sokoBotToolCall.update({
-          where: {
-            turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
-          },
-          data: { status: "COMPLETED", result: persistedToolResult(duplicate) },
-        });
-        return existing;
-      }
+      if (existing) return existing;
       const intentTurn = await tx.sokoBotTurn.findFirst({
         where: { id: authorized.turn.id },
         select: { intentId: true },
@@ -2622,18 +2621,11 @@ export class SokoBotRuntimeService {
         },
         select: { id: true, status: true, expiresAt: true },
       });
-      const result = approvalRequired
-        ? {
-            approvalRequired: true,
-            decision,
-            message: DECISION_PENDING_MESSAGE,
-          }
-        : decision;
       await tx.sokoBotToolCall.update({
         where: {
           turnId_toolCallId: { turnId: authorized.turn.id, toolCallId },
         },
-        data: { status: "COMPLETED", result: persistedToolResult(result) },
+        data: { status: "COMPLETED", result: persistedToolResult(decision) },
       });
       return decision;
     }, "Soko Bot decision collided with cancellation");
@@ -2766,30 +2758,14 @@ export class SokoBotRuntimeService {
       capability === "archive_task"
         ? { ...taskArchiveInputSchema.parse(rawInput), archive: true }
         : { ...taskUpdateInputSchema.parse(rawInput), archive: false };
-    try {
-      return await this.applyTaskMutation(
-        authorized,
-        rawInput,
-        toolCallId,
-        input,
-        capability,
-        approved,
-      );
-    } catch (error) {
-      if (!(error instanceof ArchiveNeedsOwnerApproval)) throw error;
-      const decision = await this.createDecision(
-        authorized,
-        "archive_task",
-        rawInput,
-        toolCallId,
-        true,
-      );
-      return {
-        approvalRequired: true,
-        decision,
-        message: `${DECISION_PENDING_MESSAGE} The owner sees an approval card for archiving this Task; archiving several Tasks creates one card each.`,
-      };
-    }
+    return this.applyTaskMutation(
+      authorized,
+      rawInput,
+      toolCallId,
+      input,
+      capability,
+      approved,
+    );
   }
 
   private async applyTaskMutation(
@@ -2804,68 +2780,6 @@ export class SokoBotRuntimeService {
   ) {
     return serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(tx, authorized, approved, capability);
-      if (input.archive) {
-        const archiveTurn = await tx.sokoBotTurn.findUniqueOrThrow({
-          where: { id: authorized.turn.id },
-          include: { contextSnapshot: { select: { packet: true } } },
-        });
-        if (!approved) {
-          const packet = z
-            .object({
-              tasks: z.array(
-                z.object({
-                  id: z.string(),
-                  requiredReference: z.boolean().optional(),
-                }),
-              ),
-            })
-            .safeParse(archiveTurn.contextSnapshot?.packet);
-          const references = packet.success
-            ? packet.data.tasks
-                .filter((task) => task.requiredReference)
-                .map((task) => task.id)
-            : [];
-          const explicitIds =
-            archiveTurn.userMessage.match(
-              /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi,
-            ) ?? [];
-          const targets = [...new Set([...references, ...explicitIds])];
-          const priorArchive = await tx.sokoBotToolCall.findFirst({
-            where: {
-              turnId: authorized.turn.id,
-              capability: "archive_task",
-              status: "COMPLETED",
-              targetId: { not: input.taskId },
-              verification: "LOCAL_TRANSACTION",
-            },
-            select: { id: true },
-          });
-          // Anything but one Task the owner named themselves ("yes", "archive
-          // all my test tasks", a second archive in one turn) goes to the
-          // owner as an approval card instead of failing: the bot can still
-          // do the job, and the owner still decides which Tasks go.
-          if (
-            targets.length !== 1 ||
-            targets[0] !== input.taskId ||
-            priorArchive
-          ) {
-            const target = await tx.task.findFirst({
-              where: {
-                id: input.taskId,
-                workspaceId: authorized.turn.workspaceId,
-                ownerId: authorized.turn.userId,
-                archivedAt: null,
-              },
-              select: { id: true },
-            });
-            if (!target)
-              throw new SokoBotRuntimeValidationError(
-                "Task not found among the owner's open Tasks",
-              );
-            throw new ArchiveNeedsOwnerApproval();
-          }
-        }
-      }
       const claim = await claimTaskEventAction(
         tx,
         {
@@ -4392,26 +4306,6 @@ export class SokoBotRuntimeService {
           input.input,
           input.toolCallId,
         );
-      case "request_user_decision": {
-        const decision = decisionInputSchema.parse(input.input);
-        if (
-          !isSokoBotDecisionTargetAllowed(
-            decision.toolName,
-            authorized.grant.capabilities,
-          )
-        ) {
-          throw new SokoBotRuntimeAuthorizationError(
-            "Decision target is not granted for this turn",
-          );
-        }
-        return this.createDecision(
-          authorized,
-          decision.toolName,
-          decision.proposal,
-          input.toolCallId,
-          false,
-        );
-      }
       case "read_memory":
         return prisma.sokoBotMemoryRevision
           .findFirst({

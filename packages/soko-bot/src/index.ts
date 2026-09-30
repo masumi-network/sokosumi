@@ -84,7 +84,6 @@ export {
   sokoBotAssignTaskInputSchema,
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
-  sokoBotDecisionInputSchema,
   sokoBotGenerateImageInputSchema,
   sokoBotGetImageInputSchema,
   sokoBotHireAgentInputSchema,

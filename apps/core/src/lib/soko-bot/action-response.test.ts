@@ -232,6 +232,25 @@ describe("authoritative action responses", () => {
     );
   });
 
+  it("names the assignee of a Task created with one", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "[TEST] Receipt check",
+        assignee: { name: "Hannah" },
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(result.answerText).toBe(
+      "Created task [\\[TEST\\] Receipt check](/tasks/task-one) → Hannah.",
+    );
+  });
+
   it.each([
     { status: "PENDING" as const },
     { status: "FAILED" as const },
@@ -852,7 +871,6 @@ describe("authoritative action responses", () => {
     expect(observed).toContain(
       'Latest reported task update ("coworker"): "Waiting for owner approval of the campaign budget.".',
     );
-    expect(observed).toContain("Only part of this is done so far.");
     expect(observed).not.toMatch(/requested outcome|Result evidence/);
     expect(observed).toContain(
       'Not confirmed yet: "Approved campaign budget".',

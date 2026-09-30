@@ -6,7 +6,6 @@ import {
   evaluateSokoBotOutcome,
   invalidateSokoBotIntentOutcomes,
   readSokoBotTaskOutcome,
-  sokoBotOutcomeNote,
   sokoBotOutcomeSummary,
 } from "./soko-bot-outcome.service";
 
@@ -59,26 +58,6 @@ describe("deterministic outcome summary", () => {
     ).toBe(
       "The requested outcome is partially complete. The result still needs a review against the requested scope. 1 acceptance criterion remains unverified.",
     );
-  });
-  it("tells the owner in one plain sentence, with no verifier wording", () => {
-    expect(
-      sokoBotOutcomeNote({
-        state: "BLOCKED",
-        blockerKind: "RESULT_EVIDENCE_UNAVAILABLE",
-      }),
-    ).toBe("This isn't done yet.");
-    expect(sokoBotOutcomeNote({ state: "FAILED", blockerKind: null })).toBe(
-      "This didn't go through.",
-    );
-    expect(
-      sokoBotOutcomeNote({ state: "FULFILLED", blockerKind: null }),
-    ).toBeNull();
-    expect(
-      sokoBotOutcomeNote({
-        state: "BLOCKED",
-        blockerKind: "NO_ACCEPTANCE_CRITERIA",
-      }),
-    ).toBeNull();
   });
   it("does not add outcome claims to turns without acceptance criteria", () => {
     expect(sokoBotOutcomeSummary(null)).toBeNull();

@@ -534,19 +534,7 @@ try {
     }
   }
 
-  // ---- asking the owner, and writing to a colleague --------------------------
-  // A pending decision is a real prompt in the owner's UI, so it is created
-  // (that is the tool) and removed again by `cleanUp` with the turn that owns
-  // it, on the interrupt path as well as the happy one.
-  await run("request_user_decision", {
-    toolName: "create_task",
-    reason: "Tool smoke run: proving request_user_decision reaches the owner.",
-    proposal: {
-      name: "Tool smoke decision",
-      description: "Created by soko-bot:tool-smoke. Safe to reject.",
-    },
-  });
-
+  // ---- writing to a colleague -----------------------------------------------
   // The only tool here whose side effect lands on somebody other than the
   // owner: it opens a chat with a colleague and writes them a message. Run it
   // when a person is named, and say plainly that it is untested otherwise
