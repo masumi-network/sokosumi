@@ -76,6 +76,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
+import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
@@ -363,23 +364,14 @@ export const auth = betterAuth({
   ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
+
       switch (ctx.path) {
         case "/sign-up/email": {
           if (!ctx.body?.termsAccepted) {
             throw new APIError("BAD_REQUEST", {
               code: "TERMS_NOT_ACCEPTED",
             });
-          }
-
-          break;
-        }
-        // Only a preview completes a proxied sign-in. Anywhere else this
-        // endpoint would turn a leaked OAUTH_PROXY_SECRET into a session for
-        // any email.
-        case "/callback/:id/oauth-proxy":
-        case "/oauth-proxy-callback": {
-          if (env.VERCEL_ENV !== "preview") {
-            throw new APIError("NOT_FOUND");
           }
 
           break;
