@@ -51,7 +51,7 @@ function AgentPanel({ member, t }: { member: Member; t: Translate }) {
   }
   const name = bot.name?.trim() || t("assistantFallback");
   return (
-    <div className="bg-muted/40 flex flex-1 flex-col items-center gap-3 rounded-lg px-3 py-5 text-center">
+    <div className="bg-muted flex flex-1 flex-col items-center gap-3 rounded-lg px-3 py-5 text-center">
       {bot.avatarImageUrl ? (
         <img
           src={bot.avatarImageUrl}
