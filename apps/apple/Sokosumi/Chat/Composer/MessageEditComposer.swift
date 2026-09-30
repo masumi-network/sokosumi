@@ -5,9 +5,10 @@
   import SokosumiWorkspace
   import SwiftUI
 
-  /// Web's inline `MessageEditComposer`: no button row (Return saves, Escape cancels), the field dimmed while a
-  /// save is in flight, and from 9,500 units the count under it, beside a hint once over the limit. Unlike web,
-  /// compact Cancel and Save controls beside the field keep a pointer path (`MessageEditControls`).
+  /// Web's inline `MessageEditComposer`: Return or Save commits, Escape or Cancel cancels, the field dims while
+  /// a save is in flight, and from 9,500 units the count sits under it, beside a hint once over the limit. Save
+  /// is enabled only when the commit would save (`MessageEditCommit`). Where web has a Cancel and Save button row
+  /// under the field, compact controls sit beside it (`MessageEditControls`).
   struct MessageEditComposer: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
@@ -21,7 +22,7 @@
                             guard sourceID == editing.source?.id else { return }
                             cancelUnchanged()
                           },
-                          placeholder: "Edit message", canSend: !content.isTooLong,
+                          placeholder: "Edit message", canSend: editing.canSave,
                           channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
           .disabled(editing.isSaving)
           .opacity(editing.isSaving ? 0.5 : 1)
@@ -46,11 +47,10 @@
     }
 
     private func commit() -> Bool {
-      guard !editing.isSaving else { return false }
-      if editing.canSave {
-        Task { await workspaces.saveMessageEdit(auth: auth) }
-      } else if !editing.content.isTooLong {
-        editing.cancel()
+      switch editing.commitAction {
+      case .save: Task { await workspaces.saveMessageEdit(auth: auth) }
+      case .cancel: editing.cancel()
+      case .keepEditing: break
       }
       return false
     }
