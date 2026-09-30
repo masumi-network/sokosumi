@@ -3,18 +3,18 @@
  * and web Better Auth client field inference.
  */
 export const betterAuthUserAdditionalFields = {
-  // Optional in storage: magic-link and social sign-ups create the user before
-  // anyone is asked, and users from before these fields hold null. Email
-  // sign-up requires both and derives the display `name` from them.
+  // Missing parts on new magic-link/social users start empty. Legacy users
+  // retain null, so onboarding can leave them untouched without a backfill.
+  // Email sign-up requires both and derives the initial display `name`.
   firstName: {
     type: "string",
     required: false,
-    defaultValue: null,
+    defaultValue: "",
   },
   lastName: {
     type: "string",
     required: false,
-    defaultValue: null,
+    defaultValue: "",
   },
   termsAccepted: {
     type: "boolean",

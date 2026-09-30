@@ -32,6 +32,7 @@ const updateUserMock = vi.fn();
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: (...args: unknown[]) => updateUserMock(...args),
+    getSession: async () => ({ data: { user: { name: "" } }, error: null }),
     organization: {
       acceptInvitation: (...args: unknown[]) => acceptInvitationMock(...args),
       rejectInvitation: (...args: unknown[]) => rejectInvitationMock(...args),

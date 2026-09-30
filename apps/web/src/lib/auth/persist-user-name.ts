@@ -13,12 +13,24 @@ export async function persistFirstAndLastName(
   currentName: string | null | undefined,
 ): Promise<Result<void, string | undefined>> {
   try {
+    let name = currentName;
+    if (!userHasName(name)) {
+      // Onboarding and invite retries can retain a nameless initial session.
+      // Read the stored name before deriving it again, including across tabs.
+      const session = await authClient.getSession({
+        query: { disableCookieCache: true },
+      });
+      if (session.error || !session.data) {
+        return err(session.error?.message);
+      }
+      name = session.data.user.name;
+    }
     const result = await authClient.updateUser({
       firstName,
       lastName,
       // The display name is derived once, for a user who has none. After that
       // it is theirs to edit and the parts no longer touch it.
-      ...(userHasName(currentName)
+      ...(userHasName(name)
         ? {}
         : { name: joinFirstAndLastName(firstName, lastName) }),
     });

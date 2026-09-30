@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { userHasLegacyName } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -16,13 +17,23 @@ import {
   firstAndLastNameFormSchema,
 } from "@/lib/schemas/account";
 
-export function useCollectUserName(initialName: string) {
+export function useCollectUserName(
+  initialName: string,
+  initialFirstName?: string | null,
+  initialLastName?: string | null,
+) {
   const tName = useTranslations("Library.Auth.NameField");
   const tSchema = useTranslations("Library.Auth.Schema");
-  const needsName = !userHasName(initialName);
+  const needsName =
+    !userHasName(initialName) ||
+    (!userHasLegacyName(initialName, initialFirstName, initialLastName) &&
+      !(initialFirstName?.trim() && initialLastName?.trim()));
   const form = useForm<FirstAndLastNameFormType>({
     resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
-    defaultValues: { firstName: "", lastName: "" },
+    defaultValues: {
+      firstName: initialFirstName?.trim() ?? "",
+      lastName: initialLastName?.trim() ?? "",
+    },
   });
 
   async function persistIfNeeded(): Promise<boolean> {

@@ -2,6 +2,7 @@ import { betterAuthUserAdditionalFields } from "@sokosumi/utils";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
+import { magicLink } from "better-auth/plugins/magic-link";
 import { describe, expect, it } from "vitest";
 
 import { resolveSignUpNameBody } from "./auth-sign-up-name.js";
@@ -9,6 +10,7 @@ import { resolveSignUpNameBody } from "./auth-sign-up-name.js";
 // A real Better Auth instance: the point is that the before hook runs ahead of
 // the endpoint's own body validation, which still requires `name`.
 function createTestAuth() {
+  let magicLinkUrl = "";
   // Read through `db`: the adapter swaps the arrays when a transaction commits.
   const db: Record<string, Array<Record<string, unknown>>> = {
     user: [],
@@ -23,6 +25,13 @@ function createTestAuth() {
     database: memoryAdapter(db),
     emailAndPassword: { enabled: true },
     user: { additionalFields: betterAuthUserAdditionalFields },
+    plugins: [
+      magicLink({
+        sendMagicLink: async ({ url }) => {
+          magicLinkUrl = url;
+        },
+      }),
+    ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-up/email") {
@@ -45,10 +54,52 @@ function createTestAuth() {
       }),
     );
   }
-  return { signUp, db };
+  async function signInWithMagicLink() {
+    await auth.handler(
+      new Request("https://auth.example.com/auth/sign-in/magic-link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "ada@example.com" }),
+      }),
+    );
+    return auth.handler(new Request(magicLinkUrl));
+  }
+  return { signUp, signInWithMagicLink, db };
 }
 
 describe("email sign-up name", () => {
+  it("marks a new nameless Magic Link account with empty parts", async () => {
+    const { signInWithMagicLink, db } = createTestAuth();
+
+    const response = await signInWithMagicLink();
+
+    expect(response.status).toBe(302);
+    expect(db.user[0]).toMatchObject({ name: "", firstName: "", lastName: "" });
+  });
+
+  it("leaves a legacy user's null parts and chosen display name untouched on sign-in", async () => {
+    const { signInWithMagicLink, db } = createTestAuth();
+    db.user.push({
+      id: "legacy-user",
+      email: "ada@example.com",
+      emailVerified: true,
+      name: "Countess of Lovelace",
+      firstName: null,
+      lastName: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    const response = await signInWithMagicLink();
+
+    expect(response.status).toBe(302);
+    expect(db.user[0]).toMatchObject({
+      name: "Countess of Lovelace",
+      firstName: null,
+      lastName: null,
+    });
+  });
+
   it("derives the display name from first and last name", async () => {
     const { signUp, db } = createTestAuth();
 

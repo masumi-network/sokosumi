@@ -1,5 +1,15 @@
 import { Namefully } from "namefully";
 
+export function userHasLegacyName(
+  name: string | null | undefined,
+  firstName: string | null | undefined,
+  lastName: string | null | undefined,
+): boolean {
+  // New auth records default missing parts to "". Only legacy rows retain
+  // both null parts; their existing display name needs no backfill.
+  return Boolean(name?.trim()) && firstName == null && lastName == null;
+}
+
 /** Prefer trimmed name; otherwise the full email (account chrome labels). */
 export function resolveAccountDisplayName(name: string, email: string): string {
   return name.trim() || email;

@@ -7,6 +7,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 
 const toastErrorMock = vi.fn();
 const updateUserMock = vi.fn();
+let storedName = "";
 const createPersonalWorkspaceActionMock = vi.fn();
 const activateOrganizationWorkspaceMock = vi.fn();
 const locationReplaceMock = vi.fn();
@@ -21,6 +22,10 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: (...args: unknown[]) => updateUserMock(...args),
+    getSession: async () => ({
+      data: { user: { name: storedName } },
+      error: null,
+    }),
   },
 }));
 
@@ -135,7 +140,11 @@ describe("IdentityOnboardingForm", () => {
       replace: locationReplaceMock,
     });
     consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-    updateUserMock.mockResolvedValue({ error: null });
+    storedName = "";
+    updateUserMock.mockImplementation(async (body: { name?: string }) => {
+      if (body.name !== undefined) storedName = body.name;
+      return { error: null };
+    });
     createPersonalWorkspaceActionMock.mockResolvedValue({
       ok: true,
       value: { workspaceId: "ws-1" },
@@ -201,6 +210,53 @@ describe("IdentityOnboardingForm", () => {
       expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
       expect(activateOrganizationWorkspaceMock).toHaveBeenCalledWith(null);
       expect(locationReplaceMock).toHaveBeenCalledWith("/");
+    });
+  });
+
+  it("lets a legacy named user finish setup without collecting or backfilling parts", async () => {
+    const user = userEvent.setup();
+    renderForm({
+      initialFirstName: "",
+      initialLastName: "",
+      collectNameParts: false,
+    });
+
+    expect(
+      screen.queryByTestId("workspace-gate-identity-first-name"),
+    ).toBeNull();
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => expect(locationReplaceMock).toHaveBeenCalledWith("/"));
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the first display name when onboarding is retried", async () => {
+    const user = userEvent.setup();
+    renderForm({ initialName: "", initialFirstName: "", initialLastName: "" });
+    createPersonalWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error: { code: "CREATE_FAILED" },
+    });
+    await user.type(
+      screen.getByTestId("workspace-gate-identity-first-name"),
+      "Ada",
+    );
+    const lastName = screen.getByTestId("workspace-gate-identity-last-name");
+    await user.type(lastName, "Lovelace");
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() =>
+      expect(toastErrorMock).toHaveBeenCalledWith("Create failed"),
+    );
+
+    await user.clear(lastName);
+    await user.type(lastName, "Byron");
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenLastCalledWith({
+        firstName: "Ada",
+        lastName: "Byron",
+      });
     });
   });
 

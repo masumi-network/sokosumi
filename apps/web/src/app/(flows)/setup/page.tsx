@@ -1,3 +1,4 @@
+import { userHasLegacyName } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
@@ -97,15 +98,23 @@ export default async function WorkspaceGatePage() {
         : "identityTitle";
   const initialFirstName = session.user.firstName?.trim() ?? "";
   const initialLastName = session.user.lastName?.trim() ?? "";
-  const hasName = Boolean(initialFirstName && initialLastName);
+  const collectNameParts = !userHasLegacyName(
+    session.user.name,
+    session.user.firstName,
+    session.user.lastName,
+  );
+  const hasName =
+    !collectNameParts || Boolean(initialFirstName && initialLastName);
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
         ? pendingInvitesDescriptionKey({ invitationCount, hasJoinLink })
-        : hasName
-          ? "identityDescriptionConfirm"
-          : "identityDescriptionEnter";
+        : !collectNameParts
+          ? "Identity.choiceHint"
+          : hasName
+            ? "identityDescriptionConfirm"
+            : "identityDescriptionEnter";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
@@ -131,12 +140,15 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
             initialFirstName={initialFirstName}
             initialLastName={initialLastName}
+            collectNameParts={collectNameParts}
             workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (
           <PendingInvitesQueue
             items={queueItems}
             initialName={session.user.name?.trim() ?? ""}
+            initialFirstName={session.user.firstName}
+            initialLastName={session.user.lastName}
           />
         ) : (
           <p className="text-muted-foreground text-sm">

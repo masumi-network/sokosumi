@@ -28,6 +28,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: (...args: unknown[]) => updateUserMock(...args),
+    getSession: async () => ({ data: { user: { name: "" } }, error: null }),
   },
 }));
 
@@ -82,7 +83,11 @@ const messages = {
   },
 };
 
-function renderJoin(currentUserName: string) {
+function renderJoin(
+  currentUserName: string,
+  currentUserFirstName?: string | null,
+  currentUserLastName?: string | null,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <JoinActions
@@ -91,6 +96,8 @@ function renderJoin(currentUserName: string) {
         organizationSlug="join-co"
         isAuthenticated={true}
         currentUserName={currentUserName}
+        currentUserFirstName={currentUserFirstName}
+        currentUserLastName={currentUserLastName}
       />
     </NextIntlClientProvider>,
   );
@@ -108,6 +115,26 @@ describe("JoinActions name collection", () => {
     clearPendingOrganizationJoinCookieActionMock.mockResolvedValue({
       ok: true,
       value: null,
+    });
+  });
+
+  it("prefills and collects missing OAuth parts without replacing the provider name", async () => {
+    const user = userEvent.setup();
+    renderJoin("Countess of Lovelace", "Ada", "");
+    expect(screen.getByTestId("collect-user-first-name")).toHaveValue("Ada");
+    await user.click(screen.getByRole("button", { name: "Join Join Co" }));
+    expect(await screen.findByText("Last name is required")).toBeTruthy();
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+
+    await user.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
+    await user.click(screen.getByRole("button", { name: "Join Join Co" }));
+
+    await waitFor(() =>
+      expect(acceptOrganizationInviteLinkMock).toHaveBeenCalled(),
+    );
+    expect(updateUserMock).toHaveBeenCalledWith({
+      firstName: "Ada",
+      lastName: "Lovelace",
     });
   });
 
