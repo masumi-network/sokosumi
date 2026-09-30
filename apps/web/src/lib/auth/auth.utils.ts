@@ -3,7 +3,14 @@ import type { AuthMethodId } from "@/lib/schemas/auth";
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
-const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
+// `error` and `error_description` are what a failed sign-in brings back to the
+// page (see `buildAuthErrorCallbackUrl`), not part of the OAuth request.
+const AUTH_ERROR_QUERY_KEYS = ["error", "error_description"];
+const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set([
+  "returnUrl",
+  "email",
+  ...AUTH_ERROR_QUERY_KEYS,
+]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
 
 interface WaitForAuthSessionOptions<TSession = unknown> {
@@ -295,6 +302,25 @@ export function buildAuthCallbackUrl(
   }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}${path}?${params.toString()}`;
+}
+
+/**
+ * Better Auth `errorCallbackURL` for social and magic-link sign-in: the page
+ * the person started on, which explains the `error` Better Auth appends.
+ * Without it a failure lands on Core's bare error page (social) or bounces
+ * through the callback page with no message (magic link).
+ */
+export function buildAuthErrorCallbackUrl(): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const url = new URL(window.location.href);
+  for (const key of AUTH_ERROR_QUERY_KEYS) {
+    url.searchParams.delete(key);
+  }
+  url.hash = "";
+  return url.href;
 }
 
 export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {

@@ -27,15 +27,31 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
 vi.mock("./components/sign-up-flow", () => ({
   __esModule: true,
-  default: ({ children, ...props }: { children?: ReactNode }) => {
+  default: ({
+    children,
+    notice,
+    ...props
+  }: {
+    children?: ReactNode;
+    notice?: ReactNode;
+  }) => {
     signUpFlowMock(props);
-    return <div data-testid="sign-up-flow">{children}</div>;
+    return (
+      <div data-testid="sign-up-flow">
+        {notice}
+        {children}
+      </div>
+    );
   },
 }));
 
@@ -210,5 +226,23 @@ describe("SignUp page", () => {
     expect(signUpFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ showMagicLink: false }),
     );
+  });
+
+  it("explains why a sign-in brought the person back", async () => {
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({ searchParams: Promise.resolve({ error: "access_denied" }) }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("cancelled");
+  });
+
+  it("shows no error notice on a plain visit", async () => {
+    const { default: Page } = await import("./page");
+
+    render(await Page({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

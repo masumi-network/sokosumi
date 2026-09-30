@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
+  buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
@@ -208,6 +209,7 @@ export default function SocialButtons({
         key,
         effectiveReturnUrl,
       ),
+      errorCallbackURL: buildAuthErrorCallbackUrl(),
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");

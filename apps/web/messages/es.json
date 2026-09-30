@@ -1334,6 +1334,12 @@
       "errorTitleFor": "No se puede continuar a {client}",
       "errorDescription": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a la aplicación desde la que llegaste y empieza de nuevo.",
       "errorDescriptionFor": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a {client} y empieza de nuevo."
+    },
+    "SignInError": {
+      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña y luego conecta Google o Microsoft en Conexiones.",
+      "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
+      "linkExpired": "Este Magic Link ha caducado o ya se usó. Solicita uno nuevo.",
+      "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo."
     }
   },
   "App": {
