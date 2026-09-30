@@ -56,6 +56,20 @@ function handleMarkdownReplaces(markdown: string): string {
   return markdown.replace(/^( {0,3}(([-*_])\s?){3,})$/gm, "\n___\n");
 }
 
+// GFM links a bare URL without decoding entities, so an `&amp;` left in one
+// reaches both the href and the label. The lead-in is GFM's own: it only
+// autolinks after one of these, which also keeps attribute values (always
+// written after a `"`) out of the match.
+const BARE_URL_REGEX = /(^|[\s*_~(])((?:https?:\/\/|www\.)[^\s<]+)/gim;
+
+function restoreBareUrlAmpersands(markdown: string): string {
+  return markdown.replace(
+    BARE_URL_REGEX,
+    (_match, leadIn: string, url: string) =>
+      `${leadIn}${url.replaceAll("&amp;", "&")}`,
+  );
+}
+
 export function sanitizeMarkdown(markdown: string): string {
   const { tokenized, codeBlocks } = tokenizeFencedCodeBlocks(markdown);
   const replacedMarkdown = handleMarkdownReplaces(tokenized);
@@ -102,5 +116,8 @@ export function sanitizeMarkdown(markdown: string): string {
   // sanitize-html encodes text `>` as `&gt;`. That is correct in HTML and
   // wrong in markdown: `> quoted` must stay a blockquote marker. Unescape
   // before restoring fences so a fenced `&gt;` stays literal.
-  return restoreFencedCodeBlocks(sanitized.replaceAll("&gt;", ">"), codeBlocks);
+  return restoreFencedCodeBlocks(
+    restoreBareUrlAmpersands(sanitized.replaceAll("&gt;", ">")),
+    codeBlocks,
+  );
 }
