@@ -98,7 +98,7 @@
         state.timeline.reset(roomId: "growth")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
         state.timeline.messages = (0 ..< 50).map { index in
-          var message = chatRoomMessage(from: .init(clientTurnId: "growth-\(index)", roomId: "growth", content: "Message \(index)", sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
+          var message = chatRoomMessage(from: .init(clientTurnId: "growth-\(index)", roomId: "growth", content: "Message \(index)", createdAt: Date(), sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
           message.id = "growth-\(index)"
           return message
         }
