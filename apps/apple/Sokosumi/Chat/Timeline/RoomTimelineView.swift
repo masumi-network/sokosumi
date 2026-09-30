@@ -212,7 +212,7 @@ import SwiftUI
                     .padding(.horizontal, 12)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.documents[message.id],
+                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,

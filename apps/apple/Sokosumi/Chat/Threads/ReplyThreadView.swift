@@ -121,7 +121,7 @@ import SwiftUI
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.document(for: parent), message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: quoteAction(for: parent),
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
@@ -322,7 +322,7 @@ import SwiftUI
           if let status = roomStatusText(message) {
             RoomStatusRow(text: status)
           } else {
-            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
