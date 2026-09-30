@@ -2472,6 +2472,25 @@
           "title": "Conecta una cuenta para empezar a publicar",
           "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
           "action": "Conectar X, YouTube, LinkedIn…"
+        },
+        "preview": {
+          "label": "Vista previa de {provider}",
+          "now": "ahora",
+          "accountFallback": "Tu cuenta",
+          "open": "Vista previa",
+          "dialogTitle": "Vista previa de la publicación",
+          "linkedin": {
+            "like": "Recomendar",
+            "comment": "Comentar",
+            "repost": "Compartir",
+            "send": "Enviar",
+            "seeMore": "…ver más",
+            "public": "Visible para todos"
+          },
+          "instagram": {
+            "more": "más",
+            "mediaRequired": "Instagram necesita una imagen o un video."
+          }
         }
       },
       "Detail": {

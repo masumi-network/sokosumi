@@ -2472,6 +2472,25 @@
           "title": "Connect an account to start posting",
           "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
           "action": "Connect X, YouTube, LinkedIn…"
+        },
+        "preview": {
+          "label": "{provider} preview",
+          "now": "now",
+          "accountFallback": "Your account",
+          "open": "Preview",
+          "dialogTitle": "Post preview",
+          "linkedin": {
+            "like": "Like",
+            "comment": "Comment",
+            "repost": "Repost",
+            "send": "Send",
+            "seeMore": "…see more",
+            "public": "Visible to anyone"
+          },
+          "instagram": {
+            "more": "more",
+            "mediaRequired": "Instagram needs an image or video."
+          }
         }
       },
       "Detail": {

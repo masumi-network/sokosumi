@@ -79,6 +79,9 @@ export type ComposioConnectionStatus =
 export interface ConnectedSocialIdentity {
   id: string;
   handle: string | null;
+  displayName: string | null;
+  /** Provider CDN URL; expires for some providers, so callers copy it. */
+  avatarUrl: string | null;
 }
 
 export interface ProjectSocialConnectedAccount {
@@ -428,19 +431,25 @@ const SOCIAL_IDENTITY_TOOLS: Record<
   ProjectSocialProvider,
   { slug: string; arguments: Record<string, unknown> }
 > = {
-  x: { slug: "TWITTER_USER_LOOKUP_ME", arguments: {} },
+  x: {
+    slug: "TWITTER_USER_LOOKUP_ME",
+    arguments: { user_fields: ["name", "profile_image_url"] },
+  },
   tiktok: {
     slug: "TIKTOK_GET_USER_STATS",
-    arguments: { fields: ["open_id", "display_name"] },
+    arguments: { fields: ["open_id", "display_name", "avatar_url"] },
   },
   instagram: {
     slug: "INSTAGRAM_GET_USER_INFO",
-    arguments: { ig_user_id: "me", fields: "id,username" },
+    arguments: {
+      ig_user_id: "me",
+      fields: "id,username,name,profile_picture_url",
+    },
   },
   linkedin: { slug: "LINKEDIN_GET_MY_INFO", arguments: {} },
   facebook: {
     slug: "FACEBOOK_LIST_MANAGED_PAGES",
-    arguments: { fields: "id,name", limit: 2 },
+    arguments: { fields: "id,name,picture", limit: 2 },
   },
   youtube: {
     slug: "YOUTUBE_LIST_CHANNELS",
@@ -483,12 +492,16 @@ function socialIdentity(
   let identity = payload;
   let id: string | null;
   let handle: string | null;
+  let displayName: string | null = null;
+  let avatarUrl: string | null = null;
   switch (provider) {
     case "tiktok":
       // TikTok v2 user/info returns data.user and error.code = "ok".
       identity = record(payload.user) ?? {};
       id = identityString(identity.open_id);
       handle = identityString(identity.display_name);
+      displayName = handle;
+      avatarUrl = identityString(identity.avatar_url);
       break;
     case "linkedin": {
       // Composio also documents response_dict.author_id as the person URN.
@@ -499,6 +512,14 @@ function socialIdentity(
         identityString(profile.id);
       handle =
         identityString(profile.vanityName) ?? identityString(profile.name);
+      displayName =
+        identityString(profile.name) ??
+        ([profile.given_name, profile.family_name]
+          .map(identityString)
+          .filter(Boolean)
+          .join(" ") ||
+          null);
+      avatarUrl = identityString(profile.picture);
       break;
     }
     case "youtube": {
@@ -515,6 +536,11 @@ function socialIdentity(
       const snippet = record(identity.snippet);
       handle =
         identityString(snippet?.customUrl) ?? identityString(snippet?.title);
+      displayName = identityString(snippet?.title);
+      const thumbnails = record(snippet?.thumbnails);
+      avatarUrl =
+        identityString(record(thumbnails?.medium)?.url) ??
+        identityString(record(thumbnails?.default)?.url);
       break;
     }
     case "facebook": {
@@ -530,19 +556,30 @@ function socialIdentity(
       const page = record(pages[0]) ?? {};
       id = identityString(page.id);
       handle = identityString(page.name);
+      displayName = handle;
+      avatarUrl = identityString(record(record(page.picture)?.data)?.url);
       break;
     }
     case "instagram":
       id = identityString(identity.id);
       handle = identityString(identity.username);
+      displayName = identityString(identity.name);
+      avatarUrl = identityString(identity.profile_picture_url);
       break;
     case "x":
       id = identityString(identity.id);
       handle =
         identityString(identity.username) ?? identityString(identity.handle);
+      displayName = identityString(identity.name);
+      // X serves a 48px `_normal` variant by default.
+      avatarUrl =
+        identityString(identity.profile_image_url)?.replace(
+          /_normal(\.\w+)$/,
+          "_400x400$1",
+        ) ?? null;
       break;
   }
-  return id ? { id, handle } : null;
+  return id ? { id, handle, displayName, avatarUrl } : null;
 }
 
 export async function getConnectedSocialIdentity(input: {
