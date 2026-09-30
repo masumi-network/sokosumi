@@ -25,6 +25,7 @@ const statusLabels = {
 
 function renderRelated(
   tasks: React.ComponentProps<typeof TaskRelatedTasks>["tasks"],
+  hrefBasePath?: string,
 ) {
   return render(
     <TaskRelatedTasks
@@ -32,6 +33,7 @@ function renderRelated(
       tasks={tasks}
       relationLabels={relationLabels}
       statusLabels={statusLabels}
+      hrefBasePath={hrefBasePath}
     />,
   );
 }
@@ -143,6 +145,25 @@ describe("TaskRelatedTasks", () => {
       expect(link).not.toHaveTextContent(/Related|Blocking/);
       expect(within(link).queryByLabelText(/Related|Blocking/)).toBeNull();
     }
+  });
+
+  it("passes hrefBasePath through so related rows stay on the surface path", () => {
+    renderRelated(
+      [
+        {
+          id: "task-2",
+          name: "Design follow-up",
+          identifier: "SOK-12",
+          status: TaskStatus.READY,
+          relation: "related",
+        },
+      ],
+      "/admin/tasks",
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Design follow-up/ }),
+    ).toHaveAttribute("href", "/admin/tasks/task-2");
   });
 
   it("omits groups that have no tasks", () => {

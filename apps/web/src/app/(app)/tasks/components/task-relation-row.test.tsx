@@ -50,4 +50,21 @@ describe("TaskRelationRow", () => {
       screen.getByRole("link", { name: /Dependency cleanup/i }),
     ).toHaveAttribute("href", "/tasks/SOK-12-dependency-cleanup");
   });
+
+  it("uses the surface UUID path when hrefBasePath is set, ignoring identifiers", () => {
+    render(
+      <TaskRelationRow
+        taskId="task-2"
+        taskName="Dependency cleanup"
+        taskIdentifier="SOK-12"
+        taskStatus={TaskStatus.READY}
+        statusLabel="Ready"
+        hrefBasePath="/admin/tasks"
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Dependency cleanup/i }),
+    ).toHaveAttribute("href", "/admin/tasks/task-2");
+  });
 });

@@ -11,6 +11,7 @@ interface TaskRelationRowProps {
   taskIdentifier: string | null;
   taskStatus: TaskStatus;
   statusLabel: string;
+  hrefBasePath?: string;
 }
 
 /** A sidebar row: status marker in the same 20px slot as the property rows, then the name. */
@@ -20,16 +21,20 @@ export function TaskRelationRow({
   taskIdentifier,
   taskStatus,
   statusLabel,
+  hrefBasePath,
 }: TaskRelationRowProps) {
   const marker = getTaskStatusMarker(taskStatus);
-
-  return (
-    <TaskDetailLink
-      href={taskHref({
+  const href = hrefBasePath
+    ? `${hrefBasePath}/${taskId}`
+    : taskHref({
         id: taskId,
         identifier: taskIdentifier,
         name: taskName,
-      })}
+      });
+
+  return (
+    <TaskDetailLink
+      href={href}
       className="hover:bg-muted -mx-2 flex h-8 items-center gap-2 rounded-md px-2 text-sm transition-colors"
     >
       <span

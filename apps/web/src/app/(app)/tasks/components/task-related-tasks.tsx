@@ -15,6 +15,7 @@ interface TaskRelatedTasksProps {
   tasks: RelatedTaskSummary[];
   relationLabels: Record<TaskLinkRelation, string>;
   statusLabels: Record<TaskStatus, string>;
+  hrefBasePath?: string;
 }
 
 /** Blockers first, then hierarchy (parent, sub-tasks), then the loose links. */
@@ -32,6 +33,7 @@ export function TaskRelatedTasks({
   tasks,
   relationLabels,
   statusLabels,
+  hrefBasePath,
 }: TaskRelatedTasksProps) {
   if (tasks.length === 0) return null;
 
@@ -60,6 +62,7 @@ export function TaskRelatedTasks({
                     taskIdentifier={task.identifier}
                     taskStatus={task.status}
                     statusLabel={statusLabels[task.status]}
+                    hrefBasePath={hrefBasePath}
                   />
                 </li>
               ))}
