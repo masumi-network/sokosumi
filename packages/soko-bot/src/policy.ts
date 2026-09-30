@@ -26,7 +26,6 @@ export const SOKO_BOT_CAPABILITIES = [
   "hire_agent",
   "get_job_status",
   "provide_job_input",
-  "request_user_decision",
   "read_memory",
   "update_memory",
   "list_schedules",
@@ -259,7 +258,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "create_task",
     "update_task",
     "archive_task",
-    "request_user_decision",
     "assign_task",
     "reply_to_task",
     "update_assigned_task",
@@ -272,7 +270,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "update_memory",
     "get_agent_input_schema",
     "hire_agent",
-    "request_user_decision",
     "provide_job_input",
   ],
   MANAGE_WORK: [
@@ -283,7 +280,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     "update_memory",
     "update_task",
     "archive_task",
-    "request_user_decision",
     "assign_task",
     "reply_to_task",
     "update_assigned_task",
@@ -332,7 +328,7 @@ export function capabilitiesForClassification(
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat"],
     FILE: ["upload_file", "generate_image"],
-    INTEGRATION: ["run_integration_tool", "request_user_decision"],
+    INTEGRATION: ["run_integration_tool"],
     SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };
   return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];

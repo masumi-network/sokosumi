@@ -16,13 +16,13 @@ describe("offline evaluation preparation", () => {
     expect(Object.isFrozen(candidate)).toBe(true);
     expect(candidate.capabilities.length).toBeGreaterThan(0);
     expect(candidate.capabilities).toContain("archive_task");
-    expect(candidate.systemPrompt).toContain("Owner-requested task archival");
-    expect(candidate.systemPrompt).toContain("expectedUpdatedAt");
-    expect(candidate.systemPrompt).toContain("persist request_user_decision");
+    expect(candidate.systemPrompt).toContain("Archiving: when the owner asks");
+    expect(candidate.systemPrompt).toContain("exact updatedAt");
     expect(candidate.systemPrompt).toContain(
-      "do not demand redundant confirmation",
+      "Ask in chat only when it is unclear which Tasks they mean",
     );
-    expect(base.systemPrompt).not.toContain("Owner-requested task archival");
+    expect(candidate.systemPrompt).not.toContain("request_user_decision");
+    expect(base.systemPrompt).not.toContain("Archiving: when the owner asks");
     expect(Object.isFrozen(candidate.capabilities)).toBe(true);
     expect(candidate.id).not.toBe(
       createSokoBotCandidate(
@@ -39,7 +39,7 @@ describe("offline evaluation preparation", () => {
     );
     expect(candidate.capabilities).toEqual(["get_task_status"]);
     expect(candidate.systemPrompt).not.toContain(
-      "Owner-requested task archival",
+      "Archiving: when the owner asks",
     );
   });
   it("rejects identifiers, links, extra fields and conversation split leakage", () => {

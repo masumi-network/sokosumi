@@ -13,7 +13,6 @@ import {
   createEmptySokoBotMemory,
   type IndexedRuntimeEvent,
   isSokoBotCapability,
-  isSokoBotSilentAnswer,
   limitSokoBotWrites,
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
@@ -77,7 +76,6 @@ import {
 import {
   assessSokoBotIntentOutcome,
   invalidateSokoBotIntentOutcomes,
-  sokoBotOutcomeNote,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
 import {
@@ -1741,46 +1739,14 @@ export class SokoBotControlPlane {
       if (settled.count === 0) return false;
       const outcome = await assessSokoBotIntentOutcome(tx, input.turnId);
       const outcomeSummary = sokoBotOutcomeSummary(outcome);
-      const blockerKind = outcome?.blockerKind ?? "";
-      // Refined unverified outcomes describe a delegated result that cannot
-      // exist yet at settlement, so they are not worth prefixing onto a
-      // successful turn's answer, blocked or partial. A direct MANAGE_WORK
-      // action gets no such pass: its answer must not claim a change that no
-      // receipt proves.
-      const suppressBlockerPrefix =
-        turn.route !== "MANAGE_WORK" &&
-        [
-          "UNVERIFIED_OUTCOME",
-          "OUTCOME_SCOPE_REQUIRES_REVIEW",
-          "ARTIFACT_READABILITY_UNVERIFIED",
-          "RESULT_EVIDENCE_UNAVAILABLE",
-        ].includes(blockerKind);
-      const outcomeNote = sokoBotOutcomeNote(outcome);
-      if (
-        responseContract &&
-        outcomeSummary &&
-        outcomeNote &&
-        outcome &&
-        ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
-        !isSokoBotSilentAnswer(responseContract.answerText) &&
-        !(
-          ["BLOCKED", "PARTIAL"].includes(outcome.state) &&
-          suppressBlockerPrefix
-        )
-      ) {
-        // The owner gets a plain sentence; the verifier's wording is kept on
-        // the contract for the admin view.
-        const answerText = `${outcomeNote}\n\n${responseContract.answerText}`;
+      // The owner reads the model's own words; the claim check has already
+      // held back any change no receipt proves. A canned note on top read as
+      // failure on turns that worked, so the verifier's view stays on the
+      // contract for the admin console only.
+      if (responseContract && outcomeSummary) {
         await tx.sokoBotTurn.update({
           where: { id: input.turnId },
-          data: {
-            finalAnswer: answerText,
-            responseContract: {
-              ...responseContract,
-              answerText,
-              outcomeSummary,
-            },
-          },
+          data: { responseContract: { ...responseContract, outcomeSummary } },
         });
       }
       await enqueueSokoBotDelivery(tx, input.turnId);
