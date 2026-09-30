@@ -2365,7 +2365,7 @@
           "editTitle": "Editar publicación",
           "scheduleTitle": "Programar publicación",
           "rescheduleTitle": "Reprogramar publicación",
-          "description": "Escribe el texto, elige la cuenta y decide cuándo se publica.",
+          "description": "Elige dónde va, escríbela y decide cuándo sale.",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
@@ -2395,7 +2395,9 @@
             "video_required": "{provider} requiere un vídeo."
           },
           "account": "Cuenta",
-          "noAccount": "Elige una cuenta",
+          "accounts": "Publicar en",
+          "accountOption": "{provider} {handle}",
+          "noAccounts": "Aún no hay cuentas conectadas. Conecta una en la pestaña Cuentas.",
           "unknownHandle": "Cuenta desconocida",
           "scheduledAt": "Hora programada",
           "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
@@ -2413,8 +2415,8 @@
           "confirm": "Cancelar publicación"
         },
         "toasts": {
-          "created": "Borrador guardado.",
-          "scheduled": "Publicación programada.",
+          "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
+          "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
