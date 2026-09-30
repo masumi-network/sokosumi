@@ -99,7 +99,7 @@ vi.mock("next-intl", () => ({
         taskPickerError: "Failed to load tasks",
         taskPickerLoadMoreError: "Failed to load more tasks",
         "relations.related": "Related",
-        "relations.blocks": "Blocks",
+        "relations.blocks": "Blocking",
         "relations.blockedBy": "Blocked by",
         "relations.subtask": "Sub-task",
         "relations.duplicate": "Duplicate",
@@ -570,6 +570,7 @@ const defaultTaskLinks = [
       name: "Parent task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
 ] as const;
@@ -586,6 +587,7 @@ const removableTaskLinks = [
       name: "Related task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -599,6 +601,7 @@ const removableTaskLinks = [
       name: "Blocked task",
       status: TaskStatus.DRAFT,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -612,6 +615,7 @@ const removableTaskLinks = [
       name: "Sub-task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -625,6 +629,7 @@ const removableTaskLinks = [
       name: "Archived duplicate",
       status: TaskStatus.CANCELED,
       archivedAt: new Date("2024-01-02T00:00:00.000Z"),
+      identifier: null,
     },
   },
 ] as const;
@@ -1717,6 +1722,7 @@ describe("TaskDetailActions", () => {
         name: "Other parent",
         status: TaskStatus.READY,
         archivedAt: null,
+        identifier: null,
       },
     } as const;
 

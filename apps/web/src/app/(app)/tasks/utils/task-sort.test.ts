@@ -11,6 +11,7 @@ function buildTask(
     name: "Task",
     description: "Description",
     status: "QUEUED",
+    identifier: null,
     priority: "NONE",
     visibility: "PUBLIC",
     ownerId: "user-1",
