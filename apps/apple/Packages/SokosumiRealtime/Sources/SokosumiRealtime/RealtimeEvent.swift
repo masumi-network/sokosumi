@@ -17,6 +17,11 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case presenceRoster(organizationId: String, members: [ChatPresenceMember])
   /// A chat-kind row on the user notifications channel.
   case notification(ChatNotificationEvent)
+  /// A Typing event on the watched room's typing channel, already bound to its sender (ADR 0033).
+  case typing(roomId: String, signal: ChatTypingSignal)
+  /// The watched room's typing channel is subscribed, and may or may not be published to. Nil: the
+  /// token does not grant it or could not be minted, so the room shows nobody.
+  case typingChannel(roomId: String, canPublish: Bool?)
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -52,7 +57,7 @@ private func personalize(
 /// through the same `ChatRoomMessage` shape history renders; anything
 /// unparseable, for another room, or for push (out of scope) is ignored —
 /// the transcript only moves on proof, never on hope. Presence arrives
-/// through `OrgPresenceChannel`, not as messages.
+/// through `OrgPresenceChannel` and Typing through `RoomTypingChannel`, not here.
 func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
   if let named = resolveNamedDelivery(channel: channel, event: eventName, data: data) {
     return named

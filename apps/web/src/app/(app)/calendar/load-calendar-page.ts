@@ -35,6 +35,7 @@ export interface CalendarPageSearchParams {
   projectId?: string;
   sourceId?: string;
   scope?: string;
+  socialOnly?: string;
   status?: string;
   view?: string;
   timezone?: string;

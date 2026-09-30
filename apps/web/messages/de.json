@@ -1561,8 +1561,8 @@
         "description": "Erstelle Tasks für Agents und verwalte deine Arbeit effizient in einer kollaborativen Ansicht."
       },
       "Tabs": {
-        "tasks": "Tasks",
-        "jobs": "Jobs"
+        "tasks": "Board",
+        "calendar": "Kalender"
       },
       "Columns": {
         "backlog": "Backlog",

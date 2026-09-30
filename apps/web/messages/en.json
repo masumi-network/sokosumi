@@ -1561,8 +1561,8 @@
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
       },
       "Tabs": {
-        "tasks": "Tasks",
-        "jobs": "Jobs"
+        "tasks": "Board",
+        "calendar": "Calendar"
       },
       "Columns": {
         "backlog": "Backlog",

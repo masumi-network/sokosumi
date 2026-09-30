@@ -7,7 +7,6 @@
   struct MacComposerTextInput: NSViewRepresentable {
     @Binding var text: String
     @Environment(\.isEnabled) private var isEnabled
-    var modifierReturnSubmits = false
     var cancel: (() -> Void)?
     var onBlur: (() -> Void)?
     let submit: () -> Bool
@@ -33,6 +32,9 @@
     var attachmentDragChanged: ((Bool) -> Void)?
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
+    /// The person's own edit, with the draft it left: typed or pasted text, a deletion, a formatting
+    /// command. Never a restored draft, a cleared one after send, or text the app inserted itself.
+    var onEdit: ((String) -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
       let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
@@ -59,7 +61,6 @@
       input.suggestionKeyHandler = { [weak commands] key in commands?.handleSuggestionKey(key) ?? false }
       input.formattingDidChange = { [weak commands] in commands?.refresh() }
       input.submit = submit
-      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
@@ -78,7 +79,6 @@
       context.coordinator.parent = self
       guard let input = scroll.documentView as? InputView else { return }
       input.submit = submit
-      input.modifierReturnSubmits = modifierReturnSubmits
       input.cancel = cancel
       input.isEditable = isEnabled
       input.placeholder = placeholder
@@ -163,7 +163,11 @@
 
       func textDidChange(_ notification: Notification) {
         guard let input = notification.object as? InputView else { return }
-        parent.text = input.captureDraft()
+        let draft = input.captureDraft()
+        parent.text = draft
+        if !input.insertsUntypedText {
+          parent.onEdit?(draft)
+        }
         parent.commands?.refresh()
       }
 
@@ -183,16 +187,15 @@
       private var preservesRawDraft = false
       private(set) var serializedDraft = ""
       var submit: () -> Bool = { false }
-      /// The inline edit composer, as web's `modifierEnterSubmits`: Return saves with or without
-      /// Command/Control, and only Shift inserts a line. Sets the VoiceOver name and key help too.
-      var modifierReturnSubmits = false {
+      /// Set by the inline edit composer, whose Escape cancels. It names the text view for VoiceOver, as
+      /// web's `Edit.composerAria`; Return follows the message composer's rule there too (web #5324).
+      var cancel: (() -> Void)? {
         didSet {
-          setAccessibilityLabel(modifierReturnSubmits ? "Edit message" : "Message")
-          setAccessibilityHelp(modifierReturnSubmits ? "Return to save, Escape to cancel, Shift-Return for a new line." : nil)
+          setAccessibilityLabel(cancel == nil ? "Message" : "Edit message")
+          setAccessibilityHelp(cancel == nil ? nil : "Use Save or Cancel to finish. Return saves, Escape cancels, and Shift-Return adds a new line.")
         }
       }
 
-      var cancel: (() -> Void)?
       var openLinkEditor: (() -> Void)?
       var formattingDidChange: (() -> Void)?
       var channels: [ComposerChannel] = []
@@ -305,6 +308,8 @@
           replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
         }
         replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))
+        insertsUntypedText = true
+        defer { insertsUntypedText = false }
         breakUndoCoalescing()
         replaceFormatting(MacComposerAttributedText.styled(replacement), range: range)
         setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
@@ -384,8 +389,9 @@
         deleting { super.cut(sender) }
       }
 
-      /// `insertAtCaret` inserts through `insertText` as well; only the person's own edits fire an input rule.
-      private var insertsUntypedText = false
+      /// Set while the app inserts text the person did not type (`insertAtCaret`, a saved link). Such text
+      /// fires no input rule and, as on web, announces no Typing.
+      private(set) var insertsUntypedText = false
 
       private func insertUntyped(_ text: String) {
         insertsUntypedText = true
@@ -639,7 +645,7 @@
           return
         }
         // Option never counts, as web never reads Alt for Enter.
-        let submits = event.modifierFlags.isDisjoint(with: modifierReturnSubmits ? [.shift] : [.shift, .command, .control])
+        let submits = event.modifierFlags.isDisjoint(with: [.shift, .command, .control])
         if !submits {
           if let edit = ComposerBlockText.exitingQuote(attributedString(), selection: selectedRange()), !preservesRawDraft {
             breakUndoCoalescing()

@@ -1235,7 +1235,22 @@ describe("core auth config", () => {
 
     expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
       productionURL: "https://canonical.example.com",
+      currentURL: "https://example.com/auth",
     });
+  });
+
+  it("tells the OAuth proxy its own URL instead of leaving it to the request", async () => {
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://core-pr.preview.example.com",
+    );
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentURL: "https://core-pr.preview.example.com",
+      }),
+    );
   });
 
   it("encrypts the OAuth proxy hand-off with its own secret", async () => {
@@ -1248,6 +1263,7 @@ describe("core auth config", () => {
 
     expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
       productionURL: "https://example.com/auth",
+      currentURL: "https://example.com/auth",
       secret: "proxy-secret",
     });
   });

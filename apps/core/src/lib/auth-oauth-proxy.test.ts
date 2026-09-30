@@ -9,6 +9,7 @@ import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 
 const PRODUCTION = "https://api.example.com";
 const PREVIEW = "https://core-pr.preview.example.com";
+const WEB = "https://app.example.com";
 const WEB_PREVIEW = "https://app-pr.preview.example.com";
 const PRODUCTION_AUTH_SECRET = "production-auth-secret-32-characters-long";
 const PREVIEW_AUTH_SECRET = "preview-auth-secret-32-characters-long-too";
@@ -39,14 +40,20 @@ function createCore({
     basePath: "/auth",
     secret: authSecret,
     database: memoryAdapter(db),
-    trustedOrigins: ["https://*.preview.example.com"],
+    trustedOrigins: [WEB, "https://*.preview.example.com"],
     socialProviders: {
       google: {
         clientId: "google-client-id",
         clientSecret: "google-client-secret",
       },
     },
-    plugins: [oAuthProxy({ productionURL: PRODUCTION, secret: proxySecret })],
+    plugins: [
+      oAuthProxy({
+        productionURL: PRODUCTION,
+        currentURL: baseURL,
+        secret: proxySecret,
+      }),
+    ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         refuseOAuthProxyCompletionOutsidePreview(ctx.path, vercelEnv);
@@ -77,10 +84,18 @@ function createPreview(proxySecret?: string) {
 
 type Core = ReturnType<typeof createCore>;
 
+/**
+ * Vercel terminates TLS before the function, and `@hono/node-server` reads the
+ * scheme off the socket, so Better Auth sees every request as plain HTTP.
+ */
+function asServedOnVercel(url: string): string {
+  return url.replace(/^https:/, "http:");
+}
+
 /** Starts Google sign-in on the preview and follows Google back to production. */
 async function signInThroughProduction(preview: Core, production: Core) {
   const started = await preview.auth.handler(
-    new Request(`${PREVIEW}/auth/sign-in/social`, {
+    new Request(asServedOnVercel(`${PREVIEW}/auth/sign-in/social`), {
       method: "POST",
       headers: { "content-type": "application/json", origin: WEB_PREVIEW },
       body: JSON.stringify({
@@ -95,7 +110,9 @@ async function signInThroughProduction(preview: Core, production: Core) {
   const callback = new URL(google.searchParams.get("redirect_uri") ?? "");
   callback.searchParams.set("state", google.searchParams.get("state") ?? "");
   callback.searchParams.set("code", "google-code");
-  const returned = await production.auth.handler(new Request(callback));
+  const returned = await production.auth.handler(
+    new Request(asServedOnVercel(callback.href)),
+  );
 
   return {
     redirectUri: google.searchParams.get("redirect_uri"),
@@ -131,9 +148,12 @@ describe("OAuth proxy between a preview and production", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   it("signs a preview in through production when only the proxy secret is shared", async () => {
+    // The hand-off must come back to the branch URL, not this deployment's.
+    vi.stubEnv("VERCEL_URL", "core-abc123.preview.example.com");
     const production = createProduction(PROXY_SECRET);
     const preview = createPreview(PROXY_SECRET);
 
@@ -150,13 +170,49 @@ describe("OAuth proxy between a preview and production", () => {
       `${PREVIEW}/auth/callback/google/oauth-proxy`,
     );
 
-    const completed = await preview.auth.handler(new Request(handOff));
+    const completed = await preview.auth.handler(
+      new Request(asServedOnVercel(handOff.href)),
+    );
 
     expect(completed.headers.get("location")).toBe(`${WEB_PREVIEW}/`);
     expect(preview.db.user).toMatchObject([{ email: "ada@example.com" }]);
     expect(preview.db.session).toHaveLength(1);
     expect(production.db.user).toEqual([]);
     expect(production.db.session).toEqual([]);
+  });
+
+  it("signs production in without the proxy behind Vercel's TLS termination", async () => {
+    vi.stubEnv("VERCEL_URL", "core-abc123.preview.example.com");
+    const production = createProduction(PROXY_SECRET);
+
+    const started = await production.auth.handler(
+      new Request(asServedOnVercel(`${PRODUCTION}/auth/sign-in/social`), {
+        method: "POST",
+        headers: { "content-type": "application/json", origin: WEB },
+        body: JSON.stringify({ provider: "google", callbackURL: `${WEB}/` }),
+      }),
+    );
+    const { url } = (await started.json()) as { url: string };
+    const google = new URL(url);
+    const redirectUri = google.searchParams.get("redirect_uri") ?? "";
+
+    const callback = new URL(asServedOnVercel(redirectUri));
+    callback.searchParams.set("state", google.searchParams.get("state") ?? "");
+    callback.searchParams.set("code", "google-code");
+    const returned = await production.auth.handler(
+      new Request(callback, {
+        headers: {
+          cookie: started.headers
+            .getSetCookie()
+            .map((cookie) => cookie.split(";")[0])
+            .join("; "),
+        },
+      }),
+    );
+
+    expect(redirectUri).toBe(`${PRODUCTION}/auth/callback/google`);
+    expect(returned.headers.get("location")).toBe(`${WEB}/`);
+    expect(production.db.session).toHaveLength(1);
   });
 
   it("cannot read a preview's state without a shared proxy secret", async () => {
@@ -177,7 +233,7 @@ describe("OAuth proxy between a preview and production", () => {
       const { handOff } = await signInThroughProduction(preview, production);
 
       const replayed = await production.auth.handler(
-        new Request(`${PRODUCTION}${path}${handOff.search}`),
+        new Request(asServedOnVercel(`${PRODUCTION}${path}${handOff.search}`)),
       );
 
       expect(replayed.status).toBe(404);
