@@ -29,9 +29,10 @@ export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 
 /**
- * Shared list card min-height for Instant skeleton, loaded list, and empty state
- * so route swaps do not thrash CLS. Keep as a full Tailwind class string so the
- * scanner can see it.
+ * List card min-height for the Instant skeleton, the empty state, and a browse
+ * card with no rows, so those swaps do not thrash CLS. A card with rows ends
+ * with them; nothing sits below it, so its shorter height shifts nothing.
+ * Keep as a full Tailwind class string so the scanner can see it.
  */
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
@@ -48,11 +49,17 @@ export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
   "flex items-center justify-end gap-3";
 
 /**
- * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
- * No horizontal padding: the rows carry their own `px-4`, so both the dividers
- * and the row hover run the full width of the card, as the tasks list does.
+ * Card around the browse rows. Shared by live list and Instant skeleton.
+ * Same `p-2` inset as the task list, Files and Transactions cards.
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
+export const PROJECTS_BROWSE_CARD_CLASS =
+  "bg-card-background overflow-hidden rounded-xl p-2";
+
+/**
+ * Stack of browse rows inside the card: separate row cards with a `gap-2`,
+ * as the task list, Files and Transactions draw them.
+ */
+export const PROJECTS_BROWSE_LIST_CLASS = "flex flex-col gap-2";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
@@ -60,6 +67,13 @@ export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
  */
 export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
+
+/**
+ * Bordered row card shared by live `ProjectListItem` and the Instant skeleton,
+ * as the task list draws its rows.
+ */
+export const PROJECTS_LIST_ROW_CARD_CLASS =
+  "bg-background border-border rounded-lg border";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources
