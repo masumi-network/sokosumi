@@ -9,6 +9,7 @@ import remarkGfm from "remark-gfm";
 import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
+import { remarkRestoreInlineCodeEntities } from "@/components/markdown-inline-code";
 import { prepareMermaidMarkdown } from "@/components/mermaid/markdown-mermaid";
 import { MermaidBlock } from "@/components/mermaid/mermaid-block";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
@@ -304,6 +305,7 @@ export default function Markdown({
           remarkBreaks,
           remarkGfm,
           [remarkEmoji, { emoticon: true }],
+          remarkRestoreInlineCodeEntities,
         ]}
         rehypePlugins={
           mermaid
