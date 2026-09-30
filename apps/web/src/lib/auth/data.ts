@@ -1,3 +1,7 @@
+import {
+  isFirstAndLastNameWithinLimit,
+  USER_NAME_MAX_LENGTH,
+} from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -7,7 +11,7 @@ export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     .string({ error: t?.("Name.invalid") })
     .min(1, { error: t?.("Name.required") })
     .min(2, { error: t?.("Name.min") })
-    .max(128, {
+    .max(USER_NAME_MAX_LENGTH, {
       error: t?.("Name.max"),
     });
 
@@ -15,15 +19,30 @@ export const firstNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("FirstName.required") })
     .trim()
-    .min(1, { error: t?.("FirstName.required") })
-    .max(64, { error: t?.("FirstName.max") });
+    .min(1, { error: t?.("FirstName.required") });
 
 export const lastNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("LastName.required") })
     .trim()
-    .min(1, { error: t?.("LastName.required") })
-    .max(64, { error: t?.("LastName.max") });
+    .min(1, { error: t?.("LastName.required") });
+
+export const firstAndLastNameSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z
+    .object({
+      firstName: firstNameSchema(t),
+      lastName: lastNameSchema(t),
+    })
+    .refine(
+      ({ firstName, lastName }) =>
+        isFirstAndLastNameWithinLimit(firstName, lastName),
+      {
+        path: ["lastName"],
+        error: t?.("FullName.max"),
+      },
+    );
 
 export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z

@@ -444,8 +444,10 @@ export {
 } from "./user-metadata.js";
 export {
   getFirstName,
+  isFirstAndLastNameWithinLimit,
   joinFirstAndLastName,
   resolveAccountDisplayName,
+  USER_NAME_MAX_LENGTH,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
 export {

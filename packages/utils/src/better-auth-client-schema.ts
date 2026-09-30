@@ -1,6 +1,7 @@
 import * as z from "zod";
 
-const namePartInputSchema = z.string().trim().min(1).max(64).nullable();
+// Core auth hooks validate the combined length with the other name part.
+const namePartInputSchema = z.string().trim().min(1).nullable();
 
 /**
  * Better Auth additional-field schema — single source of truth for Core `auth.ts`

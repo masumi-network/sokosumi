@@ -7357,12 +7357,13 @@
           "required": "Name is required"
         },
         "FirstName": {
-          "max": "First name must be at most 64 characters.",
           "required": "First name is required"
         },
         "LastName": {
-          "max": "Last name must be at most 64 characters.",
           "required": "Last name is required"
+        },
+        "FullName": {
+          "max": "First and last name together must be at most 128 characters, including the space."
         },
         "Organization": {
           "invalid": "Organization must be a valid string.",

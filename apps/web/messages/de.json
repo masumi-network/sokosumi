@@ -7357,12 +7357,13 @@
           "required": "Name ist erforderlich"
         },
         "FirstName": {
-          "max": "Vorname darf maximal 64 Zeichen lang sein.",
           "required": "Vorname ist erforderlich"
         },
         "LastName": {
-          "max": "Nachname darf maximal 64 Zeichen lang sein.",
           "required": "Nachname ist erforderlich"
+        },
+        "FullName": {
+          "max": "Vor- und Nachname dürfen zusammen maximal 128 Zeichen lang sein, einschließlich des Leerzeichens."
         },
         "Organization": {
           "invalid": "Organisation muss eine gültige Zeichenkette sein.",

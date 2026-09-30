@@ -1,12 +1,14 @@
-import { isEmptyOrValidWebsiteUrl } from "@sokosumi/utils";
+import {
+  isEmptyOrValidWebsiteUrl,
+  isFirstAndLastNameWithinLimit,
+} from "@sokosumi/utils";
 import * as z from "zod";
 
 import {
   confirmPasswordSchema,
   currentPasswordSchema,
   emailSchema,
-  firstNameSchema,
-  lastNameSchema,
+  firstAndLastNameSchema,
   nameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
@@ -20,11 +22,7 @@ export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
 
 export const firstAndLastNameFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z.object({
-    firstName: firstNameSchema(t),
-    lastName: lastNameSchema(t),
-  });
+) => firstAndLastNameSchema(t);
 
 export type FirstAndLastNameFormType = z.infer<
   ReturnType<typeof firstAndLastNameFormSchema>
@@ -41,14 +39,8 @@ export const accountNameFormSchema = (
 ) =>
   z
     .object({
-      firstName: z
-        .string()
-        .trim()
-        .max(64, { error: t?.("FirstName.max") }),
-      lastName: z
-        .string()
-        .trim()
-        .max(64, { error: t?.("LastName.max") }),
+      firstName: z.string().trim(),
+      lastName: z.string().trim(),
       name: nameSchema(t),
     })
     .superRefine(({ firstName, lastName }, ctx) => {
@@ -69,7 +61,15 @@ export const accountNameFormSchema = (
           message: t?.("LastName.required"),
         });
       }
-    });
+    })
+    .refine(
+      ({ firstName, lastName }) =>
+        isFirstAndLastNameWithinLimit(firstName, lastName),
+      {
+        path: ["lastName"],
+        error: t?.("FullName.max"),
+      },
+    );
 
 export type AccountNameFormType = z.infer<
   ReturnType<typeof accountNameFormSchema>

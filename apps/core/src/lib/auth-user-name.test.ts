@@ -5,7 +5,11 @@ import { betterAuth } from "better-auth/minimal";
 import { magicLink } from "better-auth/plugins/magic-link";
 import { describe, expect, it } from "vitest";
 
-import { resolveSignUpNameBody } from "./auth-sign-up-name.js";
+import {
+  resolveSignUpNameBody,
+  validateUpdatedUserName,
+  validateUserNameLength,
+} from "./auth-user-name.js";
 
 // A real Better Auth instance: the point is that the before hook runs ahead of
 // the endpoint's own body validation, which still requires `name`.
@@ -25,6 +29,17 @@ function createTestAuth() {
     database: memoryAdapter(db),
     emailAndPassword: { enabled: true },
     user: { additionalFields: betterAuthUserAdditionalFields },
+    session: { cookieCache: { enabled: true } },
+    databaseHooks: {
+      user: {
+        create: {
+          before: async (user) => {
+            validateUserNameLength(user.firstName, user.lastName);
+            return { data: user };
+          },
+        },
+      },
+    },
     plugins: [
       magicLink({
         sendMagicLink: async ({ url }) => {
@@ -36,6 +51,9 @@ function createTestAuth() {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-up/email") {
           return { context: { body: resolveSignUpNameBody(ctx.body) } };
+        }
+        if (ctx.path === "/update-user") {
+          await validateUpdatedUserName(ctx);
         }
       }),
     },
@@ -176,7 +194,120 @@ describe("email sign-up name", () => {
     });
   });
 
-  it.each(["", "   ", 7, "a".repeat(65)])(
+  it.each([
+    { firstName: "a".repeat(100), lastName: "b".repeat(27) },
+    { firstName: "a".repeat(27), lastName: "b".repeat(100) },
+  ])("accepts a 128-character combined name: %o", async (body) => {
+    const { signUp, db } = createTestAuth();
+
+    const response = await signUp(body);
+
+    expect(response.status).toBe(200);
+    expect(db.user[0]?.name).toHaveLength(128);
+  });
+
+  it("rejects a 129-character combined name before creating a user", async () => {
+    const { signUp, db } = createTestAuth();
+
+    const response = await signUp({
+      firstName: "a".repeat(64),
+      lastName: "b".repeat(64),
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "NAME_TOO_LONG" });
+    expect(db.user).toHaveLength(0);
+  });
+
+  it("accepts a trimmed partial update at the combined boundary", async () => {
+    const { signUp, updateUser, db } = createTestAuth();
+    const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+
+    const response = await updateUser(
+      { firstName: `  ${"a".repeat(119)}  ` },
+      session,
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.user[0]).toMatchObject({
+      firstName: "a".repeat(119),
+      lastName: "Lovelace",
+      name: "Ada Lovelace",
+    });
+  });
+
+  it("uses the stored counterpart when validating a partial update", async () => {
+    const { signUp, updateUser, db } = createTestAuth();
+    const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+
+    const response = await updateUser({ firstName: "a".repeat(120) }, session);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "NAME_TOO_LONG" });
+    expect(db.user[0]).toMatchObject({
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+  });
+
+  it("uses current stored names even when the cookie cache is stale", async () => {
+    const { signUp, updateUser, db } = createTestAuth();
+    const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+    const updated = await updateUser({ lastName: "b".repeat(100) }, session);
+    expect(updated.status).toBe(200);
+
+    const response = await updateUser({ firstName: "a".repeat(28) }, session);
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "NAME_TOO_LONG" });
+    expect(db.user[0]).toMatchObject({
+      firstName: "Ada",
+      lastName: "b".repeat(100),
+    });
+  });
+
+  it("rejects an overlong update of both name parts", async () => {
+    const { signUp, updateUser, db } = createTestAuth();
+    const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+
+    const response = await updateUser(
+      {
+        firstName: "a".repeat(64),
+        lastName: "b".repeat(64),
+      },
+      session,
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "NAME_TOO_LONG" });
+    expect(db.user[0]).toMatchObject({
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+  });
+
+  it("accepts onboarding a Magic Link user with names over the old individual cap", async () => {
+    const { signInWithMagicLink, updateUser, db } = createTestAuth();
+    const session = await signInWithMagicLink();
+
+    const response = await updateUser(
+      {
+        firstName: "a".repeat(100),
+        lastName: "b".repeat(27),
+        name: `${"a".repeat(100)} ${"b".repeat(27)}`,
+      },
+      session,
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.user[0]).toMatchObject({
+      firstName: "a".repeat(100),
+      lastName: "b".repeat(27),
+    });
+    expect(db.user[0]?.name).toHaveLength(128);
+  });
+
+  it.each(["", "   ", 7])(
     "rejects an invalid name part at the update endpoint: %j",
     async (firstName) => {
       const { signUp, updateUser, db } = createTestAuth();
