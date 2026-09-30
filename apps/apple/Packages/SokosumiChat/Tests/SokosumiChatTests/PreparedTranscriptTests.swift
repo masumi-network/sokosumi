@@ -52,6 +52,7 @@ struct PreparedTranscriptTests {
 
   private func message(_ id: String, _ content: String) -> Components.Schemas.ChatRoomMessage {
     var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room", content: content,
+                                              createdAt: Date(),
                                               sender: .init(id: "human", name: "Human", email: "human@example.com", presence: .online)))
     message.id = id
     return message

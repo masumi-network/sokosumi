@@ -22,7 +22,7 @@ public extension WorkspaceState {
   /// Success merges the returned source message (mentions reset to pending);
   /// the shell's own progress returns over realtime. Any failure restores the
   /// failed shell and rethrows so the row can show Core's reason.
-  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState, now: Date = Date()) async throws {
+  func retryMention(_ shell: Components.Schemas.ChatRoomMessage, auth: AuthState, now: Date) async throws {
     guard shell.roomId == transcriptRoomId,
           case let .failed(mentionId, sourceMessageId?) = MentionThoughtShell(message: shell) else { return }
     let request = MentionRetryRequest(generation: timeline.generation, shellId: shell.id)

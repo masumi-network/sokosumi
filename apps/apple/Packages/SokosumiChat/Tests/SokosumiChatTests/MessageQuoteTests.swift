@@ -6,6 +6,7 @@ import Testing
 struct MessageQuoteTests {
   private func message(_ content: String) -> Components.Schemas.ChatRoomMessage {
     var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: testRoomId, content: content,
+                                              createdAt: Date(),
                                               sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
     message.id = "550e8400-e29b-41d4-a716-446655440123"
     return message
@@ -38,6 +39,7 @@ struct MessageQuoteTests {
   @Test func pendingShellRetainsQuoteAcrossFailureAndRetry() throws {
     let quote = try #require(messageQuote(from: message("original")))
     let shell = OutboundShell(clientTurnId: "turn", roomId: testRoomId, content: "answer", quote: quote,
+                              createdAt: Date(),
                               sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online))
     let failed = failOutbound(shells: [shell], clientTurnId: "turn", errorMessage: "offline")
     let retry = try #require(markOutboundPending(shells: failed, clientTurnId: "turn").first)

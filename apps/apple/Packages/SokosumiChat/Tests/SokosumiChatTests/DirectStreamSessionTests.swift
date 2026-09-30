@@ -258,7 +258,7 @@ struct DirectStreamSessionTests {
     #expect(session.send("Hello", client: client, organizationSlug: nil,
                          settled: { false }, failed: { Issue.record($0) }))
     await session.task?.value
-    var older = chatRoomMessage(from: .init(clientTurnId: "old", roomId: testRoomId, content: "Hello", sender: sender))
+    var older = chatRoomMessage(from: .init(clientTurnId: "old", roomId: testRoomId, content: "Hello", createdAt: Date(), sender: sender))
     older.id = "old"
     var newest = older
     newest.id = "new"
