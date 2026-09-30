@@ -64,6 +64,10 @@ const baseEnvSchema = z.object({
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
+  // Shared by Production and Preview so production can hand a preview its
+  // Google or Microsoft sign-in. Unset, the proxy uses BETTER_AUTH_SECRET,
+  // which the two environments no longer share.
+  OAUTH_PROXY_SECRET: z.string().min(32).optional(),
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),

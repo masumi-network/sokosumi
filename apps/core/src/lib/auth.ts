@@ -373,6 +373,17 @@ export const auth = betterAuth({
 
           break;
         }
+        // Only a preview completes a proxied sign-in. Anywhere else this
+        // endpoint would turn a leaked OAUTH_PROXY_SECRET into a session for
+        // any email.
+        case "/callback/:id/oauth-proxy":
+        case "/oauth-proxy-callback": {
+          if (env.VERCEL_ENV !== "preview") {
+            throw new APIError("NOT_FOUND");
+          }
+
+          break;
+        }
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
@@ -606,6 +617,7 @@ export const auth = betterAuth({
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+      secret: env.OAUTH_PROXY_SECRET,
     }),
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.
