@@ -72,7 +72,7 @@ describe("SignUpFlow submission", () => {
     await user.click(changeEmail);
     expect(screen.getByLabelText("Fields.FirstName.label")).toBeVisible();
     expect(
-      screen.queryByLabelText("Fields.Email.label"),
+      screen.queryByRole("textbox", { name: "Fields.Email.label" }),
     ).not.toBeInTheDocument();
 
     pending.resolve({ data: null, error: { message: "Retry signup" } });

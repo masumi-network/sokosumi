@@ -1243,7 +1243,7 @@
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "registeringAs": "Registrierung als {email}.",
+          "change": "Ändern",
           "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {

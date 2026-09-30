@@ -1,18 +1,14 @@
 import { useTranslations } from "next-intl";
-import type { ReactNode } from "react";
 
 interface SignUpHeaderProps {
   invitationId?: string | undefined;
   /** The product that sent the person here through Sign in with Sokosumi. */
   clientName?: string | undefined;
-  /** Replaces the default description, e.g. once the email is known. */
-  description?: ReactNode;
 }
 
 export default function SignUpHeader({
   invitationId,
   clientName,
-  description,
 }: SignUpHeaderProps) {
   const t = useTranslations("Auth.Pages.SignUp.Header");
 
@@ -29,10 +25,9 @@ export default function SignUpHeader({
         )}
       </div>
       <p className="text-sm text-muted-foreground">
-        {description ??
-          (clientName
-            ? t("descriptionFor", { client: clientName })
-            : t("description"))}
+        {clientName
+          ? t("descriptionFor", { client: clientName })
+          : t("description")}
       </p>
     </div>
   );

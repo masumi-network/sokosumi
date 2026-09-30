@@ -149,7 +149,10 @@ describe("SignUpFlow", () => {
       email: "ada@example.com",
       returnUrl: "/agents",
     });
-    expect(screen.getByText(/registeringAs:ada@example\.com/)).toBeVisible();
+    // The confirmed address stands where the email field was, under its label.
+    expect(
+      screen.getByRole("group", { name: "Fields.Email.label" }),
+    ).toHaveTextContent("ada@example.com");
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
   });
 
@@ -365,6 +368,9 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "invited@example.com" }),
     );
+    expect(
+      screen.getByRole("group", { name: "Fields.Email.label" }),
+    ).toHaveTextContent("invited@example.com");
     expect(
       screen.queryByRole("button", { name: "changeEmail" }),
     ).not.toBeInTheDocument();
