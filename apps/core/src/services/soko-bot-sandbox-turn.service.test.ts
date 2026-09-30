@@ -109,7 +109,14 @@ describe("sandbox turn service", () => {
     createEventMock.mockResolvedValue({});
     authorizeMock.mockResolvedValue({
       turn: { id: claims.turnId, versionId: "v16" },
-      grant: { capabilities: ["web_fetch", "post_chat", "update_plan"] },
+      grant: {
+        capabilities: [
+          "web_fetch",
+          "post_chat",
+          "update_plan",
+          "workspace_write",
+        ],
+      },
     });
   });
 
@@ -255,13 +262,25 @@ describe("sandbox turn service", () => {
     );
   });
 
-  it("marks the turn before a sandbox tool runs, but not for the plan", async () => {
+  it("marks the turn before a sandbox tool runs, but not for the plan or a file it writes", async () => {
     await recordSandboxAction(claims, {
       name: "update_plan",
       toolCallId: "c1",
       toolInput: { steps: [] },
     });
     expect(events().map((event) => event.type)).toEqual(["actions.requested"]);
+    // Writing down what the bot has brings in no input, so "write the notes
+    // and put them in my Files" is not refused halfway.
+    await recordSandboxAction(claims, {
+      name: "workspace_write",
+      toolCallId: "c0",
+      toolInput: { path: "notes.md", content: "- one" },
+    });
+    expect(events().map((event) => event.type)).toEqual([
+      "actions.requested",
+      "actions.requested",
+    ]);
+    createEventMock.mockClear();
 
     await recordSandboxAction(claims, {
       name: "web_fetch",
@@ -269,7 +288,6 @@ describe("sandbox turn service", () => {
       toolInput: { url: "https://example.com" },
     });
     expect(events().map((event) => event.type)).toEqual([
-      "actions.requested",
       "sandbox.untrusted_input",
       "actions.requested",
     ]);

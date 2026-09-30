@@ -146,6 +146,14 @@ export async function runSandboxTool(
   });
 }
 
+/**
+ * Sandbox tools that bring nothing new into the turn: the plan, and a file
+ * the bot writes from what it already has. Anything that could have come from
+ * the web was tainted when it was read; writing it down adds no input. Without
+ * this, "write the notes and put them in my Files" was refused halfway.
+ */
+const SANDBOX_TOOLS_WITHOUT_INPUT = new Set(["update_plan", "workspace_write"]);
+
 async function markUntrusted(
   log: RuntimeEventLog,
   source: string,
@@ -173,7 +181,8 @@ export async function recordSandboxAction(
   )
     throw forbidden("Tool is not granted");
   const log = logFor(claims);
-  if (input.name !== "update_plan") await markUntrusted(log, input.name);
+  if (!SANDBOX_TOOLS_WITHOUT_INPUT.has(input.name))
+    await markUntrusted(log, input.name);
   // A tool-call row like Core's own tools, so what the bot read shows in the
   // turn's record. No actor bot: a read in the sandbox is never a receipt.
   await prisma.sokoBotToolCall.upsert({
