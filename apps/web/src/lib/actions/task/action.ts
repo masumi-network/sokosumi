@@ -86,6 +86,7 @@ type TaskMutationActionResult<T> = ActionResultDto<T, TaskMutationError>;
 export type CreateTaskResult = TaskMutationActionResult<{
   taskId: string;
   name: string;
+  identifier: string | null;
 }>;
 type UpdateTaskResult = TaskMutationActionResult<{ taskId: string }>;
 type SetTaskStatusResult = TaskMutationActionResult<{ taskId: string }>;
@@ -94,6 +95,7 @@ type CreateTaskAndLinkResult = TaskMutationActionResult<{
   createdTaskId: string;
   linkId: string;
   name: string;
+  identifier: string | null;
 }>;
 
 function taskMutationSuccess<T>(value: T): TaskMutationActionResult<T> {
@@ -559,7 +561,11 @@ export const createTask = withSession<CreateTaskParameters, CreateTaskResult>(
 
       revalidatePath("/tasks");
       revalidatePath("/projects");
-      return taskMutationSuccess({ taskId: task.id, name: task.name });
+      return taskMutationSuccess({
+        taskId: task.id,
+        name: task.name,
+        identifier: task.identifier,
+      });
     } catch (error) {
       const mutationErrorKind = toTaskMutationErrorKind(error);
       if (mutationErrorKind) {
@@ -960,6 +966,7 @@ export const createTaskAndLink = withSession<
         createdTaskId: createdTask.id,
         linkId: link.id,
         name: createdTask.name,
+        identifier: createdTask.identifier,
       });
     } catch (error) {
       if (createdTask) {

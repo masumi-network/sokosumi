@@ -104,7 +104,13 @@ function buildTask(
   overrides?: Partial<
     Pick<
       Task,
-      "id" | "name" | "description" | "assigneeId" | "projectId" | "status"
+      | "id"
+      | "name"
+      | "description"
+      | "assigneeId"
+      | "projectId"
+      | "status"
+      | "identifier"
     >
   >,
 ): Task {
@@ -116,6 +122,7 @@ function buildTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     status: TaskStatus.READY,
+    identifier: null,
     ...overrides,
   } as Task;
 }
