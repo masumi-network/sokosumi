@@ -68,10 +68,8 @@ import {
 
 const GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh/v1";
 const EVALUATION_TIMEOUT_MS = 2_000;
-const CATALOG_TIMEOUT_MS = 5_000;
 
 export const JEV_SCORE_MIN = 0;
-export const JEV_SCORE_MAX = 3;
 
 export interface JevEvaluationOutcome {
   ok: boolean;
@@ -89,41 +87,6 @@ export interface JevEvaluationOutcome {
 export function isJevConfigured(): boolean {
   const env = getEnv();
   return env.FILES_JEV_ENABLED && Boolean(env.AI_GATEWAY_API_KEY);
-}
-
-const catalogSchema = z.object({
-  data: z.array(z.object({ id: z.string() })),
-});
-
-/**
- * Discover the route before paying for it.
- *
- * This deliberately does **not** read the catalog's aggregate retention
- * flags. The public catalog omits the TypeSafe zero-retention route, so those
- * flags would reject a route the Gateway can enforce per request — the same
- * reasoning the shipped task-tag probe records. Equally, a route appearing
- * here is not evidence that retention is honoured; it is only evidence that
- * the model id exists.
- */
-export async function jevRouteAvailable(
-  signal?: AbortSignal,
-): Promise<boolean> {
-  if (!isJevConfigured()) return false;
-
-  const timeout = AbortSignal.timeout(CATALOG_TIMEOUT_MS);
-  try {
-    const response = await fetch(`${GATEWAY_BASE_URL}/models`, {
-      signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
-    });
-    if (!response.ok) return false;
-
-    const parsed = catalogSchema.safeParse(await response.json());
-    if (!parsed.success) return false;
-
-    return parsed.data.data.some((entry) => entry.id === FILES_RANKING_MODEL);
-  } catch {
-    return false;
-  }
 }
 
 /**
