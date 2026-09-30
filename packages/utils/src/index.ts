@@ -423,6 +423,7 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export { formatTaskIdentifier } from "./task-identifier.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
