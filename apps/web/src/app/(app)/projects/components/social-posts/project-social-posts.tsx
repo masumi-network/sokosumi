@@ -10,6 +10,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
+  Eye,
   Link2,
   MoreHorizontal,
   RotateCcw,
@@ -36,6 +37,14 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -69,6 +78,7 @@ import {
   SOCIAL_TABS,
   type SocialTab,
 } from "./constants";
+import { SocialPostPreview } from "./social-post-preview";
 
 interface ProjectSocialPostsProps {
   /** Social's calendar, shown as the first tab when given. */
@@ -194,6 +204,10 @@ export function ProjectSocialPosts({
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  // The target outlives `previewOpen` so the dialog keeps its content while it
+  // animates closed.
+  const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
@@ -471,66 +485,77 @@ export function ProjectSocialPosts({
             <p className="text-muted-foreground text-xs">{post.lastError}</p>
           ) : null}
         </div>
-        {canRetry || hasMenu ? (
-          <div className="ms-auto flex items-center gap-2">
-            {canRetry ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPublishTarget(post)}
-              >
-                <RotateCcw className="size-4" aria-hidden />
-                {t("actions.retry")}
-              </Button>
-            ) : null}
-            {hasMenu ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t("moreActions")}
+        <div className="ms-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("preview.open")}
+            data-testid={`social-post-preview-open-${post.id}`}
+            onClick={() => {
+              setPreviewTarget(post);
+              setPreviewOpen(true);
+            }}
+          >
+            <Eye className="size-4" aria-hidden />
+          </Button>
+          {canRetry ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPublishTarget(post)}
+            >
+              <RotateCcw className="size-4" aria-hidden />
+              {t("actions.retry")}
+            </Button>
+          ) : null}
+          {hasMenu ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label={t("moreActions")}
+                >
+                  <MoreHorizontal className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canPublishNow ? (
+                  <DropdownMenuItem onSelect={() => setPublishTarget(post)}>
+                    {t("actions.publishNow")}
+                  </DropdownMenuItem>
+                ) : null}
+                {post.canEdit ? (
+                  <DropdownMenuItem
+                    onSelect={() => setComposer({ kind: "edit", post })}
                   >
-                    <MoreHorizontal className="size-4" aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canPublishNow ? (
-                    <DropdownMenuItem onSelect={() => setPublishTarget(post)}>
-                      {t("actions.publishNow")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canEdit ? (
-                    <DropdownMenuItem
-                      onSelect={() => setComposer({ kind: "edit", post })}
-                    >
-                      {t("composer.edit")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canSchedule ? (
-                    <DropdownMenuItem
-                      onSelect={() => setComposer({ kind: "schedule", post })}
-                    >
-                      {post.status === "SCHEDULED" || isRetry
-                        ? t("composer.reschedule")
-                        : t("composer.schedule")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canCancel ? (
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => setCancelTarget(post)}
-                    >
-                      {t("composer.cancel")}
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-          </div>
-        ) : null}
+                    {t("composer.edit")}
+                  </DropdownMenuItem>
+                ) : null}
+                {post.canSchedule ? (
+                  <DropdownMenuItem
+                    onSelect={() => setComposer({ kind: "schedule", post })}
+                  >
+                    {post.status === "SCHEDULED" || isRetry
+                      ? t("composer.reschedule")
+                      : t("composer.schedule")}
+                  </DropdownMenuItem>
+                ) : null}
+                {post.canCancel ? (
+                  <DropdownMenuItem
+                    variant="destructive"
+                    onSelect={() => setCancelTarget(post)}
+                  >
+                    {t("composer.cancel")}
+                  </DropdownMenuItem>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
+        </div>
       </li>
     );
   }
@@ -713,6 +738,81 @@ export function ProjectSocialPosts({
           projectId={projectId}
         />
       ) : null}
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
+            <DialogDescription>
+              {previewTarget?.scheduledAt
+                ? formatter.dateTime(previewTarget.scheduledAt, "dateTime")
+                : previewTarget
+                  ? t(`status.${previewTarget.status}`)
+                  : null}
+            </DialogDescription>
+          </DialogHeader>
+          {previewTarget ? (
+            <SocialPostPreview
+              account={
+                previewTarget.socialConnection
+                  ? {
+                      handle: previewTarget.socialConnection.externalHandle,
+                      displayName: previewTarget.socialConnection.displayName,
+                      avatarUrl: previewTarget.socialConnection.avatarUrl,
+                    }
+                  : null
+              }
+              className="max-h-[70dvh] overflow-y-auto"
+              media={previewTarget.media}
+              provider={previewTarget.provider}
+              text={previewTarget.text}
+              timestamp={previewTarget.publishedAt ?? previewTarget.scheduledAt}
+            />
+          ) : null}
+          {previewTarget ? (
+            <DialogFooter className="gap-2 sm:gap-2">
+              {previewTarget.canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setComposer({ kind: "edit", post: previewTarget });
+                    setPreviewOpen(false);
+                  }}
+                >
+                  {t("composer.edit")}
+                </Button>
+              ) : null}
+              {previewTarget.status === "PUBLISHED" &&
+              previewTarget.publishedUrl ? (
+                <Button type="button" variant="outline" asChild>
+                  <a
+                    href={previewTarget.publishedUrl}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {t("viewPost")}
+                    <ExternalLink className="size-4" aria-hidden />
+                  </a>
+                </Button>
+              ) : null}
+              {previewTarget.canSchedule ? (
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setComposer({ kind: "schedule", post: previewTarget });
+                    setPreviewOpen(false);
+                  }}
+                >
+                  {previewTarget.status === "DRAFT"
+                    ? t("composer.schedule")
+                    : t("composer.reschedule")}
+                </Button>
+              ) : null}
+            </DialogFooter>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={cancelTarget !== null}

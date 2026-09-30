@@ -519,6 +519,10 @@ model ProjectSocialConnection {
   provider                   String
   externalAccountId          String
   externalHandle             String?
+  /// Profile display name read at connect/reconnect; previews fall back to the handle.
+  displayName                String?
+  /// Public Blob copy of the profile picture (provider CDN URLs expire).
+  avatarUrl                  String?
   composioConnectedAccountId String
   status                     String
   activeExternalAccountKey   String?
