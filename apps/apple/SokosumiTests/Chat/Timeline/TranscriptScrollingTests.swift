@@ -21,7 +21,7 @@
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
         let completed = ScrollMediaProtocol.completedRequests
-        let state = try fixtureState(thread: thread, media: media)
+        let state = try Self.fixtureState(thread: thread, media: media)
         let host = NSHostingView(rootView: Group {
           if thread {
             ReplyThreadView()
@@ -35,12 +35,12 @@
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
         // Having a scroll view does not mean its initial bottom anchor has landed.
-        _ = try await waitForView(in: host, timeoutMessage: "Expected bottom distance within 1 pt and offset above 600 pt; got distance \(distanceFromBottom(scroll)) pt and offset \(scroll.contentView.bounds.minY) pt") {
-          abs(distanceFromBottom(scroll)) <= 1 && scroll.contentView.bounds.minY > 600 ? scroll : nil
+        _ = try await waitForView(in: host, timeoutMessage: "Expected bottom distance within 1 pt and offset above 600 pt; got distance \(Self.distanceFromBottom(scroll)) pt and offset \(scroll.contentView.bounds.minY) pt") {
+          abs(Self.distanceFromBottom(scroll)) <= 1 && scroll.contentView.bounds.minY > 600 ? scroll : nil
         }
         let initialOffset = scroll.contentView.bounds.minY
         #expect(scroll.contentInsets.bottom > 0)
-        #expect(abs(distanceFromBottom(scroll)) <= 1)
+        #expect(abs(Self.distanceFromBottom(scroll)) <= 1)
         #expect(initialOffset > 600)
         try await scrollAwayFromBottom(scroll, host: host)
         if media {
@@ -49,12 +49,12 @@
         // Lazy row estimates rewrite document height, so absolute minY can
         // grow while the reader moves up (CI: 18186 vs initial-400 of 7957).
         // Keep the 400pt bar as distance from the bottom edge.
-        #expect(distanceFromBottom(scroll) > 400)
+        #expect(Self.distanceFromBottom(scroll) > 400)
       }
 
       @Test(arguments: [false, true])
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
-        let state = try fixtureState(thread: thread, media: false)
+        let state = try Self.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
           state.thread.requestJump(to: "fixture-2")
@@ -83,7 +83,7 @@
         } else {
           #expect(state.messageJump == nil)
         }
-        #expect(distanceFromBottom(scroll) > 400)
+        #expect(Self.distanceFromBottom(scroll) > 400)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         // Vision text recognition throws on the virtualized CI runner, so there the row-visibility
@@ -118,7 +118,7 @@
         Attachment.record(line, named: "message-link-ocr-path.txt")
       }
 
-      private func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
+      static func distanceFromBottom(_ scroll: NSScrollView) -> CGFloat {
         let height = scroll.documentView?.frame.height ?? 0
         return height - (scroll.contentView.bounds.maxY - scroll.contentInsets.bottom)
       }
@@ -126,7 +126,7 @@
       /// Wheel until the reader is more than 400 pt from the newest edge. No baseline I/O.
       private func scrollAwayFromBottom(_ scroll: NSScrollView, host: NSView) async throws {
         for index in 0 ..< 40 {
-          if distanceFromBottom(scroll) > 400 {
+          if Self.distanceFromBottom(scroll) > 400 {
             return
           }
           let scrollEvent = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 80, wheel2: 0, wheel3: 0))
@@ -138,7 +138,8 @@
         }
       }
 
-      private func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
+      /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
+      static func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
         let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
         state.timeline.reset(roomId: "fixture")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
@@ -156,7 +157,7 @@
         return state
       }
 
-      private func fixtureMessages(media: Bool) -> [Components.Schemas.ChatRoomMessage] {
+      private static func fixtureMessages(media: Bool) -> [Components.Schemas.ChatRoomMessage] {
         let fixtureId = UUID().uuidString
         return (0 ..< 100).map { index in
           var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: "Message \(index): " + String(repeating: "A paragraph with **bold text**, a [link](https://example.com), and inline `code`.\n\n", count: media ? 2 : 8), createdAt: Date(), sender: .init(id: "fixture-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))

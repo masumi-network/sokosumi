@@ -11,6 +11,7 @@ export const signUpEmailFormData: FormData<
   {
     name: "email",
     labelKey: "Fields.Email.label",
+    type: "email",
     autoComplete: "email",
   },
 ];

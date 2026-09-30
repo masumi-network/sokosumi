@@ -169,6 +169,16 @@ describe("SignInForm", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
+  it("asks for the address with an email keyboard and no autocorrect", () => {
+    render(<SignInForm />);
+
+    const email = screen.getByTestId("auth-field-email");
+    expect(email).toHaveAttribute("type", "email");
+    expect(email).toHaveAttribute("autocomplete", "username webauthn");
+    expect(email).toHaveAttribute("autocapitalize", "none");
+    expect(email).toHaveAttribute("spellcheck", "false");
+  });
+
   it("toggles the password field visibility", async () => {
     const user = userEvent.setup();
 
