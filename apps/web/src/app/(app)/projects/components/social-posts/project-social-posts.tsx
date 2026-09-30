@@ -16,7 +16,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
@@ -60,17 +61,29 @@ import {
 } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
-import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
+import {
+  SECTION_ORDER,
+  SECTION_STATUSES,
+  type SectionKey,
+  SOCIAL_TABS,
+  type SocialTab,
+} from "./constants";
 
 interface ProjectSocialPostsProps {
+  /** Social's calendar, shown as the first tab when given. */
+  calendar?: ReactNode;
+  /** The project's Social accounts, shown as the last tab when given. */
+  accounts?: ReactNode;
+  /** Page actions (New post) that sit on the tab row. */
+  actions?: ReactNode;
   /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
   /**
-   * The post a link names (`?postId=`). Its tab opens first. A published or
-   * canceled post has no tab, so it is shown above the tabs instead.
+   * The post a link names (`?postId=`). Its tab opens first. A scheduled,
+   * published or canceled post has no list, so it is shown above the tabs.
    */
   selectedPostId?: string;
 }
@@ -79,7 +92,7 @@ interface ProjectSocialPostsProps {
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
 
 /** Statuses the tab already names, so a badge on the row would only repeat it. */
-const TAB_STATUSES: readonly SocialPostStatus[] = ["SCHEDULED", "DRAFT"];
+const TAB_STATUSES: readonly SocialPostStatus[] = ["DRAFT"];
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -91,17 +104,7 @@ function sectionOf(post: SocialPost): SectionKey | undefined {
   );
 }
 
-function tabFor(posts: SocialPost[], postId: string | undefined): SectionKey {
-  const post = posts.find((candidate) => candidate.id === postId);
-  return (post && sectionOf(post)) ?? "upcoming";
-}
-
-function sortSection(section: SectionKey, posts: SocialPost[]): SocialPost[] {
-  if (section === "upcoming") {
-    return [...posts].sort(
-      (a, b) => timeOf(a.scheduledAt) - timeOf(b.scheduledAt),
-    );
-  }
+function sortSection(posts: SocialPost[]): SocialPost[] {
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
 
@@ -157,6 +160,9 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 }
 
 export function ProjectSocialPosts({
+  accounts,
+  actions,
+  calendar,
   connections,
   posts: initialPosts,
   nextCursors,
@@ -170,20 +176,16 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
-  const [syncedSelectedPostId, setSyncedSelectedPostId] =
-    useState(selectedPostId);
-  const [tab, setTab] = useState(() => tabFor(initialPosts, selectedPostId));
+  const [tabParam, setTabParam] = useQueryState(
+    "tab",
+    parseAsStringLiteral(SOCIAL_TABS),
+  );
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
     setSyncedPosts(initialPosts);
     setPosts(initialPosts);
     setCursors(nextCursors ?? {});
-  }
-  // A link to another post opens the tab that lists it.
-  if (syncedSelectedPostId !== selectedPostId) {
-    setSyncedSelectedPostId(selectedPostId);
-    setTab(tabFor(initialPosts, selectedPostId));
   }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
   // Social's top-level New post menu opens a fresh composer through context.
@@ -195,29 +197,37 @@ export function ProjectSocialPosts({
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
 
-  const accountsHref = "#social-accounts";
-
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
-      section,
       posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
     );
   }
 
   // Needs attention is a tab only while something needs it. Once the last
-  // post in it is dealt with, the list goes back to Upcoming.
-  const tabs = SECTION_ORDER.filter(
-    (section) =>
-      section !== "attention" ||
-      postsIn(section).length > 0 ||
-      Boolean(cursors[section]),
-  );
-  if (!tabs.includes(tab)) {
-    setTab("upcoming");
+  // post in it is dealt with, the page goes back to its first tab.
+  const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
+    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "accounts") return accounts !== undefined;
+    return (
+      candidate !== "attention" ||
+      postsIn(candidate).length > 0 ||
+      Boolean(cursors[candidate])
+    );
+  });
+  const selectedPost = posts.find((post) => post.id === selectedPostId);
+  const selectedSection = selectedPost ? sectionOf(selectedPost) : undefined;
+  // A tab the reader picked wins; otherwise a link opens the tab that lists
+  // its post, and the page opens on its first tab.
+  const tab: SocialTab =
+    tabParam && tabs.includes(tabParam)
+      ? tabParam
+      : (selectedSection ?? tabs[0]);
+  const selectedUnlistedPost =
+    selectedPost && !selectedSection ? selectedPost : undefined;
+
+  function showTab(next: SocialTab | null): void {
+    void setTabParam(next);
   }
-  const selectedUnlistedPost = posts.find(
-    (post) => post.id === selectedPostId && !sectionOf(post),
-  );
 
   function handleActionError(error: ActionError): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
@@ -260,10 +270,9 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
-    // Follow the post to the tab that lists it now, so a new draft, a
+    // Follow the post to the tab that shows it now, so a new draft, a
     // scheduled draft or a failed publish stays in view.
-    const section = sectionOf(post);
-    if (section) setTab(section);
+    showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -399,12 +408,22 @@ export function ProjectSocialPosts({
                 <AlertTriangle className="size-3" aria-hidden />
                 {t("needsReconnect")}
               </span>
-              <Link
-                className="font-medium underline-offset-4 hover:underline"
-                href={accountsHref}
-              >
-                {t("needsReconnectLink")}
-              </Link>
+              {accounts !== undefined ? (
+                <button
+                  className="font-medium underline-offset-4 hover:underline"
+                  onClick={() => showTab("accounts")}
+                  type="button"
+                >
+                  {t("needsReconnectLink")}
+                </button>
+              ) : (
+                <Link
+                  className="font-medium underline-offset-4 hover:underline"
+                  href="#social-accounts"
+                >
+                  {t("needsReconnectLink")}
+                </Link>
+              )}
             </p>
           ) : null}
           {post.status === "PUBLISHED" ? (
@@ -514,112 +533,142 @@ export function ProjectSocialPosts({
     );
   }
 
+  const selectedPostCard = selectedUnlistedPost ? (
+    <section
+      aria-labelledby="social-posts-selected-heading"
+      className="space-y-2"
+      data-testid="social-posts-selected"
+    >
+      <h3
+        id="social-posts-selected-heading"
+        className="text-muted-foreground text-xs font-medium"
+      >
+        {t("selectedPost")}
+      </h3>
+      <ul className="rounded-lg border">{renderPost(selectedUnlistedPost)}</ul>
+    </section>
+  ) : null;
+
   return (
     <section className="space-y-4" data-testid="project-social-posts">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold">{t("title")}</h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
-      </div>
-
-      {selectedUnlistedPost ? (
-        <section
-          aria-labelledby="social-posts-selected-heading"
-          className="space-y-2"
-          data-testid="social-posts-selected"
-        >
-          <h3
-            id="social-posts-selected-heading"
-            className="text-muted-foreground text-xs font-medium"
-          >
-            {t("selectedPost")}
-          </h3>
-          <ul className="rounded-lg border">
-            {renderPost(selectedUnlistedPost)}
-          </ul>
-        </section>
-      ) : null}
-
       <Tabs
-        className="gap-3"
+        className="gap-4"
         value={tab}
         onValueChange={(value) => {
-          const next = SECTION_ORDER.find((section) => section === value);
-          if (next) setTab(next);
+          const next = tabs.find((candidate) => candidate === value);
+          // The first tab is the default, so it keeps the URL clean.
+          // The first tab is the default and keeps the URL clean, unless a
+          // linked post would pull the page back to its own tab.
+          if (next) {
+            showTab(next === tabs[0] && !selectedSection ? null : next);
+          }
         }}
       >
-        <TabsList
-          aria-label={t("title")}
-          className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-fit max-w-full overflow-x-auto",
-          )}
-        >
-          {tabs.map((section) => {
-            const count = postsIn(section).length;
+        <div className="flex items-center justify-between gap-2">
+          <TabsList
+            aria-label={t("title")}
+            className={cn(
+              SEGMENTED_TABS_LIST_CLASS_NAME,
+              "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
+            )}
+          >
+            {tabs.map((candidate) => {
+              const count =
+                candidate === "drafts" || candidate === "attention"
+                  ? postsIn(candidate).length
+                  : 0;
+              return (
+                <TabsTrigger
+                  key={candidate}
+                  className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                  data-testid={`social-posts-tab-${candidate}`}
+                  value={candidate}
+                >
+                  {candidate === "attention" ? (
+                    <AlertTriangle
+                      className="text-semantic-warning size-4"
+                      aria-hidden
+                    />
+                  ) : null}
+                  {t(`sections.${candidate}`)}{" "}
+                  {count > 0 ? (
+                    <span className="text-muted-foreground tabular-nums">
+                      {candidate !== "calendar" &&
+                      candidate !== "accounts" &&
+                      cursors[candidate]
+                        ? `${count}+`
+                        : count}
+                    </span>
+                  ) : null}
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+          {actions}
+        </div>
+
+        {selectedPostCard}
+
+        {calendar !== undefined ? (
+          <TabsContent
+            data-testid="social-posts-section-calendar"
+            value="calendar"
+          >
+            {calendar}
+          </TabsContent>
+        ) : null}
+
+        {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
+          (section) => {
+            const sectionPosts = postsIn(section);
+            const cursor = cursors[section];
             return (
-              <TabsTrigger
+              <TabsContent
                 key={section}
-                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                data-testid={`social-posts-tab-${section}`}
+                className="space-y-3"
+                data-testid={`social-posts-section-${section}`}
                 value={section}
               >
-                {section === "attention" ? (
-                  <AlertTriangle
-                    className="text-semantic-warning size-4"
-                    aria-hidden
-                  />
+                {sectionPosts.length > 0 ? (
+                  <ul className="divide-y rounded-lg border">
+                    {sectionPosts.map(renderPost)}
+                  </ul>
+                ) : cursor ? null : (
+                  <div className="rounded-lg border border-dashed px-4 py-8 text-center">
+                    <p className="text-sm font-medium">
+                      {t(`empty.${section}`)}
+                    </p>
+                    <p className="text-muted-foreground mt-1 text-sm text-pretty">
+                      {t(`emptyHint.${section}`)}
+                    </p>
+                  </div>
+                )}
+                {cursor ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={loadingSection !== null}
+                    onClick={() => {
+                      void handleLoadMore(section);
+                    }}
+                  >
+                    {loadingSection === section ? t("loading") : t("loadMore")}
+                  </Button>
                 ) : null}
-                {t(`sections.${section}`)}{" "}
-                {count > 0 ? (
-                  <span className="text-muted-foreground tabular-nums">
-                    {cursors[section] ? `${count}+` : count}
-                  </span>
-                ) : null}
-              </TabsTrigger>
+              </TabsContent>
             );
-          })}
-        </TabsList>
+          },
+        )}
 
-        {tabs.map((section) => {
-          const sectionPosts = postsIn(section);
-          const cursor = cursors[section];
-          return (
-            <TabsContent
-              key={section}
-              className="space-y-3"
-              data-testid={`social-posts-section-${section}`}
-              value={section}
-            >
-              {sectionPosts.length > 0 ? (
-                <ul className="divide-y rounded-lg border">
-                  {sectionPosts.map(renderPost)}
-                </ul>
-              ) : cursor ? null : (
-                <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-                  <p className="text-sm font-medium">{t(`empty.${section}`)}</p>
-                  <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                    {t(`emptyHint.${section}`)}
-                  </p>
-                </div>
-              )}
-              {cursor ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loadingSection !== null}
-                  onClick={() => {
-                    void handleLoadMore(section);
-                  }}
-                >
-                  {loadingSection === section ? t("loading") : t("loadMore")}
-                </Button>
-              ) : null}
-            </TabsContent>
-          );
-        })}
+        {accounts !== undefined ? (
+          <TabsContent
+            data-testid="social-posts-section-accounts"
+            value="accounts"
+          >
+            {accounts}
+          </TabsContent>
+        ) : null}
       </Tabs>
 
       {composerMode ? (

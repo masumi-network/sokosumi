@@ -110,7 +110,8 @@ export function SocialNewPostMenu({
             ) : (
               <Plus className="size-4" aria-hidden />
             )}
-            {t("label")}
+            {/* Icon only on a phone, so it fits on the tab row. */}
+            <span className="max-sm:sr-only">{t("label")}</span>
             <ChevronDown className="size-4" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
