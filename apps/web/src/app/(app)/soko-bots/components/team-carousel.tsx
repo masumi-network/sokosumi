@@ -102,8 +102,11 @@ export async function TeamCarousel({ team }: { team: SokoBotTeam }) {
                   <span className="text-foreground mt-2.5 max-w-full truncate text-sm">
                     {botName}
                   </span>
-                  <span className="mt-1">
-                    <SokoBotStatusLine status={bot.status} />
+                  {/* Idle is the normal state; only a change is worth a line. */}
+                  <span className="mt-1 flex h-4 items-center">
+                    {bot.status === "IDLE" ? null : (
+                      <SokoBotStatusLine status={bot.status} />
+                    )}
                   </span>
                 </ChatWithBotTile>
               </li>
@@ -124,13 +127,10 @@ export async function TeamCarousel({ team }: { team: SokoBotTeam }) {
       {withoutBot.length > 0 ? (
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-muted-foreground text-xs">{t("notSetUp")}</span>
-          <ul className="flex -space-x-2">
+          <ul className="flex flex-wrap gap-1">
             {withoutBot.slice(0, NOT_SET_UP_SHOWN).map((member) => (
               <li key={member.userId} title={member.name}>
-                <PersonAvatar
-                  member={member}
-                  className="ring-background size-7 ring-2"
-                />
+                <PersonAvatar member={member} className="size-7" />
                 <span className="sr-only">{member.name}</span>
               </li>
             ))}

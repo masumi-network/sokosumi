@@ -57,12 +57,12 @@ export async function YourAssistant({ me }: { me: Member | null }) {
             </span>
             <SokoBotStatusLine status={bot.status} />
           </div>
-          <p className="text-muted-foreground truncate text-sm">
+          <p className="text-muted-foreground text-sm sm:truncate">
             {t("yourAssistantHint")}
           </p>
         </div>
       </div>
-      <div className="flex shrink-0 items-center gap-2">
+      <div className="flex shrink-0 items-center gap-2 pl-16 sm:pl-0">
         <ChatWithBotButton
           sokoBotId={bot.id}
           label={t("chat")}

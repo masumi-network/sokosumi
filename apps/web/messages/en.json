@@ -7018,7 +7018,7 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Personal assistants for everyone on your team. They delegate work, follow up and keep you posted in chat.",
+      "description": "Personal assistants that delegate work, follow up and keep you posted in chat.",
       "unavailable": "The team overview is not available right now.",
       "you": "you",
       "createAssistant": "Create your assistant",

@@ -7018,7 +7018,7 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Asistentes personales para todo tu equipo. Delegan trabajo, hacen seguimiento y te mantienen al día en el chat.",
+      "description": "Asistentes personales que delegan trabajo, hacen seguimiento y te mantienen al día en el chat.",
       "unavailable": "La vista del equipo no está disponible ahora mismo.",
       "you": "tú",
       "createAssistant": "Crea tu asistente",
