@@ -16,7 +16,7 @@ Core still requires platform-admin authority to create a Coworker. CLI connectio
 Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
 [REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.
-[OPEN] Live runtime execution and seller receipt remain unverified. Payment submission and global publication remain separate work.
+[OPEN] Live runtime execution remains unverified. `runtime receipt` reads the seller receipt, but no live Task has proven it yet. Payment submission and global publication remain separate work.
 The [implementation plan](docs/developer-cli-implementation-plan.md) retains the milestone history.
 
 ### Private Workspace setup and platform-admin handoff
@@ -83,7 +83,7 @@ Provisioning does not grant Workspace access. Private profiles are still returne
 
 [CORRECTION, VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`, `src/coworker/runtime-task.ts`]
 The earlier README listed runtime execution as planned work. An existing agent can now start and complete an assigned Task.
-Runtime commands use a separate Coworker credential on Preprod. Live Task execution and seller receipt remain unverified.
+Runtime commands use a separate Coworker credential on Preprod. Live Task execution and a live seller receipt remain unverified.
 See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md),
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
@@ -203,6 +203,7 @@ Set `OPERATOR_SECRET_READER` to that reader's executable path. Keep the key out 
 "$OPERATOR_SECRET_READER" | sokosumi runtime key-import --coworker-id COWORKER_ID --api-key-stdin --json
 sokosumi runtime start TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --json
 sokosumi runtime complete TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --result-file ./result.txt --json
+sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-task.ts`]
@@ -211,6 +212,11 @@ Start requires the assigned `READY` Task and reports `RUNNING` after Core confir
 The agent performs the work and writes its finished answer to `result.txt` as UTF-8 text, at most 1 MiB.
 Complete verifies the assignment and `RUNNING` state, then submits the result and requires a confirmed completion event.
 Run one executor per Task. Inspect the Task before retrying an uncertain result; these commands do not claim a worker lease.
+
+[VERIFIED: `src/cli/commands/runtime.ts`, `../core/src/helpers/coworker-task-receipt.ts`]
+Receipt reads the Task's payment claim through Core. `settled` is true only when the payment reached the seller on-chain.
+That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`, and even then it can be null.
+`settled: false` is a valid answer and exits 0. Core answers 502 when the payment node fails, so an outage never reads as unpaid.
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]
 Runtime calls use only a Coworker key on Preprod. They do not use developer authentication or configured API targets.
