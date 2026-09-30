@@ -47585,7 +47585,7 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then newest created.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.
          */
         sort?: 'createdAt' | 'updatedAt' | 'priority';
         /**
