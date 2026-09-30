@@ -219,7 +219,7 @@ struct ConversationSidebarView: View {
               .foregroundStyle(.secondary)
           }
           ForEach(sidebarRoomListItems(partitioned.channels)) { item in
-            sidebarItem(item) { roomRow($0, icon: $0.discoverability == ._private ? "lock" : "number") }
+            sidebarItem(item) { roomRow($0, icon: ChannelMark($0.discoverability).systemImage) }
           }
         }
       }
@@ -284,7 +284,7 @@ struct ConversationSidebarView: View {
           ) { respondToInvitation($0, invitation: invitation) }
         }
         ForEach(sidebarRoomListItems(rooms)) { item in
-          sidebarItem(item) { roomRow($0, icon: "globe") }
+          sidebarItem(item) { roomRow($0, icon: ChannelMark.globe.systemImage) }
         }
       }
     }
@@ -494,8 +494,8 @@ struct ConversationSidebarView: View {
     _ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil, dimmed: Bool = false
   ) -> some View {
     switch sidebarRoomKind(room) {
-    case .channel: roomRow(room, icon: room.discoverability == ._private ? "lock" : "number", reorderingIn: pinned, dimmed: dimmed)
-    case .external: roomRow(room, icon: "globe", reorderingIn: pinned, dimmed: dimmed)
+    case .channel: roomRow(room, icon: ChannelMark(room.discoverability).systemImage, reorderingIn: pinned, dimmed: dimmed)
+    case .external: roomRow(room, icon: ChannelMark.globe.systemImage, reorderingIn: pinned, dimmed: dimmed)
     case .direct: roomRow(room, icon: "person", showsDirectAvatars: true, reorderingIn: pinned, dimmed: dimmed)
     }
   }
