@@ -590,7 +590,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   run_integration_tool:
     "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes.",
   list_chats:
-    "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat.",
+    "Chat rooms you are a member of: id, name, kind, and when it last had a message. When your owner asks, `ownerUnread` is how many messages there they have not read yet. Use this to find the room you need before read_chat.",
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   post_chat:

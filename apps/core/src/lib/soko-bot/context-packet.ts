@@ -53,6 +53,8 @@ const TEXT_LIMITS = {
   decisionReason: 300,
   turnMessage: 500,
   turnAnswer: 600,
+  /** The newest reply in full: its closing question is what "yes" answers. */
+  latestTurnAnswer: 4_000,
   memoryBytes: 8_192,
 } as const;
 
@@ -1110,13 +1112,18 @@ export class ContextPacketBuilder {
         createdAt: decision.createdAt.toISOString(),
         trust: "untrusted-data",
       })),
-      recentTurns: [...recentTurns].reverse().map((turn) => ({
+      recentTurns: [...recentTurns].reverse().map((turn, index, turns) => ({
         id: boundedIdentifier(turn.id),
         source: turn.source,
         status: turn.status,
         route: turn.route,
         userMessage: sanitizeText(turn.userMessage, TEXT_LIMITS.turnMessage),
-        finalAnswer: sanitizeText(turn.finalAnswer, TEXT_LIMITS.turnAnswer),
+        finalAnswer: sanitizeText(
+          turn.finalAnswer,
+          index === turns.length - 1
+            ? TEXT_LIMITS.latestTurnAnswer
+            : TEXT_LIMITS.turnAnswer,
+        ),
         createdAt: turn.createdAt.toISOString(),
         completedAt: turn.completedAt?.toISOString() ?? null,
         trust: "untrusted-data",
