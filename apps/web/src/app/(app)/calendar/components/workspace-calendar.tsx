@@ -781,9 +781,17 @@ export function WorkspaceCalendar({
   const isMobile = useIsMobile();
   // Phones open on the agenda list; a seven-column grid is a desktop default.
   // Social plans a feed a month at a time, so its own calendar opens on the
-  // month; the workspace calendar plans the week's runs.
+  // month, and on the week on a phone, where a month of posts is too small to
+  // read; the workspace calendar plans the week's runs.
   const view =
-    state.view ?? (isMobile ? "agenda" : socialPostsOnly ? "month" : "week");
+    state.view ??
+    (socialPostsOnly
+      ? isMobile
+        ? "week"
+        : "month"
+      : isMobile
+        ? "agenda"
+        : "week");
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -823,10 +831,10 @@ export function WorkspaceCalendar({
   });
 
   useEffect(() => {
-    if (isMobile && state.view === null) {
+    if (isMobile && state.view === null && !socialPostsOnly) {
       void setState({ view: "agenda" }, { shallow: false });
     }
-  }, [isMobile, state.view, setState]);
+  }, [isMobile, state.view, setState, socialPostsOnly]);
 
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
