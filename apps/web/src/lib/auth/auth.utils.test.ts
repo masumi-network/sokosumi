@@ -157,6 +157,18 @@ describe("buildAuthErrorCallbackUrl", () => {
     );
   });
 
+  it("returns to another page with the same query when asked", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl("/signup")).toBe(
+      "https://preprod.sokosumi.com/signup?returnUrl=%2Fchat",
+    );
+  });
+
   it("has no page to return to during SSR", () => {
     vi.stubGlobal("window", undefined);
 

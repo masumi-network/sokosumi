@@ -5,7 +5,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 // Codes Better Auth appends to the `errorCallbackURL` of a social or
 // magic-link sign-in (see `buildAuthErrorCallbackUrl`). Any other code gets
 // the generic message.
-const MESSAGE_KEYS = new Map<
+const SIGN_IN_ERROR_MESSAGE_KEYS = new Map<
   string,
   "accountNotLinked" | "cancelled" | "linkExpired"
 >([
@@ -28,7 +28,7 @@ export default function SignInErrorNotice({ error }: SignInErrorNoticeProps) {
     return null;
   }
 
-  const messageKey = MESSAGE_KEYS.get(error) ?? "generic";
+  const messageKey = SIGN_IN_ERROR_MESSAGE_KEYS.get(error) ?? "generic";
 
   return (
     <Alert variant="destructive">

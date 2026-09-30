@@ -308,14 +308,21 @@ export function buildAuthCallbackUrl(
  * Better Auth `errorCallbackURL` for social and magic-link sign-in: the page
  * the person started on, which explains the `error` Better Auth appends.
  * Without it a failure lands on Core's bare error page (social) or bounces
- * through the callback page with no message (magic link).
+ * through the callback page with no message (magic link). `pathname` sends
+ * the failure to another auth page with the same query instead, for a page
+ * that would only start the sign-in again.
  */
-export function buildAuthErrorCallbackUrl(): string | undefined {
+export function buildAuthErrorCallbackUrl(
+  pathname?: string,
+): string | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
 
   const url = new URL(window.location.href);
+  if (pathname) {
+    url.pathname = pathname;
+  }
   for (const key of AUTH_ERROR_QUERY_KEYS) {
     url.searchParams.delete(key);
   }
