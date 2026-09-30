@@ -255,13 +255,12 @@ export function externalActionReceipt(capability: string, result: unknown) {
   } else if (capability === "upload_file") {
     const acknowledged = z
       .object({
-        url: z.url().max(2048),
+        id: z.uuid(),
         filename: z.string().min(1),
         size: z.number().int().nonnegative(),
       })
       .safeParse(result);
-    if (acknowledged.success && acknowledged.data.url.startsWith("https://"))
-      targetId = acknowledged.data.url;
+    if (acknowledged.success) targetId = acknowledged.data.id;
   }
   return {
     targetId,

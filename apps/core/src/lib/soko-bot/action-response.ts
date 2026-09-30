@@ -123,11 +123,15 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
-  if (call.capability === "upload_file" && id.startsWith("https://")) {
+  if (call.capability === "upload_file") {
     const file = z
       .object({ filename: z.string().min(1) })
       .safeParse(call.result);
-    return file.success ? linkText(file.data.filename) : "";
+    if (!file.success) return "";
+    // Older receipts hold the blob URL and get their card from the line below.
+    return id.startsWith("https://")
+      ? linkText(file.data.filename)
+      : `[${linkText(file.data.filename)}](/drive/files/${encodeURIComponent(id)})`;
   }
   if (call.capability === "hire_agent") {
     const agentId = jobAgents.get(id);

@@ -112,17 +112,28 @@ describe("external action receipts", () => {
       committedAt: null,
     });
   });
-  it("accepts uploaded HTTPS blob acknowledgement but rejects malformed results", () => {
+  it("acknowledges an upload by its file id, never a public blob URL", () => {
+    expect(
+      externalActionReceipt("upload_file", {
+        id: "01a0f400-0000-7000-8000-000000000001",
+        filename: "synthetic.md",
+        link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
+        size: 4,
+      }),
+    ).toMatchObject({
+      disposition: "APPLIED",
+      targetId: "01a0f400-0000-7000-8000-000000000001",
+    });
     expect(
       externalActionReceipt("upload_file", {
         url: "https://blob.example/synthetic",
         filename: "synthetic.md",
         size: 4,
       }).disposition,
-    ).toBe("APPLIED");
+    ).toBe("UNKNOWN");
     expect(
       externalActionReceipt("upload_file", {
-        url: "javascript:bad",
+        id: null,
         filename: "synthetic.md",
         size: 4,
       }).disposition,
