@@ -1153,6 +1153,7 @@ export type Task = {
     description: string | null;
     status: TaskStatus & unknown;
     visibility: TaskVisibility;
+    priority: TaskPriority;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -1303,6 +1304,22 @@ export const TaskVisibility = { PUBLIC: 'PUBLIC', PRIVATE: 'PRIVATE' } as const;
  * PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.
  */
 export type TaskVisibility = typeof TaskVisibility[keyof typeof TaskVisibility];
+
+/**
+ * URGENT, HIGH, MEDIUM, LOW, or NONE (default).
+ */
+export const TaskPriority = {
+    URGENT: 'URGENT',
+    HIGH: 'HIGH',
+    MEDIUM: 'MEDIUM',
+    LOW: 'LOW',
+    NONE: 'NONE'
+} as const;
+
+/**
+ * URGENT, HIGH, MEDIUM, LOW, or NONE (default).
+ */
+export type TaskPriority = typeof TaskPriority[keyof typeof TaskPriority];
 
 export type TaskEvent = {
     id: string;
@@ -6571,6 +6588,7 @@ export type TaskListItem = {
     description: string | null;
     status: TaskStatus & unknown;
     visibility: TaskVisibility;
+    priority: TaskPriority;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -47501,9 +47519,9 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.
          */
-        sort?: 'createdAt' | 'updatedAt';
+        sort?: 'createdAt' | 'updatedAt' | 'priority';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
@@ -47631,6 +47649,7 @@ export type PostTasksData = {
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
+        priority?: TaskPriority & unknown;
         /**
          * Omit or PUBLIC for workspace-visible Tasks. PRIVATE is allowed only in organization workspaces and is immutable after create.
          */
@@ -49897,6 +49916,7 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        priority?: TaskPriority;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */

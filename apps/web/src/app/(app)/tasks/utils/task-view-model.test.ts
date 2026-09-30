@@ -1,5 +1,9 @@
 import type { Task, TaskListItem } from "@sokosumi/core-client";
-import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
+import {
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
 
@@ -36,6 +40,7 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    priority: TaskPriority.NONE,
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     scheduleId: null,
