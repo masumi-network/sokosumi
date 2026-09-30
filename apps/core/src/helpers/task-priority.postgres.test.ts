@@ -14,7 +14,7 @@ afterAll(async () => {
 
 const migrationSql = readFileSync(
   new URL(
-    "../../../../packages/database/prisma/migrations/20260929120000_task_priority/migration.sql",
+    "../../../../packages/database/prisma/migrations/20260930181719_task_priority/migration.sql",
     import.meta.url,
   ),
   "utf8",
