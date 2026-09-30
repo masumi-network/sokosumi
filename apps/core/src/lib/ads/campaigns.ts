@@ -51,22 +51,13 @@ function round(value: number, digits: number): number {
   return Math.round(value * factor) / factor;
 }
 
-function minorUnitFactor(currency: string): number {
+/** An amount in a currency's smallest unit as a decimal (JPY has none, USD has 100 per unit). */
+export function fromMinorUnits(amount: number, currency: string): number {
   const { maximumFractionDigits } = new Intl.NumberFormat("en", {
     style: "currency",
     currency,
   }).resolvedOptions();
-  return 10 ** (maximumFractionDigits ?? 2);
-}
-
-/** An amount in a currency's smallest unit as a decimal (JPY has none, USD has 100 per unit). */
-export function fromMinorUnits(amount: number, currency: string): number {
-  return amount / minorUnitFactor(currency);
-}
-
-/** A decimal amount as an integer in the currency's smallest unit. */
-export function toMinorUnits(amount: number, currency: string): number {
-  return Math.round(amount * minorUnitFactor(currency));
+  return amount / 10 ** (maximumFractionDigits ?? 2);
 }
 
 /** Totals metrics rows per campaign id. */

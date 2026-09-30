@@ -210,7 +210,9 @@ const campaignLookupRowSchema = z.object({
  * is not there), and every refusal happens before the first write. The budget
  * goes first, so a failed status change never follows a silent budget change.
  *
- * Operation fields use the snake_case Composio documents for these tools.
+ * Operation shapes follow the tool schemas: campaign operations need
+ * `operation_type` and a lowercase status; budget operations must not have
+ * an `operation_type`.
  */
 export async function updateGoogleCampaign(
   input: AdsConnectedAccount &
@@ -271,9 +273,10 @@ export async function updateGoogleCampaign(
           customer_id: customerId,
           operations: [
             {
+              operation_type: "update",
               update: {
                 resource_name: campaignName,
-                status: status === "ACTIVE" ? "ENABLED" : "PAUSED",
+                status: status === "ACTIVE" ? "enabled" : "paused",
               },
               update_mask: "status",
             },

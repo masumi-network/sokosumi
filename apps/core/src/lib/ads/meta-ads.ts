@@ -11,7 +11,6 @@ import {
   fromMinorUnits,
   noAdMetrics,
   sumAdMetrics,
-  toMinorUnits,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
@@ -233,25 +232,14 @@ function withoutActPrefix(adAccountId: string): string {
  * before the first write. Graph takes one budget field per call, so the budget
  * and the status are two calls, budget first.
  *
- * Unverified: Composio documents `daily_budget` as "in account currency";
- * this sends Graph API minor units (cents), like the list reads them.
+ * The write tool takes `daily_budget` as a decimal in the account currency,
+ * while the campaign read returns it in the smallest currency unit.
  */
 export async function updateMetaCampaign(
   input: AdsConnectedAccount &
-    AdCampaignUpdate & {
-      adAccountId: string;
-      currency: string;
-      campaignId: string;
-    },
+    AdCampaignUpdate & { adAccountId: string; campaignId: string },
 ): Promise<void> {
-  const {
-    adAccountId,
-    currency,
-    campaignId,
-    status,
-    dailyBudget,
-    ...connected
-  } = input;
+  const { adAccountId, campaignId, status, dailyBudget, ...connected } = input;
 
   await withAdsToolSession(
     {
@@ -282,7 +270,7 @@ export async function updateMetaCampaign(
       if (dailyBudget !== undefined) {
         await execute(UPDATE_CAMPAIGN, {
           campaign_id: campaignId,
-          daily_budget: toMinorUnits(dailyBudget, currency),
+          daily_budget: dailyBudget,
         });
       }
       if (status !== undefined) {

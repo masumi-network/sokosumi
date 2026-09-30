@@ -436,8 +436,8 @@ describe("updateGoogleCampaign", () => {
   });
 
   it.each([
-    ["PAUSED", "PAUSED"],
-    ["ACTIVE", "ENABLED"],
+    ["PAUSED", "paused"],
+    ["ACTIVE", "enabled"],
   ] as const)(
     "sets status %s as %s with a status mask",
     async (status, google) => {
@@ -449,6 +449,7 @@ describe("updateGoogleCampaign", () => {
             customer_id: "111",
             operations: [
               {
+                operation_type: "update",
                 update: {
                   resource_name: "customers/111/campaigns/42",
                   status: google,
@@ -462,7 +463,7 @@ describe("updateGoogleCampaign", () => {
     },
   );
 
-  it("sets the budget on the campaign's own budget resource, in micros", async () => {
+  it("sends budget operations without an operation_type, in micros", async () => {
     await updateGoogleCampaign({ ...update, dailyBudget: 12.34 });
     expect(writes()).toEqual([
       expect.objectContaining({

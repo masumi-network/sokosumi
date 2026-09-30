@@ -600,7 +600,6 @@ describe("project ad accounts service", () => {
         connectedAccountId: "ca_1",
         executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
         adAccountId: "act_9",
-        currency: "EUR",
         campaignId: "42",
         status: "PAUSED",
       });

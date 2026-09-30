@@ -424,7 +424,6 @@ export async function updateProjectAdCampaign(
     await updateMetaCampaign({
       ...change,
       adAccountId: account.externalAccountId,
-      currency: account.currency,
     });
   }
 }

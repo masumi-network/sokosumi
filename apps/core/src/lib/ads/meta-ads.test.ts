@@ -365,7 +365,6 @@ describe("updateMetaCampaign", () => {
   const update = {
     ...input,
     adAccountId: "act_1",
-    currency: "EUR",
     campaignId: "10",
   };
   const campaignObject = (overrides: Record<string, unknown> = {}) => ({
@@ -405,17 +404,17 @@ describe("updateMetaCampaign", () => {
     ]);
   });
 
-  it("sets the budget in minor units", async () => {
+  it("sets the budget as a decimal in the account currency", async () => {
     await updateMetaCampaign({ ...update, dailyBudget: 12.34 });
     expect(writes().map((call) => call.arguments)).toEqual([
-      { campaign_id: "10", daily_budget: 1234 },
+      { campaign_id: "10", daily_budget: 12.34 },
     ]);
   });
 
   it("changes the budget first, then the status, in separate calls", async () => {
     await updateMetaCampaign({ ...update, status: "PAUSED", dailyBudget: 20 });
     expect(writes().map((call) => call.arguments)).toEqual([
-      { campaign_id: "10", daily_budget: 2000 },
+      { campaign_id: "10", daily_budget: 20 },
       { campaign_id: "10", status: "PAUSED" },
     ]);
     expect(createSessionMock).toHaveBeenCalledWith(
