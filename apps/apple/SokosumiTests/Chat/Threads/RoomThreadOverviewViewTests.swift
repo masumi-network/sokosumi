@@ -12,7 +12,7 @@
     @Test(arguments: [false, true])
     func threadPanelRendersAtMinimumInspectorWidth(dark: Bool) async throws {
       let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Alexandra Long Display Name", email: "alexandra@example.com", presence: .online)
-      var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "A longer thread preview that wraps across multiple lines without overlapping the sender or timestamp. The preview should stop after two lines.", sender: sender))
+      var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "A longer thread preview that wraps across multiple lines without overlapping the sender or timestamp. The preview should stop after two lines.", createdAt: Date(), sender: sender))
       first.id = "first"
       var second = first
       second.id = "second"

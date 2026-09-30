@@ -21,6 +21,7 @@
     func settingsAndUnreadCountFixtureRenders(dark: Bool) async throws {
       var message = chatRoomMessage(from: .init(
         clientTurnId: "fixture", roomId: "room", content: "Same message, the reader's clock.",
+        createdAt: Date(),
         sender: .init(id: "user_2", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
       ))
       message.createdAt = Date(timeIntervalSince1970: 1_790_025_200)

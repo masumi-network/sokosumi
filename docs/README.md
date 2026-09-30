@@ -6,6 +6,7 @@ This directory contains documentation for the Sokosumi monorepo.
 
 - [`coworker/vendor-workspace-grants-api.md`](./coworker/vendor-workspace-grants-api.md) — Core API behavior for vendor workspace grants (`GRANT_PENDING`, delegated create, 403 kinds)
 - [`coworker/coworker-workspace-access-api.md`](./coworker/coworker-workspace-access-api.md) — Coworker early access (per-workspace pilot grants for chat/tasks; orthogonal to VendorGrant)
+- [`coworker/social-posts-api.md`](./coworker/social-posts-api.md) — Coworker REST and Soko Bot tools for draft, schedule, and publish on connected providers
 - [`coworker-metadata.md`](./coworker-metadata.md) — Marketplace profile and Ready-To-Run offers JSON
 - [`coworker/benchmarks/`](./coworker/benchmarks/) — coworker chat cold-start benchmark
 

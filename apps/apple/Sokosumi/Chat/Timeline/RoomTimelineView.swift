@@ -82,7 +82,7 @@ import SwiftUI
 
     private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth) }
+      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
     }
 
     var body: some View {
@@ -204,7 +204,7 @@ import SwiftUI
                     }
                   }
                 }
-                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
                   DaySeparatorRow(label: label)
                 }
                 if let status = roomStatusText(message) {
