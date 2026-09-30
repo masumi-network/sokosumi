@@ -830,6 +830,7 @@ describe("CMO auth handler", () => {
   });
 
   it("returns to the signed-out page when consent is declined", async () => {
+    jar.set(SIGNED_OUT_COOKIE, "1");
     const { state } = core.approve(await startSignIn(auth, jar));
 
     const response = await send(
@@ -843,6 +844,7 @@ describe("CMO auth handler", () => {
       `${CMO}/?error=access_denied`,
     );
     expect(await sessionUser(auth, jar)).toBeNull();
+    expect(jar.names()).toContain(SIGNED_OUT_COOKIE);
   });
 
   it("returns declined preview consent to the preview even with a production session", async () => {
@@ -897,6 +899,7 @@ describe("CMO auth handler", () => {
       oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
     });
     const previewJar = new CookieJar(PREVIEW);
+    previewJar.set(SIGNED_OUT_COOKIE, "1");
 
     const authorizeUrl = await startSignIn(preview, previewJar);
     expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
@@ -919,6 +922,7 @@ describe("CMO auth handler", () => {
       `${location.pathname}${location.search}`,
     );
     expect(done.headers.get("location")).toBe("/");
+    expect(previewJar.names()).not.toContain(SIGNED_OUT_COOKIE);
     expect(await sessionUser(preview, previewJar)).toEqual({
       name: "Ada Lovelace",
       email: "ada@example.com",

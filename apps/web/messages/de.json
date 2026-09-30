@@ -1339,6 +1339,7 @@
       "signedInAs": "Bei Sokosumi angemeldet als <account>{email}</account>",
       "continueAs": "Weiter als {account}",
       "useAnotherAccount": "Anderes Konto verwenden",
+      "accountCheckError": "Dein Konto konnte nicht überprüft werden. Versuche es erneut.",
       "signOutError": "Abmelden fehlgeschlagen. Versuche es erneut."
     }
   },

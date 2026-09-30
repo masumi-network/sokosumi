@@ -26,7 +26,10 @@ function sessionStartedForRequest(
 ): boolean {
   const signedAt = Number(new URLSearchParams(oauthQuery).get("ba_iat"));
   const startedAt = new Date(sessionCreatedAt).getTime();
-  return signedAt > 0 && signedAt - startedAt <= SESSION_FOR_REQUEST_GRACE_MS;
+  return (
+    signedAt > 0 &&
+    Math.abs(signedAt - startedAt) <= SESSION_FOR_REQUEST_GRACE_MS
+  );
 }
 
 export type OAuthRequestAccount = Pick<SessionUser, "id" | "name" | "email">;

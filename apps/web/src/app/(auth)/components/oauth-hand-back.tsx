@@ -44,7 +44,11 @@ export default function OAuthHandBack({
   ...request
 }: OAuthHandBackProps) {
   return accountToConfirm ? (
-    <AccountChoice {...request} account={accountToConfirm} />
+    <AccountChoice
+      key={`${request.oauthQuery}:${accountToConfirm.id}`}
+      {...request}
+      account={accountToConfirm}
+    />
   ) : (
     <AutomaticHandBack {...request} />
   );
@@ -112,36 +116,70 @@ function AccountChoice({
     "continue" | "switch" | null
   >(null);
 
-  function handleContinue() {
-    setPendingChoice("continue");
-    handBack();
-  }
+  const choiceStarted = useRef(false);
 
-  /**
-   * Signs out of Sokosumi and renders the page again: signed out, it shows
-   * the form with the same signed request, so the next sign-in or sign-up
-   * continues to the product.
-   */
-  function handleUseAnotherAccount() {
-    // The form could not finish with this request; keep the person signed in.
+  async function handleChoice(choice: "continue" | "switch") {
+    if (choiceStarted.current) return;
+    if (choice === "switch" && oauthRequestExpiresSoon(oauthQuery)) {
+      fail();
+      return;
+    }
+    choiceStarted.current = true;
+    setPendingChoice(choice);
+    function chooseAgain() {
+      choiceStarted.current = false;
+      setPendingChoice(null);
+    }
+
+    // Another tab can replace the session after this account was rendered.
+    // Recheck before confirming it or signing it out.
+    try {
+      const result = await authClient.getSession({
+        query: { disableCookieCache: true },
+      });
+      if (result.error) throw result.error;
+      if (result.data?.user.id !== account.id) {
+        router.refresh();
+        chooseAgain();
+        return;
+      }
+    } catch {
+      toast.error(t("accountCheckError"));
+      chooseAgain();
+      return;
+    }
+
+    if (choice === "continue") {
+      handBack();
+      return;
+    }
+    // Account validation also consumes request lifetime.
     if (oauthRequestExpiresSoon(oauthQuery)) {
       fail();
       return;
     }
-    setPendingChoice("switch");
-    const chooseAgain = () => {
+    const signOutFailed = () => {
       toast.error(t("signOutError"));
-      setPendingChoice(null);
+      chooseAgain();
     };
-    // Better Auth's client sends the page's signed request along, so Core
-    // refuses the sign-out once the request has expired by its own clock.
     signOutWithPushRelease(account.id, {
       fetchOptions: {
+        // Always validate this exact request, including a missing or invalid
+        // parameter manifest that the client plugin would otherwise omit.
+        body: { oauth_query: oauthQuery },
         onSuccess: () => router.refresh(),
         onError: ({ error }) =>
-          isRejectedOAuthRequestError(error) ? fail() : chooseAgain(),
+          isRejectedOAuthRequestError(error) ? fail() : signOutFailed(),
       },
-    }).catch(chooseAgain);
+    }).catch(signOutFailed);
+  }
+
+  function handleContinue() {
+    void handleChoice("continue");
+  }
+
+  function handleUseAnotherAccount() {
+    void handleChoice("switch");
   }
 
   if (hasFailed) {

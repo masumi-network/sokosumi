@@ -1339,6 +1339,7 @@
       "signedInAs": "Signed in to Sokosumi as <account>{email}</account>",
       "continueAs": "Continue as {account}",
       "useAnotherAccount": "Use another account",
+      "accountCheckError": "Could not check your account. Try again.",
       "signOutError": "Could not sign out. Try again."
     }
   },

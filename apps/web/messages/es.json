@@ -1339,6 +1339,7 @@
       "signedInAs": "Sesión iniciada en Sokosumi como <account>{email}</account>",
       "continueAs": "Continuar como {account}",
       "useAnotherAccount": "Usar otra cuenta",
+      "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
       "signOutError": "No se pudo cerrar la sesión. Inténtalo de nuevo."
     }
   },

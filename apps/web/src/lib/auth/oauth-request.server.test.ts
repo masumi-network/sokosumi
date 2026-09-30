@@ -98,6 +98,11 @@ describe("readOAuthRequest", () => {
       });
     });
 
+    it("asks after an unrelated session starts much later than the request", async () => {
+      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T10:05:00Z"));
+      expect(await read(CREATE)).toMatchObject({ accountToConfirm: ACCOUNT });
+    });
+
     it.each([
       ["in the response that signed it", "2026-09-30T09:59:59.700Z"],
       ["five seconds before it was signed", "2026-09-30T09:59:55Z"],

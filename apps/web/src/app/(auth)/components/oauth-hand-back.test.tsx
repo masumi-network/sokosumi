@@ -6,12 +6,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import OAuthHandBack from "./oauth-hand-back";
 
 const mockContinue = vi.fn();
+const mockGetSession = vi.fn();
 const mockSignOut =
   vi.fn<
     (
       userId: string,
       options: {
         fetchOptions: {
+          body: { oauth_query: string };
           onSuccess: () => void;
           onError: (context: { error: unknown }) => void;
         };
@@ -48,6 +50,7 @@ vi.mock("@/lib/auth/sign-out.client", () => ({
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
+    getSession: (...args: unknown[]) => mockGetSession(...args),
     oauth2: {
       continue: (...args: unknown[]) => mockContinue(...args),
     },
@@ -68,6 +71,8 @@ const ACCOUNT = {
 describe("OAuthHandBack", () => {
   beforeEach(() => {
     mockContinue.mockReset();
+    mockGetSession.mockReset();
+    mockGetSession.mockResolvedValue({ data: { user: ACCOUNT }, error: null });
     mockSignOut.mockReset();
     mockRefresh.mockReset();
     mockToastError.mockReset();
@@ -189,6 +194,85 @@ describe("OAuthHandBack", () => {
       expect(mockRefresh).not.toHaveBeenCalled();
     });
 
+    it.each(["continueAs:Ada Lovelace", "useAnotherAccount"])(
+      "refreshes without changing auth when %s refers to a stale account",
+      async (buttonName) => {
+        mockGetSession.mockResolvedValue({
+          data: { user: { ...ACCOUNT, id: "another-user" } },
+          error: null,
+        });
+        render(
+          <OAuthHandBack
+            oauthQuery={CREATE_QUERY}
+            accountToConfirm={ACCOUNT}
+          />,
+        );
+        await userEvent
+          .setup()
+          .click(screen.getByRole("button", { name: buttonName }));
+        await waitFor(() => expect(mockRefresh).toHaveBeenCalledOnce());
+        expect(mockGetSession).toHaveBeenCalledWith({
+          query: { disableCookieCache: true },
+        });
+        expect(mockContinue).not.toHaveBeenCalled();
+        expect(mockSignOut).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["continueAs:Ada Lovelace", "useAnotherAccount"])(
+      "allows retry when account validation fails before %s",
+      async (buttonName) => {
+        mockGetSession.mockRejectedValue(new Error("offline"));
+        render(
+          <OAuthHandBack
+            oauthQuery={CREATE_QUERY}
+            accountToConfirm={ACCOUNT}
+          />,
+        );
+        await userEvent
+          .setup()
+          .click(screen.getByRole("button", { name: buttonName }));
+        await waitFor(() =>
+          expect(mockToastError).toHaveBeenCalledWith("accountCheckError"),
+        );
+        expect(screen.getByRole("button", { name: buttonName })).toBeEnabled();
+        expect(mockContinue).not.toHaveBeenCalled();
+        expect(mockSignOut).not.toHaveBeenCalled();
+      },
+    );
+
+    it("does not sign out when account validation consumes the expiry margin", async () => {
+      mockGetSession.mockImplementation(async () => {
+        vi.setSystemTime(EXPIRES_AT - 60_000);
+        return { data: { user: ACCOUNT }, error: null };
+      });
+      render(
+        <OAuthHandBack oauthQuery={CREATE_QUERY} accountToConfirm={ACCOUNT} />,
+      );
+      await userEvent
+        .setup()
+        .click(screen.getByRole("button", { name: "useAnotherAccount" }));
+      expect(await screen.findByRole("alert")).toBeInTheDocument();
+      expect(mockSignOut).not.toHaveBeenCalled();
+    });
+
+    it("lets the person retry when sign-out rejects before a response", async () => {
+      mockSignOut.mockRejectedValue(new Error("offline"));
+      render(
+        <OAuthHandBack oauthQuery={CREATE_QUERY} accountToConfirm={ACCOUNT} />,
+      );
+      await userEvent
+        .setup()
+        .click(screen.getByRole("button", { name: "useAnotherAccount" }));
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("signOutError"),
+      );
+      expect(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      ).toBeEnabled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
     it("names the account by email when it has no name", () => {
       render(
         <OAuthHandBack
@@ -245,7 +329,11 @@ describe("OAuthHandBack", () => {
         screen.getByRole("button", { name: "useAnotherAccount" }),
       );
 
-      expect(mockSignOut).toHaveBeenCalledWith("user-1", expect.anything());
+      expect(mockSignOut).toHaveBeenCalledWith("user-1", {
+        fetchOptions: expect.objectContaining({
+          body: { oauth_query: CREATE_QUERY },
+        }),
+      });
       // The page renders again with the same signed request, now signed out.
       await waitFor(() => {
         expect(mockRefresh).toHaveBeenCalledTimes(1);
