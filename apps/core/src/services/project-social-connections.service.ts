@@ -20,6 +20,10 @@ import { conflict, notFound } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import {
+  deleteSocialAccountAvatarIfOwned,
+  snapshotSocialAccountAvatar,
+} from "@/lib/social-account-avatar";
 
 const INTENT_TTL_MS = 15 * 60 * 1000;
 
@@ -27,6 +31,8 @@ export interface ProjectSocialConnectionSummary {
   id: string;
   provider: ProjectSocialProvider;
   externalHandle: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
   status: string;
   connectedAt: Date | null;
   disconnectedAt: Date | null;
@@ -73,6 +79,8 @@ interface ProjectSocialConnectionRecord {
   provider: string;
   externalAccountId: string;
   externalHandle: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
   composioConnectedAccountId: string;
   status: string;
   activeExternalAccountKey: string | null;
@@ -107,6 +115,8 @@ function mapProjectSocialConnection(
     id: connection.id,
     provider: connection.provider,
     externalHandle: connection.externalHandle,
+    displayName: connection.displayName,
+    avatarUrl: connection.avatarUrl,
     status: connection.status,
     connectedAt: connection.connectedAt,
     disconnectedAt: connection.disconnectedAt,
@@ -415,8 +425,16 @@ export async function finalizeProjectSocialConnection(
     connectedAccountId: input.connectionId,
     executorUserId: projectExecutorUserId(input.projectId),
   });
-  const { summary, retiredConnection } = await serializableTransaction(
-    async (tx) => {
+  const avatarUrl = identity.avatarUrl
+    ? await snapshotSocialAccountAvatar({
+        projectId: input.projectId,
+        provider: intent.provider,
+        externalAccountId: identity.id,
+        avatarUrl: identity.avatarUrl,
+      })
+    : null;
+  const { summary, retiredConnection, replacedAvatarUrl } =
+    await serializableTransaction(async (tx) => {
       await requireLockedOpenProject(tx, input);
       const now = new Date();
       const currentIntent = await tx.projectSocialConnectionIntent.findUnique({
@@ -508,6 +526,9 @@ export async function finalizeProjectSocialConnection(
             composioConnectedAccountId: input.connectionId,
             connectorUserId,
             externalHandle: identity.handle,
+            displayName: identity.displayName,
+            // A failed avatar copy keeps the previous one.
+            ...(avatarUrl ? { avatarUrl } : {}),
             status: "active",
             activeExternalAccountKey: key,
             connectedAt: now,
@@ -521,6 +542,8 @@ export async function finalizeProjectSocialConnection(
             provider: currentIntent.provider,
             externalAccountId: identity.id,
             externalHandle: identity.handle,
+            displayName: identity.displayName,
+            avatarUrl,
             composioConnectedAccountId: input.connectionId,
             status: "active",
             activeExternalAccountKey: key,
@@ -546,19 +569,31 @@ export async function finalizeProjectSocialConnection(
       return {
         summary: mapProjectSocialConnection(connection),
         retiredConnection,
+        // Only a reconnect overwrites the row's avatar. A replaced account's
+        // row stays, and its old posts still show that avatar.
+        replacedAvatarUrl:
+          currentIntent.action === "reconnect" &&
+          avatarUrl &&
+          target?.avatarUrl !== avatarUrl
+            ? (target?.avatarUrl ?? null)
+            : null,
       };
-    },
-    "Project social connection changed. Please retry.",
-  ).catch((error) => {
-    if (isPrismaUniqueViolation(error)) {
-      throw conflict("This social account is already connected to the Project");
-    }
-    throw error;
-  });
+    }, "Project social connection changed. Please retry.").catch(
+      async (error) => {
+        await deleteSocialAccountAvatarIfOwned(avatarUrl, input.projectId);
+        if (isPrismaUniqueViolation(error)) {
+          throw conflict(
+            "This social account is already connected to the Project",
+          );
+        }
+        throw error;
+      },
+    );
 
   if (retiredConnection) {
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
+  await deleteSocialAccountAvatarIfOwned(replacedAvatarUrl, input.projectId);
 
   return summary;
 }

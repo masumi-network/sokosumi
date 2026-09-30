@@ -365,6 +365,12 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export {
+  buildSocialAccountAvatarPathname,
+  isOwnedSocialAccountAvatarUrl,
+  isSocialAccountAvatarAllowedContentType,
+  SOCIAL_ACCOUNT_AVATAR_MAX_SIZE_BYTES,
+} from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   SOCIAL_POST_MEDIA_MAX,
