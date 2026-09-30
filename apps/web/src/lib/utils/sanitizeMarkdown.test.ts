@@ -1,5 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+import {
+  markdownHastSchema,
+  sanitizeMarkdown,
+} from "@/lib/utils/sanitizeMarkdown";
+
+describe("markdownHastSchema", () => {
+  it("admits no tag that runs or embeds content", () => {
+    expect(markdownHastSchema.tagNames).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(
+          /^(script|iframe|style|object|embed|form|link|meta|base|svg|math)$/,
+        ),
+      ]),
+    );
+  });
+
+  it("admits no event handler, style or unscoped class attribute", () => {
+    const names = Object.values(markdownHastSchema.attributes ?? {})
+      .flat()
+      .filter((definition) => typeof definition === "string");
+
+    expect(names).not.toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/^(on.*|style|className|srcDoc|name)$/),
+      ]),
+    );
+  });
+});
 
 describe("sanitizeMarkdown", () => {
   it("preserves HTML tags inside fenced code blocks", () => {
@@ -117,6 +144,30 @@ describe("sanitizeMarkdown", () => {
     const markdown = ["```", "&gt; quoted", "```"].join("\n");
 
     expect(sanitizeMarkdown(markdown)).toContain("&gt; quoted");
+  });
+
+  // Markdown opens no fence on a line whose info string carries a backtick,
+  // so what follows is markup and must not be lifted out as code.
+  it("sanitizes under an opener whose info string carries a backtick", () => {
+    const sanitized = sanitizeMarkdown(
+      ["``` `x", "<script>x</script><b>kept</b>", "```"].join("\n"),
+    );
+
+    expect(sanitized).not.toContain("<script>");
+    expect(sanitized).toContain("<b>kept</b>");
+  });
+
+  // Fences markdown reads and the line rule does not. Their content goes
+  // through the sanitizer: mangled as code, and safe.
+  it.each([
+    ["unclosed", "```\n<script>x</script>"],
+    ["indented", "  ```\n<script>x</script>\n  ```"],
+    ["in a list", "- item\n  ```\n  <script>x</script>\n  ```"],
+    ["in a blockquote", "> ```\n> <script>x</script>\n> ```"],
+    ["written in tildes", "~~~\n<script>x</script>\n~~~"],
+    ["closed by a longer run", "```\n<script>x</script>\n``````"],
+  ])("sanitizes a fence that is %s", (_name, markdown) => {
+    expect(sanitizeMarkdown(markdown)).not.toContain("<script>");
   });
 
   it("drops an authored mark and keeps its text", () => {

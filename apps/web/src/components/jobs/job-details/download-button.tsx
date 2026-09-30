@@ -15,7 +15,10 @@ import {
 } from "@/components/ui/dropdown-menu";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { cn } from "@/lib/utils";
-import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+import {
+  sanitizeMarkdown,
+  sanitizeRenderedMarkdown,
+} from "@/lib/utils/sanitizeMarkdown";
 
 interface DownloadButtonProps {
   markdown: string;
@@ -35,6 +38,24 @@ const EXPORT_STYLES = {
   `,
 } as const;
 
+/** The document the PDF export prints. Exported for its test. */
+export async function markdownToExportHtml(markdownContent: string) {
+  const { marked } = await import("marked");
+  const sanitized = sanitizeMarkdown(markdownContent);
+  // The pass above reads the markdown, and `marked` can read a fence
+  // differently than it did. This one reads what `marked` wrote.
+  const html = sanitizeRenderedMarkdown(
+    marked.parse(sanitized, { async: false }),
+  );
+
+  return `
+      <div style="${EXPORT_STYLES.container}">
+        <style>${EXPORT_STYLES.table}</style>
+        <div>${html}</div>
+      </div>
+    `;
+}
+
 export default function DownloadButton({
   markdown,
   className,
@@ -43,21 +64,6 @@ export default function DownloadButton({
 
   const isApplePlatform = useIsApplePlatform();
   const shortcutLabel = isApplePlatform ? "⇧⌘E" : "Shift+Ctrl+E";
-
-  async function markdownToHtml(markdownContent: string) {
-    const [{ marked }] = await Promise.all([
-      import("marked") as Promise<typeof import("marked")>,
-    ]);
-    const sanitized = sanitizeMarkdown(markdownContent);
-    const html = marked.parse(sanitized, { async: false }) as string;
-
-    return `
-      <div style="${EXPORT_STYLES.container}">
-        <style>${EXPORT_STYLES.table}</style>
-        <div>${html}</div>
-      </div>
-    `;
-  }
 
   async function _fetchSvgAsPngDataUrl(
     svgPath: string,
@@ -113,7 +119,7 @@ export default function DownloadButton({
   const handleDownloadPdf = async () => {
     const id = toast.loading(t("exportingPdf"));
     try {
-      const html = await markdownToHtml(markdown);
+      const html = await markdownToExportHtml(markdown);
       const res = await fetch("/api/export/pdf", {
         method: "POST",
         headers: { "content-type": "application/json" },

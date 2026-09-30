@@ -3,6 +3,7 @@ import Link from "next/link";
 import { type ComponentPropsWithoutRef, type ReactNode, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
@@ -20,7 +21,10 @@ import {
   isVideoUrl,
   stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
-import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+import {
+  markdownHastSchema,
+  sanitizeMarkdown,
+} from "@/lib/utils/sanitizeMarkdown";
 
 interface AutolinkNode {
   type: string;
@@ -358,8 +362,11 @@ export default function Markdown({
           [remarkEmoji, { emoticon: true }],
           remarkRestoreInlineCodeEntities,
         ]}
+        // The sanitizer sits directly behind `rehype-raw`, ahead of the
+        // plugins that add our own elements, classes and data attributes.
         rehypePlugins={[
           rehypeRaw,
+          [rehypeSanitize, markdownHastSchema],
           ...(mermaid ? [mermaid.rehypeMermaid] : []),
           // Before the code highlighter, while a fence is still one text node.
           [rehypeSearchTermHighlight, highlightTerm],
