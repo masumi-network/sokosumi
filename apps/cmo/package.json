@@ -21,7 +21,7 @@
     "@sokosumi/core-client": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "better-auth": "1.7.6",
-    "next": "16.3.7",
+    "next": "16.3.8",
     "react": "19.3.0",
     "react-dom": "19.3.0"
   },
