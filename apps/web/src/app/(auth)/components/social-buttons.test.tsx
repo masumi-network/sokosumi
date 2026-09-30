@@ -228,6 +228,29 @@ describe("SocialButtons", () => {
     };
   }
 
+  it("sends a failed social sign-in back to this page without its old error", async () => {
+    const startPage = window.location.href;
+    window.history.replaceState(
+      null,
+      "",
+      "/signin?returnUrl=%2Fchat&error=account_not_linked",
+    );
+    try {
+      render(<SocialButtons />);
+
+      await clickGoogleButton();
+
+      await waitFor(() => {
+        expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+      });
+      expect(mockSocialSignIn.mock.calls[0]?.[0]).toMatchObject({
+        errorCallbackURL: `${window.location.origin}/signin?returnUrl=%2Fchat`,
+      });
+    } finally {
+      window.history.replaceState(null, "", startPage);
+    }
+  });
+
   it("passes provided returnUrl to social sign-in callbacks", async () => {
     render(<SocialButtons returnUrl="/oauth/consent?client_id=prop-client" />);
 
@@ -579,10 +602,43 @@ describe("SocialButtons", () => {
         fetchOptions: captchaFetchOptions,
         email: "login-user@example.com",
         callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
+        errorCallbackURL: window.location.href,
       });
     });
 
     expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
+  });
+
+  it("asks for the magic-link address with an email keyboard and no autocorrect", async () => {
+    const user = userEvent.setup();
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+
+    const email = screen.getByRole("textbox", { name: "magic-link-email" });
+    expect(email).toHaveAttribute("type", "email");
+    expect(email).toHaveAttribute("autocomplete", "email");
+    expect(email).toHaveAttribute("autocapitalize", "none");
+    expect(email).toHaveAttribute("spellcheck", "false");
+  });
+
+  it("says in its own words when the magic-link address is invalid", async () => {
+    const user = userEvent.setup();
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "not-an-email",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    expect(mockToastError).toHaveBeenCalledWith("magicLinkInvalidEmail");
+    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
   });
 
   it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {

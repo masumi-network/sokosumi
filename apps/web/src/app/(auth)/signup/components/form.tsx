@@ -151,6 +151,8 @@ export default function SignUpForm({
       <input
         type="email"
         autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
         value={email}
         readOnly
         tabIndex={-1}

@@ -163,11 +163,19 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-          .task(id: jumpTarget) {
+          // Keyed by the request: a reader scroll changes the target's mark, and must not scroll back to it.
+          .task(id: jumpTarget?.requestId) {
             guard let target = jumpTarget else { return }
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
+            workspaces.thread.landJump(target.requestId)
+          }
+          .task(id: workspaces.thread.jumpTarget?.mark) {
+            guard let mark = workspaces.thread.jumpTarget?.mark else { return }
+            try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+            guard !Task.isCancelled else { return }
+            workspaces.thread.endJumpIfMarkEnded()
           }
           .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest) {
             guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest else { return }
@@ -176,8 +184,8 @@ import SwiftUI
           }
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-            if phase == .interacting {
-              Task { @MainActor in workspaces.thread.clearJump() }
+            if phase.endsJumpMark {
+              Task { @MainActor in workspaces.thread.readerScrolled() }
             }
             loadOlderRepliesAutomatically()
           }
@@ -329,7 +337,7 @@ import SwiftUI
                            onRetryMention: mentionRetryAction(for: message),
                            onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                           isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
+                           jumpMark: workspaces.thread.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),
