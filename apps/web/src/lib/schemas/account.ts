@@ -30,6 +30,51 @@ export type FirstAndLastNameFormType = z.infer<
   ReturnType<typeof firstAndLastNameFormSchema>
 >;
 
+/**
+ * Account page: first name, last name and display name in one form. A user
+ * from before the name parts existed may leave both empty; filling one, or
+ * already having them, makes both required.
+ */
+export const accountNameFormSchema = (
+  t: IntlTranslation<"Library.Auth.Schema"> | undefined,
+  { namePartsRequired }: { namePartsRequired: boolean },
+) =>
+  z
+    .object({
+      firstName: z
+        .string()
+        .trim()
+        .max(64, { error: t?.("FirstName.max") }),
+      lastName: z
+        .string()
+        .trim()
+        .max(64, { error: t?.("LastName.max") }),
+      name: nameSchema(t),
+    })
+    .superRefine(({ firstName, lastName }, ctx) => {
+      if (!namePartsRequired && !firstName && !lastName) {
+        return;
+      }
+      if (!firstName) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["firstName"],
+          message: t?.("FirstName.required"),
+        });
+      }
+      if (!lastName) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["lastName"],
+          message: t?.("LastName.required"),
+        });
+      }
+    });
+
+export type AccountNameFormType = z.infer<
+  ReturnType<typeof accountNameFormSchema>
+>;
+
 export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),

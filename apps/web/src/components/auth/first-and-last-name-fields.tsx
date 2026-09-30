@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import type { Control } from "react-hook-form";
+import type { Control, Path } from "react-hook-form";
 
 import {
   FormControl,
@@ -13,24 +13,24 @@ import {
 import { Input } from "@/components/ui/input";
 import type { FirstAndLastNameFormType } from "@/lib/schemas/account";
 
-interface FirstAndLastNameFieldsProps {
-  control: Control<FirstAndLastNameFormType>;
+interface FirstAndLastNameFieldsProps<T extends FirstAndLastNameFormType> {
+  control: Control<T>;
   testIdPrefix: string;
   disabled?: boolean;
 }
 
-export function FirstAndLastNameFields({
+export function FirstAndLastNameFields<T extends FirstAndLastNameFormType>({
   control,
   testIdPrefix,
   disabled,
-}: FirstAndLastNameFieldsProps) {
+}: FirstAndLastNameFieldsProps<T>) {
   const t = useTranslations("Library.Auth.NameField");
 
   return (
     <div className="grid items-start gap-4 sm:grid-cols-2">
       <FormField
         control={control}
-        name="firstName"
+        name={"firstName" as Path<T>}
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t("firstNameLabel")}</FormLabel>
@@ -48,7 +48,7 @@ export function FirstAndLastNameFields({
       />
       <FormField
         control={control}
-        name="lastName"
+        name={"lastName" as Path<T>}
         render={({ field }) => (
           <FormItem>
             <FormLabel>{t("lastNameLabel")}</FormLabel>

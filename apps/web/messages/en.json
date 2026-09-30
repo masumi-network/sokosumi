@@ -4554,8 +4554,8 @@
     "Account": {
       "Name": {
         "title": "Change name",
-        "description": "Update your display name",
-        "newName": "New name",
+        "description": "Update your name and display name",
+        "displayName": "Display name",
         "currentPassword": "Current password",
         "submit": "Update name",
         "success": "Name updated successfully",

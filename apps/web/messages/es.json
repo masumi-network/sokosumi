@@ -4518,8 +4518,8 @@
     "Account": {
       "Name": {
         "title": "Cambiar nombre",
-        "description": "Actualizar tu nombre de visualización",
-        "newName": "Nuevo nombre",
+        "description": "Actualizar tu nombre y tu nombre de visualización",
+        "displayName": "Nombre de visualización",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar nombre",
         "success": "Nombre actualizado correctamente",
