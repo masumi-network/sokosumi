@@ -7020,19 +7020,14 @@
       "title": "Soko Bots",
       "description": "Soko Bots are the AI coworkers you build yourself. Everyone gets a Personal Assistant that delegates work, follows up, and keeps them posted. More kinds of Soko Bots will appear here.",
       "unavailable": "The team overview is not available right now.",
-      "personalWorkspace": "Personal workspace",
-      "peopleCount": "{count, plural, one {# person} other {# people}}",
       "you": "you",
       "noAssistant": "No assistant yet",
       "createAssistant": "Create your Personal Assistant",
       "createAssistantHint": "Takes a minute. Pick a name and a picture.",
       "assistantFallback": "Personal Assistant",
-      "yourAssistant": "Your Personal Assistant",
-      "assistantOf": "{name}'s Personal Assistant",
       "openChat": "Open chat",
-      "messageAssistant": "Message it",
       "chatError": "Could not open the chat.",
-      "manage": "Open",
+      "manage": "Settings",
       "teamTitle": "Team",
       "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
       "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
@@ -7041,7 +7036,10 @@
       "heroCta": "Create your Soko Bot",
       "heroCtaHint": "Takes a minute: pick a name and a face.",
       "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot is temporarily unavailable"
+      "disabled": "Soko Bot is temporarily unavailable",
+      "message": "Message",
+      "previous": "Previous people",
+      "next": "Next people"
     },
     "Calendar": {
       "Metadata": {

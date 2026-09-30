@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
 import { Button } from "@/components/ui/button";
 
-/** Opens (or creates) the direct room with the signed-in user's personal assistant. */
+/** Opens (or creates) the direct room with a Soko Bot: yours or a teammate's. */
 export function MessageBotButton({
   sokoBotId,
   label,
