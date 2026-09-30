@@ -149,7 +149,7 @@ struct ChatRootView: View {
                   let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
           NavigationStack {
             RoomTimelineView(roomId: selectedRoomId)
-              .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
+              .modifier(RoomHeaderModifier(identity: RoomHeaderIdentity(room: selectedRoom, currentUserId: workspaces.currentUserId)))
               .navigationDestination(isPresented: Binding(
                 get: { workspaces.thread.parent != nil },
                 set: { presented in
