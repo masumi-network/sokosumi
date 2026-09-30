@@ -16,7 +16,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
-- `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
+- `Chat/Timeline/`: room scrolling, message rows, timeline status rows and the jump mark's drawing (`JumpMarkBackground`). Its clock is `JumpMark` in `SokosumiChat`.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
 - `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.

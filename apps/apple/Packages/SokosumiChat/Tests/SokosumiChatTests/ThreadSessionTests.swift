@@ -14,6 +14,44 @@ struct ThreadSessionTests {
     return try #require(rows.first)
   }
 
+  /// Row 25b1: the thread's jump carries its mark from the landing; a reader scroll at full strength hands it to
+  /// the leave fade without moving the jump, a scroll in either end of the hold ends it, and the jump is dropped
+  /// once the mark has run out.
+  @Test func theJumpEndsWithItsMark() async throws {
+    let landed = Date(timeIntervalSince1970: 1_800_000_000)
+    var now = landed
+    let session = ThreadSession(now: { now })
+    let message = try await parent()
+    session.timeline.messages = [message]
+
+    session.requestJump(to: message.id)
+    let target = try #require(session.jumpTarget)
+    #expect(target.mark == JumpMark(messageId: message.id, landedAt: landed))
+    now = landed.addingTimeInterval(4.4)
+    session.endJumpIfMarkEnded()
+    #expect(session.jumpTarget == target)
+    now = landed.addingTimeInterval(4.5)
+    session.endJumpIfMarkEnded()
+    #expect(session.jumpTarget == nil)
+
+    session.requestJump(to: message.id)
+    now = landed.addingTimeInterval(5.5)
+    session.readerScrolled()
+    let leaving = try #require(session.jumpTarget)
+    #expect(leaving.requestId != target.requestId)
+    #expect(leaving.mark.leftAt == now)
+    session.readerScrolled()
+    #expect(session.jumpTarget == leaving)
+    now = now.addingTimeInterval(0.32)
+    session.endJumpIfMarkEnded()
+    #expect(session.jumpTarget == nil)
+
+    session.requestJump(to: message.id)
+    now = now.addingTimeInterval(0.2)
+    session.readerScrolled()
+    #expect(session.jumpTarget == nil)
+  }
+
   @Test func clearingJumpPublishesOnlyWhenTargetChanges() async throws {
     let session = ThreadSession()
     let message = try await parent()

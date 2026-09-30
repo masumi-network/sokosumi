@@ -9,8 +9,12 @@ public final class ThreadSession: ObservableObject {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
   public struct JumpTarget: Equatable, Sendable {
-    public let messageId: String
     public let requestId = UUID()
+    /// The mark the jump leaves on the reply it landed on (row 25b1); the jump ends with it.
+    public fileprivate(set) var mark: JumpMark
+    public var messageId: String {
+      mark.messageId
+    }
   }
 
   @Published public private(set) var jumpTarget: JumpTarget?
@@ -53,7 +57,24 @@ public final class ThreadSession: ObservableObject {
 
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
-    jumpTarget = JumpTarget(messageId: messageId)
+    jumpTarget = JumpTarget(mark: JumpMark(messageId: messageId, landedAt: now()))
+  }
+
+  /// A reader scroll in the thread (web `fadeOutHighlight`): the mark fades out, or ends outright outside its
+  /// full-strength stretch. The room transcript's mark is its own.
+  public func readerScrolled() {
+    guard let target = jumpTarget else { return }
+    guard let mark = target.mark.readerScrolled(at: now()) else { return clearJump() }
+    if mark != target.mark {
+      jumpTarget?.mark = mark
+    }
+  }
+
+  /// Drop the jump once its mark has run out (web `landOn`'s timer).
+  public func endJumpIfMarkEnded() {
+    if jumpTarget?.mark.stage(at: now()) == .ended {
+      clearJump()
+    }
   }
 
   public func clearJump() {
