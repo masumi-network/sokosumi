@@ -1,6 +1,11 @@
 import { useTranslations } from "next-intl";
 
-export default function SignInHeader() {
+interface SignInHeaderProps {
+  /** The product that sent the person here through Sign in with Sokosumi. */
+  clientName?: string | undefined;
+}
+
+export default function SignInHeader({ clientName }: SignInHeaderProps) {
   const t = useTranslations("Auth.Pages.SignIn.Header");
 
   return (
@@ -8,7 +13,11 @@ export default function SignInHeader() {
       <h1 className="text-2xl font-light text-balance tracking-tight">
         {t("title")}
       </h1>
-      <p className="text-sm text-muted-foreground">{t("description")}</p>
+      <p className="text-sm text-muted-foreground">
+        {clientName
+          ? t("descriptionFor", { client: clientName })
+          : t("description")}
+      </p>
     </div>
   );
 }

@@ -15,8 +15,10 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
+  isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
@@ -38,6 +40,7 @@ export default function SignInForm({
   isLastUsedEmailLogin = false,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const oauthT = useTranslations("Auth.OAuthHandBack");
   const loginAreaFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const {
@@ -47,7 +50,7 @@ export default function SignInForm({
   } = useAuthCaptcha("signin");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
 
@@ -90,6 +93,11 @@ export default function SignInForm({
       });
 
       if (result.error) {
+        if (isRejectedOAuthRequestError(result.error)) {
+          toast.error(oauthT("errorDescription"));
+          return;
+        }
+
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
@@ -114,6 +122,7 @@ export default function SignInForm({
         eventType: "signIn",
         provider: "credential",
         returnUrl: effectiveReturnUrl,
+        result: result.data,
       });
     });
   };
@@ -136,10 +145,13 @@ export default function SignInForm({
   const signUpUrl = useMemo(
     () =>
       buildSignUpUrlFromSignIn({
-        returnUrl: effectiveReturnUrl,
+        returnUrl,
+        oauthQuery: returnUrl
+          ? undefined
+          : buildSignedOAuthQueryFromSearchParams(searchParams),
         email: prefilledEmail ?? email,
       }),
-    [effectiveReturnUrl, prefilledEmail, email],
+    [returnUrl, searchParams, prefilledEmail, email],
   );
 
   const { isSubmitting } = form.formState;

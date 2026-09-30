@@ -222,6 +222,10 @@ _Avoid_: Captcha, Turnstile (in product copy), bot check
 Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
 _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
 
+**First-party client**:
+A product run by Sokosumi itself, such as CMO, that uses Sign in with Sokosumi. A person is never asked to authorize it.
+_Avoid_: Trusted client
+
 **Impersonation**:
 A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).
 _Avoid_: Login as, switch user, mask

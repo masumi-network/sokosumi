@@ -5,22 +5,23 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import {
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   buildSignInUrlFromSignUp,
 } from "@/lib/auth/auth.utils";
 
 // Reads the query itself so the sign-up form and its loading skeleton build
-// the same link: the returnUrl, or the signed OAuth consent query.
+// the same link: the returnUrl, or the signed OAuth request.
 export default function SignInLink() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const searchParams = useSearchParams();
-  const returnUrl =
-    searchParams.get("returnUrl") ??
-    buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+  const returnUrl = searchParams.get("returnUrl") ?? undefined;
+  const oauthQuery = returnUrl
+    ? undefined
+    : buildSignedOAuthQueryFromSearchParams(searchParams);
 
   return (
     <Link
-      href={buildSignInUrlFromSignUp({ returnUrl })}
+      href={buildSignInUrlFromSignUp({ returnUrl, oauthQuery })}
       className="text-primary text-sm font-medium hover:underline"
     >
       {t("Login.link")}

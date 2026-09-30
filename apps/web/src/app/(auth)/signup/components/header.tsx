@@ -2,9 +2,14 @@ import { useTranslations } from "next-intl";
 
 interface SignUpHeaderProps {
   invitationId?: string | undefined;
+  /** The product that sent the person here through Sign in with Sokosumi. */
+  clientName?: string | undefined;
 }
 
-export default function SignUpHeader({ invitationId }: SignUpHeaderProps) {
+export default function SignUpHeader({
+  invitationId,
+  clientName,
+}: SignUpHeaderProps) {
   const t = useTranslations("Auth.Pages.SignUp.Header");
 
   return (
@@ -19,7 +24,11 @@ export default function SignUpHeader({ invitationId }: SignUpHeaderProps) {
           </p>
         )}
       </div>
-      <p className="text-sm text-muted-foreground">{t("description")}</p>
+      <p className="text-sm text-muted-foreground">
+        {clientName
+          ? t("descriptionFor", { client: clientName })
+          : t("description")}
+      </p>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { AuthForm } from "@/auth/components/form/auth-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
@@ -14,7 +14,10 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signUp } from "@/lib/auth/auth.client";
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import {
+  buildOAuthResumeUrlFromSearchParams,
+  isRejectedOAuthRequestError,
+} from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -35,6 +38,7 @@ export default function SignUpForm({
   returnUrl,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const oauthT = useTranslations("Auth.OAuthHandBack");
   const registerFormStart = useRef(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const {
@@ -44,7 +48,7 @@ export default function SignUpForm({
   } = useAuthCaptcha("signup");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
   const form = useForm<SignUpFormSchemaType>({
@@ -55,7 +59,6 @@ export default function SignUpForm({
       email: prefilledEmail ?? "",
       name: "",
       password: "",
-      termsAccepted: false,
       marketingOptIn: false,
     },
   });
@@ -83,20 +86,23 @@ export default function SignUpForm({
         email: values.email,
         name: values.name,
         password: values.password,
-        termsAccepted: values.termsAccepted,
+        // Creating the account is the acceptance; the page says so.
+        termsAccepted: true,
         marketingOptIn: values.marketingOptIn,
       });
 
       if (result.error) {
+        if (isRejectedOAuthRequestError(result.error)) {
+          toast.error(oauthT("errorDescription"));
+          return;
+        }
+
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
         switch (errorCode) {
           case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
             toast.error(t("Errors.emailDomainNotAllowed"));
-            break;
-          case AuthErrorCode.TERMS_NOT_ACCEPTED:
-            toast.error(t("Errors.termsNotAccepted"));
             break;
           default:
             toast.error(
@@ -106,10 +112,6 @@ export default function SignUpForm({
         }
         return;
       }
-
-      // Record UTM attribution for every successful signup, including the
-      // OAuth consent flow that finishAuthInPlace redirects to below.
-      await handleUtmConversion();
 
       // No `callbackURL`: Better Auth would hard-redirect and every line
       // here would be racing the unload, which is how the credential
@@ -122,14 +124,14 @@ export default function SignUpForm({
         eventType: "signUp",
         provider: "credential",
         returnUrl: effectiveReturnUrl,
+        result: result.data,
+        // Record UTM attribution for every successful signup, including one
+        // that carries an OAuth request.
+        beforeLeaving: handleUtmConversion,
       });
     });
   };
 
-  const termsAccepted = useWatch({
-    control: form.control,
-    name: "termsAccepted",
-  });
   const formData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
     signUpFormData.map((item) =>
       item.name === "email" && prefilledEmail
@@ -154,7 +156,6 @@ export default function SignUpForm({
           spinnerPosition="start"
           label={t("submit")}
           className="w-full"
-          disabled={!termsAccepted}
         />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">

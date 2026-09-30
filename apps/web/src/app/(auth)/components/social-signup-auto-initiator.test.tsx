@@ -1,8 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
-
 import SocialSignupAutoInitiator from "./social-signup-auto-initiator";
 
 const mockSocialSignIn = vi.fn();
@@ -84,7 +82,7 @@ describe("SocialSignupAutoInitiator", () => {
     });
   });
 
-  it("builds oauth consent returnUrl from signed query when returnUrl is missing", async () => {
+  it("returns an OAuth visitor to the sign-in page with the signed request", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -97,9 +95,8 @@ describe("SocialSignupAutoInitiator", () => {
       sig: "signed-value",
     });
 
-    const expectedReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
-      new URLSearchParams(mockSearchParams.toString()),
-    );
+    const expectedReturnUrl =
+      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
 
     render(
       <SocialSignupAutoInitiator provider="google" providerName="Google" />,

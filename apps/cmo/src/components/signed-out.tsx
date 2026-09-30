@@ -1,6 +1,7 @@
 interface SignedOutProps {
   /** The `error` query Sokosumi sent back, if sign in did not finish. */
   error?: string;
+  createAccount: () => Promise<void>;
   signIn: () => Promise<void>;
 }
 
@@ -10,7 +11,7 @@ function errorMessage(error: string): string {
     : "Sign in did not finish. Try again.";
 }
 
-export function SignedOut({ error, signIn }: SignedOutProps) {
+export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
   return (
     <main>
       <h1>CMO.XYZ</h1>
@@ -19,9 +20,15 @@ export function SignedOut({ error, signIn }: SignedOutProps) {
         SEO and graphics in one system.
       </p>
       {error ? <p role="alert">{errorMessage(error)}</p> : null}
-      <form action={signIn}>
-        <button type="submit">Sign in with Sokosumi</button>
-      </form>
+      <div className="actions">
+        <form action={createAccount}>
+          <button type="submit">Create account</button>
+        </form>
+        <form action={signIn}>
+          <button type="submit">Sign in</button>
+        </form>
+      </div>
+      <p className="note">CMO uses your Sokosumi account.</p>
     </main>
   );
 }
