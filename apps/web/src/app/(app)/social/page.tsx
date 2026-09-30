@@ -19,7 +19,7 @@ import { projectService } from "@/lib/services/project.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
-import { SocialAccountsProjectPrompt } from "./components/social-accounts-project-prompt";
+import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
 import { SocialComposeProvider } from "./components/social-compose-context";
 import { SocialNewPostMenu } from "./components/social-new-post-menu";
 import { SocialPageShell } from "./components/social-page-shell";
@@ -69,24 +69,13 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     ]);
     return (
       <SocialPageShell title={t("title")}>
-        <div className="space-y-8">
-          <SocialCalendarSection
-            calendar={calendar}
-            description={t("allProjectsCalendar.description")}
-            newPost={
-              <SocialNewPostMenu
-                project={null}
-                sokoBotId={sokoBot?.id ?? null}
-              />
-            }
-            title={t("allProjectsCalendar.title")}
-          />
-          {/* Not `notFound()`: the id came from a switchable scope, not from
-              the path, so the repair is to pick another project. */}
-          <SocialAccountsProjectPrompt
-            notice={projectId ? t("pickUnavailable") : undefined}
-          />
-        </div>
+        <SocialAllProjectsTabs
+          actions={
+            <SocialNewPostMenu project={null} sokoBotId={sokoBot?.id ?? null} />
+          }
+          calendar={<SocialCalendar calendar={calendar} />}
+          notice={projectId ? t("pickUnavailable") : undefined}
+        />
       </SocialPageShell>
     );
   }
@@ -151,33 +140,6 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
         />
       </SocialComposeProvider>
     </SocialPageShell>
-  );
-}
-
-function SocialCalendarSection({
-  calendar,
-  description,
-  newPost,
-  title,
-}: {
-  calendar: LoadedWorkspaceCalendarPage;
-  description: string;
-  newPost: React.ReactNode;
-  title: string;
-}) {
-  return (
-    <section aria-labelledby="social-calendar-heading" className="space-y-2">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold" id="social-calendar-heading">
-            {title}
-          </h2>
-          <p className="text-muted-foreground text-sm">{description}</p>
-        </div>
-        {newPost}
-      </div>
-      <SocialCalendar calendar={calendar} />
-    </section>
   );
 }
 
