@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { organizationProductSeatMiddleware } from "@/middleware/organization-product-seat";
 import mountDeleteTask from "./[id]/delete.js";
 import mountGetTaskEvents from "./[id]/events/get.js";
 import mountPostTaskEvents from "./[id]/events/post.js";
@@ -14,6 +15,10 @@ import mountPostTaskLink from "./[id]/links/post.js";
 import mountDeleteTaskParticipant from "./[id]/participants/[userId]/delete.js";
 import mountPostTaskParticipant from "./[id]/participants/post.js";
 import mountPatchTask from "./[id]/patch.js";
+import mountApproveMpsQuote from "./[id]/payment-quotes/[quoteId]/approve/post.js";
+import mountGetMpsQuote from "./[id]/payment-quotes/[quoteId]/get.js";
+import mountRevokeMpsQuote from "./[id]/payment-quotes/[quoteId]/revoke/post.js";
+import mountCreateMpsQuote from "./[id]/payment-quotes/post.js";
 import mountGetTaskReceipt from "./[id]/receipt/get.js";
 import mountDeleteTaskShareById from "./[id]/share/delete.js";
 import mountPutTaskShareById from "./[id]/share/put.js";
@@ -40,8 +45,14 @@ import mountSuggestTaskTags from "./tag-suggestions/post.js";
 
 const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
-  requireOrganizationProductSeat: true,
 });
+
+// Quotes use the Task's original billing organization for Seat eligibility.
+mountCreateMpsQuote(app);
+mountGetMpsQuote(app);
+mountApproveMpsQuote(app);
+mountRevokeMpsQuote(app);
+app.use("*", organizationProductSeatMiddleware);
 
 // Temporary middleware in front of the routes below; see its index.
 mountLegacyVendorSchedules(app);

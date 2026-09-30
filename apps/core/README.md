@@ -62,6 +62,27 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 
 `PORT` defaults to `8787`. See `.env.example` and `env.ts` for the full list (webhooks, OpenRouter keys, cron, blob storage, etc.).
 
+### MPS seller credentials
+
+[VERIFIED: `src/lib/mps-seller-credentials.ts`, `src/services/mps-seller.service.ts`]
+Seller setup requires `MPS_SELLER_ENCRYPTION_SECRET` on Core. It contains a dedicated AES-256-GCM key ring:
+
+```json
+{"activeKeyId":"v1","keys":{"v1":"<32-byte-base64-key>"}}
+```
+
+Store this value in the deployment's secret manager. Each key must decode to exactly 32 random bytes.
+Do not reuse `BETTER_AUTH_SECRET`, `PAYMENT_API_KEY`, or a seller API key.
+To rotate, add a new key and change `activeKeyId`. Retain old keys while stored credentials reference them.
+Replacing a seller binding retains its encrypted credential and MPS key identity for later recovery.
+Do not revoke that MPS key while funded work still needs it.
+
+[VERIFIED: `src/services/task-mps-payment-quote.service.ts`, `src/routes/v1/tasks/[id]/events/post.ts`]
+This slice supports seller setup and fixed quote approval. Every response reports `paymentsEnabled: false`.
+MPS payment events return `422` with kind `mps_payments_disabled`, including events from Soko Bots.
+Approval creates no debit or payment claim. Existing claim recovery remains available.
+The CLI [setup and approval instructions](../cli/README.md#mps-seller-setup-and-quote-approval) describe the supported commands.
+
 ### Project social accounts
 
 Project social accounts support X, TikTok, Instagram, LinkedIn, Facebook, and

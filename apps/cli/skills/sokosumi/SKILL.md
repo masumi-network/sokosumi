@@ -133,11 +133,26 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
 
 [VERIFIED: merged commit `c2271e441`, PR #5342; `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/runtime-task.ts`]
 Receipt support is merged. It reads Core with GET. Start and completion do not submit `masumiPayment` or create an MPS claim.
-[VERIFIED: planning briefs in repository `apps/cli/docs/mps-payment-stack/`]
-Seller setup, customer approval, paid execution, and payment recovery remain planned.
-The planning drafts contain no payment implementation. Do not infer payment capability from the installed Skill or Task completion.
+[CORRECTION, VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/routes/v1/tasks/[id]/events/post.ts`]
+The earlier status described setup and approval as planned. Developer commands now configure MPS sellers and record customer consent.
+Paid execution and live seller proof remain pending. `paymentsEnabled` is `false`; approval never means paid.
 
-[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live seller proof is pending.
+### Human seller setup and customer consent
+
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`; Core `apps/core/src/helpers/mps-payment-access.ts`]
+A Vendor admin connects an existing MPS node through `coworkers mps-connect`.
+The operator supplies the scoped seller key through `--mps-api-key-stdin`. Never request it in chat or expose it to the runtime.
+Use `coworkers mps-status COWORKER_ID` to inspect setup and `coworkers mps-revoke COWORKER_ID --binding-id BINDING_ID` to revoke it.
+The repository [CLI README](https://github.com/masumi-network/sokosumi/blob/main/apps/cli/README.md#mps-seller-setup-and-quote-approval) has the full setup flags.
+
+[VERIFIED: `apps/cli/src/cli/commands/tasks.ts`; Core `apps/core/src/services/task-mps-payment-quote.service.ts`]
+The Task billing owner requests `tasks payment-quote` with a request ID and four explicit deadlines.
+An organization quote requires membership and applicable Seat eligibility in the original billing organization.
+Read `tasks payment-status TASK_ID --quote-id QUOTE_ID` and show the customer its destination, amounts, deadlines, billing account, and terms hash.
+Only after explicit customer consent, use `tasks payment-approve` with that hash, a credit ceiling, and `--confirm-payment`.
+Use `tasks payment-revoke TASK_ID --quote-id QUOTE_ID` to withdraw unused consent.
+Keep the current Workspace slug on organization calls. For an uncertain quote request, reuse its request ID and deadlines.
+Never retry with a new request ID automatically. Runtime start, completion, and receipt commands do not authorize payment.
 
 ## Create and inspect organization Tasks
 

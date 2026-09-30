@@ -1,22 +1,22 @@
 # MPS seller setup and Task authorization
 
-[PROPOSED] Draft title: `docs(cli): plan MPS seller setup and Task authorization`.
+[VERIFIED: merged documentation at `40f035984`] Planning title: `docs(cli): plan MPS seller setup and Task authorization`.
 
-[PROPOSED] Later implementation title: `feat(coworkers): configure MPS sellers and authorize Task payments`.
+[PROPOSED] Implementation title: `feat(coworkers): configure MPS sellers and authorize Task payments`.
 
-[PROPOSED] Implementation status: **Planned**. Owner: coordinator. This documentation PR defines the implementation. It contains no payment code.
+[CORRECTION, VERIFIED: local services and checks, 2026-09-30] Status: **Implemented, awaiting PR review**. Seller setup and quote approval are implemented. The earlier pending status described preparation only. Paid execution remains disabled.
 
 [REPORTED: coordinator task, 2026-09-30] The user requested three draft implementation briefs. MPS is required.
 
 ## Dependency and outcome
 
-[PROPOSED] Branch: `sok-1132-mps-seller-authorization`. Base: `main`.
+[VERIFIED: local Git checkout] Implementation branch: `sok-1132-mps-seller-implementation`. Rebased from `40f035984` onto main `88a2a3a2c` after the three later main commits. The rebase had no conflicts.
 
 [VERIFIED: GitHub PR read, 2026-09-30] #5342 merged at `2026-09-30T07:43:45Z` as `c2271e4418faae9f8cae527bc1e29354975c8fa5`. This draft starts after that receipt change.
 
 [PROPOSED] A Vendor admin connects a verified MPS seller. A customer approves fixed terms for one Task. CLI reports readiness and approved amounts. Setup alone must not enable incomplete payments.
 
-## Current evidence
+## Baseline evidence
 
 [VERIFIED: source read at Sokosumi `2ec6554574d85b03845cca24ac87d3bc3992eea5`] These checks establish source behavior, not deployed configuration or successful payments.
 
@@ -83,23 +83,107 @@
 
 | Proposed case | Required evidence | Status |
 | --- | --- | --- |
-| [PROPOSED] Seller authority and readiness | Foreign Vendor, assignment-only caller, wrong network, unverified destination, revoked access rejected | Planned |
-| [PROPOSED] Quote authorization | Changed terms, wrong billing account, moved Task, expiry, ceiling breach rejected | Planned |
-| [PROPOSED] Debit boundary | Direct unapproved event blocked; concurrent consumption permits one debit; failure preserves approval | Planned |
-| [PROPOSED] Secrets and rotation | URL attacks and credential leaks rejected; accepted terms and recovery authority preserved | Planned |
-| [PROPOSED] Partial rollout and private use | Direct approved writes remain gated; unpaid private work gains no seller charge | Planned |
+| [REPORTED: reviewer suites] Seller authority and readiness | Foreign Vendor, assignment-only caller, wrong network, unverified destination, revoked access rejected | Covered by fixture tests; live proof pending |
+| [VERIFIED: quote service suite] Quote authorization | Changed terms, wrong billing account, moved Task, expiry, ceiling breach rejected | 40 service tests passed |
+| [VERIFIED: PostgreSQL suite] Debit boundary | Concurrent requests create one intent and one seller POST; concurrent approvals cannot replace consent | 4 integration tests passed; funding and consumption belong to PR 2 |
+| [REPORTED: credential and transport suites] Secrets and rotation | URL attacks and credential leaks rejected; binding context authenticated | Fixture tests passed; live key rotation pending |
+| [REPORTED: event suite] Partial rollout and private use | Direct approved writes remain gated; ordinary credit events retain their tests | 84 event tests passed |
+
+## Current implementation step
+
+[CORRECTION, VERIFIED: `packages/net/src/ssrf-fetch.ts`, `packages/masumi/src/clients/masumi-seller.client.ts`] The earlier transport-only status is superseded. Seller verification and quote requests now use `redirect: "error"`. Existing callers retain their default redirect behavior.
+
+[VERIFIED: `packages/net/src/ssrf-fetch.test.ts`, 2026-09-30] Invariant NET-1: a request with `redirect: "error"` rejects every 3xx response and makes no request to its redirect destination. The rejection message contains neither request credentials nor the redirect URL. Fixture tests cover GET, HEAD, POST, missing Location headers, and non-3xx responses. These tests do not exercise a live MPS node.
+
+[VERIFIED: local commands, 2026-09-30] With only the source restored to `HEAD`, `pnpm --filter @sokosumi/net test src/ssrf-fetch.test.ts` returned exit 1: `Tests 11 failed | 24 passed (35)`. After restoring the changed source, `pnpm --filter @sokosumi/net test` returned exit 0: `Tests 39 passed (39)`, `Test Files 2 passed (2)`. Package typecheck and build each returned exit 0. Biome reported `Checked 2 files` and `No fixes applied.`
+
+[REPORTED: reviewer source audit, 2026-09-30] Generated MPS clients accept an injected `fetch`. `getApiKeyStatus`, `getWalletList`, `getPaymentSource`, `getRegistryAgentIdentifier`, and `getBalance` provide read checks for seller setup. Read responses are a snapshot, not proof of signing or settlement. Core has no general seller-secret backend identified by this audit.
+
+[REPORTED: reviewer source audit, 2026-09-30] `apps/cli/src/api/http-client.ts:116-138` follows redirects and redacts the human authentication token. Sending an MPS key through CLI setup also requires redirect rejection and request-specific secret redaction on the CLI-to-Core request.
+
+[REPORTED: user decision, 2026-09-30] Use developer self-service setup through CLI. Core stores the scoped MPS credential encrypted. Do not reuse buyer-node credentials or put seller keys in Coworker metadata. Runtime credentials remain separate.
+
+[PROPOSED] Owner: coordinator. Reuse the generated MPS client, Core's Vendor-admin membership checks, and CLI's HTTP transport. Use a dedicated, versioned deployment encryption key ring for seller credentials. Bind ciphertext to its immutable seller connection. Retain old encryption keys and MPS key identities for funded-payment recovery.
+
+[VERIFIED: preparation checks, 2026-09-30] `apps/core/src/lib/mps-seller-credentials.ts` implements AES-256-GCM with a dedicated key ring and authenticated binding context. `pnpm --filter core test src/lib/mps-seller-credentials.test.ts` returned `Tests 69 passed (69)`. Preparation typecheck returned `20 successful, 20 total`, with `13 cached, 20 total`. Those checks covered the helper before integration.
+[CORRECTION, VERIFIED: `apps/core/src/services/mps-seller.service.ts`] The helper now encrypts credentials for persisted seller bindings. Setup requires `MPS_SELLER_ENCRYPTION_SECRET`; no runtime receives that value or the seller key.
+
+[REPORTED: implementation reviewer regression probe, 2026-09-30] Removing the context values from authenticated data caused `9 failed | 60 passed (69)`. Restoring the source returned `69 passed (69)`.
+
+[REPORTED: CLI reviewer, 2026-09-30] The local user checkout includes a `runtime pay --confirm-payment` prototype. It posts payment terms with Coworker credentials after Task completion. It does not implement customer quote approval or funding before work. Preserve that checkout. Build the paid flow against the merged CLI and Skills in `ebe21986ce433d9736f537cf1332b61404b5e577`.
+
+### Storage audit and proposed records
+
+[REPORTED: database reviewer, source `700d02f10974d0b80dd0802a59dbb353090ac5c0`, 2026-09-30] The audit read all 410 migration SQL files, totaling 628,884 bytes. It traced historical table definitions, drops, renames, and payment constraints. It did not execute migrations or inspect a database. Target database state remains unknown.
+
+[VERIFIED: initial database checks, 2026-09-30] The configured loopback database returned `ECONNREFUSED`; its state remains unknown. A separate PostgreSQL 17 instance on a private Unix socket applied the initial 410 migrations. A read-only query returned `applied_migrations: 410`. `pnpm --filter @sokosumi/database prisma:check-drift` returned exit 0 and `-- This is an empty migration.` These results describe the initial disposable baseline, not Preprod or the configured local database. The candidate audit below supersedes the earlier no-migration status.
+
+[VERIFIED: `packages/database/prisma/schema.prisma:306,2622,3365`] `VendorGrant` records Workspace access. `SokoBotPendingDecision` requires a Soko Bot and turn. `TaskPaymentClaim.transactionId` is required. None of these records represents an unpaid Coworker quote with a verified seller binding.
+
+[PROPOSED] Add one seller binding version and one Task quote record. The binding preserves seller configuration and a protected credential reference. The quote preserves that binding, original billing identity, accepted terms, ceiling, expiry, approval, revocation, and consumption state. Reuse the existing debit and claim. This is a proposed model shape, not an approved migration.
+
+[REPORTED: database reviewer] `apps/core/src/routes/v1/tasks/[id]/events/post.ts:283` opens the existing Serializable transaction. Approval consumption belongs with its debit, Task event, and claim. External MPS requests must stay outside that transaction. `apps/core/src/helpers/user-deletion-tasks.ts:242,257` blocks pending claims and removes terminal claims. Consumption must survive deletion of a terminal claim. Original billing snapshots must also survive a nullable organization relation.
+
+## Implementation contracts
+
+[PROPOSED: coordinator, 2026-09-30] Implement against merged main `40f035984`. Reuse strict Vendor-admin membership, Task ownership, original-organization Seat checks, the generated MPS clients, and the existing payment claim path. Seller configuration grants no platform-admin exemption and no spending permission.
+
+1. Core stores immutable `CoworkerMpsSellerBinding` versions. One active version exists per Coworker and network. Replacement revokes the previous version without deleting its encrypted credential. A dedicated deployment key ring encrypts the scoped seller key.
+2. Core stores `TaskMpsPaymentQuote` before requesting seller terms. A caller-supplied idempotency key identifies that request. An uncertain remote result never causes another payment POST. Quote terms and original billing identity stay fixed. Customer approval requires the displayed terms hash and credit ceiling.
+3. `POST /v1/coworkers/{id}/mps-seller` accepts the endpoint, registry identifier, wallet ID, payment source ID, and API key. GET returns an allowlisted public status. POST to `/revoke` takes the binding ID. CLI supplies the key through stdin only and rejects redirects.
+4. Task quote routes create, inspect, approve, and revoke quotes. All `masumiPayment` event writes remain disabled in this implementation until funded execution and recovery are complete. Existing claim recovery stays available.
+
+[PROPOSED: file ownership] Coordinator owns schema, migrations, Core services/routes/schemas, configuration, and this record. The Core reviewer owns `helpers/mps-payment-access.ts` and tests. The MPS implementer owns `clients/masumi-seller.client.ts` and tests. The CLI implementer owns the existing transport and its tests. Shared interfaces change through the coordinator.
+
+[VERIFIED: local database check, 2026-09-30] The configured loopback database still returned `ECONNREFUSED`. Its state remains unknown. The disposable database applied all 411 existing migrations, then `20260930160001_mps_seller_and_task_quote`. Candidate SQL creates two tables, seven indexes, and four foreign keys. It does not alter existing rows or columns. Post-apply drift returned `-- This is an empty migration.` No shared database changed.
+
+### Implemented quote contract
+
+[VERIFIED: `apps/core/src/services/task-mps-payment-quote.service.ts`]
+Quote creation requires four explicit ISO deadlines. MPS requires minimum gaps of 5, 15, and 15 minutes.
+The result deadline must stay at least 15 minutes ahead when the node receives the request.
+The request is persisted before one seller POST. Reusing the request ID and deadlines performs read-only recovery.
+Known seller rejection returns `422`. Unknown outcomes retain an unresolved intent.
+Review and approval expire after at most 15 minutes. Approval requires the exact terms hash and a credit ceiling.
+It creates no debit, claim, or consumed quote.
+
+[VERIFIED: quote regression command, 2026-09-30]
+`pnpm --filter core test src/services/task-mps-payment-quote.service.test.ts` returned `5 failed | 35 passed (40)` before the deadline/error fix.
+After the fix it returned `40 passed (40)`. These service tests mock storage and the MPS client.
+
+[REPORTED: independent reviewers, 2026-09-30]
+Seller verification tests returned `95 passed`. Removing quote guards caused `2 failed | 93 skipped (95)`.
+Task route tests returned `33 passed`. Restoring the old selected-organization Seat middleware caused `1 failed | 29 passed (30)`.
+CLI payment tests returned `84 passed`; reverting command sources caused `8 failed | 1 passed (9)`.
+These are local fixture and route checks, not a live seller payout.
+
+[VERIFIED: final local checks before the rebase, 2026-09-30]
+`pnpm --filter core test` returned `700 passed | 13 skipped (713)` files and `8673 passed | 155 skipped (8828)` tests.
+`pnpm --filter @masumi_network/sokosumi test:ci` returned `498 passed, 0 failed`.
+Core and Web typecheck each exited `0`. Core and CLI build returned `9 successful, 9 total` Turbo tasks.
+Biome returned `Checked 5207 files in 10s. No fixes applied.` Migration ordering returned `14 passed (14)`.
+Documentation and migration CI tests returned `3 passed, 0 failed`.
+The opt-in PostgreSQL suite returned `4 passed (4)` with mocked MPS calls and real storage.
+Skipped tests and a live seller payout are not covered by these results.
+
+[CORRECTION, VERIFIED: local regression checks]
+Approval previously accepted precision that Core rounded away, so CLI could report failure after saving consent.
+Both boundaries now reject more than 10 decimal places before the write.
+Core route tests failed `2 failed | 33 passed (35)` before the change and passed `35 passed (35)` afterward.
+The combined run also exposed slow fixture compression in one Masumi test.
+[REPORTED: package reviewer] Precomputed samples preserve the rejection checks; the full suite then returned `519 passed (519)`.
 
 ## Acceptance and migration preconditions
 
 - [x] [REPORTED: user decisions, 2026-09-30] Use an existing developer-managed MPS seller and encrypted Core storage through self-service CLI setup.
 - [x] [REPORTED: user decision, 2026-09-30] Use Task billing-owner approval with original-organization membership and applicable Seat eligibility.
-- [ ] [PROPOSED] Demonstrate setup and approval through CLI and Core, including direct API rejection tests.
-- [ ] [PROPOSED] Run relevant tests, PostgreSQL race tests, typecheck, build, and Biome. Record exact results; every matrix case remains Planned here.
-- [ ] [PROPOSED] Inspect models and full migration history before proposing persistent changes. No migration is assumed. Verify relevant database state read-only. Test any candidate against disposable PostgreSQL and inspect its SQL and existing-row effects.
-- [ ] [PROPOSED] Keep customer enablement blocked until lifecycle tests and live payout proof pass.
+- [x] [REPORTED: CLI and Core reviewers] Fixture tests exercise setup and approval commands and direct API rejection. Live seller setup remains unverified.
+- [x] [VERIFIED: commands above] Relevant suites, PostgreSQL races, typecheck, build, and Biome passed locally. The results do not establish deployed payment capability.
+- [x] [VERIFIED: disposable PostgreSQL logs and candidate SQL] All 411 baseline migrations and the candidate applied. Drift is empty. Existing rows need no transformation. The configured local database is unavailable; no shared database was targeted.
+- [x] [VERIFIED: `apps/core/src/routes/v1/tasks/[id]/events/post.ts`] MPS events return `422` with kind `mps_payments_disabled` for Coworkers and Soko Bots. Existing claim recovery remains intact.
 
 ## Least confident decisions
 
-1. [OPEN] Persistent models, credential rotation, and recovery require implementation review and the migration checks above. Existing payment claims require a debit transaction; they cannot represent an unpaid quote unchanged.
-2. [OPEN] V2 quote creation needs an authoritative supported-payment-source index. The registry read response filters sources, while payment creation indexes the original metadata array. Do not infer that index from a filtered response. Source audit: MPS `src/routes/api/registry/agent-identifier/index.ts:24-34` and `src/routes/api/payments/index.ts:180-186` at `ce960265eac56b9d468173e052e64fa4c9e7a2f2`.
-3. [OPEN] Seller address decoding and trusted chain checks must bind the wallet key hash to the registration asset. Rollout controls and existing caller compatibility still require verification. No schema change or caller exemption is included in this documentation PR.
+1. [OPEN] Live setup, key rotation, signing, and seller payout still need proof. Read-only verification cannot establish successful settlement. Quote decoding rejects identifiers above 1,024 compressed bytes or 4,096 decoded characters. It does not attest the COSE signature; the buyer must verify it before funding.
+2. [VERIFIED: `packages/masumi/src/clients/masumi-seller.client.ts`] V2 uses the trusted registry's explicit `sourceIndex`, never a filtered-array position. Fresh trusted MPS checks verify pricing and registration NFT ownership. [OPEN] The registry backend's freshness is not independently established by these tests.
+3. [PROPOSED: PR 2 prerequisites] Carry the approved `sellerReturnAddress` through claim creation and purchase. Block Task/user deletion while funded work remains unsettled. The current user-deletion path can delete a purchased claim; do not enable funding before fixing that path. Keep approval consumption independent of claim deletion.

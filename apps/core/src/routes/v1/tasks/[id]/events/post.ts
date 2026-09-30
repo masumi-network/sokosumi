@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
-import { Prisma, TaskStatus } from "@sokosumi/database";
+import { type Prisma, TaskStatus } from "@sokosumi/database";
 import {
   CORE_API_ERROR_KINDS,
-  convertCentsToCredits,
   convertCreditsToCents,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -17,24 +16,15 @@ import {
   requireTaskCommentAccess,
   requireTaskStatusWriteAccess,
 } from "@/helpers/access-control";
-import {
-  getCardanoV2ReadySources,
-  getCreditCostsOrThrow,
-  isCardanoV2SourceReady,
-} from "@/helpers/agent";
-import { calculateCentsFromMasumiAmountStrings } from "@/helpers/agent-cost";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
-  conflict,
   errorResponseWithExtensionsSchema,
   internalServerError,
   unprocessableEntity,
 } from "@/helpers/error";
-import { isV2MasumiTaskPayment } from "@/helpers/masumi-task-payment";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
-import { isBlockchainIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created, unprocessableWithData } from "@/helpers/response";
 import {
   mapTaskEvent,
@@ -56,16 +46,10 @@ import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { publishTaskEventData } from "@/lib/ably/publish";
 import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
-import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
 import { sourceImportService } from "@/services/source-import.service";
-import {
-  createTaskPaymentClaim,
-  processTaskPaymentClaim,
-} from "@/services/task-payment-claim.service";
 import { taskEventApiInclude } from "@/types/task";
 
 import { createTaskEventRequestSchema } from "./schema";
@@ -84,9 +68,6 @@ interface SettleTaskEventChargeParams {
     status: TaskStatus;
   };
   credits?: number | null;
-  masumiPayment?: z.infer<
-    ReturnType<typeof createTaskEventRequestSchema>
-  >["masumiPayment"];
   tx: Prisma.TransactionClient;
 }
 
@@ -95,90 +76,13 @@ interface SettleTaskEventChargeResult {
   transactionId: string | null;
   /** When set, charge failed for balance and status was replaced. */
   eventStatus: TaskStatus | null;
-  chargedMasumiPayment: boolean;
 }
 
 async function settleTaskEventCharge({
   task,
   credits,
-  masumiPayment,
   tx,
 }: SettleTaskEventChargeParams): Promise<SettleTaskEventChargeResult> {
-  if (masumiPayment) {
-    console.info("[tasks] masumi task payment: using masumiPayment", {
-      masumiPayment,
-    });
-    // V2 payments are gated exactly like the job flow: a payment node that
-    // recently reported the payload's EXACT policy/contract source as
-    // purchase-ready. Rejecting before the charge avoids a pointless
-    // debit/refund cycle; unexpected node rejection is compensated below.
-    const isV2TaskPayment = isV2MasumiTaskPayment(masumiPayment);
-    if (isV2TaskPayment) {
-      const readySources = await getCardanoV2ReadySources(tx);
-      if (readySources.length === 0) {
-        throw unprocessableEntity(
-          "Cardano V2 payments are not enabled on this deployment",
-        );
-      }
-      const paymentSource = masumiPayment.PaymentSource;
-      if (!paymentSource) {
-        throw unprocessableEntity(
-          "V2 masumi payments must include PaymentSource with the seller's policyId and smartContractAddress",
-        );
-      }
-      // Same matcher as the job flow. isCardanoV2SourceReady lowercases both
-      // sides, so a mixed-case address or identifier from the node still
-      // matches a purchase-ready source.
-      const isSourceReady = isCardanoV2SourceReady(
-        masumiPayment.agentIdentifier,
-        paymentSource.smartContractAddress,
-        readySources,
-      );
-      if (!isSourceReady) {
-        throw unprocessableEntity(
-          "The selected Cardano V2 payment source is not purchase-ready on this deployment",
-        );
-      }
-    }
-    const creditCosts = await getCreditCostsOrThrow(tx);
-    const cents = calculateCentsFromMasumiAmountStrings(
-      masumiPayment.Amounts,
-      creditCosts,
-    );
-    if (cents === 0n) {
-      throw unprocessableEntity(
-        `Credit amount rounds to zero; minimum chargeable amount is ${LIMITS.MIN_CHARGEABLE_CREDITS} credits`,
-      );
-    }
-    const creditsValue = convertCentsToCredits(cents);
-    if (creditsValue < LIMITS.MIN_CHARGEABLE_CREDITS) {
-      throw unprocessableEntity(
-        `Credit amount is below the minimum chargeable value (${LIMITS.MIN_CHARGEABLE_CREDITS})`,
-      );
-    }
-    const charge = await chargeTaskCreditsOrMarkOutOfCredits({
-      userId: task.ownerId,
-      organizationId: task.organizationId,
-      cents,
-      currentStatus: task.status,
-      tx,
-    });
-    if (charge.eventStatus != null) {
-      return {
-        cents,
-        transactionId: null,
-        eventStatus: charge.eventStatus,
-        chargedMasumiPayment: false,
-      };
-    }
-    return {
-      cents,
-      transactionId: charge.transactionId,
-      eventStatus: null,
-      chargedMasumiPayment: true,
-    };
-  }
-
   if (credits != null && credits > 0) {
     const cents = convertCreditsToCents(credits);
     if (cents === 0n) {
@@ -198,14 +102,12 @@ async function settleTaskEventCharge({
         cents,
         transactionId: null,
         eventStatus: charge.eventStatus,
-        chargedMasumiPayment: false,
       };
     }
     return {
       cents,
       transactionId: charge.transactionId,
       eventStatus: null,
-      chargedMasumiPayment: false,
     };
   }
 
@@ -213,7 +115,6 @@ async function settleTaskEventCharge({
     cents: undefined,
     transactionId: null,
     eventStatus: null,
-    chargedMasumiPayment: false,
   };
 }
 
@@ -239,7 +140,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   const route = createRoute({
     method: "post",
     path: "/{id}/events",
-    description: "Create task event",
+    description:
+      "Create task event. MPS payments are disabled during the seller setup rollout.",
     tags: ["Tasks"],
     request: {
       params: paramsSchema,
@@ -260,7 +162,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       409: jsonErrorResponse("Conflict"),
       422: {
         description:
-          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).",
+          "Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`), or mps_payments_disabled (MPS payment writes are disabled; nothing is charged).",
         content: {
           "application/json": {
             schema: errorResponseWithExtensionsSchema({
@@ -331,6 +233,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         );
       }
 
+      if (masumiPayment != null) {
+        throw unprocessableEntity(
+          "MPS task payments are disabled until the paid lifecycle is available",
+          { kind: "mps_payments_disabled" },
+        );
+      }
+
       if (
         status === undefined &&
         comment === undefined &&
@@ -380,22 +289,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       let cents: bigint | undefined;
       let transactionId: string | null = null;
       let eventStatus: TaskStatus | null = status ?? null;
-      let chargedMasumiPayment = false;
       let pausedForInsufficientBalance = false;
 
-      if (
-        isAgent &&
-        (masumiPayment != null || (credits != null && credits > 0))
-      ) {
+      if (isAgent && credits != null && credits > 0) {
         const settled = await settleTaskEventCharge({
           task,
           credits,
-          masumiPayment,
           tx,
         });
         cents = settled.cents;
         transactionId = settled.transactionId;
-        chargedMasumiPayment = settled.chargedMasumiPayment;
         if (settled.eventStatus != null) {
           eventStatus = settled.eventStatus;
           pausedForInsufficientBalance =
@@ -418,52 +321,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         },
       });
 
-      let taskPaymentClaimId: string | null = null;
-      if (chargedMasumiPayment && masumiPayment !== undefined) {
-        if (!transactionId) {
-          throw internalServerError(
-            "Charged Masumi task payment has no transaction",
-          );
-        }
-        taskPaymentClaimId = await createTaskPaymentClaim({
-          network: getEnv().NETWORK,
-          // Dedupe key only. Lowercased so the (network, blockchainIdentifier)
-          // unique index catches a resubmission that differs solely in casing
-          // — without it that payment would claim a second row, and the outbox
-          // would place a second purchase for work already paid for. The
-          // payload below deliberately keeps the seller's original casing,
-          // which is what the node is sent.
-          blockchainIdentifier:
-            masumiPayment.blockchainIdentifier.toLowerCase(),
-          purchasePayload: {
-            blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            agentIdentifier: masumiPayment.agentIdentifier,
-            sellerVkey: masumiPayment.sellerVkey,
-            submitResultTime: masumiPayment.submitResultTime,
-            payByTime: masumiPayment.payByTime,
-            unlockTime: masumiPayment.unlockTime,
-            externalDisputeUnlockTime: masumiPayment.externalDisputeUnlockTime,
-            inputHash: masumiPayment.inputHash,
-            Amounts: masumiPayment.Amounts,
-            identifierFromPurchaser: masumiPayment.identifierFromPurchaser,
-            paymentSourceType: masumiPayment.paymentSourceType,
-            smartContractAddress: isV2MasumiTaskPayment(masumiPayment)
-              ? masumiPayment.PaymentSource?.smartContractAddress
-              : undefined,
-            supportedPaymentSourceIndex: isV2MasumiTaskPayment(masumiPayment)
-              ? masumiPayment.supportedPaymentSourceIndex
-              : undefined,
-            metadata: JSON.stringify({
-              taskId,
-              taskEventId: createdEvent.id,
-            }),
-          },
-          taskEventId: createdEvent.id,
-          transactionId,
-          tx,
-        });
-      }
-
       // Update task when the caller requested a status change, or when a
       // failed charge replaced the outcome with OUT_OF_CREDITS (incl.
       // credit-only bodies that had no status).
@@ -475,11 +332,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           eventStatus,
         });
       }
-
-      const payment =
-        chargedMasumiPayment && masumiPayment !== undefined
-          ? masumiPayment
-          : null;
 
       // Enqueue PENDING task-output files from comment (in-transaction for durability)
       let addedParticipantUserIds: string[] = [];
@@ -507,22 +359,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         organizationId: task.organizationId,
         workspaceId: task.workspaceId,
         projectId: task.projectId,
-        masumiPayment: payment,
-        taskPaymentClaimId,
         pausedForInsufficientBalance,
         charged: transactionId !== null,
       };
-    }, "Task changed by a concurrent request. Please retry.").catch((error) => {
-      if (
-        body.masumiPayment &&
-        isBlockchainIdentifierUniqueConstraintError(error)
-      ) {
-        throw conflict(
-          "A task payment with this blockchainIdentifier already exists",
-        );
-      }
-      throw error;
-    });
+    }, "Task changed by a concurrent request. Please retry.");
     const {
       event,
       addedParticipantUserIds,
@@ -530,8 +370,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationId,
       workspaceId,
       projectId,
-      masumiPayment,
-      taskPaymentClaimId,
       pausedForInsufficientBalance,
       charged,
     } = transactionResult;
@@ -582,120 +420,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     if (charged) {
       waitUntil(notifyLowBalanceAfterCharge({ userId, organizationId }));
-    }
-
-    // Unreachable by construction (a charged payment always writes its claim
-    // in the same transaction). Never throw on it: the event and its debit are
-    // already committed, so throwing would answer 500 for work that succeeded.
-    if (masumiPayment != null && !taskPaymentClaimId) {
-      console.error("[tasks] masumi task payment: no durable claim", {
-        taskId,
-        taskEventId: event.id,
-        blockchainIdentifier: masumiPayment.blockchainIdentifier,
-      });
-      Sentry.captureMessage("Masumi task payment has no durable claim", {
-        level: "error",
-        tags: { error_type: "task_payment_claim_missing" },
-        extra: {
-          taskId,
-          taskEventId: event.id,
-          blockchainIdentifier: masumiPayment.blockchainIdentifier,
-        },
-      });
-    }
-
-    if (masumiPayment != null && taskPaymentClaimId) {
-      const taskEventId = event.id;
-
-      Sentry.addBreadcrumb({
-        category: "task_masumi_purchase",
-        message: "Scheduling task purchase (async)",
-        level: "info",
-        data: {
-          taskId,
-          taskEventId,
-          blockchainIdentifier: masumiPayment.blockchainIdentifier,
-        },
-      });
-
-      console.info("[tasks] masumi task payment: scheduling async purchase", {
-        taskId,
-        taskEventId,
-        blockchainIdentifier: masumiPayment.blockchainIdentifier,
-        agentIdentifier: masumiPayment.agentIdentifier,
-      });
-
-      const masumiPurchasePromise = (async () => {
-        try {
-          const result = await processTaskPaymentClaim(taskPaymentClaimId);
-          if (result.status === "purchased") {
-            console.info("[tasks] masumi task payment: purchase created", {
-              taskId,
-              taskEventId,
-              purchaseId: result.purchaseId,
-              blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            });
-            Sentry.addBreadcrumb({
-              category: "task_masumi_purchase",
-              message: "Task purchase created",
-              level: "info",
-              data: { taskId, purchaseId: result.purchaseId },
-            });
-            return;
-          }
-          if (result.status === "refunded") {
-            Sentry.captureMessage(
-              `Task purchase permanently rejected: ${result.reason}`,
-              {
-                level: "error",
-                tags: {
-                  error_type: "task_purchase_permanent_failure",
-                  compensated: String(result.compensated),
-                },
-                extra: {
-                  taskId,
-                  taskEventId,
-                  claimId: taskPaymentClaimId,
-                  blockchainIdentifier: masumiPayment.blockchainIdentifier,
-                },
-              },
-            );
-            return;
-          }
-          if (result.status === "retry_scheduled") {
-            // The processor returns the full reason. Redact it before applying
-            // the stdout cap; the database cap does not protect this log.
-            console.warn(
-              "[tasks] masumi task payment: retry scheduled",
-              redactDeep(
-                {
-                  taskId,
-                  taskEventId,
-                  claimId: taskPaymentClaimId,
-                  reason: formatUpstreamErrorForLog(result.reason),
-                },
-                getEnvSecrets(),
-              ),
-            );
-          }
-        } catch (error) {
-          // Durable PENDING claim remains recoverable by cron. Never refund an
-          // ambiguous branch: remote purchase may already exist.
-          console.error("[tasks] masumi task payment: processor failed", {
-            taskId,
-            taskEventId,
-            claimId: taskPaymentClaimId,
-            blockchainIdentifier: masumiPayment.blockchainIdentifier,
-            error,
-          });
-          Sentry.captureException(error, {
-            tags: { error_type: "task_purchase_processor_failed" },
-            extra: { taskId, taskEventId, claimId: taskPaymentClaimId },
-          });
-        }
-      })();
-
-      waitUntil(masumiPurchasePromise);
     }
 
     const taskIdsToPublish = [{ userId, taskId }];

@@ -199,6 +199,75 @@ describe("ssrfSafeFetch", () => {
     expect(httpsRequestMock).toHaveBeenCalledTimes(1);
   });
 
+  // NET-1 in apps/cli/docs/mps-payment-stack/01-seller-authorization.md.
+  it.each(["GET", "HEAD", "POST"])(
+    "rejects %s redirects without forwarding credentials when redirect is error",
+    async (method) => {
+      const captured: CapturedRequest[] = [];
+      httpsRequestMock.mockImplementation(
+        mockRequestImplementation(
+          {
+            status: 302,
+            headers: { location: "https://other.example.com/token-fixture" },
+          },
+          captured,
+        ),
+      );
+
+      await expect(
+        ssrfSafeFetch("https://seller.example.com/api-key-status", {
+          method,
+          headers: { token: "seller-key-fixture" },
+          redirect: "error",
+          maxResponseBytes: 1024,
+        }),
+      ).rejects.toEqual(new SsrfError("Redirects are not allowed"));
+      expect(captured).toHaveLength(1);
+      expect(captured[0].options.headers).toEqual({
+        token: "seller-key-fixture",
+      });
+      expect(useAgentMock).toHaveBeenCalledExactlyOnceWith(
+        "https://seller.example.com/api-key-status",
+      );
+      expect(httpRequestMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([300, 301, 302, 303, 304, 307, 308, 399])(
+    "rejects status %s without a Location header when redirect is error",
+    async (status) => {
+      httpsRequestMock.mockImplementation(
+        mockRequestImplementation({ status }),
+      );
+
+      await expect(
+        ssrfSafeFetch("https://seller.example.com/api-key-status", {
+          redirect: "error",
+          maxResponseBytes: 1024,
+        }),
+      ).rejects.toThrow("Redirects are not allowed");
+      expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([200, 401, 503])(
+    "returns status %s unchanged when redirect is error",
+    async (status) => {
+      httpsRequestMock.mockImplementation(
+        mockRequestImplementation({ status, body: "response" }),
+      );
+
+      const response = await ssrfSafeFetch("https://seller.example.com/x", {
+        redirect: "error",
+        maxResponseBytes: 1024,
+      });
+
+      expect(response.status).toBe(status);
+      expect(await response.text()).toBe("response");
+      expect(httpsRequestMock).toHaveBeenCalledTimes(1);
+    },
+  );
+
   it("throws once the GET redirect limit is exceeded", async () => {
     httpsRequestMock.mockImplementation(
       mockRequestImplementation({

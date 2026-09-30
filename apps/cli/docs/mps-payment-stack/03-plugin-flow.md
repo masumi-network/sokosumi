@@ -24,6 +24,11 @@
 
 [REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. The developer will retain control of its node and wallet. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. It will not require organization owner/admin rank. Implementation and live seller proof remain pending.
 
+[CORRECTION, VERIFIED: PR 1 source, `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/commands/tasks.ts`]
+Seller setup and quote approval are now implemented locally in `sok-1132-mps-seller-implementation`.
+The bundled Skill documents those commands. PR 2 still owns paid execution and recovery.
+This PR still needs installed-host and live payout proof. `paymentsEnabled` remains `false`.
+
 ## Requirements
 
 1. [PROPOSED] The Skill must check the installed CLI's capabilities before suggesting payment commands. It must explain missing setup or an incompatible version. Do not assume another focused Skill is installed. Keep examples tied to the implemented command contract.

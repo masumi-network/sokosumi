@@ -27,6 +27,8 @@ export interface SsrfSafeFetchInit {
   headers?: Record<string, string>;
   body?: string | Uint8Array<ArrayBuffer>;
   signal?: AbortSignal;
+  /** Reject every 3xx response when set to "error". Defaults to "follow". */
+  redirect?: "follow" | "error";
   /** Called before buffering each response chunk, including redirect/error bodies.
    * Throw to abort the response, for example when a shared byte budget expires. */
   onResponseBytes?: (bytes: number) => void;
@@ -192,7 +194,8 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
  * Returns a standard {@link Response} (so callers use `.ok`/`.status`/
  * `.json()`/`.headers` as with `fetch`). Only GET/HEAD redirects are followed
  * (up to {@link MAX_SSRF_FETCH_REDIRECTS}); for other methods the 3xx response
- * is returned as-is.
+ * is returned as-is. Set `redirect: "error"` for credential-bearing requests
+ * that must reject all 3xx responses without following a Location header.
  *
  * @throws {SsrfError} when a hop fails URL validation or the redirect limit is
  *   hit. Address-blocked connections reject with the agent's own error.
@@ -215,6 +218,14 @@ export async function ssrfSafeFetch(
     const url = assertPublicHttpUrl(currentUrl);
 
     const response = await guardedRequest(url, init);
+
+    if (
+      init.redirect === "error" &&
+      response.status >= 300 &&
+      response.status < 400
+    ) {
+      throw new SsrfError("Redirects are not allowed");
+    }
 
     const location = response.headers.get("location");
     const isRedirect =
