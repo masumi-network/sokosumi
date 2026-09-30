@@ -78,6 +78,7 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
   resolveSignUpNameBody,
@@ -522,6 +523,7 @@ export const auth = betterAuth({
   },
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
+    signUpEmailStatus(),
     magicLink({
       disableSignUp: false,
       expiresIn: 60 * 10, // 10 minutes

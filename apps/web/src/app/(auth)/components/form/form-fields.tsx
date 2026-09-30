@@ -13,6 +13,7 @@ import {
   FormControl,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -45,6 +46,9 @@ export function FormFields<T extends FieldValues>({
           name={formDataItem.name as unknown as Path<T>}
           render={({ field }) => (
             <FormItem>
+              {formDataItem.labelKey && formDataItem.type !== "checkbox" ? (
+                <FormLabel>{t(formDataItem.labelKey)}</FormLabel>
+              ) : null}
               <FormControl>
                 <FormInput
                   field={field}

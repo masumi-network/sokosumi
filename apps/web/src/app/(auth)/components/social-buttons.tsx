@@ -18,8 +18,6 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAuthCaptcha } from "@/components/auth-captcha";
-
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
@@ -30,6 +28,8 @@ import {
 import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
+
+import { useMagicLinkRequest } from "./use-magic-link-request";
 
 export type SocialButtonProviderId = "google" | "microsoft";
 export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
@@ -67,21 +67,20 @@ export default function SocialButtons({
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
-  const {
-    widget: captcha,
-    runWithCaptcha,
-    getErrorMessage,
-  } = useAuthCaptcha("magic-link");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
+  const {
+    captcha,
+    isRequesting: isRequestingMagicLink,
+    sentTo: magicLinkSentTo,
+    requestMagicLink,
+  } = useMagicLinkRequest(effectiveReturnUrl);
   const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
   const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
-  const [isRequestingMagicLink, setIsRequestingMagicLink] = useState(false);
   const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
   const hasMagicLinkSuccess =
     magicLinkEmail.trim().length > 0 &&
     magicLinkEmail.trim() === magicLinkSentTo;
@@ -187,40 +186,7 @@ export default function SocialButtons({
       return;
     }
 
-    track("Sign In", { provider: "magic-link", direct_signup_link: false });
-    setIsRequestingMagicLink(true);
-
-    try {
-      // The link lands on the callback page (full page load), which fires the
-      // `login` GTM event and then forwards to the return URL.
-      await runWithCaptcha(async (fetchOptions) => {
-        const result = await authClient.signIn.magicLink({
-          fetchOptions,
-          email: trimmedEmail,
-          callbackURL: buildAuthCallbackUrl(
-            "/auth/callback/signin",
-            "magic-link",
-            effectiveReturnUrl,
-          ),
-        });
-
-        if (result.error) {
-          toast.error(
-            getErrorMessage(
-              result.error,
-              result.error.message ?? t("magicLinkError"),
-            ),
-          );
-          return;
-        }
-
-        setMagicLinkSentTo(trimmedEmail);
-      });
-    } catch (_error) {
-      toast.error(t("magicLinkError"));
-    } finally {
-      setIsRequestingMagicLink(false);
-    }
+    await requestMagicLink(trimmedEmail);
   };
 
   const handleMagicLinkClick = () => {

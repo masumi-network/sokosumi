@@ -1152,7 +1152,8 @@
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
       "passwordDivider": "oder mit Passwort anmelden",
-      "emailDivider": "oder mit E-Mail registrieren",
+      "orDivider": "oder",
+      "magicLinkDivider": "oder ohne Passwort",
       "success": "Anmeldung erfolgreich",
       "error": "Anmeldung fehlgeschlagen",
       "lastUsed": "Zuletzt verwendet",
@@ -1236,16 +1237,24 @@
         },
         "Form": {
           "submit": "Registrieren",
+          "continueWithEmail": "Weiter mit E-Mail",
+          "AccountExists": {
+            "title": "Du hast bereits ein Konto",
+            "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
+            "logIn": "Anmelden"
+          },
+          "change": "Ändern",
+          "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
             "Email": {
-              "placeholder": "E-Mail"
+              "label": "E-Mail"
             },
             "FirstName": {
-              "placeholder": "Vorname"
+              "label": "Vorname"
             },
             "LastName": {
-              "placeholder": "Nachname"
+              "label": "Nachname"
             },
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
@@ -1261,7 +1270,7 @@
               "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
             },
             "Password": {
-              "placeholder": "Passwort"
+              "label": "Passwort"
             }
           },
           "Errors": {
