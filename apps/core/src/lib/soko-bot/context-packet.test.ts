@@ -375,6 +375,19 @@ describe("ContextPacketBuilder", () => {
     if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
   });
 
+  it("keeps the newest reply long enough to hold the question it ended with", async () => {
+    const long = `${"Research. ".repeat(150)}Want me to replace the row?`;
+    // Newest first, as the query returns them.
+    recentTurnFindManyMock.mockResolvedValue([
+      recentTurn("turn-new", "Update the file", long),
+      recentTurn("turn-old", "Earlier", long),
+    ]);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const [older, newest] = result.packet.recentTurns;
+    expect(newest?.finalAnswer).toContain("Want me to replace the row?");
+    expect(String(older?.finalAnswer).length).toBeLessThanOrEqual(600);
+  });
+
   it("adds bounded operational, availability, pricing, input, and billing context", async () => {
     const blocker = {
       id: "blocker-1",
