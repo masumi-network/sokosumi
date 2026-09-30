@@ -55,6 +55,7 @@ import {
   sokoBotUpdateScheduleInputSchema as updateScheduleInputSchema,
 } from "@sokosumi/soko-bot";
 import {
+  buildOrganizationDriveFilePathname,
   buildUserDriveFilePathname,
   createDataTableSchema,
   tableBatchSchema,
@@ -81,7 +82,6 @@ import {
 } from "@/helpers/data-table";
 import { createAgentJobForUser } from "@/helpers/job";
 import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
-import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
 import { jsonInput } from "@/helpers/prisma-json";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
@@ -1660,23 +1660,36 @@ export class SokoBotRuntimeService {
     }
   }
 
-  /** The owner's personal Drive as the Files catalog knows it. */
+  /**
+   * The Drive the owner sees on their Files page in the bot's workspace: the
+   * organization's in an organization workspace, their own in the personal
+   * one. Always writing to the personal Drive made a file "in my Files"
+   * invisible where the owner looked, while the bot still found it.
+   */
   private async ownerDrive(authorized: AuthorizedSokoBotRuntime) {
     const userId = authorized.turn.userId;
-    const workspace = await resolveWorkspaceForContextOrNotFound(
-      userId,
-      null,
-      prisma,
-    );
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: authorized.turn.workspaceId },
+      select: { id: true, organizationId: true },
+    });
+    if (!workspace)
+      throw new SokoBotRuntimeValidationError("Workspace not found");
+    const { id: workspaceId, organizationId } = workspace;
     return {
-      key: {
-        workspaceId: workspace.id,
-        scope: "user" as const,
-        ownerId: userId,
-      },
+      key: organizationId
+        ? {
+            workspaceId,
+            scope: "organization" as const,
+            ownerId: organizationId,
+          }
+        : { workspaceId, scope: "user" as const, ownerId: userId },
+      pathname: (filename: string) =>
+        organizationId
+          ? buildOrganizationDriveFilePathname(organizationId, filename)
+          : buildUserDriveFilePathname(userId, filename),
       actor: {
         userId,
-        organizationId: null,
+        organizationId,
         kind: "soko_bot",
       } satisfies FileActor,
     };
@@ -1782,10 +1795,8 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: { filename: string; content: string; contentType?: string },
   ) {
-    const pathname = buildUserDriveFilePathname(
-      authorized.turn.userId,
-      input.filename,
-    );
+    const drive = await this.ownerDrive(authorized);
+    const pathname = drive.pathname(input.filename);
     // The human upload route refuses to overwrite (409). The bot must not be
     // able to silently replace an owner's file because a model reused a name.
     const existing = await list({ prefix: pathname, limit: 1 });
@@ -1801,7 +1812,6 @@ export class SokoBotRuntimeService {
         "Only text files can be written with upload_file",
       );
     }
-    const drive = await this.ownerDrive(authorized);
     const key = { ...drive.key, pathname };
     const sizeBytes = Buffer.byteLength(input.content, "utf8");
     const displayName = pathname.split("/").pop() ?? input.filename;
@@ -1827,6 +1837,11 @@ export class SokoBotRuntimeService {
       filename: displayName,
       url: blob.url,
       size: sizeBytes,
+      // Where the owner finds it, stated so a reply cannot claim elsewhere.
+      savedTo:
+        drive.key.scope === "organization"
+          ? "Files in this organization's workspace, visible to its members"
+          : "Files in the owner's personal workspace",
     };
   }
 
@@ -2049,6 +2064,9 @@ export class SokoBotRuntimeService {
             coworkerId: true,
             userId: true,
             sokoBotId: true,
+            sokoBot: {
+              select: { name: true, user: { select: { name: true } } },
+            },
           },
         },
         files: {
@@ -2127,6 +2145,13 @@ export class SokoBotRuntimeService {
           sokoBotId: event.sokoBotId,
         },
         by: actor(event),
+        // Whose assistant wrote it: another owner's bot speaks for that
+        // owner, never for yours.
+        ...(event.sokoBot && event.sokoBotId !== authorized.turn.sokoBotId
+          ? {
+              byName: `${sokoBotDisplayName({ name: event.sokoBot.name })}, ${event.sokoBot.user.name ?? "another person"}'s assistant`,
+            }
+          : {}),
         status: event.status,
         comment: event.comment,
       })),

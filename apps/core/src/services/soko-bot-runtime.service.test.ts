@@ -143,7 +143,6 @@ const {
     reserve: vi.fn(),
     activate: vi.fn(),
     nudge: vi.fn(),
-    workspace: vi.fn(),
     chunks: vi.fn(),
     download: vi.fn(),
   },
@@ -297,9 +296,6 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 }));
 vi.mock("@/services/file-index.service", () => ({
   downloadBlob: files.download,
-}));
-vi.mock("@/helpers/personal-workspace-error", () => ({
-  resolveWorkspaceForContextOrNotFound: files.workspace,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -1201,6 +1197,39 @@ describe("SokoBotRuntimeService authorization", () => {
 
     expect(result).toMatchObject({ id: "task_1", status: "READY" });
     expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(2);
+
+    // Another owner's assistant is named with its owner.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      events: [
+        {
+          id: "event-1",
+          status: null,
+          comment: "Hold until Albina confirms the spend.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: null,
+          sokoBotId: "other-bot",
+          sokoBot: { name: "Lili", user: { name: "Albina" } },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const read = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId },
+        askedByKind: "OWNER",
+      } as never,
+      "task_1",
+    );
+    expect(read?.events[0]).toMatchObject({
+      by: "another_bot",
+      byName: "Lili, Albina's assistant",
+    });
     expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
@@ -4834,7 +4863,10 @@ describe("Drive file tools", () => {
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
-    files.workspace.mockResolvedValue({ id: "personal-workspace" });
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: "personal-workspace",
+      organizationId: null,
+    });
     files.adopt.mockResolvedValue({ ran: false });
   });
 
@@ -5017,6 +5049,38 @@ describe("Drive file tools", () => {
     expect(result).toMatchObject({
       id: "file-9",
       url: "https://blob.example/notes.md",
+      savedTo: "Files in the owner's personal workspace",
+    });
+  });
+
+  it("writes into the organization Drive the owner sees in an organization workspace", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org-1",
+    });
+    files.list.mockResolvedValue({ blobs: [] });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello",
+    });
+    const pathname = files.put.mock.calls.at(-1)?.[0] as string;
+    expect(pathname).toContain("org-1");
+    expect(pathname).not.toContain(SCOPE.userId);
+    expect(files.activate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        key: expect.objectContaining({
+          workspaceId: SCOPE.workspaceId,
+          scope: "organization",
+          ownerId: "org-1",
+          pathname,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      savedTo: "Files in this organization's workspace, visible to its members",
     });
   });
 });

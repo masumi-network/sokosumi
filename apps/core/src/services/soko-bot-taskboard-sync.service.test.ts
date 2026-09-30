@@ -307,7 +307,8 @@ describe("who a Task comment wakes", () => {
       sokoBotId: by === "bot" ? "other-bot" : null,
       user: by === "human" ? { name: "Nina" } : null,
       coworker: null,
-      sokoBot: by === "bot" ? { name: "Jarvis" } : null,
+      sokoBot:
+        by === "bot" ? { name: "Jarvis", user: { name: "Andreas" } } : null,
     };
   }
   async function sync(taskRow: unknown, event: unknown) {
@@ -364,6 +365,10 @@ describe("who a Task comment wakes", () => {
     expect(
       await sync(own, comment("Atlas, can you confirm the budget?", "bot")),
     ).toBe(true);
+    // Named with its owner, so it reads as that person's assistant.
+    expect(startTurnMock.mock.calls.at(-1)?.[0]?.message).toContain(
+      "Jarvis (Andreas's assistant): Atlas, can you confirm the budget?",
+    );
   });
 
   it("follows only Tasks the bot created, assigned or edited", async () => {

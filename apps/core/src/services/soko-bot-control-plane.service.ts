@@ -112,6 +112,8 @@ export const ACTIVE_TURN_STATUSES = [
 
 export class SokoBotNotFoundError extends Error {}
 export class SokoBotBusyError extends Error {}
+/** Busy only until the running turn settles; worth waiting for, unlike a pause. */
+export class SokoBotTurnInProgressError extends SokoBotBusyError {}
 export class SokoBotNoDestinationError extends Error {}
 export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
@@ -2436,7 +2438,8 @@ export class SokoBotControlPlane {
           },
           select: { id: true },
         });
-        if (active) throw new SokoBotBusyError("Soko Bot is already working");
+        if (active)
+          throw new SokoBotTurnInProgressError("Soko Bot is already working");
         const memoryVersion = context.packet.memory.version;
         const memoryRevision = requireContextMemoryRevision(
           memoryVersion,

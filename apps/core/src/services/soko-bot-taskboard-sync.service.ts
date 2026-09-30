@@ -64,13 +64,16 @@ function actorLabel(event: {
   sokoBotId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
-  sokoBot: { name: string | null } | null;
+  sokoBot: { name: string | null; user: { name: string | null } } | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
   if (event.sokoBotId) {
-    return event.sokoBot?.name?.trim() || "a personal assistant";
+    // Named with its owner: another person's assistant speaks for them.
+    const name = event.sokoBot?.name?.trim() || "A personal assistant";
+    const owner = event.sokoBot?.user.name?.trim();
+    return owner ? `${name} (${owner}'s assistant)` : name;
   }
   return "the system";
 }
@@ -363,7 +366,9 @@ export class SokoBotTaskboardSyncService {
           sokoBotId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
-          sokoBot: { select: { name: true } },
+          sokoBot: {
+            select: { name: true, user: { select: { name: true } } },
+          },
         },
       });
       const consumed = events.length

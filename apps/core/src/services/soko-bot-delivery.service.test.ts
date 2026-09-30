@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   effects: vi.fn(),
   deliverEffect: vi.fn(),
+  mentionUpdate: vi.fn(),
+  mentionFind: vi.fn(),
+  messageClose: vi.fn(),
 }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
@@ -55,6 +58,11 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: mocks.message,
       findFirst: mocks.messageFind,
       findUniqueOrThrow: mocks.storedContent,
+      updateMany: mocks.messageClose,
+    },
+    chatRoomMention: {
+      updateMany: mocks.mentionUpdate,
+      findUnique: mocks.mentionFind,
     },
     sokoBotNudge: { updateMany: mocks.nudge },
   },
@@ -315,6 +323,41 @@ describe("durable delivery", () => {
       }),
     );
     expect(mocks.publish).not.toHaveBeenCalled();
+  });
+
+  it("closes a chat reply's Thinking placeholder when the room changed mid-turn", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          chatResponseMessageId: "placeholder",
+          chatMentionId: "mention",
+        }),
+      }),
+    );
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "owner" }, { userId: "new-reader" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    mocks.messageClose.mockResolvedValue({ count: 1 });
+    mocks.mentionFind.mockResolvedValue({ messageId: "asked" });
+    await deliverSokoBotDelivery("delivery");
+    expect(mocks.persistChat).not.toHaveBeenCalled();
+    expect(mocks.mentionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mention", status: { in: ["pending", "sent"] } },
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+    expect(mocks.messageClose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "placeholder", deletedAt: null }),
+      }),
+    );
+    expect(mocks.publish).toHaveBeenCalledWith("placeholder", "delete");
+    expect(mocks.publish).toHaveBeenCalledWith("asked", "mention_status");
   });
 
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {
