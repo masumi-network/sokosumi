@@ -60,12 +60,12 @@ export function SocialAllProjectsTabs({
         void setTabParam(value === "calendar" ? null : value);
       }}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center justify-between gap-2">
         <TabsList
           aria-label={t("title")}
           className={cn(
             SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-fit max-w-full overflow-x-auto",
+            "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
           )}
         >
           {ALL_PROJECTS_TABS.map((candidate) => (

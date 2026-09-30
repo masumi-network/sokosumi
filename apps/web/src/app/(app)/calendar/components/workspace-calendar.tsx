@@ -1187,7 +1187,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div className="flex items-center gap-1 max-sm:w-full">
             <Button
@@ -1198,7 +1198,9 @@ export function WorkspaceCalendar({
             >
               <ChevronLeft aria-hidden />
             </Button>
-            <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+            {/* On a phone the period leads, left-aligned, with both arrows
+                together at the end of the row. */}
+            <span className="min-w-40 flex-1 text-center text-sm font-medium max-sm:order-first max-sm:min-w-0 max-sm:text-start md:flex-none">
               {getRangeLabel(formatDate, date, view)}
             </span>
             <Button
@@ -1213,7 +1215,7 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between">
           <Tabs
             className="min-w-0 max-w-full"
             value={view}
@@ -1227,7 +1229,7 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >

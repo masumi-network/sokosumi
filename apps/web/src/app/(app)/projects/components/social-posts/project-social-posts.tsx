@@ -560,12 +560,12 @@ export function ProjectSocialPosts({
           if (next) showTab(next === tabs[0] ? null : next);
         }}
       >
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <TabsList
             aria-label={t("title")}
             className={cn(
               SEGMENTED_TABS_LIST_CLASS_NAME,
-              "app-scrollbar w-fit max-w-full overflow-x-auto",
+              "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
             )}
           >
             {tabs.map((candidate) => {
