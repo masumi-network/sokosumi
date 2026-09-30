@@ -64,10 +64,36 @@ export function scheduleQuickPicks(now: Date): Record<ScheduleQuickPick, Date> {
   };
 }
 
-function slotsOf(day: Date): Date[] {
-  const start = startOfDay(day);
-  return Array.from({ length: (24 * 60) / SLOT_MINUTES }, (_, index) =>
-    addMinutes(start, index * SLOT_MINUTES),
+/**
+ * The day's 15-minute slots by wall clock, not by elapsed minutes, so a
+ * daylight-saving day still runs 00:00 to 23:45: the hour that never
+ * happens is skipped and the repeated one is listed once.
+ */
+export function scheduleSlotsOf(day: Date): Date[] {
+  const slots: Date[] = [];
+  for (
+    let minuteOfDay = 0;
+    minuteOfDay < 24 * 60;
+    minuteOfDay += SLOT_MINUTES
+  ) {
+    const hours = Math.floor(minuteOfDay / 60);
+    const minutes = minuteOfDay % 60;
+    const slot = atWallClock(day, hours, minutes);
+    // A time in the skipped hour rolls forward into the next one.
+    if (slot.getHours() !== hours) continue;
+    slots.push(slot);
+  }
+  return slots;
+}
+
+/** `day` at a wall-clock time, however long that day is. */
+function atWallClock(day: Date, hours: number, minutes: number): Date {
+  return new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    hours,
+    minutes,
   );
 }
 
@@ -112,7 +138,7 @@ export function SocialPostSchedulePicker({
     if (!day) return;
     const hours = selected?.getHours() ?? MORNING_HOUR;
     const minutes = selected?.getMinutes() ?? 0;
-    const next = addMinutes(startOfDay(day), hours * 60 + minutes);
+    const next = atWallClock(day, hours, minutes);
     // A time already gone on that day moves to the first slot still open.
     onChange(
       toScheduleValue(isBefore(next, earliest) ? ceilToSlot(earliest) : next),
@@ -125,7 +151,7 @@ export function SocialPostSchedulePicker({
   }
 
   // The time list is for the chosen day, or the earliest one.
-  const slots = slotsOf(selected ?? earliest);
+  const slots = scheduleSlotsOf(selected ?? earliest);
   if (
     selected &&
     !slots.some((slot) => slot.getTime() === selected.getTime())
