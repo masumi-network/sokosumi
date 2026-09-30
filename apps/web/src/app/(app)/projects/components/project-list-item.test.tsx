@@ -89,8 +89,8 @@ describe("ProjectListItem", () => {
     );
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
-    // The row sits inside PROJECTS_BROWSE_CARD_CLASS, which is
-    // --card-background, so the hover has to be the step past it. Pinned
+    // The row is a --background card inside the --card-background list
+    // card; its hover steps to --card-background-hover, as task rows do. Pinned
     // exactly: "hover:bg-card-background" is a substring of the correct
     // class, so a toContain on the shorter name passes either way.
     //
@@ -102,13 +102,24 @@ describe("ProjectListItem", () => {
       "hover:bg-card-background-hover",
     );
     // The row is its own bordered card, as in the task list. The link rounds
-    // too, so its focus ring follows the card's left corners; the Pin button
-    // sits outside the link, on the right.
+    // too, so the forced-colors outline that `outline-hidden` keeps follows
+    // the card's left corners; the Pin button sits outside the link.
     expect(row?.className.split(/\s+/)).toEqual(
       expect.arrayContaining(["bg-background", "border", "rounded-lg"]),
     );
     expect(link.className.split(/\s+/)).toContain("rounded-lg");
     expect(link.className.split(/\s+/)).not.toContain("border");
+    // Keyboard focus rings the whole card. A ring on the link alone would
+    // stop at the Pin button and draw a line through the row.
+    expect(link.className.split(/\s+/)).toContain("outline-hidden");
+    expect(row?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "has-[>a:focus-visible]:ring-2",
+        "has-[>a:focus-visible]:ring-ring",
+        "has-[>a:focus-visible]:outline-2",
+        "has-[>a:focus-visible]:outline-transparent",
+      ]),
+    );
 
     const article = link.closest("article");
     for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {

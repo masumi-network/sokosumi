@@ -29,9 +29,10 @@ export const PROJECTS_DETAIL_SHELL_CLASS = "mx-auto w-full max-w-6xl py-6";
 export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 
 /**
- * Shared list card min-height for Instant skeleton, loaded list, and empty state
- * so route swaps do not thrash CLS. Keep as a full Tailwind class string so the
- * scanner can see it.
+ * List card min-height for the Instant skeleton, the empty state, and a browse
+ * card with no rows, so those swaps do not thrash CLS. A card with rows ends
+ * with them; nothing sits below it, so its shorter height shifts nothing.
+ * Keep as a full Tailwind class string so the scanner can see it.
  */
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 

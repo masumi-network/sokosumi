@@ -139,7 +139,9 @@ export function ProjectsView({
             data-testid="projects-browse"
             className={cn(
               PROJECTS_BROWSE_CARD_CLASS,
-              PROJECTS_LIST_CARD_MIN_H_CLASS,
+              // Only while there are no rows: a short list sits in a card that
+              // ends with it, as Transactions does, not in a mostly empty well.
+              !hasLoadedProjects && PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
             {hasLoadedProjects ? (

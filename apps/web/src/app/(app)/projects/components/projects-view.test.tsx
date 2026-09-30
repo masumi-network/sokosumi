@@ -2,7 +2,10 @@ import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-clie
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ProjectsView } from "@/app/projects/components/projects-view";
-import { PROJECTS_BROWSE_HEADER_ROW_CLASS } from "@/app/projects/constants";
+import {
+  PROJECTS_BROWSE_HEADER_ROW_CLASS,
+  PROJECTS_LIST_CARD_MIN_H_CLASS,
+} from "@/app/projects/constants";
 
 vi.mock("nuqs", () => ({
   useQueryState: () => ["", vi.fn()],
@@ -163,5 +166,23 @@ describe("ProjectsView create control", () => {
     expect(
       screen.getByRole("button", { name: "New project" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("ProjectsView browse card height", () => {
+  it("ends with its rows instead of holding the empty-state height", () => {
+    renderView();
+
+    expect(
+      screen.getByTestId("projects-browse").className.split(/\s+/),
+    ).not.toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
+  });
+
+  it("keeps the empty-state height when a filter matches nothing", () => {
+    renderView({ projects: [], nextCursor: null, query: "zzz" });
+
+    expect(
+      screen.getByTestId("projects-browse").className.split(/\s+/),
+    ).toContain(PROJECTS_LIST_CARD_MIN_H_CLASS);
   });
 });
