@@ -1,8 +1,17 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
 
 const toastSuccessMock = vi.fn();
 const toastErrorMock = vi.fn();
@@ -79,7 +88,16 @@ describe("TaskDetailHeader", () => {
         name: "Copy task ID: SOK-12",
       });
       expect(identifier).toHaveTextContent("SOK-12");
-      expect(identifier).toHaveClass("text-muted-foreground", "tabular-nums");
+      expect(identifier).toHaveClass(
+        "text-muted-foreground",
+        "tabular-nums",
+        "inline-flex",
+        "items-center",
+      );
+      expect(identifier.querySelector("svg.lucide-copy")).toBeInTheDocument();
+      expect(screen.getByTestId("tooltip-content")).toHaveTextContent(
+        "Copy task ID",
+      );
     });
 
     it("copies the identifier and confirms with a toast", async () => {
