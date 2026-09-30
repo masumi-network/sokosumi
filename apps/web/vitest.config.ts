@@ -107,7 +107,13 @@ export default defineConfig({
           // `agents/**` too: the studio agent's channel is this app's code and
           // carries its authorization policy, so it belongs in the same run.
           include: ["src/**/*.test.ts", "agents/**/*.test.ts"],
-          exclude: [...defaultExclude, ...DOM_TEST_TS],
+          // `*.webkit.test.ts` launches a browser; `vitest.webkit.config.ts`
+          // runs those.
+          exclude: [
+            ...defaultExclude,
+            ...DOM_TEST_TS,
+            "src/**/*.webkit.test.ts",
+          ],
         },
       },
       {
