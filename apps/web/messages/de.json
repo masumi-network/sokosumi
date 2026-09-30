@@ -2327,7 +2327,6 @@
         "loadMore": "Mehr laden",
         "loading": "Wird geladen…",
         "title": "Social-Media-Beiträge",
-        "description": "Entwirf, plane und veröffentliche Beiträge über die verbundenen Social-Media-Konten dieses Projekts.",
         "newPost": "Neuer Beitrag",
         "moreActions": "Beitragsaktionen",
         "noAccount": "Kein Konto",
@@ -2335,17 +2334,16 @@
           "authorizationRevoked": "Der Planungszugriff des Coworkers wurde widerrufen. Plane diesen Beitrag neu, um ihn zu veröffentlichen."
         },
         "sections": {
-          "upcoming": "Anstehend",
+          "calendar": "Kalender",
           "drafts": "Entwürfe",
-          "attention": "Braucht Aufmerksamkeit"
+          "attention": "Braucht Aufmerksamkeit",
+          "accounts": "Konten"
         },
         "selectedPost": "Ausgewählter Beitrag",
         "empty": {
-          "upcoming": "Noch keine geplanten Beiträge.",
           "drafts": "Noch keine Entwürfe."
         },
         "emptyHint": {
-          "upcoming": "Plane einen Beitrag, dann erscheint er hier und im Kalender.",
           "drafts": "Speichere einen Beitrag als Entwurf, um ihn später fertigzustellen."
         },
         "status": {
@@ -2735,10 +2733,6 @@
       "title": "Social",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
-      "calendar": {
-        "title": "Veröffentlichungsplan",
-        "description": "Alle geplanten Beiträge dieses Projekts – und nichts anderes."
-      },
       "newPost": {
         "label": "Neuer Post",
         "options": "Optionen für neuen Post",
@@ -2753,13 +2747,13 @@
         "chooseProjectTitle": "Projekt für diesen Post wählen",
         "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
       },
-      "allProjectsCalendar": {
-        "title": "Veröffentlichungsplan",
-        "description": "Geplante Posts aller Projekte in diesem Workspace."
-      },
       "accountsNeedProject": {
         "title": "Social-Konten",
         "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+      },
+      "draftsNeedProject": {
+        "title": "Entwürfe",
+        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt, um seine Entwürfe zu sehen und fertigzustellen."
       },
       "loading": "Social wird geladen…"
     },

@@ -107,6 +107,9 @@ import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
+// Social lists its drafts and failures in tabs of its own, and the month grid
+// already shows what is coming up, so its calendar has no agenda list.
+const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
@@ -783,15 +786,19 @@ export function WorkspaceCalendar({
   // Social plans a feed a month at a time, so its own calendar opens on the
   // month, and on the week on a phone, where a month of posts is too small to
   // read; the workspace calendar plans the week's runs.
+  const views: readonly CalendarView[] = socialPostsOnly
+    ? SOCIAL_CALENDAR_VIEWS
+    : CALENDAR_VIEWS;
   const view =
-    state.view ??
-    (socialPostsOnly
-      ? isMobile
-        ? "week"
-        : "month"
-      : isMobile
-        ? "agenda"
-        : "week");
+    state.view && views.includes(state.view)
+      ? state.view
+      : socialPostsOnly
+        ? isMobile
+          ? "week"
+          : "month"
+        : isMobile
+          ? "agenda"
+          : "week";
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -1180,7 +1187,7 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
           <div className="flex items-center gap-1 max-sm:w-full">
             <Button
@@ -1191,7 +1198,9 @@ export function WorkspaceCalendar({
             >
               <ChevronLeft aria-hidden />
             </Button>
-            <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+            {/* On a phone the period leads, left-aligned, with both arrows
+                together at the end of the row. */}
+            <span className="min-w-40 flex-1 text-center text-sm font-medium max-sm:order-first max-sm:min-w-0 max-sm:text-start md:flex-none">
               {getRangeLabel(formatDate, date, view)}
             </span>
             <Button
@@ -1206,14 +1215,12 @@ export function WorkspaceCalendar({
           </div>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
+        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between">
           <Tabs
             className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
-              const nextView = CALENDAR_VIEWS.find(
-                (candidate) => candidate === value,
-              );
+              const nextView = views.find((candidate) => candidate === value);
               if (nextView) {
                 handleViewChange(nextView);
               }
@@ -1222,11 +1229,11 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >
-              {CALENDAR_VIEWS.map((calendarView) => (
+              {views.map((calendarView) => (
                 <TabsTrigger
                   className={cn(
                     SEGMENTED_TAB_TRIGGER_CLASS_NAME,
