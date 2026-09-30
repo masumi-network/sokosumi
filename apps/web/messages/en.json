@@ -2747,13 +2747,13 @@
         "chooseProjectTitle": "Choose a project for this post",
         "chooseProjectBody": "A post is published from the accounts connected to one project."
       },
-      "allProjectsCalendar": {
-        "title": "Posting schedule",
-        "description": "Scheduled posts across every project in this workspace."
-      },
       "accountsNeedProject": {
         "title": "Social accounts",
         "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
+      },
+      "draftsNeedProject": {
+        "title": "Drafts",
+        "body": "Drafts are kept per project. Choose a project to see and finish its drafts."
       },
       "loading": "Loading Social…"
     },
