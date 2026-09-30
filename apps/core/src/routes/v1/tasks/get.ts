@@ -101,7 +101,7 @@ const taskSortQuerySchema = z
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then newest created.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.",
     example: "createdAt",
   });
 
@@ -347,7 +347,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : sort === "priority"
           ? ([
               { priority: "asc" as const },
-              { createdAt: "desc" as const },
+              { updatedAt: "desc" as const },
               { id: "desc" as const },
             ] as const)
           : ([
