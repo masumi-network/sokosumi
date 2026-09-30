@@ -45,7 +45,9 @@ export function useMagicLinkRequest(returnUrl: string | undefined) {
           ),
           // An expired or used link returns here with `error`, not to the
           // callback page, which has no session and no message to show.
-          errorCallbackURL: buildAuthErrorCallbackUrl(),
+          // Better Auth decodes this URL again during verification. Protect
+          // its existing escapes so nested queries, + and # survive.
+          errorCallbackURL: buildAuthErrorCallbackUrl()?.replaceAll("%", "%25"),
         });
 
         if (result.error) {
