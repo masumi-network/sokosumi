@@ -569,8 +569,12 @@ export async function finalizeProjectSocialConnection(
       return {
         summary: mapProjectSocialConnection(connection),
         retiredConnection,
+        // Only a reconnect overwrites the row's avatar. A replaced account's
+        // row stays, and its old posts still show that avatar.
         replacedAvatarUrl:
-          avatarUrl && target?.avatarUrl !== avatarUrl
+          currentIntent.action === "reconnect" &&
+          avatarUrl &&
+          target?.avatarUrl !== avatarUrl
             ? (target?.avatarUrl ?? null)
             : null,
       };
