@@ -9,7 +9,7 @@ import type {
 } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 
-import { StatusBadge, type StatusTone } from "./status-badge";
+import { StatusBadge, StatusDot, type StatusTone } from "./status-badge";
 
 const BOT_STATUS_TONE: Record<SokoBotStatus, StatusTone> = {
   IDLE: "neutral",
@@ -78,6 +78,17 @@ export function SokoBotStatusBadge({ status }: { status: SokoBotStatus }) {
     <StatusBadge tone={BOT_STATUS_TONE[status]} live={status === "RUNNING"}>
       {t(status)}
     </StatusBadge>
+  );
+}
+
+/** Dot and word, no pill: for lists where every row would carry a badge. */
+export function SokoBotStatusLine({ status }: { status: SokoBotStatus }) {
+  const t = useTranslations("Components.SokoBot.BotStatus");
+  return (
+    <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+      <StatusDot tone={BOT_STATUS_TONE[status]} live={status === "RUNNING"} />
+      {t(status)}
+    </span>
   );
 }
 

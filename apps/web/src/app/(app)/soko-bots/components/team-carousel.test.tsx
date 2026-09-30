@@ -1,5 +1,5 @@
 import type { SokoBotTeam } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -14,20 +14,35 @@ vi.mock("@/components/aurora-orb", () => ({
 }));
 
 vi.mock("@/components/soko-bot/soko-bot-badges", () => ({
-  SokoBotStatusBadge: ({ status }: { status: string }) => <span>{status}</span>,
+  SokoBotStatusLine: ({ status }: { status: string }) => <span>{status}</span>,
 }));
 
-vi.mock("./message-bot-button.client", () => ({
-  MessageBotButton: ({ sokoBotId }: { sokoBotId: string }) => (
+vi.mock("./open-bot-chat.client", () => ({
+  ChatWithBotTile: ({
+    sokoBotId,
+    children,
+  }: {
+    sokoBotId: string;
+    children: ReactNode;
+  }) => (
     <button type="button" data-bot={sokoBotId}>
-      message
+      {children}
     </button>
   ),
 }));
 
 vi.mock("./team-carousel-frame.client", () => ({
-  TeamCarouselFrame: ({ children }: { children: ReactNode }) => (
-    <ul>{children}</ul>
+  TeamCarouselFrame: ({
+    header,
+    children,
+  }: {
+    header: ReactNode;
+    children: ReactNode;
+  }) => (
+    <div>
+      {header}
+      <ul data-testid="carousel">{children}</ul>
+    </div>
   ),
 }));
 
@@ -45,8 +60,8 @@ function member(overrides: Partial<Member>): Member {
   };
 }
 
-const team: SokoBotTeam = {
-  workspace: { kind: "organization", name: "NMKR", logo: null },
+const team = {
+  workspace: { id: "ws", kind: "organization", name: "NMKR", logo: null },
   members: [
     member({
       userId: "albina",
@@ -76,30 +91,20 @@ const team: SokoBotTeam = {
 } as SokoBotTeam;
 
 describe("TeamCarousel", () => {
-  it("puts you first and lets you message every teammate's agent", async () => {
+  it("shows teammates' assistants as tiles that open the bot's chat", async () => {
     render(await TeamCarousel({ team }));
 
-    const cards = screen.getAllByRole("listitem");
-    expect(cards.map((card) => card.textContent)).toEqual([
-      expect.stringContaining("Patrick"),
-      expect.stringContaining("Albina"),
-      expect.stringContaining("Sandro"),
-    ]);
-    const buttons = screen.getAllByRole("button", { name: "message" });
-    expect(buttons.map((button) => button.dataset.bot)).toEqual([
-      "bot-joseph",
-      "bot-lili",
-    ]);
+    const tiles = screen.getAllByRole("button");
+    expect(tiles.map((tile) => tile.dataset.bot)).toEqual(["bot-lili"]);
+    expect(tiles[0]).toHaveTextContent("Albina");
+    expect(tiles[0]).toHaveTextContent("Lili");
   });
 
-  it("links settings only for your own agent and marks teammates without one", async () => {
+  it("leaves your own assistant to the row above and lists people without one", async () => {
     render(await TeamCarousel({ team }));
-    const [mine, albina, sandro] = screen.getAllByRole("listitem");
 
-    expect(
-      within(mine!).getByRole("link", { name: "manage" }),
-    ).toBeInTheDocument();
-    expect(within(albina!).queryByRole("link")).toBeNull();
-    expect(within(sandro!).getByText("noAssistant")).toBeInTheDocument();
+    expect(screen.queryByText("Joseph")).toBeNull();
+    expect(screen.getByText("notSetUp")).toBeInTheDocument();
+    expect(screen.getByTitle("Sandro")).toBeInTheDocument();
   });
 });

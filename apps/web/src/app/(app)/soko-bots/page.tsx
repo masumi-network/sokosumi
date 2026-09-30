@@ -7,8 +7,8 @@ import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
-import { SokoBotsHero } from "./components/soko-bots-hero";
 import { TeamCarousel } from "./components/team-carousel";
+import { YourAssistant } from "./components/your-assistant";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -19,54 +19,33 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/**
- * What a Soko Bot is and the one action that matters, then the workspace:
- * every person and the Soko Bot they built.
- */
+/** Your own assistant first, then everyone else's. */
 export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
   // Same beta gate as the assistant route.
   if (!hasSokoBotBetaAccess(session.user)) {
     notFound();
   }
-  const [t, team, avatars] = await Promise.all([
+  const [t, team] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {
       if (error instanceof CoreApiRequestError) return null;
       throw error;
     }),
-    sokoBotService.listAvatars(5, []).catch(() => []),
   ]);
   const me = team?.members.find((member) => member.isYou) ?? null;
 
   return (
-    <div className="w-full space-y-10 py-4">
-      <SokoBotsHero me={me} avatars={avatars} />
+    <div className="mx-auto w-full max-w-6xl space-y-10 py-4">
+      <header className="space-y-1">
+        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground max-w-2xl text-sm">
+          {t("description")}
+        </p>
+      </header>
+      <YourAssistant me={me} />
       {team ? (
-        <section className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="text-foreground text-lg font-medium">
-                {t("teamTitle")}
-              </h2>
-              <p className="text-muted-foreground text-xs tabular-nums">
-                {t("teamCount", {
-                  humans: team.members.length,
-                  bots: team.members.filter((member) => member.bot).length,
-                })}
-              </p>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {team.workspace.kind === "organization"
-                ? t("teamDescription")
-                : t("teamDescriptionPersonal")}
-            </p>
-            {/* Breaks out of the page padding: the rule reads as a divider
-                across the view, not a line floating inside the content. */}
-            <hr className="border-border -mx-4" />
-          </div>
-          <TeamCarousel team={team} />
-        </section>
+        <TeamCarousel team={team} />
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
       )}

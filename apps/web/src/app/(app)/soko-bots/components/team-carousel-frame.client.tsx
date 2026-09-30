@@ -17,11 +17,14 @@ import { Button } from "@/components/ui/button";
  */
 export function TeamCarouselFrame({
   children,
+  header,
   label,
   previousLabel,
   nextLabel,
 }: {
   children: ReactNode;
+  /** Sits left of the paging buttons, so title and controls share a row. */
+  header: ReactNode;
   label: string;
   previousLabel: string;
   nextLabel: string;
@@ -60,33 +63,36 @@ export function TeamCarouselFrame({
   const scrollable = !(edges.start && edges.end);
 
   return (
-    <div className="space-y-3">
-      {scrollable ? (
-        <div className="hidden justify-end gap-1 sm:flex">
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="size-8"
-            aria-label={previousLabel}
-            disabled={edges.start}
-            onClick={() => page(-1)}
-          >
-            <ChevronLeft aria-hidden className="size-4" />
-          </Button>
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
-            className="size-8"
-            aria-label={nextLabel}
-            disabled={edges.end}
-            onClick={() => page(1)}
-          >
-            <ChevronRight aria-hidden className="size-4" />
-          </Button>
-        </div>
-      ) : null}
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-4">
+        {header}
+        {scrollable ? (
+          <div className="hidden shrink-0 gap-1 sm:flex">
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={previousLabel}
+              disabled={edges.start}
+              onClick={() => page(-1)}
+            >
+              <ChevronLeft aria-hidden className="size-4" />
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              className="size-8"
+              aria-label={nextLabel}
+              disabled={edges.end}
+              onClick={() => page(1)}
+            >
+              <ChevronRight aria-hidden className="size-4" />
+            </Button>
+          </div>
+        ) : null}
+      </div>
       <ul
         ref={rowRef}
         aria-label={label}
