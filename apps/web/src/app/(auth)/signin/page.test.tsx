@@ -177,6 +177,50 @@ describe("SignIn page", () => {
     expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
   });
 
+  it("asks a signed-in person which account to use when the product asks for a new one", async () => {
+    getSessionMock.mockResolvedValue({
+      session: { id: "session-1" },
+      user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
+    });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          prompt: "create",
+        }),
+      }),
+    );
+
+    expect(handBackMock).toHaveBeenCalledWith({
+      oauthQuery: `${OAUTH_QUERY}&prompt=create`,
+      clientName: "CMO",
+      accountToConfirm: {
+        id: "user-1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      },
+    });
+    expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
+  });
+
+  it("shows the form to a signed-out person when the product asks for a new account", async () => {
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          prompt: "create",
+        }),
+      }),
+    );
+
+    expect(handBackMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
+  });
+
   it("asks a signed-in person to sign in again when the request demands it", async () => {
     getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
     const { default: Page } = await import("./page");

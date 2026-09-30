@@ -16,6 +16,8 @@ const OAUTH_SEARCH_PARAMS = {
   exp: "1772367377",
   sig: "signed-value",
 };
+// When Core signed the request (`ba_iat`, in milliseconds).
+const REQUEST_SIGNED_AT = Date.parse("2026-09-30T10:00:00.000Z");
 const OAUTH_QUERY =
   "client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=1772367377&sig=signed-value";
 
@@ -189,6 +191,65 @@ describe("SignUp page", () => {
       clientName: "CMO",
     });
     expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+  });
+
+  it("asks a signed-in person which account to use when the product asks for a new one", async () => {
+    getSessionMock.mockResolvedValue({
+      // Signed in an hour before the product sent the request.
+      session: { id: "session-1", createdAt: "2026-09-30T09:00:00.000Z" },
+      user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
+    });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          prompt: "create",
+          ba_iat: String(REQUEST_SIGNED_AT),
+        }),
+      }),
+    );
+
+    expect(handBackMock).toHaveBeenCalledWith({
+      oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
+      clientName: "CMO",
+      accountToConfirm: {
+        id: "user-1",
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      },
+    });
+    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+  });
+
+  it("hands back at once when the person just signed up on this page for the request", async () => {
+    getSessionMock.mockResolvedValue({
+      // Core signs the request again in the same response that starts the
+      // session, and sends the person back here.
+      session: {
+        id: "session-1",
+        createdAt: new Date(REQUEST_SIGNED_AT - 300).toISOString(),
+      },
+      user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
+    });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          prompt: "create",
+          ba_iat: String(REQUEST_SIGNED_AT),
+        }),
+      }),
+    );
+
+    expect(handBackMock).toHaveBeenCalledWith({
+      oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
+      clientName: "CMO",
+      accountToConfirm: undefined,
+    });
   });
 
   it("asks a signed-in person to sign in again when the request demands it", async () => {
