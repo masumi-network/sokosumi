@@ -95,6 +95,24 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ),
 }));
 
+// The all-projects tab row reads the URL; it is tested on its own. Here it
+// only has to show what the page hands it.
+vi.mock("./components/social-all-projects-tabs", () => ({
+  SocialAllProjectsTabs: (props: {
+    actions: React.ReactNode;
+    calendar: React.ReactNode;
+    notice?: string;
+  }) => (
+    <div data-testid="social-all-projects-tabs">
+      {props.actions}
+      {props.calendar}
+      <div data-testid="social-no-project">
+        {props.notice ?? "pick a project"}
+      </div>
+    </div>
+  ),
+}));
+
 // The prompt and the menu reach for the sidebar switcher's list and chat
 // actions. This file is about which state the page chooses.
 vi.mock("./components/social-accounts-project-prompt", () => ({
@@ -218,7 +236,9 @@ describe("SocialPage", () => {
       "data-soko-bot",
       "bot-1",
     );
-    // Accounts belong to a project, so the section says so instead.
+    // The same tab row a project gets; accounts belong to a project, so
+    // their tab says so instead.
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();

@@ -2747,13 +2747,13 @@
         "chooseProjectTitle": "Projekt für diesen Post wählen",
         "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
       },
-      "allProjectsCalendar": {
-        "title": "Veröffentlichungsplan",
-        "description": "Geplante Posts aller Projekte in diesem Workspace."
-      },
       "accountsNeedProject": {
         "title": "Social-Konten",
         "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+      },
+      "draftsNeedProject": {
+        "title": "Entwürfe",
+        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt, um seine Entwürfe zu sehen und fertigzustellen."
       },
       "loading": "Social wird geladen…"
     },

@@ -2747,13 +2747,13 @@
         "chooseProjectTitle": "Elige un proyecto para esta publicación",
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
-      "allProjectsCalendar": {
-        "title": "Calendario de publicaciones",
-        "description": "Publicaciones programadas de todos los proyectos de este espacio de trabajo."
-      },
       "accountsNeedProject": {
         "title": "Cuentas sociales",
         "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+      },
+      "draftsNeedProject": {
+        "title": "Borradores",
+        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto para ver y terminar sus borradores."
       },
       "loading": "Cargando Social…"
     },
