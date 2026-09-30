@@ -1,14 +1,20 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { fireGTMEvent } from "@/lib/gtm-events";
+import {
+  captchaFetchOptions,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import SignUpFlow from "./sign-up-flow";
 
 const socialButtonsMock = vi.fn();
 const signUpFormMock = vi.fn();
 const magicLinkMock = vi.fn();
+const emailStatusMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -24,6 +30,18 @@ vi.mock("next-intl", () => ({
     return t;
   },
 }));
+
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn() },
+}));
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {
+    $fetch: (...args: unknown[]) => emailStatusMock(...args),
+  },
+}));
+
+vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
 
 vi.mock("@/lib/gtm-events", () => ({
   fireGTMEvent: {
@@ -75,6 +93,7 @@ describe("SignUpFlow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
   });
 
   it("opens on the email step beside the providers, without Magic Link", () => {
@@ -99,6 +118,7 @@ describe("SignUpFlow", () => {
     await continueWith(user, "not-an-email");
 
     expect(await screen.findByText("Email.invalid")).toBeVisible();
+    expect(emailStatusMock).not.toHaveBeenCalled();
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
@@ -109,6 +129,14 @@ describe("SignUpFlow", () => {
     );
 
     await continueWith(user, "ada@example.com");
+
+    // Core is asked once, behind the security check, about this address.
+    expect(emailStatusMock).toHaveBeenCalledTimes(1);
+    expect(emailStatusMock).toHaveBeenCalledWith("/sign-up/email-status", {
+      method: "POST",
+      body: { email: "ada@example.com" },
+      headers: captchaFetchOptions.headers,
+    });
 
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
@@ -122,6 +150,83 @@ describe("SignUpFlow", () => {
     });
     expect(screen.getByText(/registeringAs:ada@example\.com/)).toBeVisible();
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
+  });
+
+  it("points a person who already has an account at sign-in", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    expect(await screen.findByText("Errors.emailExists")).toBeVisible();
+    expect(emailField()).toHaveAccessibleDescription("Errors.emailExists");
+    await waitFor(() => {
+      expect(emailField()).toHaveFocus();
+    });
+    expect(screen.getByRole("link", { name: "logInInstead" })).toHaveAttribute(
+      "href",
+      "/signin?returnUrl=%2Fagents",
+    );
+    expect(
+      screen.queryByRole("button", { name: "continueWithEmail" }),
+    ).not.toBeInTheDocument();
+    expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("offers to continue again once the address is edited", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValueOnce({
+      data: { exists: true },
+      error: null,
+    });
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await screen.findByRole("link", { name: "logInInstead" });
+
+    await user.type(emailField(), ".uk");
+
+    expect(
+      screen.queryByRole("link", { name: "logInInstead" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Errors.emailExists")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: "ada@example.com.uk" }),
+    );
+  });
+
+  it("stays on the email step when the check fails", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: null,
+      error: { status: 429, statusText: "", message: "Too many requests" },
+    });
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("Too many requests");
+    });
+    expect(signUpFormMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeEnabled();
+  });
+
+  it("asks Core nothing when the security check is cancelled", async () => {
+    const user = userEvent.setup();
+    requestCaptchaMock.mockResolvedValueOnce(null);
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
   it("returns to the email step with the address kept and focused", async () => {

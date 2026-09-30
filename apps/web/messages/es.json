@@ -1238,6 +1238,7 @@
         "Form": {
           "submit": "Registrarse",
           "continueWithEmail": "Continuar con email",
+          "logInInstead": "Iniciar sesión",
           "registeringAs": "Registrándote como {email}.",
           "changeEmail": "Cambiar email",
           "error": "Error al registrarse",
@@ -1270,7 +1271,8 @@
           },
           "Errors": {
             "emailDomainNotAllowed": "Dominio de email no permitido",
-            "badInput": "Por favor, completa el formulario correctamente."
+            "badInput": "Por favor, completa el formulario correctamente.",
+            "emailExists": "Ya existe una cuenta con este email."
           },
           "Login": {
             "message": "¿Ya tienes cuenta?",
