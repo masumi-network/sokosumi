@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
+import { rememberSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import {
   type SignUpEmailFormSchemaType,
   signUpEmailFormSchema,
@@ -128,7 +129,14 @@ export function SignUpEmailStep({
         {captcha}
         {accountExists ? (
           <Button asChild variant="primary" className="w-full">
-            <Link href={signInHref}>{t("logInInstead")}</Link>
+            <Link
+              href={signInHref}
+              onClick={() => {
+                rememberSignInEmailHint(form.getValues("email"));
+              }}
+            >
+              {t("logInInstead")}
+            </Link>
           </Button>
         ) : (
           <SubmitButton

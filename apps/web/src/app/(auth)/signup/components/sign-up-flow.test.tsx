@@ -1,8 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaFetchOptions,
@@ -173,6 +174,21 @@ describe("SignUpFlow", () => {
       screen.queryByRole("button", { name: "continueWithEmail" }),
     ).not.toBeInTheDocument();
     expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("hands the typed email to sign-in when the person logs in instead", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    const link = await screen.findByRole("link", { name: "logInInstead" });
+    // The address is not in the link: sign-in locks an email that arrives in
+    // its query.
+    expect(link).toHaveAttribute("href", "/signin");
+
+    fireEvent.click(link);
+
+    expect(takeSignInEmailHint()).toBe("ada@example.com");
   });
 
   it("offers to continue again once the address is edited", async () => {
