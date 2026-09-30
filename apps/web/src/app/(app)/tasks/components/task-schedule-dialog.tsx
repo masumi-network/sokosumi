@@ -1,15 +1,28 @@
 "use client";
 
 import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
-import { CalendarClock, ChevronDown, Loader2, Lock } from "lucide-react";
+import {
+  CalendarClock,
+  ChevronDown,
+  Loader2,
+  Lock,
+  Paperclip,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useId, useMemo, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { resolveTaskAssigneeFields } from "@/app/tasks/utils/coworker-options";
 import { taskScheduleAssigneeId } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
+import { FileChipMiniPreviewWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { Button } from "@/components/ui/button";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import {
   HoverCard,
   HoverCardContent,
@@ -20,6 +33,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   createTaskSchedule,
   type TaskScheduleActionError,
@@ -37,13 +51,19 @@ import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import type { TaskScheduleSelection } from "@/lib/types/task-schedule";
 import { cn } from "@/lib/utils";
+import { uploadComposeAttachments } from "@/lib/utils/compose-upload.client";
+import {
+  extractTaskAttachmentUrls,
+  removeTaskAttachmentLinks,
+} from "@/lib/utils/task-attachments";
 import {
   hasTaskScheduleChanged,
   selectionToTaskScheduleRule,
   taskScheduleRuleToSelection,
 } from "@/lib/utils/task-schedule";
-import { MarkdownEditor } from "./markdown-editor";
+import { MarkdownEditor, type MarkdownEditorHandle } from "./markdown-editor";
 import { TaskAssigneePicker } from "./task-assignee-picker";
+import { getTaskAttachmentUploadLabelTemplate } from "./task-attachment-upload-labels";
 import { TaskFormModal } from "./task-form-modal";
 import { TaskProjectSelect } from "./task-project-select";
 import { scheduleChipClass, TaskScheduleWhen } from "./task-schedule-when";
@@ -161,6 +181,13 @@ function TaskScheduleDialogForm({
     blueprint.visibility === TaskVisibility.PRIVATE,
   );
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingUploadFiles, setPendingUploadFiles] = useState<File[]>([]);
+  const [isUploadingAttachments, setIsUploadingAttachments] = useState(false);
+  const markdownEditorRef = useRef<MarkdownEditorHandle>(null);
+  const attachmentTriggerRef = useRef<HTMLButtonElement>(null);
+  const uploadControllerRef = useRef<AbortController | null>(null);
+  const attachmentUrls = extractTaskAttachmentUrls(description);
+  useMountEffect(() => () => uploadControllerRef.current?.abort());
   // Keep the baseline stable for this keyed form's lifetime. Re-reading a
   // stored H cron on a same-revision refresh can select a different minute.
   const [initialSelection] = useState<TaskScheduleSelection>(() =>
@@ -198,7 +225,11 @@ function TaskScheduleDialogForm({
   // An edit that leaves the rule alone does not send it, so a stored rule the
   // controls reject (one from before the five-field cron) still saves.
   const ruleRequired = !schedule || whenChanged;
-  const saveDisabled = isSaving || !name.trim() || (ruleRequired && !rule);
+  const saveDisabled =
+    isSaving ||
+    isUploadingAttachments ||
+    !name.trim() ||
+    (ruleRequired && !rule);
 
   function reportError(error: TaskScheduleActionError) {
     if (error.kind === "stale") {
@@ -208,8 +239,45 @@ function TaskScheduleDialogForm({
     toast.error(t("errors.saveFailed"), { description: error.message });
   }
 
+  async function handleAttachFiles(files: File[]) {
+    if (files.length === 0 || uploadControllerRef.current || isSaving) return;
+
+    const controller = new AbortController();
+    uploadControllerRef.current = controller;
+    setIsUploadingAttachments(true);
+    try {
+      const uploaded = await uploadComposeAttachments(files, {
+        abortSignal: controller.signal,
+        labels: {
+          uploadingFile: getTaskAttachmentUploadLabelTemplate(
+            tNewTask,
+            "uploadingFile",
+          ),
+          uploadingFiles: getTaskAttachmentUploadLabelTemplate(
+            tNewTask,
+            "uploadingFiles",
+          ),
+          uploadError: tNewTask("uploadFileError"),
+        },
+      });
+      if (controller.signal.aborted || !markdownEditorRef.current) return;
+      for (const file of uploaded) {
+        markdownEditorRef.current.insertLink(file.fileName, file.publicUrl);
+        markdownEditorRef.current.insertText("\n");
+      }
+    } catch {
+      // The shared uploader reports errors and allows another attempt.
+    } finally {
+      uploadControllerRef.current = null;
+      if (!controller.signal.aborted) {
+        setPendingUploadFiles([]);
+        setIsUploadingAttachments(false);
+      }
+    }
+  }
+
   async function handleSave() {
-    if (saveDisabled) return;
+    if (saveDisabled || uploadControllerRef.current) return;
 
     const input: TaskScheduleBlueprintInput = {
       name: name.trim(),
@@ -291,20 +359,87 @@ function TaskScheduleDialogForm({
               autoComplete="off"
               className="placeholder:text-muted-foreground w-full border-0 bg-transparent px-0 text-xl leading-tight font-semibold tracking-tight shadow-none outline-none"
             />
-            <MarkdownEditor
-              id={descriptionId}
-              variant="document"
-              ariaLabel={t("description")}
-              value={description}
-              onChange={setDescription}
-              placeholder={tNewTask("descriptionPlaceholder")}
-              className="w-full"
-              editorClassName="min-h-32"
-              onSubmitShortcut={() => {
-                if (!saveDisabled) void handleSave();
-              }}
-            />
+            <FileUpload
+              label={tNewTask("uploadFile")}
+              value={pendingUploadFiles}
+              onValueChange={setPendingUploadFiles}
+              onAccept={(files) => void handleAttachFiles(files)}
+              disabled={isSaving || isUploadingAttachments}
+              multiple
+            >
+              <FileUploadDropzone
+                className="data-dragging:bg-card-background items-stretch border-0 p-0 hover:bg-transparent"
+                tabIndex={-1}
+                onClick={(event) => event.preventDefault()}
+              >
+                <MarkdownEditor
+                  ref={markdownEditorRef}
+                  id={descriptionId}
+                  variant="document"
+                  ariaLabel={t("description")}
+                  value={description}
+                  onChange={setDescription}
+                  placeholder={tNewTask("descriptionPlaceholder")}
+                  className="w-full"
+                  editorClassName="min-h-32"
+                  onSubmitShortcut={() => {
+                    if (!saveDisabled) void handleSave();
+                  }}
+                />
+                <FileUploadTrigger asChild>
+                  <button
+                    ref={attachmentTriggerRef}
+                    type="button"
+                    className="sr-only"
+                    tabIndex={-1}
+                    aria-hidden
+                  />
+                </FileUploadTrigger>
+              </FileUploadDropzone>
+            </FileUpload>
+            {attachmentUrls.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {attachmentUrls.map((url) => (
+                  <FileChipMiniPreviewWithMetadata
+                    key={url}
+                    url={url}
+                    sizeClass="size-16"
+                    onRemove={() =>
+                      setDescription((current) =>
+                        removeTaskAttachmentLinks(current, [url]),
+                      )
+                    }
+                    removeLabel={tNewTask("removeAttachment")}
+                  />
+                ))}
+              </div>
+            ) : null}
             <div className="flex flex-wrap items-center gap-2">
+              <AttachmentSubmenu
+                onUploadClick={() => attachmentTriggerRef.current?.click()}
+                onDriveClick={() =>
+                  markdownEditorRef.current?.openDrivePicker()
+                }
+                disabled={isSaving || isUploadingAttachments}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={tNewTask("uploadFile")}
+                  disabled={isSaving || isUploadingAttachments}
+                >
+                  {isUploadingAttachments ? (
+                    <Loader2
+                      className="size-3.5 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
+                  ) : (
+                    <Paperclip className="size-3.5" aria-hidden />
+                  )}
+                  {tNewTask("uploadFile")}
+                </Button>
+              </AttachmentSubmenu>
               <TaskProjectSelect
                 variant="chip"
                 projectOptions={projectOptions}
