@@ -4,14 +4,14 @@ import { copyTextWithToast } from "@/hooks/use-clipboard";
 
 interface TaskIdentifierCopyProps {
   identifier: string;
-  copyLabel: string;
+  copyAriaLabelPrefix: string;
   copiedMessage: string;
   copyErrorMessage: string;
 }
 
 export function TaskIdentifierCopy({
   identifier,
-  copyLabel,
+  copyAriaLabelPrefix,
   copiedMessage,
   copyErrorMessage,
 }: TaskIdentifierCopyProps) {
@@ -26,7 +26,7 @@ export function TaskIdentifierCopy({
     <button
       type="button"
       onClick={handleCopy}
-      aria-label={`${copyLabel}: ${identifier}`}
+      aria-label={`${copyAriaLabelPrefix}: ${identifier}`}
       className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm tabular-nums transition-colors outline-none focus-visible:ring-2"
     >
       {identifier}

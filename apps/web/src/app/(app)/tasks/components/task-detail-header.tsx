@@ -37,7 +37,7 @@ export function TaskDetailHeader({
         {identifier && identifierLabels ? (
           <TaskIdentifierCopy
             identifier={identifier}
-            copyLabel={identifierLabels.copy}
+            copyAriaLabelPrefix={identifierLabels.copy}
             copiedMessage={identifierLabels.copied}
             copyErrorMessage={identifierLabels.copyError}
           />
