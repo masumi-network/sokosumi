@@ -198,6 +198,10 @@ public final class WorkspaceState: ObservableObject {
   /// The self dot reads offline only after the socket was up once; before
   /// that a launch would flash offline while the first token mints.
   var realtimeEverConnected = false
+  /// Who is typing in the open room and what this client told it (ADR 0033); see
+  /// `WorkspaceState+Typing`. Not forwarded to `objectWillChange`: only the Typing line reads it.
+  public let typing = RoomTyping()
+  var typingSweepTask: Task<Void, Never>?
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
@@ -630,7 +634,7 @@ public final class WorkspaceState: ObservableObject {
     olderPageTask = nil
     transcriptRefreshTask = nil
     historyGapTask = nil
-    realtime?.watchRoom(nil)
+    watchRoom(nil)
     transcriptError = nil
     clearOutbound()
   }
@@ -660,7 +664,7 @@ public final class WorkspaceState: ObservableObject {
     historyGapTask = nil
     let generation = transcriptGeneration
     clearOutbound()
-    realtime?.watchRoom(room.id)
+    watchRoom(room.id)
     transcriptLoadTask = Task { await loadTranscript(auth: auth, room: room, generation: generation) }
     if directStream.roomId != nil, let client = resolveClient(auth: auth) {
       directStream.resume(client: client, organizationSlug: selection?.workspace.organizationSlug, settled: { [weak self, weak auth] in
@@ -731,6 +735,8 @@ public final class WorkspaceState: ObservableObject {
     // A quote can be the whole message, except in the coworker 1:1 stream,
     // which needs words to answer.
     guard draft.canSend(quoted: quote != nil && directStream.roomId != roomId) else { return false }
+    // The message is on its way, so the Typing line must not outlive what it promised.
+    composerStoppedTyping(roomId: roomId)
     timeline.followLatest()
     if directStream.roomId == roomId {
       let generation = transcriptGeneration
@@ -820,6 +826,7 @@ public final class WorkspaceState: ObservableObject {
   /// through here; room changes only detach via `watchRoom`.
   func stopRealtime() {
     stopPresence()
+    closeTyping()
     sidebarRecoveryGeneration = UUID()
     sidebarRecovery.stop()
     roomsRefreshTask?.cancel()
@@ -844,19 +851,31 @@ public final class WorkspaceState: ObservableObject {
       applyRealtimePin(roomId: roomId, messageId: messageId, isPinned: isPinned, count: count)
     case let .roomHealth(roomId, healthy, continuityLost):
       applyRealtimeHealth(roomId: roomId, healthy: healthy, continuityLost: continuityLost)
-    case let .connectionHealth(healthy):
-      connectionHealthy = healthy
-      sidebarRecovery.setHealthy(healthy)
-      applyPresenceReachability(healthy: healthy)
-    case let .presenceRoster(organizationId, members):
-      applyPresenceRoster(organizationId: organizationId, members: members)
     case let .envelope(envelope):
       applyRealtimeEnvelope(envelope)
     case let .notification(notification):
       applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
-    case .ignored:
+    case let other:
+      handleLiveStateEvent(other)
+    }
+  }
+
+  /// Who is reachable, present or typing right now: state no HTTP read would return.
+  private func handleLiveStateEvent(_ event: ResolvedRealtimeDelivery) {
+    switch event {
+    case let .connectionHealth(healthy):
+      connectionHealthy = healthy
+      sidebarRecovery.setHealthy(healthy)
+      applyPresenceReachability(healthy: healthy)
+    case let .presenceRoster(organizationId, members):
+      applyPresenceRoster(organizationId: organizationId, members: members)
+    case let .typing(roomId, signal):
+      applyTyping(roomId: roomId, signal: signal, now: Date())
+    case let .typingChannel(roomId, canPublish):
+      applyTypingChannel(roomId: roomId, canPublish: canPublish)
+    default:
       break
     }
   }
