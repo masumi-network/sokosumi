@@ -4283,8 +4283,9 @@ describe("external effect receipt finalization", () => {
       },
     });
     const dispatch = vi.fn().mockResolvedValue({
-      url: "https://blob.example/synthetic",
+      id: "01a0f400-0000-7000-8000-000000000001",
       filename: "synthetic.md",
+      link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
       size: 17,
     });
     service["executeAuthorizedTool"] = dispatch;
@@ -4310,7 +4311,7 @@ describe("external effect receipt finalization", () => {
       status: "COMPLETED",
       disposition: "APPLIED",
       verification: "PROVIDER_ACK",
-      targetId: "https://blob.example/synthetic",
+      targetId: "01a0f400-0000-7000-8000-000000000001",
     });
   });
 
@@ -5187,9 +5188,11 @@ describe("Drive file tools", () => {
     expect(files.nudge).toHaveBeenCalled();
     expect(result).toMatchObject({
       id: "file-9",
-      url: "https://blob.example/notes.md",
+      link: "/drive/files/file-9",
       savedTo: "Files in the owner's personal workspace",
     });
+    // The public blob URL would let anyone read the file without signing in.
+    expect(JSON.stringify(result)).not.toContain("blob.example");
   });
 
   it("writes into the organization Drive the owner sees in an organization workspace", async () => {

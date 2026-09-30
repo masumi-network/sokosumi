@@ -1821,7 +1821,7 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
       sizeBytes,
     });
-    const blob = await put(pathname, input.content, {
+    await put(pathname, input.content, {
       access: "public",
       contentType,
       addRandomSuffix: false,
@@ -1832,10 +1832,12 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
     });
     nudgeFileIndexing();
+    // The blob URL is public and never handed out: anyone holding it could
+    // read the file without signing in. The file page checks access.
     return {
       id: activated?.resourceId ?? null,
       filename: displayName,
-      url: blob.url,
+      link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
       savedTo:

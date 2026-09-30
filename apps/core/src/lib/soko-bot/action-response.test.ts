@@ -103,7 +103,30 @@ describe("action lines the owner reads", () => {
     );
   });
 
-  it("names an uploaded file and shows it as its own card", async () => {
+  it("links an uploaded file to its page, not to the public blob", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "upload_file",
+        targetId: "01a0f400-0000-7000-8000-000000000001",
+        verification: "PROVIDER_ACK",
+        effectEventId: null,
+        result: {
+          id: "01a0f400-0000-7000-8000-000000000001",
+          filename: "test-notes.md",
+          link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
+          size: 12,
+        },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Uploaded file [test-notes.md](/drive/files/01a0f400-0000-7000-8000-000000000001).",
+    );
+    expect(result.answerText).not.toContain("blob");
+  });
+
+  it("still renders an older receipt that holds the blob URL", async () => {
     const url =
       "https://store.public.blob.vercel-storage.com/drive/users/u/test-notes.md";
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
