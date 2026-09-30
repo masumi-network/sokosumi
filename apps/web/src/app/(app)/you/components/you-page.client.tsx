@@ -12,6 +12,7 @@ import {
   LogOut,
   Repeat,
   Scale,
+  Share2,
   ShieldCheck,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -45,10 +46,13 @@ const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const CALENDAR_HREF = "/calendar";
 const STUDIO_HREF = "/studio";
+const SOCIAL_HREF = "/social";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
   adminSettingsChrome: AccountAdminSettingsChrome;
+  /** Social is still behind the beta; the row exists only where the page does. */
+  socialMenuEnabled?: boolean;
 }
 
 export function YouPageClient({
@@ -61,6 +65,7 @@ export function YouPageClient({
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
+  socialMenuEnabled = false,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
@@ -189,6 +194,16 @@ export function YouPageClient({
               label={tMenu("contentStudio")}
               testId="you-studio"
             />
+            {/* The sidebar's Social row, for phones, where the You page is
+                the menu. */}
+            {socialMenuEnabled ? (
+              <MobileStackedMenuLink
+                href={SOCIAL_HREF}
+                icon={<Share2 className="size-4 shrink-0" aria-hidden />}
+                label={tMenu("social")}
+                testId="you-social"
+              />
+            ) : null}
             <MobileStackedMenuLink
               href={DRIVE_HREF}
               icon={<HardDrive className="size-4 shrink-0" aria-hidden />}

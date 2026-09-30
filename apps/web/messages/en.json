@@ -2432,7 +2432,8 @@
             "post": "post",
             "mediaPost": "image or video post",
             "video": "video (text is the title and description)"
-          }
+          },
+          "publishNow": "Post now"
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2449,7 +2450,8 @@
           "unauthenticated": "Please sign in to continue.",
           "unauthenticatedAction": "Sign in",
           "published": "Post published.",
-          "publishFailed": "Publishing failed: {error}"
+          "publishFailed": "Publishing failed: {error}",
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
