@@ -1,5 +1,12 @@
 "use client";
 
+import { Copy } from "lucide-react";
+
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 
 interface TaskIdentifierCopyProps {
@@ -23,13 +30,21 @@ export function TaskIdentifierCopy({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleCopy}
-      aria-label={`${copyAriaLabelPrefix}: ${identifier}`}
-      className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm tabular-nums transition-colors outline-none focus-visible:ring-2"
-    >
-      {identifier}
-    </button>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          onClick={handleCopy}
+          aria-label={`${copyAriaLabelPrefix}: ${identifier}`}
+          className="text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-sm text-sm tabular-nums transition-colors outline-none focus-visible:ring-2"
+        >
+          {identifier}
+          <Copy className="size-3.5 shrink-0" aria-hidden />
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" sideOffset={6}>
+        {copyAriaLabelPrefix}
+      </TooltipContent>
+    </Tooltip>
   );
 }
