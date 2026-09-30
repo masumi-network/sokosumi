@@ -7,7 +7,10 @@ import { toast } from "sonner";
 
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
-import { buildAuthCallbackUrl } from "@/lib/auth/auth.utils";
+import {
+  buildAuthCallbackUrl,
+  buildAuthErrorCallbackUrl,
+} from "@/lib/auth/auth.utils";
 
 /**
  * Requests a Magic Link for an email the caller has already validated.
@@ -40,6 +43,11 @@ export function useMagicLinkRequest(returnUrl: string | undefined) {
             "magic-link",
             returnUrl,
           ),
+          // An expired or used link returns here with `error`, not to the
+          // callback page, which has no session and no message to show.
+          // Better Auth decodes this URL again during verification. Protect
+          // its existing escapes so nested queries, + and # survive.
+          errorCallbackURL: buildAuthErrorCallbackUrl()?.replaceAll("%", "%25"),
         });
 
         if (result.error) {

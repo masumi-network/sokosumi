@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import OAuthHandBack from "@/auth/components/oauth-hand-back";
+import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
 import type { SignInMethodId } from "@/auth/components/social-buttons";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -30,13 +31,14 @@ interface SignUpPageProps {
       email?: string;
       invitationId?: string;
       returnUrl?: string;
+      error?: string;
     }
   >;
 }
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const env = getEnvSecrets();
-  const { email, invitationId, returnUrl } = await searchParams;
+  const { email, invitationId, returnUrl, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.canHandBack) {
     return (
@@ -72,6 +74,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       // A magic link opened in another browser cannot return to the
       // product that sent the person here.
       showMagicLink={!oauthRequest}
+      notice={<SignInErrorNotice error={error} />}
     >
       <TermsNotice />
     </SignUpFlow>

@@ -140,6 +140,11 @@ export function createCmoAuth(config: CmoAuthConfig) {
     },
     // Better Auth only enables this in production by default; keep tests honest.
     rateLimit: { enabled: true },
+    // Where a failure goes when it carries no errorCallbackURL: a callback
+    // whose state is gone (expired, another browser, Back), or a failed
+    // preview proxy hand-off. The signed-out page explains it; Better Auth's
+    // bare error page does not.
+    onAPIError: { errorURL: new URL("/", config.baseURL).href },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (

@@ -1341,6 +1341,12 @@
       "useAnotherAccount": "Usar otra cuenta",
       "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
       "signOutError": "No se pudo cerrar la sesión. Inténtalo de nuevo."
+    },
+    "SignInError": {
+      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un Magic Link y luego conecta Google o Microsoft en Conexiones.",
+      "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
+      "linkExpired": "Este Magic Link ha caducado o ya se usó. Solicita uno nuevo.",
+      "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo."
     }
   },
   "App": {

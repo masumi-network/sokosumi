@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import Divider from "@/auth/components/divider";
 import OAuthHandBack from "@/auth/components/oauth-hand-back";
+import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
 import SocialButtons, {
   type SignInMethodId,
 } from "@/auth/components/social-buttons";
@@ -30,13 +31,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 interface SignInPageProps {
   searchParams: Promise<
-    AuthRedirectSearchParams & { returnUrl?: string; email?: string }
+    AuthRedirectSearchParams & {
+      returnUrl?: string;
+      email?: string;
+      error?: string;
+    }
   >;
 }
 
 export default async function SignIn({ searchParams }: SignInPageProps) {
   const env = getEnvSecrets();
-  const { returnUrl, email } = await searchParams;
+  const { returnUrl, email, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.canHandBack) {
     return (
@@ -67,6 +72,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     <div className="flex flex-1 flex-col">
       <SignInHeader clientName={oauthRequest?.clientName} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
+        <SignInErrorNotice error={error} />
         <SocialButtons
           returnUrl={returnUrl}
           lastUsedMethod={lastUsedMethod}

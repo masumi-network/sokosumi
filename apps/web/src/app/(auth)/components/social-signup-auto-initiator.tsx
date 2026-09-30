@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
+  buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
@@ -48,6 +49,9 @@ export default function SocialSignupAutoInitiator({
             provider,
             effectiveReturnUrl,
           ),
+          // Back to this page would start the sign-in again; /signup
+          // explains the error and offers every method.
+          errorCallbackURL: buildAuthErrorCallbackUrl("/signup"),
         });
 
         if (result.error) {

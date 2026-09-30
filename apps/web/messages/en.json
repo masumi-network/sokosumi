@@ -1341,6 +1341,12 @@
       "useAnotherAccount": "Use another account",
       "accountCheckError": "Could not check your account. Try again.",
       "signOutError": "Could not sign out. Try again."
+    },
+    "SignInError": {
+      "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or a Magic Link first, then connect Google or Microsoft under Connections.",
+      "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
+      "linkExpired": "This Magic Link has expired or was already used. Request a new one.",
+      "generic": "We could not sign you in. Please try again."
     }
   },
   "App": {

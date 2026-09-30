@@ -6,9 +6,14 @@ interface SignedOutProps {
 }
 
 function errorMessage(error: string): string {
-  return error === "access_denied"
-    ? "You did not allow CMO. Nothing was shared."
-    : "Sign in did not finish. Try again.";
+  if (error === "access_denied") {
+    return "You did not allow CMO. Nothing was shared.";
+  }
+  // The sign-in state is gone: over ten minutes, another browser, or Back.
+  if (error === "state_mismatch") {
+    return "That sign in took too long. Press Sign in again.";
+  }
+  return "Sign in did not finish. Try again.";
 }
 
 export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {

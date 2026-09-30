@@ -60,7 +60,8 @@ import SwiftUI
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
-    var isHighlighted = false
+    /// The mark a jump left on this row, while it lasts (row 25b1).
+    var jumpMark: JumpMark?
     var isPinned = false
     var isUpdatingPin = false
     var onTogglePin: (() async throws -> Void)?
@@ -306,8 +307,8 @@ import SwiftUI
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
       .background {
-        if isHighlighted {
-          Color.accentColor.opacity(0.12)
+        if let jumpMark {
+          JumpMarkBackground(mark: jumpMark)
         } else if isHovered || isReplyHovered, showsActionChrome {
           Color.primary.opacity(0.04)
         }

@@ -23,6 +23,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
+  buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
@@ -208,6 +209,7 @@ export default function SocialButtons({
         key,
         effectiveReturnUrl,
       ),
+      errorCallbackURL: buildAuthErrorCallbackUrl(),
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");
@@ -304,7 +306,9 @@ export default function SocialButtons({
         </div>
       )}
       {showMagicLink && isMagicLinkVisible && (
+        // The submit handler validates and toasts in the page's language.
         <form
+          noValidate
           className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
           onSubmit={handleMagicLinkSubmit}
         >
@@ -315,6 +319,9 @@ export default function SocialButtons({
           )}
           <Input
             type="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
             className="text-center placeholder:text-center"
             value={magicLinkEmail}
             onChange={(event) => {
