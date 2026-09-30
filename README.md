@@ -30,7 +30,7 @@ sokosumi/
 
 - **apps/web/**: User-facing web application (Next.js 16, React 19.3, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
 - **apps/core/**: Hono API on Node.js. All database reads and writes live here.
-- **apps/cmo/**: CMO at cmo.xyz (Next.js 16). A separate product that signs in with Sokosumi through Core's OAuth provider; it has no database.
+- **apps/cmo/**: CMO at app.cmo.xyz (Next.js 16). A separate product that signs in with Sokosumi through Core's OAuth provider; it has no database.
 
 ## Getting Started
 

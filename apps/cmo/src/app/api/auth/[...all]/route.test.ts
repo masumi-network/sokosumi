@@ -9,7 +9,7 @@ const TOKEN_PATHS = [
 ];
 
 it.each(TOKEN_PATHS)("does not serve %s to the browser", async (path) => {
-  const url = `https://cmo.xyz${path}`;
+  const url = `https://app.cmo.xyz${path}`;
   for (const send of [GET, POST]) {
     const response = await send(new Request(url));
     const body = await response.text();
