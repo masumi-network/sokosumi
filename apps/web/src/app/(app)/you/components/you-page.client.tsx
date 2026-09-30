@@ -2,7 +2,6 @@
 
 import { resolveAccountDisplayName, type SessionUser } from "@sokosumi/utils";
 import {
-  Calendar,
   Code2,
   Coins,
   HardDrive,
@@ -44,7 +43,6 @@ import { getInitials } from "@/lib/utils/text";
 const ADMIN_HREF = "/admin";
 const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
-const CALENDAR_HREF = "/calendar";
 const STUDIO_HREF = "/studio";
 const SOCIAL_HREF = "/social";
 
@@ -181,12 +179,6 @@ export function YouPageClient({
               icon={<Repeat className="size-4 shrink-0" aria-hidden />}
               label={tMenu("schedules")}
               testId="you-schedules"
-            />
-            <MobileStackedMenuLink
-              href={CALENDAR_HREF}
-              icon={<Calendar className="size-4 shrink-0" aria-hidden />}
-              label={tMenu("calendar")}
-              testId="you-calendar"
             />
             <MobileStackedMenuLink
               href={STUDIO_HREF}

@@ -2,7 +2,6 @@
 
 import {
   Bot,
-  CalendarDays,
   HardDrive,
   ImagePlus,
   ListTodo,
@@ -143,12 +142,6 @@ function ScopedMenuItems({
       href: TASK_SCHEDULES_PATH,
       label: t("schedules"),
       Icon: Repeat,
-    },
-    {
-      key: "calendar",
-      href: "/calendar",
-      label: t("calendar"),
-      Icon: CalendarDays,
     },
     // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
     // reader's project across without the studio knowing about the switcher.

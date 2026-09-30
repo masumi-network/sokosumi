@@ -10,7 +10,8 @@
   import Testing
 
   /// The real `MessageEditComposer` in a window, editing "Original" (message_1 in room_1), with
-  /// `WorkspaceState` and `AuthState` in the environment. Rows 18a (keys) and 18b (chrome) drive it.
+  /// `WorkspaceState` and `AuthState` in the environment. Rows 18a (keys), 18b (chrome) and 18c (when Save
+  /// is enabled) drive it.
   @MainActor struct MessageEditComposerFixture {
     let window: NSWindow
     let host: NSView
@@ -42,7 +43,7 @@
       let input = try await waitForView(in: host, timeoutMessage: "The edit composer did not mount its text view") {
         inputView(in: host).flatMap { $0.serializedDraft == "Original" ? $0 : nil }
       }
-      #expect(input.modifierReturnSubmits, "The edit composer puts its text view in edit mode.")
+      #expect(input.cancel != nil && input.accessibilityLabel() == "Edit message", "The edit composer puts its text view in edit mode.")
       return MessageEditComposerFixture(window: window, host: host, editing: editing, input: input)
     }
 
@@ -104,10 +105,10 @@
       return pixelRect(field.bounds, of: field, in: bitmap)
     }
 
-    /// The first line of text in bitmap pixels.
+    /// The first line of text in bitmap pixels; an empty draft has only the line the caret stands on.
     func firstLineRect(in bitmap: NSBitmapImageRep) throws -> CGRect {
       let layout = try #require(input.layoutManager)
-      var line = layout.lineFragmentRect(forGlyphAt: 0, effectiveRange: nil)
+      var line = layout.numberOfGlyphs == 0 ? layout.extraLineFragmentRect : layout.lineFragmentRect(forGlyphAt: 0, effectiveRange: nil)
       line.origin.x += input.textContainerOrigin.x
       line.origin.y += input.textContainerOrigin.y
       return pixelRect(line, of: input, in: bitmap)

@@ -6,8 +6,9 @@ import SokosumiChat
 /// ably-cocoa-backed `RealtimeConnection` (SOK-976).
 ///
 /// One socket: the user chat-control channel, the user notifications channel
-/// (when the token grants it), membership room channels and the active
-/// organization's presence channel (ADR 0003). Auth tokens come
+/// (when the token grants it), membership room channels, the watched room's
+/// typing channel (ADR 0033) and the active organization's presence channel
+/// (ADR 0003). Auth tokens come
 /// from Core (`POST /v1/realtime/ably-token`) through the provider, so
 /// capabilities track membership; the coordinator remints after
 /// join/leave/revoke. Ably invokes callbacks off the main thread — events
@@ -24,6 +25,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   private var tokenSource: RealtimeTokenSource?
   private var membershipSubscriptions: RoomMembershipSubscriptions?
   private var presence: OrgPresenceChannel?
+  private var typing: RoomTypingChannel?
   private var frontPresence = NotificationFrontPresence()
   private var frontPresenceRetry: Task<Void, Never>?
   /// How many times a current answer was handed to the channel. A retry
@@ -86,7 +88,12 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       controlChannel = control
       membershipSubscriptions = RoomMembershipSubscriptions(realtime: realtime, onEvent: onEvent)
       presence = OrgPresenceChannel(realtime: realtime, onEvent: onEvent)
+      typing = RoomTypingChannel(realtime: realtime, userId: userId, onEvent: onEvent)
     }
+  }
+
+  public func publishTyping(_ state: ChatTypingState, roomId: String) {
+    lock.withLock { typing }?.publish(state, roomId: roomId)
   }
 
   public func setPresenceOrganization(_ organizationId: String?) {
@@ -140,6 +147,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     }
     guard changed else { return }
     cleanup?()
+    lock.withLock { typing }?.setRoom(roomId)
     guard let roomId, let liveRealtime = lock.withLock({ realtime }) else { return }
     let channel = liveRealtime.channels.get(chatRoomChannelName(roomId: roomId))
     let initialHealth = RoomRealtimeHealth(connection: liveRealtime.connection.state, channel: channel.state)
@@ -166,6 +174,7 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
   public func disconnect() {
     var cleanup: (() -> Void)?
     var presenceToStop: OrgPresenceChannel?
+    var typingToStop: RoomTypingChannel?
     let control = lock.withLock { () -> ARTRealtimeChannel? in
       tokenSource?.invalidate()
       connectionGeneration = UUID()
@@ -174,6 +183,8 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       membershipSubscriptions = nil
       presenceToStop = presence
       presence = nil
+      typingToStop = typing
+      typing = nil
       roomGeneration = UUID()
       roomHealth = nil
       cleanup = removeHealthListeners
@@ -184,6 +195,21 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
       onEvent = nil
       return control
     }
+    detachNotifications()
+    presenceToStop?.stop()
+    typingToStop?.stop()
+    cleanup?()
+    control?.unsubscribe()
+    control?.detach()
+    let previous = lock.withLock {
+      let previous = realtime
+      realtime = nil
+      return previous
+    }
+    previous?.close()
+  }
+
+  private func detachNotifications() {
     let (notifications, listener, attachListener) = lock.withLock {
       defer {
         notificationsChannel = nil
@@ -202,16 +228,6 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     }
     notifications?.unsubscribe()
     notifications?.detach()
-    presenceToStop?.stop()
-    cleanup?()
-    control?.unsubscribe()
-    control?.detach()
-    let previous = lock.withLock {
-      let previous = realtime
-      realtime = nil
-      return previous
-    }
-    previous?.close()
   }
 
   private func subscribeNotifications(realtime: ARTRealtime, userId: String, generation: UUID) {
