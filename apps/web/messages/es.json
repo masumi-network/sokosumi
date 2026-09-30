@@ -1783,7 +1783,7 @@
           "createRelatedDialogTitle": "Crear {relation}",
           "relations": {
             "related": "Relacionada",
-            "blocks": "Bloquea",
+            "blocks": "Bloqueando",
             "blockedBy": "Bloqueada por",
             "parent": "Tarea principal",
             "subtask": "Subtarea",
