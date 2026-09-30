@@ -40,8 +40,9 @@ written into each new VM) talks to Core over
   when the Gateway reports a web search, Core records that the turn read
   untrusted input. From then on it refuses hiring, job input, integration
   actions, uploads, image generation, chat posts, task comments and
-  assignments, and schedule changes; the bot proposes them with
-  `request_user_decision` instead.
+  assignments, and schedule changes; the bot says what it would do and asks
+  the owner in chat, and the reply starts a new turn that can act. (Owner
+  approval cards were removed on 2026-09-30.)
 - **Network.** Open internet; IPv4 private and link-local ranges denied.
 
 Known limits:

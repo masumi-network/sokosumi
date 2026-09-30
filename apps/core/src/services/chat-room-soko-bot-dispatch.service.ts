@@ -1,6 +1,10 @@
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
-import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
+import {
+  ACTIVE_TURN_STATUSES,
+  SokoBotTurnInProgressError,
+  sokoBotControlPlane,
+} from "@/services/soko-bot-control-plane.service";
 
 import {
   buildRoomMentionPrompt,
@@ -24,6 +28,41 @@ import {
  * owner gets a failed reply instead of a "Thinking…" that never ends.
  */
 const SOKO_BOT_ACCEPT_TIMEOUT_MS = 60_000;
+/**
+ * A message sent while the bot is still answering the previous one waits for
+ * that turn instead of failing: "actually, give it to research instead" a few
+ * seconds after a request is the owner steering, and used to get no reply.
+ */
+export const SOKO_BOT_WAIT_FOR_RUNNING_TURN_MS = 120_000;
+const RUNNING_TURN_POLL_MS = 2_000;
+
+export async function acceptOnceIdle<T>(
+  accept: () => Promise<T>,
+  sokoBotId: string,
+  options: { waitMs?: number; pollMs?: number } = {},
+): Promise<T> {
+  const deadline =
+    Date.now() + (options.waitMs ?? SOKO_BOT_WAIT_FOR_RUNNING_TURN_MS);
+  const pollMs = options.pollMs ?? RUNNING_TURN_POLL_MS;
+  for (;;) {
+    try {
+      return await accept();
+    } catch (error) {
+      if (!(error instanceof SokoBotTurnInProgressError)) throw error;
+      if (Date.now() >= deadline) throw error;
+    }
+    // Poll the turn row, not the start path: each start classifies the
+    // message again.
+    while (Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, pollMs));
+      const running = await prisma.sokoBotTurn.findFirst({
+        where: { sokoBotId, status: { in: [...ACTIVE_TURN_STATUSES] } },
+        select: { id: true },
+      });
+      if (!running) break;
+    }
+  }
+}
 /**
  * A mention of the owner's Soko Bot starts a Soko Bot turn instead of a
  * remote coworker stream. The Thought placeholder is opened here; the
@@ -183,7 +222,7 @@ export async function runSokoBotMentionDispatch(params: {
     return;
   }
 
-  try {
+  const accept = async () => {
     const accepted = sokoBotControlPlane.startTurn({
       userId: bot.userId,
       workspaceId,
@@ -201,7 +240,7 @@ export async function runSokoBotMentionDispatch(params: {
       },
     });
     let acceptTimer: ReturnType<typeof setTimeout> | undefined;
-    const result = await Promise.race([
+    return Promise.race([
       accepted,
       new Promise<never>((_resolve, reject) => {
         acceptTimer = setTimeout(
@@ -213,6 +252,10 @@ export async function runSokoBotMentionDispatch(params: {
     ]).finally(() => {
       if (acceptTimer) clearTimeout(acceptTimer);
     });
+  };
+
+  try {
+    const result = await acceptOnceIdle(accept, bot.id);
     if (
       result.reconciliationLeaseToken &&
       (result.status === "STARTING" || result.status === "RUNNING")

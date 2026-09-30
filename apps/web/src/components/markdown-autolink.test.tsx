@@ -69,11 +69,20 @@ describe("Markdown bare URL autolinks", () => {
     );
   });
 
-  it.each([
-    "` https://a.test/?p=1&amp;c=1 `",
-    "```\nhttps://a.test/?p=1&amp;c=1\n```",
-  ])("leaves the existing code entity behavior unchanged: %s", (source) => {
-    const { container } = render(<Markdown>{source}</Markdown>);
+  it("does not link a URL in a code span, and shows its & as written", () => {
+    const { container } = render(
+      <Markdown>{"` https://a.test/?p=1&c=1 `"}</Markdown>,
+    );
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("code")).toHaveTextContent(
+      "https://a.test/?p=1&c=1",
+    );
+  });
+
+  it("leaves a fenced URL as written, entity included", () => {
+    const { container } = render(
+      <Markdown>{"```\nhttps://a.test/?p=1&amp;c=1\n```"}</Markdown>,
+    );
     expect(container.querySelector("a")).toBeNull();
     expect(container.querySelector("code")).toHaveTextContent(
       "https://a.test/?p=1&amp;c=1",

@@ -65,9 +65,7 @@ async function runTurn(
     for (const capability of turn.capabilities) {
       if (
         evaluationBinding() &&
-        !["get_task_status", "archive_task", "request_user_decision"].includes(
-          capability,
-        )
+        !["get_task_status", "archive_task"].includes(capability)
       )
         continue;
       tools[capability] = tool({
