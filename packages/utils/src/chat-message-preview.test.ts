@@ -1100,6 +1100,18 @@ describe("buildChatMessagePreview", () => {
     ).toBe("prod is down, roll back release 42");
   });
 
+  /**
+   * A backtick in the info string means markdown opens no fence there, so the
+   * room sanitizes what follows as markup and throws the element's words away.
+   */
+  it("hides an element under an opener that carries a backtick", () => {
+    expect(
+      buildChatMessagePreview(
+        "``` `x\n<script>the door code is 4417</script>\n```\nship it",
+      ),
+    ).toBe("x ship it");
+  });
+
   it("reads the words after a fence that holds an unclosed comment", () => {
     expect(buildChatMessagePreview("```\n<!-- todo\n```\nship it")).toBe(
       "ship it",

@@ -1,5 +1,14 @@
 import assert from "node:assert/strict";
-import { readdir, readFile } from "node:fs/promises";
+import { execFileSync, spawnSync } from "node:child_process";
+import {
+  mkdir,
+  mkdtemp,
+  readdir,
+  readFile,
+  rm,
+  writeFile,
+} from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, it } from "node:test";
 
@@ -448,6 +457,134 @@ describe("Vercel web turbo build command", () => {
       script,
       /@sokosumi\/database run build/,
       "the database tsc step is gone (ADR 0035)",
+    );
+  });
+
+  it("gates each app's build on its own turbo package", async () => {
+    for (const app of ["web", "core", "cmo"]) {
+      const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
+      const { name } = JSON.parse(
+        await readRepoFile("apps", app, "package.json"),
+      );
+      assert.equal(
+        config.ignoreCommand,
+        `node ../../scripts/ci/vercel-ignore.mjs ${name}`,
+      );
+    }
+  });
+
+  it("keeps the clone's .git for the ignore step", async () => {
+    // Vercel deletes .vercelignore matches from a Git deployment before the
+    // Ignored Build Step. Without .git, turbo fails and every app builds.
+    const patterns = (await readRepoFile(".vercelignore"))
+      .split("\n")
+      .filter((line) => line && !line.startsWith("#"));
+    assert.equal(
+      patterns.some((pattern) => /^\/?\.git(\/|$)/.test(pattern)),
+      false,
+    );
+  });
+
+  it("builds every app for root install configuration changes", async (t) => {
+    const fixture = await mkdtemp(path.join(tmpdir(), "vercel-ignore-"));
+    t.after(() => rm(fixture, { recursive: true, force: true }));
+    const rootPackage = {
+      name: "fixture",
+      private: true,
+      packageManager: "pnpm@12.8.1",
+    };
+    await writeFile(
+      path.join(fixture, "package.json"),
+      JSON.stringify(rootPackage),
+    );
+    await writeFile(
+      path.join(fixture, "turbo.json"),
+      await readRepoFile("turbo.json"),
+    );
+    await writeFile(
+      path.join(fixture, "pnpm-workspace.yaml"),
+      "packages:\n  - apps/*\n",
+    );
+    await writeFile(
+      path.join(fixture, "pnpm-lock.yaml"),
+      "lockfileVersion: '9.0'\nimporters:\n  .: {}\n  apps/web: {}\n  apps/core: {}\n  apps/cmo: {}\n",
+    );
+    for (const [app, name] of [
+      ["web", "web"],
+      ["core", "@sokosumi/core"],
+      ["cmo", "cmo"],
+    ]) {
+      await mkdir(path.join(fixture, "apps", app), { recursive: true });
+      await writeFile(
+        path.join(fixture, "apps", app, "package.json"),
+        JSON.stringify({ name }),
+      );
+    }
+    const git = (...args) =>
+      execFileSync("git", args, { cwd: fixture, encoding: "utf8" }).trim();
+    git("init", "-q");
+    git("config", "user.name", "CI fixture");
+    git("config", "user.email", "ci@example.invalid");
+    git("add", ".");
+    git("commit", "-qm", "initial fixture");
+    for (const [file, content, expected] of [
+      [
+        "package.json",
+        JSON.stringify({ ...rootPackage, engines: { node: "24.x" } }),
+        1,
+      ],
+      [
+        "pnpm-workspace.yaml",
+        "packages:\n  - apps/*\nverifyDepsBeforeRun: warn\n",
+        1,
+      ],
+      ["README.md", "Documentation change\n", 0],
+    ]) {
+      const base = git("rev-parse", "HEAD");
+      await writeFile(path.join(fixture, file), content);
+      git("add", file);
+      git("commit", "-qm", `change ${file}`);
+      for (const name of ["web", "@sokosumi/core", "cmo"]) {
+        const result = spawnSync(
+          path.join(repoRoot, "node_modules/.bin/turbo"),
+          [
+            "query",
+            "affected",
+            `--base=${base}`,
+            "--packages",
+            name,
+            "--exit-code",
+          ],
+          { cwd: fixture, encoding: "utf8" },
+        );
+        assert.equal(
+          result.status,
+          expected,
+          `${file}: ${name}: ${result.stdout} ${result.stderr}`,
+        );
+      }
+    }
+  });
+
+  it("lets only a production deployment of a new commit skip its build", async () => {
+    const { ignoreBase } = await import("../vercel-ignore.mjs");
+    const production = {
+      VERCEL_ENV: "production",
+      VERCEL_GIT_PREVIOUS_SHA: "aaa",
+      VERCEL_GIT_COMMIT_SHA: "bbb",
+    };
+
+    assert.equal(ignoreBase(production), "aaa");
+    // `/deploy` previews build the PR head whatever the last preview held.
+    assert.equal(ignoreBase({ ...production, VERCEL_ENV: "preview" }), null);
+    assert.equal(
+      ignoreBase({ ...production, VERCEL_GIT_PREVIOUS_SHA: undefined }),
+      null,
+    );
+    // A redeploy of the last deployed commit must build.
+    assert.equal(
+      ignoreBase({ ...production, VERCEL_GIT_COMMIT_SHA: "aaa" }),
+      null,
     );
   });
 

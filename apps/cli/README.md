@@ -1,6 +1,9 @@
 # Sokosumi CLI
 
-Published npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi); package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.2`, with public access.
+It requires Node.js 24 and packages `dist` and `skills`. The binary is `sokosumi`.
+Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
 
 ## Product direction
 
@@ -98,7 +101,12 @@ Install the framework-neutral Skill from the repository:
 npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi
 ```
 
-This installs Skill files only. It does not install the CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`, or run without installing via `npx @masumi_network/sokosumi`).
+[REPORTED: existing distribution instructions] This command installs Skill files only. Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build this checkout below.
+
+[VERIFIED: `package.json`, `src/cli/commands/skills.ts`] The CLI package includes the Skills beside `dist`.
+Use `sokosumi skills --json` to list them, or `sokosumi skills path` to locate their directory.
+Load `sokosumi/SKILL.md` from that directory through the host's Skill loader. CLI installation does not configure that loader.
+See [distribution details](skills/sokosumi/references/distribution.md).
 
 ## Run
 
@@ -223,6 +231,23 @@ Runtime calls use only a Coworker key on Preprod. They do not use developer auth
 On hosts without an OS vault, the operator supplies `--api-key-stdin` for each operation through the secret reader.
 The [pilot guide](docs/agent-runtime-pilot.md) covers host setup and verification. Live execution remains unproven.
 
+### MPS delivery status
+
+[VERIFIED: merged commit `c2271e441`, PR #5342; `src/cli/commands/runtime.ts`]
+`runtime receipt` reads Core's Task receipt with GET. This merged feature does not create a payment.
+[VERIFIED: `src/coworker/runtime-task.ts:180-237`]
+Start and completion submit Task status and result events. They do not send `masumiPayment` or run an automatic worker.
+
+[VERIFIED: planning briefs in `docs/mps-payment-stack/`]
+The planning drafts cover [seller setup and customer approval](docs/mps-payment-stack/01-seller-authorization.md),
+the [paid Task lifecycle](docs/mps-payment-stack/02-paid-runtime.md), and the [plugin payment flow](docs/mps-payment-stack/03-plugin-flow.md).
+They contain requirements and planned tests.
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller.
+Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote.
+Organization approval will require membership and applicable Seat eligibility in the original billing organization.
+Implementation and live seller proof remain pending.
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not verify the deployed receipt route or a live seller payout.
+
 ## Configuration
 
 The CLI reads non-secret preferences from `~/.sokosumi/config.json`:
@@ -243,7 +268,8 @@ Configuration precedence is flags, process environment, home preferences, local 
 
 ## Build from source
 
-npm publication is disabled for this workspace package. Use the source commands above.
+[CORRECTION, VERIFIED: `package.json`] The earlier publication-disabled statement was stale.
+The manifest sets public npm access and version `1.0.2`. Use Node.js 24 for this source build.
 
 To run the built binary directly:
 

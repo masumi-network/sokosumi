@@ -143,7 +143,6 @@ const {
     reserve: vi.fn(),
     activate: vi.fn(),
     nudge: vi.fn(),
-    workspace: vi.fn(),
     chunks: vi.fn(),
     download: vi.fn(),
   },
@@ -297,9 +296,6 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 }));
 vi.mock("@/services/file-index.service", () => ({
   downloadBlob: files.download,
-}));
-vi.mock("@/helpers/personal-workspace-error", () => ({
-  resolveWorkspaceForContextOrNotFound: files.workspace,
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -1201,6 +1197,39 @@ describe("SokoBotRuntimeService authorization", () => {
 
     expect(result).toMatchObject({ id: "task_1", status: "READY" });
     expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(2);
+
+    // Another owner's assistant is named with its owner.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      events: [
+        {
+          id: "event-1",
+          status: null,
+          comment: "Hold until Albina confirms the spend.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: null,
+          sokoBotId: "other-bot",
+          sokoBot: { name: "Lili", user: { name: "Albina" } },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const read = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId },
+        askedByKind: "OWNER",
+      } as never,
+      "task_1",
+    );
+    expect(read?.events[0]).toMatchObject({
+      by: "another_bot",
+      byName: "Lili, Albina's assistant",
+    });
     expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
@@ -4834,7 +4863,10 @@ describe("Drive file tools", () => {
   };
   const service = new SokoBotRuntimeService();
   beforeEach(() => {
-    files.workspace.mockResolvedValue({ id: "personal-workspace" });
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: "personal-workspace",
+      organizationId: null,
+    });
     files.adopt.mockResolvedValue({ ran: false });
   });
 
@@ -5017,6 +5049,38 @@ describe("Drive file tools", () => {
     expect(result).toMatchObject({
       id: "file-9",
       url: "https://blob.example/notes.md",
+      savedTo: "Files in the owner's personal workspace",
+    });
+  });
+
+  it("writes into the organization Drive the owner sees in an organization workspace", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org-1",
+    });
+    files.list.mockResolvedValue({ blobs: [] });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello",
+    });
+    const pathname = files.put.mock.calls.at(-1)?.[0] as string;
+    expect(pathname).toContain("org-1");
+    expect(pathname).not.toContain(SCOPE.userId);
+    expect(files.activate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        key: expect.objectContaining({
+          workspaceId: SCOPE.workspaceId,
+          scope: "organization",
+          ownerId: "org-1",
+          pathname,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      savedTo: "Files in this organization's workspace, visible to its members",
     });
   });
 });
@@ -5361,64 +5425,42 @@ describe("find_agents", () => {
   });
 });
 
-describe("archive_task without one named Task", () => {
+describe("archive_task without approval cards", () => {
   const TASK_ID = "01960001-0001-7001-8001-0000000000aa";
-  function arm(userMessage: string, ownedTask: unknown) {
-    vi.clearAllMocks();
-    serializableTransactionMock.mockImplementation(
-      async (run: (tx: unknown) => unknown) =>
-        await run({
-          sokoBotTurn: {
-            findUniqueOrThrow: vi.fn().mockResolvedValue({
-              userMessage,
-              contextSnapshot: { packet: { tasks: [] } },
-            }),
-          },
-          sokoBotToolCall: { findFirst: vi.fn().mockResolvedValue(null) },
-          task: { findFirst: vi.fn().mockResolvedValue(ownedTask) },
-        }),
-    );
+
+  it("archives the Task the model names, whatever the owner's message said", async () => {
+    // "yes" and "archive all my test tasks" name no single Task. The route
+    // already granted archiving; the owner's words are the model's to read,
+    // not Core's to parse, and nothing waits on a card.
     const service = new SokoBotRuntimeService();
     const internals = service as unknown as {
-      requireMutationAuthority: () => Promise<unknown>;
+      applyTaskMutation: (...args: unknown[]) => Promise<unknown>;
       createDecision: () => Promise<unknown>;
     };
-    vi.spyOn(internals, "requireMutationAuthority").mockResolvedValue({});
-    const createDecision = vi
-      .spyOn(internals, "createDecision")
-      .mockResolvedValue({ id: "decision_1", status: "PENDING" });
-    return { service, createDecision };
-  }
-  const run = (service: SokoBotRuntimeService) =>
-    service["mutateTask"](
-      { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
-      { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
-      "call_1",
-      { capability: "archive_task" },
-    );
-
-  it("turns a bare yes into an approval card instead of failing", async () => {
-    // "yes" and "archive all my test tasks" name no single Task. Failing left
-    // the bot asking the owner to retype the exact sentence; a card lets the
-    // owner decide and the bot carry on.
-    const { service, createDecision } = arm("yes", { id: TASK_ID });
-    const result = await run(service);
-    expect(createDecision).toHaveBeenCalledWith(
+    const apply = vi
+      .spyOn(internals, "applyTaskMutation")
+      .mockResolvedValue({ id: TASK_ID });
+    const createDecision = vi.spyOn(internals, "createDecision");
+    const input = {
+      taskId: TASK_ID,
+      expectedUpdatedAt: new Date().toISOString(),
+    };
+    await expect(
+      service["mutateTask"](
+        { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
+        input,
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).resolves.toEqual({ id: TASK_ID });
+    expect(apply).toHaveBeenCalledWith(
       expect.anything(),
-      "archive_task",
-      expect.objectContaining({ taskId: TASK_ID }),
+      input,
       "call_1",
-      true,
+      expect.objectContaining({ taskId: TASK_ID, archive: true }),
+      "archive_task",
+      false,
     );
-    expect(result).toMatchObject({
-      approvalRequired: true,
-      decision: { id: "decision_1" },
-    });
-  });
-
-  it("does not raise a card for a Task the owner has no open copy of", async () => {
-    const { service, createDecision } = arm("archive all of them", null);
-    await expect(run(service)).rejects.toThrow(/Task not found/);
     expect(createDecision).not.toHaveBeenCalled();
   });
 });

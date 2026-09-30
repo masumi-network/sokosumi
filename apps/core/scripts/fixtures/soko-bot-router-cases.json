@@ -198,6 +198,14 @@
     "want": "MANAGE:FILE"
   },
   {
+    "message": "Write a short markdown file called test-notes.md with three bullet points about our test launch.",
+    "want": "MANAGE:FILE"
+  },
+  {
+    "message": "Write retest-notes.md with two bullets.",
+    "want": "MANAGE:FILE"
+  },
+  {
     "message": "archive the old test tasks",
     "want": "MANAGE:WORK"
   },
