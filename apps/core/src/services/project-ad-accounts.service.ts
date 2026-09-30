@@ -1,9 +1,9 @@
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
-  getProjectSocialConnectedAccount,
-  initiateProjectSocialConnection as initiateComposioConnection,
-  revokeProjectSocialConnection,
+  getComposioConnectedAccount,
+  initiateComposioConnection,
+  revokeComposioConnectedAccount,
 } from "@/clients/composio.client";
 import {
   isProjectAdProvider,
@@ -177,7 +177,7 @@ export async function finalizeProjectAdConnection(
   }
   const provider = intent.provider;
 
-  const account = await getProjectSocialConnectedAccount(input.connectionId);
+  const account = await getComposioConnectedAccount(input.connectionId);
   if (
     account.id !== input.connectionId ||
     account.toolkitSlug !== PROJECT_AD_PROVIDERS[provider].toolkitSlug ||
@@ -317,7 +317,7 @@ async function releaseUnusedConnection(connectionId: string): Promise<void> {
   });
   if (!connection || connection._count.accounts > 0) return;
   try {
-    await revokeProjectSocialConnection({
+    await revokeComposioConnectedAccount({
       connectedAccountId: connection.composioConnectedAccountId,
     });
   } catch {
@@ -344,7 +344,7 @@ export async function detachProjectAdAccount(
     return;
   }
   // Last account: revoke first, so a failed revoke leaves everything retryable.
-  await revokeProjectSocialConnection({
+  await revokeComposioConnectedAccount({
     connectedAccountId: account.connection.composioConnectedAccountId,
   });
   await prisma.projectAdConnection.delete({

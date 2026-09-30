@@ -12,14 +12,14 @@ const { createSessionMock, executeToolMock, deleteSessionMock } = vi.hoisted(
 
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
-  deleteProjectSocialSession: deleteSessionMock,
+  deleteComposioToolSession: deleteSessionMock,
 }));
 vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   ...(await importOriginal<
     typeof import("@/clients/social-post-providers/tools")
   >()),
-  createSocialPublishSession: createSessionMock,
-  executeSocialPublishTool: executeToolMock,
+  createComposioToolSession: createSessionMock,
+  executeComposioTool: executeToolMock,
 }));
 
 import { listGoogleAdAccounts } from "./google-ads";

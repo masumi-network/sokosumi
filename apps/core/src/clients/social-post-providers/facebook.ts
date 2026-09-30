@@ -1,11 +1,11 @@
 import { socialPostProviderLabel } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
 } from "@/clients/social-post-providers/tools";
 import type {
@@ -48,7 +48,7 @@ export async function publishFacebookPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("facebook");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "facebook",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -90,7 +90,7 @@ export async function publishFacebookPost(
 
   try {
     const post = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeComposioTool({
         sessionId,
         toolSlug,
         arguments: toolArguments,
@@ -109,7 +109,7 @@ export async function publishFacebookPost(
       toolSlug,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project Facebook publish session",
     );

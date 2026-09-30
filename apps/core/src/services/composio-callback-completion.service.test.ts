@@ -11,19 +11,19 @@ import {
 
 const {
   completeComposioAuthMock,
-  getProjectSocialConnectedAccountMock,
+  getComposioConnectedAccountMock,
   socialConnectionIntentFindUniqueMock,
   socialConnectionIntentUpdateManyMock,
 } = vi.hoisted(() => ({
   completeComposioAuthMock: vi.fn(),
-  getProjectSocialConnectedAccountMock: vi.fn(),
+  getComposioConnectedAccountMock: vi.fn(),
   socialConnectionIntentFindUniqueMock: vi.fn(),
   socialConnectionIntentUpdateManyMock: vi.fn(),
 }));
 
 vi.mock("@/clients/composio.client", () => ({
   completeComposioAuth: completeComposioAuthMock,
-  getProjectSocialConnectedAccount: getProjectSocialConnectedAccountMock,
+  getComposioConnectedAccount: getComposioConnectedAccountMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -44,7 +44,7 @@ describe("completeComposioCallback", () => {
       connectedAccountId: "ca_123",
       toolkitSlug: "twitter",
     });
-    getProjectSocialConnectedAccountMock.mockResolvedValue({
+    getComposioConnectedAccountMock.mockResolvedValue({
       id: "ca_123",
       toolkitSlug: "twitter",
       authConfigId: "ac_x",
@@ -68,7 +68,7 @@ describe("completeComposioCallback", () => {
         connectedAccountId: "ca_123",
         toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
       });
-      getProjectSocialConnectedAccountMock.mockResolvedValue({
+      getComposioConnectedAccountMock.mockResolvedValue({
         id: "ca_123",
         toolkitSlug: PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug,
         authConfigId: `ac_${provider}`,
@@ -112,7 +112,7 @@ describe("completeComposioCallback", () => {
         connectedAccountId: "ca_123",
         toolkitSlug,
       });
-      getProjectSocialConnectedAccountMock.mockResolvedValue({
+      getComposioConnectedAccountMock.mockResolvedValue({
         id: "ca_123",
         toolkitSlug,
         authConfigId: `ac_${provider}`,
@@ -177,7 +177,7 @@ describe("completeComposioCallback", () => {
         expiresAt: new Date("2026-09-03T10:15:00.000Z"),
         project: { closingAt: null, closedAt: null },
       });
-      getProjectSocialConnectedAccountMock.mockResolvedValue({
+      getComposioConnectedAccountMock.mockResolvedValue({
         id: "ca_123",
         toolkitSlug: "twitter",
         authConfigId: "ac_x",
@@ -217,7 +217,7 @@ describe("completeComposioCallback", () => {
         userId: "user_123",
       }),
     ).rejects.toThrow("Unknown or expired connection");
-    expect(getProjectSocialConnectedAccountMock).not.toHaveBeenCalled();
+    expect(getComposioConnectedAccountMock).not.toHaveBeenCalled();
     expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
   });
 

@@ -95,7 +95,7 @@ function toolErrorStatus(value: unknown): number | null {
  * Creates a restricted tool-router session pinned to one connected account
  * with only the given tools enabled. The caller deletes the session.
  */
-export async function createSocialPublishSession(input: {
+export async function createComposioToolSession(input: {
   toolkitSlug: string;
   connectedAccountId: string;
   executorUserId: string;
@@ -132,7 +132,7 @@ export async function createSocialPublishSession(input: {
  * Composio's envelope layers stripped. A refused or unsuccessful execution is
  * raised as a {@link ComposioToolError}.
  */
-export async function executeSocialPublishTool(input: {
+export async function executeComposioTool(input: {
   sessionId: string;
   toolSlug: string;
   arguments: Record<string, unknown>;

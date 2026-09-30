@@ -6,7 +6,7 @@ import { notFound } from "@/helpers/error";
 
 const m = vi.hoisted(() => ({
   getEnv: vi.fn(),
-  getProjectSocialConnectedAccount: vi.fn(),
+  getComposioConnectedAccount: vi.fn(),
   initiateComposioConnection: vi.fn(),
   deleteIntentAtComposio: vi.fn(),
   revoke: vi.fn(),
@@ -32,9 +32,9 @@ const m = vi.hoisted(() => ({
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
   deleteProjectSocialConnectionIntent: m.deleteIntentAtComposio,
-  getProjectSocialConnectedAccount: m.getProjectSocialConnectedAccount,
-  initiateProjectSocialConnection: m.initiateComposioConnection,
-  revokeProjectSocialConnection: m.revoke,
+  getComposioConnectedAccount: m.getComposioConnectedAccount,
+  initiateComposioConnection: m.initiateComposioConnection,
+  revokeComposioConnectedAccount: m.revoke,
 }));
 vi.mock("@/config/env", () => ({
   getEnv: m.getEnv,
@@ -145,7 +145,7 @@ describe("project ad accounts service", () => {
       connectionId: "ca_1",
       redirectUrl: "https://connect.composio.dev/link",
     });
-    m.getProjectSocialConnectedAccount.mockResolvedValue({
+    m.getComposioConnectedAccount.mockResolvedValue({
       id: "ca_1",
       status: "ACTIVE",
       toolkitSlug: "googleads",
@@ -264,7 +264,7 @@ describe("project ad accounts service", () => {
 
     it("lists Meta accounts for a meta_ads intent", async () => {
       m.intentFindUnique.mockResolvedValue({ ...intent, provider: "meta_ads" });
-      m.getProjectSocialConnectedAccount.mockResolvedValue({
+      m.getComposioConnectedAccount.mockResolvedValue({
         id: "ca_1",
         status: "ACTIVE",
         toolkitSlug: "metaads",
@@ -288,7 +288,7 @@ describe("project ad accounts service", () => {
       expect(result.connection.id).toBe(CONNECTION_UUID);
       expect(result.availableAccounts).toEqual(available);
       expect(m.connectionCreate).not.toHaveBeenCalled();
-      expect(m.getProjectSocialConnectedAccount).not.toHaveBeenCalled();
+      expect(m.getComposioConnectedAccount).not.toHaveBeenCalled();
     });
 
     it("hides a connection that belongs to another Project", async () => {

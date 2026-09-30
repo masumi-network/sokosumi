@@ -1,6 +1,6 @@
 import {
   completeComposioAuth,
-  getProjectSocialConnectedAccount,
+  getComposioConnectedAccount,
 } from "@/clients/composio.client";
 import {
   isProjectAdProvider,
@@ -70,7 +70,7 @@ export async function completeComposioCallback(input: {
     ) {
       throw notFound("Unknown or expired connection");
     }
-    const account = await getProjectSocialConnectedAccount(input.connectionId);
+    const account = await getComposioConnectedAccount(input.connectionId);
     if (
       account.id !== input.connectionId ||
       account.toolkitSlug !== toolkitSlug ||

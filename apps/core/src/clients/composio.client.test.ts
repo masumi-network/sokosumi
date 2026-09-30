@@ -24,7 +24,7 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_123",
 };
 
-describe("initiateProjectSocialConnection", () => {
+describe("initiateComposioConnection", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.clearAllMocks();
@@ -42,10 +42,8 @@ describe("initiateProjectSocialConnection", () => {
       }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
-    await initiateProjectSocialConnection({
+    const { initiateComposioConnection } = await import("./composio.client");
+    await initiateComposioConnection({
       ...input,
       authConfigId: "ac_instagram",
     });
@@ -144,10 +142,8 @@ describe("initiateProjectSocialConnection", () => {
         ),
       ),
     );
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
-    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
+    const { initiateComposioConnection } = await import("./composio.client");
+    await expect(initiateComposioConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
       body: undefined,
     });
@@ -182,10 +178,8 @@ describe("initiateProjectSocialConnection", () => {
         ),
       ),
     );
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
-    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
+    const { initiateComposioConnection } = await import("./composio.client");
+    await expect(initiateComposioConnection(input)).rejects.toMatchObject({
       httpStatus: 422,
     });
     expect(logSetMock).toHaveBeenCalledWith({
@@ -211,10 +205,8 @@ describe("initiateProjectSocialConnection", () => {
           new Response("secret-provider-response", { status: 400 }),
         ),
     );
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
-    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
+    const { initiateComposioConnection } = await import("./composio.client");
+    await expect(initiateComposioConnection(input)).rejects.toMatchObject({
       httpStatus: 400,
     });
     expect(logSetMock).toHaveBeenCalledWith({
@@ -232,10 +224,8 @@ describe("initiateProjectSocialConnection", () => {
     getEnvMock.mockReturnValue({
       COMPOSIO_X_AUTH_CONFIG_ID: "private-config-id",
     });
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
-    await expect(initiateProjectSocialConnection(input)).rejects.toThrow(
+    const { initiateComposioConnection } = await import("./composio.client");
+    await expect(initiateComposioConnection(input)).rejects.toThrow(
       "COMPOSIO_API_KEY is not configured",
     );
     expect(logSetMock).toHaveBeenCalledWith({
@@ -269,11 +259,9 @@ describe("initiateProjectSocialConnection", () => {
         ),
       ),
     );
-    const { initiateProjectSocialConnection } = await import(
-      "./composio.client"
-    );
+    const { initiateComposioConnection } = await import("./composio.client");
 
-    await expect(initiateProjectSocialConnection(input)).resolves.toEqual({
+    await expect(initiateComposioConnection(input)).resolves.toEqual({
       connectionId: "ca_123",
       redirectUrl,
     });
@@ -295,11 +283,11 @@ describe("initiateProjectSocialConnection", () => {
         ),
       ),
     );
-    const { ComposioApiError, initiateProjectSocialConnection } = await import(
+    const { ComposioApiError, initiateComposioConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
+    await expect(initiateComposioConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -310,11 +298,11 @@ describe("initiateProjectSocialConnection", () => {
       "fetch",
       vi.fn().mockRejectedValue(new DOMException("timed out", "TimeoutError")),
     );
-    const { ComposioApiError, initiateProjectSocialConnection } = await import(
+    const { ComposioApiError, initiateComposioConnection } = await import(
       "./composio.client"
     );
 
-    await expect(initiateProjectSocialConnection(input)).rejects.toMatchObject({
+    await expect(initiateComposioConnection(input)).rejects.toMatchObject({
       constructor: ComposioApiError,
       httpStatus: 503,
     });
@@ -360,10 +348,10 @@ describe("initiateProjectSocialConnection", () => {
             ),
           ),
       );
-      const { revokeProjectSocialConnection } = await import(
+      const { revokeComposioConnectedAccount } = await import(
         "./composio.client"
       );
-      const result = revokeProjectSocialConnection({
+      const result = revokeComposioConnectedAccount({
         connectedAccountId: "ca_123",
       });
       if (status === "REVOKED") await expect(result).resolves.toBeUndefined();

@@ -4,10 +4,10 @@ import {
   ComposioApiError,
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
+  getComposioConnectedAccount,
   getConnectedSocialIdentity,
-  getProjectSocialConnectedAccount,
-  initiateProjectSocialConnection as initiateComposioProjectSocialConnection,
-  revokeProjectSocialConnection,
+  initiateComposioConnection,
+  revokeComposioConnectedAccount,
 } from "@/clients/composio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
@@ -262,7 +262,7 @@ async function refreshActiveConnectionStatus(
 
   let account;
   try {
-    account = await getProjectSocialConnectedAccount(
+    account = await getComposioConnectedAccount(
       connection.composioConnectedAccountId,
     );
   } catch (error) {
@@ -359,7 +359,7 @@ export async function initiateProjectSocialConnection(
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
 
-  const connection = await initiateComposioProjectSocialConnection({
+  const connection = await initiateComposioConnection({
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
@@ -405,7 +405,7 @@ export async function finalizeProjectSocialConnection(
 
   const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);
-  const account = await getProjectSocialConnectedAccount(input.connectionId);
+  const account = await getComposioConnectedAccount(input.connectionId);
   if (
     account.id !== input.connectionId ||
     account.toolkitSlug !==
@@ -619,7 +619,7 @@ async function revokeRetiredProjectSocialConnection(input: {
   }
 
   try {
-    await revokeProjectSocialConnection({
+    await revokeComposioConnectedAccount({
       connectedAccountId: input.connectedAccountId,
     });
     await prisma.projectSocialConnectionAudit.update({

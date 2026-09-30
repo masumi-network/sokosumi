@@ -2,11 +2,11 @@ import type { z } from "@hono/zod-openapi";
 
 import {
   ComposioApiError,
-  deleteProjectSocialSession,
+  deleteComposioToolSession,
 } from "@/clients/composio.client";
 import {
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createComposioToolSession,
+  executeComposioTool,
 } from "@/clients/social-post-providers/tools";
 import {
   PROJECT_AD_PROVIDERS,
@@ -37,7 +37,7 @@ export type ExecuteAdsTool = (
 /**
  * Runs `run` in a tool-router session pinned to one connected account and to
  * the given tools only, then deletes the session. The session reuses the
- * social publish helpers, which are not specific to social toolkits.
+ * Composio tool-session helpers.
  */
 export async function withAdsToolSession<T>(
   input: AdsConnectedAccount & {
@@ -47,7 +47,7 @@ export async function withAdsToolSession<T>(
   run: (execute: ExecuteAdsTool) => Promise<T>,
 ): Promise<T> {
   const { name, toolkitSlug } = PROJECT_AD_PROVIDERS[input.provider];
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug,
     connectedAccountId: input.connectedAccountId,
     executorUserId: input.executorUserId,
@@ -56,7 +56,7 @@ export async function withAdsToolSession<T>(
   });
   try {
     return await run((toolSlug, args) =>
-      executeSocialPublishTool({
+      executeComposioTool({
         sessionId,
         toolSlug,
         arguments: args,
@@ -65,7 +65,7 @@ export async function withAdsToolSession<T>(
       }),
     );
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       `delete Project ${name} session`,
     );
