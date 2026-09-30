@@ -445,6 +445,12 @@ vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   createOrGetDirectRoom: createOrGetDirectRoomMock,
 }));
+const { unreadCountsMock } = vi.hoisted(() => ({
+  unreadCountsMock: vi.fn().mockResolvedValue(new Map()),
+}));
+vi.mock("@/routes/v1/chats/rooms/room-unread", () => ({
+  getChatRoomUnreadCounts: unreadCountsMock,
+}));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
 }));
@@ -3370,6 +3376,52 @@ describe("SokoBotRuntimeService chat reading", () => {
       "Launch crew",
       "Ada, Cara",
     ]);
+  });
+
+  it("shows the owner's unread counts on an owner turn, only for their rooms", async () => {
+    chatRoomFindManyMock.mockResolvedValue([
+      {
+        id: "room_dm",
+        name: "Joseph",
+        groupName: null,
+        kind: "direct",
+        updatedAt: new Date("2026-09-30T10:00:00.000Z"),
+        _count: { messages: 9 },
+        userMembers: [{ userId: SCOPE.userId }],
+      },
+      {
+        id: "room_other",
+        name: "Test",
+        groupName: null,
+        kind: "channel",
+        updatedAt: new Date("2026-09-30T09:00:00.000Z"),
+        _count: { messages: 4 },
+        userMembers: [],
+      },
+    ]);
+    unreadCountsMock.mockResolvedValue(
+      new Map([["room_dm", { channel: 2, thread: 1, total: 3 }]]),
+    );
+
+    const owner = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+      askedByKind: "OWNER",
+    } as never);
+    expect(unreadCountsMock).toHaveBeenCalledWith(
+      ["room_dm"],
+      SCOPE.userId,
+      expect.anything(),
+    );
+    expect(owner.rooms).toEqual([
+      expect.objectContaining({ roomId: "room_dm", ownerUnread: 3 }),
+      expect.not.objectContaining({ ownerUnread: expect.anything() }),
+    ]);
+
+    const teammate = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+      askedByKind: "TEAMMATE",
+    } as never);
+    expect(teammate.rooms.some((room) => "ownerUnread" in room)).toBe(false);
   });
 
   it("names a read group by its Group name", async () => {

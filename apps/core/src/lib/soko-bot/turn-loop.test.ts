@@ -26,7 +26,37 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { finishTurn } from "./turn-loop";
+import { finishTurn, latestExchange } from "./turn-loop";
+
+describe("latestExchange", () => {
+  const now = Date.parse("2026-09-30T18:05:14Z");
+  const offer = {
+    source: "CHAT",
+    userMessage: "Swap Gravity for a better one and update the file.",
+    finalAnswer: `${"Research table… ".repeat(60)}Want me to replace the Gravity row in competitors-r5.md?`,
+    completedAt: "2026-09-30T18:03:40Z",
+  };
+
+  it("repeats the bot's own offer in full, so a bare yes can answer it", () => {
+    const block = latestExchange({ recentTurns: [offer] }, now).join("\n");
+    expect(block).toContain("LATEST EXCHANGE");
+    expect(block).toContain(
+      "Want me to replace the Gravity row in competitors-r5.md?",
+    );
+    expect(block).toContain(`Owner: ${offer.userMessage}`);
+  });
+
+  it("stays out when the last turn was not chat or is a day old", () => {
+    const exchange = (turns: unknown[]) =>
+      latestExchange({ recentTurns: turns }, now);
+    expect(exchange([{ ...offer, source: "EVENT" }])).toEqual([]);
+    expect(
+      exchange([{ ...offer, completedAt: "2026-09-28T18:00:00Z" }]),
+    ).toEqual([]);
+    expect(exchange([])).toEqual([]);
+    expect(latestExchange({ memory: {} }, now)).toEqual([]);
+  });
+});
 
 const log = { append: vi.fn(), turnId: "turn-1" };
 
