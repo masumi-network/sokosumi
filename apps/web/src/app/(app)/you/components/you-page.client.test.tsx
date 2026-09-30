@@ -151,31 +151,36 @@ describe("YouPageClient", () => {
     expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
   });
 
-  it("groups Calendar and Files in the first nav section", () => {
+  it("groups Schedules, Studio and Files in the destinations section", () => {
     renderYouPage();
 
-    const calendar = screen.getByTestId("you-calendar");
+    const schedules = screen.getByTestId("you-schedules");
+    const studio = screen.getByTestId("you-studio");
     const files = screen.getByTestId("you-files");
 
-    expect(calendar).toHaveAttribute("href", "/calendar");
+    expect(schedules).toHaveAttribute("href", "/schedules");
+    expect(studio).toHaveAttribute("href", "/studio");
     expect(files).toHaveAttribute("href", "/drive");
     expect(
-      calendar.compareDocumentPosition(files) &
+      schedules.compareDocumentPosition(studio) &
         Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      studio.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("puts Content Studio after Calendar and before Files", () => {
+  it("puts Content Studio after Schedules and before Files", () => {
     renderYouPage();
 
-    const calendar = screen.getByTestId("you-calendar");
+    const schedules = screen.getByTestId("you-schedules");
     const studio = screen.getByTestId("you-studio");
     const files = screen.getByTestId("you-files");
 
     expect(studio).toHaveAttribute("href", "/studio");
     expect(studio).toHaveTextContent("contentStudio");
     expect(
-      calendar.compareDocumentPosition(studio) &
+      schedules.compareDocumentPosition(studio) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -190,6 +195,12 @@ describe("YouPageClient", () => {
       "href",
       "/schedules",
     );
+  });
+
+  it("does not list Calendar on the You page", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-calendar")).not.toBeInTheDocument();
   });
 
   it("shows Admin alone before account links when admin is enabled", () => {

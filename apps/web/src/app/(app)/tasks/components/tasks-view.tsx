@@ -9,14 +9,9 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import {
-  AgentJobStatus,
-  SokosumiJobStatus,
-  TaskStatus,
-} from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
-  makeAgentJobsChannelName,
   makeUserTasksChannelName,
   userTaskStatusTransitionRequiresComment,
 } from "@sokosumi/utils";
@@ -24,6 +19,7 @@ import { ChannelProvider, useChannel } from "ably/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
+  type ReactNode,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -37,30 +33,15 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
-import {
-  loadJobsTabData,
-  loadMoreJobs,
-  loadMoreTasksColumn,
-  loadMoreTasksList,
-} from "@/app/tasks/actions";
-import {
-  JOBS_TAB_LOAD_RETRY_DELAY_MS,
-  TASKS_ROUTE_REFRESH_DEBOUNCE_MS,
-} from "@/app/tasks/constants";
+import { loadMoreTasksColumn, loadMoreTasksList } from "@/app/tasks/actions";
+import { TASKS_ROUTE_REFRESH_DEBOUNCE_MS } from "@/app/tasks/constants";
 import {
   KANBAN_COLUMNS,
   type KanbanColumnDefinition,
   type KanbanColumnId,
   type TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import type { TasksViewJob } from "@/app/tasks/types/tasks-view-job";
 import { isTaskArchived } from "@/app/tasks/utils/archived-task-ids";
-import {
-  getJobsListFiltersForLazyAgentCatalog,
-  getJobsListFiltersResetKey,
-  type JobsListFilters,
-  mergeTopPageJobsWithListFilters,
-} from "@/app/tasks/utils/jobs-filters";
 import { mergeTasksOnServerRefresh } from "@/app/tasks/utils/merge-tasks-on-server-refresh";
 import {
   getTasksFiltersFromSearchParams,
@@ -85,11 +66,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-import {
-  jobStatusDataSchema,
-  type TaskEventData,
-  taskEventDataSchema,
-} from "@/lib/ably/schema";
+import { type TaskEventData, taskEventDataSchema } from "@/lib/ably/schema";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -107,8 +84,6 @@ import {
   CreateTaskModalProvider,
   useCreateTaskModal,
 } from "./create-task-modal";
-import { JobsListView } from "./jobs-list-view";
-import { JobsViewFilters } from "./jobs-view-filters";
 import { KanbanBoard } from "./kanban-board";
 import { shouldRollbackBoardReopenOnDismiss } from "./task-board-reopen";
 import { TaskCard } from "./task-card";
@@ -183,15 +158,6 @@ interface TasksRealtimeListenerProps {
   onEvent: (data: TaskEventData) => void;
 }
 
-interface AgentJobsRealtimeListenerProps {
-  agentId: string;
-  userId: string;
-  onStatusUpdate: (data: {
-    jobId: string;
-    jobStatus: SokosumiJobStatus;
-  }) => void;
-}
-
 function TasksRealtimeListener({
   userId,
   onEvent,
@@ -212,30 +178,6 @@ function TasksRealtimeListener({
   return null;
 }
 
-function AgentJobsRealtimeListener({
-  agentId,
-  userId,
-  onStatusUpdate,
-}: AgentJobsRealtimeListenerProps) {
-  useChannel(makeAgentJobsChannelName(agentId, userId), (message) => {
-    const parsedResult = jobStatusDataSchema.safeParse(message.data);
-    if (parsedResult.success) {
-      onStatusUpdate({
-        jobId: parsedResult.data.jobId,
-        jobStatus: parsedResult.data.jobStatus,
-      });
-    } else {
-      console.error(
-        "Failed to parse JobStatus from message",
-        message,
-        parsedResult.error,
-      );
-    }
-  });
-
-  return null;
-}
-
 interface TasksViewProps {
   tasks: TaskWithCoworker[];
   listNextCursor: string | null;
@@ -246,7 +188,7 @@ interface TasksViewProps {
   userId?: string | null;
   activeOrganizationId: string | null;
   initialFilters: TasksFilters;
-  initialJobsListFilters: JobsListFilters;
+  calendar?: ReactNode;
   defaultViewMode?: TasksViewMode;
   defaultDensity?: TasksDensity;
   initialCreateTaskOpen?: boolean;
@@ -258,7 +200,7 @@ interface TasksViewProps {
   labels: {
     tabs: {
       tasks: string;
-      jobs: string;
+      calendar: string;
     };
     filters: {
       title: string;
@@ -275,18 +217,6 @@ interface TasksViewProps {
       statusOptions: Record<TaskStatus, string>;
     };
     columns: Record<KanbanColumnId, string>;
-    jobs: {
-      filterButton: string;
-      agentLabel: string;
-      jobStatusLabel: string;
-      jobStatusOptions: Record<AgentJobStatus, string>;
-      recentTitle: string;
-      emptyRecent: string;
-      emptyList: string;
-      emptySection: string;
-      untitled: string;
-      unknownAgent: string;
-    };
     display: {
       button: string;
       list: string;
@@ -300,7 +230,6 @@ interface TasksViewProps {
     loading: string;
     dragError: string;
     loadMoreError: string;
-    loadJobsError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
       commentRequired: string;
     };
@@ -317,7 +246,7 @@ export function TasksView({
   userId,
   activeOrganizationId,
   initialFilters,
-  initialJobsListFilters,
+  calendar,
   defaultViewMode,
   defaultDensity,
   initialCreateTaskOpen = false,
@@ -370,24 +299,6 @@ export function TasksView({
     setActiveTab(tabFromUrl);
   }
   const [items, setItems] = useState<TaskWithCoworker[]>(tasks);
-  const [jobsItems, setJobsItems] = useState<TasksViewJob[]>([]);
-  const [jobsCursor, setJobsCursor] = useState<string | null>(null);
-  const [agentPreviews, setAgentPreviews] = useState<
-    Record<string, { name: string; icon: string | null }>
-  >({});
-  const [jobAgentOptions, setJobAgentOptions] = useState<
-    Array<{ id: string; name: string; image: string | null }>
-  >([]);
-  const jobsRouteFilters = useMemo(
-    () =>
-      getJobsListFiltersForLazyAgentCatalog(
-        searchParams,
-        activeOrganizationId,
-        jobAgentOptions,
-        projectOptions,
-      ),
-    [activeOrganizationId, jobAgentOptions, projectOptions, searchParams],
-  );
   const [columnCursorById, setColumnCursorById] = useState<
     Record<KanbanColumnId, string | null>
   >(() => buildInitialColumnCursorById(columns, initialColumnNextCursorById));
@@ -413,19 +324,10 @@ export function TasksView({
     hydrationStore.getServerSnapshot,
   );
   const [_isPending, startTransition] = useTransition();
-  const [isJobsPending, startJobsTransition] = useTransition();
   const moveVersionRef = useRef(0);
   const pendingMoveVersionByTaskIdRef = useRef(new Map<string, number>());
   const itemsRef = useRef(items);
   itemsRef.current = items;
-  const jobsItemsRef = useRef(jobsItems);
-  jobsItemsRef.current = jobsItems;
-  /** True after at least one successful jobs "Load more"; cleared when jobs reset from the server. */
-  const hasAppendedJobsViaPaginationRef = useRef(false);
-  /** True after the jobs tab's first server fetch completes. */
-  const hasLoadedJobsTabRef = useRef(false);
-  const isLoadingJobsTabRef = useRef(false);
-  const isRefetchingJobsRef = useRef(false);
   const columnCursorByIdRef = useRef(columnCursorById);
   columnCursorByIdRef.current = columnCursorById;
   // Every setListCursor / setIsLoadingListMore call writes these refs directly.
@@ -442,31 +344,15 @@ export function TasksView({
     () => getTasksFiltersResetKey(initialFilters, activeOrganizationId),
     [activeOrganizationId, initialFilters],
   );
-  const serverJobsListFiltersResetKey = useMemo(
-    () =>
-      getJobsListFiltersResetKey(initialJobsListFilters, activeOrganizationId),
-    [activeOrganizationId, initialJobsListFilters],
-  );
   const routeTasksFiltersResetKey = useMemo(
     () => getTasksFiltersResetKey(routeFilters, activeOrganizationId),
     [activeOrganizationId, routeFilters],
   );
-  const routeJobsListFiltersResetKey = useMemo(
-    () => getJobsListFiltersResetKey(jobsRouteFilters, activeOrganizationId),
-    [activeOrganizationId, jobsRouteFilters],
-  );
-  const selectedProjectId =
-    routeFilters.projectId ?? jobsRouteFilters.projectId;
-  const defaultProjectId = selectedProjectId;
+  const defaultProjectId = routeFilters.projectId;
 
   const isTaskPaginationInSync =
     routeTasksFiltersResetKey === serverTasksFiltersResetKey;
-  const isJobsPaginationInSync =
-    routeJobsListFiltersResetKey === serverJobsListFiltersResetKey;
   const previousTasksFiltersResetKeyRef = useRef(serverTasksFiltersResetKey);
-  const previousJobsListFiltersResetKeyRef = useRef(
-    serverJobsListFiltersResetKey,
-  );
   const previousDefaultViewModeRef = useRef(defaultViewMode);
   const handleEventUpdate = (_data: TaskEventData) => {
     refreshRoute();
@@ -566,92 +452,6 @@ export function TasksView({
     initialColumnNextCursorById,
     initialListNextCursor,
     tasks,
-  ]);
-
-  const mergeJobsWithExisting = useCallback(
-    (fetchedJobs: TasksViewJob[], prevJobs: TasksViewJob[]) => {
-      const nextJobIds = new Set(fetchedJobs.map((job) => job.id));
-      const merged = [...fetchedJobs];
-      prevJobs.forEach((job) => {
-        if (!nextJobIds.has(job.id)) {
-          merged.push(job);
-        }
-      });
-      return merged;
-    },
-    [],
-  );
-
-  useEffect(() => {
-    if (activeTab !== "jobs") return;
-    if (hasLoadedJobsTabRef.current) return;
-
-    let cancelled = false;
-    let retryTimeoutId: ReturnType<typeof setTimeout> | undefined;
-    let hasToastedFailure = false;
-
-    async function fetchJobsTabWithRetry() {
-      if (
-        cancelled ||
-        hasLoadedJobsTabRef.current ||
-        isLoadingJobsTabRef.current
-      ) {
-        return;
-      }
-
-      isLoadingJobsTabRef.current = true;
-      startJobsTransition(async () => {
-        try {
-          const result = await loadJobsTabData(
-            jobsRouteFilters.scope,
-            jobsRouteFilters.agentId,
-            jobsRouteFilters.jobStatus,
-            jobsRouteFilters.projectId,
-          );
-          if (cancelled) return;
-          hasLoadedJobsTabRef.current = true;
-          setJobAgentOptions(result.jobAgentOptions);
-          setJobsItems((prev) => mergeJobsWithExisting(result.jobs, prev));
-          jobsItemsRef.current = mergeJobsWithExisting(
-            result.jobs,
-            jobsItemsRef.current,
-          );
-          setJobsCursor(result.nextCursor);
-          setAgentPreviews((prev) => ({
-            ...prev,
-            ...result.agentPreviewById,
-          }));
-        } catch {
-          if (cancelled) return;
-          if (!hasToastedFailure) {
-            hasToastedFailure = true;
-            toast.error(labels.loadJobsError);
-          }
-          retryTimeoutId = setTimeout(() => {
-            void fetchJobsTabWithRetry();
-          }, JOBS_TAB_LOAD_RETRY_DELAY_MS);
-        } finally {
-          isLoadingJobsTabRef.current = false;
-        }
-      });
-    }
-
-    void fetchJobsTabWithRetry();
-
-    return () => {
-      cancelled = true;
-      if (retryTimeoutId !== undefined) {
-        clearTimeout(retryTimeoutId);
-      }
-    };
-  }, [
-    activeTab,
-    jobsRouteFilters.agentId,
-    jobsRouteFilters.jobStatus,
-    jobsRouteFilters.projectId,
-    jobsRouteFilters.scope,
-    labels.loadJobsError,
-    mergeJobsWithExisting,
   ]);
 
   const sensors = useSensors(
@@ -975,129 +775,6 @@ export function TasksView({
     document.cookie = serializeTasksDensityCookie(next);
   };
 
-  const handleLoadMoreJobs = () => {
-    if (!isJobsPaginationInSync) return;
-    if (!jobsCursor) return;
-    startJobsTransition(async () => {
-      try {
-        const result = await loadMoreJobs(
-          jobsCursor,
-          jobsRouteFilters.scope,
-          jobsRouteFilters.agentId,
-          jobsRouteFilters.jobStatus,
-          jobsRouteFilters.projectId,
-        );
-        hasAppendedJobsViaPaginationRef.current = true;
-        setJobsItems((prev) => appendUniqueJobs(prev, result.jobs));
-        setJobsCursor(result.nextCursor);
-        setAgentPreviews((prev) => ({
-          ...prev,
-          ...result.agentPreviewById,
-        }));
-      } catch {
-        setJobsCursor(null);
-      }
-    });
-  };
-
-  const refetchFirstJobsPage = useCallback(() => {
-    if (isRefetchingJobsRef.current) return;
-    isRefetchingJobsRef.current = true;
-
-    startJobsTransition(async () => {
-      try {
-        const result = await loadMoreJobs(
-          null,
-          jobsRouteFilters.scope,
-          jobsRouteFilters.agentId,
-          jobsRouteFilters.jobStatus,
-          jobsRouteFilters.projectId,
-        );
-        setJobsItems((prev) =>
-          mergeTopPageJobsWithListFilters(prev, result.jobs, jobsRouteFilters),
-        );
-        setJobsCursor((prevCursor) =>
-          hasAppendedJobsViaPaginationRef.current && prevCursor !== null
-            ? prevCursor
-            : (result.nextCursor ?? null),
-        );
-        setAgentPreviews((prev) => ({
-          ...prev,
-          ...result.agentPreviewById,
-        }));
-      } finally {
-        isRefetchingJobsRef.current = false;
-      }
-    });
-  }, [jobsRouteFilters]);
-
-  useLayoutEffect(() => {
-    if (
-      previousJobsListFiltersResetKeyRef.current ===
-      serverJobsListFiltersResetKey
-    ) {
-      return;
-    }
-
-    previousJobsListFiltersResetKeyRef.current = serverJobsListFiltersResetKey;
-    isRefetchingJobsRef.current = false;
-    hasAppendedJobsViaPaginationRef.current = false;
-
-    if (hasLoadedJobsTabRef.current) {
-      refetchFirstJobsPage();
-      return;
-    }
-
-    jobsItemsRef.current = [];
-    setJobsItems([]);
-    setJobsCursor(null);
-    setAgentPreviews({});
-  }, [refetchFirstJobsPage, serverJobsListFiltersResetKey]);
-
-  const handleJobStatusUpdate = ({
-    jobId,
-    jobStatus,
-  }: {
-    jobId: string;
-    jobStatus: SokosumiJobStatus;
-  }) => {
-    const existingJob = jobsItemsRef.current.find((job) => job.id === jobId);
-    if (!existingJob) {
-      refetchFirstJobsPage();
-      return;
-    }
-
-    if (
-      jobStatus === SokosumiJobStatus.COMPLETED &&
-      existingJob.completedAt === null
-    ) {
-      refetchFirstJobsPage();
-    }
-
-    const completedAtForUpdate =
-      jobStatus === SokosumiJobStatus.COMPLETED &&
-      existingJob.completedAt === null
-        ? new Date().toISOString()
-        : undefined;
-
-    setJobsItems((prev) =>
-      prev.map((job) => {
-        if (job.id !== jobId || job.status === jobStatus) return job;
-        return {
-          ...job,
-          status: jobStatus,
-          ...(completedAtForUpdate !== undefined && {
-            completedAt: completedAtForUpdate,
-          }),
-        };
-      }),
-    );
-  };
-
-  const realtimeAgentIds = useMemo(
-    () => Array.from(new Set(jobsItems.map((job) => job.agentId))),
-    [jobsItems],
-  );
   const activeDragTask = useMemo(
     () =>
       activeDragTaskId
@@ -1191,10 +868,10 @@ export function TasksView({
               {labels.tabs.tasks}
             </TabsTrigger>
             <TabsTrigger
-              value="jobs"
+              value="calendar"
               className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
             >
-              {labels.tabs.jobs}
+              {labels.tabs.calendar}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -1215,28 +892,6 @@ export function TasksView({
               density={density}
               onDensityChange={handleDensityChange}
               labels={labels.display}
-            />
-          ) : null}
-          {activeTab === "jobs" ? (
-            <JobsViewFilters
-              activeOrganizationId={activeOrganizationId}
-              agentOptions={jobAgentOptions}
-              projectOptions={projectOptions}
-              filtersLabels={{
-                title: labels.filters.title,
-                searchPlaceholder: labels.filters.searchPlaceholder,
-                emptyResults: labels.filters.emptyResults,
-                all: labels.filters.all,
-                scopeLabel: labels.filters.scopeLabel,
-                scopeOwned: labels.filters.scopeOwned,
-                scopeWorkspace: labels.filters.scopeWorkspace,
-              }}
-              labels={{
-                filterButton: labels.jobs.filterButton,
-                agentLabel: labels.jobs.agentLabel,
-                jobStatusLabel: labels.jobs.jobStatusLabel,
-                jobStatusOptions: labels.jobs.jobStatusOptions,
-              }}
             />
           ) : null}
         </div>
@@ -1342,24 +997,8 @@ export function TasksView({
           </div>
         </div>
       </TabsContent>
-      <TabsContent value="jobs" className="flex flex-col gap-4">
-        <JobsListView
-          jobs={jobsItems}
-          agentPreviewById={agentPreviews}
-          columnLabels={labels.columns}
-          labels={labels.jobs}
-        />
-        {jobsCursor ? (
-          <div className="flex justify-center">
-            <Button
-              variant="outline"
-              onClick={handleLoadMoreJobs}
-              disabled={isJobsPending || !isJobsPaginationInSync}
-            >
-              {isJobsPending ? labels.loading : labels.loadMore}
-            </Button>
-          </div>
-        ) : null}
+      <TabsContent value="calendar" className="flex min-h-0 flex-1 flex-col">
+        {calendar}
       </TabsContent>
     </Tabs>
   );
@@ -1380,30 +1019,20 @@ export function TasksView({
               onEvent={handleEventUpdate}
             />
           </ChannelProvider>
-          {realtimeAgentIds.map((agentId) => (
-            <ChannelProvider
-              key={agentId}
-              channelName={makeAgentJobsChannelName(agentId, userId)}
-            >
-              <AgentJobsRealtimeListener
-                agentId={agentId}
-                userId={userId}
-                onStatusUpdate={handleJobStatusUpdate}
-              />
-            </ChannelProvider>
-          ))}
         </LazyAblyProvider>
       ) : null}
       {tabsContent}
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
       ) : null}
-      <CreateTaskModal
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        defaultProjectId={defaultProjectId}
-        initialCreateTaskOpen={initialCreateTaskOpen}
-      />
+      {activeTab === "tasks" ? (
+        <CreateTaskModal
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          defaultProjectId={defaultProjectId}
+          initialCreateTaskOpen={initialCreateTaskOpen}
+        />
+      ) : null}
       <TaskReopenToReadyDialog
         open={pendingBoardReopen != null}
         onOpenChange={handleBoardReopenOpenChange}
@@ -1415,12 +1044,6 @@ export function TasksView({
       />
     </CreateTaskModalProvider>
   );
-}
-
-function appendUniqueJobs(prevJobs: TasksViewJob[], newJobs: TasksViewJob[]) {
-  const existingIds = new Set(prevJobs.map((job) => job.id));
-  const uniqueNewJobs = newJobs.filter((job) => !existingIds.has(job.id));
-  return [...prevJobs, ...uniqueNewJobs];
 }
 
 function appendUniqueTasks(
