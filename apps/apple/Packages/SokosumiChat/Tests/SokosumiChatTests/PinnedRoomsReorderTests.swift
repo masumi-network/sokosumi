@@ -97,7 +97,7 @@ struct PinnedRoomsReorderTests {
     #expect(pinnedIds(state) == [roomA, roomB, roomC])
     let transport = PausedReorderTransport([(200, orderBody([roomC, roomA, roomB]))])
     let reorderClient = try client(transport)
-    let task = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: organizationSlug) }
+    let task = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: organizationSlug, now: Date()) }
     await transport.waitForRequests(1)
     #expect(pinnedIds(state) == [roomC, roomA, roomB])
     #expect(await testRequestJSON(transport.bodies[0])["roomIds"] as? [String] == [roomC, roomA, roomB])
@@ -134,9 +134,9 @@ struct PinnedRoomsReorderTests {
     let state = try await sidebar()
     let transport = PausedReorderTransport([(500, reorderFailureBody), (200, orderBody([roomB, roomC, roomA]))])
     let reorderClient = try client(transport)
-    let first = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil) }
+    let first = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil, now: Date()) }
     await transport.waitForRequests(1)
-    let second = Task { try await state.reorderPinned([roomB, roomC, roomA], client: reorderClient, organizationSlug: nil) }
+    let second = Task { try await state.reorderPinned([roomB, roomC, roomA], client: reorderClient, organizationSlug: nil, now: Date()) }
     await transport.waitForRequests(2)
     #expect(pinnedIds(state) == [roomB, roomC, roomA])
     // The superseded request fails quietly: no error, no throw, so no reload.
@@ -153,7 +153,7 @@ struct PinnedRoomsReorderTests {
     let state = try await sidebar()
     let transport = PausedReorderTransport([(500, reorderFailureBody)])
     let reorderClient = try client(transport)
-    let task = Task { try await state.reorderPinned([roomB, roomA, roomC], client: reorderClient, organizationSlug: nil) }
+    let task = Task { try await state.reorderPinned([roomB, roomA, roomC], client: reorderClient, organizationSlug: nil, now: Date()) }
     await transport.waitForRequests(1)
     await transport.release()
     await #expect(throws: ChatServiceError.self) { try await task.value }
@@ -168,7 +168,7 @@ struct PinnedRoomsReorderTests {
     let state = try await sidebar()
     let transport = PausedReorderTransport([(500, reorderFailureBody)])
     let reorderClient = try client(transport)
-    let task = Task { try await state.reorderPinned([roomC, roomB, roomA], client: reorderClient, organizationSlug: nil) }
+    let task = Task { try await state.reorderPinned([roomC, roomB, roomA], client: reorderClient, organizationSlug: nil, now: Date()) }
     await transport.waitForRequests(1)
     if change == "switch" {
       state.dropPendingActions()
@@ -187,7 +187,7 @@ struct PinnedRoomsReorderTests {
     let state = try await sidebar()
     let transport = PausedReorderTransport([(200, orderBody([roomC, roomA, roomB]))])
     let reorderClient = try client(transport)
-    let task = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil) }
+    let task = Task { try await state.reorderPinned([roomC, roomA, roomB], client: reorderClient, organizationSlug: nil, now: Date()) }
     await transport.waitForRequests(1)
     // Unpinned on another device: the list read says so, and neither the pending order nor Core's answer re-pins it.
     try await state.refresh(client: makeTestClient(TestTransport([(200, roomsBody(unpinned: [roomA]))])), organizationSlug: nil)
@@ -212,7 +212,7 @@ struct PinnedRoomsReorderTests {
 
     state.setPinnedReorderMode(true)
     let unpin = TestTransport([(200, #"{"data":\#(pinnedRoomJSON(id: roomB, starredAt: nil)),"meta":{"timestamp":"\#(testTimestamp)","requestId":"unpin"}}"#)])
-    try await state.perform(.unpin, roomId: roomB, client: makeTestClient(unpin), organizationSlug: nil)
+    try await state.perform(.unpin, roomId: roomB, client: makeTestClient(unpin), organizationSlug: nil, now: Date(), makeId: UUID.init)
     #expect(!state.canReorderPinned)
     #expect(!state.pinnedReorderMode)
     // Pinning a second room again does not re-enter the mode unasked.

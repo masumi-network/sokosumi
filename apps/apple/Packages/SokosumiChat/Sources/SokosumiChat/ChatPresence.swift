@@ -96,7 +96,7 @@ public struct ChatPresenceMember: Equatable, Sendable {
 /// from the result are offline (callers fall back to the room DTO value).
 func aggregateChatPresence(
   members: [ChatPresenceMember],
-  now: Date = Date(),
+  now: Date,
   onlineWindow: TimeInterval = 5 * 60
 ) -> [String: Components.Schemas.ChatRoomPresence] {
   var byUser: [String: Components.Schemas.ChatRoomPresence] = [:]
@@ -122,17 +122,17 @@ struct OrgPresencePublisherState: Equatable, Sendable {
   private(set) var lastPublished: ChatPresenceMemberData?
   private(set) var lastPublishedAt: Date?
 
-  init(now: Date = Date(), visible: Bool = true) {
+  init(now: Date, visible: Bool = true) {
     lastActiveAt = now
     self.visible = visible
   }
 
-  mutating func recordActivity(now: Date = Date()) {
+  mutating func recordActivity(now: Date) {
     lastActiveAt = now
   }
 
   /// Becoming visible counts as activity, like web's `visibilitychange`.
-  mutating func setVisible(_ visible: Bool, now: Date = Date()) {
+  mutating func setVisible(_ visible: Bool, now: Date) {
     self.visible = visible
     if visible {
       lastActiveAt = now
@@ -143,7 +143,7 @@ struct OrgPresencePublisherState: Equatable, Sendable {
     ChatPresenceMemberData(lastActiveAt: lastActiveAt, visible: visible)
   }
 
-  func shouldPublish(force: Bool, now: Date = Date(), minInterval: TimeInterval = 4 * 60) -> Bool {
+  func shouldPublish(force: Bool, now: Date, minInterval: TimeInterval = 4 * 60) -> Bool {
     guard !force, let lastPublished, let lastPublishedAt else { return true }
     let next = data
     if next.visible != lastPublished.visible {
@@ -155,7 +155,7 @@ struct OrgPresencePublisherState: Equatable, Sendable {
     return now.timeIntervalSince(lastPublishedAt) >= minInterval
   }
 
-  mutating func markPublished(_ data: ChatPresenceMemberData, now: Date = Date()) {
+  mutating func markPublished(_ data: ChatPresenceMemberData, now: Date) {
     lastPublished = data
     lastPublishedAt = now
   }
@@ -169,7 +169,7 @@ struct OrgPresencePublisherState: Equatable, Sendable {
 
   /// Local self-approximation for the account chrome, like web's
   /// `useSelfPresence`: unreachable → offline; hidden or idle → afk.
-  func selfPresence(connected: Bool, now: Date = Date(), onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
+  func selfPresence(connected: Bool, now: Date, onlineWindow: TimeInterval = 5 * 60) -> Components.Schemas.ChatRoomPresence {
     guard connected else { return .offline }
     guard visible, now.timeIntervalSince(lastActiveAt) <= onlineWindow else { return .afk }
     return .online

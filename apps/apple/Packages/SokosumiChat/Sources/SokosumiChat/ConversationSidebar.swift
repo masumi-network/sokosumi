@@ -272,7 +272,7 @@ public final class ConversationSidebar: ObservableObject {
 
   public func perform(
     _ action: Action, roomId: String, client: Client, organizationSlug: String?,
-    now: Date = Date(), makeId: () -> UUID = UUID.init
+    now: Date, makeId: () -> UUID
   ) async throws {
     guard canPerform(action, roomId: roomId), let room = rooms.first(where: { $0.id == roomId }) else { return }
     let token = makeId()
@@ -308,7 +308,7 @@ public final class ConversationSidebar: ObservableObject {
   /// latest one throws so the coordinator reloads the list, because an earlier overlapping reorder may
   /// have landed and no local snapshot is safe to put back.
   public func reorderPinned(
-    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date = Date()
+    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date
   ) async throws {
     reorderRequest += 1
     let request = reorderRequest

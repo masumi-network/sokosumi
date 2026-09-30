@@ -9,6 +9,7 @@ import Testing
 struct MessageEditingTests {
   private func message() -> Components.Schemas.ChatRoomMessage {
     var value = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: testRoomId, content: "Original",
+                                            createdAt: Date(),
                                             sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
     value.id = "550e8400-e29b-41d4-a716-446655440123"
     return value
