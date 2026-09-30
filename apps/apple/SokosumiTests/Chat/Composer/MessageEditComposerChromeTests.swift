@@ -7,8 +7,8 @@
   import Vision
 
   extension NativeWindowTests {
-    /// Row 18b: no Save/Cancel row under the edit field (web has none; Apple keeps compact controls beside the
-    /// field, see `MessageEditComposerControlsTests`), "Too long to send as text" and the `count/max` count on
+    /// Row 18b: no Save/Cancel row under the edit field (web has had one again since #5324; Apple keeps compact
+    /// controls beside the field, see `MessageEditComposerControlsTests`), "Too long to send as text" and the `count/max` count on
     /// one line under the field, editing kept on Return over the limit, and the field dimmed while saving.
     @MainActor struct MessageEditComposerChromeTests {
       private static let edited = "Updated **release notes** for the team."
