@@ -34,6 +34,9 @@ export interface CmoAuthConfig {
   oauthProxy?: { productionURL: string; secret: string };
 }
 
+/** Vercel's client IP headers, as Core reads them. */
+const CLIENT_IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"];
+
 /** Core's refresh tokens last 90 days; the session never outlives them. */
 const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 
@@ -102,7 +105,11 @@ export function createCmoAuth(config: CmoAuthConfig) {
       cookiePrefix: "cmo",
       // Better Auth skips its CSRF origin check under test; keep it on.
       disableOriginCheck: false,
+      // Without it, every visitor shares one rate-limit bucket per path.
+      ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
     },
+    // Better Auth only enables this in production by default; keep tests honest.
+    rateLimit: { enabled: true },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (
@@ -288,6 +295,11 @@ async function renewSessionOnce(
     origin,
     "content-type": "application/json",
   });
+  // Rate-limit renewals per visitor, not in one bucket for the whole server.
+  for (const name of CLIENT_IP_HEADERS) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
   const renewed = await auth.handler(
     new Request(`${origin}/api/auth/get-access-token`, {
       method: "POST",

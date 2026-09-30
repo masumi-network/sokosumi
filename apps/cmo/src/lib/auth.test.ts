@@ -224,9 +224,13 @@ async function createFakeCore(): Promise<FakeCore> {
   return fake;
 }
 
-/** A browser's cookie jar for one origin. */
+let browsers = 0;
+
+/** A browser's cookie jar for one origin, from its own client IP. */
 class CookieJar {
   private cookies = new Map<string, string>();
+  // Better Auth's in-memory rate limiter outlives each test's auth instance.
+  readonly ip = `10.0.${Math.floor((browsers += 1) / 250)}.${browsers % 250}`;
 
   constructor(readonly origin = CMO) {}
 
@@ -264,7 +268,11 @@ function browserRequest(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Request {
-  const headers = new Headers({ cookie: jar.header(), origin: jar.origin });
+  const headers = new Headers({
+    cookie: jar.header(),
+    origin: jar.origin,
+    "x-vercel-forwarded-for": jar.ip,
+  });
   if (init.body !== undefined) headers.set("content-type", "application/json");
   return new Request(`${jar.origin}${path}`, {
     method: init.method ?? "GET",
@@ -626,6 +634,51 @@ describe("CMO auth handler", () => {
     await send(auth, jar, "/api/auth/sign-out", { method: "POST", body: {} });
 
     expect(core.revoked).toEqual(["soko_refresh_token_4"]);
+  });
+
+  it("rate limits each visitor by their own IP", async () => {
+    async function startFrom(ip: string) {
+      const request = browserRequest(
+        new CookieJar(),
+        "/api/auth/sign-in/social",
+        {
+          method: "POST",
+          body: { provider: "sokosumi", callbackURL: "/" },
+        },
+      );
+      request.headers.set("x-vercel-forwarded-for", ip);
+      return (await auth.handler(request)).status;
+    }
+
+    // Better Auth allows three sign-in starts per 10 seconds per client.
+    const visitors = await Promise.all(
+      ["203.0.113.1", "203.0.113.2", "203.0.113.3", "203.0.113.4"].map(
+        startFrom,
+      ),
+    );
+    expect(visitors).toEqual([200, 200, 200, 200]);
+
+    const repeats = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      repeats.push(await startFrom("203.0.113.1"));
+    }
+    expect(repeats.at(-1)).toBe(429);
+  });
+
+  it("renews with the visitor's IP, not one shared bucket", async () => {
+    await signIn(auth, jar, core);
+    const seen: (string | null)[] = [];
+    const handler = auth.handler;
+    auth.handler = (request: Request) => {
+      seen.push(request.headers.get("x-vercel-forwarded-for"));
+      return handler(request);
+    };
+
+    const page = browserRequest(jar, "/");
+    page.headers.set("x-vercel-forwarded-for", "203.0.113.9");
+    await renewSession(auth, page);
+
+    expect(seen).toEqual(["203.0.113.9"]);
   });
 
   it("returns to the signed-out page when consent is declined", async () => {
