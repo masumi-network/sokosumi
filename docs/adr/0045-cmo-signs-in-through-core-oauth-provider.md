@@ -1,6 +1,6 @@
 # CMO signs in through Core's OAuth provider
 
-CMO lives on its own registrable domain (cmo.xyz), so it cannot share Sokosumi's session cookie, which Core only widens to `*.sokosumi.com`. Sign in with Sokosumi therefore runs through the OAuth provider Core already hosts for the CLI and Apple clients: CMO is a confidential client that exchanges the code server side, keeps the tokens in an encrypted cookie on cmo.xyz because it has no database, and calls Core `/v1` only from its server with the `sokosumi:api` token and the `x-organization-slug` header. Core's CORS and trusted origins stay limited to Sokosumi hosts.
+CMO lives at app.cmo.xyz, on its own registrable domain (cmo.xyz), so it cannot share Sokosumi's session cookie, which Core only widens to `*.sokosumi.com`. Sign in with Sokosumi therefore runs through the OAuth provider Core already hosts for the CLI and Apple clients: CMO is a confidential client that exchanges the code server side, keeps the tokens in an encrypted cookie on app.cmo.xyz because it has no database, and calls Core `/v1` only from its server with the `sokosumi:api` token and the `x-organization-slug` header. Core's CORS and trusted origins stay limited to Sokosumi hosts.
 
 ## Considered Options
 
@@ -11,7 +11,7 @@ CMO lives on its own registrable domain (cmo.xyz), so it cannot share Sokosumi's
 ## Consequences
 
 - OAuth redirect URIs must match exactly. CMO has one hand-registered client per environment, like the CLI, and production clients never accept wildcard redirects.
-- PR previews sign in through Better Auth's `oAuthProxy`, the way Core's previews use Google and Microsoft. Core only ever sees production CMO's callback (`https://cmo.xyz/api/auth/callback/sokosumi`). Production CMO exchanges the code and hands the encrypted tokens back to the preview, which shares the proxy secret. Previews therefore use mainnet Core and real mainnet tokens: no database is written, but a PR cannot test Core auth changes through CMO, and a preview needs production CMO to run the proxy.
+- PR previews sign in through Better Auth's `oAuthProxy`, the way Core's previews use Google and Microsoft. Core only ever sees production CMO's callback (`https://app.cmo.xyz/api/auth/callback/sokosumi`). Production CMO exchanges the code and hands the encrypted tokens back to the preview, which shares the proxy secret. Previews therefore use mainnet Core and real mainnet tokens: no database is written, but a PR cannot test Core auth changes through CMO, and a preview needs production CMO to run the proxy.
 - Every user sees the consent screen once, because Core's `/v1` bearer check requires a stored consent that grants `sokosumi:api`.
 - Sign-in, sign-up, and consent pages carry Sokosumi's branding. Signing out of CMO does not sign out of Sokosumi.
 - CMO runs Better Auth statelessly with the generic OAuth plugin; its callback is `/api/auth/callback/sokosumi`. Stateless mode stores and renews Core's rotating refresh token in the encrypted account cookie, so no separate OIDC client library is needed.
