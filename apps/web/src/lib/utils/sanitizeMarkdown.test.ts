@@ -25,6 +25,39 @@ describe("sanitizeMarkdown", () => {
     expect(sanitized).not.toContain("<script>");
   });
 
+  // A code span is not lifted out the way a fence is. Whether backticks make
+  // a span is the markdown parser's call, so everything between them is
+  // sanitized, and `remarkRestoreInlineCodeEntities` undoes the entities once
+  // the parser has said which spans are real.
+  it("leaves the entities in a code span for the parsed tree to undo", () => {
+    expect(sanitizeMarkdown("`a && b < c`")).toBe("`a &amp;&amp; b &lt; c`");
+  });
+
+  it.each([
+    ["a code span", "`<img src=x onerror=alert(1)>`"],
+    ["an unclosed code span", "`<img src=x onerror=alert(1)>"],
+    ["mismatched backtick runs", "``<img src=x onerror=alert(1)>`"],
+    ["a code span over a line break", "`x\n<img src=x onerror=alert(1)>\ny`"],
+    ["an HTML block", "<p>`<img src=x onerror=alert(1)>`</p>"],
+  ])("sanitizes markup inside %s", (_shape, markdown) => {
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain('<img src="x" />');
+    expect(sanitized).not.toContain("onerror");
+  });
+
+  it.each([
+    ["a code span", "`&lt;script&gt;alert(1)&lt;/script&gt;`"],
+    ["an unclosed code span", "`&lt;script&gt;alert(1)&lt;/script&gt;"],
+    ["an HTML block", "<p>`&lt;script&gt;alert(1)&lt;/script&gt;`</p>"],
+    ["prose", "&lt;script&gt;alert(1)&lt;/script&gt;"],
+  ])("keeps an escaped tag escaped in %s", (_shape, markdown) => {
+    const sanitized = sanitizeMarkdown(markdown);
+
+    expect(sanitized).toContain("&lt;script>alert(1)&lt;/script>");
+    expect(sanitized).not.toContain("<script");
+  });
+
   it("preserves underline tags outside fenced code blocks", () => {
     const sanitized = sanitizeMarkdown("hello <u>world</u>");
 
