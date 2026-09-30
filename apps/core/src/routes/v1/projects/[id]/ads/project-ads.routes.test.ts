@@ -6,7 +6,12 @@ import {
   ComposioConfigError,
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import {
+  conflict,
+  forbidden,
+  notFound,
+  unprocessableEntity,
+} from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -369,7 +374,6 @@ describe("Project ads routes", () => {
       ["unknown status", { status: "DELETED" }],
       ["zero budget", { dailyBudget: 0 }],
       ["negative budget", { dailyBudget: -5 }],
-      ["three decimals", { dailyBudget: 1.234 }],
       ["string budget", { dailyBudget: "10" }],
     ])("rejects %s", async (_name, body) => {
       const response = await patch(body);
@@ -390,6 +394,7 @@ describe("Project ads routes", () => {
       ["foreign account or campaign", notFound("Campaign not found"), 404],
       ["disconnected connection", conflict("Ad connection is not active"), 409],
       ["shared budget", conflict("This campaign uses a shared budget"), 409],
+      ["too many decimals", unprocessableEntity("Too many decimals"), 422],
       [
         "Composio tool error",
         new ComposioToolError({ message: "secret detail" }),

@@ -404,17 +404,20 @@ describe("updateGoogleCampaign", () => {
       {
         campaign: {
           id: "42",
-          status: "ENABLED",
           campaignBudget: "customers/111/campaignBudgets/7",
         },
-        campaignBudget: { explicitlyShared: false, amountMicros: "5000000" },
+        campaignBudget: { explicitlyShared: false },
         ...overrides,
       },
     ],
     fieldMask:
-      "campaign.id,campaign.status,campaign.campaignBudget,campaignBudget.explicitlyShared,campaignBudget.amountMicros",
+      "campaign.id,campaign.campaignBudget,campaignBudget.explicitlyShared",
     requestId: "req_1",
   });
+  const mutated = {
+    results: [{ resource_name: "customers/111/campaigns/42" }],
+    successful_count: 1,
+  };
   const writes = () =>
     executeToolMock.mock.calls
       .map(([call]) => call)
@@ -424,7 +427,7 @@ describe("updateGoogleCampaign", () => {
     vi.resetAllMocks();
     createSessionMock.mockResolvedValue("sess_1");
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
-      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookup() : {},
+      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookup() : mutated,
     );
   });
 
@@ -442,7 +445,7 @@ describe("updateGoogleCampaign", () => {
     ["PAUSED", "paused"],
     ["ACTIVE", "enabled"],
   ] as const)(
-    "sets status %s as %s with a status mask",
+    "sets status %s as %s in an update operation",
     async (status, google) => {
       await updateGoogleCampaign({ ...update, status });
       expect(writes()).toEqual([
@@ -457,7 +460,6 @@ describe("updateGoogleCampaign", () => {
                   resource_name: "customers/111/campaigns/42",
                   status: google,
                 },
-                update_mask: "status",
               },
             ],
           },
@@ -536,7 +538,7 @@ describe("updateGoogleCampaign", () => {
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
       call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
         ? lookup({ campaignBudget: { explicitlyShared: true } })
-        : {},
+        : mutated,
     );
     await updateGoogleCampaign({ ...update, status: "PAUSED" });
     expect(writes()).toHaveLength(1);
@@ -552,4 +554,23 @@ describe("updateGoogleCampaign", () => {
     ).rejects.toBeInstanceOf(ComposioToolError);
     expect(deleteSessionMock).toHaveBeenCalled();
   });
+
+  it.each([
+    ["no results", { results: [] }],
+    ["no payload", {}],
+    ["a partial failure", { results: [], partial_failure_error: { code: 3 } }],
+  ])(
+    "raises a tool error when the mutation returns %s",
+    async (_name, result) => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookup() : result,
+      );
+      await expect(
+        updateGoogleCampaign({ ...update, dailyBudget: 5 }),
+      ).rejects.toBeInstanceOf(ComposioToolError);
+      await expect(
+        updateGoogleCampaign({ ...update, status: "PAUSED" }),
+      ).rejects.toBeInstanceOf(ComposioToolError);
+    },
+  );
 });

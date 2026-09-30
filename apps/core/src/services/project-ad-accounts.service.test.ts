@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ComposioConfigError } from "@/clients/composio.client";
 import { notFound } from "@/helpers/error";
+import type { AdCampaignUpdate } from "@/lib/ads/campaigns";
 
 const m = vi.hoisted(() => {
   const fns = {
@@ -555,15 +556,16 @@ describe("project ad accounts service", () => {
       provider: string,
       externalAccountId: string,
       status = "active",
+      currency = "EUR",
     ) => ({
       id: ACCOUNT_UUID,
       provider,
       externalAccountId,
-      currency: "EUR",
+      currency,
       connection: { ...storedConnection, provider, status },
     });
     const update = (
-      changes: { status?: "ACTIVE" | "PAUSED"; dailyBudget?: number } = {
+      changes: AdCampaignUpdate = {
         status: "PAUSED",
       },
     ) =>
@@ -604,6 +606,37 @@ describe("project ad accounts service", () => {
         status: "PAUSED",
       });
       expect(m.googleUpdate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["JPY", 12.5],
+      ["USD", 12.345],
+    ])(
+      "rejects a %s budget of %d with more decimals than the currency has",
+      async (currency, dailyBudget) => {
+        m.accountFindFirst.mockResolvedValue(
+          accountRow("google_ads", "111", "active", currency),
+        );
+        await expect(update({ dailyBudget })).rejects.toMatchObject({
+          status: 422,
+          message: expect.stringContaining(currency),
+        });
+        expect(m.googleUpdate).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ["JPY", 12],
+      ["USD", 12.34],
+      ["EUR", 12],
+    ])("accepts a %s budget of %d", async (currency, dailyBudget) => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("meta_ads", "act_9", "active", currency),
+      );
+      await update({ dailyBudget });
+      expect(m.metaUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ dailyBudget }),
+      );
     });
 
     it("returns 404 for an account of another Project", async () => {

@@ -22,12 +22,14 @@ import {
   conflict,
   internalServerError,
   notFound,
+  unprocessableEntity,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
-import type {
-  AdCampaign,
-  AdCampaignUpdate,
-  AdRange,
+import {
+  type AdCampaign,
+  type AdCampaignUpdate,
+  type AdRange,
+  currencyFractionDigits,
 } from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import {
@@ -409,6 +411,15 @@ export async function updateProjectAdCampaign(
     AdCampaignUpdate & { accountId: string; campaignId: string },
 ): Promise<void> {
   const account = await requireActiveAdAccount(input);
+  if (input.dailyBudget !== undefined) {
+    const digits = currencyFractionDigits(account.currency);
+    const scaled = input.dailyBudget * 10 ** digits;
+    if (Math.abs(scaled - Math.round(scaled)) > 1e-6) {
+      throw unprocessableEntity(
+        `Daily budget in ${account.currency} can have at most ${digits} decimal places`,
+      );
+    }
+  }
   const change = {
     ...account.connected,
     campaignId: input.campaignId,

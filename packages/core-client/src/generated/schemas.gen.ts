@@ -18637,7 +18637,7 @@ export const UpdateAdCampaignRequestSchema = {
         dailyBudget: {
             type: 'number',
             exclusiveMinimum: 0,
-            description: 'Decimal in the account currency, greater than 0, at most 2 decimals',
+            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
             example: 25.5
         }
     }

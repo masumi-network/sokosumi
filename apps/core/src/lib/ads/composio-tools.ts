@@ -103,21 +103,28 @@ export function requireToolRows(
   return rows;
 }
 
+/** Parses one payload or row, treating one that does not match as an unusable response. */
+export function parseToolRow<T extends z.ZodType>(
+  row: unknown,
+  schema: T,
+  context: string,
+): z.infer<T> {
+  const parsed = schema.safeParse(row);
+  if (!parsed.success) {
+    throw new ComposioApiError(
+      502,
+      undefined,
+      `${context} returned an invalid response`,
+    );
+  }
+  return parsed.data;
+}
+
 /** Parses every row, treating one that does not match as an unusable response. */
 export function parseToolRows<T extends z.ZodType>(
   rows: unknown[],
   schema: T,
   context: string,
 ): z.infer<T>[] {
-  return rows.map((row) => {
-    const parsed = schema.safeParse(row);
-    if (!parsed.success) {
-      throw new ComposioApiError(
-        502,
-        undefined,
-        `${context} returned an invalid response`,
-      );
-    }
-    return parsed.data;
-  });
+  return rows.map((row) => parseToolRow(row, schema, context));
 }

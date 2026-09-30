@@ -62,8 +62,8 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         workspaceId: workspaceContext.workspaceId,
         accountId,
         campaignId,
-        ...(status !== undefined && { status }),
-        ...(dailyBudget !== undefined && { dailyBudget }),
+        status,
+        dailyBudget,
       });
       return empty(c);
     } catch (error) {

@@ -204,6 +204,19 @@ const campaignLookupRowSchema = z.object({
   campaignBudget: z.object({ explicitlyShared: z.boolean().nullish() }),
 });
 
+/** A mutation that reports no result for its operation, or a partial failure, did not apply. */
+function requireMutated(
+  payload: Record<string, unknown> | null,
+  context: string,
+): void {
+  if (
+    toolRows(payload, "results").length === 0 ||
+    payload?.partial_failure_error
+  ) {
+    throw new ComposioToolError({ message: `${context} was not applied` });
+  }
+}
+
 /**
  * Pauses, resumes and/or changes the daily budget of a campaign of the
  * customer. The campaign is looked up inside the customer first (404 when it
@@ -211,8 +224,8 @@ const campaignLookupRowSchema = z.object({
  * goes first, so a failed status change never follows a silent budget change.
  *
  * Operation shapes follow the tool schemas: campaign operations need
- * `operation_type` and a lowercase status; budget operations must not have
- * an `operation_type`.
+ * `operation_type`, a lowercase status and no `update_mask`; budget
+ * operations have an `update_mask` and no `operation_type`.
  */
 export async function updateGoogleCampaign(
   input: AdsConnectedAccount &
@@ -220,9 +233,9 @@ export async function updateGoogleCampaign(
 ): Promise<void> {
   const { customerId, campaignId, status, dailyBudget, ...connected } = input;
   if (!/^\d+$/.test(campaignId)) throw notFound("Campaign not found");
-  const campaignName = `customers/${customerId}/campaigns/${campaignId}`;
+  const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
   // The id is digits only, so the query cannot be altered by it.
-  const lookupQuery = `SELECT campaign.id, campaign.status, campaign.campaign_budget, campaign_budget.explicitly_shared, campaign_budget.amount_micros FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
+  const lookupQuery = `SELECT campaign.id, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
 
   await withAdsToolSession(
     {
@@ -255,33 +268,38 @@ export async function updateGoogleCampaign(
       }
 
       if (dailyBudget !== undefined) {
-        await execute(MUTATE_CAMPAIGN_BUDGETS, {
-          customer_id: customerId,
-          operations: [
-            {
-              update: {
-                resource_name: row.campaign.campaignBudget,
-                amount_micros: Math.round(dailyBudget * MICROS),
+        requireMutated(
+          await execute(MUTATE_CAMPAIGN_BUDGETS, {
+            customer_id: customerId,
+            operations: [
+              {
+                update: {
+                  resource_name: row.campaign.campaignBudget,
+                  amount_micros: Math.round(dailyBudget * MICROS),
+                },
+                update_mask: "amount_micros",
               },
-              update_mask: "amount_micros",
-            },
-          ],
-        });
+            ],
+          }),
+          "change Google Ads campaign budget",
+        );
       }
       if (status !== undefined) {
-        await execute(MUTATE_CAMPAIGNS, {
-          customer_id: customerId,
-          operations: [
-            {
-              operation_type: "update",
-              update: {
-                resource_name: campaignName,
-                status: status === "ACTIVE" ? "enabled" : "paused",
+        requireMutated(
+          await execute(MUTATE_CAMPAIGNS, {
+            customer_id: customerId,
+            operations: [
+              {
+                operation_type: "update",
+                update: {
+                  resource_name: campaignResourceName,
+                  status: status === "ACTIVE" ? "enabled" : "paused",
+                },
               },
-              update_mask: "status",
-            },
-          ],
-        });
+            ],
+          }),
+          "change Google Ads campaign status",
+        );
       }
     },
   );

@@ -5,7 +5,11 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { dateTimeSchema } from "@/helpers/datetime";
-import { AD_CAMPAIGN_STATUSES, AD_RANGES } from "@/lib/ads/campaigns";
+import {
+  AD_CAMPAIGN_SETTABLE_STATUSES,
+  AD_CAMPAIGN_STATUSES,
+  AD_RANGES,
+} from "@/lib/ads/campaigns";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 
 export const projectAdProviderSchema = z
@@ -162,22 +166,12 @@ export const projectAdCampaignParamsSchema =
 
 export const updateAdCampaignRequestSchema = z
   .object({
-    status: z.enum(["ACTIVE", "PAUSED"]).optional(),
-    dailyBudget: z
-      .number()
-      .positive()
-      .refine(
-        (value) => Math.abs(value * 100 - Math.round(value * 100)) < 1e-6,
-        {
-          message: "At most 2 decimals",
-        },
-      )
-      .optional()
-      .openapi({
-        description:
-          "Decimal in the account currency, greater than 0, at most 2 decimals",
-        example: 25.5,
-      }),
+    status: z.enum(AD_CAMPAIGN_SETTABLE_STATUSES).optional(),
+    dailyBudget: z.number().positive().optional().openapi({
+      description:
+        "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
+      example: 25.5,
+    }),
   })
   .refine(
     (body) => body.status !== undefined || body.dailyBudget !== undefined,

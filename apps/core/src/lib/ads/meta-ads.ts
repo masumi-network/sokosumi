@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
 import { record } from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
@@ -16,6 +17,7 @@ import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
   type ExecuteAdsTool,
+  parseToolRow,
   parseToolRows,
   requireToolRows,
   toolRows,
@@ -65,9 +67,7 @@ export async function listMetaAdAccounts(
     metaAdAccountSchema,
     "list Meta ad accounts",
   ).map((account) => {
-    const externalAccountId = account.id.startsWith("act_")
-      ? account.id
-      : `act_${account.id}`;
+    const externalAccountId = actAccountId(account.id);
     return {
       externalAccountId,
       name: account.name?.trim() || externalAccountId,
@@ -215,22 +215,26 @@ export async function listMetaCampaigns(
   );
 }
 
+// Only campaigns have an objective; an ad set or ad does not.
 const metaCampaignOwnerSchema = z.object({
   account_id: z.coerce.string().min(1),
-  /** Minor currency units; absent when the budget is on the ad sets. */
+  objective: z.string().min(1).nullish(),
+  /** Smallest currency unit; absent when the budget is on the ad sets. */
   daily_budget: z.coerce.number().nullish(),
 });
 
-function withoutActPrefix(adAccountId: string): string {
-  return adAccountId.replace(/^act_/, "");
+const updateResultSchema = z.object({ success: z.literal(true) });
+
+/** Meta ad account id in its `act_…` form, however it was given. */
+function actAccountId(adAccountId: string): string {
+  return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 }
 
 /**
  * Pauses, resumes and/or changes the daily budget of a campaign. The update
- * tool takes only a campaign id, so the campaign's `account_id` is read first
- * and must be the attached ad account (404 otherwise). Every refusal happens
- * before the first write. Graph takes one budget field per call, so the budget
- * and the status are two calls, budget first.
+ * tool takes only a campaign id, so the object is read first: it must be a
+ * campaign (it has an `objective`) of the attached ad account, else 404. Every
+ * refusal happens before the write, which is one call carrying both fields.
  *
  * The write tool takes `daily_budget` as a decimal in the account currency,
  * while the campaign read returns it in the smallest currency unit.
@@ -248,18 +252,17 @@ export async function updateMetaCampaign(
       toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
     },
     async (execute) => {
-      const payload = await execute(GET_OBJECT, {
-        object_id: campaignId,
-        fields: ["id", "account_id", "daily_budget"],
-      });
-      const [campaign] = parseToolRows(
-        [payload],
+      const campaign = parseToolRow(
+        await execute(GET_OBJECT, {
+          object_id: campaignId,
+          fields: ["id", "account_id", "objective", "daily_budget"],
+        }),
         metaCampaignOwnerSchema,
         "look up Meta campaign",
       );
       if (
-        !campaign ||
-        withoutActPrefix(campaign.account_id) !== withoutActPrefix(adAccountId)
+        !campaign.objective ||
+        actAccountId(campaign.account_id) !== actAccountId(adAccountId)
       ) {
         throw notFound("Campaign not found");
       }
@@ -267,14 +270,15 @@ export async function updateMetaCampaign(
         throw conflict("This campaign's budget is set on its ad sets");
       }
 
-      if (dailyBudget !== undefined) {
-        await execute(UPDATE_CAMPAIGN, {
-          campaign_id: campaignId,
-          daily_budget: dailyBudget,
+      const result = await execute(UPDATE_CAMPAIGN, {
+        campaign_id: campaignId,
+        status,
+        daily_budget: dailyBudget,
+      });
+      if (!updateResultSchema.safeParse(result).success) {
+        throw new ComposioToolError({
+          message: "update Meta campaign was not applied",
         });
-      }
-      if (status !== undefined) {
-        await execute(UPDATE_CAMPAIGN, { campaign_id: campaignId, status });
       }
     },
   );

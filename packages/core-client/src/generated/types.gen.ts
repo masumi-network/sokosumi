@@ -5533,7 +5533,7 @@ export type AdRange = typeof AdRange[keyof typeof AdRange];
 export type UpdateAdCampaignRequest = {
     status?: 'ACTIVE' | 'PAUSED';
     /**
-     * Decimal in the account currency, greater than 0, at most 2 decimals
+     * Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)
      */
     dailyBudget?: number;
 };
