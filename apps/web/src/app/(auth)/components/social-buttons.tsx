@@ -304,7 +304,9 @@ export default function SocialButtons({
         </div>
       )}
       {showMagicLink && isMagicLinkVisible && (
+        // The submit handler validates and toasts in the page's language.
         <form
+          noValidate
           className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
           onSubmit={handleMagicLinkSubmit}
         >

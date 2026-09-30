@@ -600,6 +600,23 @@ describe("SocialButtons", () => {
     expect(email).toHaveAttribute("spellcheck", "false");
   });
 
+  it("says in its own words when the magic-link address is invalid", async () => {
+    const user = userEvent.setup();
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+    await user.type(
+      screen.getByRole("textbox", { name: "magic-link-email" }),
+      "not-an-email",
+    );
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+
+    expect(mockToastError).toHaveBeenCalledWith("magicLinkInvalidEmail");
+    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
+  });
+
   it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {
     const user = userEvent.setup();
     requestCaptchaMock.mockResolvedValueOnce(null);
