@@ -59,6 +59,7 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useOpenRoomUnreadRecheck } from "@/app/chat/hooks/use-open-room-unread-recheck";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
@@ -1837,6 +1838,11 @@ function RoomView({
     refreshOnMount: Boolean(retained),
   });
   if (registerRefresh) registerRefresh.current = refreshLatestRef.current;
+  useOpenRoomUnreadRecheck({
+    room: selectedRoom,
+    messagesPending,
+    requestRefresh: refreshLatestRef.current,
+  });
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) => {
