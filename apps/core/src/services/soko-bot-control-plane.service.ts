@@ -18,7 +18,6 @@ import {
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
@@ -2250,9 +2249,10 @@ export class SokoBotControlPlane {
         "Soko Bot classifier unavailable for scheduled turn",
       );
     }
-    // A teammate may ask the owner's bot questions but never spend the owner's
-    // credits, create work in their name, or read the owner's private surfaces:
-    // the answer is published back into the shared room.
+    // A teammate asking someone else's bot gets the same tools the owner
+    // would: the turn runs as the owner, on the owner's credits and accounts,
+    // and the owner's console shows who asked. Only another assistant asking
+    // stays read-only, so assistants cannot drive each other in a loop.
 
     // Self-started turns keep every capability of their route, hiring
     // included. Withholding only `hire_agent` read as a spend limit and was
@@ -2319,9 +2319,7 @@ export class SokoBotControlPlane {
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
-        : requestedByTeammate
-          ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-          : routeCapabilities) as readonly SokoBotCapability[],
+        : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();

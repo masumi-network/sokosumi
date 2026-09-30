@@ -97,32 +97,6 @@ interface ProjectStatusJob {
   events: readonly { status: string }[];
 }
 
-/**
- * Strips the owner's private surfaces from an assembled packet. Shared-room
- * teammates already get only public Tasks/Jobs from the query path; durable
- * memory, prior turns, the owner's approval queue, and credit balance still
- * cannot be published into a shared room.
- */
-function redactForTeammate(
-  packet: ContextPacketWithoutHash,
-): ContextPacketWithoutHash {
-  return {
-    ...packet,
-    workspace: {
-      ...packet.workspace,
-      plan: null,
-      subscriptionStatus: null,
-      availableCredits: null,
-      bufferCredits: null,
-      subscriptionRemainingCredits: null,
-      enterpriseRemainingCredits: null,
-    },
-    pendingDecisions: [],
-    recentTurns: [],
-    memory: { version: 0, hash: null, markdown: "# Soko Bot memory" },
-  };
-}
-
 function buildPacketTaskVisibilityWhere(
   userId: string,
   audience: "OWNER" | "TEAMMATE" | undefined,
@@ -1136,12 +1110,7 @@ export class ContextPacketBuilder {
       counts,
       omissions: {},
     };
-    const fitted = fitPacketToBudget(
-      input.audience === "TEAMMATE"
-        ? redactForTeammate(packetWithoutHash)
-        : packetWithoutHash,
-      counts,
-    );
+    const fitted = fitPacketToBudget(packetWithoutHash, counts);
 
     return {
       packet: fitted.packet,
