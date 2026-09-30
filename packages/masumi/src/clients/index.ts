@@ -15,5 +15,14 @@ export type {
   X402WalletBalance,
 } from "./masumi-payment-x402.js";
 export { createRegistryClient } from "./masumi-registry.client.js";
+export {
+  createMpsSellerClient,
+  type MpsSellerNode,
+  type MpsSellerVerificationError,
+  type SellerQuote,
+  type SellerQuoteError,
+  type SellerQuoteInput,
+  type VerifiedMpsSeller,
+} from "./masumi-seller.client.js";
 export type { PostPurchaseResponses } from "./openapi/generated/payment/index.js";
 export type { PostRegistryDiffResponse } from "./openapi/generated/registry/index.js";

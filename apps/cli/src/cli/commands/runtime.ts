@@ -17,6 +17,7 @@ import {
   startRuntimeTask,
 } from "../../coworker/runtime-task.js";
 import { redactErrorMessage, redactSensitive } from "../../error-redaction.js";
+import { readSecretStdin } from "../read-secret-stdin.js";
 import {
   type CommandOptions,
   type CommandOutput,
@@ -63,59 +64,6 @@ function readBoundedInput(fd: number, limit: number): string {
   return new TextDecoder("utf-8", { fatal: true }).decode(
     buffer.subarray(0, size),
   );
-}
-
-function readRuntimeStdin(signal: AbortSignal): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const input = process.stdin;
-    const chunks: Buffer[] = [];
-    let size = 0;
-    const cleanup = () => {
-      input.off("data", onData);
-      input.off("end", onEnd);
-      input.off("error", onError);
-      input.off("close", onClose);
-      signal.removeEventListener("abort", onAbort);
-      input.pause();
-    };
-    const fail = (message: string) => {
-      cleanup();
-      reject(new Error(message));
-    };
-    const onData = (chunk: Buffer | string) => {
-      const bytes = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      size += bytes.length;
-      if (size > 16_384) {
-        fail("Runtime input exceeds the size limit");
-        return;
-      }
-      chunks.push(bytes);
-    };
-    const onEnd = () => {
-      cleanup();
-      try {
-        resolve(
-          new TextDecoder("utf-8", { fatal: true }).decode(
-            Buffer.concat(chunks),
-          ),
-        );
-      } catch {
-        reject(new Error("Runtime key input must contain valid UTF-8 text"));
-      }
-    };
-    const onError = () => fail("Could not read runtime key input");
-    const onClose = () => fail("Runtime key input closed before completion");
-    const onAbort = () => fail("Runtime key input was aborted or timed out");
-    if (signal.aborted) {
-      onAbort();
-      return;
-    }
-    signal.addEventListener("abort", onAbort, { once: true });
-    input.once("end", onEnd);
-    input.once("error", onError);
-    input.once("close", onClose);
-    input.on("data", onData);
-  });
 }
 
 function requiredOption(options: CommandOptions, name: string): string {
@@ -233,7 +181,7 @@ export async function runRuntimeCommand({
       apiKey = parseRuntimeKeyInput(
         await (readStdin
           ? readStdin()
-          : readRuntimeStdin(
+          : readSecretStdin(
               AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
             )),
         coworkerId,

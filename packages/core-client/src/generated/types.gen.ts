@@ -6457,6 +6457,32 @@ export type JudgeSokoBotLabTurnRequest = {
     };
 };
 
+export type MpsSeller = {
+    id: string;
+    coworkerId: string;
+    network: 'Preprod' | 'Mainnet';
+    apiUrl: string;
+    agentIdentifier: string;
+    walletId: string;
+    paymentSourceId: string;
+    sellerVkey: string;
+    walletAddress: string;
+    sellerReturnAddress: string | null;
+    paymentSourceType: 'Web3CardanoV1' | 'Web3CardanoV2';
+    smartContractAddress: string;
+    verifiedAt: Date;
+    revokedAt: Date | null;
+    paymentsEnabled: false;
+};
+
+export type ConnectMpsSeller = {
+    apiUrl: string;
+    apiKey: string;
+    agentIdentifier: string;
+    walletId: string;
+    paymentSourceId: string;
+};
+
 export type Coworker = {
     id: string;
     createdAt: Date;
@@ -6584,6 +6610,61 @@ export type CoworkerWorkspaceAccessTarget = {
      * Organization slug — resolves (or creates) the org workspace. Prefer for vendor targeting without directory search.
      */
     organizationSlug?: string;
+};
+
+export type TaskMpsPaymentQuote = {
+    id: string;
+    taskId: string;
+    coworkerId: string;
+    sellerBindingId: string;
+    billingOwnerId: string;
+    billingOrganizationId: string | null;
+    network: 'Preprod' | 'Mainnet';
+    state: 'unresolved' | 'quoted' | 'approved' | 'revoked' | 'expired' | 'consumed';
+    inputHash: string;
+    termsHash: string | null;
+    terms: MpsQuoteTerms;
+    quotedCredits: number | null;
+    maxCredits: number | null;
+    expiresAt: Date;
+    approvedAt: Date | null;
+    revokedAt: Date | null;
+    consumedAt: Date | null;
+    paymentsEnabled: false;
+};
+
+export type MpsQuoteTerms = {
+    blockchainIdentifier: string;
+    identifierFromPurchaser: string;
+    agentIdentifier: string;
+    sellerVkey: string;
+    submitResultTime: string;
+    payByTime: string;
+    unlockTime: string;
+    externalDisputeUnlockTime: string;
+    inputHash: string;
+    paymentSourceType: 'Web3CardanoV1' | 'Web3CardanoV2';
+    supportedPaymentSourceIndex?: number;
+    Amounts: Array<{
+        amount: string;
+        unit: string;
+    }>;
+    paymentId: string;
+    smartContractAddress: string;
+    sellerReturnAddress: string | null;
+} | null;
+
+export type CreateMpsQuote = {
+    idempotencyKey: string;
+    payByTime: Date;
+    submitResultTime: Date;
+    unlockTime: Date;
+    externalDisputeUnlockTime: Date;
+};
+
+export type ApproveMpsQuote = {
+    termsHash: string;
+    maxCredits: number;
 };
 
 export type TaskListItem = {
@@ -45988,6 +46069,415 @@ export type JudgeMySokoBotLabTurnResponses = {
 
 export type JudgeMySokoBotLabTurnResponse = JudgeMySokoBotLabTurnResponses[keyof JudgeMySokoBotLabTurnResponses];
 
+export type GetMpsSellerData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/mps-seller';
+};
+
+export type GetMpsSellerErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMpsSellerError = GetMpsSellerErrors[keyof GetMpsSellerErrors];
+
+export type GetMpsSellerResponses = {
+    /**
+     * MPS seller configuration
+     */
+    200: {
+        data: MpsSeller & ({
+            [key: string]: unknown;
+        } | null);
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMpsSellerResponse = GetMpsSellerResponses[keyof GetMpsSellerResponses];
+
+export type ConnectMpsSellerData = {
+    body?: ConnectMpsSeller;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/mps-seller';
+};
+
+export type ConnectMpsSellerErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectMpsSellerError = ConnectMpsSellerErrors[keyof ConnectMpsSellerErrors];
+
+export type ConnectMpsSellerResponses = {
+    /**
+     * MPS seller configuration
+     */
+    201: {
+        data: MpsSeller;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectMpsSellerResponse = ConnectMpsSellerResponses[keyof ConnectMpsSellerResponses];
+
+export type RevokeMpsSellerData = {
+    body?: {
+        bindingId: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/coworkers/{id}/mps-seller/revoke';
+};
+
+export type RevokeMpsSellerErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevokeMpsSellerError = RevokeMpsSellerErrors[keyof RevokeMpsSellerErrors];
+
+export type RevokeMpsSellerResponses = {
+    /**
+     * MPS seller configuration
+     */
+    200: {
+        data: MpsSeller;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RevokeMpsSellerResponse = RevokeMpsSellerResponses[keyof RevokeMpsSellerResponses];
+
 export type GetCoworkersData = {
     body?: never;
     headers?: {
@@ -47623,6 +48113,549 @@ export type PostCoworkersByIdUnarchiveResponses = {
 };
 
 export type PostCoworkersByIdUnarchiveResponse = PostCoworkersByIdUnarchiveResponses[keyof PostCoworkersByIdUnarchiveResponses];
+
+export type CreateTaskMpsPaymentQuoteData = {
+    body?: CreateMpsQuote;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/payment-quotes';
+};
+
+export type CreateTaskMpsPaymentQuoteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateTaskMpsPaymentQuoteError = CreateTaskMpsPaymentQuoteErrors[keyof CreateTaskMpsPaymentQuoteErrors];
+
+export type CreateTaskMpsPaymentQuoteResponses = {
+    /**
+     * Task MPS payment quote
+     */
+    200: {
+        data: TaskMpsPaymentQuote;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateTaskMpsPaymentQuoteResponse = CreateTaskMpsPaymentQuoteResponses[keyof CreateTaskMpsPaymentQuoteResponses];
+
+export type GetTaskMpsPaymentQuoteData = {
+    body?: never;
+    path: {
+        id: string;
+        quoteId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/payment-quotes/{quoteId}';
+};
+
+export type GetTaskMpsPaymentQuoteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTaskMpsPaymentQuoteError = GetTaskMpsPaymentQuoteErrors[keyof GetTaskMpsPaymentQuoteErrors];
+
+export type GetTaskMpsPaymentQuoteResponses = {
+    /**
+     * Task MPS payment quote
+     */
+    200: {
+        data: TaskMpsPaymentQuote;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTaskMpsPaymentQuoteResponse = GetTaskMpsPaymentQuoteResponses[keyof GetTaskMpsPaymentQuoteResponses];
+
+export type ApproveTaskMpsPaymentQuoteData = {
+    body?: ApproveMpsQuote;
+    path: {
+        id: string;
+        quoteId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/payment-quotes/{quoteId}/approve';
+};
+
+export type ApproveTaskMpsPaymentQuoteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ApproveTaskMpsPaymentQuoteError = ApproveTaskMpsPaymentQuoteErrors[keyof ApproveTaskMpsPaymentQuoteErrors];
+
+export type ApproveTaskMpsPaymentQuoteResponses = {
+    /**
+     * Task MPS payment quote
+     */
+    200: {
+        data: TaskMpsPaymentQuote;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ApproveTaskMpsPaymentQuoteResponse = ApproveTaskMpsPaymentQuoteResponses[keyof ApproveTaskMpsPaymentQuoteResponses];
+
+export type RevokeTaskMpsPaymentQuoteData = {
+    body?: never;
+    path: {
+        id: string;
+        quoteId: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/payment-quotes/{quoteId}/revoke';
+};
+
+export type RevokeTaskMpsPaymentQuoteErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevokeTaskMpsPaymentQuoteError = RevokeTaskMpsPaymentQuoteErrors[keyof RevokeTaskMpsPaymentQuoteErrors];
+
+export type RevokeTaskMpsPaymentQuoteResponses = {
+    /**
+     * Task MPS payment quote
+     */
+    200: {
+        data: TaskMpsPaymentQuote;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RevokeTaskMpsPaymentQuoteResponse = RevokeTaskMpsPaymentQuoteResponses[keyof RevokeTaskMpsPaymentQuoteResponses];
 
 export type GetTasksData = {
     body?: never;
@@ -50849,7 +51882,7 @@ export type PostTasksByIdEventsErrors = {
         };
     };
     /**
-     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), or queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`).
+     * Unprocessable Entity. Branch on `kind`: insufficient_balance (mid-run balance shortfall pauses the task to OUT_OF_CREDITS; `data` is that event; may include `attemptedCredits` and `requestedStatus`), queued_requires_run_at (Queued requested on a Task without a Run at; no pause event in `data`), or mps_payments_disabled (MPS payment writes are disabled; nothing is charged).
      */
     422: {
         error: string;

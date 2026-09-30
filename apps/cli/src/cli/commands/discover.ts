@@ -31,6 +31,13 @@ export const CLI_COMMAND_CATALOG = [
   { command: "coworkers update", usage: "COWORKER_ID [options]" },
   { command: "coworkers api-key", usage: "COWORKER_ID [options]" },
   { command: "coworkers me", usage: "" },
+  {
+    command: "coworkers mps-connect",
+    usage:
+      "COWORKER_ID --mps-url URL --agent-identifier HEX --wallet-id ID --payment-source-id ID --mps-api-key-stdin",
+  },
+  { command: "coworkers mps-status", usage: "COWORKER_ID" },
+  { command: "coworkers mps-revoke", usage: "COWORKER_ID --binding-id ID" },
   { command: "vendors me", usage: "" },
   { command: "vendors create", usage: "--name NAME --slug SLUG" },
   { command: "workspaces list", usage: "" },
@@ -58,6 +65,18 @@ export const CLI_COMMAND_CATALOG = [
     command: "tasks comment",
     usage: "TASK_ID [--organization-slug WORKSPACE_SLUG]",
   },
+  {
+    command: "tasks payment-quote",
+    usage:
+      "TASK_ID --request-id ID --pay-by ISO --submit-result-by ISO --unlock-at ISO --dispute-unlock-at ISO",
+  },
+  { command: "tasks payment-status", usage: "TASK_ID --quote-id ID" },
+  {
+    command: "tasks payment-approve",
+    usage:
+      "TASK_ID --quote-id ID --terms-hash HASH --max-credits NUMBER --confirm-payment",
+  },
+  { command: "tasks payment-revoke", usage: "TASK_ID --quote-id ID" },
   { command: "jobs list", usage: "" },
   { command: "jobs get", usage: "JOB_ID" },
   { command: "jobs input", usage: "JOB_ID" },

@@ -105,6 +105,7 @@ const baseEnvSchema = z.object({
   // Payment
   PAYMENT_API_URL: z.url(),
   PAYMENT_API_KEY: z.string().min(1),
+  MPS_SELLER_ENCRYPTION_SECRET: z.string().min(1).max(16_384).optional(),
 
   // Registry
   REGISTRY_API_URL: z.url(),

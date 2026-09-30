@@ -22707,6 +22707,135 @@ export const JudgeSokoBotLabTurnRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const MpsSellerSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        coworkerId: {
+            type: 'string'
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        apiUrl: {
+            type: 'string'
+        },
+        agentIdentifier: {
+            type: 'string'
+        },
+        walletId: {
+            type: 'string'
+        },
+        paymentSourceId: {
+            type: 'string'
+        },
+        sellerVkey: {
+            type: 'string'
+        },
+        walletAddress: {
+            type: 'string'
+        },
+        sellerReturnAddress: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        paymentSourceType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2'
+            ]
+        },
+        smartContractAddress: {
+            type: 'string'
+        },
+        verifiedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        paymentsEnabled: {
+            type: 'boolean',
+            enum: [
+                false
+            ]
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'network',
+        'apiUrl',
+        'agentIdentifier',
+        'walletId',
+        'paymentSourceId',
+        'sellerVkey',
+        'walletAddress',
+        'sellerReturnAddress',
+        'paymentSourceType',
+        'smartContractAddress',
+        'verifiedAt',
+        'revokedAt',
+        'paymentsEnabled'
+    ]
+} as const;
+
+export const ConnectMpsSellerSchema = {
+    type: 'object',
+    properties: {
+        apiUrl: {
+            type: 'string',
+            maxLength: 2048,
+            format: 'uri'
+        },
+        apiKey: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 4096
+        },
+        agentIdentifier: {
+            type: 'string',
+            minLength: 57,
+            maxLength: 250,
+            pattern: '^[0-9a-fA-F]+$'
+        },
+        walletId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        },
+        paymentSourceId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        }
+    },
+    required: [
+        'apiUrl',
+        'apiKey',
+        'agentIdentifier',
+        'walletId',
+        'paymentSourceId'
+    ],
+    additionalProperties: false
+} as const;
+
 export const CoworkerSchema = {
     type: 'object',
     properties: {
@@ -23157,6 +23286,326 @@ export const CoworkerWorkspaceAccessTargetSchema = {
             example: 'acme-corp'
         }
     }
+} as const;
+
+export const TaskMpsPaymentQuoteSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        taskId: {
+            type: 'string'
+        },
+        coworkerId: {
+            type: 'string'
+        },
+        sellerBindingId: {
+            type: 'string'
+        },
+        billingOwnerId: {
+            type: 'string'
+        },
+        billingOrganizationId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        network: {
+            type: 'string',
+            enum: [
+                'Preprod',
+                'Mainnet'
+            ]
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'unresolved',
+                'quoted',
+                'approved',
+                'revoked',
+                'expired',
+                'consumed'
+            ]
+        },
+        inputHash: {
+            type: 'string'
+        },
+        termsHash: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        terms: {
+            $ref: '#/components/schemas/MpsQuoteTerms'
+        },
+        quotedCredits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        maxCredits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        expiresAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        approvedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revokedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        consumedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        paymentsEnabled: {
+            type: 'boolean',
+            enum: [
+                false
+            ]
+        }
+    },
+    required: [
+        'id',
+        'taskId',
+        'coworkerId',
+        'sellerBindingId',
+        'billingOwnerId',
+        'billingOrganizationId',
+        'network',
+        'state',
+        'inputHash',
+        'termsHash',
+        'terms',
+        'quotedCredits',
+        'maxCredits',
+        'expiresAt',
+        'approvedAt',
+        'revokedAt',
+        'consumedAt',
+        'paymentsEnabled'
+    ]
+} as const;
+
+export const MpsQuoteTermsSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        blockchainIdentifier: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 8000,
+            example: '0b00e04c0860a60c61066056281180462d0b12'
+        },
+        identifierFromPurchaser: {
+            type: 'string',
+            minLength: 14,
+            maxLength: 26,
+            pattern: '^[0-9a-fA-F]+$',
+            example: 'aabbccddeeff00112233'
+        },
+        agentIdentifier: {
+            type: 'string',
+            minLength: 57,
+            maxLength: 250,
+            pattern: '^[0-9a-fA-F]+$',
+            example: '7e8bdaf2b2b919a3a4b94002cafb50086c0c845fe535d07a77ab7f7773756d6d617279426f74'
+        },
+        sellerVkey: {
+            type: 'string',
+            minLength: 56,
+            maxLength: 56,
+            pattern: '^[0-9a-fA-F]+$',
+            example: '0bde475ace6b116298363b268309fa62172f7208625a9a83eeaffdbd'
+        },
+        submitResultTime: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            example: '1775681853000'
+        },
+        payByTime: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            example: '1775737949000'
+        },
+        unlockTime: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            example: '1775763149000'
+        },
+        externalDisputeUnlockTime: {
+            type: 'string',
+            pattern: '^\\d{1,19}$',
+            example: '1775784749000'
+        },
+        inputHash: {
+            type: 'string',
+            minLength: 64,
+            maxLength: 64,
+            pattern: '^[0-9a-fA-F]+$',
+            example: '3b2d456a720bf5b3e2cc2cebaea9f9a937cd8b4d64267da3271bca937cb56af1'
+        },
+        paymentSourceType: {
+            type: 'string',
+            enum: [
+                'Web3CardanoV1',
+                'Web3CardanoV2'
+            ]
+        },
+        supportedPaymentSourceIndex: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 24
+        },
+        Amounts: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    amount: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 25,
+                        pattern: '^\\d+$',
+                        example: '470000000000'
+                    },
+                    unit: {
+                        type: 'string',
+                        maxLength: 150,
+                        example: '16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde'
+                    }
+                },
+                required: [
+                    'amount',
+                    'unit'
+                ]
+            },
+            minItems: 1,
+            maxItems: 7,
+            example: [
+                {
+                    amount: '470000000000',
+                    unit: ''
+                }
+            ]
+        },
+        paymentId: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        },
+        smartContractAddress: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 250
+        },
+        sellerReturnAddress: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 250
+        }
+    },
+    required: [
+        'blockchainIdentifier',
+        'identifierFromPurchaser',
+        'agentIdentifier',
+        'sellerVkey',
+        'submitResultTime',
+        'payByTime',
+        'unlockTime',
+        'externalDisputeUnlockTime',
+        'inputHash',
+        'paymentSourceType',
+        'Amounts',
+        'paymentId',
+        'smartContractAddress',
+        'sellerReturnAddress'
+    ]
+} as const;
+
+export const CreateMpsQuoteSchema = {
+    type: 'object',
+    properties: {
+        idempotencyKey: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 200,
+            pattern: '^[A-Za-z0-9:_-]+$'
+        },
+        payByTime: {
+            type: 'string',
+            format: 'date-time'
+        },
+        submitResultTime: {
+            type: 'string',
+            format: 'date-time'
+        },
+        unlockTime: {
+            type: 'string',
+            format: 'date-time'
+        },
+        externalDisputeUnlockTime: {
+            type: 'string',
+            format: 'date-time'
+        }
+    },
+    required: [
+        'idempotencyKey',
+        'payByTime',
+        'submitResultTime',
+        'unlockTime',
+        'externalDisputeUnlockTime'
+    ],
+    additionalProperties: false
+} as const;
+
+export const ApproveMpsQuoteSchema = {
+    type: 'object',
+    properties: {
+        termsHash: {
+            type: 'string',
+            pattern: '^[0-9a-f]{64}$'
+        },
+        maxCredits: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            maximum: 922337203
+        }
+    },
+    required: [
+        'termsHash',
+        'maxCredits'
+    ],
+    additionalProperties: false
 } as const;
 
 export const TaskListItemSchema = {

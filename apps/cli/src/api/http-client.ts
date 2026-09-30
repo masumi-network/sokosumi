@@ -18,9 +18,19 @@ export interface CoreHttpClientOptions {
 
 export interface CoreHttpClient {
   get<T>(pathname: string, signal?: AbortSignal): Promise<T>;
-  post<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
+  post<T>(
+    pathname: string,
+    body: unknown,
+    signal?: AbortSignal,
+    options?: CoreHttpRequestOptions,
+  ): Promise<T>;
   put<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
   patch<T>(pathname: string, body: unknown, signal?: AbortSignal): Promise<T>;
+}
+
+export interface CoreHttpRequestOptions {
+  sensitiveValues?: readonly string[];
+  rejectRedirects?: boolean;
 }
 
 interface HttpClientOptions {
@@ -103,9 +113,16 @@ function createHttpClient({
     pathname: string,
     body?: unknown,
     signal?: AbortSignal,
+    options: CoreHttpRequestOptions = {},
   ): Promise<T> {
     const url = resolveUrl(pathname);
     const token = await getToken();
+    const sensitiveValues = options.sensitiveValues ?? [];
+    const knownSecrets = [
+      ...(token ? [token] : []),
+      ...sensitiveValues.flatMap((value) => [value, encodeURIComponent(value)]),
+    ];
+    const mustRejectRedirects = rejectRedirects || options.rejectRedirects;
     let response: Response;
     let parsedBody: unknown;
     try {
@@ -119,31 +136,39 @@ function createHttpClient({
         headers,
         body: body === undefined ? undefined : JSON.stringify(body),
         signal,
-        ...(rejectRedirects ? { redirect: "error" as const } : {}),
+        ...(mustRejectRedirects ? { redirect: "error" as const } : {}),
       });
       if (
-        rejectRedirects &&
+        mustRejectRedirects &&
         (response.redirected ||
           (response.status >= 300 && response.status < 400))
       ) {
-        throw new Error("Coworker runtime requests must not redirect");
+        throw new Error("Core API requests must not redirect");
       }
       parsedBody = await readResponseBody(response);
     } catch (error) {
-      if (!rejectRedirects) throw error;
-      throw new Error(redactErrorMessage(error, token ? [token] : []));
+      if (!mustRejectRedirects && sensitiveValues.length === 0) throw error;
+      throw new Error(redactErrorMessage(error, knownSecrets));
     }
     if (!response.ok) {
-      throw createApiError(response.status, parsedBody, token ? [token] : []);
+      throw createApiError(response.status, parsedBody, knownSecrets);
     }
-    return parsedBody as T;
+    return (
+      sensitiveValues.length > 0
+        ? redactSensitive(parsedBody, knownSecrets)
+        : parsedBody
+    ) as T;
   }
 
   return {
     get: <T>(pathname: string, signal?: AbortSignal) =>
       request<T>("GET", pathname, undefined, signal),
-    post: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
-      request<T>("POST", pathname, body, signal),
+    post: <T>(
+      pathname: string,
+      body: unknown,
+      signal?: AbortSignal,
+      options?: CoreHttpRequestOptions,
+    ) => request<T>("POST", pathname, body, signal, options),
     put: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>
       request<T>("PUT", pathname, body, signal),
     patch: <T>(pathname: string, body: unknown, signal?: AbortSignal) =>

@@ -26,7 +26,10 @@ import { type AuthWhoamiResult, runAuthWhoami } from "./auth-whoami.js";
 import { runAdminCommand, validateAdminCommand } from "./commands/admin.js";
 import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
-import { runCoworkersCommand } from "./commands/coworkers.js";
+import {
+  runCoworkersCommand,
+  validateMpsSellerCommand,
+} from "./commands/coworkers.js";
 import {
   formatUnknownCommandUsage,
   runDiscoverCommand,
@@ -37,7 +40,10 @@ import {
   runRuntimeCommand,
 } from "./commands/runtime.js";
 import { runSkillsCommand } from "./commands/skills.js";
-import { runTasksCommand } from "./commands/tasks.js";
+import {
+  runTasksCommand,
+  validateTaskPaymentCommand,
+} from "./commands/tasks.js";
 import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { buildJsonError, CliError } from "./errors.js";
@@ -96,7 +102,19 @@ export type ValueOptionName =
   | "timeout-ms"
   | "result-file"
   | "email"
-  | "slug";
+  | "slug"
+  | "mps-url"
+  | "agent-identifier"
+  | "wallet-id"
+  | "payment-source-id"
+  | "binding-id"
+  | "request-id"
+  | "pay-by"
+  | "submit-result-by"
+  | "unlock-at"
+  | "dispute-unlock-at"
+  | "quote-id"
+  | "terms-hash";
 
 type CliOptionValue = string | string[];
 
@@ -170,7 +188,12 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+const BOOLEAN_OPTION_NAMES = [
+  "create-api-key",
+  "details",
+  "mps-api-key-stdin",
+  "confirm-payment",
+] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
   ...GLOBAL_VALUE_OPTIONS,
@@ -214,6 +237,18 @@ const VALUE_OPTIONS = new Set<ValueOptionName>([
   "result-file",
   "email",
   "slug",
+  "mps-url",
+  "agent-identifier",
+  "wallet-id",
+  "payment-source-id",
+  "binding-id",
+  "request-id",
+  "pay-by",
+  "submit-result-by",
+  "unlock-at",
+  "dispute-unlock-at",
+  "quote-id",
+  "terms-hash",
 ]);
 
 const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
@@ -348,6 +383,9 @@ export async function runCli(
     positionals[0] === "coworkers" &&
     ["register", "provision", "connect"].includes(positionals[1]);
   const adminOnboarding = positionals[0] === "admin";
+  const mpsSeller =
+    positionals[0] === "coworkers" &&
+    ["mps-connect", "mps-status", "mps-revoke"].includes(positionals[1]);
 
   if (options.help) {
     stdout.write(formatHelpText());
@@ -463,7 +501,29 @@ export async function runCli(
 
     const [section, command, positionalId, ...rest] = positionals;
     if (rest.length > 0) {
+      if (mpsSeller)
+        throw new Error(
+          "Unexpected argument for MPS seller setup. Supply the MPS API key through stdin.",
+        );
       throw new Error(`Unexpected argument: ${rest[0]}`);
+    }
+    if (mpsSeller) {
+      validateMpsSellerCommand({ subcommand: command, positionalId, options });
+    }
+    if (
+      section === "tasks" &&
+      [
+        "payment-quote",
+        "payment-status",
+        "payment-approve",
+        "payment-revoke",
+      ].includes(command)
+    ) {
+      validateTaskPaymentCommand({
+        subcommand: command,
+        positionalId,
+        options,
+      });
     }
     if (coworkerRegistration) {
       requirePreprodCoworkerRegistration(config.target);
@@ -528,6 +588,9 @@ export async function runCli(
           "update",
           "api-key",
           "me",
+          "mps-connect",
+          "mps-status",
+          "mps-revoke",
         ].includes(command))
     ) {
       await runCoworkersCommand({
@@ -538,6 +601,7 @@ export async function runCli(
         subcommand: command,
         positionalId,
         options,
+        readStdin: dependencies.readStdin,
       });
       return {};
     }
@@ -572,9 +636,18 @@ export async function runCli(
     if (
       section === "tasks" &&
       (command === undefined ||
-        ["list", "create", "get", "events", "jobs", "comment"].includes(
-          command,
-        ))
+        [
+          "list",
+          "create",
+          "get",
+          "events",
+          "jobs",
+          "comment",
+          "payment-quote",
+          "payment-status",
+          "payment-approve",
+          "payment-revoke",
+        ].includes(command))
     ) {
       await runTasksCommand({
         client: getCoreClient(session, dependencies, organizationSlug),

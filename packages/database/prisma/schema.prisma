@@ -1789,9 +1789,10 @@ model Coworker {
   sokoBotId String?  @unique @db.Uuid
   sokoBot   SokoBot? @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
 
-  coworkerApiKeys CoworkerApiKey[]
-  assignments     CoworkerAssignment[]
-  workspaceAccess CoworkerWorkspaceAccess[]
+  mpsSellerBindings CoworkerMpsSellerBinding[]
+  coworkerApiKeys   CoworkerApiKey[]
+  assignments       CoworkerAssignment[]
+  workspaceAccess   CoworkerWorkspaceAccess[]
 
   assignedTasks           Task[]                   @relation("TaskAssignee")
   createdTasks            Task[]                   @relation("TaskCreatorCoworker")
@@ -2847,6 +2848,7 @@ model Task {
   sokoBotWatches     SokoBotTaskWatch[]
   jobs               Job[]
   files              TaskFile[]
+  mpsPaymentQuotes   TaskMpsPaymentQuote[]
   x402Payments       TaskX402Payment[]
   sokoBotDelegations SokoBotDelegation[]
 
@@ -3366,10 +3368,81 @@ model TaskEvent {
   @@map("taskEvent")
 }
 
+/// Immutable seller connection. Revocation stops new quotes and keeps recovery credentials.
+model CoworkerMpsSellerBinding {
+  id                          String                @id @default(uuid(7))
+  createdAt                   DateTime              @default(now())
+  coworkerId                  String
+  coworker                    Coworker              @relation(fields: [coworkerId], references: [id], onDelete: Restrict)
+  vendorId                    String                @db.Uuid
+  network                     String                @db.VarChar(7)
+  apiUrl                      String                @db.VarChar(2048)
+  agentIdentifier             String                @db.VarChar(250)
+  walletId                    String                @db.VarChar(250)
+  paymentSourceId             String                @db.VarChar(250)
+  apiKeyId                    String                @db.VarChar(250)
+  sellerVkey                  String                @db.VarChar(56)
+  walletAddress               String                @db.VarChar(250)
+  sellerReturnAddress         String?               @db.VarChar(250)
+  policyId                    String                @db.VarChar(56)
+  paymentSourceType           String                @db.VarChar(16)
+  smartContractAddress        String                @db.VarChar(250)
+  supportedPaymentSourceIndex Int?
+  encryptedApiKey             String
+  verifiedAt                  DateTime
+  createdByUserId             String
+  revokedAt                   DateTime?
+  quotes                      TaskMpsPaymentQuote[]
+
+  @@unique([coworkerId, network], map: "coworker_mps_seller_active_uidx", where: { revokedAt: null })
+  @@index([vendorId])
+  @@map("coworker_mps_seller")
+}
+
+/// Unfunded seller quote and explicit consent. Billing IDs are immutable snapshots.
+/// PR2 must protect funded quotes from Task deletion before enabling spending.
+model TaskMpsPaymentQuote {
+  id                       String                   @id @default(uuid(7))
+  createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @updatedAt
+  taskId                   String
+  task                     Task                     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  sellerBindingId          String
+  sellerBinding            CoworkerMpsSellerBinding @relation(fields: [sellerBindingId], references: [id], onDelete: Restrict)
+  coworkerId               String
+  billingOwnerId           String
+  billingOrganizationId    String?
+  network                  String                   @db.VarChar(7)
+  idempotencyKey           String                   @db.VarChar(200)
+  inputHash                String                   @db.VarChar(64)
+  identifierFromPurchaser  String                   @db.VarChar(26)
+  requestPayload           Json
+  quotedTerms              Json?
+  blockchainIdentifierHash String?                  @db.VarChar(64)
+  termsHash                String?                  @db.VarChar(64)
+  quotedCents              BigInt?
+  maxCents                 BigInt?
+  expiresAt                DateTime
+  quotedAt                 DateTime?
+  approvedByUserId         String?
+  approvedAt               DateTime?
+  revokedAt                DateTime?
+  consumedAt               DateTime?
+  claimId                  String?                  @unique
+  claim                    TaskPaymentClaim?        @relation(fields: [claimId], references: [id], onDelete: SetNull)
+
+  @@unique([taskId, idempotencyKey])
+  @@unique([network, blockchainIdentifierHash])
+  @@unique([sellerBindingId, identifierFromPurchaser])
+  @@index([sellerBindingId])
+  @@map("task_mps_payment_quote")
+}
+
 model TaskPaymentClaim {
-  id        String   @id @default(uuid(7))
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  quote     TaskMpsPaymentQuote?
+  id        String               @id @default(uuid(7))
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
 
   network              String
   blockchainIdentifier String

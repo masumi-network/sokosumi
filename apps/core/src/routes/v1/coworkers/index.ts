@@ -1,5 +1,4 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-
 import mountDeleteCoworkerApiKey from "./[id]/api-keys/delete.js";
 import mountGetCoworkerApiKeys from "./[id]/api-keys/get.js";
 import mountPatchCoworkerApiKey from "./[id]/api-keys/patch.js";
@@ -8,6 +7,9 @@ import mountDeleteCoworkerById from "./[id]/delete.js";
 import mountGetCoworkerById from "./[id]/get.js";
 import mountDeleteCoworkerImage from "./[id]/image/delete.js";
 import mountPostCoworkerImage from "./[id]/image/post.js";
+import mountGetMpsSeller from "./[id]/mps-seller/get.js";
+import mountConnectMpsSeller from "./[id]/mps-seller/post.js";
+import mountRevokeMpsSeller from "./[id]/mps-seller/revoke/post.js";
 import mountPatchCoworkerById from "./[id]/patch.js";
 import mountPostCoworkerUnarchive from "./[id]/unarchive/post.js";
 import mountPatchCoworkerWhitelistById from "./[id]/whitelist/patch.js";
@@ -27,6 +29,9 @@ const app = new OpenAPIHonoWithAuth({
   includeWorkspaceContext: true,
 });
 
+mountConnectMpsSeller(app);
+mountGetMpsSeller(app);
+mountRevokeMpsSeller(app);
 mountGetCoworkers(app);
 mountPostCoworker(app);
 mountGetCoworkerMe(app);

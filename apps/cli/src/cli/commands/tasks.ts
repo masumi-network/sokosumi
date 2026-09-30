@@ -1,4 +1,14 @@
 import {
+  approveTaskPaymentQuote,
+  createTaskPaymentQuote,
+  fetchTaskPaymentQuote,
+  revokeTaskPaymentQuote,
+  type TaskPaymentQuote,
+  validatePaymentCredits,
+  validatePaymentDeadline,
+  validatePaymentId,
+} from "../../api/services/task-payment-service.js";
+import {
   createTask,
   createTaskEvent,
   fetchTask,
@@ -24,6 +34,206 @@ export interface TasksCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;
+}
+
+const PAYMENT_COMMON_OPTIONS = new Set([
+  "json",
+  "preprod",
+  "api-url",
+  "auth-url",
+  "client-id",
+  "organization-slug",
+]);
+const QUOTE_OPTIONS = new Set([
+  "request-id",
+  "pay-by",
+  "submit-result-by",
+  "unlock-at",
+  "dispute-unlock-at",
+]);
+const APPROVE_OPTIONS = new Set([
+  "quote-id",
+  "terms-hash",
+  "max-credits",
+  "confirm-payment",
+]);
+
+export function validateTaskPaymentCommand({
+  subcommand,
+  positionalId,
+  options,
+}: Pick<TasksCommandContext, "subcommand" | "positionalId" | "options">): void {
+  validatePaymentId(positionalId ?? "", "Task ID");
+  for (const name of Object.keys(options ?? {})) {
+    if (
+      !PAYMENT_COMMON_OPTIONS.has(name) &&
+      !(subcommand === "payment-quote" && QUOTE_OPTIONS.has(name)) &&
+      !(subcommand === "payment-approve" && APPROVE_OPTIONS.has(name)) &&
+      !(
+        (subcommand === "payment-status" || subcommand === "payment-revoke") &&
+        name === "quote-id"
+      )
+    ) {
+      throw new Error(
+        `Option --${name} is not supported by this Task payment command`,
+      );
+    }
+  }
+  if (subcommand === "payment-quote") {
+    const requestId = optionString(options, "request-id") ?? "";
+    if (!/^[A-Za-z0-9:_-]{1,200}$/u.test(requestId)) {
+      throw new Error(
+        "--request-id must contain 1 to 200 letters, numbers, colons, underscores, or hyphens",
+      );
+    }
+    for (const name of [
+      "pay-by",
+      "submit-result-by",
+      "unlock-at",
+      "dispute-unlock-at",
+    ]) {
+      validatePaymentDeadline(optionString(options, name) ?? "", `--${name}`);
+    }
+    return;
+  }
+  validatePaymentId(optionString(options, "quote-id") ?? "", "--quote-id");
+  if (subcommand === "payment-approve") {
+    if (options?.["confirm-payment"] !== true) {
+      throw new Error(
+        "Review tasks payment-status first. Payment approval requires --confirm-payment.",
+      );
+    }
+    if (!/^[0-9a-f]{64}$/u.test(optionString(options, "terms-hash") ?? "")) {
+      throw new Error(
+        "--terms-hash must be the exact 64-character lowercase hash from the reviewed quote",
+      );
+    }
+    const ceiling = optionString(options, "max-credits") ?? "";
+    if (!/^\d+(?:\.\d+)?$/u.test(ceiling))
+      throw new Error("--max-credits must be a positive decimal number");
+    validatePaymentCredits(Number(ceiling));
+  }
+}
+
+function printPaymentQuote(
+  stdout: CommandContext["stdout"],
+  quote: TaskPaymentQuote,
+): void {
+  const terms = quote.terms;
+  writeText(stdout, [
+    `Task payment quote ${quote.id}`,
+    `Task: ${quote.taskId} | Coworker: ${quote.coworkerId}`,
+    `State: ${quote.state} | Network: ${quote.network}`,
+    `Billing owner: ${quote.billingOwnerId}`,
+    `Billing organization: ${quote.billingOrganizationId ?? "personal"}`,
+    `Seller binding: ${quote.sellerBindingId}`,
+    `Quoted credits: ${quote.quotedCredits ?? "unresolved"}`,
+    `Approved ceiling: ${quote.maxCredits ?? "none"}`,
+    `Terms hash: ${quote.termsHash ?? "unresolved"}`,
+    `Input hash: ${quote.inputHash}`,
+    `Expires at: ${quote.expiresAt}`,
+    ...(terms
+      ? [
+          `MPS payment: ${terms.paymentId}`,
+          `Blockchain identifier: ${terms.blockchainIdentifier}`,
+          `Purchaser identifier: ${terms.identifierFromPurchaser}`,
+          `Agent identifier: ${terms.agentIdentifier}`,
+          `Seller verification key hash: ${terms.sellerVkey}`,
+          `Contract: ${terms.smartContractAddress} (${terms.paymentSourceType})`,
+          terms.supportedPaymentSourceIndex === undefined
+            ? undefined
+            : `Payment source index: ${terms.supportedPaymentSourceIndex}`,
+          `Seller return address: ${terms.sellerReturnAddress ?? "not specified"}`,
+          ...terms.Amounts.map(
+            (amount) =>
+              `Amount: ${amount.amount} ${amount.unit || "lovelace (ADA)"}`,
+          ),
+          `Pay by: ${new Date(Number(terms.payByTime)).toISOString()}`,
+          `Submit result by: ${new Date(Number(terms.submitResultTime)).toISOString()}`,
+          `Unlock at: ${new Date(Number(terms.unlockTime)).toISOString()}`,
+          `Dispute unlock at: ${new Date(Number(terms.externalDisputeUnlockTime)).toISOString()}`,
+        ]
+      : []),
+    "Payments are disabled. Approval does not fund or execute the Task.",
+  ]);
+}
+
+async function runTaskPaymentCommand(
+  context: TasksCommandContext,
+): Promise<void> {
+  validateTaskPaymentCommand(context);
+  const { client, stdout, json, options, subcommand } = context;
+  const taskId = context.positionalId ?? "";
+  const quoteId = optionString(options, "quote-id") ?? "";
+  const timeout = AbortSignal.timeout(30_000);
+  const signal = context.signal
+    ? AbortSignal.any([context.signal, timeout])
+    : timeout;
+  let quote: TaskPaymentQuote;
+  if (subcommand === "payment-quote") {
+    quote = await createTaskPaymentQuote(
+      client,
+      taskId,
+      {
+        idempotencyKey: optionString(options, "request-id") ?? "",
+        payByTime: optionString(options, "pay-by") ?? "",
+        submitResultTime: optionString(options, "submit-result-by") ?? "",
+        unlockTime: optionString(options, "unlock-at") ?? "",
+        externalDisputeUnlockTime:
+          optionString(options, "dispute-unlock-at") ?? "",
+      },
+      signal,
+    );
+  } else if (subcommand === "payment-approve") {
+    const termsHash = optionString(options, "terms-hash") ?? "";
+    const maxCredits = Number(optionString(options, "max-credits"));
+    const reviewed = await fetchTaskPaymentQuote(
+      client,
+      taskId,
+      quoteId,
+      signal,
+    );
+    if (
+      (reviewed.state !== "quoted" && reviewed.state !== "approved") ||
+      reviewed.termsHash !== termsHash ||
+      reviewed.quotedCredits === null ||
+      maxCredits < reviewed.quotedCredits
+    ) {
+      throw new Error(
+        "Quote cannot be approved with these terms or credit ceiling. Review tasks payment-status again.",
+      );
+    }
+    if (!json) printPaymentQuote(stdout, reviewed);
+    quote = await approveTaskPaymentQuote(
+      client,
+      taskId,
+      quoteId,
+      termsHash,
+      maxCredits,
+      signal,
+    );
+  } else if (subcommand === "payment-revoke") {
+    quote = await revokeTaskPaymentQuote(client, taskId, quoteId, signal);
+  } else {
+    quote = await fetchTaskPaymentQuote(client, taskId, quoteId, signal);
+  }
+  const recovery =
+    quote.state === "unresolved"
+      ? {
+          ...(subcommand === "payment-quote"
+            ? { requestId: optionString(options, "request-id") }
+            : {}),
+          message:
+            "Quote unresolved. Retry tasks payment-quote with the same --request-id and deadlines for read-only recovery. Funding is not confirmed.",
+        }
+      : undefined;
+  if (json) writeJson(stdout, { quote, ...(recovery ? { recovery } : {}) });
+  else {
+    if (subcommand === "payment-approve")
+      writeText(stdout, ["Payment quote approved. Payments remain disabled."]);
+    else printPaymentQuote(stdout, quote);
+    if (recovery) writeText(stdout, [recovery.message]);
+  }
 }
 
 function printTaskList(
@@ -157,6 +367,25 @@ export async function runTasksCommand({
   options,
 }: TasksCommandContext): Promise<void> {
   const command = subcommand || "list";
+  if (
+    [
+      "payment-quote",
+      "payment-status",
+      "payment-approve",
+      "payment-revoke",
+    ].includes(command)
+  ) {
+    await runTaskPaymentCommand({
+      client,
+      stdout,
+      json,
+      signal,
+      subcommand: command,
+      positionalId,
+      options,
+    });
+    return;
+  }
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
     const { tasks } = await fetchTasks(

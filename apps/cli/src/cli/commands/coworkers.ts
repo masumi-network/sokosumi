@@ -9,10 +9,17 @@ import {
   grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
+import {
+  connectMpsSeller,
+  fetchMpsSeller,
+  revokeMpsSeller,
+  validateMpsUrl,
+} from "../../api/services/mps-seller-service.js";
 import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
 import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import type { CliTargetConfig } from "../../auth/config.js";
+import { readSecretStdin } from "../read-secret-stdin.js";
 import {
   requireAdministeredVendorForRegistration,
   requireOrganizationWorkspacesForRegistration,
@@ -44,6 +51,89 @@ export interface CoworkersCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
   options?: CommandOptions;
+  readStdin?: () => string;
+}
+
+const MPS_CONNECT_OPTIONS = new Set([
+  "mps-url",
+  "agent-identifier",
+  "wallet-id",
+  "payment-source-id",
+  "mps-api-key-stdin",
+]);
+const MPS_COMMON_OPTIONS = new Set([
+  "json",
+  "preprod",
+  "api-url",
+  "auth-url",
+  "client-id",
+]);
+
+export function validateMpsSellerCommand({
+  subcommand,
+  positionalId,
+  options,
+}: Pick<
+  CoworkersCommandContext,
+  "subcommand" | "positionalId" | "options"
+>): void {
+  if (
+    !positionalId?.trim() ||
+    positionalId === "." ||
+    positionalId === ".." ||
+    /[\s\p{Cc}\p{Cf}]/u.test(positionalId)
+  ) {
+    throw new Error("A valid Coworker ID is required for MPS seller commands");
+  }
+  for (const name of Object.keys(options ?? {})) {
+    if (
+      !MPS_COMMON_OPTIONS.has(name) &&
+      !(subcommand === "mps-connect" && MPS_CONNECT_OPTIONS.has(name)) &&
+      !(subcommand === "mps-revoke" && name === "binding-id")
+    ) {
+      throw new Error(
+        `Option --${name} is not supported by this MPS seller command`,
+      );
+    }
+  }
+  if (subcommand === "mps-connect") {
+    if (options?.["mps-api-key-stdin"] !== true) {
+      throw new Error("coworkers mps-connect requires --mps-api-key-stdin");
+    }
+    for (const name of [
+      "mps-url",
+      "agent-identifier",
+      "wallet-id",
+      "payment-source-id",
+    ]) {
+      const value = optionString(options, name);
+      if (
+        !value?.trim() ||
+        value.length > 2_048 ||
+        /[\s\p{Cc}\p{Cf}]/u.test(value)
+      ) {
+        throw new Error(`coworkers mps-connect requires a valid --${name}`);
+      }
+    }
+    validateMpsUrl(optionString(options, "mps-url") ?? "");
+    if (
+      !/^(?:[0-9a-fA-F]{2})+$/u.test(
+        optionString(options, "agent-identifier") ?? "",
+      )
+    ) {
+      throw new Error("--agent-identifier must contain hexadecimal bytes");
+    }
+  }
+  if (subcommand === "mps-revoke") {
+    const bindingId = optionString(options, "binding-id");
+    if (
+      !bindingId?.trim() ||
+      bindingId.length > 2_048 ||
+      /[\s\p{Cc}\p{Cf}]/u.test(bindingId)
+    ) {
+      throw new Error("coworkers mps-revoke requires a valid --binding-id");
+    }
+  }
 }
 
 function rethrowCoworkerCreationError(
@@ -196,8 +286,76 @@ export async function runCoworkersCommand({
   subcommand,
   positionalId,
   options,
+  readStdin,
 }: CoworkersCommandContext): Promise<void> {
   const command = subcommand || "list";
+  if (["mps-connect", "mps-status", "mps-revoke"].includes(command)) {
+    validateMpsSellerCommand({ subcommand: command, positionalId, options });
+    const coworkerId = positionalId ?? "";
+    const timeout = AbortSignal.timeout(30_000);
+    const boundedSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    boundedSignal.throwIfAborted();
+    let seller;
+    if (command === "mps-connect") {
+      if (!readStdin && process.stdin.isTTY) {
+        throw new Error(
+          "Pipe the MPS API key into stdin. Do not put secrets in command arguments.",
+        );
+      }
+      let input: string;
+      try {
+        input = readStdin ? readStdin() : await readSecretStdin(boundedSignal);
+      } catch {
+        throw new Error("Could not read the MPS API key from stdin");
+      }
+      const apiKey = input.trim();
+      if (
+        !apiKey ||
+        Buffer.byteLength(input, "utf8") > 16_384 ||
+        Buffer.byteLength(apiKey, "utf8") > 4_096 ||
+        /[\s\p{Cc}\p{Cf}]/u.test(apiKey) ||
+        /^(?:coworker_|soko_)/u.test(apiKey)
+      ) {
+        throw new Error(
+          "stdin must contain one MPS API key of at most 4 KiB, without whitespace",
+        );
+      }
+      seller = await connectMpsSeller(
+        client,
+        coworkerId,
+        {
+          apiUrl: optionString(options, "mps-url") ?? "",
+          apiKey,
+          agentIdentifier: optionString(options, "agent-identifier") ?? "",
+          walletId: optionString(options, "wallet-id") ?? "",
+          paymentSourceId: optionString(options, "payment-source-id") ?? "",
+        },
+        boundedSignal,
+      );
+    } else if (command === "mps-revoke") {
+      seller = await revokeMpsSeller(
+        client,
+        coworkerId,
+        optionString(options, "binding-id") ?? "",
+        boundedSignal,
+      );
+    } else {
+      seller = await fetchMpsSeller(client, coworkerId, boundedSignal);
+    }
+    if (json) writeJson(stdout, { seller });
+    else
+      writeText(stdout, [
+        seller === null
+          ? "No MPS seller is connected."
+          : seller.revokedAt === null
+            ? "MPS seller setup verified."
+            : "MPS seller connection revoked.",
+        seller ? `Binding ID: ${seller.id}` : undefined,
+        seller ? `Network: ${seller.network}` : undefined,
+        "Payments are disabled. Seller setup does not enable paid Tasks.",
+      ]);
+    return;
+  }
   if (command === "list") {
     const limit = parsePositiveInteger(option(options, "limit"), "--limit");
     const capabilities = normalizeCapabilities(option(options, "capability"));

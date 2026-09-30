@@ -4,7 +4,7 @@
 
 [PROPOSED] Planning PR title: `docs(cli): plan the MPS paid Task lifecycle`. Later implementation title: `feat(coworkers): execute and settle MPS paid Tasks`.
 
-[PROPOSED] Branch: `sok-1132-mps-paid-runtime`. Base and dependency: PR 1, `sok-1132-mps-seller-authorization`. Its seller binding and customer approval contract must be accepted first.
+[PROPOSED] Branch: `sok-1132-mps-paid-runtime`. Base and dependency: PR 1, `sok-1132-mps-seller-implementation`. Its seller binding and customer approval contract must be accepted first.
 
 ## Baseline evidence
 
@@ -17,6 +17,15 @@
 [VERIFIED: MPS source at `ce960265eac56b9d468173e052e64fa4c9e7a2f2`] `src/routes/api/payments/submit-result/index.ts:38-91` checks payment state and creator/admin authority, then queues `SubmitResultRequested`. V2 automatic collection requires `AUTO_WITHDRAW_PAYMENTS` and eligible state (`packages/payment-source-v2/src/services/payments/automatic-decisions/service.ts:27-59`). These reads do not establish deployed settings.
 
 ## Requirements
+
+[VERIFIED: PR 1 source, `apps/core/src/services/task-mps-payment-quote.service.ts`, `packages/database/prisma/schema.prisma`]
+PR 1 stores seller bindings and quote consent. Approval has a fixed terms hash, credit ceiling, original billing identity, and expiry.
+All direct MPS event writes remain disabled. Reuse this consent record when adding atomic debit and claim creation.
+
+[PROPOSED: implementation review follow-up]
+Carry the approved `sellerReturnAddress` into the buyer request. Verify the signed terms before funding.
+Protect funded, unsettled quotes during Task and user deletion. The existing user-deletion path can delete a purchased claim.
+Keep the consumed state after claim deletion and preserve the original seller credential for recovery.
 
 1. [PROPOSED] Identify and fund the approved payment. Every write, read, and recovery action must select the same claim. Bind its identifier to the Task, Coworker, network, seller, payout destination, original payer, and approval. Retain the signed blockchain identifier unchanged. Freeze approved asset amounts, credit ceiling, quote expiry, deadlines, and accepted price. Reuse atomic claim/debit processing to consume approval. Task moves or seller changes must not replace accepted terms.
 

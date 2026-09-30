@@ -191,6 +191,246 @@ test("PUT preserves Core errors and request IDs while redacting credentials", as
   );
 });
 
+// V47, V78: seller setup cannot disclose either credential through output.
+test("sensitive POST sends the selected body and credentials once", async () => {
+  const controller = new AbortController();
+  const apiKey = "mps-seller-secret";
+  const requests: { url: string; init?: RequestInit }[] = [];
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com/",
+    authManager: createManager(),
+    environment: { SOKOSUMI_AUTH_TOKEN: "developer-session-secret" },
+    organizationSlug: "developer-team",
+    fetchImpl: async (input, init) => {
+      requests.push({ url: String(input), init });
+      return new Response(JSON.stringify({ data: { id: "seller-1" } }));
+    },
+  });
+  const body = { apiKey, walletId: "wallet-1" };
+
+  assert.deepEqual(
+    await client.post(
+      "/v1/coworkers/cw-1/mps-seller",
+      body,
+      controller.signal,
+      {
+        sensitiveValues: [apiKey],
+        rejectRedirects: true,
+      },
+    ),
+    { data: { id: "seller-1" } },
+  );
+  assert.equal(requests.length, 1);
+  assert.equal(
+    requests[0]?.url,
+    "https://api.preprod.sokosumi.com/v1/coworkers/cw-1/mps-seller",
+  );
+  const init = requests[0]?.init;
+  assert.equal(init?.method, "POST");
+  assert.equal(init?.body, JSON.stringify(body));
+  assert.equal(init?.signal, controller.signal);
+  assert.equal(init?.redirect, "error");
+  assert.deepEqual(Object.fromEntries(new Headers(init?.headers)), {
+    accept: "application/json",
+    authorization: "Bearer developer-session-secret",
+    "content-type": "application/json",
+    "x-organization-slug": "developer-team",
+  });
+});
+
+test("sensitive POST redacts credentials from errors and their properties", async (context) => {
+  const token = "developer-session-secret";
+  const apiKey = "mps-secret/with+symbols=";
+  const encodedKey = encodeURIComponent(apiKey);
+  const diagnostic = `Failed for ${token}, ${apiKey}, ${encodedKey}`;
+  for (const failure of ["fetch", "body", "response", "raw"] as const) {
+    let requests = 0;
+    const client = createCoreHttpClient({
+      apiUrl: "https://api.preprod.sokosumi.com",
+      authManager: createManager(),
+      environment: { SOKOSUMI_AUTH_TOKEN: token },
+      fetchImpl: async () => {
+        requests++;
+        if (failure === "fetch") {
+          throw Object.assign(new Error(diagnostic), {
+            credential: apiKey,
+            cause: new Error(token),
+          });
+        }
+        const response = new Response(
+          failure === "raw"
+            ? diagnostic
+            : JSON.stringify({
+                message: diagnostic,
+                details: [{ note: apiKey, accessToken: token }],
+                meta: { requestId: "seller-request-1" },
+              }),
+          { status: 400 },
+        );
+        if (failure === "body") {
+          context.mock.method(response, "text", async () => {
+            throw new Error(diagnostic);
+          });
+        }
+        return response;
+      },
+    });
+
+    await assert.rejects(
+      client.post("/v1/coworkers/cw-1/mps-seller", { apiKey }, undefined, {
+        sensitiveValues: [apiKey],
+        rejectRedirects: true,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        const properties = JSON.stringify(
+          Object.getOwnPropertyDescriptors(error),
+        );
+        for (const secret of [token, apiKey, encodedKey]) {
+          assert.equal(error.message.includes(secret), false);
+          assert.equal(properties.includes(secret), false);
+          assert.equal(JSON.stringify(error).includes(secret), false);
+        }
+        if (failure === "response") {
+          assert.equal(error.name, "CoreApiError");
+          assert.equal("status" in error && error.status, 400);
+          assert.match(error.message, /seller-request-1/);
+          assert.match(properties, /\[REDACTED\]/);
+        }
+        if (failure === "raw") {
+          assert.equal(
+            error.message,
+            "Core API returned invalid JSON (status 400)",
+          );
+        }
+        return true;
+      },
+    );
+    assert.equal(requests, 1);
+  }
+});
+
+test("sensitive POST redacts nested and JSON-escaped successful echoes", async () => {
+  const token = "developer-session-secret";
+  const apiKey = 'mps-secret/with+symbols="quoted"';
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    environment: { SOKOSUMI_AUTH_TOKEN: token },
+    fetchImpl: async () =>
+      new Response(
+        JSON.stringify({
+          data: {
+            id: "seller-1",
+            note: apiKey,
+            details: [token, { description: encodeURIComponent(apiKey) }],
+            apiKey,
+          },
+        }),
+      ),
+  });
+
+  assert.deepEqual(
+    await client.post("/v1/coworkers/cw-1/mps-seller", { apiKey }, undefined, {
+      sensitiveValues: [apiKey],
+      rejectRedirects: true,
+    }),
+    {
+      data: {
+        id: "seller-1",
+        note: "[REDACTED]",
+        details: ["[REDACTED]", { description: "[REDACTED]" }],
+        apiKey: "[REDACTED]",
+      },
+    },
+  );
+});
+
+test("sensitive POST rejects every 3xx before reading the body", async (context) => {
+  for (let status = 300; status < 400; status++) {
+    const response = new Response(null, {
+      status,
+      headers: { location: "https://other.example.test/mps-seller-secret" },
+    });
+    const readBody = context.mock.method(response, "text", async () => {
+      throw new Error("Response body must not be read");
+    });
+    let requests = 0;
+    const client = createCoreHttpClient({
+      apiUrl: "https://api.preprod.sokosumi.com",
+      authManager: createManager(),
+      fetchImpl: async (_input, init) => {
+        requests++;
+        assert.equal(init?.redirect, "error");
+        return response;
+      },
+    });
+    await assert.rejects(
+      client.post(
+        "/v1/coworkers/cw-1/mps-seller",
+        { apiKey: "mps-seller-secret" },
+        undefined,
+        { sensitiveValues: ["mps-seller-secret"], rejectRedirects: true },
+      ),
+      /^Error: Core API requests must not redirect$/,
+    );
+    assert.equal(requests, 1);
+    assert.equal(readBody.mock.callCount(), 0);
+  }
+});
+
+test("sensitive POST rejects an already followed redirect before reading the body", async (context) => {
+  const response = new Response("{}");
+  Object.defineProperty(response, "redirected", { value: true });
+  const readBody = context.mock.method(response, "text", async () => "{}");
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    fetchImpl: async () => response,
+  });
+  await assert.rejects(
+    client.post("/v1/coworkers/cw-1/mps-seller", {}, undefined, {
+      rejectRedirects: true,
+    }),
+    /^Error: Core API requests must not redirect$/,
+  );
+  assert.equal(readBody.mock.callCount(), 0);
+});
+
+test("POST sensitive values redact output independently of redirect options", async () => {
+  const apiKey = "mps-seller-secret";
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    fetchImpl: async (_input, init) => {
+      assert.equal(init?.redirect, undefined);
+      throw new Error(`Connection failed for ${apiKey}`);
+    },
+  });
+  await assert.rejects(
+    client.post("/v1/coworkers/cw-1/mps-seller", { apiKey }, undefined, {
+      sensitiveValues: [apiKey],
+    }),
+    /^Error: Connection failed for \[REDACTED\]$/,
+  );
+});
+
+test("POST without request options preserves successful credential responses", async () => {
+  const client = createCoreHttpClient({
+    apiUrl: "https://api.preprod.sokosumi.com",
+    authManager: createManager(),
+    fetchImpl: async (_input, init) => {
+      assert.equal(init?.redirect, undefined);
+      return new Response(
+        JSON.stringify({ data: { apiKey: "new-runtime-key" } }),
+      );
+    },
+  });
+  assert.deepEqual(await client.post("/v1/coworkers/cw-1/api-key", {}), {
+    data: { apiKey: "new-runtime-key" },
+  });
+});
+
 test("Core client sends an explicit organization slug on every HTTP method", async () => {
   const requests: RequestInit[] = [];
   const client = createCoreHttpClient({
@@ -619,6 +859,12 @@ test("Coworker client rejects an already followed redirect", async () => {
     fetchImpl: async () => response,
   });
   await assert.rejects(client.get("/v1/coworkers/me"), /must not redirect/);
+  await assert.rejects(
+    client.post("/v1/tasks/task-1/events", {}, undefined, {
+      rejectRedirects: false,
+    }),
+    /must not redirect/,
+  );
 });
 
 test("Coworker client redacts failures while reading the response body", async (context) => {

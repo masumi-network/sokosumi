@@ -77,7 +77,7 @@ const masumiPaymentSourceSchema = z
   })
   .openapi("MasumiTaskPaymentSource");
 
-const masumiPaymentPayloadSchema = z
+export const masumiPaymentPayloadSchema = z
   .object({
     // Matches POST /purchase exactly: `type: string, maxLength: 8000`, with
     // no pattern. The node does NOT define this as hex, and it is the seller's

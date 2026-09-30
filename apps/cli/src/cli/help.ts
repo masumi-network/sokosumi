@@ -82,6 +82,13 @@ Developer setup on Preprod:
   5. Before organization Tasks, check Seat eligibility: sokosumi --preprod workspaces check ORGANIZATION_ID
   Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
 
+MPS seller setup:
+  coworkers mps-connect uses developer authentication to connect an existing MPS node and wallet.
+  Pipe the scoped MPS API key through stdin with --mps-api-key-stdin. Never put it in arguments or configuration files.
+  Core verifies the seller and stores its encrypted credential. The selected Core network determines the seller network.
+  coworkers mps-status reads the current binding. coworkers mps-revoke requires its --binding-id.
+  Seller setup does not enable paid Tasks. Payments remain disabled.
+
 Organizer setup on Preprod (platform admin):
   Select an organization Workspace. Workspace creation and email invitations remain in Sokosumi Web.
   For an existing Preprod account, use the selected Workspace slug:
@@ -103,6 +110,14 @@ Organization Tasks:
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
   Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
+
+Task payment approval:
+  payment-quote creates an MPS quote for review. Choose --request-id once and keep it for recovery.
+  If the result is unresolved, repeat the same command and request ID. Core performs read-only recovery without another MPS payment creation.
+  Read payment-status before approval. Review the amounts, seller destination, deadlines, billing owner, and terms hash.
+  payment-approve requires that exact --terms-hash, a --max-credits ceiling, and explicit --confirm-payment.
+  Payment commands use developer authentication and support --organization-slug. Core checks the original Task billing owner.
+  Approval does not fund or execute the Task. Payments remain disabled.
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.

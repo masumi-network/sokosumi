@@ -242,11 +242,47 @@ Start and completion submit Task status and result events. They do not send `mas
 The planning drafts cover [seller setup and customer approval](docs/mps-payment-stack/01-seller-authorization.md),
 the [paid Task lifecycle](docs/mps-payment-stack/02-paid-runtime.md), and the [plugin payment flow](docs/mps-payment-stack/03-plugin-flow.md).
 They contain requirements and planned tests.
-[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller.
-Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote.
-Organization approval will require membership and applicable Seat eligibility in the original billing organization.
-Implementation and live seller proof remain pending.
+[CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/commands/tasks.ts`; Core `src/services/mps-seller.service.ts`, `src/services/task-mps-payment-quote.service.ts`]
+The earlier status described seller setup and approval as pending. This implementation adds both paths.
+Paid execution, recovery for the new flow, and live seller proof remain pending.
 [VERIFIED: local documentation audit, 2026-09-30] This audit did not verify the deployed receipt route or a live seller payout.
+
+### MPS seller setup and quote approval
+
+[VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/commands/tasks.ts`; Core `src/helpers/mps-payment-access.ts`]
+Use an existing developer-managed MPS node, Selling wallet, and fixed-price registration.
+The seller key must have read/pay permission, wallet scope, and the selected network. Admin keys are rejected.
+Seller setup requires Vendor admin membership. Coworker assignment alone grants no seller authority.
+Core needs the [seller encryption configuration](../core/README.md#mps-seller-credentials).
+The trusted operator supplies the seller key through stdin. Never put it in arguments or chat.
+
+```bash
+"$OPERATOR_SECRET_READER" | sokosumi --preprod coworkers mps-connect COWORKER_ID --mps-url https://seller.example/api/v1 --agent-identifier AGENT_HEX --wallet-id WALLET_ID --payment-source-id SOURCE_ID --mps-api-key-stdin --json
+sokosumi --preprod coworkers mps-status COWORKER_ID --json
+sokosumi --preprod coworkers mps-revoke COWORKER_ID --binding-id BINDING_ID --json
+```
+
+[VERIFIED: `src/cli/commands/tasks.ts`; Core `src/services/task-mps-payment-quote.service.ts`]
+The Task billing owner requests and approves the quote. Organization payments require membership and applicable Seat eligibility in the original billing organization.
+Use the Task's current Workspace slug for access. Workspace movement does not change the billing account.
+Set four explicit future ISO timestamps in this order: pay, result, unlock, dispute unlock.
+Leave at least 5 minutes between pay and result, then 15 minutes between each later deadline.
+The result deadline must remain at least 15 minutes ahead when MPS receives the request.
+Use one request ID for the attempt. Reuse that ID and the same deadlines to recover an uncertain result.
+Core makes at most one seller payment POST per request ID. A quote expires after at most 15 minutes.
+
+```bash
+sokosumi --preprod tasks payment-quote TASK_ID --organization-slug WORKSPACE_SLUG --request-id REQUEST_ID --pay-by PAY_ISO --submit-result-by RESULT_ISO --unlock-at UNLOCK_ISO --dispute-unlock-at DISPUTE_ISO --json
+sokosumi --preprod tasks payment-status TASK_ID --organization-slug WORKSPACE_SLUG --quote-id QUOTE_ID
+sokosumi --preprod tasks payment-approve TASK_ID --organization-slug WORKSPACE_SLUG --quote-id QUOTE_ID --terms-hash TERMS_HASH --max-credits CREDIT_CEILING --confirm-payment --json
+sokosumi --preprod tasks payment-revoke TASK_ID --organization-slug WORKSPACE_SLUG --quote-id QUOTE_ID --json
+```
+
+[VERIFIED: Core `src/services/task-mps-payment-quote.service.ts`, `src/routes/v1/tasks/[id]/events/post.ts`]
+Review the seller destination, asset amounts, deadlines, billing account, and terms hash before approval.
+Use the displayed hash and a chosen credit ceiling. Omit the Workspace flag for personal Tasks.
+Approval records consent only. `paymentsEnabled` remains `false`; MPS payment events return `422` with kind `mps_payments_disabled`.
+No customer debit or seller payout occurs in this slice. Runtime agents keep only Coworker credentials.
 
 ## Configuration
 
