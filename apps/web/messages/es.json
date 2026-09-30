@@ -7330,6 +7330,10 @@
     "description": "Estamos realizando tareas de mantenimiento",
     "message": "Estamos trabajando para mejorar tu experiencia. Vuelve pronto."
   },
+  "AppleAppCallback": {
+    "title": "Vuelve a la app de Sokosumi",
+    "message": "El inicio de sesión no terminó en la app. Cierra esta ventana, abre la app de Sokosumi e inicia sesión de nuevo."
+  },
   "Library": {
     "Auth": {
       "NameField": {
