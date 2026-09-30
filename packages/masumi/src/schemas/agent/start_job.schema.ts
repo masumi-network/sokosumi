@@ -1,14 +1,5 @@
 import * as z from "zod";
 
-import { inputSchema } from "../input/input.schema.js";
-
-export const startJobRequestSchema = z.object({
-  identifierFromPurchaser: z.string(),
-  input_data: inputSchema,
-});
-
-export type StartJobRequestSchemaType = z.infer<typeof startJobRequestSchema>;
-
 function preprocessStartJobResponse(val: unknown): unknown {
   if (typeof val === "object" && val !== null) {
     const obj = val as Record<string, unknown>;

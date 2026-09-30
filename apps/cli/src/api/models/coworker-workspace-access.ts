@@ -1,16 +1,11 @@
 import { parseApiResponse } from "./api-response.js";
+import { asRecord } from "./parse-helpers.js";
 
 export interface CoworkerWorkspaceAccess {
   id: string;
   coworkerId: string;
   workspaceId: string;
   status: string;
-}
-
-function asRecord(input: unknown): Record<string, unknown> {
-  return input && typeof input === "object" && !Array.isArray(input)
-    ? (input as Record<string, unknown>)
-    : {};
 }
 
 function requiredString(value: unknown, field: string): string {

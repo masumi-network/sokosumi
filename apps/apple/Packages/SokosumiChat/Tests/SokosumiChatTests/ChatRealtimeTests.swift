@@ -354,7 +354,9 @@ struct ChatRealtimeTests {
         sender: testUserSender(name: ada, email: adaEmail)
       )
     ])
-    let untouched = applyRealtimeTombstone(messages: existing, messageId: "missing-id")
+    let untouched = applyRealtimeTombstone(
+      messages: existing, messageId: "missing-id", now: Date(timeIntervalSince1970: 1_700_000_000)
+    )
     #expect(untouched.map(\.id) == existing.map(\.id))
     #expect(untouched.map(\.content) == ["visible"])
   }

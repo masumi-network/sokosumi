@@ -36,7 +36,7 @@ private func member(_ userId: String, activeAgo: TimeInterval = 0) -> ChatPresen
     #expect(presence.publication(force: false, now: now.addingTimeInterval(2)) != nil)
     presence.setOrganization(nil)
     #expect(presence.publication(force: true, now: now.addingTimeInterval(3)) == nil)
-    presence.reset()
+    presence.reset(now: now)
     #expect(presence.organizationId == nil)
     #expect(presence.selfPresence == .online)
   }
