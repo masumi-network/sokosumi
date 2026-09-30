@@ -284,6 +284,48 @@ describe("buildSignInUrlFromSignUp", () => {
 });
 
 describe("buildOAuthResumeUrlFromSearchParams", () => {
+  it.each<Record<string, string>>([
+    { prompt: "login" },
+    { prompt: "login consent" },
+    { max_age: "300" },
+    { max_age: "0" },
+  ])("resumes explicit reauthentication at consent (%o)", (extra) => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      exp: "1772367377",
+      ba_iat: "1772366777000",
+      sig: "signed-value",
+      ...extra,
+    });
+
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      `/oauth/consent?${params.toString()}`,
+    );
+  });
+
+  it("keeps create requests on the sign-in hand-back path", () => {
+    const params = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+      prompt: "create",
+    });
+
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      `/signin?${params.toString()}`,
+    );
+  });
+
+  it("ignores unsigned reauthentication parameters", () => {
+    const params = new URLSearchParams(
+      "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
+    );
+
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
+    );
+  });
+
   it("returns undefined without a signed OAuth request", () => {
     const params = new URLSearchParams({
       client_id: "client_1",

@@ -359,13 +359,25 @@ export function buildSignedOAuthQueryFromSearchParams(
  * Where a person with an OAuth request goes when a sign-in leaves the page
  * (magic link, or a social sign-in the OAuth provider did not answer): the
  * sign-in page with the signed request as its own query. Arriving there signed
- * in hands the request back to the provider.
+ * in hands the request back to the provider. Explicit reauthentication resumes
+ * at consent, whose provider endpoint checks that the new session satisfies
+ * the signed request before clearing its login prompt or maximum age.
  */
 export function buildOAuthResumeUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
   const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
-  return oauthQuery ? buildAuthPageUrl("/signin", { oauthQuery }) : undefined;
+  if (!oauthQuery) return undefined;
+
+  const params = new URLSearchParams(oauthQuery);
+  if (
+    params.has("max_age") ||
+    params.get("prompt")?.split(" ").includes("login")
+  ) {
+    return `/oauth/consent?${oauthQuery}`;
+  }
+
+  return buildAuthPageUrl("/signin", { oauthQuery });
 }
 
 /**
