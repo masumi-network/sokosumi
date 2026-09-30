@@ -1450,7 +1450,7 @@ struct WorkspaceStateTests {
     #expect(state.sendMessage("Hello", auth: auth))
     #expect(!state.sendMessage("Again", auth: auth))
     #expect(state.outboundShells.isEmpty)
-    let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", sender: sender))
+    let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", createdAt: Date(), sender: sender))
     state.applyRealtimeMessage(roomId: roomId, eventType: .create, message: echo)
     #expect(state.transcriptMessages.isEmpty)
     var root = echo
@@ -1780,6 +1780,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
     let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: roomId, content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = messageId
     state.timeline.reset(roomId: roomId)
@@ -1814,6 +1815,7 @@ extension WorkspaceStateTests {
   func editingKeystrokesDoNotInvalidateConversation() throws {
     let (state, _, _, _) = try ephemeralState([], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: "room", content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "persisted-message"
     var conversationUpdates = 0
@@ -1849,6 +1851,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
     let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: roomId, content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = messageId
     state.timeline.reset(roomId: roomId)
@@ -1888,6 +1891,7 @@ extension WorkspaceStateTests {
   @Test func failedDeletionLeavesMessageAndDraftIntact() async throws {
     let (state, auth, _, _) = try ephemeralState([(403, "{\"message\":\"Deletion denied\"}")], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: "room", content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
     state.timeline.reset(roomId: "room")
@@ -1910,6 +1914,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
     var parent = chatRoomMessage(from: .init(clientTurnId: "parent", roomId: "room", content: "Parent",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     parent.id = "parent"
     parent.threadReplyCount = 2
@@ -1959,6 +1964,7 @@ extension WorkspaceStateTests {
 
   private func reactionSource() -> Components.Schemas.ChatRoomMessage {
     var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "New content",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
     return source
@@ -2161,6 +2167,7 @@ extension WorkspaceStateTests {
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
+                                              createdAt: Date(),
                                               sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     message.id = "message"
     try await state.setPinned(true, messageId: "message", auth: auth)
@@ -2276,7 +2283,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     state.timeline.reset(roomId: "room")
-    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
+    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", createdAt: Date(), sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
     message.id = "message"
     message.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
     state.timeline.messages = [message]
@@ -2456,6 +2463,7 @@ extension WorkspaceStateTests {
     let (state, _, _, _) = try ephemeralState([], visible: false)
     defer { state.reset() }
     var first = chatRoomMessage(from: .init(clientTurnId: "first", roomId: "room", content: "First",
+                                            createdAt: Date(),
                                             sender: .init(id: "user_2", name: "Ada", email: "ada@example.com", presence: .online)))
     first.id = "first"
     var target = first
@@ -2941,7 +2949,7 @@ extension WorkspaceStateTests {
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
-    try await state.retryMention(shell, auth: auth)
+    try await state.retryMention(shell, auth: auth, now: Date())
     #expect(transport.operationIDs.filter { $0 == mentionRetryOperation }.count == 1)
     #expect(transport.operationIDs.last?.hasSuffix("/retry") == true)
 
@@ -2962,7 +2970,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(409, coreRejection(status: "Conflict", message: "Mention is not failed"))])
     let shell = try #require(state.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -2980,7 +2988,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(403, coreRejection(status: "Forbidden", message: "You can only retry mentions you authored"))])
     let shell = try #require(state.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -3000,7 +3008,7 @@ extension WorkspaceStateTests {
     // The coordinator still refuses a source it cannot see, without a request.
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
-    try await state.retryMention(orphan, auth: auth)
+    try await state.retryMention(orphan, auth: auth, now: Date())
     #expect(!transport.operationIDs.contains(mentionRetryOperation))
   }
 }
@@ -3085,6 +3093,7 @@ private func durableRoomMessage(roomId: String) -> Components.Schemas.ChatRoomMe
     clientTurnId: "turn",
     roomId: roomId,
     content: "Keep this",
+    createdAt: Date(),
     sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)
   ))
   message.id = "550e8400-e29b-41d4-a716-446655440123"

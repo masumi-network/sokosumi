@@ -17,7 +17,7 @@ public struct OAuthTokens: Codable, Sendable, Equatable {
 
   /// Treat tokens expiring within the leeway as expired so a slow Core call
   /// never races a dead access token.
-  func isExpired(now: Date = Date(), leeway: TimeInterval = 60) -> Bool {
+  func isExpired(now: Date, leeway: TimeInterval = 60) -> Bool {
     now.addingTimeInterval(leeway) >= expiresAt
   }
 }

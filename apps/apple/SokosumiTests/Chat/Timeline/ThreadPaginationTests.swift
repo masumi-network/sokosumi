@@ -163,6 +163,7 @@
       private func message(_ index: Int, parent: String?) -> Components.Schemas.ChatRoomMessage {
         var message = chatRoomMessage(from: .init(clientTurnId: "reply-\(index)", roomId: "room", parentMessageId: parent,
                                                   content: "Reply \(index)\n" + String(repeating: "\(index) ", count: 12),
+                                                  createdAt: Date(),
                                                   sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
         message.id = "reply-\(index)"
         message.threadReplyCount = parent == nil ? 59 : 0

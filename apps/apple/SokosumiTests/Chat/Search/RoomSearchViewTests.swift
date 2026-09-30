@@ -62,7 +62,7 @@
     /// A search for "matching" answered with two hits; the transport holds every later request.
     private func answeredSearch() async throws -> (RoomSearch, SearchFixtureTransport) {
       let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Alexandra Long Display Name", email: "alexandra@example.com", presence: .online)
-      var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "A longer search result that wraps across multiple lines without overlapping the sender or timestamp. The preview should stop after two lines.", sender: sender))
+      var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "A longer search result that wraps across multiple lines without overlapping the sender or timestamp. The preview should stop after two lines.", createdAt: Date(), sender: sender))
       first.id = "first"
       // Old enough that the relative timestamp cannot tick over between two renders.
       first.createdAt = Date(timeIntervalSinceNow: -400 * 86400)

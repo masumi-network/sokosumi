@@ -20,6 +20,7 @@
     /// `client` answers the edit's PATCH; without one `saveMessageEdit` stops at `resolveClient`.
     static func make(dark: Bool = false, client: Client? = nil) async throws -> MessageEditComposerFixture {
       var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: "room_1", content: "Original",
+                                                createdAt: Date(),
                                                 sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
       message.id = "message_1"
       // The workspace's own editor, as `MessageRowView` passes it: `saveMessageEdit` saves that one.

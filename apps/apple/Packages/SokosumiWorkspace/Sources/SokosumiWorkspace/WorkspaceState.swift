@@ -688,7 +688,7 @@ public final class WorkspaceState: ObservableObject {
     }
     if wasVisible != readAttention.isVisible {
       // Web's visibilitychange: hidden publishes afk at once, visible counts as activity.
-      presence.setVisible(readAttention.isVisible)
+      presence.setVisible(readAttention.isVisible, now: Date())
       publishPresence(force: true)
       realtime?.setInFront(readAttention.isVisible)
     }
@@ -946,7 +946,7 @@ public final class WorkspaceState: ObservableObject {
       }
       return
     case let .tombstone(messageId):
-      transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId)
+      transcriptMessages = applyRealtimeTombstone(messages: transcriptMessages, messageId: messageId, now: Date())
     case .needsRefetch:
       transcriptRecovery.requestRefresh()
     }
@@ -1063,6 +1063,7 @@ public final class WorkspaceState: ObservableObject {
       clientTurnId: clientMessageId,
       roomId: roomId,
       content: content,
+      createdAt: Date(),
       sender: outboundSender
     )
   }
@@ -1141,7 +1142,10 @@ public final class WorkspaceState: ObservableObject {
   public func performSidebarAction(_ action: ConversationSidebar.Action, roomId: String, auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
-      try await sidebar.perform(action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug)
+      try await sidebar.perform(
+        action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug,
+        clock: (now: Date(), makeId: UUID.init)
+      )
     } catch {
       if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
         // The auth card takes over; the modal alert would double-surface.
@@ -1155,7 +1159,9 @@ public final class WorkspaceState: ObservableObject {
   public func reorderPinnedRooms(_ roomIds: [String], auth: AuthState) async {
     guard let client = resolveClient(auth: auth) else { return }
     do {
-      try await sidebar.reorderPinned(roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug)
+      try await sidebar.reorderPinned(
+        roomIds, client: client, organizationSlug: selection?.workspace.organizationSlug, now: Date()
+      )
     } catch {
       if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {
         sidebar.clearActionError()
