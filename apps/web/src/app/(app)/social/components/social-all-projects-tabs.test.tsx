@@ -69,6 +69,13 @@ describe("SocialAllProjectsTabs", () => {
     ).toHaveAttribute("aria-selected", "true");
   });
 
+  it("shows every project's posts on the calendar without asking for a project", () => {
+    renderTabs();
+
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    expect(screen.queryByText(/choose a project/)).not.toBeInTheDocument();
+  });
+
   it("says a lost project is gone above the calendar", () => {
     renderTabs("", "That project is gone");
 

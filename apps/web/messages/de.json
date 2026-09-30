@@ -2274,7 +2274,7 @@
         "description": "Verbinde Social-Media-Konten mit diesem Projekt. Entwirf, plane und veröffentliche Beiträge auf jeder verbundenen Plattform.",
         "account": "{provider}-Konto",
         "connect": "{provider}-Konto verbinden",
-        "connectAccount": "Konto verbinden",
+        "connectAccount": "X, YouTube, LinkedIn … verbinden",
         "actions": "Aktionen für {account}",
         "reconnect": "Erneut verbinden",
         "replace": "Ersetzen",
@@ -2438,6 +2438,11 @@
           "title": "Diesen Beitrag jetzt veröffentlichen?",
           "description": "Der Beitrag wird sofort veröffentlicht, statt auf den geplanten Zeitpunkt zu warten.",
           "confirm": "Jetzt veröffentlichen"
+        },
+        "connectPrompt": {
+          "title": "Verbinde ein Konto, um zu posten",
+          "body": "Beiträge werden über die X-, Instagram-, LinkedIn-, Facebook- und YouTube-Konten dieses Projekts veröffentlicht.",
+          "action": "X, YouTube, LinkedIn … verbinden"
         }
       },
       "Detail": {
@@ -2748,7 +2753,7 @@
         "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
       },
       "accountsNeedProject": {
-        "title": "Social-Konten",
+        "title": "X, YouTube, LinkedIn … verbinden",
         "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
       },
       "draftsNeedProject": {
