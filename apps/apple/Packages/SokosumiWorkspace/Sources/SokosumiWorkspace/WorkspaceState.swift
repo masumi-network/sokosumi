@@ -1144,7 +1144,7 @@ public final class WorkspaceState: ObservableObject {
     do {
       try await sidebar.perform(
         action, roomId: roomId, client: client, organizationSlug: selection?.workspace.organizationSlug,
-        now: Date(), makeId: UUID.init
+        clock: (now: Date(), makeId: UUID.init)
       )
     } catch {
       if let error = error as? ChatServiceError, signOutIfUnauthorized(error, auth: auth) {

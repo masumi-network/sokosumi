@@ -212,7 +212,7 @@ struct PinnedRoomsReorderTests {
 
     state.setPinnedReorderMode(true)
     let unpin = TestTransport([(200, #"{"data":\#(pinnedRoomJSON(id: roomB, starredAt: nil)),"meta":{"timestamp":"\#(testTimestamp)","requestId":"unpin"}}"#)])
-    try await state.perform(.unpin, roomId: roomB, client: makeTestClient(unpin), organizationSlug: nil, now: Date(), makeId: UUID.init)
+    try await state.perform(.unpin, roomId: roomB, client: makeTestClient(unpin), organizationSlug: nil, clock: (now: Date(), makeId: UUID.init))
     #expect(!state.canReorderPinned)
     #expect(!state.pinnedReorderMode)
     // Pinning a second room again does not re-enter the mode unasked.
