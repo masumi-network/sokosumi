@@ -105,7 +105,8 @@ describe("ConsentActions", () => {
     expect(mockEnsureOAuthWorkspaceAction).not.toHaveBeenCalled();
   });
   describe("after the consent answer", () => {
-    const callbackUrl = "https://cmo.xyz/api/auth/callback/sokosumi?code=abc";
+    const callbackUrl =
+      "https://app.cmo.xyz/api/auth/callback/sokosumi?code=abc";
     const originalLocation = window.location;
     const navigations: string[] = [];
 
