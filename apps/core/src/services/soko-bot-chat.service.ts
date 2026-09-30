@@ -255,8 +255,8 @@ async function announceBotMessage(roomId: string, messageId: string) {
 /**
  * A fixed message from the bot into its owner's direct chat, outside any
  * turn: nothing is classified and nothing wakes the bot. `key` makes it
- * idempotent, so a retry posts once. Null when the bot is gone or the owner
- * has no chat with it yet.
+ * idempotent, so a retry posts once. An owner who never opened the chat gets
+ * it opened, with the bot's introduction first. Null when the bot is gone.
  */
 export async function postSokoBotOwnerNotice(input: {
   sokoBotId: string;
@@ -265,19 +265,15 @@ export async function postSokoBotOwnerNotice(input: {
 }): Promise<{ messageId: string } | null> {
   const bot = await prisma.sokoBot.findFirst({
     where: { id: input.sokoBotId, archivedAt: null },
-    select: { id: true, userId: true },
+    select: {
+      id: true,
+      userId: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
   });
   if (!bot) return null;
-  const room = await prisma.chatRoom.findFirst({
-    where: {
-      kind: "direct",
-      sokoBotMembers: { some: { sokoBotId: bot.id } },
-      userMembers: { some: { userId: bot.userId } },
-    },
-    orderBy: { updatedAt: "desc" },
-    select: { id: true },
-  });
-  if (!room) return null;
+  const room = await findOrOpenOwnerDirectRoom(bot);
   const message = await prisma.$transaction(async (tx) => {
     const posted = await tx.chatRoomMessage.upsert({
       where: {
@@ -303,6 +299,41 @@ export async function postSokoBotOwnerNotice(input: {
   });
   await announceBotMessage(room.id, message.id);
   return { messageId: message.id };
+}
+
+async function findOrOpenOwnerDirectRoom(bot: {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  workspace: { organizationId: string | null };
+}): Promise<{ id: string }> {
+  const existing = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId: bot.id } },
+      userMembers: { some: { userId: bot.userId } },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+  if (existing) return existing;
+  const { createOrGetDirectRoom } = await import(
+    "@/routes/v1/chats/rooms/helpers"
+  );
+  const { room, created } = await createOrGetDirectRoom({
+    organizationId: bot.workspace.organizationId,
+    currentUserId: bot.userId,
+    memberUserIds: [],
+    coworkerIds: [],
+    sokoBotIds: [bot.id],
+  });
+  if (created)
+    await introduceSokoBot({
+      userId: bot.userId,
+      workspaceId: bot.workspaceId,
+      roomId: room.id,
+    });
+  return { id: room.id };
 }
 
 export async function persistSokoBotChatTurn(
