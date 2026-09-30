@@ -5,6 +5,7 @@ import { TaskRelationRow } from "./task-relation-row";
 interface RelatedTaskSummary {
   id: string;
   name: string;
+  identifier: string | null;
   status: TaskStatus;
   relation: TaskLinkRelation;
 }
@@ -56,6 +57,7 @@ export function TaskRelatedTasks({
                   <TaskRelationRow
                     taskId={task.id}
                     taskName={task.name}
+                    taskIdentifier={task.identifier}
                     taskStatus={task.status}
                     statusLabel={statusLabels[task.status]}
                   />
