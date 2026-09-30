@@ -19,7 +19,7 @@ struct SignInTests {
     let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
 
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=state-123")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=auth-code-1&state=state-123")),
       expectedState: "state-123",
       codeVerifier: "verifier-abc"
     )
@@ -34,7 +34,7 @@ struct SignInTests {
     let fields = Dictionary(uniqueKeysWithValues: request.fields.map { ($0.name, $0.value) })
     #expect(fields["grant_type"] == "authorization_code")
     #expect(fields["code"] == "auth-code-1")
-    #expect(fields["redirect_uri"] == "com.sokosumi.app:/auth")
+    #expect(fields["redirect_uri"] == "https://app.sokosumi.com/auth/apple/callback")
     #expect(fields["client_id"] == "mac-public-client")
     #expect(fields["code_verifier"] == "verifier-abc")
     #expect(fields["client_secret"] == nil)
@@ -54,7 +54,7 @@ struct SignInTests {
     // a relaunch would ask for sign-in again.
     await #expect(throws: SaveFailed.self) {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+        callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
         expectedState: "s",
         codeVerifier: "v"
       )
@@ -62,7 +62,19 @@ struct SignInTests {
     #expect(await !session.isSignedIn)
   }
 
-  @Test(arguments: ["com.sokosumi.app:/other", "com.sokosumi.app://unexpected/auth"])
+  /// Only the claimed HTTPS link is a callback. The custom scheme any app can
+  /// register is first in the list: it was the redirect before.
+  @Test(arguments: [
+    "com.sokosumi.app:/auth",
+    "com.sokosumi.app://app.sokosumi.com/auth/apple/callback",
+    "http://app.sokosumi.com/auth/apple/callback",
+    "https://evil.example/auth/apple/callback",
+    "https://app.sokosumi.com.evil.example/auth/apple/callback",
+    "https://app.sokosumi.com@evil.example/auth/apple/callback",
+    "https://app.sokosumi.com:8443/auth/apple/callback",
+    "https://app.sokosumi.com/auth/apple/other",
+    "https://app.sokosumi.com/auth/apple/callback/extra"
+  ])
   func signInRejectsCallbackWithWrongDestination(destination: String) async throws {
     let transport = StubTokenTransport(response: .success(status: 200, json: "{}"))
     let session = try OAuthSession(
@@ -92,7 +104,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.stateMismatch) {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=auth-code-1&state=other")),
+        callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=auth-code-1&state=other")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -114,7 +126,7 @@ struct SignInTests {
 
     await #expect(throws: OAuthError.tokenExchangeFailed(status: 400, message: "Code expired", code: "invalid_grant")) {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=stale&state=state-123")),
+        callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=stale&state=state-123")),
         expectedState: "state-123",
         codeVerifier: "verifier-abc"
       )
@@ -130,7 +142,7 @@ struct SignInTests {
     let store = FailingClearStore()
     let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -148,7 +160,7 @@ struct SignInTests {
     let store = InMemoryTokenStore()
     let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )

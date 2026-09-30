@@ -31,6 +31,8 @@ Configuration resolves environment variables before the corresponding Info.plist
 
 The URL defaults point to production. Sign-in uses system-browser OAuth with PKCE and Keychain token storage. It does not reuse the web app's cookies.
 
+The browser returns to the app at `https://app.sokosumi.com/auth/apple/callback`, a link only this app can claim, so nobody is asked to authorize it. That needs a build signed for the team: an ad-hoc build (`DEVELOPMENT_TEAM=`) runs the tests but cannot sign in. See [AGENTS.md](AGENTS.md#oauth-and-core-setup).
+
 ## Architecture and navigation
 
 The Xcode navigator follows the physical source folders. Start with `Sokosumi/App/SokosumiApp.swift` for scene composition and `ChatRootView.swift` for navigation and sign-in/workspace gates.

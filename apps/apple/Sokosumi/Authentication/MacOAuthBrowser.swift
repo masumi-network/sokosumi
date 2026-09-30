@@ -21,9 +21,11 @@
       attemptID = attempt
       return try await withCheckedThrowingContinuation { continuation in
         self.continuation = continuation
+        // The system only hands an HTTPS callback to an app the host vouches
+        // for (`webcredentials` in the Associated Domains entitlement).
         let session = ASWebAuthenticationSession(
           url: url,
-          callbackURLScheme: OAuthConfiguration.callbackScheme
+          callback: .https(host: OAuthConfiguration.callbackHost, path: OAuthConfiguration.callbackPath)
         ) { [weak self] callbackURL, error in
           Task { @MainActor in
             self?.handleCallback(attempt: attempt, callbackURL: callbackURL, error: error)

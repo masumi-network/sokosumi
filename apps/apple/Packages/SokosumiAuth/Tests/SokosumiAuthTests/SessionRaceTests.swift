@@ -69,7 +69,7 @@ struct SessionRaceTests {
     let session = try session(store: store, transport: transport)
     let task = Task {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+        callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
         expectedState: "s", codeVerifier: "v"
       )
     }
