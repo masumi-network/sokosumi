@@ -14,7 +14,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
   SocialComposeProvider,
@@ -27,6 +27,8 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+
+import { createTestFormatter } from "@/test/intl-formatter";
 
 import { loadMoreSocialPosts } from "./actions";
 
@@ -159,6 +161,15 @@ const MESSAGES: Record<string, string> = {
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
+  quickPicks: "Quick picks",
+  "quick.inAnHour": "In an hour ({time})",
+  "quick.tomorrowMorning": "Tomorrow {time}",
+  "quick.nextMonday": "Monday {time}",
+  pickDate: "Pick a date",
+  pickTime: "Pick a time",
+  dateSelected: "Date: {date}",
+  timeSelected: "Time: {time}",
+  times: "Times",
   "toasts.unauthenticated": "Please sign in to continue.",
   "toasts.unauthenticatedAction": "Sign in",
   "outcomes.authorizationRevoked":
@@ -380,13 +391,20 @@ const IMAGE_REF: SocialPostMediaRef = {
   kind: "image",
 };
 
-function dateTimeLocal(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+/** A fixed local "now" for the schedule picker, and its "In an hour" slot. */
+const NOW = new Date(2026, 8, 20, 10, 3);
+const IN_AN_HOUR = new Date(2026, 8, 20, 11, 15);
+
+function freezeClock(now: Date = NOW) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
 }
 
-function futureDateTimeLocal(): string {
-  return dateTimeLocal(new Date(Date.now() + 60 * 60 * 1000));
+async function pickInAnHour(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+) {
+  await user.click(within(dialog).getByRole("button", { name: /^In an hour/ }));
 }
 
 async function openRowMenu(
@@ -436,6 +454,10 @@ function render(ui: React.ReactElement) {
 }
 
 describe("ProjectSocialPosts", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createProjectSocialPost).mockResolvedValue({
@@ -858,6 +880,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("keeps Schedule disabled without an account or a future time", async () => {
+    freezeClock();
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts connections={[]} posts={[]} projectId={PROJECT_ID} />,
@@ -873,8 +896,7 @@ describe("ProjectSocialPosts", () => {
     ).toBeEnabled();
     expect(schedule).toBeDisabled();
 
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.type(timeInput, futureDateTimeLocal());
+    await pickInAnHour(user, dialog);
     expect(schedule).toBeDisabled();
   });
 
@@ -1072,6 +1094,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
@@ -1088,11 +1111,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
-    const localValue = futureDateTimeLocal();
-    await user.type(
-      within(dialog).getByLabelText("Scheduled time"),
-      localValue,
-    );
+    await pickInAnHour(user, dialog);
     const schedule = within(dialog).getByRole("button", { name: "Schedule" });
     await waitFor(() => expect(schedule).toBeEnabled());
     await user.click(schedule);
@@ -1103,7 +1122,7 @@ describe("ProjectSocialPosts", () => {
         text: "Scheduled text",
         media: [],
         socialConnectionId: "connection-1",
-        scheduledAt: new Date(localValue).toISOString(),
+        scheduledAt: IN_AN_HOUR.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
     });
@@ -1154,6 +1173,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("reschedules a scheduled post from the row menu", async () => {
+    freezeClock();
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -1172,10 +1192,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("heading", { name: "Reschedule post" }),
     ).toBeVisible();
     expect(within(dialog).queryByLabelText("Text")).not.toBeInTheDocument();
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.clear(timeInput);
-    const localValue = futureDateTimeLocal();
-    await user.type(timeInput, localValue);
+    await pickInAnHour(user, dialog);
     await user.click(
       within(dialog).getByRole("button", { name: "Reschedule" }),
     );
@@ -1184,7 +1201,7 @@ describe("ProjectSocialPosts", () => {
       expect(scheduleProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         postId: "post-scheduled",
-        scheduledAt: new Date(localValue).toISOString(),
+        scheduledAt: IN_AN_HOUR.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         socialConnectionId: "connection-1",
         revision: 2,
@@ -1194,6 +1211,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("saves edited media before rescheduling a scheduled post", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(updateProjectSocialPost).mockResolvedValue({
       ok: true,
@@ -1215,10 +1233,7 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: "Add from Drive" }),
     );
     await user.click(screen.getByRole("button", { name: "pick launch.png" }));
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.clear(timeInput);
-    const localValue = futureDateTimeLocal();
-    await user.type(timeInput, localValue);
+    await pickInAnHour(user, dialog);
     await user.click(
       within(dialog).getByRole("button", { name: "Reschedule" }),
     );
@@ -1798,9 +1813,9 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByText("Scheduled text")).not.toHaveClass("line-clamp-2");
   });
 
-  it("requires the shared schedule lead time and rounds the input minimum up", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-24T10:00:15.000Z"));
+  it("offers only times after the shared schedule lead time", async () => {
+    freezeClock(new Date(2026, 8, 24, 10, 0, 15));
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -1809,29 +1824,59 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Text"), {
-      target: { value: "Hello world" },
-    });
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    expect(timeInput).toHaveAttribute(
-      "min",
-      dateTimeLocal(new Date("2026-09-24T10:02:00.000Z")),
+    await user.click(
+      within(dialog).getByRole("button", { name: "Pick a time" }),
     );
-    fireEvent.change(timeInput, {
-      target: {
-        value: dateTimeLocal(new Date("2026-09-24T10:01:00.000Z")),
-      },
-    });
 
-    expect(timeInput).toHaveAttribute("aria-invalid", "true");
-    expect(
-      within(dialog).getByText("Choose a time at least one minute from now."),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
-    ).toBeDisabled();
+    const times = screen.getByRole("listbox", { name: "Times" });
+    const option = (hour: number, minute: number) =>
+      within(times)
+        .getAllByRole("option")
+        .find(
+          (candidate) =>
+            candidate.textContent ===
+            createTestFormatter().dateTime(
+              new Date(2026, 8, 24, hour, minute),
+              "time",
+            ),
+        );
+    expect(option(10, 0)).toBeDisabled();
+    expect(option(10, 15)).toBeEnabled();
+  });
+
+  it("schedules from the date and time pickers", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Picked");
+    await user.click(within(dialog).getByRole("button", { name: /^Tomorrow/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^Time:/ }));
+    const times = screen.getByRole("listbox", { name: "Times" });
+    const twoThirty = createTestFormatter().dateTime(
+      new Date(2026, 8, 21, 14, 30),
+      "time",
+    );
+    await user.click(within(times).getByRole("option", { name: twoThirty }));
+    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduledAt: new Date(2026, 8, 21, 14, 30).toISOString(),
+        }),
+      );
+    });
   });
 
   it("routes rejected authentication through the sign-in toast", async () => {
@@ -1928,6 +1973,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("shows the fallback error when scheduling rejects", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost).mockRejectedValue(
       new Error("network down"),
@@ -1943,10 +1989,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
-    await user.type(
-      within(dialog).getByLabelText("Scheduled time"),
-      futureDateTimeLocal(),
-    );
+    await pickInAnHour(user, dialog);
     await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
 
     await waitFor(() =>
