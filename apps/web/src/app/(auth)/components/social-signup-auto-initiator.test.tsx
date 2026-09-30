@@ -111,4 +111,23 @@ describe("SocialSignupAutoInitiator", () => {
       newUserCallbackReturnUrl: expectedReturnUrl,
     });
   });
+
+  it("sends a failed sign-in to the sign-up page, not back into the auto start", async () => {
+    const startPage = window.location.href;
+    window.history.replaceState(null, "", "/auth/google?returnUrl=%2Fchat");
+    try {
+      render(
+        <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+      );
+
+      await waitFor(() => {
+        expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+      });
+      expect(mockSocialSignIn.mock.calls[0]?.[0]).toMatchObject({
+        errorCallbackURL: `${window.location.origin}/signup?returnUrl=%2Fchat`,
+      });
+    } finally {
+      window.history.replaceState(null, "", startPage);
+    }
+  });
 });

@@ -10,6 +10,7 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthCallbackUrl,
+  buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   buildSignInUrlFromSignUp,
@@ -29,6 +30,16 @@ describe("buildSignedOAuthQueryFromSearchParams", () => {
 
     expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
+  it("leaves out the error a failed sign-in brought back", () => {
+    const params = new URLSearchParams(
+      "client_id=client_1&exp=1772367377&sig=abc&error=access_denied&error_description=denied",
+    );
+
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
+      "client_id=client_1&exp=1772367377&sig=abc",
     );
   });
 
@@ -114,6 +125,54 @@ describe("buildAuthCallbackUrl", () => {
         "https://evil.example/attack",
       ),
     ).toBe("/auth/callback/signin?provider=google&returnUrl=%2F");
+  });
+});
+
+describe("buildAuthErrorCallbackUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns a failed sign-in to the page it started on", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl()).toBe(
+      "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat",
+    );
+  });
+
+  it("drops the error of an earlier attempt", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/signup?error=access_denied&error_description=denied&client_id=cmo",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl()).toBe(
+      "https://preprod.sokosumi.com/signup?client_id=cmo",
+    );
+  });
+
+  it("returns to another page with the same query when asked", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl("/signup")).toBe(
+      "https://preprod.sokosumi.com/signup?returnUrl=%2Fchat",
+    );
+  });
+
+  it("has no page to return to during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(buildAuthErrorCallbackUrl()).toBeUndefined();
   });
 });
 

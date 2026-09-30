@@ -32,6 +32,16 @@ describe("signed-out page", () => {
     );
   });
 
+  it("says the sign in took too long when its state is gone", () => {
+    const html = renderToStaticMarkup(
+      <SignedOut error="state_mismatch" {...actions} />,
+    );
+
+    expect(html).toContain(
+      '<p role="alert">That sign in took too long. Press Sign in again.</p>',
+    );
+  });
+
   it("asks to try again when sign in failed for another reason", () => {
     const html = renderToStaticMarkup(
       <SignedOut error="unable_to_get_user_info" {...actions} />,
