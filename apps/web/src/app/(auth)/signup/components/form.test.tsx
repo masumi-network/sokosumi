@@ -128,7 +128,7 @@ describe("SignUpForm OAuth workflow", () => {
     window.location.href = "http://localhost/";
   });
 
-  async function submitValidSignUpForm() {
+  async function submitSignUpForm(password: string) {
     const user = userEvent.setup();
 
     await user.type(
@@ -141,15 +141,72 @@ describe("SignUpForm OAuth workflow", () => {
     );
     await user.type(
       screen.getByPlaceholderText("Fields.Password.placeholder"),
-      "Passw0rd!",
-    );
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: /Fields\.TermsAccepted\.Label\.iAgreeTo/,
-      }),
+      password,
     );
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
+
+  function submitValidSignUpForm() {
+    return submitSignUpForm("Passw0rd!");
+  }
+
+  it("asks for name, email and password, with updates as the only checkbox", () => {
+    render(<SignUpForm />);
+
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    expect(
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+    ).not.toBeChecked();
+    expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
+  });
+
+  it("lets a password manager recognise name, email and new password", () => {
+    render(<SignUpForm />);
+
+    expect(
+      screen.getByPlaceholderText("Fields.Name.placeholder"),
+    ).toHaveAttribute("autocomplete", "name");
+    expect(
+      screen.getByPlaceholderText("Fields.Email.placeholder"),
+    ).toHaveAttribute("autocomplete", "email");
+    expect(
+      screen.getByPlaceholderText("Fields.Password.placeholder"),
+    ).toHaveAttribute("autocomplete", "new-password");
+  });
+
+  it("accepts a lower-case password of eight characters and sends the terms acceptance", async () => {
+    mockSignUpEmail.mockResolvedValue({
+      data: { user: { id: "user-1" } },
+      error: null,
+    });
+    render(<SignUpForm />);
+
+    await submitSignUpForm("abcdefgh");
+
+    await waitFor(() => {
+      expect(mockSignUpEmail).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSignUpEmail.mock.calls[0]?.[0]).toEqual(
+      expect.objectContaining({
+        password: "abcdefgh",
+        termsAccepted: true,
+        marketingOptIn: false,
+      }),
+    );
+  });
+
+  it("rejects a password of seven characters with the stated rule", async () => {
+    render(<SignUpForm />);
+
+    await submitSignUpForm("abcdefg");
+
+    expect(await screen.findByText("Password.min")).toBeInTheDocument();
+    // The rule reaches a screen reader through the field's description.
+    expect(
+      screen.getByPlaceholderText("Fields.Password.placeholder"),
+    ).toHaveAccessibleDescription("Password.min");
+    expect(mockSignUpEmail).not.toHaveBeenCalled();
+  });
 
   it("shows translated captcha errors from Core", async () => {
     const error = {
@@ -165,6 +222,21 @@ describe("SignUpForm OAuth workflow", () => {
     expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
     expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
     expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("says to start again when the OAuth request has expired", async () => {
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: { status: 400, error: "invalid_signature" },
+    });
+    render(<SignUpForm />);
+
+    await submitValidSignUpForm();
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenLastCalledWith("errorDescription");
+    });
+    expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
   it("does not register when verification is cancelled", async () => {
@@ -264,7 +336,7 @@ describe("SignUpForm OAuth workflow", () => {
     await expect(waitForAuthSessionOptions.getSession()).resolves.toBeNull();
   });
 
-  it("passes oauth consent callback url built from search params", async () => {
+  it("leaves the navigation to the OAuth provider when the page carries an OAuth request", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -279,12 +351,12 @@ describe("SignUpForm OAuth workflow", () => {
 
     mockSignUpEmail.mockResolvedValue({
       data: {
-        user: { id: "user-3" },
         redirect: true,
-        url: "/auth/oauth2/authorize?client_id=test-client",
+        url: "https://consumer.example.com/callback?code=abc",
       },
       error: null,
     });
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
     render(<SignUpForm />);
 
@@ -310,22 +382,13 @@ describe("SignUpForm OAuth workflow", () => {
     expect(signUpPayload).not.toHaveProperty("callbackURL");
 
     await waitFor(() => {
-      expect(mockLocationReplace).toHaveBeenCalledTimes(1);
+      expect(fireGTMEvent.signUp).toHaveBeenCalledWith("credential");
+      expect(mockHandleUtmConversion).toHaveBeenCalledTimes(1);
     });
-    const consentUrl = mockLocationReplace.mock.calls[0]?.[0] as string;
-
-    expect(consentUrl).toContain("/oauth/consent?");
-    expect(consentUrl).toContain("client_id=test-client");
-    expect(consentUrl).toContain(
-      "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
-    );
-    expect(consentUrl).toContain("code_challenge=test-challenge");
-    expect(consentUrl).toContain("code_challenge_method=S256");
-    expect(consentUrl).toContain("scope=openid");
-    expect(consentUrl).toContain("state=test-state");
-    expect(consentUrl).toContain("response_type=code");
-    expect(consentUrl).toContain("exp=1772367377");
-    expect(consentUrl).toContain("sig=signed-value");
+    // Better Auth's client follows the provider's answer. A second
+    // navigation would deliver the authorization code twice.
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 
   it("links to sign-in without a query when there is no OAuth request", () => {
@@ -337,7 +400,7 @@ describe("SignUpForm OAuth workflow", () => {
     );
   });
 
-  it("carries the signed OAuth consent query on the sign-in link", () => {
+  it("carries the OAuth request on the sign-in link", () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -348,14 +411,9 @@ describe("SignUpForm OAuth workflow", () => {
 
     render(<SignUpForm />);
 
-    const href = screen
-      .getByRole("link", { name: "Login.link" })
-      .getAttribute("href");
-    const signInUrl = new URL(href ?? "", "http://localhost");
-
-    expect(signInUrl.pathname).toBe("/signin");
-    expect(signInUrl.searchParams.get("returnUrl")).toBe(
-      "/oauth/consent?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
+    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
+      "href",
+      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
     );
   });
 

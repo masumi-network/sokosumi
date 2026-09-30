@@ -13,6 +13,8 @@ import { getServerCoreAppBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { joinCoreApiPath } from "@/lib/clients/utils/core-api-base-url.shared";
 import { reportCoreAuthReadOutage } from "@/lib/sentry/core-auth-read-outage";
 
+import { getAuthServerClient } from "./auth.server.client";
+
 import type {
   CoreAuthReadError,
   CoreAuthReadErrorReason,
@@ -349,6 +351,29 @@ export async function getOAuthClientPublic(
   clientId: string,
 ): Promise<Result<OAuthClientPublic | null, CoreAuthReadError>> {
   return getCachedOAuthClientPublic(clientId);
+}
+
+/**
+ * Public OAuth client metadata for the sign-in and sign-up pages, where the
+ * visitor has no session yet. Core answers only when `oauthQuery` is a request
+ * its OAuth provider signed, so a client id alone reveals nothing.
+ *
+ * `null` when Core could not name the client; the pages then keep their plain
+ * copy.
+ */
+export async function getOAuthClientPublicPrelogin(
+  clientId: string,
+  oauthQuery: string,
+): Promise<OAuthClientPublic | null> {
+  try {
+    const { data } = await getAuthServerClient().oauth2.publicClientPrelogin({
+      client_id: clientId,
+      oauth_query: oauthQuery,
+    });
+    return data ?? null;
+  } catch {
+    return null;
+  }
 }
 
 /**

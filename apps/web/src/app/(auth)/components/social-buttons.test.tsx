@@ -15,13 +15,6 @@ import {
 
 import SocialButtons from "./social-buttons";
 
-const {
-  buildOAuthConsentReturnUrlFromSearchParams:
-    actualBuildOAuthConsentReturnUrlFromSearchParams,
-} = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
-  "@/lib/auth/auth.utils",
-);
-
 const mockSocialSignIn = vi.fn();
 const mockPasskeySignIn = vi.fn();
 const mockMagicLinkSignIn = vi.fn();
@@ -318,7 +311,7 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("builds oauth consent returnUrl from signed query when prop is missing", async () => {
+  it("returns an OAuth visitor to the sign-in page with the signed request", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -331,10 +324,6 @@ describe("SocialButtons", () => {
       sig: "signed-value",
     });
 
-    const expectedReturnUrl = actualBuildOAuthConsentReturnUrlFromSearchParams(
-      new URLSearchParams(mockSearchParams.toString()),
-    );
-
     render(<SocialButtons />);
 
     await clickGoogleButton();
@@ -343,6 +332,8 @@ describe("SocialButtons", () => {
       expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
     });
 
+    const expectedReturnUrl =
+      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
     expect(getSubmittedReturnUrls()).toEqual({
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
@@ -703,7 +694,7 @@ describe("SocialButtons", () => {
     );
     const magicLinkReturnUrl =
       magicLinkCallbackUrl.searchParams.get("returnUrl") ?? "";
-    expect(magicLinkReturnUrl).toContain("/oauth/consent?");
+    expect(magicLinkReturnUrl).toContain("/signin?");
     expect(magicLinkReturnUrl).toContain("client_id=test-client");
     expect(magicLinkReturnUrl).toContain(
       "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",

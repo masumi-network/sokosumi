@@ -4,19 +4,23 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { getAuth } from "../lib/auth";
-import { SOKOSUMI_OAUTH_PROVIDER_ID } from "../lib/sokosumi-oauth";
+import { sokosumiSignInBody } from "../lib/sokosumi-oauth";
 
-export async function signIn() {
+async function startSignIn(options: { createAccount: boolean }) {
   const { url } = await getAuth().api.signInSocial({
-    body: {
-      provider: SOKOSUMI_OAUTH_PROVIDER_ID,
-      callbackURL: "/",
-      errorCallbackURL: "/",
-    },
+    body: sokosumiSignInBody(options),
     headers: await headers(),
   });
   if (!url) throw new Error("Sign in with Sokosumi returned no URL");
   redirect(url);
+}
+
+export async function signIn() {
+  await startSignIn({ createAccount: false });
+}
+
+export async function createAccount() {
+  await startSignIn({ createAccount: true });
 }
 
 export async function signOut() {

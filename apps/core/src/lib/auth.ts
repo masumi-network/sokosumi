@@ -588,6 +588,12 @@ export const auth = betterAuth({
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
+      // Where `prompt=create` lands, signed in or not. The page reports back
+      // through `/oauth2/continue`.
+      signup: { page: `${webAppBaseUrl}/signup` },
+      // The sign-in and sign-up pages name the requesting client before
+      // anyone is signed in. Answered only for a request this provider signed.
+      allowPublicClientPrelogin: true,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
       scopes: [...OAUTH_PROVIDER_SCOPES],
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available

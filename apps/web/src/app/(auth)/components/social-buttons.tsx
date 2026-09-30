@@ -25,7 +25,7 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -74,7 +74,7 @@ export default function SocialButtons({
   } = useAuthCaptcha("magic-link");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
   const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
@@ -87,11 +87,12 @@ export default function SocialButtons({
     magicLinkEmail.trim() === magicLinkSentTo;
 
   const finishPasskeySignIn = useCallback(
-    () =>
+    (result: unknown) =>
       finishAuthInPlace({
         eventType: "signIn",
         provider: "passkey",
         returnUrl: effectiveReturnUrl,
+        result,
       }),
     [effectiveReturnUrl],
   );
@@ -122,7 +123,7 @@ export default function SocialButtons({
         return;
       }
 
-      await finishPasskeySignIn();
+      await finishPasskeySignIn(result.data);
     } catch (_error) {
       if (showErrors) {
         toast.error(t("passkeyError"));
@@ -164,7 +165,7 @@ export default function SocialButtons({
           return;
         }
 
-        await finishPasskeySignIn();
+        await finishPasskeySignIn(result.data);
       } catch {
         return undefined;
       }

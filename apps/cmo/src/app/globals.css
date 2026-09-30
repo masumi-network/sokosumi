@@ -50,6 +50,12 @@ button {
   padding: 12px 20px;
 }
 
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
 .note {
   color: var(--muted);
   font-size: 14px;

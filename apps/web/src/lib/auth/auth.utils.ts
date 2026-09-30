@@ -3,21 +3,8 @@ import type { AuthMethodId } from "@/lib/schemas/auth";
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
-const OAUTH_CONSENT_PATH = "/oauth/consent";
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
-
-const OAUTH_CONSENT_QUERY_KEYS = [
-  "client_id",
-  "redirect_uri",
-  "code_challenge",
-  "code_challenge_method",
-  "scope",
-  "state",
-  "response_type",
-  "exp",
-  "sig",
-] as const;
 
 interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
@@ -136,6 +123,8 @@ export async function waitForAuthSession<TSession = unknown>({
 interface BuildAuthPageUrlParams {
   returnUrl?: string;
   email?: string;
+  /** A signed OAuth request. It travels as the page's own query. */
+  oauthQuery?: string;
 }
 
 export interface AuthRedirectSearchParams {
@@ -166,9 +155,9 @@ export async function getRedirectQueryString(
 
 function buildAuthPageUrl(
   path: "/signin" | "/signup",
-  { returnUrl, email }: BuildAuthPageUrlParams,
+  { returnUrl, email, oauthQuery }: BuildAuthPageUrlParams,
 ): string {
-  const searchParams = new URLSearchParams();
+  const searchParams = new URLSearchParams(oauthQuery);
 
   if (returnUrl) {
     searchParams.set("returnUrl", returnUrl);
@@ -191,8 +180,9 @@ export function buildSignUpUrlFromSignIn(
 // would trap a person who meant to use another account.
 export function buildSignInUrlFromSignUp({
   returnUrl,
-}: Pick<BuildAuthPageUrlParams, "returnUrl">): string {
-  return buildAuthPageUrl("/signin", { returnUrl });
+  oauthQuery,
+}: Pick<BuildAuthPageUrlParams, "returnUrl" | "oauthQuery">): string {
+  return buildAuthPageUrl("/signin", { returnUrl, oauthQuery });
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable
@@ -314,11 +304,7 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
 }
 
-type OAuthConsentParamRecord = Partial<
-  Record<(typeof OAUTH_CONSENT_QUERY_KEYS)[number], string | undefined>
->;
-
-function normalizeOAuthConsentQueryValue(key: string, value: string): string {
+function normalizeOAuthQueryValue(key: string, value: string): string {
   // Better Auth signs with standard base64. Its magic-link verifier decodes an
   // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
   // query parsing turns that `+` into a space. Restore the signature before
@@ -326,22 +312,19 @@ function normalizeOAuthConsentQueryValue(key: string, value: string): string {
   return key === "sig" ? value.replaceAll(" ", "+") : value;
 }
 
-export function serializeOAuthConsentSearchParams(
+export function serializeOAuthSearchParams(
   searchParams: URLSearchParams,
 ): string {
   const normalizedSearchParams = new URLSearchParams();
 
   for (const [key, value] of searchParams.entries()) {
-    normalizedSearchParams.append(
-      key,
-      normalizeOAuthConsentQueryValue(key, value),
-    );
+    normalizedSearchParams.append(key, normalizeOAuthQueryValue(key, value));
   }
 
   return normalizedSearchParams.toString();
 }
 
-export function buildSignedOAuthConsentQueryFromSearchParams(
+export function buildSignedOAuthQueryFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
   if (
@@ -369,55 +352,52 @@ export function buildSignedOAuthConsentQueryFromSearchParams(
     }
   }
 
-  return serializeOAuthConsentSearchParams(signedSearchParams);
+  return serializeOAuthSearchParams(signedSearchParams);
 }
 
-function buildOAuthConsentReturnUrl(
-  params: OAuthConsentParamRecord,
-): string | undefined {
-  if (!params.client_id || !params.redirect_uri || !params.code_challenge) {
-    return undefined;
-  }
-
-  const searchParams = new URLSearchParams();
-
-  for (const key of OAUTH_CONSENT_QUERY_KEYS) {
-    const value = params[key];
-    if (value) {
-      searchParams.set(key, normalizeOAuthConsentQueryValue(key, value));
-    }
-  }
-
-  return `${OAUTH_CONSENT_PATH}?${searchParams.toString()}`;
+/**
+ * The signed request asks the person to sign in again (`prompt=login`, or a
+ * `max_age`), even when they already have a session.
+ */
+export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
+  const params = new URLSearchParams(oauthQuery);
+  return (
+    params.has("max_age") ||
+    (params.get("prompt")?.split(" ").includes("login") ?? false)
+  );
 }
 
-export function buildOAuthConsentReturnUrlFromSearchParams(
+/**
+ * Where a person with an OAuth request goes when a sign-in leaves the page
+ * (magic link, or a social sign-in the OAuth provider did not answer): the
+ * sign-in page with the signed request as its own query. Arriving there signed
+ * in hands the request back to the provider. Explicit reauthentication resumes
+ * at consent, whose provider endpoint checks that the new session satisfies
+ * the signed request before clearing its login prompt or maximum age.
+ */
+export function buildOAuthResumeUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
-  const filteredSearchParams = new URLSearchParams();
-  for (const [key, value] of searchParams.entries()) {
-    if (!AUTH_REDIRECT_EXCLUDED_QUERY_KEYS.has(key)) {
-      filteredSearchParams.append(key, value);
-    }
+  const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
+  if (!oauthQuery) return undefined;
+
+  if (oauthRequestRequiresSignIn(oauthQuery)) {
+    return `/oauth/consent?${oauthQuery}`;
   }
 
-  const signedOAuthQuery =
-    buildSignedOAuthConsentQueryFromSearchParams(filteredSearchParams);
+  return buildAuthPageUrl("/signin", { oauthQuery });
+}
 
-  if (signedOAuthQuery) {
-    return `${OAUTH_CONSENT_PATH}?${signedOAuthQuery}`;
-  }
-
-  return buildOAuthConsentReturnUrl({
-    client_id: filteredSearchParams.get("client_id") ?? undefined,
-    redirect_uri: filteredSearchParams.get("redirect_uri") ?? undefined,
-    code_challenge: filteredSearchParams.get("code_challenge") ?? undefined,
-    code_challenge_method:
-      filteredSearchParams.get("code_challenge_method") ?? undefined,
-    scope: filteredSearchParams.get("scope") ?? undefined,
-    state: filteredSearchParams.get("state") ?? undefined,
-    response_type: filteredSearchParams.get("response_type") ?? undefined,
-    exp: filteredSearchParams.get("exp") ?? undefined,
-    sig: filteredSearchParams.get("sig") ?? undefined,
-  });
+/**
+ * Core's OAuth provider refused the signed OAuth request the page carries: it
+ * is older than ten minutes, or it was altered. Retrying cannot succeed; the
+ * person has to start again from the product that sent them.
+ */
+export function isRejectedOAuthRequestError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "error" in error &&
+    error.error === "invalid_signature"
+  );
 }

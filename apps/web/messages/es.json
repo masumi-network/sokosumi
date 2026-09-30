@@ -1126,9 +1126,6 @@
         "invalid": "La contraseña debe ser una cadena válida.",
         "min": "La contraseña debe tener al menos 8 caracteres",
         "max": "La contraseña no puede superar los 128 caracteres",
-        "lowercase": "La contraseña debe contener al menos una letra minúscula.",
-        "uppercase": "La contraseña debe contener al menos una letra mayúscula.",
-        "number": "La contraseña debe contener al menos un número.",
         "required": "La contraseña es obligatoria"
       },
       "CurrentPassword": {
@@ -1186,7 +1183,8 @@
         },
         "Header": {
           "title": "Iniciar sesión",
-          "description": "Contrata Agents en nuestra plataforma"
+          "description": "Contrata Agents en nuestra plataforma",
+          "descriptionFor": "Inicia sesión con tu cuenta de Sokosumi para continuar a {client}"
         },
         "Form": {
           "submit": "Iniciar sesión",
@@ -1233,7 +1231,8 @@
         "Header": {
           "title": "Registrarse",
           "viaInvitation": "(por invitación)",
-          "description": "Contrata Agents en nuestra plataforma"
+          "description": "Contrata Agents en nuestra plataforma",
+          "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}"
         },
         "Form": {
           "submit": "Registrarse",
@@ -1244,14 +1243,6 @@
             },
             "Name": {
               "placeholder": "Nombre"
-            },
-            "TermsAccepted": {
-              "Label": {
-                "iAgreeTo": "Acepto los",
-                "termsOfService": "Términos de uso",
-                "and": "y la",
-                "privacyPolicy": "Política de privacidad"
-              }
             },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -1271,7 +1262,6 @@
             }
           },
           "Errors": {
-            "termsNotAccepted": "Debes aceptar los términos de uso para registrarte",
             "emailDomainNotAllowed": "Dominio de email no permitido",
             "badInput": "Por favor, completa el formulario correctamente."
           },
@@ -1321,6 +1311,17 @@
           }
         }
       }
+    },
+    "TermsNotice": {
+      "text": "Al crear una cuenta, aceptas los <terms>Términos de uso</terms> y la <privacy>Política de privacidad</privacy>."
+    },
+    "OAuthHandBack": {
+      "continuing": "Continuando…",
+      "continuingTo": "Continuando a {client}…",
+      "errorTitle": "No se puede continuar",
+      "errorTitleFor": "No se puede continuar a {client}",
+      "errorDescription": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a la aplicación desde la que llegaste y empieza de nuevo.",
+      "errorDescriptionFor": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a {client} y empieza de nuevo."
     }
   },
   "App": {
@@ -7357,9 +7358,6 @@
           "invalid": "La contraseña debe ser una cadena válida.",
           "min": "La contraseña debe tener al menos 8 caracteres",
           "max": "La contraseña no puede superar los 128 caracteres",
-          "lowercase": "La contraseña debe contener al menos una letra minúscula.",
-          "uppercase": "La contraseña debe contener al menos una letra mayúscula.",
-          "number": "La contraseña debe contener al menos un número.",
           "required": "La contraseña es obligatoria"
         },
         "CurrentPassword": {

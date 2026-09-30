@@ -16,6 +16,7 @@ export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     .email({ error: t?.("Email.invalid") })
     .min(1, { error: t?.("Email.required") });
 
+// Length only, matching what Core enforces.
 export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("Password.invalid") })
@@ -25,15 +26,6 @@ export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     })
     .max(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH, {
       error: t?.("Password.max"),
-    })
-    .refine((value) => /^(?=.*[a-z])/.test(value), {
-      error: t?.("Password.lowercase"),
-    })
-    .refine((value) => /^(?=.*[A-Z])/.test(value), {
-      error: t?.("Password.uppercase"),
-    })
-    .refine((value) => /^(?=.*\d)/.test(value), {
-      error: t?.("Password.number"),
     });
 
 export const confirmPasswordSchema = (
