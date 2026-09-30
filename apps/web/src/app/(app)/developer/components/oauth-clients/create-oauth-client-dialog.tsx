@@ -145,7 +145,7 @@ export function CreateOAuthClientDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        className={`app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain ${showingCredentials ? "[&>button]:hidden" : ""}`}
         onEscapeKeyDown={(event) => {
           if (showingCredentials) {
             event.preventDefault();

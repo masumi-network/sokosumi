@@ -104,7 +104,7 @@ export function EditOAuthClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>{t("EditDialog.title")}</DialogTitle>
           <DialogDescription>{t("EditDialog.description")}</DialogDescription>
