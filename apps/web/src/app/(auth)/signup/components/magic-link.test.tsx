@@ -1,5 +1,7 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { betterAuth } from "better-auth/minimal";
+import { magicLink } from "better-auth/plugins/magic-link";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -57,6 +59,96 @@ describe("SignUpMagicLink", () => {
       screen.getByRole("button", { name: "magicLinkResend" }),
     ).toBeEnabled();
   });
+
+  it.each([
+    { pathname: "/signin", signedOAuth: false },
+    { pathname: "/signup", signedOAuth: false },
+    { pathname: "/signin", signedOAuth: true },
+  ])(
+    "preserves auth context on $pathname (signed OAuth: $signedOAuth)",
+    async ({ pathname, signedOAuth }) => {
+      const startPage = window.location.href;
+      const target = new URL(pathname, window.location.origin);
+      target.searchParams.set("returnUrl", "/chat?room=a&tab=files#messages");
+      target.searchParams.set("email", "ada+tag@example.com");
+      target.searchParams.set("invitationId", "invitation-1");
+      target.searchParams.set("hint", "100% complete");
+      if (signedOAuth) {
+        target.searchParams.set("client_id", "cmo");
+        target.searchParams.set(
+          "redirect_uri",
+          "https://cmo.test/callback?a=1&b=2",
+        );
+        target.searchParams.set("state", "a&b=c");
+        target.searchParams.set("prompt", "login");
+        target.searchParams.set("max_age", "0");
+        target.searchParams.set("exp", "9999999999");
+        target.searchParams.set("sig", "a+b/c=");
+        for (const key of [
+          "client_id",
+          "redirect_uri",
+          "state",
+          "prompt",
+          "max_age",
+          "exp",
+          "ba_param",
+        ]) {
+          target.searchParams.append("ba_param", key);
+        }
+      }
+      const previousAttempt = new URL(target);
+      previousAttempt.searchParams.set("error", "access_denied");
+      previousAttempt.searchParams.set("error_description", "old failure");
+      window.history.replaceState(null, "", previousAttempt);
+      let sentUrl = "";
+      const auth = betterAuth({
+        baseURL: "https://core.test",
+        secret: "offline-magic-link-fixture-secret-32-characters",
+        trustedOrigins: [window.location.origin],
+        advanced: { disableOriginCheck: false },
+        plugins: [
+          magicLink({
+            async sendMagicLink({ url }) {
+              sentUrl = url;
+            },
+          }),
+        ],
+      });
+      magicLinkMock.mockImplementation(async (body) => {
+        const response = await auth.handler(
+          new Request("https://core.test/api/auth/sign-in/magic-link", {
+            method: "POST",
+            headers: {
+              origin: window.location.origin,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify(body),
+          }),
+        );
+        expect(response.status).toBe(200);
+        return { data: await response.json(), error: null };
+      });
+      try {
+        const user = userEvent.setup();
+        render(
+          <SignUpMagicLink email="ada@example.com" returnUrl={undefined} />,
+        );
+        await user.click(
+          screen.getByRole("button", { name: "magicLinkSubmit" }),
+        );
+        await waitFor(() => expect(sentUrl).not.toBe(""));
+        // No email or account creation: only exercise the invalid-token handler.
+        const verification = new URL(sentUrl);
+        verification.searchParams.set("token", "expired-fixture-token");
+        const response = await auth.handler(new Request(verification));
+        target.searchParams.set("error", "INVALID_TOKEN");
+        expect(response.status).toBe(302);
+        expect(response.headers.get("location")).toBe(target.href);
+      } finally {
+        window.history.replaceState(null, "", startPage);
+      }
+    },
+  );
 
   it("reports a failed request and claims nothing was sent", async () => {
     const user = userEvent.setup();

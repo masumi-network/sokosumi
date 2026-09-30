@@ -822,6 +822,19 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).toBeNull();
   });
 
+  it("returns to the signed-out page when the sign-in state is gone", async () => {
+    // Past ten minutes, or finished in another browser: the state cookie
+    // this browser set when sign-in started is not there.
+    const approval = core.approve(await startSignIn(auth, jar));
+
+    const response = await send(auth, new CookieJar(), callbackPath(approval));
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `${CMO}/?error=state_mismatch`,
+    );
+  });
+
   it("returns declined preview consent to the preview even with a production session", async () => {
     await signIn(auth, jar, core);
     const preview = createCmoAuth({
