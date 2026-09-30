@@ -51,7 +51,7 @@ public func isMessageContinuation(
 public func daySeparatorLabel(
   for date: Date,
   previous: Date?,
-  now: Date = Date(),
+  now: Date,
   calendar: Calendar = .current
 ) -> String? {
   if let previous, calendar.isDate(date, inSameDayAs: previous) {

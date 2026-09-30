@@ -91,7 +91,10 @@ struct ConversationActionsTests {
     let client = try makeTestClient(transport)
     state.rooms[0].unreadCount = 9
     for action: ConversationSidebar.Action in [.pin, .unpin, .mute, .unmute] {
-      try await state.perform(action, roomId: testRoomId, client: client, organizationSlug: organizationSlug)
+      try await state.perform(
+        action, roomId: testRoomId, client: client, organizationSlug: organizationSlug,
+        clock: (now: Date(), makeId: UUID.init)
+      )
       #expect(state.rooms[0].unreadCount == 9)
     }
     #expect(transport.requests.map(\.operationID) == [
@@ -165,7 +168,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     #expect(state.rooms[0].starredAt != nil)
     for action: ConversationSidebar.Action in [.pin, .unpin, .mute, .unmute, .markUnread] {
@@ -186,7 +189,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: status, response: actionFailureBody)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rooms[0].unreadCount = 8
     await transport.release()
@@ -203,7 +206,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: status, response: status == 200 ? actionBody(pinned: true) : actionFailureBody)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     let original = try #require(state.rooms.first)
     state.reset()
@@ -220,7 +223,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport(status: 403, response: actionFailureBody)
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.markUnread, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.markUnread, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     #expect(state.partitioned.channels.first?.markedUnread == true)
     #expect(!state.canPerform(.pin, roomId: testRoomId))
@@ -235,7 +238,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.invalidateRefresh()
     #expect(state.isPending(roomId: testRoomId))
@@ -250,7 +253,7 @@ struct ConversationActionsTests {
     let state = try await twoRoomSidebar()
     let transport = PausedSidebarTransport()
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rollbackPendingAction(roomId: peerRoomId)
     #expect(state.isPending(roomId: testRoomId))
@@ -266,7 +269,7 @@ struct ConversationActionsTests {
     #expect(pinned.partitioned.channels.map(\.id) == [testRoomId, peerRoomId])
     let pinTransport = PausedSidebarTransport()
     let pinClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: pinTransport)
-    let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil) }
+    let pinTask = Task { try await pinned.perform(.pin, roomId: peerRoomId, client: pinClient, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await pinTransport.waitForRequest()
     #expect(pinned.partitioned.pinned.map(\.id) == [peerRoomId])
     #expect(pinned.partitioned.channels.map(\.id) == [testRoomId])
@@ -278,7 +281,7 @@ struct ConversationActionsTests {
     let muted = try await twoRoomSidebar()
     let muteTransport = PausedSidebarTransport(response: actionBody(muted: true))
     let muteClient = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: muteTransport)
-    let muteTask = Task { try await muted.perform(.mute, roomId: testRoomId, client: muteClient, organizationSlug: nil) }
+    let muteTask = Task { try await muted.perform(.mute, roomId: testRoomId, client: muteClient, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await muteTransport.waitForRequest()
     #expect(muted.partitioned.channels.map(\.id) == [peerRoomId, testRoomId])
     await muteTransport.release()
@@ -294,7 +297,7 @@ struct ConversationActionsTests {
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
     let task = Task {
       try await state.perform(
-        .pin, roomId: testRoomId, client: client, organizationSlug: nil, now: now, makeId: { token }
+        .pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: now, makeId: { token })
       )
     }
     await transport.waitForRequest()
@@ -307,7 +310,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.invalidateRefresh()
     state.isLoading = true
@@ -321,7 +324,7 @@ struct ConversationActionsTests {
     let state = try await sidebar()
     let transport = PausedSidebarTransport()
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
-    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil) }
+    let task = Task { try await state.perform(.pin, roomId: testRoomId, client: client, organizationSlug: nil, clock: (now: Date(), makeId: UUID.init)) }
     await transport.waitForRequest()
     state.rooms = []
     await transport.release()
@@ -335,7 +338,7 @@ struct ConversationActionsTests {
     let client = try Client.connecting(to: #require(URL(string: "https://core.example/v1")), transport: transport)
     let refresh = Task { try await state.refresh(client: client, organizationSlug: nil) }
     await transport.waitForRequest()
-    try await state.perform(.pin, roomId: testRoomId, client: makeTestClient(TestTransport([(200, actionBody(pinned: true))])), organizationSlug: nil)
+    try await state.perform(.pin, roomId: testRoomId, client: makeTestClient(TestTransport([(200, actionBody(pinned: true))])), organizationSlug: nil, clock: (now: Date(), makeId: UUID.init))
     await transport.release()
     #expect(try await !refresh.value)
     #expect(state.rooms[0].starredAt != nil)

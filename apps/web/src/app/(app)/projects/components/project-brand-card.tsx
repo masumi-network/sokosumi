@@ -25,7 +25,6 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import {
   clearPendingProjectBrandJob,
   hasProjectBrandAutoStartAttempted,
@@ -70,9 +69,7 @@ interface ProjectBrandDashboardValue {
 }
 
 interface ProjectBrandCardProps {
-  logo?: string | null;
   projectId: string;
-  projectName: string;
   websiteUrl?: string | null;
 }
 
@@ -173,9 +170,7 @@ export function ProjectBrandProvider({
 }
 
 export function ProjectBrandCard({
-  logo,
   projectId,
-  projectName,
   websiteUrl,
 }: ProjectBrandCardProps) {
   const router = useRouter();
@@ -216,97 +211,88 @@ export function ProjectBrandCard({
     <>
       <section
         id="project-brand-card"
-        className="scroll-mt-4 self-start space-y-4"
+        className="scroll-mt-4 self-start space-y-2"
         data-testid="project-brand-card"
       >
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-muted-foreground text-xs font-medium">
             {t("brand")}
           </h2>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label={t("brandCard.moreActions")}
-              >
-                <MoreHorizontal className="size-4" aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={!hasWebsite || menuBusy}
-                onSelect={() => {
-                  handleGenerate();
-                }}
-              >
-                {generation.isRunning ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : (
-                  <RefreshCw className="size-4" aria-hidden />
-                )}
-                {t("brandCard.generate")}
-              </DropdownMenuItem>
-              {designMd ? (
-                <>
-                  <DropdownMenuItem asChild>
-                    <a
-                      href={designMd.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      <ExternalLink className="size-4" aria-hidden />
-                      {t("brandCard.open")}
-                    </a>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href={`/projects/${projectId}/design-md/edit`}>
-                      <FileText className="size-4" aria-hidden />
-                      {t("brandCard.edit")}
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    variant="destructive"
-                    disabled={menuBusy}
-                    onSelect={(event) => {
-                      event.preventDefault();
-                      setIsRemoveDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                    {t("brandCard.remove")}
-                  </DropdownMenuItem>
-                </>
-              ) : (
+          {/* Without a DESIGN.md the actions are buttons below, not a menu. */}
+          {designMd ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  // Negative margin: the 32px button must not make this row
+                  // taller than its heading, or the heading sits lower than
+                  // every other section heading on the page.
+                  className="-my-2 size-8"
+                  aria-label={t("brandCard.moreActions")}
+                >
+                  <MoreHorizontal className="size-4" aria-hidden />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
                 <DropdownMenuItem
-                  disabled={menuBusy}
+                  disabled={!hasWebsite || menuBusy}
                   onSelect={() => {
-                    setShowUpload(true);
+                    handleGenerate();
                   }}
                 >
-                  <Upload className="size-4" aria-hidden />
-                  {t("brandCard.upload")}
+                  {generation.isRunning ? (
+                    <Loader2
+                      className="size-4 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
+                  ) : (
+                    <RefreshCw className="size-4" aria-hidden />
+                  )}
+                  {t("brandCard.generate")}
                 </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+                <DropdownMenuItem asChild>
+                  <a
+                    href={designMd.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <ExternalLink className="size-4" aria-hidden />
+                    {t("brandCard.open")}
+                  </a>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href={`/projects/${projectId}/design-md/edit`}>
+                    <FileText className="size-4" aria-hidden />
+                    {t("brandCard.edit")}
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  variant="destructive"
+                  disabled={menuBusy}
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    setIsRemoveDialogOpen(true);
+                  }}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                  {t("brandCard.remove")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : null}
         </div>
 
         <div className="flex items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <ProjectAvatar name={projectName} logo={logo} className="size-10" />
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">{projectName}</p>
-              <p className="text-muted-foreground mt-0.5 truncate text-xs">
-                DESIGN.md
-              </p>
-            </div>
-          </div>
+          {/* The project's name and mark are already in the page header. */}
+          <p className="flex min-w-0 items-center gap-2 text-sm font-medium">
+            <FileText
+              className="text-muted-foreground size-4 shrink-0"
+              aria-hidden
+            />
+            <span className="truncate">DESIGN.md</span>
+          </p>
           <Badge variant="outline" className="shrink-0 gap-1.5 text-xs">
             {generation.isRunning ? (
               <Loader2
@@ -336,6 +322,35 @@ export function ProjectBrandCard({
           <p className="text-destructive text-xs" role="alert">
             {generation.errorMessage}
           </p>
+        ) : null}
+
+        {!designMd && !generation.isRunning && (hasWebsite || !showUpload) ? (
+          <div className="flex flex-wrap gap-2">
+            {hasWebsite ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={menuBusy}
+                onClick={handleGenerate}
+              >
+                <RefreshCw aria-hidden />
+                {t("brandCard.generate")}
+              </Button>
+            ) : null}
+            {showUpload ? null : (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={menuBusy}
+                onClick={() => setShowUpload(true)}
+              >
+                <Upload aria-hidden />
+                {t("brandCard.upload")}
+              </Button>
+            )}
+          </div>
         ) : null}
 
         {!designMd && showUpload ? (

@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.6.0",
+  "packageManager": "pnpm@12.8.1",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -11,6 +11,7 @@
     "portless:dev": "node scripts/local-env/portless-dev.mjs run",
     "portless:web": "node scripts/local-env/portless-dev.mjs run web",
     "portless:core": "node scripts/local-env/portless-dev.mjs run core",
+    "portless:cmo": "node scripts/local-env/portless-dev.mjs run cmo",
     "portless:proxy": "node scripts/local-env/portless-dev.mjs proxy",
     "portless:url": "node scripts/local-env/portless-dev.mjs url",
     "build": "turbo run build",

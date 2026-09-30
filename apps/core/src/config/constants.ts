@@ -6,6 +6,9 @@ import {
 /**
  * Time durations in seconds
  */
+/** One day in milliseconds. */
+export const DAY_MS = 24 * 60 * 60 * 1_000;
+
 export const TIME = {
   /** Email verification link expiration (2 days) */
   EMAIL_VERIFICATION_EXPIRES: 2 * 24 * 60 * 60,

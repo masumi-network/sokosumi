@@ -94,6 +94,7 @@ const migrateVersionsSchema = z.object({
   fromVersionId: versionSlugSchema.optional(),
   toVersionId: versionSlugSchema,
   reason: z.string().trim().min(3).max(500),
+  notifyOwners: z.boolean().optional(),
 });
 
 function mapError(error: unknown): ActionError {

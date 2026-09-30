@@ -301,7 +301,7 @@
       "connections": "Connections",
       "developer": "Developer",
       "personal-assistant": "Personal Assistant",
-      "history": "Transactions",
+      "history": "Credit History",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
@@ -318,7 +318,8 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social"
+      "social": "Social",
+      "evaluations": "Model evaluations"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1330,7 +1331,7 @@
     "save": "Save",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transactions",
+        "title": "Credit History",
         "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
@@ -2445,7 +2446,9 @@
         "back": "Back to projects",
         "header": {
           "updated": "Updated",
-          "created": "Created"
+          "created": "Created",
+          "properties": "Properties",
+          "website": "Website"
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
@@ -2481,7 +2484,8 @@
           "empty": "Builds as tasks complete",
           "modelLine": "{model} · hosted in the EU 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Not configured (AI_GATEWAY_API_KEY)",
+          "offHint": "Completed tasks will not add to memory.",
+          "off": "Memory is off",
           "title": "Project memory",
           "copyLink": "Copy link",
           "openRaw": "Open raw",
@@ -2587,12 +2591,10 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "No DESIGN.md yet. Generate one from the project website, or upload a file."
+          "document": "DESIGN.md"
         }
       }
     },
@@ -2792,7 +2794,7 @@
           "exploreAgents": "Agents",
           "filesAndOutputs": "Files and Outputs",
           "taskManager": "Tasks",
-          "history": "Transactions",
+          "history": "Credit History",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
@@ -3915,7 +3917,7 @@
           "noUsage": "No usage recorded for this turn.",
           "Quality": {
             "title": "Quality",
-            "notJudged": "Not graded yet. The judge runs after a turn settles.",
+            "notJudged": "Not graded. Only lab turns are judged.",
             "howScored": "Overall is the mean of the four dimensions below, rounded — except that an honesty score of 2 or lower caps the overall at 2, so a fabricated claim cannot be averaged away.",
             "rubricUsed": "Graded against the {rubric} rubric",
             "judgeModel": "Judge model",
@@ -4024,7 +4026,7 @@
         },
         "Quality": {
           "title": "Quality",
-          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days.",
+          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days. Real turns are no longer judged, so only earlier scores appear; owner feedback continues.",
           "overall": "{judged} of {turns} turns judged",
           "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4042,9 +4044,10 @@
           "turns": "Turns",
           "avgScore": "Avg score",
           "realRunsByVersion": "Real usage by version",
-          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days."
+          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days. Real turns are no longer judged, so only earlier scores appear."
         },
         "labLink": "Behaviour lab",
+        "evaluationsLink": "Model evaluations",
         "versionsLink": "Versions",
         "Versions": {
           "title": "Soko Bot versions",
@@ -4234,12 +4237,54 @@
           "defaultOption": "{name} (default for new bots)",
           "reasonLabel": "Reason",
           "reasonPlaceholder": "Why are you moving the fleet? (required, recorded against every bot)",
+          "notifyLabel": "Tell owners in their bot's chat",
+          "notifyHint": "Each moved bot posts one fixed message saying which version it runs now and what changes for its owner. It does not start a turn.",
+          "notifyRequired": "Required for this version: it runs outside the EU, so every moved bot tells its owner. It does not start a turn.",
           "confirm": "Move {count} bots",
           "nothingToMove": "Nothing to move for this selection.",
           "working": "Moving…",
           "done": "Moved {moved} bots.",
           "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
+          "notifiedResult": "Owners told: {notified}.",
           "error": "Could not move these bots."
+        },
+        "Evaluations": {
+          "title": "Model evaluations",
+          "description": "How candidate models compare on hand-graded cases, for the lab judge and the route classifier. Run the scripts in apps/core/scripts to add a run.",
+          "latestRun": "Latest run",
+          "inUse": "In use",
+          "empty": "No runs recorded yet.",
+          "disagreements": "{count, plural, one {# case where a judge disagreed with the grade} other {# cases where a judge disagreed with the grade}}",
+          "misses": "{count, plural, one {# message a classifier got wrong} other {# messages a classifier got wrong}}",
+          "earlierRuns": "{count, plural, one {# earlier run} other {# earlier runs}}",
+          "Judge": {
+            "title": "Lab judge",
+            "description": "Grades behaviour-lab turns. Now running on {model}. Only lab turns are judged.",
+            "model": "Model",
+            "matches": "Matches grade",
+            "steady": "Same on re-run",
+            "falseFails": "False fails",
+            "badCaught": "Bad turns caught",
+            "errors": "Errors",
+            "cost": "Per turn",
+            "time": "Median time",
+            "grade": "Graded {grade, select, pass {pass} weak {weak} fail {fail} other {uncertain}}",
+            "knownBad": "Known bad"
+          },
+          "Router": {
+            "title": "Route classifier",
+            "description": "Decides which tools a turn gets. Scored on the tools each labelled message ends up with; granting writes a message did not ask for is the unsafe mistake.",
+            "classifier": "Classifier",
+            "correct": "Correct",
+            "alwaysRight": "Right every run",
+            "overGrants": "Wrong write grants",
+            "underGrants": "Wrongly read-only",
+            "median": "Median",
+            "p90": "p90",
+            "cost": "Per 1,000",
+            "after": "After the reply: “{reply}”",
+            "want": "Expected"
+          }
         }
       },
       "MatchedChannels": {
@@ -6324,7 +6369,7 @@
       "moveFolderError": "Failed to move folder",
       "moveFolderAction": "Move folder",
       "moveFileError": "Failed to move file",
-      "tasksFolder": "Tasks",
+      "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",
       "tasksEmptyDescription": "Task files will appear here when you complete tasks",
       "loadTasksError": "Failed to load tasks",
@@ -6337,7 +6382,7 @@
       "copyToFilesDialogTitle": "Copy to Files?",
       "copyToFilesDialogDescription": "Copy {fileName} to {workspace}.",
       "copyToFilesDialogConfirm": "Copy",
-      "tasksBreadcrumbLabel": "Tasks",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "No project",
       "filterTitle": "Filter",
       "filterSearchPlaceholder": "Search...",
@@ -6628,7 +6673,7 @@
         },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
-        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment asks something, mentions it, or matches what it remembers.",
+        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment names it.",
         "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -6691,6 +6736,7 @@
           "update_task": "Updating a Task",
           "assign_task": "Assigning a Task",
           "get_task_status": "Checking Task status",
+          "list_tasks": "Looking through your Tasks",
           "find_agents": "Searching Agents",
           "get_agent_input_schema": "Reading Agent inputs",
           "hire_agent": "Hiring an Agent",
@@ -6701,7 +6747,10 @@
           "update_memory": "Updating memory",
           "scratch_read": "Reading notes",
           "scratch_write": "Writing notes",
-          "scratch_list": "Listing notes"
+          "scratch_list": "Listing notes",
+          "read_file": "Reading a file",
+          "generate_image": "Generating an image",
+          "get_image": "Checking an image"
         },
         "composer": {
           "label": "Message",

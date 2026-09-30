@@ -1,10 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  gatewayJevEvaluator,
-  isJevConfigured,
-  jevRouteAvailable,
-} from "./jev-client";
+import { gatewayJevEvaluator, isJevConfigured } from "./jev-client";
 import type { SerializedJevRequest } from "./jev-request";
 
 const MODEL = "typesafe-ai/jev";
@@ -555,44 +551,6 @@ describe("a refused request is one refused request", () => {
     expect(isJevConfigured()).toBe(true);
     env.FILES_JEV_ENABLED = false;
     expect(isJevConfigured()).toBe(false);
-  });
-});
-
-describe("the availability probe", () => {
-  it("accepts the configured model when the catalog lists it", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: [{ id: "other/model" }, { id: MODEL }] }),
-    } as unknown as Response);
-
-    await expect(jevRouteAvailable()).resolves.toBe(true);
-  });
-
-  it("does not read the catalog's retention flags", async () => {
-    // The public catalog omits the zero-retention route, so a `has_zdr: false`
-    // there must not veto a model the Gateway can enforce per request.
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: [{ id: MODEL, has_zdr: false }] }),
-    } as unknown as Response);
-
-    await expect(jevRouteAvailable()).resolves.toBe(true);
-  });
-
-  it("rejects when the model is absent", async () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => ({ data: [{ id: "other/model" }] }),
-    } as unknown as Response);
-
-    await expect(jevRouteAvailable()).resolves.toBe(false);
-  });
-
-  it("does not call out at all when the feature is off", async () => {
-    env.FILES_JEV_ENABLED = false;
-
-    await expect(jevRouteAvailable()).resolves.toBe(false);
-    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

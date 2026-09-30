@@ -4,9 +4,13 @@ import de from "../../messages/de.json";
 import en from "../../messages/en.json";
 import es from "../../messages/es.json";
 
-const NAMES = { en: "Transactions", de: "Transaktionen", es: "Transacciones" };
+const NAMES = {
+  en: "Credit History",
+  de: "Kreditverlauf",
+  es: "Historial de créditos",
+};
 
-describe("Transactions page name", () => {
+describe("Credit History page name", () => {
   it.each([
     ["en", en],
     ["de", de],

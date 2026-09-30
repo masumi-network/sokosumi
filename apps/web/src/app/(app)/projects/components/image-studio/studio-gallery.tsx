@@ -101,10 +101,13 @@ export function StudioGallery({
               const model = resolveModel(catalog, asset.model);
 
               return (
-                <li className="mb-3 break-inside-avoid" key={asset.id}>
+                <li
+                  className="motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 mb-3 break-inside-avoid duration-300"
+                  key={asset.id}
+                >
                   <figure
                     className={cn(
-                      "group bg-card-background relative overflow-hidden rounded-xl transition-colors",
+                      "group bg-card-background relative overflow-hidden rounded-xl transition-[background-color,transform,box-shadow] duration-200 motion-safe:hover:-translate-y-0.5 hover:shadow-md",
                       selected && "ring-primary ring-2",
                     )}
                     data-asset-id={asset.id}

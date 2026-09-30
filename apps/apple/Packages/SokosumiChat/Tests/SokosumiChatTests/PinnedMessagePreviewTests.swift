@@ -67,6 +67,7 @@ struct PinnedMessagePreviewTests {
   @Test func aListedPinDecodesToItsQuote() throws {
     let listed = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: testRoomId, content: "",
                                              quote: .init(messageId: "gone", authorName: "Ada Lovelace", snippet: "Ship it"),
+                                             createdAt: Date(),
                                              sender: .init(id: "user", name: "Grace", email: "grace@example.com", presence: .online)))
     let message = try JSONDecoder().decode(Components.Schemas.ChatRoomPinnedMessageListItem.MessagePayload.self,
                                            from: JSONEncoder().encode(listed))

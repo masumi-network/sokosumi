@@ -328,6 +328,17 @@ describe("the line above Generate", () => {
     expect(screen.queryByText(/NaN/)).toBeNull();
   });
 
+  it("generates on Shift+Enter from the prompt", () => {
+    const onGenerate = vi.fn();
+    render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);
+
+    const prompt = screen.getByLabelText("promptPlaceholder");
+    fireEvent.change(prompt, { target: { value: "a red fox" } });
+    fireEvent.keyDown(prompt, { key: "Enter", shiftKey: true });
+
+    expect(onGenerate).toHaveBeenCalledTimes(1);
+  });
+
   it("buys exactly the batch it described", () => {
     const onGenerate = vi.fn();
     render(<Harness initial={BOTH_MODELS} onGenerate={onGenerate} />);

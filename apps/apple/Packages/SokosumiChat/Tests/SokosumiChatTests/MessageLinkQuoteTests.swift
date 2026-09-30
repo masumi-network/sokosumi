@@ -24,6 +24,7 @@ struct MessageLinkQuoteTests {
 
   private func message(in roomId: String) -> Components.Schemas.ChatRoomMessage {
     var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: roomId, content: "Keep this",
+                                              createdAt: Date(),
                                               sender: .init(id: "ada", name: "Ada", email: "ada@example.com", presence: .online)))
     message.id = "550e8400-e29b-41d4-a716-446655440123"
     return message

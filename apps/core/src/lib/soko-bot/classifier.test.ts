@@ -6,8 +6,37 @@ import {
   JevTurnClassifier,
   type RouteEvaluator,
   SOKO_BOT_ROUTE_MODEL,
+  unwrapTitleTags,
 } from "@/lib/soko-bot/classifier";
 import { jevRoute } from "@/test/jev-routes";
+
+describe("unwrapTitleTags", () => {
+  it("unwraps bracket tags Jev reads as placeholders, not links", () => {
+    expect(unwrapTitleTags("Archive [TEST] Launch QA.")).toBe(
+      "Archive TEST Launch QA.",
+    );
+    expect(unwrapTitleTags("See [the brief](https://x.test/a)")).toBe(
+      "See [the brief](https://x.test/a)",
+    );
+  });
+
+  it("sends Jev the unwrapped message", async () => {
+    const evaluate = vi.fn<RouteEvaluator>().mockRejectedValue(new Error("x"));
+    await new JevTurnClassifier(evaluate).classify(
+      "Archive [TEST] Launch QA.",
+      {
+        projectIds: [],
+        coworkerIds: [],
+        agentIds: [],
+        taskIds: [],
+        jobIds: [],
+      },
+    );
+    expect(evaluate.mock.calls[0]?.[0].state.message).toBe(
+      "Archive TEST Launch QA.",
+    );
+  });
+});
 
 const EMPTY_CONTEXT: ClassifierContextSummary = {
   projectIds: [],
@@ -28,7 +57,6 @@ describe("Jev route selection", () => {
     "DIRECT_RESPONSE",
     "DELEGATE_TASK",
     "HIRE_AGENT",
-    "MIXED",
     "CLARIFY",
   ] as const)("takes Jev's confident %s", async (route) => {
     const result = await new JevTurnClassifier(
@@ -38,6 +66,166 @@ describe("Jev route selection", () => {
     expect(result.classification.confidence).toBe(0.98);
     expect(result.model).toBe(SOKO_BOT_ROUTE_MODEL);
     expect(result.failed).toBe(false);
+  });
+
+  function split(probabilities: Record<string, number>, choice: string) {
+    const evaluation = jevRoute("DELEGATE_TASK");
+    return answering({
+      ...evaluation,
+      answers: {
+        ...(evaluation.answers as object),
+        route: { choice, probabilities },
+      },
+    });
+  }
+
+  it("acts on a request split across work routes, e.g. a task plus check-ins", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { DELEGATE_TASK: 0.55, MIXED: 0.3, MANAGE_WORK: 0.12 },
+        "DELEGATE_TASK",
+      ),
+    ).classify("Create the task and check in daily", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining(["create_task", "create_schedule"]),
+    );
+  });
+
+  it("asks rather than acts when a vague request only leans towards work", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        {
+          MANAGE_WORK: 0.55,
+          DELEGATE_TASK: 0.11,
+          CLARIFY: 0.2,
+          DIRECT_RESPONSE: 0.14,
+        },
+        "MANAGE_WORK",
+      ),
+    ).classify(
+      "Sort out the thing with the client from last week",
+      EMPTY_CONTEXT,
+    );
+    expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("keeps a pooled MANAGE_WORK lead to its own write scope", async () => {
+    // Upgrading it to DELEGATE_TASK once gave an unsure "remember this" chat
+    // posts, uploads and mail; a sure MANAGE_WORK vote gets only memory.
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "MEMORY" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: { MANAGE_WORK: 0.62, DELEGATE_TASK: 0.33 },
+          },
+        },
+      }),
+    ).classify("Remember Anna prefers email", EMPTY_CONTEXT);
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "MEMORY",
+    });
+    const granted = capabilitiesForClassification(result.classification);
+    expect(granted).toContain("update_memory");
+    for (const wider of ["post_chat", "run_integration_tool", "create_task"])
+      expect(granted).not.toContain(wider);
+  });
+
+  it("acts on a multi-part request whose change spans several kinds", async () => {
+    // "Break this into drafts, remember the date, remind me on Mondays":
+    // sure about work, no single write scope. Reads only stalled it.
+    const result = await new JevTurnClassifier(
+      split({ MANAGE_WORK: 0.6, DELEGATE_TASK: 0.36 }, "MANAGE_WORK"),
+    ).classify(
+      "Break the launch into draft tasks, remember the date and remind me on Mondays",
+      EMPTY_CONTEXT,
+    );
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining([
+        "create_task",
+        "create_schedule",
+        "update_memory",
+      ]),
+    );
+  });
+
+  it("keeps every work tool for a request of several kinds, whatever its scope", async () => {
+    // The launch plan: tasks, memory and a weekly reminder. Jev named the
+    // reminder as the scope; narrowing to it left the tasks uncreated.
+    const evaluation = jevRoute("MANAGE_WORK", { writeScope: "SCHEDULE" });
+    const result = await new JevTurnClassifier(
+      answering({
+        ...evaluation,
+        answers: {
+          ...(evaluation.answers as object),
+          route: {
+            choice: "MANAGE_WORK",
+            probabilities: {
+              MANAGE_WORK: 0.6,
+              MIXED: 0.35,
+              DELEGATE_TASK: 0.03,
+            },
+          },
+        },
+      }),
+    ).classify("Create the launch tasks and remind me weekly", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).toEqual(
+      expect.arrayContaining([
+        "create_task",
+        "create_schedule",
+        "update_memory",
+      ]),
+    );
+  });
+
+  it("still gives an unsure single MANAGE_WORK lead reads only", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { MANAGE_WORK: 0.55, CLARIFY: 0.3, DIRECT_RESPONSE: 0.15 },
+        "MANAGE_WORK",
+      ),
+    ).classify("Handle it", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("does all of a confident MIXED request except hiring", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("MIXED")),
+    ).classify("Hire an agent and create a task", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DELEGATE_TASK");
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "hire_agent",
+    );
+  });
+
+  it("does not let a refusal be outvoted by split work routes", async () => {
+    const result = await new JevTurnClassifier(
+      split({ CLARIFY: 0.4, DELEGATE_TASK: 0.35, MIXED: 0.25 }, "CLARIFY"),
+    ).classify("Don't create the task yet", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("answers rather than asks when an unsure write leans towards a reply", async () => {
+    const result = await new JevTurnClassifier(
+      split(
+        { MANAGE_WORK: 0.4, DIRECT_RESPONSE: 0.35, CLARIFY: 0.25 },
+        "MANAGE_WORK",
+      ),
+    ).classify("Give me a status rundown", EMPTY_CONTEXT);
+    expect(result.classification.route).toBe("DIRECT_RESPONSE");
+    // Reads only, but the bot learns what the owner may want, so it can
+    // show the change and ask rather than say it cannot act.
+    expect(result.classification.unsureRoute).toBe("MANAGE_WORK");
+    expect(capabilitiesForClassification(result.classification)).not.toContain(
+      "post_chat",
+    );
   });
 
   it("drops to read-only CLARIFY when Jev is unsure", async () => {
@@ -65,6 +253,16 @@ describe("Jev route selection", () => {
       EMPTY_CONTEXT,
     );
     expect(result.classification.route).toBe("CLARIFY");
+  });
+
+  it("lets a plain hire request through at the score Jev gives it", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("HIRE_AGENT", { probability: 0.83 })),
+    ).classify(
+      "Find an agent that writes SEO posts and hire it if it costs under 10 credits",
+      EMPTY_CONTEXT,
+    );
+    expect(result.classification.route).toBe("HIRE_AGENT");
   });
 
   it("carries the message as the brief of a delegated task", async () => {
@@ -130,10 +328,52 @@ describe("pending proposals", () => {
         hasPendingProposals: true,
         state: {
           message: "ja, mach",
+          previousReply: null,
           pendingProposals: ["Create the authorized task"],
         },
       }),
     );
+  });
+
+  it("gives Jev the bot's last reply so a bare yes has a referent", async () => {
+    const evaluate = answering(
+      jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
+    );
+    const result = await new JevTurnClassifier(evaluate).classify(
+      "yes, post it",
+      {
+        ...EMPTY_CONTEXT,
+        previousReply: "Here is the LinkedIn draft. Want me to post it?",
+      },
+    );
+    expect(evaluate.mock.calls[0][0].state.previousReply).toBe(
+      "Here is the LinkedIn draft. Want me to post it?",
+    );
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "SOCIAL",
+    });
+  });
+
+  it("keeps the proposal's write scope when the owner confirms it", async () => {
+    const result = await new JevTurnClassifier(
+      answering(jevRoute("CLARIFY", { confirmsPending: 0.95 })),
+    ).classify("yes", {
+      ...EMPTY_CONTEXT,
+      pendingIntents: [
+        {
+          ...intent,
+          route: "MANAGE_WORK",
+          writeScope: "SOCIAL",
+          requiresApproval: false,
+        },
+      ],
+    });
+    expect(result.classification).toMatchObject({
+      route: "MANAGE_WORK",
+      writeScope: "SOCIAL",
+      continuation: "CONTINUE",
+    });
   });
 
   it("keeps only authorized task targets on a continuation", async () => {
@@ -280,5 +520,6 @@ describe("failing closed", () => {
     ).classify("Do it", EMPTY_CONTEXT);
     expect(result.failed).toBe(false);
     expect(result.classification.route).toBe("CLARIFY");
+    expect(result.classification.unsureRoute).toBeUndefined();
   });
 });

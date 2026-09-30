@@ -1,12 +1,12 @@
 import type { SokoBotTurnSource } from "@sokosumi/database";
 import { isSokoBotSilentAnswer, SOKO_BOT_VERSIONS } from "@sokosumi/soko-bot";
 import { z } from "zod";
+import { DAY_MS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 
 const receiptIdSchema = z.uuid();
 
 const DAYS = 30;
-const DAY_MS = 24 * 60 * 60 * 1_000;
 
 export interface SokoBotQualityOverview {
   overall: { turns: number; judged: number; avgScore: number | null };

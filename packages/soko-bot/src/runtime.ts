@@ -32,6 +32,11 @@ export interface SokoBotContextPacket {
     confidence: number;
     requestedOutcome: string;
     /**
+     * The change the owner may want that this turn cannot make: Jev leaned
+     * toward this route but not enough to grant its writes.
+     */
+    unsureRoute?: SokoBotRoute;
+    /**
      * Who is on the other side of this turn. The turn always runs as the
      * owner — their bot, their credits — so `actor` is the owner whatever
      * happens, and this is the only field that tells a colleague asking in a
