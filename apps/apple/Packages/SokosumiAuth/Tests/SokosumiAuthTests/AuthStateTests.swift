@@ -32,7 +32,7 @@ private final class TestBrowser: OAuthBrowser {
     let url = try #require(openedURL)
     let query = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
     let expectedState = try #require(query.first { $0.name == "state" }?.value)
-    let callback = try #require(URL(string: "com.sokosumi.app:/auth?code=c&state=\(state ?? expectedState)"))
+    let callback = try #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=\(state ?? expectedState)"))
     pending?.resume(returning: callback)
     pending = nil
   }

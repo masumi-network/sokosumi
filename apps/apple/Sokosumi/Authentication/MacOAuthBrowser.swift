@@ -21,20 +21,32 @@
       attemptID = attempt
       return try await withCheckedThrowingContinuation { continuation in
         self.continuation = continuation
+        // The system only hands an HTTPS callback to an app the host vouches
+        // for (`webcredentials` in the Associated Domains entitlement).
         let session = ASWebAuthenticationSession(
           url: url,
-          callbackURLScheme: OAuthConfiguration.callbackScheme
-        ) { [weak self] callbackURL, error in
-          Task { @MainActor in
-            self?.handleCallback(attempt: attempt, callbackURL: callbackURL, error: error)
-          }
-        }
+          callback: .https(host: OAuthConfiguration.callbackHost, path: OAuthConfiguration.callbackPath),
+          completionHandler: completionHandler(attempt: attempt)
+        )
         session.presentationContextProvider = self
         // Preserve the existing fresh-login behavior on shared computers.
         session.prefersEphemeralWebBrowserSession = true
         self.session = session
         if !session.start() {
           finish(.failure(OAuthBrowserError.couldNotStart))
+        }
+      }
+    }
+
+    /// The system calls the handler on an XPC queue, not the main thread, so
+    /// it must not be isolated to the main actor. A closure written inline at
+    /// the initializer inherits this class's isolation, and Swift then traps
+    /// (`dispatch_assert_queue`) the moment the browser returns. Keep this
+    /// `nonisolated` and its result `@Sendable`.
+    nonisolated func completionHandler(attempt: UUID) -> @Sendable (URL?, (any Error)?) -> Void {
+      { [weak self] callbackURL, error in
+        Task { @MainActor in
+          self?.handleCallback(attempt: attempt, callbackURL: callbackURL, error: error)
         }
       }
     }

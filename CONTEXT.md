@@ -223,7 +223,7 @@ Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi accou
 _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
 
 **First-party client**:
-A product run by Sokosumi itself, such as CMO, that uses Sign in with Sokosumi. A person is never asked to authorize it.
+A product run by Sokosumi itself, such as CMO or the Sokosumi Apple app, that uses Sign in with Sokosumi. A person is never asked to authorize it.
 _Avoid_: Trusted client
 
 **Impersonation**:

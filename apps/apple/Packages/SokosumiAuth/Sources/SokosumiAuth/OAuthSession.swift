@@ -55,13 +55,15 @@ public actor OAuthSession {
   }
 
   /// Completes sign-in from the `ASWebAuthenticationSession` callback URL
-  /// (`com.sokosumi.app:/auth?code=…&state=…`), exchanging the code with PKCE.
+  /// (`https://app.sokosumi.com/auth/apple/callback?code=…&state=…`),
+  /// exchanging the code with PKCE. Only that exact HTTPS link counts.
   func signIn(callbackURL: URL, expectedState: String, codeVerifier: String) async throws {
     guard
       let components = URLComponents(url: callbackURL, resolvingAgainstBaseURL: false),
-      components.scheme == OAuthConfiguration.callbackScheme,
-      components.path == OAuthConfiguration.redirectPath,
-      components.host == nil,
+      components.scheme == "https",
+      components.host == OAuthConfiguration.callbackHost,
+      components.port == nil,
+      components.path == OAuthConfiguration.callbackPath,
       let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
       !code.isEmpty
     else {
