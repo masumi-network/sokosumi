@@ -4,7 +4,7 @@ Sign up creates a disposable email/password account when cloud-agent fixtures ar
 
 ## Sub-features
 
-- `signup-form` shows registration fields on `/signup`.
+- `signup-form` shows the email step on `/signup`, then name and password for that email.
 - `signup-submit` creates the user and signs them in (no email verification).
 - `signup-landing` lands on Welcome `/` after submit (then may continue into `/setup` when the user has no workspace yet).
 
@@ -21,17 +21,17 @@ Preconditions:
 - Fixtures unavailable or intentionally unused. Prefer `verify-sokosumi sign-in --method vault` when a `sokosumi` profile exists.
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
-- **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows Name / Email / Password textboxes (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft / Magic Link sit **above** the email form — ignore them (same trap as sign-in).
-- **Cookie banner.** If **Accept all** / consent UI covers the form, dismiss it first — it can block the terms checkbox click.
-- **Fill required fields.** Prefer refs from that **fresh** snapshot (`textbox "Name"` / `"Email"` / `"Password"`). CSS `[data-testid="auth-field-name|email|password"]` works once the form is interactive; they fail if you fill before the fields appear. Optional marketing checkbox can stay unchecked.
-- **Accept terms.** Prefer `agent-browser check` on the snapshot checkbox ref (accessible name about Terms / Nutzungsbedingungen). `#termsAccepted` often fails when an overlay covers the input. Submit stays **disabled** until terms are accepted.
-- **Submit.** Re-snapshot after terms. Google / Microsoft / Magic Link sit above the email form, so **Register** is often below the fold — `agent-browser get box` may show `y` past the viewport (~600px+). Run `agent-browser scrollintoview @eN` on the Register ref, then **click** that `@eN` (not bare `@N`). A click without scroll reports success but the form stays on `/signup`. Prefer click over Enter. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
+- **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows the **Email** textbox and **Continue with email** (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft sit **below** the email step — ignore them.
+- **Cookie banner.** If **Accept all** / consent UI covers the form, dismiss it first — it can block clicks on the form.
+- **Step 1, email.** Fill `textbox "Email"` (`[data-testid="auth-field-email"]`) and click **Continue with email**. This step sends nothing to Core; an invalid address shows an inline error and the step stays.
+- **Step 2, name and password.** Re-snapshot and wait for `textbox "First name"` / `"Last name"` / `"Password"` (`[data-testid="auth-field-firstName|lastName|password"]`). The header reads "Registering as <email>". **Send me a Magic Link** sits below the form — ignore it. The only checkbox is the optional marketing one; there is no terms checkbox, a notice under the form says creating the account accepts them.
+- **Submit.** **Click** the Register `@eN` ref (not bare `@N`); if `agent-browser get box` shows it past the viewport, run `agent-browser scrollintoview @eN` first. Prefer click over Enter. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
 - **Confirm session.** Open `/agents`. Expect either `/agents` (workspace ready) or `/setup` (identity / temporary workspace onboarding). Must **not** bounce to `/signin`. Do not wait `networkidle` on Welcome/chat.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view (`/` or `/setup` or `/agents`). Record the email in `account.txt` (no password).
 
-### Bootstrap when UI checkbox will not toggle
+### Bootstrap when the form cannot be driven
 
-Prefer `agent-browser check` on the terms checkbox (accessible name about Terms / Nutzungsbedingungen). If that still leaves `checked=false` / submit disabled, bootstrap the user via Better Auth then prove [Sign in](./sign-in.md) in the browser:
+If the UI path stays blocked, bootstrap the user via Better Auth then prove [Sign in](./sign-in.md) in the browser:
 
 ```bash
 curl -sS -X POST "$CORE_URL/auth/sign-up/email" \
@@ -41,7 +41,7 @@ curl -sS -X POST "$CORE_URL/auth/sign-up/email" \
   -d '{"email":"<unique>@sokosumi.test","password":"Password123!","firstName":"Verify","lastName":"Agent","termsAccepted":true}'
 ```
 
-Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alone as UI signup proof — only as account creation so sign-in can be driven. Report the checkbox gap if the UI path was the intended entry.
+Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alone as UI signup proof — only as account creation so sign-in can be driven. Report the UI gap if the UI path was the intended entry.
 
 ## Gotchas
 
@@ -53,5 +53,4 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 - Do not reuse an email that already exists; pick a fresh address per run.
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
 - Origin must be `$WEB_URL` for Core auth API calls (`INVALID_ORIGIN` otherwise).
-- Submit button stays disabled until terms are accepted.
-- OAuth / Magic Link buttons push **Register** below the default viewport. Clicking the snapshot ref without `scrollintoview` is a no-op; scroll the button into view first.
+- **Register** can sit below the default viewport on a short screen. Clicking the snapshot ref without `scrollintoview` is a no-op; scroll the button into view first.

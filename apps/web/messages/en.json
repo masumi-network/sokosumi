@@ -1152,7 +1152,8 @@
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
       "passwordDivider": "or sign in with password",
-      "emailDivider": "or register with email",
+      "orDivider": "or",
+      "magicLinkDivider": "or skip the password",
       "success": "Login successful",
       "error": "Login failed",
       "lastUsed": "Last used",
@@ -1236,16 +1237,19 @@
         },
         "Form": {
           "submit": "Register",
+          "continueWithEmail": "Continue with email",
+          "registeringAs": "Registering as {email}.",
+          "changeEmail": "Change email",
           "error": "Register failed",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             },
             "FirstName": {
-              "placeholder": "First name"
+              "label": "First name"
             },
             "LastName": {
-              "placeholder": "Last name"
+              "label": "Last name"
             },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
@@ -1261,7 +1265,7 @@
               "invalidEmail": "Input valid email to see or create organizations"
             },
             "Password": {
-              "placeholder": "Password"
+              "label": "Password"
             }
           },
           "Errors": {

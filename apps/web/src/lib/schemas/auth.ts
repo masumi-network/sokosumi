@@ -28,9 +28,20 @@ export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
 
 export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
+// Sign-up is two steps: the email first, then everything else.
+export const signUpEmailFormSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z.object({
+    email: emailSchema(t),
+  });
+
+export type SignUpEmailFormSchemaType = z.infer<
+  ReturnType<typeof signUpEmailFormSchema>
+>;
+
 export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   firstAndLastNameSchema(t).safeExtend({
-    email: emailSchema(t),
     password: passwordSchema(t),
     marketingOptIn: z.boolean().optional(),
   });

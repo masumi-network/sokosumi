@@ -1,5 +1,19 @@
 import type { FormData } from "@/lib/form";
-import type { SignUpFormSchemaType } from "@/lib/schemas/auth";
+import type {
+  SignUpEmailFormSchemaType,
+  SignUpFormSchemaType,
+} from "@/lib/schemas/auth";
+
+export const signUpEmailFormData: FormData<
+  SignUpEmailFormSchemaType,
+  "Auth.Pages.SignUp.Form"
+> = [
+  {
+    name: "email",
+    labelKey: "Fields.Email.label",
+    autoComplete: "email",
+  },
+];
 
 type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
 
@@ -7,25 +21,20 @@ type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
 export const signUpNameFormData: SignUpFormData = [
   {
     name: "firstName",
-    placeholderKey: "Fields.FirstName.placeholder",
+    labelKey: "Fields.FirstName.label",
     autoComplete: "given-name",
   },
   {
     name: "lastName",
-    placeholderKey: "Fields.LastName.placeholder",
+    labelKey: "Fields.LastName.label",
     autoComplete: "family-name",
   },
 ];
 
 export const signUpFormData: SignUpFormData = [
   {
-    name: "email",
-    placeholderKey: "Fields.Email.placeholder",
-    autoComplete: "email",
-  },
-  {
     name: "password",
-    placeholderKey: "Fields.Password.placeholder",
+    labelKey: "Fields.Password.label",
     type: "password",
     autoComplete: "new-password",
   },

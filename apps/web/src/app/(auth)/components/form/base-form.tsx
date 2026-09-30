@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import type { FormEventHandler, ReactNode } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
@@ -11,6 +11,7 @@ interface BaseFormProps<T extends FieldValues> {
   onSubmit: (values: T) => Promise<void>;
   children: ReactNode;
   className?: string;
+  onChange?: FormEventHandler<HTMLFormElement>;
 }
 
 export function BaseForm<T extends FieldValues>({
@@ -18,12 +19,17 @@ export function BaseForm<T extends FieldValues>({
   onSubmit,
   children,
   className,
+  onChange,
 }: BaseFormProps<T>) {
   const { isSubmitting } = form.formState;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className={cn(className)}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        onChange={onChange}
+        className={cn(className)}
+      >
         <fieldset disabled={isSubmitting} className="flex flex-col gap-3">
           {children}
         </fieldset>

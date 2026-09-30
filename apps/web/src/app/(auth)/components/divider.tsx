@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 interface DividerProps {
-  labelKey: "passwordDivider" | "emailDivider";
+  labelKey: "passwordDivider" | "orDivider" | "magicLinkDivider";
 }
 
 export default function Divider({ labelKey }: DividerProps) {
