@@ -1216,9 +1216,10 @@ export function WorkspaceCalendar({
         ) : null}
         {socialPostsOnly ? (
           // A post goes out at one instant; say which zone the grid reads it
-          // in, since the zone picker sits behind the filters.
+          // in, since the zone picker sits behind the filters. On a phone it
+          // goes under the controls rather than between their two rows.
           <span
-            className="text-muted-foreground inline-flex items-center gap-1 text-xs"
+            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-sm:order-last max-sm:w-full"
             data-testid="calendar-timezone"
           >
             <Clock3 className="size-3.5" aria-hidden />
