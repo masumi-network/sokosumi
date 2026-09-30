@@ -24,13 +24,22 @@ import {
   notFound,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
-import type { AdCampaign, AdRange } from "@/lib/ads/campaigns";
+import type {
+  AdCampaign,
+  AdCampaignUpdate,
+  AdRange,
+} from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import {
   listGoogleAdAccounts,
   listGoogleCampaigns,
+  updateGoogleCampaign,
 } from "@/lib/ads/google-ads";
-import { listMetaAdAccounts, listMetaCampaigns } from "@/lib/ads/meta-ads";
+import {
+  listMetaAdAccounts,
+  listMetaCampaigns,
+  updateMetaCampaign,
+} from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
@@ -339,10 +348,10 @@ export async function listProjectAdAccounts(
   });
 }
 
-/** Campaigns of an attached ad account with metrics over the range. */
-export async function listProjectAdCampaigns(
-  input: ProjectScope & { accountId: string; range: AdRange },
-): Promise<{ campaigns: AdCampaign[]; range: AdRange; currency: string }> {
+/** An ad account of the Project with an active connection, ready to call its provider. */
+async function requireActiveAdAccount(
+  input: ProjectScope & { accountId: string },
+) {
   await requireScopedProject(input);
   const account = await prisma.projectAdAccount.findFirst({
     where: { id: input.accountId, projectId: input.projectId },
@@ -359,13 +368,25 @@ export async function listProjectAdCampaigns(
   if (account.connection.status !== "active") {
     throw conflict("Ad connection is not active");
   }
-  const providerInput = {
-    connectedAccountId: account.connection.composioConnectedAccountId,
-    executorUserId: projectExecutorUserId(input.projectId),
-    range: input.range,
+  return {
+    provider: adProviderOf(account),
+    externalAccountId: account.externalAccountId,
+    currency: account.currency,
+    connected: {
+      connectedAccountId: account.connection.composioConnectedAccountId,
+      executorUserId: projectExecutorUserId(input.projectId),
+    },
   };
+}
+
+/** Campaigns of an attached ad account with metrics over the range. */
+export async function listProjectAdCampaigns(
+  input: ProjectScope & { accountId: string; range: AdRange },
+): Promise<{ campaigns: AdCampaign[]; range: AdRange; currency: string }> {
+  const account = await requireActiveAdAccount(input);
+  const providerInput = { ...account.connected, range: input.range };
   const campaigns =
-    adProviderOf(account) === "google_ads"
+    account.provider === "google_ads"
       ? await listGoogleCampaigns({
           ...providerInput,
           customerId: account.externalAccountId,
@@ -376,6 +397,36 @@ export async function listProjectAdCampaigns(
           currency: account.currency,
         });
   return { campaigns, range: input.range, currency: account.currency };
+}
+
+/**
+ * Pauses, resumes and/or changes the daily budget of a campaign of an attached
+ * ad account. The provider modules prove the campaign belongs to that account
+ * before they write.
+ */
+export async function updateProjectAdCampaign(
+  input: ProjectScope &
+    AdCampaignUpdate & { accountId: string; campaignId: string },
+): Promise<void> {
+  const account = await requireActiveAdAccount(input);
+  const change = {
+    ...account.connected,
+    campaignId: input.campaignId,
+    status: input.status,
+    dailyBudget: input.dailyBudget,
+  };
+  if (account.provider === "google_ads") {
+    await updateGoogleCampaign({
+      ...change,
+      customerId: account.externalAccountId,
+    });
+  } else {
+    await updateMetaCampaign({
+      ...change,
+      adAccountId: account.externalAccountId,
+      currency: account.currency,
+    });
+  }
 }
 
 /**

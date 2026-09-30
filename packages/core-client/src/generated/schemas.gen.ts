@@ -18624,6 +18624,25 @@ export const AdRangeSchema = {
     example: 'LAST_30_DAYS'
 } as const;
 
+export const UpdateAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED'
+            ]
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0, at most 2 decimals',
+            example: 25.5
+        }
+    }
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {

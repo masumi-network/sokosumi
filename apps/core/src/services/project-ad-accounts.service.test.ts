@@ -16,6 +16,8 @@ const m = vi.hoisted(() => {
     listMeta: vi.fn(),
     googleCampaigns: vi.fn(),
     metaCampaigns: vi.fn(),
+    googleUpdate: vi.fn(),
+    metaUpdate: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -76,10 +78,12 @@ vi.mock("@/config/env", () => ({
 vi.mock("@/lib/ads/google-ads", () => ({
   listGoogleAdAccounts: m.listGoogle,
   listGoogleCampaigns: m.googleCampaigns,
+  updateGoogleCampaign: m.googleUpdate,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
   listMetaCampaigns: m.metaCampaigns,
+  updateMetaCampaign: m.metaUpdate,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   projectConnectorUserId: (userId: string) => `sokosumi:user:${userId}`,
@@ -102,6 +106,7 @@ import {
   initiateProjectAdConnection,
   listProjectAdCampaigns,
   revokeProjectAdConnectionForClose,
+  updateProjectAdCampaign,
 } from "./project-ad-accounts.service";
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -541,6 +546,84 @@ describe("project ad accounts service", () => {
     it("does not touch the provider when the Project is not in the Workspace", async () => {
       m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
       await expect(list()).rejects.toMatchObject({ status: 404 });
+      expect(m.accountFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update campaign", () => {
+    const accountRow = (
+      provider: string,
+      externalAccountId: string,
+      status = "active",
+    ) => ({
+      id: ACCOUNT_UUID,
+      provider,
+      externalAccountId,
+      currency: "EUR",
+      connection: { ...storedConnection, provider, status },
+    });
+    const update = (
+      changes: { status?: "ACTIVE" | "PAUSED"; dailyBudget?: number } = {
+        status: "PAUSED",
+      },
+    ) =>
+      updateProjectAdCampaign({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        ...changes,
+      });
+
+    it("updates a Google campaign inside the attached customer", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      await update({ status: "PAUSED", dailyBudget: 9 });
+      expect(m.googleUpdate).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        customerId: "111",
+        campaignId: "42",
+        status: "PAUSED",
+        dailyBudget: 9,
+      });
+      expect(m.accountFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ACCOUNT_UUID, projectId: PROJECT_ID },
+        }),
+      );
+      expect(m.metaUpdate).not.toHaveBeenCalled();
+    });
+
+    it("updates a Meta campaign inside the attached ad account", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await update();
+      expect(m.metaUpdate).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        adAccountId: "act_9",
+        currency: "EUR",
+        campaignId: "42",
+        status: "PAUSED",
+      });
+      expect(m.googleUpdate).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(update()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleUpdate).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("meta_ads", "act_9", "disconnected"),
+      );
+      await expect(update()).rejects.toMatchObject({ status: 409 });
+      expect(m.metaUpdate).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the provider when the Project is not in the Workspace", async () => {
+      m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
+      await expect(update()).rejects.toMatchObject({ status: 404 });
       expect(m.accountFindFirst).not.toHaveBeenCalled();
     });
   });

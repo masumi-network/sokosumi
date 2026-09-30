@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { buildAdCampaign, fromMinorUnits, sumAdMetrics } from "./campaigns";
+import {
+  buildAdCampaign,
+  fromMinorUnits,
+  sumAdMetrics,
+  toMinorUnits,
+} from "./campaigns";
 
 describe("fromMinorUnits", () => {
   it.each([
@@ -9,6 +14,18 @@ describe("fromMinorUnits", () => {
     [5000, "JPY", 5000],
   ])("%i %s is %d", (amount, currency, expected) => {
     expect(fromMinorUnits(amount, currency)).toBe(expected);
+  });
+});
+
+describe("toMinorUnits", () => {
+  it.each([
+    [25.5, "USD", 2550],
+    [10, "EUR", 1000],
+    [5000, "JPY", 5000],
+    [19.99, "USD", 1999],
+    [0.29, "USD", 29],
+  ])("%d %s is %i", (amount, currency, expected) => {
+    expect(toMinorUnits(amount, currency)).toBe(expected);
   });
 });
 

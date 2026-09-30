@@ -9,6 +9,13 @@ export const AD_CAMPAIGN_STATUSES = [
 ] as const;
 export type AdCampaignStatus = (typeof AD_CAMPAIGN_STATUSES)[number];
 
+/** What a campaign update may change; at least one field is set. */
+export interface AdCampaignUpdate {
+  status?: "ACTIVE" | "PAUSED";
+  /** Decimal in the account currency. */
+  dailyBudget?: number;
+}
+
 export interface AdCampaignMetrics {
   spend: number;
   impressions: number;
@@ -44,13 +51,22 @@ function round(value: number, digits: number): number {
   return Math.round(value * factor) / factor;
 }
 
-/** An amount in a currency's smallest unit as a decimal (JPY has none, USD has 100 per unit). */
-export function fromMinorUnits(amount: number, currency: string): number {
+function minorUnitFactor(currency: string): number {
   const { maximumFractionDigits } = new Intl.NumberFormat("en", {
     style: "currency",
     currency,
   }).resolvedOptions();
-  return amount / 10 ** (maximumFractionDigits ?? 2);
+  return 10 ** (maximumFractionDigits ?? 2);
+}
+
+/** An amount in a currency's smallest unit as a decimal (JPY has none, USD has 100 per unit). */
+export function fromMinorUnits(amount: number, currency: string): number {
+  return amount / minorUnitFactor(currency);
+}
+
+/** A decimal amount as an integer in the currency's smallest unit. */
+export function toMinorUnits(amount: number, currency: string): number {
+  return Math.round(amount * minorUnitFactor(currency));
 }
 
 /** Totals metrics rows per campaign id. */

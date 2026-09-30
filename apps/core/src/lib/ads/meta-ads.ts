@@ -1,14 +1,17 @@
 import { z } from "@hono/zod-openapi";
 
 import { record } from "@/clients/composio.client";
+import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
   type AdCampaignStatus,
+  type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
   fromMinorUnits,
   noAdMetrics,
   sumAdMetrics,
+  toMinorUnits,
 } from "@/lib/ads/campaigns";
 import {
   type AdsConnectedAccount,
@@ -25,6 +28,8 @@ const GET_AD_ACCOUNTS = "METAADS_GET_AD_ACCOUNTS";
 const MAX_AD_ACCOUNTS = 100;
 const LIST_CAMPAIGNS = "METAADS_LIST_CAMPAIGNS";
 const GET_INSIGHTS = "METAADS_GET_INSIGHTS";
+const GET_OBJECT = "METAADS_GET_OBJECT";
+const UPDATE_CAMPAIGN = "METAADS_UPDATE_CAMPAIGN";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 const DATE_PRESETS = {
@@ -208,5 +213,81 @@ export async function listMetaCampaigns(
       },
       totals.get(campaign.id) ?? noAdMetrics(null),
     ),
+  );
+}
+
+const metaCampaignOwnerSchema = z.object({
+  account_id: z.coerce.string().min(1),
+  /** Minor currency units; absent when the budget is on the ad sets. */
+  daily_budget: z.coerce.number().nullish(),
+});
+
+function withoutActPrefix(adAccountId: string): string {
+  return adAccountId.replace(/^act_/, "");
+}
+
+/**
+ * Pauses, resumes and/or changes the daily budget of a campaign. The update
+ * tool takes only a campaign id, so the campaign's `account_id` is read first
+ * and must be the attached ad account (404 otherwise). Every refusal happens
+ * before the first write. Graph takes one budget field per call, so the budget
+ * and the status are two calls, budget first.
+ *
+ * Unverified: Composio documents `daily_budget` as "in account currency";
+ * this sends Graph API minor units (cents), like the list reads them.
+ */
+export async function updateMetaCampaign(
+  input: AdsConnectedAccount &
+    AdCampaignUpdate & {
+      adAccountId: string;
+      currency: string;
+      campaignId: string;
+    },
+): Promise<void> {
+  const {
+    adAccountId,
+    currency,
+    campaignId,
+    status,
+    dailyBudget,
+    ...connected
+  } = input;
+
+  await withAdsToolSession(
+    {
+      ...connected,
+      provider: "meta_ads",
+      toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
+    },
+    async (execute) => {
+      const payload = await execute(GET_OBJECT, {
+        object_id: campaignId,
+        fields: ["id", "account_id", "daily_budget"],
+      });
+      const [campaign] = parseToolRows(
+        [record(payload?.data) ?? payload],
+        metaCampaignOwnerSchema,
+        "look up Meta campaign",
+      );
+      if (
+        !campaign ||
+        withoutActPrefix(campaign.account_id) !== withoutActPrefix(adAccountId)
+      ) {
+        throw notFound("Campaign not found");
+      }
+      if (dailyBudget !== undefined && !campaign.daily_budget) {
+        throw conflict("This campaign's budget is set on its ad sets");
+      }
+
+      if (dailyBudget !== undefined) {
+        await execute(UPDATE_CAMPAIGN, {
+          campaign_id: campaignId,
+          daily_budget: toMinorUnits(dailyBudget, currency),
+        });
+      }
+      if (status !== undefined) {
+        await execute(UPDATE_CAMPAIGN, { campaign_id: campaignId, status });
+      }
+    },
   );
 }

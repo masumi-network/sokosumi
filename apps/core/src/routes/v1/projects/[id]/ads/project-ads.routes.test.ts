@@ -10,6 +10,7 @@ import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/patch.js";
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
 import mountListAccounts from "./accounts/get.js";
@@ -25,6 +26,7 @@ const m = vi.hoisted(() => ({
   list: vi.fn(),
   detach: vi.fn(),
   campaigns: vi.fn(),
+  updateCampaign: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -37,6 +39,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   listProjectAdAccounts: m.list,
   detachProjectAdAccount: m.detach,
   listProjectAdCampaigns: m.campaigns,
+  updateProjectAdCampaign: m.updateCampaign,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -112,6 +115,7 @@ function createApp(
   mountAttachAccounts(app);
   mountDeleteAccount(app);
   mountListCampaigns(app);
+  mountUpdateCampaign(app);
   return app;
 }
 
@@ -331,6 +335,79 @@ describe("Project ads routes", () => {
       const response = await createApp().request(campaignsUrl());
       expect(response.status).toBe(403);
       expect(m.campaigns).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("update campaign", () => {
+    const campaignUrl = (campaignId = "42") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns/${campaignId}`;
+    const patch = (body: unknown, campaignId?: string) =>
+      createApp().request(campaignUrl(campaignId), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    it.each([
+      ["status only", { status: "PAUSED" }],
+      ["budget only", { dailyBudget: 12.5 }],
+      ["both", { status: "ACTIVE", dailyBudget: 20 }],
+    ])("accepts %s and returns 204", async (_name, body) => {
+      const response = await patch(body);
+      expect(response.status).toBe(204);
+      expect(m.updateCampaign).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        accountId: ACCOUNT_UUID,
+        campaignId: "42",
+        ...body,
+      });
+    });
+
+    it.each([
+      ["no fields", {}],
+      ["unknown status", { status: "DELETED" }],
+      ["zero budget", { dailyBudget: 0 }],
+      ["negative budget", { dailyBudget: -5 }],
+      ["three decimals", { dailyBudget: 1.234 }],
+      ["string budget", { dailyBudget: "10" }],
+    ])("rejects %s", async (_name, body) => {
+      const response = await patch(body);
+      expect(response.status).toBe(422);
+      expect(m.updateCampaign).not.toHaveBeenCalled();
+    });
+
+    it.each(["abc", "1; DROP", "-1", "1.5"])(
+      "rejects campaign id %s",
+      async (campaignId) => {
+        const response = await patch({ status: "PAUSED" }, campaignId);
+        expect(response.status).toBe(422);
+        expect(m.updateCampaign).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ["foreign account or campaign", notFound("Campaign not found"), 404],
+      ["disconnected connection", conflict("Ad connection is not active"), 409],
+      ["shared budget", conflict("This campaign uses a shared budget"), 409],
+      [
+        "Composio tool error",
+        new ComposioToolError({ message: "secret detail" }),
+        502,
+      ],
+      ["missing Composio configuration", new ComposioConfigError("nope"), 503],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.updateCampaign.mockRejectedValue(error);
+      const response = await patch({ status: "PAUSED" });
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const response = await patch({ status: "PAUSED" });
+      expect(response.status).toBe(403);
+      expect(m.updateCampaign).not.toHaveBeenCalled();
     });
   });
 

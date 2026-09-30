@@ -5530,6 +5530,14 @@ export const AdRange = { LAST_7_DAYS: 'LAST_7_DAYS', LAST_30_DAYS: 'LAST_30_DAYS
 
 export type AdRange = typeof AdRange[keyof typeof AdRange];
 
+export type UpdateAdCampaignRequest = {
+    status?: 'ACTIVE' | 'PAUSED';
+    /**
+     * Decimal in the account currency, greater than 0, at most 2 decimals
+     */
+    dailyBudget?: number;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
@@ -39485,6 +39493,160 @@ export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses = {
 };
 
 export type GetProjectsByIdAdsAccountsByAccountIdCampaignsResponse = GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses[keyof GetProjectsByIdAdsAccountsByAccountIdCampaignsResponses];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData = {
+    body: UpdateAdCampaignRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+        /**
+         * Provider campaign id (digits)
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}/campaigns/{campaignId}';
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdError = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdErrors];
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses = {
+    /**
+     * Campaign updated
+     */
+    204: void;
+};
+
+export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
 
 export type GetProjectsByIdSocialPostsData = {
     body?: never;
