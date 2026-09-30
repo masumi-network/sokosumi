@@ -1,6 +1,6 @@
 # Developer CLI implementation plan
 
-Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declare any new capability shipped.
+[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] MPS-first MVP plan. Receipt reading is merged. Paid runtime implementation and live payment proof remain open.
 
 ## Current product direction
 
@@ -8,11 +8,27 @@ Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declar
 
 [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`] Current Core creation still requires platform admin. Current CLI connection requires Vendor-admin membership and membership in the selected organization, even for platform admins. Organization owner/admin status alone does not grant either permission. The CLI does not connect a personal Workspace through this path. These product instructions do not change Core permissions or billing.
 
-[VERIFIED: `apps/cli/src/cli/commands/runtime.ts`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. [OPEN] Live execution and seller receipt remain unproven. Payment submission and global publication are separate work. The historical milestones below do not define the default user journey. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258`, `apps/cli/src/coworker/runtime-task.ts:195`, at `c2271e441`] The shared execution path uses `runtime key-import`, `runtime start`, and `runtime complete`. `runtime receipt` reads an existing Task payment through Core. Completion submits status and result text without `masumiPayment`. [OPEN] Live execution and intended seller wallet receipt remain unproven. Follow the [current Skill](../skills/sokosumi/SKILL.md) for setup.
+
+## Payment delivery status, 2026-09-30
+
+[VERIFIED: git history at `c2271e441`] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) merged the Core receipt route and CLI reader. [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:113-122`] The reader reports MPS settlement state after checking stored purchase terms. A settled result can have a null transaction hash. This source behavior does not prove a live Coworker payment.
+
+[VERIFIED: draft branch contents, 2026-09-30] These open draft PRs contain planning documents and corrections to existing guides. Each draft uses the preceding branch, with #5463 based on `main`.
+
+| Draft | Proposed implementation | Brief |
+| --- | --- | --- |
+| [#5463](https://github.com/masumi-network/sokosumi/pull/5463) | Seller binding and customer Task approval | [Seller authorization](mps-payment-stack/01-seller-authorization.md) |
+| [#5464](https://github.com/masumi-network/sokosumi/pull/5464) | Funding, execution, result submission, collection and recovery | [Paid runtime](mps-payment-stack/02-paid-runtime.md) |
+| [#5465](https://github.com/masumi-network/sokosumi/pull/5465) | CLI and Skill flow, payment display and live proof | [Plugin flow](mps-payment-stack/03-plugin-flow.md) |
+
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live end-to-end acceptance must tie the delivered Task to the intended seller's payment.
+
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The source manifest declares `@masumi_network/sokosumi` version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. Earlier private-package and undecided-package statements are stale. [OPEN] This review did not check npm's current release or perform a fresh registry installation.
 
 ## Feature PR delivery, 2026-09-27
 
-[VERIFIED: GitHub PR readback] The work is split into draft PRs. Each PR uses the preceding feature branch as its base. None is merged by this workflow.
+[CORRECTION, VERIFIED: git history at `c2271e441`, 2026-09-30] All eight PRs below are merged. The earlier draft-stack description recorded their initial delivery state. The dated test and pilot records remain historical evidence.
 
 | Order | Slice | Review |
 | --- | --- | --- |
@@ -33,7 +49,7 @@ Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declar
 
 [VERIFIED: Skills CLI `1.7.0`, local checkout] Temporary project installs for Claude Code and Hermes Agent returned `status: installed`, `scope: project`, and `mode: copy`. Both installed files matched source bytes. Repository discovery needs `--full-depth`; without it, this installer missed all six CLI Skills. This check did not run a host model or fetch GitHub.
 
-[REPORTED: pilot scope, 2026-09-27] Live runtime execution, host installation, Seat readiness for the pilot user, and payment receipt remain open. User-managed subscriptions remain in Web. Payment implementation follows CLI and plugin delivery. Review and merge the stack in order; after a parent merges, rebase the next feature onto current `main` before retargeting and rerunning checks. This removes parent commits after a squash merge.
+[REPORTED: pilot scope, 2026-09-27] Live runtime execution, host installation, Seat readiness for the pilot user, and payment receipt were open at that checkpoint. User-managed subscriptions remain in Web. [CORRECTION, VERIFIED: git history at `c2271e441`] The setup stack has merged. The payment drafts above define the next planned work. [OPEN] Current pilot Seat capacity has not been rechecked.
 
 ## Goal and scope
 
@@ -41,7 +57,7 @@ Status: MPS-first MVP plan, user-confirmed 2026-09-24. This plan does not declar
 
 [REPORTED: user decision] Keep the Coworker private until it works in the selected Workspace and meets payment requirements. Global listing requires a separate waitlist request and platform-admin approval. Cardano x402 buyers reach Coworkers through Sokosumi after the MPS-first MVP.
 
-The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. Skills CLI installs the Skill files only. The CLI binary release path is open. Do not claim one-command installation until that path is chosen.
+The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](adr/0004-coworker-capabilities-and-graduation.md). Follow those documents before implementing a slice. Use the existing TypeScript CLI and Core HTTP boundary. Skills CLI installs the Skill files only. [CORRECTION, VERIFIED: `apps/cli/package.json:13-25`] The source defines public npm packaging and a local CLI build. [OPEN] A fresh registry installation has not been verified in this review.
 
 ## Hackathon track
 
@@ -79,7 +95,7 @@ The contract is [SPEC.md](../SPEC.md). The architecture decision is [ADR 0004](a
 
 [VERIFIED] The current CLI lists organization workspaces but does not create one. When none exists, it directs the user to the Sokosumi Web workspace switcher. [Workspace guidance](../src/cli/registration-authority.ts#L18-L23) · [Workspace command](../src/cli/commands/workspaces.ts#L39-L45)
 
-[VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. Live Preprod access remains unverified. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
+[VERIFIED: CLI source] `coworkers register` creates a Coworker through Core, then requests Workspace access. `coworkers connect` requests access for an existing Coworker. Both report completion only after `GRANTED`. [CORRECTION, REPORTED: pilot run, 2026-09-27] The recorded pilot reached `GRANTED`; current live access has not been rechecked. [CLI command](../src/cli/commands/coworkers.ts) · [Core route](../../core/src/routes/v1/coworkers/[id]/workspace-access/post.ts)
 
 The runtime initiates its local connection outward. Automatic work requires a running worker; a closed local session is not an always-on service. Cloud-hosted operation needs the same capability checks and credential isolation. Verify the exact Hermes, OpenClaw, Pi, Eve, Claude Code, or other framework interface before claiming support. A tool-call integration does not prove automatic execution support.
 
@@ -102,7 +118,7 @@ Developer
 Existing hosted agent
   |
   | Needs the Sokosumi CLI executable
-  | Binary release path: OPEN
+  | Source build documented; current npm installation unverified
   v
 Sokosumi CLI
   |
@@ -248,7 +264,7 @@ These units describe independently reviewable outcomes, not a forced user journe
 7. [MPS MVP] Trace the existing Task/MPS path on Cardano Preprod, then prove seller receipt in the configured Coworker wallet. Do not equate Task credit debit or `TaskPaymentClaim.PURCHASED` with receipt.
 8. [LATER] Add waitlist request and platform-admin review after the current submission surface is confirmed.
 9. [LATER] Route Cardano x402 buyers through Sokosumi after MPS seller receipt works. Prove MPS/SDK compatibility before implementation.
-10. [OPEN RELEASE DECISION] Skills CLI installs Skill files only. Choose and publish a CLI binary install path before promising one-command onboarding.
+10. [CORRECTION, VERIFIED: `apps/cli/package.json:13-25`] Public package configuration and the local binary build exist. [OPEN] Verify the released artifact and fresh installation before promising one-command onboarding.
 
 Remote owner approval URL is another MVP dependency. The current OAuth flow uses a same-machine loopback callback. The Auth/Core team must define the remote flow; the CLI must not expose a developer token to the agent runtime.
 

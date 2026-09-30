@@ -2,13 +2,17 @@
 
 [REPORTED: user direction, 2026-09-27] Keep the developer's existing agent on their machine or cloud host. Use current Core permissions.
 
+[CORRECTION, VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds the Core receipt route and `runtime receipt`. Payment submission remains unimplemented in the CLI completion path (`apps/cli/src/coworker/runtime-task.ts:195-203`). [OPEN] A delivered live Task with payment to its intended seller remains unproven. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
+
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation and live seller proof remain pending.
+
 ## Observed setup, 2026-09-27
 
 [REPORTED: Preprod pilot run by `/root`] Core profile reads distinguished the developer's `role: "user"` from the organizer's `role: "user,admin"`. The organizer provisioned a Coworker under the developer's Vendor. Creation returned `isWhitelisted: false` and `capabilities: ["tasks"]`. After switching back, the developer found the Coworker through `scope=owned` and connected it with `status: "GRANTED"`.
 
 [REPORTED: the same pilot] The developer's organization membership already existed. The organizer did not add it. The inspected member had `seatAssignedAt: null`. The organization returned `billingPlan.plan: "pro"`; its Seat summary returned `purchasedSeats: 1`, `assignedCount: 1`, and `unusedSeats: 0`.
 
-[CORRECTION, REPORTED: built CLI checks run by `/root`, 2026-09-27] The earlier record had no direct `workspaces check` result. Both commands below now exited `0` against Preprod. Identity output included `user.platformRole: "user"`, `target: "preprod"`, and `apiUrl: "https://api.preprod.sokosumi.com"`. The Seat result included `taskSeatEligible: false` for the selected pilot organization. Personal identifiers are omitted. These reads confirm the current Seat blocker; they did not change roles, memberships, Seats, grants, or billing.
+[CORRECTION, REPORTED: built CLI checks run by `/root`, 2026-09-27] The earlier record had no direct `workspaces check` result. Both commands below exited `0` against Preprod on that date. Identity output included `user.platformRole: "user"`, `target: "preprod"`, and `apiUrl: "https://api.preprod.sokosumi.com"`. The Seat result included `taskSeatEligible: false` for the selected pilot organization. Personal identifiers are omitted. These reads recorded the Seat blocker then. They did not change roles, memberships, Seats, grants, or billing. [OPEN] Current Seat eligibility has not been rechecked.
 
 ```sh
 node apps/cli/dist/bin/sokosumi.js --preprod auth whoami --json
@@ -21,7 +25,7 @@ node apps/cli/dist/bin/sokosumi.js --preprod workspaces check ORGANIZATION_ID --
 
 [CORRECTION, VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/commands/runtime.ts`] The earlier guide paused the whole pilot for Seat capacity. That ordering was unnecessary. Authorized provisioning, connection, host setup, and operator runtime-key preparation can continue. Prepare the host and runtime authentication below while the user handles subscription capacity separately in Web.
 
-[REPORTED: implementation session by `/root`, 2026-09-27] No live member addition, Seat assignment, invitation, or billing change was performed during this implementation. The observed Seat blocker remains open.
+[REPORTED: implementation session by `/root`, 2026-09-27] No live member addition, Seat assignment, invitation, or billing change occurred during that session. The Seat blocker was unresolved when that session ended. [OPEN] This historical result does not establish current capacity.
 
 ## 1. Prepare one assigned Task
 
@@ -100,7 +104,7 @@ Use the returned Task ID. Require the intended Coworker, organization, and `READ
 
 ## 2. Prepare the agent host
 
-[VERIFIED: `apps/cli/package.json`] The CLI package is private. Build this checkout from the repository root:
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The earlier private-package statement is stale. The source manifest declares version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Build this checkout from the repository root:
 
 ```sh
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
@@ -151,6 +155,16 @@ sokosumi --preprod tasks events TASK_ID --organization-slug WORKSPACE_SLUG --jso
 [REPORTED: user direction, 2026-09-27] Payment work follows CLI and plugin delivery. Task completion does not prove seller receipt.
 
 [VERIFIED: `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/hermes-runtime.ts`] The optional [Hermes runner](hermes-preprod-pilot.md) performs the start, execution, and completion steps for one Task. It uses the developer's existing profile. The generic commands above remain available to other agents.
+
+## 5. Inspect an existing payment
+
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258-276`, at `c2271e441`] Use the stored Coworker key to read an existing Task payment:
+
+```sh
+sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
+```
+
+[VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:46-53,113-122`] The reader checks the newest claim for the deployment's network. No claim returns `settled: false`. A settled response can have a null `txHash`. [OPEN] This command does not create a payment. Live acceptance still needs the delivered Task, its accepted terms, and evidence of payment to the intended seller. See the [receipt limits](coworker-mps-receipt-plan.md).
 
 ## Least confident decisions
 
