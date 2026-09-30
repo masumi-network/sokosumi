@@ -16,6 +16,7 @@ import {
   initCoreLogger,
 } from "@/lib/evlog";
 import { betterAuthEvlogMiddleware } from "@/lib/evlog-better-auth";
+import { withPublicScheme } from "@/lib/request-scheme";
 import { initSentry } from "@/lib/sentry";
 import { maintenanceMiddleware } from "@/middleware/maintenance";
 import { sentryMiddleware } from "@/middleware/sentry";
@@ -136,7 +137,8 @@ mainApp.route("/", app);
 
 serve(
   {
-    fetch: mainApp.fetch,
+    fetch: (request, bindings) =>
+      mainApp.fetch(withPublicScheme(request, getEnv().VERCEL_ENV), bindings),
     port: getEnv().PORT,
     ...(getEnv().HOST ? { hostname: getEnv().HOST } : {}),
   },
