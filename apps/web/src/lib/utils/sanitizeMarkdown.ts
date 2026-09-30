@@ -79,7 +79,6 @@ export function sanitizeMarkdown(markdown: string): string {
       "video",
       "audio",
       "code",
-      "mark",
       "span",
       "u",
     ],
@@ -90,11 +89,9 @@ export function sanitizeMarkdown(markdown: string): string {
       video: ["src", "controls", "loop", "muted", "width", "height"],
       audio: ["src", "controls", "loop", "muted", "width", "height"],
       source: ["src"],
-      mark: ["class"],
       span: ["class", "data-direct-kind", "data-direct-id"],
     },
     allowedClasses: {
-      mark: ["bg-primary-tertiary", "text-foreground", "rounded-sm", "px-0.5"],
       span: ["text-primary", "font-medium", "whitespace-nowrap"],
     },
   });
