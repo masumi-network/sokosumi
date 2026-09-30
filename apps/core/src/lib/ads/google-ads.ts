@@ -310,11 +310,15 @@ export async function updateGoogleCampaign(
   );
 }
 
-const resultSchema = z.object({ resource_name: z.string().min(1) });
+const mutateResultRowSchema = z.object({ resource_name: z.string().min(1) });
+const budgetResourceNameSchema = z
+  .string()
+  .regex(/^customers\/\d+\/campaignBudgets\/\d+$/);
 const campaignResourceNameSchema = z
   .string()
   .regex(/^customers\/\d+\/campaigns\/\d+$/);
 const MAX_BUDGET_NAME_LENGTH = 255;
+const BUDGET_NAME_SUFFIX_LENGTH = " budget ".length + 8;
 
 /** Resource name of the first result of a mutation that was applied. */
 function mutatedResourceName(
@@ -322,8 +326,11 @@ function mutatedResourceName(
   context: string,
 ): string {
   requireMutated(payload, context);
-  return parseToolRow(toolRows(payload, "results")[0], resultSchema, context)
-    .resource_name;
+  return parseToolRow(
+    toolRows(payload, "results")[0],
+    mutateResultRowSchema,
+    context,
+  ).resource_name;
 }
 
 /**
@@ -349,21 +356,23 @@ export async function createGoogleCampaign(
     async (execute) => {
       // Budget names are unique per customer; the suffix avoids clashes with
       // earlier campaigns of the same name.
-      const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - 16)} budget ${randomUUID().slice(0, 8)}`;
-      const budget = mutatedResourceName(
-        await execute(MUTATE_CAMPAIGN_BUDGETS, {
-          customer_id: customerId,
-          operations: [
-            {
-              create: {
-                name: budgetName,
-                amount_micros: Math.round(dailyBudget * MICROS),
-                delivery_method: "STANDARD",
-                explicitly_shared: false,
-              },
+      const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - BUDGET_NAME_SUFFIX_LENGTH)} budget ${randomUUID().slice(0, 8)}`;
+      const budgetResult = await execute(MUTATE_CAMPAIGN_BUDGETS, {
+        customer_id: customerId,
+        operations: [
+          {
+            create: {
+              name: budgetName,
+              amount_micros: Math.round(dailyBudget * MICROS),
+              delivery_method: "STANDARD",
+              explicitly_shared: false,
             },
-          ],
-        }),
+          },
+        ],
+      });
+      const budget = parseToolRow(
+        mutatedResourceName(budgetResult, "create Google Ads campaign budget"),
+        budgetResourceNameSchema,
         "create Google Ads campaign budget",
       );
 
@@ -400,9 +409,9 @@ export async function createGoogleCampaign(
             customer_id: customerId,
             operations: [{ remove: budget }],
           });
-        } catch {
+        } catch (removeError) {
           tryUseLogger()?.warn("could not remove unused Google Ads budget", {
-            ads: { customerId, budget },
+            ads: { customerId, budget, error: String(removeError) },
           });
         }
         throw error;

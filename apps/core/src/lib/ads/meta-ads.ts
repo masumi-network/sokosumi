@@ -229,7 +229,7 @@ const metaCampaignOwnerSchema = z.object({
 const updateResultSchema = z.object({ success: z.literal(true) });
 
 /** Meta ad account id in its `act_…` form, however it was given. */
-export function actAccountId(adAccountId: string): string {
+function actAccountId(adAccountId: string): string {
   return adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 }
 
@@ -287,7 +287,10 @@ export async function updateMetaCampaign(
   );
 }
 
-const createResultSchema = z.object({ id: z.string().min(1) });
+const createResultSchema = z.object({
+  id: z.string().min(1),
+  success: z.literal(true),
+});
 
 /**
  * Creates a paused campaign with a daily budget and returns its id. The tool
@@ -314,7 +317,7 @@ export async function createMetaCampaign(
         daily_budget: dailyBudget,
         special_ad_categories: [],
       });
-      if (result?.success !== true) {
+      if (result?.success === false) {
         throw new ComposioToolError({
           message: "create Meta campaign was not applied",
         });

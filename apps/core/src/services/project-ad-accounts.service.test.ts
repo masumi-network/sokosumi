@@ -150,6 +150,20 @@ const intent = {
   expiresAt: new Date("2026-09-30T10:15:00.000Z"),
 };
 
+/** A stored ad account with its connection, as the service reads it. */
+const accountRow = (
+  provider: string,
+  externalAccountId: string,
+  status = "active",
+  currency = "EUR",
+) => ({
+  id: ACCOUNT_UUID,
+  provider,
+  externalAccountId,
+  currency,
+  connection: { ...storedConnection, provider, status },
+});
+
 describe("project ad accounts service", () => {
   beforeEach(() => {
     vi.resetAllMocks();
@@ -481,17 +495,6 @@ describe("project ad accounts service", () => {
       cpc: 1,
       conversions: null,
     };
-    const accountRow = (
-      provider: string,
-      externalAccountId: string,
-      status = "active",
-    ) => ({
-      id: ACCOUNT_UUID,
-      provider,
-      externalAccountId,
-      currency: "EUR",
-      connection: { ...storedConnection, provider, status },
-    });
     const list = () =>
       listProjectAdCampaigns({
         ...scope,
@@ -557,18 +560,6 @@ describe("project ad accounts service", () => {
   });
 
   describe("update campaign", () => {
-    const accountRow = (
-      provider: string,
-      externalAccountId: string,
-      status = "active",
-      currency = "EUR",
-    ) => ({
-      id: ACCOUNT_UUID,
-      provider,
-      externalAccountId,
-      currency,
-      connection: { ...storedConnection, provider, status },
-    });
     const update = (
       changes: AdCampaignUpdate = {
         status: "PAUSED",
@@ -666,18 +657,6 @@ describe("project ad accounts service", () => {
   });
 
   describe("create campaign", () => {
-    const accountRow = (
-      provider: string,
-      externalAccountId: string,
-      status = "active",
-      currency = "EUR",
-    ) => ({
-      id: ACCOUNT_UUID,
-      provider,
-      externalAccountId,
-      currency,
-      connection: { ...storedConnection, provider, status },
-    });
     const create = (
       changes: Partial<Parameters<typeof createProjectAdCampaign>[0]> = {},
     ) =>

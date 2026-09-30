@@ -569,22 +569,20 @@ describe("createMetaCampaign", () => {
     expect(deleteSessionMock).toHaveBeenCalled();
   });
 
+  it("raises a tool error when the create reports success false", async () => {
+    executeToolMock.mockResolvedValue({ id: "1", success: false });
+    await expect(createMetaCampaign(create)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+  });
+
   it.each([
-    ["success false", { id: "1", success: false }],
     ["no payload", {}],
     ["null", null],
-  ])(
-    "raises a tool error when the create returns %s",
-    async (_name, result) => {
-      executeToolMock.mockResolvedValue(result);
-      await expect(createMetaCampaign(create)).rejects.toBeInstanceOf(
-        ComposioToolError,
-      );
-    },
-  );
-
-  it("raises a success without a campaign id as an invalid response", async () => {
-    executeToolMock.mockResolvedValue({ success: true });
+    ["a success without an id", { success: true }],
+    ["an id without success", { id: "1" }],
+  ])("raises an invalid response for %s", async (_name, result) => {
+    executeToolMock.mockResolvedValue(result);
     await expect(createMetaCampaign(create)).rejects.toThrow(
       /invalid response/,
     );

@@ -739,6 +739,16 @@ describe("createGoogleCampaign", () => {
     expect(deleteSessionMock).toHaveBeenCalled();
   });
 
+  it("creates no campaign when the budget resource name is malformed", async () => {
+    executeToolMock.mockResolvedValue({
+      results: [{ resource_name: "customers/111/campaignBudgets/abc" }],
+    });
+    await expect(createGoogleCampaign(create)).rejects.toThrow(
+      /invalid response/,
+    );
+    expect(calls()).toHaveLength(1);
+  });
+
   it("keeps the budget when the created campaign has no usable id", async () => {
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
       call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
