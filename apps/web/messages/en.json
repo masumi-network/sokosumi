@@ -1254,7 +1254,7 @@
               }
             },
             "MarketingOptIn": {
-              "label": "I would like to receive updates and news from Sokosumi"
+              "label": "I would like to receive updates and news"
             },
             "Organization": {
               "placeholder": "Select an organization",
