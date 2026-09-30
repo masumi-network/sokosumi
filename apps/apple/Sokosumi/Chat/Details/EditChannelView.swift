@@ -37,15 +37,16 @@ struct EditChannelView: View {
           }
           if model.loading {
             ProgressView("Loading participants…").frame(maxWidth: .infinity, minHeight: 160)
-          } else if model.roster == nil || model.roster?.recipients.membersLoadFailed == true {
-            Text(model.errorMessage ?? "Couldn’t load organization members.").foregroundStyle(.secondary)
+          } else if model.roster == nil {
+            Text(model.errorMessage ?? "Couldn’t load participants.").foregroundStyle(.secondary)
             Button("Retry") { retry += 1 }
           } else {
             if model.permissions?.canManageSettings == true {
               settings
             }
             Text("Participants").font(.headline)
-            RecipientSelectionList(sections: model.sections, currentUserId: currentUserId, query: $model.query, selection: $model.draft.recipients)
+            RecipientSelectionList(sections: model.sections, currentUserId: currentUserId, query: $model.query, selection: $model.draft.recipients,
+                                   membersLoadFailed: model.membersLoadFailed) { retry += 1 }
           }
           if let error = model.errorMessage, model.roster != nil {
             Text(error).foregroundStyle(.red).font(.callout)

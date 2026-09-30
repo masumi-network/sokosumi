@@ -77,8 +77,16 @@ public final class ChannelEditing: ObservableObject {
     return [ChatRecipientSection.Kind.people, .coworkers, .assistant].compactMap { kind in sections.first { $0.id == kind } }
   }
 
+  /// The organization member page failed while the rest of the roster loaded (web `membersLoadFailed`): only the
+  /// People section is missing, so coworkers and the assistant still toggle.
+  public var membersLoadFailed: Bool {
+    roster?.recipients.membersLoadFailed == true
+  }
+
+  /// A failed member page does not block Save, as on web: the draft's humans come from the room, never from the
+  /// organization list, so the PATCH keeps every host member the hidden People section would have shown.
   public var canSave: Bool {
-    !loading && !saving && roster?.recipients.membersLoadFailed == false && permissions?.canEditMembers == true && draft.isValid
+    !loading && !saving && permissions?.canEditMembers == true && draft.isValid
   }
 
   public func load(using fetch: () async throws -> ChannelRoster) async {

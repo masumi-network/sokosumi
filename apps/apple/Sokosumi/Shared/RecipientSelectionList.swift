@@ -8,6 +8,10 @@ struct RecipientSelectionList: View {
   let currentUserId: String
   @Binding var query: String
   @Binding var selection: Set<DirectRecipient>
+  /// Web `participant-checkboxes.tsx`: a failed member page puts its notice where the People toggles go, and the
+  /// other sections stay.
+  var membersLoadFailed = false
+  var retryMembers: () -> Void = {}
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
@@ -19,6 +23,16 @@ struct RecipientSelectionList: View {
 
   private var list: some View {
     List {
+      if membersLoadFailed {
+        Section(sectionTitle(.people)) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Members could not be loaded").fontWeight(.medium)
+            Text("Organization members are temporarily unavailable. Try again in a moment.").font(.caption).foregroundStyle(.secondary)
+            Button("Retry", action: retryMembers).padding(.top, 4)
+          }
+          .listRowSeparator(.hidden)
+        }
+      }
       ForEach(sections) { section in
         Section(sectionTitle(section.id)) {
           ForEach(section.targets) { target in
@@ -46,7 +60,7 @@ struct RecipientSelectionList: View {
           }
         }
       }
-      if sections.isEmpty {
+      if sections.isEmpty, !membersLoadFailed {
         Text("No matching participants").foregroundStyle(.secondary)
       }
     }
