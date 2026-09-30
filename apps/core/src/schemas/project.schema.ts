@@ -6,6 +6,8 @@ import {
 import {
   isDesignMdBlobUrl,
   isProjectLogoBlobUrl,
+  PROJECT_IDENTIFIER_ERROR,
+  PROJECT_IDENTIFIER_PATTERN,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 
@@ -40,10 +42,7 @@ export const projectIdentifierSchema = z
   .string()
   .trim()
   .toUpperCase()
-  .regex(
-    /^[A-Z][A-Z0-9]{1,6}$/,
-    "Identifier must be 2-7 letters or digits and start with a letter",
-  )
+  .regex(PROJECT_IDENTIFIER_PATTERN, PROJECT_IDENTIFIER_ERROR)
   .openapi({
     description:
       "Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.",

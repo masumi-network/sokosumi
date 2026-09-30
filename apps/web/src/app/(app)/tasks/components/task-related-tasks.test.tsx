@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({
 
 const relationLabels = {
   related: "Related",
-  blocks: "Blocks",
+  blocks: "Blocking",
   blocked_by: "Blocked by",
   parent: "Sub-task",
   child: "Parent task",
@@ -87,7 +87,7 @@ describe("TaskRelatedTasks", () => {
         .map((heading) => heading.textContent),
     ).toEqual([
       "Blocked by",
-      "Blocks",
+      "Blocking",
       "Parent task",
       "Sub-task",
       "Related",
@@ -117,7 +117,7 @@ describe("TaskRelatedTasks", () => {
       },
     ]);
 
-    const blocksGroup = screen.getByRole("group", { name: "Blocks" });
+    const blocksGroup = screen.getByRole("group", { name: "Blocking" });
     expect(within(blocksGroup).getAllByRole("link")).toHaveLength(2);
     expect(
       within(blocksGroup).getByRole("link", { name: /API migration/ }),
@@ -126,8 +126,8 @@ describe("TaskRelatedTasks", () => {
       screen.getByRole("link", { name: /Design follow-up/ }),
     ).toHaveAttribute("href", "/tasks/task-2");
     for (const link of screen.getAllByRole("link")) {
-      expect(link).not.toHaveTextContent(/Related|Blocks/);
-      expect(within(link).queryByLabelText(/Related|Blocks/)).toBeNull();
+      expect(link).not.toHaveTextContent(/Related|Blocking/);
+      expect(within(link).queryByLabelText(/Related|Blocking/)).toBeNull();
     }
   });
 
@@ -142,6 +142,6 @@ describe("TaskRelatedTasks", () => {
     ]);
 
     expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
-    expect(screen.queryByText("Blocks")).not.toBeInTheDocument();
+    expect(screen.queryByText("Blocking")).not.toBeInTheDocument();
   });
 });

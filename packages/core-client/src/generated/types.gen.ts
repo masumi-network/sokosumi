@@ -1149,6 +1149,14 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -1201,6 +1209,10 @@ export type OrganizationSummary = {
 export type ProjectSummary = {
     id: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     logo: string | null;
 };
 
@@ -5048,6 +5060,10 @@ export type Project = {
     id: string;
     workspaceId: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     briefing: string | null;
     briefingUrl: string | null;
     /**
@@ -5096,6 +5112,10 @@ export type CreateProjectRequest = {
      */
     description?: string | null;
     websiteUrl?: string | null;
+    /**
+     * Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.
+     */
+    identifier?: string;
 };
 
 export type ProjectStatsBatch = {
@@ -5571,6 +5591,10 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
+    /**
+     * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
+     */
+    identifier?: string;
 };
 
 export type Job = {
@@ -6584,6 +6608,14 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
@@ -36032,6 +36064,21 @@ export type PostProjectsErrors = {
             method: string;
         };
     };
+    /**
+     * Project identifier already in use
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsError = PostProjectsErrors[keyof PostProjectsErrors];
@@ -39919,6 +39966,21 @@ export type PatchProjectsByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project identifier already in use
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -49844,6 +49906,9 @@ export type DeleteTasksByIdResponse = DeleteTasksByIdResponses[keyof DeleteTasks
 export type GetTasksByIdData = {
     body?: never;
     path: {
+        /**
+         * Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace; a trailing slug like SOK-123-fix-login is ignored).
+         */
         id: string;
     };
     query?: never;
