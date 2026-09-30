@@ -3992,7 +3992,8 @@
           "working": "Procesando…",
           "actionDone": "Acción de programación completada.",
           "actionError": "No se pudo completar la acción de programación.",
-          "noRuns": "Aún no hay ejecuciones."
+          "noRuns": "Aún no hay ejecuciones.",
+          "runOnce": "Una sola vez"
         },
         "Memory": {
           "title": "Memoria",

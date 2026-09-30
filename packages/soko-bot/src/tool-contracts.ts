@@ -193,11 +193,17 @@ const timezoneSchema = z.string().trim().min(1).max(100);
 export const sokoBotCreateScheduleInputSchema = z
   .object({
     name: z.string().trim().min(1).max(120),
-    cronExpression: cronExpressionSchema,
+    /** Recurring runs. Give this or `runAt`, not both. */
+    cronExpression: cronExpressionSchema.optional(),
+    /** One run at this moment (ISO 8601 with offset), then the schedule stops. */
+    runAt: z.string().datetime({ offset: true }).optional(),
     timezone: timezoneSchema,
     prompt: z.string().trim().min(1).max(4_000),
   })
-  .strict();
+  .strict()
+  .refine((value) => Boolean(value.cronExpression) !== Boolean(value.runAt), {
+    message: "Give either cronExpression (recurring) or runAt (once)",
+  });
 
 /** Schedules are addressed by id or by their exact name; names are what models copy reliably. */
 const scheduleRefShape = {
@@ -253,6 +259,8 @@ export const sokoBotUploadFileInputSchema = z.object({
   content: z.string().min(1).max(200_000),
   /** MIME type; defaults to text/markdown. */
   contentType: z.string().max(120).optional(),
+  /** Replace an existing text file of the same name with this content. */
+  overwrite: z.boolean().optional(),
 });
 
 export const sokoBotGenerateImageInputSchema = z
@@ -584,13 +592,13 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   run_subagent:
     "Hand a self-contained research or analysis question to a helper that can search the web, fetch pages and read your workspace, and get its written findings back. The helper cannot change anything. Give it the full context it needs in the task text.",
   manage_reminder:
-    "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
+    "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:
     "What you can do with one of the owner's connected accounts (Slack, Notion, Linear, GitHub, …): tool slugs with descriptions and input schemas. Mailboxes are read through search_inbox/read_email instead.",
   run_integration_tool:
     "Run one tool of a connected account with arguments from its schema. Check the schema with list_integration_tools first; never guess ids. Not available for mailboxes.",
   list_chats:
-    "Chat rooms you are a member of: id, name, kind, and when it last had a message. When your owner asks, `ownerUnread` is how many messages there they have not read yet. Use this to find the room you need before read_chat.",
+    "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat. When your owner asks, `ownerUnread` lists every chat of theirs with unread messages, as their sidebar counts them, including rooms you are not in (`youAreMember: false`: you see the name and count, but can only read rooms you belong to).",
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
   post_chat:
@@ -616,7 +624,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
-    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. When the owner asked for the file, write it; no need to confirm first. The result says where it was saved: tell the owner that, not more.",
+    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. The result says where it was saved: tell the owner that, not more.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:
@@ -655,9 +663,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_memory: "Read canonical short-term Soko Bot memory.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",
-  list_schedules: "List your recurring follow-up schedules (cron prompts).",
+  list_schedules:
+    "List your follow-up schedules: recurring (cron) ones and one-time ones (`runOnce`), with when each runs next.",
   create_schedule:
-    "Create a recurring follow-up: a cron expression, timezone, and the prompt you will receive each run. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check.",
+    "Create a follow-up that wakes you with a prompt: either once at `runAt` (a one-time reminder, e.g. tomorrow 09:00) or recurring with `cronExpression` (5 fields, in `timezone`). Cron covers monthly patterns: `0 10 * * 1#1` is the first Monday of each month, `0 9 1 * *` the 1st of each month, `0 9 L * *` the last day. Setting both day-of-month and weekday means either one, so it's rejected; use `#` for nth weekdays. Use it whenever the owner wants check-ins, nudges, reminders, or monitoring of delegated work. No approval needed. Include task/job ids in the prompt so the future run knows what to check.",
   update_schedule:
     "Change or pause a follow-up schedule (cron, timezone, prompt, enabled, new name). Address it by scheduleId or scheduleName exactly as list_schedules returned it.",
   delete_schedule:

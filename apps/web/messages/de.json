@@ -3992,7 +3992,8 @@
           "working": "Wird ausgeführt…",
           "actionDone": "Zeitplan-Aktion abgeschlossen.",
           "actionError": "Zeitplan-Aktion konnte nicht abgeschlossen werden.",
-          "noRuns": "Noch keine Läufe."
+          "noRuns": "Noch keine Läufe.",
+          "runOnce": "Einmalig"
         },
         "Memory": {
           "title": "Gedächtnis",

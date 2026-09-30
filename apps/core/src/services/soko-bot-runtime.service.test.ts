@@ -137,6 +137,7 @@ const {
   files: {
     list: vi.fn(),
     put: vi.fn(),
+    head: vi.fn(),
     search: vi.fn(),
     loadLive: vi.fn(),
     adopt: vi.fn(),
@@ -247,7 +248,11 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
-vi.mock("@vercel/blob", () => ({ list: files.list, put: files.put }));
+vi.mock("@vercel/blob", () => ({
+  head: files.head,
+  list: files.list,
+  put: files.put,
+}));
 vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
   listHireableAgents: marketplace.list,
@@ -503,6 +508,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
   SokoBotRuntimeService,
@@ -3372,50 +3378,90 @@ describe("SokoBotRuntimeService chat reading", () => {
     ]);
   });
 
-  it("shows the owner's unread counts on an owner turn, only for their rooms", async () => {
-    chatRoomFindManyMock.mockResolvedValue([
-      {
-        id: "room_dm",
-        name: "Joseph",
-        groupName: null,
-        kind: "direct",
-        updatedAt: new Date("2026-09-30T10:00:00.000Z"),
-        _count: { messages: 9 },
-        userMembers: [{ userId: SCOPE.userId }],
-      },
-      {
-        id: "room_other",
-        name: "Test",
-        groupName: null,
-        kind: "channel",
-        updatedAt: new Date("2026-09-30T09:00:00.000Z"),
-        _count: { messages: 4 },
-        userMembers: [],
-      },
-    ]);
+  it("lists the owner's unread chats on an owner turn, including rooms the bot is not in", async () => {
+    // First query: the bot's own rooms. Second: every room of the owner's.
+    chatRoomFindManyMock
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          updatedAt: new Date("2026-09-30T10:00:00.000Z"),
+          _count: { messages: 9 },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+          userMembers: [{ mutedAt: null }],
+        },
+        {
+          id: "room_marketing",
+          name: "Marketing",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: new Date("2026-09-01T00:00:00.000Z") }],
+        },
+        {
+          id: "room_read",
+          name: "Design",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: null }],
+        },
+      ]);
     unreadCountsMock.mockResolvedValue(
-      new Map([["room_dm", { channel: 2, thread: 1, total: 3 }]]),
+      new Map([
+        ["room_dm", { channel: 2, thread: 1, total: 3 }],
+        ["room_marketing", { channel: 5, thread: 0, total: 5 }],
+      ]),
     );
 
     const owner = await new SokoBotRuntimeService()["listChats"]({
       turn: SCOPE_TURN,
       askedByKind: "OWNER",
     } as never);
+    expect(chatRoomFindManyMock.mock.calls[1][0].where).toEqual({
+      archivedAt: null,
+      organizationId: "org_1",
+      userMembers: { some: { userId: SCOPE.userId } },
+    });
     expect(unreadCountsMock).toHaveBeenCalledWith(
-      ["room_dm"],
+      ["room_dm", "room_marketing", "room_read"],
       SCOPE.userId,
       expect.anything(),
     );
-    expect(owner.rooms).toEqual([
-      expect.objectContaining({ roomId: "room_dm", ownerUnread: 3 }),
-      expect.not.objectContaining({ ownerUnread: expect.anything() }),
+    expect(owner.ownerUnread).toEqual([
+      {
+        roomId: "room_dm",
+        name: "Joseph",
+        kind: "direct",
+        unread: 3,
+        youAreMember: true,
+      },
+      {
+        roomId: "room_marketing",
+        name: "Marketing",
+        kind: "channel",
+        unread: 5,
+        youAreMember: false,
+        muted: true,
+      },
     ]);
 
+    chatRoomFindManyMock.mockResolvedValue([]);
     const teammate = await new SokoBotRuntimeService()["listChats"]({
       turn: SCOPE_TURN,
       askedByKind: "TEAMMATE",
     } as never);
-    expect(teammate.rooms.some((room) => "ownerUnread" in room)).toBe(false);
+    expect("ownerUnread" in teammate).toBe(false);
   });
 
   it("names a read group by its Group name", async () => {
@@ -4565,6 +4611,29 @@ describe("external effect receipt finalization", () => {
     ).rejects.toThrow("reconciliation");
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
+
+  it("records a refusal before anything was sent as rejected, not unknown", async () => {
+    const { service, dispatch } = prepare();
+    dispatch.mockRejectedValueOnce(
+      new SokoBotRefusedUnsentError('A file named "notes.md" already exists.'),
+    );
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("already exists");
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          disposition: "REJECTED",
+        }),
+      }),
+    );
+  });
 });
 
 describe("Soko Bot project social tools", () => {
@@ -5245,6 +5314,57 @@ describe("Drive file tools", () => {
     });
     // The public blob URL would let anyone read the file without signing in.
     expect(JSON.stringify(result)).not.toContain("blob.example");
+  });
+
+  it("replaces an existing text file only when asked to", async () => {
+    const existing = {
+      pathname: "",
+      url: "https://blob.example/notes.md",
+    };
+    files.list.mockImplementation(async ({ prefix }: { prefix: string }) => ({
+      blobs: [{ ...existing, pathname: prefix }],
+    }));
+    files.head.mockResolvedValue({ contentType: "text/markdown" });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v2" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+
+    const refused = service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+    });
+    await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+    await expect(refused).rejects.toThrow("overwrite: true");
+    expect(files.put).not.toHaveBeenCalled();
+
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+      overwrite: true,
+    });
+    expect(files.put).toHaveBeenCalledWith(
+      expect.any(String),
+      "Hello again",
+      expect.objectContaining({ allowOverwrite: true }),
+    );
+    expect(result).toMatchObject({
+      id: "file-9",
+      replaced: true,
+      link: "/drive/files/file-9",
+    });
+
+    // A file that is not text is never replaced by text.
+    files.put.mockClear();
+    files.head.mockResolvedValue({ contentType: "application/pdf" });
+    await expect(
+      service["uploadFile"](authorized as never, {
+        filename: "notes.md",
+        content: "Hello again",
+        overwrite: true,
+      }),
+    ).rejects.toThrow("not a text file");
+    expect(files.put).not.toHaveBeenCalled();
+    files.list.mockReset();
   });
 
   it("writes into the organization Drive the owner sees in an organization workspace", async () => {
