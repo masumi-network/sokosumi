@@ -80,14 +80,12 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
-  "sections.upcoming": "Upcoming",
+  "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
+  "sections.accounts": "Accounts",
   selectedPost: "Selected post",
-  "empty.upcoming": "No scheduled posts yet.",
   "empty.drafts": "No drafts yet.",
-  "emptyHint.upcoming":
-    "Schedule a post and it shows up here and on the calendar.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
@@ -457,8 +455,7 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
-  it("lists scheduled posts and drafts in tabs and leaves published posts to the calendar", async () => {
-    const user = userEvent.setup();
+  it("lists drafts in a tab and leaves scheduled and published posts to the calendar", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -468,25 +465,10 @@ describe("ProjectSocialPosts", () => {
     );
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Upcoming 1",
       "Drafts 1",
     ]);
-    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    const scheduledRow = within(upcoming).getByTestId(
-      "social-post-post-scheduled",
-    );
-    expect(within(scheduledRow).getByText("Scheduled text")).toBeVisible();
-    expect(within(scheduledRow).getByText("@sokosumi")).toBeVisible();
-    expect(within(scheduledRow).getByText("Coworker · Scout")).toBeVisible();
-    expect(within(scheduledRow).getByText("Oct 1, 10:00 AM")).toBeVisible();
-    // The tab already says these posts are scheduled.
-    expect(
-      within(scheduledRow).queryByText("Scheduled"),
-    ).not.toBeInTheDocument();
-
-    await openTab(user, "Drafts");
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
@@ -495,9 +477,97 @@ describe("ProjectSocialPosts", () => {
     expect(within(draftRow).queryByText("Draft")).not.toBeInTheDocument();
 
     expect(
+      screen.queryByTestId("social-post-post-scheduled"),
+    ).not.toBeInTheDocument();
+    expect(
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("opens Social on its calendar, with Accounts as the last tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        actions={<button type="button">Page action</button>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Calendar ",
+      "Drafts 1",
+      "Accounts ",
+    ]);
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Page action" })).toBeVisible();
+
+    await openTab(user, "Accounts");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+  });
+
+  it("still opens the calendar after a link opened a draft's tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-draft"
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    await openTab(user, "Calendar");
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+  });
+
+  it("opens the tab the URL names", () => {
+    renderUi(
+      <NuqsTestingAdapter searchParams="?tab=drafts">
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            accounts={<p>Accounts panel</p>}
+            calendar={<p>Calendar panel</p>}
+            connections={[buildConnection()]}
+            posts={[buildPost()]}
+            projectId={PROJECT_ID}
+          />
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
+  });
+
+  it("shows a scheduled post a calendar link names above the tabs", () => {
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    const selected = screen.getByTestId("social-posts-selected");
+    const row = within(selected).getByTestId("social-post-post-scheduled");
+    expect(within(row).getByText("Scheduled text")).toBeVisible();
+    expect(within(row).getByText("@sokosumi")).toBeVisible();
+    expect(within(row).getByText("Coworker · Scout")).toBeVisible();
+    expect(within(row).getByText("Oct 1, 10:00 AM")).toBeVisible();
+    expect(within(row).getByText("Scheduled")).toBeVisible();
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
   });
 
   it("tells an empty tab how it fills", () => {
@@ -509,12 +579,10 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    expect(within(upcoming).getByText("No scheduled posts yet.")).toBeVisible();
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(within(drafts).getByText("No drafts yet.")).toBeVisible();
     expect(
-      within(upcoming).getByText(
-        "Schedule a post and it shows up here and on the calendar.",
-      ),
+      within(drafts).getByText("Save a post as a draft to finish it later."),
     ).toBeVisible();
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
@@ -645,6 +713,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[{ ...SCHEDULED_POST, id: "post-media", media: [IMAGE_REF] }]}
         projectId={PROJECT_ID}
+        selectedPostId="post-media"
       />,
     );
 
@@ -832,9 +901,10 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post scheduled.");
+    // A scheduled post lives on the calendar, not in the drafts list.
     expect(
-      screen.getByTestId("social-posts-section-upcoming"),
-    ).toHaveTextContent("Scheduled text");
+      screen.getByTestId("social-posts-section-drafts"),
+    ).not.toHaveTextContent("Scheduled text");
   });
 
   it("prefills the editor and sends the observed revision", async () => {
@@ -883,6 +953,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -926,6 +997,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -999,6 +1071,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1019,13 +1092,11 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    // A canceled post has nothing left to do, so it leaves the list.
+    // A canceled post has nothing left to do, so it keeps no menu.
+    const selected = screen.getByTestId("social-posts-selected");
     await waitFor(() => {
-      expect(
-        screen.queryByTestId("social-post-post-scheduled"),
-      ).not.toBeInTheDocument();
+      expect(within(selected).getByText("Canceled")).toBeVisible();
     });
-    expect(screen.getByText("No scheduled posts yet.")).toBeVisible();
   });
 
   it("toasts and refreshes on a revision conflict", async () => {
@@ -1043,6 +1114,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1078,6 +1150,7 @@ describe("ProjectSocialPosts", () => {
           },
         ]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1099,6 +1172,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1220,12 +1294,12 @@ describe("ProjectSocialPosts", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    // Nothing needs attention any more, so the tab goes and the list falls
-    // back to Upcoming; the published post lives on the calendar.
+    // Nothing needs attention any more, so the tab goes and the page falls
+    // back to its first tab; the published post lives on the calendar.
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
     ).not.toBeInTheDocument();
-    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
     expect(
       screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
@@ -1350,17 +1424,18 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lists a PUBLISHING post under Upcoming without actions", () => {
+  it("shows a PUBLISHING post a link names without actions", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
         posts={[PUBLISHING_POST]}
         projectId={PROJECT_ID}
+        selectedPostId={PUBLISHING_POST.id}
       />,
     );
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    const row = within(upcoming).getByTestId("social-post-post-publishing");
+    const selected = screen.getByTestId("social-posts-selected");
+    const row = within(selected).getByTestId("social-post-post-publishing");
     expect(within(row).getByText("Publishing…")).toBeVisible();
     expect(
       within(row).queryByRole("button", { name: "Post actions" }),
@@ -1425,7 +1500,7 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("loads more drafts without replacing upcoming posts", async () => {
+  it("loads more drafts without replacing the listed ones", async () => {
     const user = userEvent.setup();
     vi.mocked(loadMoreSocialPosts).mockResolvedValue({
       posts: [buildPost({ id: "older", text: "Older draft" })],
@@ -1455,11 +1530,6 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("button", { name: "Load more" }),
     ).not.toBeInTheDocument();
-
-    await openTab(user, "Upcoming");
-    expect(
-      screen.getByTestId(`social-post-${SCHEDULED_POST.id}`),
-    ).toBeVisible();
   });
 
   it("closes a conflicted editor and uses the refreshed revision when reopened", async () => {
@@ -1514,6 +1584,7 @@ describe("ProjectSocialPosts", () => {
         connections={[]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1602,6 +1673,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 

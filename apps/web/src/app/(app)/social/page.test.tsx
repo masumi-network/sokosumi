@@ -60,6 +60,9 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
+    accounts?: React.ReactNode;
+    actions?: React.ReactNode;
+    calendar?: React.ReactNode;
     posts: { id: string }[];
     connections: { id: string }[];
     projectId: string;
@@ -71,7 +74,11 @@ vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
-    />
+    >
+      {props.actions}
+      {props.calendar}
+      {props.accounts}
+    </div>
   ),
 }));
 
@@ -85,6 +92,24 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
       data-connections={props.connections.length}
       data-project={props.projectId}
     />
+  ),
+}));
+
+// The all-projects tab row reads the URL; it is tested on its own. Here it
+// only has to show what the page hands it.
+vi.mock("./components/social-all-projects-tabs", () => ({
+  SocialAllProjectsTabs: (props: {
+    actions: React.ReactNode;
+    calendar: React.ReactNode;
+    notice?: string;
+  }) => (
+    <div data-testid="social-all-projects-tabs">
+      {props.actions}
+      {props.calendar}
+      <div data-testid="social-no-project">
+        {props.notice ?? "pick a project"}
+      </div>
+    </div>
   ),
 }));
 
@@ -211,7 +236,9 @@ describe("SocialPage", () => {
       "data-soko-bot",
       "bot-1",
     );
-    // Accounts belong to a project, so the section says so instead.
+    // The same tab row a project gets; accounts belong to a project, so
+    // their tab says so instead.
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
@@ -255,6 +282,17 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
   });
 
+  it("loads the month range for a stale view=agenda link", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit({ projectId: "project-1", view: "agenda" });
+
+    // Social has no agenda list; the agenda range would leave the month
+    // grid missing posts.
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: undefined });
+  });
+
   it("opens the scoped project's posts, calendar and accounts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
@@ -268,9 +306,9 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
-    // One read per tab: upcoming, drafts and needs attention. Published and
-    // canceled posts are left to the calendar.
-    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
+    // One read per list: drafts and needs attention. Scheduled, published
+    // and canceled posts are left to the calendar tab.
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
   });
 
   /**
