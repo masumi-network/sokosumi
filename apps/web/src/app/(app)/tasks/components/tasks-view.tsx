@@ -1025,12 +1025,14 @@ export function TasksView({
       {activeTab === "tasks" && canCreateTask ? (
         <TasksMobileCreateFabSlot />
       ) : null}
-      <CreateTaskModal
-        coworkerOptions={coworkerOptions}
-        projectOptions={projectOptions}
-        defaultProjectId={defaultProjectId}
-        initialCreateTaskOpen={initialCreateTaskOpen}
-      />
+      {activeTab === "tasks" ? (
+        <CreateTaskModal
+          coworkerOptions={coworkerOptions}
+          projectOptions={projectOptions}
+          defaultProjectId={defaultProjectId}
+          initialCreateTaskOpen={initialCreateTaskOpen}
+        />
+      ) : null}
       <TaskReopenToReadyDialog
         open={pendingBoardReopen != null}
         onOpenChange={handleBoardReopenOpenChange}

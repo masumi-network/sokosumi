@@ -35,6 +35,7 @@ describe("CalendarPage", () => {
           assigneeId: "coworker-1",
           status: "READY",
           scope: "owned",
+          socialOnly: "true",
           sourceId: "workspace:workspace-1",
         }),
       }),
@@ -51,6 +52,7 @@ describe("CalendarPage", () => {
     expect(params.get("assigneeId")).toBe("coworker-1");
     expect(params.get("status")).toBe("READY");
     expect(params.get("scope")).toBe("owned");
+    expect(params.get("socialOnly")).toBe("true");
     expect(params.get("sourceId")).toBe("workspace:workspace-1");
   });
 });

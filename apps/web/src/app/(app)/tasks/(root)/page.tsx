@@ -57,6 +57,7 @@ interface TasksPageProps {
     view?: string;
     timezone?: string;
     sourceId?: string;
+    socialOnly?: string;
     assigneeUserId?: string | string[];
   }>;
 }
@@ -78,6 +79,7 @@ function calendarSearchParamsFromTasksPage(
     projectId: first(params.projectId),
     sourceId: params.sourceId,
     scope: first(params.scope),
+    socialOnly: params.socialOnly,
     status: first(params.status),
     view: params.view,
     timezone: params.timezone,
@@ -346,11 +348,17 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
         activeOrganizationId={activeOrganizationId}
         initialFilters={activeFilters}
         calendar={
-          <Suspense fallback={<CalendarLoading />}>
-            <TasksCalendarPanel
-              searchParams={Promise.resolve(calendarSearchParams)}
-            />
-          </Suspense>
+          initialTab === "calendar" ? (
+            <Suspense fallback={<CalendarLoading />}>
+              <TasksCalendarPanel
+                searchParams={Promise.resolve(calendarSearchParams)}
+              />
+            </Suspense>
+          ) : (
+            // Client tab switch hits router.replace; show shell until RSC
+            // brings TasksCalendarPanel. Avoids loading calendar on board.
+            <CalendarLoading />
+          )
         }
         defaultViewMode={defaultViewMode}
         defaultDensity={defaultDensity}

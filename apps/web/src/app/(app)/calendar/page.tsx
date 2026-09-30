@@ -14,6 +14,7 @@ const PRESERVED_CALENDAR_PARAMS = [
   "projectId",
   "sourceId",
   "scope",
+  "socialOnly",
   "status",
   "view",
   "timezone",
