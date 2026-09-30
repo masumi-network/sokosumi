@@ -63,6 +63,8 @@ export function EditOAuthClientDialog({
       form.reset({
         name: client.client_name ?? "",
         redirectUris: (client.redirect_uris ?? []).join("\n"),
+        clientUri: client.client_uri ?? "",
+        logoUri: client.logo_uri ?? "",
         includeCoreApi: hasCoreApiOAuthScope(client.scope),
         includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
       });
@@ -80,6 +82,8 @@ export function EditOAuthClientDialog({
       clientId: client.client_id,
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      clientUri: values.clientUri,
+      logoUri: values.logoUri,
       includeCoreApi: values.includeCoreApi,
       includeOfflineAccess: values.includeOfflineAccess,
     });
@@ -162,6 +166,48 @@ export function EditOAuthClientDialog({
                     <p className="text-muted-foreground text-xs">
                       {t("EditDialog.redirectUrisHelp")}
                     </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="clientUri"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("EditDialog.clientUriLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="url"
+                        placeholder={t("EditDialog.clientUriPlaceholder")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("EditDialog.clientUriHelp")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="logoUri"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("EditDialog.logoUriLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="url"
+                        placeholder={t("EditDialog.logoUriPlaceholder")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("EditDialog.logoUriHelp")}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
