@@ -6673,7 +6673,7 @@
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
-        "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario pregunta algo, lo menciona o coincide con lo que recuerda.",
+        "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario lo nombra.",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",

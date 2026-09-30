@@ -11,6 +11,7 @@ import { computeNextRunWithMinimumInterval } from "@/helpers/cron";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
@@ -200,6 +201,7 @@ export async function findAttentionItems(bot: {
     where: {
       taskId: { not: null },
       createdAt: { gte: since },
+      ...INVOLVING_DELEGATION,
       turn: { sokoBotId: bot.id },
     },
     select: { taskId: true },

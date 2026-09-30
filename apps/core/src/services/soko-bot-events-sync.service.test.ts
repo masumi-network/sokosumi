@@ -130,7 +130,11 @@ describe("SokoBotEventsSyncService", () => {
     expect((await service.syncDelegatedWork(input)).scanned).toBe(1);
     expect(delegationFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: { gt: "d499" } }),
+        where: expect.objectContaining({
+          id: { gt: "d499" },
+          // A comment alone does not make the bot part of the Task.
+          action: { not: "reply_to_task" },
+        }),
       }),
     );
     expect(metadataUpdateMock).toHaveBeenLastCalledWith(
