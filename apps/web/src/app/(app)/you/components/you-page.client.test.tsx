@@ -134,6 +134,23 @@ describe("YouPageClient", () => {
     ).toBeTruthy();
   });
 
+  it("links Social next to Content Studio for people in the Social beta", () => {
+    renderYouPage({ socialMenuEnabled: true });
+
+    const social = screen.getByTestId("you-social");
+    expect(social).toHaveAttribute("href", "/social");
+    expect(
+      screen.getByTestId("you-studio").compareDocumentPosition(social) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Social out for everyone else", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
+  });
+
   it("groups Calendar and Files in the first nav section", () => {
     renderYouPage();
 
