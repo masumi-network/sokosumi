@@ -994,8 +994,29 @@ export class SokoBotRuntimeService {
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
+        userMembers: {
+          where: { userId: authorized.turn.userId },
+          take: 1,
+          select: { userId: true },
+        },
       },
     });
+    // The owner's unread counts are theirs: only an owner turn sees them, and
+    // only for rooms the owner is in.
+    const ownerRoomIds =
+      authorized.askedByKind === "OWNER"
+        ? rooms
+            .filter((room) => room.userMembers.length > 0)
+            .map((room) => room.id)
+        : [];
+    const { getChatRoomUnreadCounts } = await import(
+      "@/routes/v1/chats/rooms/room-unread"
+    );
+    const unread = await getChatRoomUnreadCounts(
+      ownerRoomIds,
+      authorized.turn.userId,
+      prisma,
+    );
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
@@ -1003,6 +1024,9 @@ export class SokoBotRuntimeService {
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
+        ...(ownerRoomIds.includes(room.id)
+          ? { ownerUnread: unread.get(room.id)?.total ?? 0 }
+          : {}),
       })),
     };
   }
