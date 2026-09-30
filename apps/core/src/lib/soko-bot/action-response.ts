@@ -62,6 +62,14 @@ const TABLE_CAPABILITIES = new Set([
   "update_table_columns",
 ]);
 
+const SOCIAL_POST_CAPABILITIES = new Set([
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+]);
+
 const TASK_TARGET_CAPABILITIES = new Set([
   "create_task",
   "update_task",
@@ -121,6 +129,14 @@ function actionTarget(
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
+    const post = z
+      .object({ projectId: z.string().min(1) })
+      .safeParse(call.result);
+    return post.success
+      ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
+      : "";
+  }
   if (call.capability === "generate_image") {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })

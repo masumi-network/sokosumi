@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AgentJobStatus,
   Channel,
+  FileSourceKind,
+  FileSourceScope,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
@@ -56,8 +58,11 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathname,
+  buildUserDriveFilePathnameWithFolder,
   createDataTableSchema,
+  socialPostMediaKindForMime,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -167,7 +172,8 @@ import {
   loadLiveResources,
   searchFiles,
 } from "@/services/file-search.service";
-import { getJob } from "@/services/image-studio-assets.service";
+import { getJob, readAssetBytes } from "@/services/image-studio-assets.service";
+import { imageFileName } from "@/services/image-studio-files.service";
 import {
   createImageJob,
   DEFAULT_SETTINGS,
@@ -243,6 +249,13 @@ const CORE_TOOL_CALLS = {
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
+/** Where the owner finds studio images the bot copied into Files. */
+const STUDIO_FILES_FOLDER = "Content Studio";
+
+type SocialMediaInput = NonNullable<
+  z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
+>[number];
+type SocialMediaRef = Exclude<SocialMediaInput, { fileId: string }>;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
 
@@ -1714,17 +1727,147 @@ export class SokoBotRuntimeService {
       await reconcileProjectJobs(input.projectId);
       const job = await getJob({ ...scope, jobId: input.jobId });
       if (!job) return null;
+      // A copy that fails leaves the image where it is, in the studio; the
+      // bot is told there is no Files copy rather than the call failing.
+      const file = job.assetId
+        ? await this.imageInOwnerDrive(authorized, {
+            projectId: input.projectId,
+            assetId: job.assetId,
+            jobId: job.id,
+            prompt: job.prompt,
+          }).catch((error: unknown) => {
+            console.warn("[soko-bot] could not copy an image into Files", {
+              jobId: job.id,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return null;
+          })
+        : null;
       return {
         jobId: job.id,
         status: job.status,
         failureReason: job.failureReason ?? null,
         studioUrl: studioLink(input.projectId, job.assetId),
+        ...(job.assetId ? { file } : {}),
       };
     } catch (error) {
       if (error instanceof HTTPException)
         throw new SokoBotRuntimeValidationError(error.message);
       throw error;
     }
+  }
+
+  /**
+   * A ready studio image, copied once into the owner's Files. Studio images
+   * live in the studio's private store, where neither list_files nor the
+   * Social tools can reach them, so "make an image and post it" failed. The
+   * copy is keyed by the job, so asking again returns the same file.
+   */
+  private async imageInOwnerDrive(
+    authorized: AuthorizedSokoBotRuntime,
+    image: {
+      projectId: string;
+      assetId: string;
+      jobId: string;
+      prompt: string;
+    },
+  ): Promise<{ id: string; name: string; link: string } | null> {
+    const drive = await this.ownerDrive(authorized);
+    const asset = await prisma.projectImageAsset.findFirst({
+      where: { id: image.assetId, projectId: image.projectId },
+      select: { blobPathname: true, contentType: true },
+    });
+    if (!asset) return null;
+    const name = imageFileName(image.prompt, image.jobId, asset.contentType);
+    const pathname = drive.pathnameIn(STUDIO_FILES_FOLDER, name);
+    const key = { ...drive.key, pathname };
+    const live = await prisma.fileResource.findUnique({
+      where: {
+        workspaceId_sourceKind_sourceScope_sourceId: {
+          workspaceId: key.workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope:
+            key.scope === "organization"
+              ? FileSourceScope.ORGANIZATION
+              : FileSourceScope.USER,
+          sourceId: pathname,
+        },
+      },
+      select: { id: true, lifecycle: true, tombstonedAt: true },
+    });
+    if (live?.lifecycle === "ACTIVE" && !live.tombstonedAt)
+      return { id: live.id, name, link: `/drive/files/${live.id}` };
+    const bytes = await readAssetBytes(asset.blobPathname);
+    await reserveDriveUploadResource({
+      key,
+      displayName: name,
+      mimeType: asset.contentType,
+      sizeBytes: bytes.byteLength,
+    });
+    await put(pathname, Buffer.from(bytes), {
+      access: "public",
+      contentType: asset.contentType,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes: bytes.byteLength,
+      mimeType: asset.contentType,
+    });
+    if (!activated) return null;
+    nudgeFileIndexing();
+    return {
+      id: activated.resourceId,
+      name,
+      link: `/drive/files/${activated.resourceId}`,
+    };
+  }
+
+  /**
+   * Social media given as `{ fileId }` becomes the Drive reference the Social
+   * service stores. The bot never sees a file's storage address, so without
+   * this it could not attach any file at all.
+   */
+  private async resolveSocialMedia(
+    authorized: AuthorizedSokoBotRuntime,
+    media: readonly SocialMediaInput[] | undefined,
+  ): Promise<SocialMediaRef[] | undefined> {
+    if (!media) return undefined;
+    const ids = media.flatMap((item) =>
+      "fileId" in item ? [item.fileId] : [],
+    );
+    if (ids.length === 0) return media as SocialMediaRef[];
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: ids,
+    });
+    return Promise.all(
+      media.map(async (item) => {
+        if (!("fileId" in item)) return item;
+        const file = files.find((candidate) => candidate.id === item.fileId);
+        if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
+          throw new SokoBotRuntimeValidationError(
+            `File ${item.fileId} is not in the owner's Files; use an id from list_files or get_image`,
+          );
+        const mimeType = file.mimeType ?? "";
+        const kind = socialPostMediaKindForMime(mimeType);
+        if (!kind)
+          throw new SokoBotRuntimeValidationError(
+            `"${file.displayName}" is not an image or video a Social post can carry`,
+          );
+        return {
+          pathname: file.sourceId,
+          fileUrl: (await head(file.sourceId)).url,
+          name: file.displayName,
+          size: file.sizeBytes ?? 0,
+          mimeType,
+          kind,
+        };
+      }),
+    );
   }
 
   /**
@@ -1754,6 +1897,14 @@ export class SokoBotRuntimeService {
         organizationId
           ? buildOrganizationDriveFilePathname(organizationId, filename)
           : buildUserDriveFilePathname(userId, filename),
+      pathnameIn: (folder: string, filename: string) =>
+        organizationId
+          ? buildOrganizationDriveFilePathnameWithFolder(
+              organizationId,
+              folder,
+              filename,
+            )
+          : buildUserDriveFilePathnameWithFolder(userId, folder, filename),
       actor: {
         userId,
         organizationId,
@@ -3925,7 +4076,18 @@ export class SokoBotRuntimeService {
       case "create_social_post":
       case "update_social_post":
       case "schedule_social_post":
-      case "cancel_social_post":
+      case "cancel_social_post": {
+        // Resolved before the transaction: it reads the blob store, and a
+        // serializable transaction should not wait on the network.
+        const media =
+          input.capability === "create_social_post" ||
+          input.capability === "update_social_post"
+            ? await this.resolveSocialMedia(
+                authorized,
+                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input)
+                  .media,
+              )
+            : undefined;
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,
@@ -3950,6 +4112,7 @@ export class SokoBotRuntimeService {
                   {
                     ...params,
                     ...scope,
+                    media,
                     sokoBotId: authorized.turn.sokoBotId,
                     scheduledAt: params.scheduledAt
                       ? new Date(params.scheduledAt)
@@ -3963,7 +4126,7 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
-                return updateSocialPost({ ...params, ...scope }, tx);
+                return updateSocialPost({ ...params, ...scope, media }, tx);
               }
               case "schedule_social_post": {
                 const params =
@@ -4003,6 +4166,7 @@ export class SokoBotRuntimeService {
           });
           return result;
         }, "Social post changed concurrently");
+      }
       default:
         throw new SokoBotRuntimeValidationError("Unsupported social tool");
     }
