@@ -8,6 +8,7 @@ export const signInFormData: FormData<
   {
     name: "email",
     placeholderKey: "Fields.Email.placeholder",
+    type: "email",
     autoComplete: "username webauthn",
   },
   {
