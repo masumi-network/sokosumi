@@ -2274,7 +2274,7 @@
         "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectAccount": "Connect account",
+        "connectAccount": "Connect X, YouTube, LinkedIn…",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
@@ -2438,6 +2438,11 @@
           "title": "Publish this post now?",
           "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
+        },
+        "connectPrompt": {
+          "title": "Connect an account to start posting",
+          "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
+          "action": "Connect X, YouTube, LinkedIn…"
         }
       },
       "Detail": {
@@ -2748,7 +2753,7 @@
         "chooseProjectBody": "A post is published from the accounts connected to one project."
       },
       "accountsNeedProject": {
-        "title": "Social accounts",
+        "title": "Connect X, YouTube, LinkedIn…",
         "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
       },
       "draftsNeedProject": {
