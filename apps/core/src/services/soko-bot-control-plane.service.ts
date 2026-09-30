@@ -119,6 +119,41 @@ export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
 export class SokoBotDisabledError extends Error {}
 
+/**
+ * A proactive turn needs somewhere to speak. An owner who never opened the
+ * bot's chat has nowhere, so every schedule, event and ingest dead-lettered
+ * and the bot looked dead. The owner's own direct room is always authorized;
+ * it is opened here. A room that exists but was archived stays suppressed.
+ */
+async function openFirstOwnerDirectRoom(
+  sokoBotId: string,
+  userId: string,
+): Promise<{ id: string } | null> {
+  const anyDirect = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId } },
+      userMembers: { some: { userId } },
+    },
+    select: { id: true },
+  });
+  if (anyDirect) return null;
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: sokoBotId, userId, archivedAt: null },
+    select: {
+      id: true,
+      userId: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!bot) return null;
+  const { findOrOpenOwnerDirectRoom } = await import(
+    "@/services/soko-bot-chat.service"
+  );
+  return findOrOpenOwnerDirectRoom(bot);
+}
+
 async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
     return await run();
@@ -2108,7 +2143,7 @@ export class SokoBotControlPlane {
       ? { id: conversationMention.message.roomId }
       : input.chat
         ? null
-        : await prisma.chatRoom.findFirst({
+        : ((await prisma.chatRoom.findFirst({
             // Rooms carry no workspace; the bot's membership scopes this to
             // the workspace the bot lives in (one bot per user and workspace).
             where: {
@@ -2118,7 +2153,10 @@ export class SokoBotControlPlane {
               userMembers: { some: { userId: input.userId } },
             },
             select: { id: true },
-          });
+          })) ??
+          (["SCHEDULE", "EVENT", "INGEST"].includes(source)
+            ? await openFirstOwnerDirectRoom(bot.id, input.userId)
+            : null));
     if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
       throw new SokoBotNoDestinationError(
         "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",

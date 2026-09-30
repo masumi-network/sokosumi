@@ -305,7 +305,7 @@ export async function postSokoBotOwnerNotice(input: {
   return { messageId: message.id };
 }
 
-async function findOrOpenOwnerDirectRoom(bot: {
+export async function findOrOpenOwnerDirectRoom(bot: {
   id: string;
   userId: string;
   workspaceId: string;
