@@ -23,7 +23,8 @@
     "messages:parity:write": "node ./scripts/check-message-key-parity.mjs --write",
     "test": "pnpm messages:parity && vitest run",
     "test:ci": "pnpm messages:parity && vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:webkit": "vitest run --config vitest.webkit.config.ts"
   },
   "dependencies": {
     "@ai-sdk/react": "4.0.126",
@@ -133,6 +134,7 @@
     "@types/sanitize-html": "2.16.2",
     "@typescript/typescript6": "6.0.2",
     "@vitejs/plugin-react": "6.1.1",
+    "playwright": "1.63.0",
     "postcss": "8.5.28",
     "puppeteer": "25.11.0",
     "tailwindcss": "4.3.3",
