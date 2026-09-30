@@ -8,10 +8,6 @@ import {
   createComposioToolSession,
   executeComposioTool,
 } from "@/clients/social-post-providers/tools";
-import {
-  PROJECT_AD_PROVIDERS,
-  type ProjectAdProvider,
-} from "@/config/ads-providers";
 
 /** An ad account the connected user can reach, before a Project attaches it. */
 export interface AvailableAdAccount {
@@ -35,16 +31,16 @@ export type ExecuteAdsTool = (
 /**
  * Runs `run` in a tool-router session pinned to one connected account and to
  * the given tools only, then deletes the session. The session reuses the
- * Composio tool-session helpers.
+ * Composio tool-session helpers. `toolkit.name` only labels errors.
  */
 export async function withAdsToolSession<T>(
   input: AdsConnectedAccount & {
-    provider: ProjectAdProvider;
+    toolkit: { toolkitSlug: string; name: string };
     toolSlugs: readonly string[];
   },
   run: (execute: ExecuteAdsTool) => Promise<T>,
 ): Promise<T> {
-  const { name, toolkitSlug } = PROJECT_AD_PROVIDERS[input.provider];
+  const { name, toolkitSlug } = input.toolkit;
   const sessionId = await createComposioToolSession({
     toolkitSlug,
     connectedAccountId: input.connectedAccountId,

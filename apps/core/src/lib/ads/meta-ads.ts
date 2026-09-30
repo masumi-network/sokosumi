@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 
 import { record } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
 import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
@@ -58,7 +59,11 @@ export async function listMetaAdAccounts(
   input: AdsConnectedAccount,
 ): Promise<AvailableAdAccount[]> {
   const payload = await withAdsToolSession(
-    { ...input, provider: "meta_ads", toolSlugs: [GET_AD_ACCOUNTS] },
+    {
+      ...input,
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
+      toolSlugs: [GET_AD_ACCOUNTS],
+    },
     (execute) =>
       execute(GET_AD_ACCOUNTS, {
         limit: MAX_AD_ACCOUNTS,
@@ -145,7 +150,7 @@ export async function listMetaCampaigns(
   const [campaignRows, insightRows] = await withAdsToolSession(
     {
       ...connected,
-      provider: "meta_ads",
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
       toolSlugs: [LIST_CAMPAIGNS, GET_INSIGHTS],
     },
     (execute) =>
@@ -251,7 +256,7 @@ export async function updateMetaCampaign(
   await withAdsToolSession(
     {
       ...connected,
-      provider: "meta_ads",
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
       toolSlugs: [GET_OBJECT, UPDATE_CAMPAIGN],
     },
     async (execute) => {
@@ -307,7 +312,11 @@ export async function createMetaCampaign(
   const { adAccountId, name, dailyBudget, objective, ...connected } = input;
 
   return withAdsToolSession(
-    { ...connected, provider: "meta_ads", toolSlugs: [CREATE_CAMPAIGN] },
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.meta_ads,
+      toolSlugs: [CREATE_CAMPAIGN],
+    },
     async (execute) => {
       const result = await execute(CREATE_CAMPAIGN, {
         account_id: actAccountId(adAccountId),

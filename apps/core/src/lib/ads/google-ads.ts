@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "@hono/zod-openapi";
 
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
 import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
@@ -56,7 +57,7 @@ export async function listGoogleAdAccounts(
   return withAdsToolSession(
     {
       ...input,
-      provider: "google_ads",
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
       toolSlugs: [LIST_ACCESSIBLE_CUSTOMERS, SEARCH_STREAM_GAQL],
     },
     async (execute) => {
@@ -157,7 +158,11 @@ export async function listGoogleCampaigns(
 ): Promise<AdCampaign[]> {
   const { customerId, range, ...connected } = input;
   const [campaignPayload, metricPayload] = await withAdsToolSession(
-    { ...connected, provider: "google_ads", toolSlugs: [SEARCH_STREAM_GAQL] },
+    {
+      ...connected,
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
+      toolSlugs: [SEARCH_STREAM_GAQL],
+    },
     (execute) =>
       Promise.all(
         [CAMPAIGNS_QUERY, METRICS_QUERIES[range]].map((query) =>
@@ -245,7 +250,7 @@ export async function updateGoogleCampaign(
   await withAdsToolSession(
     {
       ...connected,
-      provider: "google_ads",
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
       toolSlugs: [
         SEARCH_STREAM_GAQL,
         MUTATE_CAMPAIGNS,
@@ -350,7 +355,7 @@ export async function createGoogleCampaign(
   return withAdsToolSession(
     {
       ...connected,
-      provider: "google_ads",
+      toolkit: PROJECT_AD_PROVIDERS.google_ads,
       toolSlugs: [MUTATE_CAMPAIGNS, MUTATE_CAMPAIGN_BUDGETS],
     },
     async (execute) => {
