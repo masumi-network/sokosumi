@@ -405,12 +405,15 @@ describe("updateGoogleCampaign", () => {
         campaign: {
           id: "42",
           status: "ENABLED",
-          campaign_budget: "customers/111/campaignBudgets/7",
+          campaignBudget: "customers/111/campaignBudgets/7",
         },
-        campaign_budget: { explicitly_shared: false, amount_micros: "5000000" },
+        campaignBudget: { explicitlyShared: false, amountMicros: "5000000" },
         ...overrides,
       },
     ],
+    fieldMask:
+      "campaign.id,campaign.status,campaign.campaignBudget,campaignBudget.explicitlyShared,campaignBudget.amountMicros",
+    requestId: "req_1",
   });
   const writes = () =>
     executeToolMock.mock.calls
@@ -505,32 +508,11 @@ describe("updateGoogleCampaign", () => {
     );
   });
 
-  it("reads camelCase lookups too", async () => {
-    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
-      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
-        ? {
-            data: [
-              {
-                results: [
-                  {
-                    campaign: {
-                      id: "42",
-                      campaignBudget: "customers/111/campaignBudgets/7",
-                    },
-                    campaignBudget: { explicitlyShared: false },
-                  },
-                ],
-              },
-            ],
-          }
-        : {},
-    );
-    await updateGoogleCampaign({ ...update, dailyBudget: 5 });
-    expect(writes()).toHaveLength(1);
-  });
-
   it("returns 404 without writing when the campaign is not in the customer", async () => {
-    executeToolMock.mockResolvedValue({ results: [] });
+    executeToolMock.mockResolvedValue({
+      results: [],
+      fieldMask: "campaign.id",
+    });
     await expect(
       updateGoogleCampaign({ ...update, status: "PAUSED" }),
     ).rejects.toMatchObject({ status: 404 });
@@ -541,7 +523,7 @@ describe("updateGoogleCampaign", () => {
   it("returns 409 without any write for a shared budget", async () => {
     executeToolMock.mockResolvedValue(
       lookup({
-        campaign_budget: { explicitly_shared: true, amount_micros: "1" },
+        campaignBudget: { explicitlyShared: true, amountMicros: "1" },
       }),
     );
     await expect(
@@ -553,7 +535,7 @@ describe("updateGoogleCampaign", () => {
   it("still changes status when the budget is shared and not requested", async () => {
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
       call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
-        ? lookup({ campaign_budget: { explicitly_shared: true } })
+        ? lookup({ campaignBudget: { explicitlyShared: true } })
         : {},
     );
     await updateGoogleCampaign({ ...update, status: "PAUSED" });

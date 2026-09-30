@@ -253,7 +253,7 @@ export async function updateMetaCampaign(
         fields: ["id", "account_id", "daily_budget"],
       });
       const [campaign] = parseToolRows(
-        [record(payload?.data) ?? payload],
+        [payload],
         metaCampaignOwnerSchema,
         "look up Meta campaign",
       );

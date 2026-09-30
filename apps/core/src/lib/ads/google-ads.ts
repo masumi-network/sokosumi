@@ -243,7 +243,7 @@ export async function updateGoogleCampaign(
           }),
           "results",
           "look up Google Ads campaign",
-        ).map(camelizeKeys),
+        ),
         campaignLookupRowSchema,
         "look up Google Ads campaign",
       );

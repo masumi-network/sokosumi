@@ -425,10 +425,10 @@ describe("updateMetaCampaign", () => {
     );
   });
 
-  it("accepts a campaign nested under data and an account id with the act_ prefix", async () => {
+  it("accepts an account id with the act_ prefix", async () => {
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
       call.toolSlug === "METAADS_GET_OBJECT"
-        ? { data: campaignObject({ account_id: "act_1" }) }
+        ? campaignObject({ account_id: "act_1" })
         : {},
     );
     await updateMetaCampaign({ ...update, status: "PAUSED" });
