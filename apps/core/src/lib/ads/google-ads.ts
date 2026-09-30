@@ -26,18 +26,6 @@ const customerRowSchema = z.object({
   }),
 });
 
-/** Composio may return Google's REST camelCase or the proto snake_case. */
-function camelizeKeys(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(camelizeKeys);
-  if (typeof value !== "object" || value === null) return value;
-  return Object.fromEntries(
-    Object.entries(value).map(([key, item]) => [
-      key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()),
-      camelizeKeys(item),
-    ]),
-  );
-}
-
 /**
  * Customer accounts the connected Google user can open directly. Manager
  * accounts are left out: Composio's Google Ads tools have no
@@ -55,7 +43,7 @@ export async function listGoogleAdAccounts(
     async (execute) => {
       const customerIds = toolRows(
         await execute(LIST_ACCESSIBLE_CUSTOMERS, {}),
-        "resource_names",
+        "resourceNames",
       )
         .filter((name): name is string => typeof name === "string")
         .map((name) => name.replace(/^customers\//, ""))
@@ -70,7 +58,7 @@ export async function listGoogleAdAccounts(
                 query: CUSTOMER_QUERY,
               }),
               "results",
-            ).map(camelizeKeys);
+            );
             const [row] = parseToolRows(
               rows,
               customerRowSchema,

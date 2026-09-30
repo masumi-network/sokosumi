@@ -3,7 +3,6 @@ import type { z } from "@hono/zod-openapi";
 import {
   ComposioApiError,
   deleteComposioToolSession,
-  record,
 } from "@/clients/composio.client";
 import {
   createComposioToolSession,
@@ -71,22 +70,13 @@ export async function withAdsToolSession<T>(
   }
 }
 
-/**
- * Rows of a tool payload: under `key`, or under `data` either directly or as a
- * list of streamed batches that each hold their rows under `key`.
- */
+/** Rows a tool returned under `key`; none when the key is missing. */
 export function toolRows(
   payload: Record<string, unknown> | null,
   key: string,
 ): unknown[] {
-  const direct = payload?.[key];
-  if (Array.isArray(direct)) return direct;
-  const data = payload?.data;
-  if (!Array.isArray(data)) return [];
-  return data.flatMap((batch) => {
-    const rows = record(batch)?.[key];
-    return Array.isArray(rows) ? rows : [batch];
-  });
+  const rows = payload?.[key];
+  return Array.isArray(rows) ? rows : [];
 }
 
 /** Parses every row, treating one that does not match as an unusable response. */

@@ -29,24 +29,25 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_1",
 };
 
+const CUSTOMER_FIELD_MASK =
+  "customer.id,customer.descriptiveName,customer.currencyCode,customer.timeZone,customer.manager";
+
 function customerResult(customerId: string): Record<string, unknown> {
   switch (customerId) {
     case "111":
       return {
-        data: [
+        results: [
           {
-            results: [
-              {
-                customer: {
-                  id: "111",
-                  descriptiveName: "Direct Shop",
-                  currencyCode: "EUR",
-                  timeZone: "Europe/Berlin",
-                },
-              },
-            ],
+            customer: {
+              id: "111",
+              descriptiveName: "Direct Shop",
+              currencyCode: "EUR",
+              timeZone: "Europe/Berlin",
+            },
           },
         ],
+        fieldMask: CUSTOMER_FIELD_MASK,
+        requestId: "req_1",
       };
     case "222":
       // Manager account: its clients are out of reach without login-customer-id.
@@ -61,13 +62,15 @@ function customerResult(customerId: string): Record<string, unknown> {
             },
           },
         ],
+        fieldMask: CUSTOMER_FIELD_MASK,
       };
     case "333":
-      // snake_case, numeric id, no name
+      // numeric id, no name
       return {
         results: [
-          { customer: { id: 333, currency_code: "USD", time_zone: "UTC" } },
+          { customer: { id: 333, currencyCode: "USD", timeZone: "UTC" } },
         ],
+        fieldMask: CUSTOMER_FIELD_MASK,
       };
     default:
       throw new ComposioToolError({ message: "no access" });
@@ -85,7 +88,7 @@ describe("listGoogleAdAccounts", () => {
       }) =>
         call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS"
           ? {
-              resource_names: [
+              resourceNames: [
                 "customers/111",
                 "customers/222",
                 "customers/333",
@@ -142,11 +145,23 @@ describe("listGoogleAdAccounts", () => {
     );
   });
 
+  it("skips a customer whose query returns no rows", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS"
+        ? { resourceNames: ["customers/111"] }
+        : { results: [], fieldMask: CUSTOMER_FIELD_MASK },
+    );
+    expect(await listGoogleAdAccounts(input)).toEqual([]);
+  });
+
   it("raises a response that does not match the expected shape", async () => {
     executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
       call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS"
-        ? { resource_names: ["customers/111"] }
-        : { results: [{ customer: { id: "111" } }] },
+        ? { resourceNames: ["customers/111"] }
+        : {
+            results: [{ customer: { id: "111" } }],
+            fieldMask: "customer.id",
+          },
     );
     await expect(listGoogleAdAccounts(input)).rejects.toThrow(
       /invalid response/,
