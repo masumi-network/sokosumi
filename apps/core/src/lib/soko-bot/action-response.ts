@@ -2,7 +2,6 @@ import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-import { sokoBotOutcomeNote } from "@/services/soko-bot-outcome.service";
 
 import {
   ACTION_CAPABILITIES,
@@ -99,6 +98,7 @@ function actionTarget(
   call: { capability: string; targetId: string | null; result?: unknown },
   tasks: Map<string, TaskLabel>,
   jobAgents: Map<string, string>,
+  assignedTaskIds: ReadonlySet<string | null>,
 ): string {
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
@@ -127,7 +127,12 @@ function actionTarget(
   // nothing.
   if (!task) return "";
   const link = `[${linkText(task.name)}](/tasks/${encodeURIComponent(id)})`;
-  return call.capability === "assign_task" && task.assignee
+  // Who got it is half of what the owner asked for. A Task created with its
+  // assignee says so on the create line; one assigned afterwards on its own.
+  const namesAssignee =
+    call.capability === "assign_task" ||
+    (call.capability === "create_task" && !assignedTaskIds.has(id));
+  return namesAssignee && task.assignee
     ? `${link} → ${linkText(task.assignee)}`
     : link;
 }
@@ -136,7 +141,7 @@ const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
   SCOPE: "What should I change, and what should stay as it is?",
   TIME: "When should this happen? Please include your time zone.",
-  APPROVAL: "Please approve the pending decision before I continue.",
+  APPROVAL: "Should I go ahead?",
   DETAILS: "What additional details should I use?",
 } as const;
 
@@ -303,8 +308,6 @@ function describeRead(capability: string, value: unknown): string[] {
       "The latest job event is awaiting input; completion is not verified.",
     );
   if (read.fulfillment) {
-    const note = sokoBotOutcomeNote(read.fulfillment);
-    if (note) observations.push(note);
     for (const id of read.fulfillment.remainingSteps.slice(0, 4)) {
       const criterion = read.fulfillment.acceptanceCriteria?.find(
         (item) => item.id === id,
@@ -456,6 +459,11 @@ export async function buildActionResponse(
         ).map((job) => [job.id, job.agentId])
       : [],
   );
+  const assignedTaskIds = new Set(
+    unique
+      .filter((call) => call.capability === "assign_task")
+      .map((call) => call.targetId),
+  );
   // One line per effect: a hire the runtime executed on its accepted call and
   // recorded twice, or one Task reached two ways, is still one thing done.
   const actionText = [
@@ -466,7 +474,7 @@ export async function buildActionResponse(
             call.disposition === "ALREADY_SATISFIED"
               ? "Already satisfied"
               : ACTION_LABELS[call.capability],
-            actionTarget(call, tasks, jobAgents),
+            actionTarget(call, tasks, jobAgents, assignedTaskIds),
           ]
             .filter(Boolean)
             .join(" ")}.`,

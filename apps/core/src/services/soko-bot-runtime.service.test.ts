@@ -5361,64 +5361,42 @@ describe("find_agents", () => {
   });
 });
 
-describe("archive_task without one named Task", () => {
+describe("archive_task without approval cards", () => {
   const TASK_ID = "01960001-0001-7001-8001-0000000000aa";
-  function arm(userMessage: string, ownedTask: unknown) {
-    vi.clearAllMocks();
-    serializableTransactionMock.mockImplementation(
-      async (run: (tx: unknown) => unknown) =>
-        await run({
-          sokoBotTurn: {
-            findUniqueOrThrow: vi.fn().mockResolvedValue({
-              userMessage,
-              contextSnapshot: { packet: { tasks: [] } },
-            }),
-          },
-          sokoBotToolCall: { findFirst: vi.fn().mockResolvedValue(null) },
-          task: { findFirst: vi.fn().mockResolvedValue(ownedTask) },
-        }),
-    );
+
+  it("archives the Task the model names, whatever the owner's message said", async () => {
+    // "yes" and "archive all my test tasks" name no single Task. The route
+    // already granted archiving; the owner's words are the model's to read,
+    // not Core's to parse, and nothing waits on a card.
     const service = new SokoBotRuntimeService();
     const internals = service as unknown as {
-      requireMutationAuthority: () => Promise<unknown>;
+      applyTaskMutation: (...args: unknown[]) => Promise<unknown>;
       createDecision: () => Promise<unknown>;
     };
-    vi.spyOn(internals, "requireMutationAuthority").mockResolvedValue({});
-    const createDecision = vi
-      .spyOn(internals, "createDecision")
-      .mockResolvedValue({ id: "decision_1", status: "PENDING" });
-    return { service, createDecision };
-  }
-  const run = (service: SokoBotRuntimeService) =>
-    service["mutateTask"](
-      { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
-      { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
-      "call_1",
-      { capability: "archive_task" },
-    );
-
-  it("turns a bare yes into an approval card instead of failing", async () => {
-    // "yes" and "archive all my test tasks" name no single Task. Failing left
-    // the bot asking the owner to retype the exact sentence; a card lets the
-    // owner decide and the bot carry on.
-    const { service, createDecision } = arm("yes", { id: TASK_ID });
-    const result = await run(service);
-    expect(createDecision).toHaveBeenCalledWith(
+    const apply = vi
+      .spyOn(internals, "applyTaskMutation")
+      .mockResolvedValue({ id: TASK_ID });
+    const createDecision = vi.spyOn(internals, "createDecision");
+    const input = {
+      taskId: TASK_ID,
+      expectedUpdatedAt: new Date().toISOString(),
+    };
+    await expect(
+      service["mutateTask"](
+        { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
+        input,
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).resolves.toEqual({ id: TASK_ID });
+    expect(apply).toHaveBeenCalledWith(
       expect.anything(),
-      "archive_task",
-      expect.objectContaining({ taskId: TASK_ID }),
+      input,
       "call_1",
-      true,
+      expect.objectContaining({ taskId: TASK_ID, archive: true }),
+      "archive_task",
+      false,
     );
-    expect(result).toMatchObject({
-      approvalRequired: true,
-      decision: { id: "decision_1" },
-    });
-  });
-
-  it("does not raise a card for a Task the owner has no open copy of", async () => {
-    const { service, createDecision } = arm("archive all of them", null);
-    await expect(run(service)).rejects.toThrow(/Task not found/);
     expect(createDecision).not.toHaveBeenCalled();
   });
 });

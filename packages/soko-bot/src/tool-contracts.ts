@@ -176,14 +176,6 @@ export const SOKO_BOT_DECISION_TARGETS = [
 
 export type SokoBotDecisionTarget = (typeof SOKO_BOT_DECISION_TARGETS)[number];
 
-export const sokoBotDecisionInputSchema = z
-  .object({
-    toolName: z.enum(SOKO_BOT_DECISION_TARGETS),
-    reason: z.string().min(1).max(2_000),
-    proposal: z.record(z.string(), z.unknown()),
-  })
-  .strict();
-
 export const sokoBotMemoryUpdateInputSchema = z
   .object({ markdown: z.string().min(1).max(16_384) })
   .strict();
@@ -541,7 +533,6 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   hire_agent: sokoBotHireAgentInputSchema,
   get_job_status: sokoBotJobIdInputSchema,
   provide_job_input: sokoBotProvideJobInputSchema,
-  request_user_decision: sokoBotDecisionInputSchema,
   read_memory: emptyInputSchema,
   update_memory: sokoBotMemoryUpdateInputSchema,
   list_schedules: emptyInputSchema,
@@ -634,7 +625,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   update_task:
     "Update existing Task scope or DRAFT/READY status. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
-    "Archive exactly one eligible task owned by the requesting owner, only when the owner explicitly asks. First use get_task_status and pass its exact updatedAt as expectedUpdatedAt. Clarify ambiguous names. Archiving removes the task from the normal board but preserves task history; it neither cancels work nor permanently deletes data. Active schedule templates and tasks in disallowed states cannot be archived. Never bypass these checks by changing status or removing a schedule. Report success only from the committed archive receipt.",
+    "Archive one of the owner's Tasks; call it once per Task, several in a turn is fine. First use get_task_status and pass its exact updatedAt as expectedUpdatedAt. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template. Report success only from the archive result.",
   assign_task: "Assign Task to available Coworker and optionally make READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
@@ -654,8 +645,6 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   get_job_status: "Read current marketplace Agent Job status.",
   provide_job_input:
     "Send the input an Agent Job is waiting for; applied right away.",
-  request_user_decision:
-    "Persist an owner approval proposal for one currently granted decision target without parking runtime. Use when the owner requests approval before acting; clarify an ambiguous target before proposing. A proposal is not an executed action. An explicit owner instruction to perform an eligible action is already authorization and does not require asking again.",
   read_memory: "Read canonical short-term Soko Bot memory.",
   update_memory:
     "Replace bounded canonical memory file with durable working context.",

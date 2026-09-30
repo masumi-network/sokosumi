@@ -473,18 +473,6 @@ export function assertEvaluationTool(capability: string, input: unknown) {
   const binding = evaluationBinding();
   if (!binding) return;
   const parsed = z.object({ taskId: z.string() }).safeParse(input);
-  const decision = z
-    .object({
-      toolName: z.literal("archive_task"),
-      proposal: z.object({ taskId: z.string() }),
-    })
-    .safeParse(input);
-  if (
-    capability === "request_user_decision" &&
-    decision.success &&
-    binding.taskIds.includes(decision.data.proposal.taskId)
-  )
-    return;
   if (
     ["get_task_status", "archive_task"].includes(capability) &&
     parsed.success &&

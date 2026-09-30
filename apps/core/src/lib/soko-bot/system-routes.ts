@@ -42,7 +42,6 @@ export const SYSTEM_TURN_ROUTES = {
       "reply_to_task",
       "link_tasks",
       "update_memory",
-      "request_user_decision",
     ],
     reason: "Daily stand-up: nudge stuck work and draft requested Tasks.",
   },
