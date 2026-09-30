@@ -28,7 +28,6 @@ interface IdentityOnboardingFormProps {
   initialName: string;
   initialFirstName: string;
   initialLastName: string;
-  collectNameParts?: boolean;
   workspaceReady: boolean;
 }
 
@@ -36,7 +35,6 @@ export function IdentityOnboardingForm({
   initialName,
   initialFirstName,
   initialLastName,
-  collectNameParts = true,
   workspaceReady,
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
@@ -47,9 +45,7 @@ export function IdentityOnboardingForm({
   const leavingGateRef = useRef(false);
 
   const form = useForm<FirstAndLastNameFormType>({
-    resolver: collectNameParts
-      ? zodResolver(firstAndLastNameFormSchema(tSchema))
-      : undefined,
+    resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
     defaultValues: {
       firstName: initialFirstName,
       lastName: initialLastName,
@@ -103,9 +99,8 @@ export function IdentityOnboardingForm({
     values: FirstAndLastNameFormType,
   ): Promise<boolean> {
     if (
-      !collectNameParts ||
-      (values.firstName === initialFirstName &&
-        values.lastName === initialLastName)
+      values.firstName === initialFirstName &&
+      values.lastName === initialLastName
     ) {
       return true;
     }
@@ -188,12 +183,10 @@ export function IdentityOnboardingForm({
             data-testid="workspace-gate-identity-form"
           >
             <fieldset className="space-y-6" disabled={busy}>
-              {collectNameParts ? (
-                <FirstAndLastNameFields
-                  control={form.control}
-                  testIdPrefix="workspace-gate-identity"
-                />
-              ) : null}
+              <FirstAndLastNameFields
+                control={form.control}
+                testIdPrefix="workspace-gate-identity"
+              />
 
               <div className="space-y-3">
                 <RadioGroup

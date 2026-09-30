@@ -210,12 +210,12 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).not.toContain("data-workspace-gate-actions");
   });
 
-  it("does not collect parts from a legacy user with unfinished onboarding", async () => {
+  it("asks a user who has a display name but no name parts to enter them", async () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",
       session: {
         user: {
-          id: "legacy-user",
+          id: "user-1",
           name: "Countess of Lovelace",
           firstName: null,
           lastName: null,
@@ -228,9 +228,9 @@ describe("WorkspaceGatePage", () => {
     const { default: WorkspaceGatePage } = await import("./page");
     const serialized = JSON.stringify(await WorkspaceGatePage());
 
-    expect(serialized).toContain('"collectNameParts":false');
-    expect(serialized).toContain("Identity.choiceHint");
+    expect(serialized).toContain("identityDescriptionEnter");
     expect(serialized).not.toContain("identityDescriptionConfirm");
+    expect(serialized).toContain('"initialName":"Countess of Lovelace"');
   });
 
   it("asks a nameless user to enter their name", async () => {

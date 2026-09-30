@@ -446,7 +446,6 @@ export {
   getFirstName,
   joinFirstAndLastName,
   resolveAccountDisplayName,
-  userHasLegacyName,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
 export {

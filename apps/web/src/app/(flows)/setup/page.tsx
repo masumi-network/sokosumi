@@ -1,4 +1,3 @@
-import { userHasLegacyName } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { CoreUnavailableNotice } from "@/app/components/core-unavailable-notice.client";
@@ -98,23 +97,15 @@ export default async function WorkspaceGatePage() {
         : "identityTitle";
   const initialFirstName = session.user.firstName?.trim() ?? "";
   const initialLastName = session.user.lastName?.trim() ?? "";
-  const collectNameParts = !userHasLegacyName(
-    session.user.name,
-    session.user.firstName,
-    session.user.lastName,
-  );
-  const hasName =
-    !collectNameParts || Boolean(initialFirstName && initialLastName);
+  const hasName = Boolean(initialFirstName && initialLastName);
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
         ? pendingInvitesDescriptionKey({ invitationCount, hasJoinLink })
-        : !collectNameParts
-          ? "Identity.choiceHint"
-          : hasName
-            ? "identityDescriptionConfirm"
-            : "identityDescriptionEnter";
+        : hasName
+          ? "identityDescriptionConfirm"
+          : "identityDescriptionEnter";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
@@ -140,7 +131,6 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
             initialFirstName={initialFirstName}
             initialLastName={initialLastName}
-            collectNameParts={collectNameParts}
             workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (

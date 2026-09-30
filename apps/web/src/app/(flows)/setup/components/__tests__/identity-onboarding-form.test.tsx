@@ -213,21 +213,34 @@ describe("IdentityOnboardingForm", () => {
     });
   });
 
-  it("lets a legacy named user finish setup without collecting or backfilling parts", async () => {
+  it("asks a user who has a display name but no name parts, and keeps that display name", async () => {
     const user = userEvent.setup();
     renderForm({
+      initialName: "Countess of Lovelace",
       initialFirstName: "",
       initialLastName: "",
-      collectNameParts: false,
     });
 
-    expect(
-      screen.queryByTestId("workspace-gate-identity-first-name"),
-    ).toBeNull();
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    expect(await screen.findByText("First name is required")).toBeTruthy();
+    expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+
+    await user.type(
+      screen.getByTestId("workspace-gate-identity-first-name"),
+      "Ada",
+    );
+    await user.type(
+      screen.getByTestId("workspace-gate-identity-last-name"),
+      "Lovelace",
+    );
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
 
-    await waitFor(() => expect(locationReplaceMock).toHaveBeenCalledWith("/"));
-    expect(updateUserMock).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(updateUserMock).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+      });
+    });
   });
 
   it("keeps the first display name when onboarding is retried", async () => {

@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { userHasLegacyName } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -24,10 +23,12 @@ export function useCollectUserName(
 ) {
   const tName = useTranslations("Library.Auth.NameField");
   const tSchema = useTranslations("Library.Auth.Schema");
-  const needsName =
-    !userHasName(initialName) ||
-    (!userHasLegacyName(initialName, initialFirstName, initialLastName) &&
-      !(initialFirstName?.trim() && initialLastName?.trim()));
+  const hasFirstName = Boolean(initialFirstName?.trim());
+  const hasLastName = Boolean(initialLastName?.trim());
+  // Asked of a user with no display name, and of one who has half a name (a
+  // provider sent one part). A user with a display name and no parts at all
+  // is left alone: that is every account from before the parts existed.
+  const needsName = !userHasName(initialName) || hasFirstName !== hasLastName;
   const form = useForm<FirstAndLastNameFormType>({
     resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
     defaultValues: {

@@ -68,13 +68,17 @@ function createTestAuth() {
 }
 
 describe("email sign-up name", () => {
-  it("marks a new nameless Magic Link account with empty parts", async () => {
+  it("stores no name parts for a new Magic Link account", async () => {
     const { signInWithMagicLink, db } = createTestAuth();
 
     const response = await signInWithMagicLink();
 
     expect(response.status).toBe(302);
-    expect(db.user[0]).toMatchObject({ name: "", firstName: "", lastName: "" });
+    expect(db.user[0]).toMatchObject({
+      name: "",
+      firstName: null,
+      lastName: null,
+    });
   });
 
   it("leaves a legacy user's null parts and chosen display name untouched on sign-in", async () => {
