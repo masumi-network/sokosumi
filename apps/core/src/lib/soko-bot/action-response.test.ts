@@ -55,6 +55,10 @@ function replay() {
 }
 
 describe("action lines the owner reads", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",
@@ -75,6 +79,28 @@ describe("action lines the owner reads", () => {
       "Hired agent ([Open job](/agents/agent-one/jobs/job-one)).",
     );
     expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
+  });
+
+  it("says a comment that canceled a Task canceled it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "reply_to_task",
+        result: { id: "task-one", status: "CANCELED", statusChanged: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "Launch QA",
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Canceled task [Launch QA](/tasks/task-one).",
+    );
   });
 
   it("names an uploaded file and shows it as its own card", async () => {

@@ -36,6 +36,35 @@ describe("segmentRoomMessageContent", () => {
     ]);
   });
 
+  it("keeps a file link inside a sentence as text", () => {
+    const content =
+      "It's in your Files as [r3-notes.md](https://cdn.example/r3-notes.md).";
+    expect(segmentRoomMessageContent(content)).toEqual([
+      { kind: "text", content, start: 0 },
+    ]);
+  });
+
+  it("cards a file link on its own line after prose", () => {
+    const content =
+      "Uploaded file r3-notes.md.\n[r3-notes.md](https://cdn.example/r3-notes.md)";
+    const segments = segmentRoomMessageContent(content);
+    expect(segments.map((s) => s.kind)).toEqual(["text", "files"]);
+  });
+
+  it("cards several file links sharing one line", () => {
+    const content =
+      "[a.png](https://cdn.example/a.png) [b.png](https://cdn.example/b.png)";
+    expect(segmentRoomMessageContent(content)).toEqual([
+      {
+        kind: "files",
+        links: [
+          expect.objectContaining({ fileName: "a.png" }),
+          expect.objectContaining({ fileName: "b.png" }),
+        ],
+      },
+    ]);
+  });
+
   it("keeps trailing text after files", () => {
     const content = "[a.png](https://cdn.example/a.png)\nand then more prose";
     const segments = segmentRoomMessageContent(content);

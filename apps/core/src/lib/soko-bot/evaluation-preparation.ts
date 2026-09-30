@@ -11,7 +11,7 @@ import {
 } from "./model-policy";
 
 export const SOKO_BOT_ARCHIVE_GUIDANCE =
-  "Archiving: when the owner asks you to archive Tasks, archive them with archive_task; several in one turn is fine. Ask in chat only when it is unclear which Tasks they mean. Read each Task first and pass its exact updatedAt. Archiving hides a Task from the board and keeps its history; it does not cancel work. A Task that is running or waiting for input cannot be archived, and you cannot cancel Tasks: say so plainly, and offer what you can do (answer its question, or the owner cancels it on the Taskboard). Say a Task was archived only after archive_task succeeded.";
+  'Archiving: when the owner asks you to archive Tasks, archive them with archive_task; several in one turn is fine, and "all my X tasks" means finding them with list_tasks and archiving each. Ask in chat only when it is unclear which Tasks they mean. Read each Task first and pass its exact updatedAt. Archiving hides a Task from the board and keeps its history; it does not cancel work. A Task that is running or waiting for input cannot be archived as it is: when the owner wants it gone, cancel it with reply_to_task status CANCELED, the comment saying why, then archive it. Say a Task was archived only after archive_task succeeded.';
 
 /** Materialize inherited prompts and skill content before hashing. Never register
  * or promote these local candidates: review and paid comparison happen separately.

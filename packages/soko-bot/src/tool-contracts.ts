@@ -92,6 +92,8 @@ export const sokoBotUpdateTaskInputSchema = z
     name: z.string().trim().min(1).max(160).optional(),
     description: z.string().trim().max(20_000).nullable().optional(),
     status: z.enum(["DRAFT", "READY"]).optional(),
+    /** Clears the assignee: no Coworker, assistant or person owns it any more. */
+    unassign: z.literal(true).optional(),
   })
   .strict()
   .refine(
@@ -99,7 +101,8 @@ export const sokoBotUpdateTaskInputSchema = z
       input.name !== undefined ||
       input.description !== undefined ||
       input.status !== undefined ||
-      input.projectId !== undefined,
+      input.projectId !== undefined ||
+      input.unassign !== undefined,
     { message: "Specify a task change" },
   );
 
@@ -122,8 +125,12 @@ export const sokoBotReplyToTaskInputSchema = z
   .object({
     taskId: z.string().min(1),
     comment: z.string().trim().min(1).max(20_000),
-    /** READY resumes a task that is waiting (INPUT_REQUIRED/FAILED/…); omit to just comment. */
-    status: z.enum(["READY"]).optional(),
+    /**
+     * READY resumes a task that is waiting (INPUT_REQUIRED/FAILED/…); CANCELED
+     * stops one of the owner's Tasks, with the comment as the reason. Omit to
+     * just comment.
+     */
+    status: z.enum(["READY", "CANCELED"]).optional(),
   })
   .strict();
 
@@ -623,16 +630,16 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   create_task:
     "Create Sokosumi Task, preferably DRAFT, for Coworker execution. On a turn started by Task events, triggeringTaskId is the Task it follows up; it may be left out when the events are about one Task.",
   update_task:
-    "Update existing Task scope or DRAFT/READY status. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
+    "Update existing Task scope or DRAFT/READY status, or clear its assignee with unassign: true. Move with projectId as a separate operation; first read the task and provide its exact updatedAt as expectedUpdatedAt. Never create a replacement task to simulate a move.",
   archive_task:
-    "Archive one of the owner's Tasks; call it once per Task, several in a turn is fine. First use get_task_status and pass its exact updatedAt as expectedUpdatedAt. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template. Report success only from the archive result.",
+    "Archive one of the owner's Tasks; call it once per Task, several in a turn is fine. First use get_task_status and pass its exact updatedAt as expectedUpdatedAt. Archiving hides the Task from the board and keeps its history; it does not cancel work or delete data. Only DRAFT, QUEUED, READY, GRANT_PENDING, CANCELED, COMPLETED or FAILED Tasks can be archived, and not an active schedule template; cancel another one first with reply_to_task status CANCELED when the owner wants it gone. Report success only from the archive result.",
   assign_task: "Assign Task to available Coworker and optionally make READY.",
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   list_tasks:
     "List the owner's Tasks on the board. Filter by state (open, finished, all), exact status (one or several, e.g. INPUT_REQUIRED and FAILED for what is stuck; it replaces state), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first; `total` and `byStatus` count every match, not just the page shown. Use get_task_status for one Task in full.",
   reply_to_task:
-    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
+    "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; with status CANCELED it cancels one of the owner's Tasks, the comment saying why; without status it only comments.",
   update_assigned_task:
     "Progress a Task that is assigned to you: RUNNING when you start, INPUT_REQUIRED to ask the owner one clear question, COMPLETED with the full result in the comment, FAILED with why. Only for Tasks where you are the assignee.",
   link_tasks:
