@@ -55,6 +55,10 @@ function replay() {
 }
 
 describe("action lines the owner reads", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
   it("says a hire once and links the job", async () => {
     const hire = {
       capability: "hire_agent",
@@ -77,7 +81,52 @@ describe("action lines the owner reads", () => {
     expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
   });
 
-  it("names an uploaded file and shows it as its own card", async () => {
+  it("says a comment that canceled a Task canceled it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "reply_to_task",
+        result: { id: "task-one", status: "CANCELED", statusChanged: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "Launch QA",
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Canceled task [Launch QA](/tasks/task-one).",
+    );
+  });
+
+  it("links an uploaded file to its page, not to the public blob", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "upload_file",
+        targetId: "01a0f400-0000-7000-8000-000000000001",
+        verification: "PROVIDER_ACK",
+        effectEventId: null,
+        result: {
+          id: "01a0f400-0000-7000-8000-000000000001",
+          filename: "test-notes.md",
+          link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
+          size: 12,
+        },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Uploaded file [test-notes.md](/drive/files/01a0f400-0000-7000-8000-000000000001).",
+    );
+    expect(result.answerText).not.toContain("blob");
+  });
+
+  it("still renders an older receipt that holds the blob URL", async () => {
     const url =
       "https://store.public.blob.vercel-storage.com/drive/users/u/test-notes.md";
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
@@ -250,6 +299,29 @@ describe("authoritative action responses", () => {
       "Created task [\\[TEST\\] Receipt check](/tasks/task-one) → Hannah.",
     );
   });
+
+  it.each([
+    { status: "PENDING" as const },
+    { status: "FAILED" as const },
+    { disposition: "REJECTED" as const },
+    { verification: "NONE" as const },
+    { committedAt: null },
+    { targetId: null },
+  ])(
+    "keeps a refused attempt out of a turn the bot started itself %j",
+    async (change) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([receipt(change)]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Morning update.",
+      );
+      expect(result.answerText).not.toContain("Not confirmed");
+      // Still recorded for the claim check and the admin view.
+      expect(result.unfulfilledActions).toHaveLength(1);
+    },
+  );
 
   it.each([
     { status: "PENDING" as const },

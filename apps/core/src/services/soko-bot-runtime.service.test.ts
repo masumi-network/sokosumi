@@ -2036,6 +2036,145 @@ describe("SokoBotRuntimeService authorization", () => {
     );
   });
 
+  it("clears a Task's assignee when asked to unassign it", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Actually make it unassigned",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      description: null,
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      status: TaskStatus.DRAFT,
+      projectId: null,
+      archivedAt: null,
+      updatedAt: new Date("2026-09-30T10:00:00Z"),
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      visibility: "WORKSPACE",
+    });
+    transactionTaskUpdateMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      projectId: null,
+      archivedAt: null,
+      updatedAt: new Date("2026-09-30T10:01:00Z"),
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_task",
+      toolCallId: "call_unassign",
+      input: { taskId: "task_1", unassign: true },
+    });
+
+    expect(result).toMatchObject({ id: "task_1", assigneeId: null });
+    expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+        }),
+      }),
+    );
+  });
+
+  it("cancels one of the owner's Tasks with the comment as the reason", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.INPUT_REQUIRED,
+      ownerId: SCOPE.userId,
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    const result = await new SokoBotRuntimeService()["replyToTask"](
+      {
+        turn: {
+          id: SCOPE.turnId,
+          sokoBotId: SCOPE.sokoBotId,
+          userId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+        },
+      } as never,
+      {
+        taskId: "task_1",
+        comment: "Owner no longer needs it",
+        status: "CANCELED",
+      },
+      "call_cancel",
+    );
+
+    expect(result).toMatchObject({
+      id: "task_1",
+      status: TaskStatus.CANCELED,
+      statusChanged: true,
+    });
+    expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: TaskStatus.CANCELED,
+        comment: "Owner no longer needs it",
+      }),
+      select: { id: true },
+    });
+    expect(applyGuardedTaskStatusUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task_1",
+        expectedStatus: TaskStatus.INPUT_REQUIRED,
+        eventStatus: TaskStatus.CANCELED,
+      }),
+    );
+  });
+
+  it("does not cancel a Task someone else owns", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      ownerId: "someone-else",
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            userId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_other",
+      ),
+    ).rejects.toThrow(/owner's own Tasks/);
+    expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
+  });
+
   it("resumes its own assigned Task and fans out the soko bot event", async () => {
     transactionTaskFindFirstMock.mockResolvedValue({
       id: "task_1",
@@ -4144,8 +4283,9 @@ describe("external effect receipt finalization", () => {
       },
     });
     const dispatch = vi.fn().mockResolvedValue({
-      url: "https://blob.example/synthetic",
+      id: "01a0f400-0000-7000-8000-000000000001",
       filename: "synthetic.md",
+      link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
       size: 17,
     });
     service["executeAuthorizedTool"] = dispatch;
@@ -4171,7 +4311,7 @@ describe("external effect receipt finalization", () => {
       status: "COMPLETED",
       disposition: "APPLIED",
       verification: "PROVIDER_ACK",
-      targetId: "https://blob.example/synthetic",
+      targetId: "01a0f400-0000-7000-8000-000000000001",
     });
   });
 
@@ -5048,9 +5188,11 @@ describe("Drive file tools", () => {
     expect(files.nudge).toHaveBeenCalled();
     expect(result).toMatchObject({
       id: "file-9",
-      url: "https://blob.example/notes.md",
+      link: "/drive/files/file-9",
       savedTo: "Files in the owner's personal workspace",
     });
+    // The public blob URL would let anyone read the file without signing in.
+    expect(JSON.stringify(result)).not.toContain("blob.example");
   });
 
   it("writes into the organization Drive the owner sees in an organization workspace", async () => {

@@ -375,15 +375,54 @@ export async function followUpsBlock(
   });
   if (!revision) return [];
   const memory = parseSokoBotMemory(revision.markdown);
-  const due = dueFollowUps(memory.followUps, now, timeZone);
+  const due = await withoutClosedTasks(
+    dueFollowUps(memory.followUps, now, timeZone),
+  );
   if (due.length === 0) return [];
   return [
     "## Follow-ups due (from your memory)",
     ...due.map(
       (item) => `- ${item.overdue ? "overdue" : "today"}: ${item.text}`,
     ),
+    "A follow-up about a Task that is no longer open is done: drop it from memory instead of raising it.",
     "",
   ];
+}
+
+const TASK_ID_IN_TEXT =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
+
+/**
+ * Follow-ups are free text, so a Task archived hours ago kept being raised
+ * every morning. One naming a Task id that is archived or closed is done.
+ */
+async function withoutClosedTasks<T extends { text: string }>(
+  items: T[],
+): Promise<T[]> {
+  const ids = [
+    ...new Set(items.flatMap((item) => item.text.match(TASK_ID_IN_TEXT) ?? [])),
+  ];
+  if (ids.length === 0) return items;
+  const closed = new Set(
+    (
+      await prisma.task.findMany({
+        where: {
+          id: { in: ids },
+          OR: [
+            { archivedAt: { not: null } },
+            { status: { in: ["COMPLETED", "CANCELED"] } },
+          ],
+        },
+        select: { id: true },
+      })
+    ).map((task) => task.id.toLowerCase()),
+  );
+  return items.filter(
+    (item) =>
+      !(item.text.match(TASK_ID_IN_TEXT) ?? []).some((id) =>
+        closed.has(id.toLowerCase()),
+      ),
+  );
 }
 
 /** The live packet for a built-in rhythm turn. */

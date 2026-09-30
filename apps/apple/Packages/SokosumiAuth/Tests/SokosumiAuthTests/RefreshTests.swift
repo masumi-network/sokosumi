@@ -28,7 +28,7 @@ struct RefreshTests {
     json += "}"
     transport.response = .success(status: 200, json: json)
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )

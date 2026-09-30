@@ -280,5 +280,64 @@
   {
     "message": "Archive all my [TEST] tasks",
     "want": "MANAGE:WORK"
+  },
+  {
+    "message": "Clean up: archive every draft from today.",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "Archive all my [TEST] tasks.",
+    "want": "MANAGE:WORK",
+    "previousReply": "TOKEN2049 Singapore is on 7–8 October 2026, not November: the official FAQ says so. I added the week's dates to [TEST] R3 T2049 prep."
+  },
+  {
+    "message": "Give R3 busy to whoever does design.",
+    "want": "MANAGE:WORK",
+    "alt": ["DELEGATE"],
+    "previousReply": "Created task [TEST] R3 busy → Hannah."
+  },
+  {
+    "message": "Hand it to the research person instead.",
+    "want": "MANAGE:WORK",
+    "alt": ["DELEGATE"],
+    "previousReply": "I drafted [TEST] Launch copy; it has no assignee yet."
+  },
+  {
+    "message": "Actually make it unassigned.",
+    "want": "MANAGE:WORK",
+    "previousReply": "Created task [TEST] R3 busy → Hannah."
+  },
+  {
+    "message": "Cancel that task, then archive it.",
+    "want": "MANAGE:WORK",
+    "previousReply": "[TEST] Kurze Wettbewerbsanalyse is waiting for your input, so it can't be archived yet."
+  },
+  {
+    "message": "Archive all my [TEST] tasks.",
+    "want": "MANAGE:WORK",
+    "previousReply": "Created task [TEST] R4 one.\nCreated task [TEST] R4 two.\nCreated task [TEST] R4 three.\n\nAll three are drafts with no assignee."
+  },
+  {
+    "message": "Archive every draft from today.",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "Clean up my test tasks.",
+    "want": "MANAGE:WORK",
+    "alt": ["READ"]
+  },
+  {
+    "message": "All of them.",
+    "want": "MANAGE:WORK",
+    "previousReply": "I found one open [TEST] task: [TEST] R4 prep (draft). Should \"all\" include completed and canceled [TEST] tasks too, or only the open ones?"
+  },
+  {
+    "message": "Yes, all.",
+    "want": "MANAGE:WORK",
+    "previousReply": "Should I archive only the drafts, or all [TEST] tasks?"
+  },
+  {
+    "message": "All of them.",
+    "want": "READ"
   }
 ]

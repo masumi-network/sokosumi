@@ -321,9 +321,15 @@ function adminRetryOperationKey(operationId: string): string {
   return createHash("sha256").update(operationId).digest("hex").slice(0, 32);
 }
 
+/** A record id is never a secret; blanking one fails the response schema. */
+const EXACT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function redactAdminPresentation<T>(value: T): T {
   if (typeof value === "string") {
-    return redactSokoBotSensitiveText(value) as T;
+    return (
+      EXACT_UUID.test(value) ? value : redactSokoBotSensitiveText(value)
+    ) as T;
   }
   if (Array.isArray(value)) {
     return value.map((item) => redactAdminPresentation(item)) as T;
@@ -1608,7 +1614,6 @@ export class SokoBotControlPlane {
       agentIds: agents.map(({ id }) => id),
       taskIds: tasks.map(({ id }) => id),
       namedTaskIds: namedTasks.slice(0, 10).map(({ id }) => id),
-      ambiguousTaskName: namedTasks.length > 1,
       jobIds: jobs.map(({ id }) => id),
       candidates: [
         ...projects.map((row) => ({ ...row, kind: "PROJECT" })),
@@ -2227,21 +2232,17 @@ export class SokoBotControlPlane {
               })),
             }),
         );
+    // Every Task the name matches is a candidate. Several matches used to
+    // force CLARIFY, which turned "archive all my [TEST] tasks" into a
+    // question; the bot sees the candidates and asks only when the owner
+    // meant one of them.
     if (
       classification.classification.route === "MANAGE_WORK" &&
       classifierContext.namedTaskIds.length
     ) {
       classification.classification = {
         ...classification.classification,
-        ...(classifierContext.ambiguousTaskName
-          ? {
-              route: "CLARIFY",
-              requiresClarification: true,
-              candidateTaskIds: [],
-              rationaleSummary:
-                "More than one authorized task matches the supplied name; ask which task.",
-            }
-          : { candidateTaskIds: classifierContext.namedTaskIds }),
+        candidateTaskIds: classifierContext.namedTaskIds,
       };
     }
     if (source === "SCHEDULE" && classification.failed) {
@@ -3567,7 +3568,12 @@ export class SokoBotControlPlane {
         include: {
           user: { select: { id: true, name: true, email: true } },
           _count: {
-            select: { turns: true, pendingDecisions: true, schedules: true },
+            select: {
+              turns: true,
+              // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
+              pendingDecisions: { where: { status: "PENDING" } },
+              schedules: true,
+            },
           },
         },
       }),

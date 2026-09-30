@@ -8,6 +8,9 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
+/** Turns an owner asked for; the rest the bot started itself. */
+const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
+
 export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
@@ -37,6 +40,16 @@ export const ACTION_LABELS: Record<string, string> = {
   cancel_social_post: "Canceled social post",
   publish_social_post: "Published social post",
 };
+
+/** A comment that also changed the status says which change it was. */
+function actionLabel(call: { capability: string; result?: unknown }): string {
+  const reply = z
+    .object({ statusChanged: z.literal(true), status: z.string() })
+    .safeParse(call.result);
+  if (call.capability === "reply_to_task" && reply.success)
+    return reply.data.status === "CANCELED" ? "Canceled task" : "Resumed task";
+  return ACTION_LABELS[call.capability] ?? call.capability;
+}
 
 const TABLE_CAPABILITIES = new Set([
   "create_table",
@@ -110,11 +123,15 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
-  if (call.capability === "upload_file" && id.startsWith("https://")) {
+  if (call.capability === "upload_file") {
     const file = z
       .object({ filename: z.string().min(1) })
       .safeParse(call.result);
-    return file.success ? linkText(file.data.filename) : "";
+    if (!file.success) return "";
+    // Older receipts hold the blob URL and get their card from the line below.
+    return id.startsWith("https://")
+      ? linkText(file.data.filename)
+      : `[${linkText(file.data.filename)}](/drive/files/${encodeURIComponent(id)})`;
   }
   if (call.capability === "hire_agent") {
     const agentId = jobAgents.get(id);
@@ -473,7 +490,7 @@ export async function buildActionResponse(
           `${call.turnId !== turnId ? "Previously verified: " : ""}${[
             call.disposition === "ALREADY_SATISFIED"
               ? "Already satisfied"
-              : ACTION_LABELS[call.capability],
+              : actionLabel(call),
             actionTarget(call, tasks, jobAgents, assignedTaskIds),
           ]
             .filter(Boolean)
@@ -496,13 +513,23 @@ export async function buildActionResponse(
       }),
     ),
   ];
+  // A refused attempt matters to an owner who asked for it. On a turn the bot
+  // started itself nobody did, and "Not confirmed: …" read as a failure notice
+  // at the top of a morning update. An unknown outcome is always said.
+  const ownerAsked = unfulfilledActions.some(
+    (action) => action.reason !== "UNKNOWN",
+  )
+    ? await tx.sokoBotTurn
+        .findUnique({ where: { id: turnId }, select: { source: true } })
+        .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source))
+    : true;
   for (const action of unfulfilledActions) {
     const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
-    actionText.push(
-      action.reason === "UNKNOWN"
-        ? `Outcome unknown: ${label}. It has to be checked before trying again.`
-        : `Not confirmed: ${label}.`,
-    );
+    if (action.reason === "UNKNOWN")
+      actionText.push(
+        `Outcome unknown: ${label}. It has to be checked before trying again.`,
+      );
+    else if (ownerAsked) actionText.push(`Not confirmed: ${label}.`);
   }
   const narrative =
     parseActionNarrative(narrativeInput) ??

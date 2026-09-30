@@ -743,6 +743,55 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it("keeps a change to several name-matched Tasks as work, with every match a candidate", async () => {
+    jevEvaluate.mockResolvedValue(
+      jevRoute("MANAGE_WORK", { writeScope: "WORK" }),
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    taskFindManyMock.mockImplementation(async (query) =>
+      query?.where?.AND
+        ? [
+            { id: "test-one", name: "[TEST] R4 one" },
+            { id: "test-two", name: "[TEST] R4 two" },
+          ]
+        : [],
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "scope-turn",
+      leaseToken: "scope-lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "scope-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "archive-all-client",
+      message: "Archive all my [TEST] tasks.",
+    });
+
+    const data = turnCreateMock.mock.calls[0]?.[0]?.data;
+    expect(data?.route).toBe("MANAGE_WORK");
+    expect(data?.capabilityNames).toContain("archive_task");
+    expect(data?.classification?.candidateTaskIds).toEqual([
+      "test-one",
+      "test-two",
+    ]);
+  });
+
   it("classifies a bare yes against the bot's last reply in the same conversation", async () => {
     jevEvaluate.mockResolvedValue(
       jevRoute("MANAGE_WORK", { writeScope: "SOCIAL" }),
@@ -947,7 +996,6 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(context.namedTaskIds).toEqual(["old-apollo"]);
     expect(context.taskIds).toHaveLength(51);
-    expect(context.ambiguousTaskName).toBe(false);
     expect(taskFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         take: 11,
@@ -976,7 +1024,6 @@ describe("SokoBotControlPlane lifecycle", () => {
       "What is the status of Apollo launch?",
     );
     expect(context.namedTaskIds).toEqual(["apollo-one", "apollo-two"]);
-    expect(context.ambiguousTaskName).toBe(true);
   });
 
   it("does not expand a teammate request through owner-only descriptive search", async () => {
@@ -1113,6 +1160,14 @@ describe("SokoBotControlPlane lifecycle", () => {
         skip: 1,
         take: 3,
         where: expect.objectContaining({ OR: expect.any(Array) }),
+        include: expect.objectContaining({
+          _count: {
+            select: expect.objectContaining({
+              // Auto-accepted actions leave rows behind; only PENDING waits.
+              pendingDecisions: { where: { status: "PENDING" } },
+            }),
+          },
+        }),
       }),
     );
     expect(result).toEqual({
@@ -2685,6 +2740,32 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]) {
       expect(serialized).not.toContain(secret);
     }
+  });
+
+  it("keeps record ids whose digit groups look like a card number", async () => {
+    // A Luhn-valid 16-digit run: blanking it failed the admin response schema.
+    const eventId = "33559564-8375-4519-a0f7-535b2860f85f";
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        turns: [
+          {
+            id: "80438387-9191-4703-bd12-c54ee0fb7be9",
+            events: [{ id: eventId }],
+            toolCalls: [],
+            pendingDecisions: [],
+          },
+        ],
+        memoryRevisions: [],
+        legacyMessages: [],
+        pendingDecisions: [],
+        schedules: [],
+      }),
+    );
+
+    const detail = await new SokoBotControlPlane().getForAdmin(BOT_ID);
+
+    expect(detail.turns[0]?.id).toBe("80438387-9191-4703-bd12-c54ee0fb7be9");
+    expect(detail.turns[0]?.events[0]?.id).toBe(eventId);
   });
 
   it("deduplicates an admin action by request ID without repeating effects", async () => {

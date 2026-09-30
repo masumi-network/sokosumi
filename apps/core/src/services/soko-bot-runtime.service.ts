@@ -1821,7 +1821,7 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
       sizeBytes,
     });
-    const blob = await put(pathname, input.content, {
+    await put(pathname, input.content, {
       access: "public",
       contentType,
       addRandomSuffix: false,
@@ -1832,10 +1832,12 @@ export class SokoBotRuntimeService {
       mimeType: contentType,
     });
     nudgeFileIndexing();
+    // The blob URL is public and never handed out: anyone holding it could
+    // read the file without signing in. The file page checks access.
     return {
       id: activated?.resourceId ?? null,
       filename: displayName,
-      url: blob.url,
+      link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
       savedTo:
@@ -2411,10 +2413,23 @@ export class SokoBotRuntimeService {
           );
         }
       }
+      const cancel =
+        input.status === "CANCELED" && task.status !== TaskStatus.CANCELED;
+      // Cancelling stops the work for good, so it is the owner's call and
+      // only on the owner's own Tasks; commenting stays open to any visible one.
+      if (cancel && task.ownerId !== authorized.turn.userId)
+        throw new SokoBotRuntimeValidationError(
+          "Only the owner's own Tasks can be canceled; comment instead",
+        );
       const changeStatus =
         input.status === "READY" &&
         task.status !== TaskStatus.READY &&
         task.status !== TaskStatus.RUNNING;
+      const nextStatus = changeStatus
+        ? TaskStatus.READY
+        : cancel
+          ? TaskStatus.CANCELED
+          : null;
       if (changeStatus) {
         if (!resumable.includes(task.status)) {
           throw new SokoBotRuntimeValidationError(
@@ -2443,22 +2458,22 @@ export class SokoBotRuntimeService {
           data: {
             ...(options?.publicationId ? { id: options.publicationId } : {}),
             taskId: task.id,
-            status: changeStatus ? TaskStatus.READY : null,
+            status: nextStatus,
             comment: input.comment,
             channel: Channel.SOKOSUMI,
             sokoBotId: authorized.turn.sokoBotId,
           },
           select: { id: true },
         }));
-      if (changeStatus) {
+      if (nextStatus) {
         await applyGuardedTaskStatusUpdate({
           tx,
           taskId: task.id,
           expectedStatus: task.status,
-          eventStatus: TaskStatus.READY,
+          eventStatus: nextStatus,
         });
       }
-      const status = changeStatus ? TaskStatus.READY : task.status;
+      const status = nextStatus ?? task.status;
       await tx.sokoBotDelegation.create({
         data: {
           turnId: authorized.turn.id,
@@ -2476,7 +2491,7 @@ export class SokoBotRuntimeService {
         status,
         commented: true,
         eventId: event.id,
-        statusChanged: changeStatus,
+        statusChanged: nextStatus !== null,
       };
       const receipt = await commitActionReceipt(tx, {
         turnId: authorized.turn.id,
@@ -2495,7 +2510,7 @@ export class SokoBotRuntimeService {
         result,
         eventId: event.id,
         ownerId: task.ownerId,
-        eventStatus: changeStatus ? TaskStatus.READY : null,
+        eventStatus: nextStatus,
       };
     };
     const persisted = options?.transaction
@@ -2856,8 +2871,17 @@ export class SokoBotRuntimeService {
           archivedAt: true,
           updatedAt: true,
           assigneeId: true,
+          assigneeSokoBotId: true,
+          assigneeUserId: true,
         },
       });
+      const unassign =
+        input.unassign === true &&
+        Boolean(
+          before?.assigneeId ||
+            before?.assigneeSokoBotId ||
+            before?.assigneeUserId,
+        );
       if (input.archive && before?.archivedAt) {
         const event = await tx.taskEvent.create({
           data: {
@@ -2909,7 +2933,9 @@ export class SokoBotRuntimeService {
         (input.description === undefined ||
           input.description === before.description) &&
         (input.status === undefined || input.status === before.status) &&
-        (input.projectId === undefined || input.projectId === before.projectId)
+        (input.projectId === undefined ||
+          input.projectId === before.projectId) &&
+        !unassign
       ) {
         if (
           input.expectedUpdatedAt &&
@@ -2953,6 +2979,7 @@ export class SokoBotRuntimeService {
           name: input.name,
           description: input.description,
           projectId: input.projectId,
+          ...(unassign ? { assigneeId: null } : {}),
           expectedUpdatedAt: input.expectedUpdatedAt
             ? new Date(input.expectedUpdatedAt)
             : undefined,
