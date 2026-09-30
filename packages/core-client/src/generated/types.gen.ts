@@ -261,6 +261,82 @@ export type AdminSokoBotQuality = {
     }>;
 };
 
+export type AdminSokoBotModelEvaluations = {
+    currentJudgeModel: string;
+    currentRouteModel: string;
+    judge: Array<AdminSokoBotJudgeEvaluation>;
+    router: Array<AdminSokoBotRouterEvaluation>;
+};
+
+export type AdminSokoBotJudgeEvaluation = {
+    id: string;
+    createdAt: Date;
+    label: string;
+    inUseModel: string | null;
+    models: Array<SokoBotJudgeModelSummary>;
+    cases: Array<SokoBotJudgeCaseSummary>;
+};
+
+export type SokoBotJudgeModelSummary = {
+    model: string;
+    calls: number;
+    errors: number;
+    steady: number;
+    repeated: number;
+    matches: number;
+    graded: number;
+    falseFails: number;
+    badCaught: number;
+    bad: number;
+    costPerCallUsd: number;
+    medianMs: number;
+};
+
+export type SokoBotJudgeCaseSummary = {
+    caseId: string;
+    grade: 'pass' | 'weak' | 'fail' | 'uncertain';
+    why: string | null;
+    set: 'lab' | 'known-bad';
+    answers: {
+        [key: string]: Array<'pass' | 'weak' | 'fail' | null>;
+    };
+    contested: boolean;
+};
+
+export type AdminSokoBotRouterEvaluation = {
+    id: string;
+    createdAt: Date;
+    label: string;
+    inUseModel: string | null;
+    models: Array<SokoBotRouterModelSummary>;
+    cases: Array<SokoBotRouterCaseSummary>;
+};
+
+export type SokoBotRouterModelSummary = {
+    classifier: string;
+    calls: number;
+    errors: number;
+    correct: number;
+    alwaysRight: number;
+    steady: number;
+    cases: number;
+    overGrants: number;
+    underGrants: number;
+    medianMs: number;
+    p90Ms: number;
+    costPer1kUsd: number;
+};
+
+export type SokoBotRouterCaseSummary = {
+    message: string;
+    previousReply: string | null;
+    want: string;
+    answers: {
+        [key: string]: Array<string | null>;
+    };
+    contested: boolean;
+};
+
 export type SokoBotVersionList = {
     versions: Array<SokoBotVersionDetail>;
     defaultVersionId: string;
@@ -342,6 +418,7 @@ export type AdminSokoBotVersionUsage = {
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
+    notified: number;
     alreadyOnVersion: number;
     failed: number;
     failures: Array<{
@@ -354,6 +431,7 @@ export type AdminSokoBotVersionMigrationRequest = {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
+    notifyOwners?: boolean;
 };
 
 export type AdminSokoBotDetail = SokoBot & {
@@ -6899,6 +6977,18 @@ export type TaskParticipants = {
     participants: Array<TaskParticipant>;
 };
 
+export type TaskSellerReceipt = {
+    blockchainIdentifier: string | null;
+    claimStatus: string | null;
+    onChainState: string | null;
+    settled: boolean;
+    txHash: string | null;
+    withdrawnForSeller: Array<{
+        unit: string | null;
+        amount: string | null;
+    }>;
+};
+
 export type TaskWorkspace = {
     /**
      * Task title
@@ -8452,6 +8542,64 @@ export type GetAdminSokoBotQualityResponses = {
 };
 
 export type GetAdminSokoBotQualityResponse = GetAdminSokoBotQualityResponses[keyof GetAdminSokoBotQualityResponses];
+
+export type GetAdminSokoBotModelEvaluationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/evaluations';
+};
+
+export type GetAdminSokoBotModelEvaluationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotModelEvaluationsError = GetAdminSokoBotModelEvaluationsErrors[keyof GetAdminSokoBotModelEvaluationsErrors];
+
+export type GetAdminSokoBotModelEvaluationsResponses = {
+    /**
+     * Recent judge and routing model evaluations
+     */
+    200: {
+        data: AdminSokoBotModelEvaluations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotModelEvaluationsResponse = GetAdminSokoBotModelEvaluationsResponses[keyof GetAdminSokoBotModelEvaluationsResponses];
 
 export type ListAdminSokoBotVersionsData = {
     body?: never;
@@ -50019,6 +50167,111 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type GetTasksByIdReceiptData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/receipt';
+};
+
+export type GetTasksByIdReceiptErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - coworker lacks the tasks capability
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Stored task payment cannot be read
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway - payment node failed or mismatched
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptError = GetTasksByIdReceiptErrors[keyof GetTasksByIdReceiptErrors];
+
+export type GetTasksByIdReceiptResponses = {
+    /**
+     * Task seller receipt
+     */
+    200: {
+        data: TaskSellerReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptResponse = GetTasksByIdReceiptResponses[keyof GetTasksByIdReceiptResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

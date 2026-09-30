@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConsentActions } from "./consent-actions";
 
@@ -79,6 +79,18 @@ describe("ConsentActions", () => {
     expect(mockConsent).not.toHaveBeenCalled();
   });
 
+  it("re-enables Deny with a message when the consent call throws", async () => {
+    mockConsent.mockRejectedValue(new Error("network down"));
+    render(<ConsentActions oauthQuery={oauthQuery} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "deny" }));
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("denyError");
+    });
+    expect(screen.getByRole("button", { name: "deny" })).toBeEnabled();
+  });
+
   it("submits the canonical signed query when denying", async () => {
     render(<ConsentActions oauthQuery={oauthQuery} />);
 
@@ -91,5 +103,65 @@ describe("ConsentActions", () => {
       });
     });
     expect(mockEnsureOAuthWorkspaceAction).not.toHaveBeenCalled();
+  });
+  describe("after the consent answer", () => {
+    const callbackUrl =
+      "https://app.cmo.xyz/api/auth/callback/sokosumi?code=abc";
+    const originalLocation = window.location;
+    const navigations: string[] = [];
+
+    beforeEach(() => {
+      navigations.length = 0;
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: {
+          get href() {
+            return "http://localhost/oauth/consent";
+          },
+          set href(url: string) {
+            navigations.push(url);
+          },
+        },
+      });
+    });
+
+    afterEach(() => {
+      Object.defineProperty(window, "location", {
+        configurable: true,
+        value: originalLocation,
+      });
+    });
+
+    // Better Auth's client already follows `{ redirect: true, url }`. A second
+    // navigation sends the code twice; a confidential client such as CMO then
+    // exchanges it twice and Core revokes the first exchange's tokens.
+    it.each(["authorize", "deny"])(
+      "leaves the redirect after %s to Better Auth's client",
+      async (name) => {
+        mockConsent.mockResolvedValue({
+          data: { redirect: true, url: callbackUrl },
+          error: null,
+        });
+        render(<ConsentActions oauthQuery={oauthQuery} />);
+
+        fireEvent.click(screen.getByRole("button", { name }));
+        await waitFor(() => expect(mockConsent).toHaveBeenCalled());
+        await new Promise((resolve) => setTimeout(resolve, 400));
+
+        expect(navigations).toEqual([]);
+      },
+    );
+
+    it("goes home when an authorized consent has nowhere to return", async () => {
+      mockConsent.mockResolvedValue({
+        data: { redirect: false },
+        error: null,
+      });
+      render(<ConsentActions oauthQuery={oauthQuery} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "authorize" }));
+
+      await waitFor(() => expect(navigations).toEqual(["/"]));
+    });
   });
 });

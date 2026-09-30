@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
 import { appendFile, glob, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { z } from "zod";
+import { urlsIn } from "../lib/soko-bot/citations";
 
 /**
  * Tools that run inside the sandbox itself. They see only the bot's
@@ -14,6 +16,7 @@ const DEFAULT_BASH_TIMEOUT_S = 120;
 const MAX_FETCH_BYTES = 3_000_000;
 const DEFAULT_FETCH_CHARS = 20_000;
 const MAX_LIST_ENTRIES = 500;
+const MAX_SOURCES = 50;
 
 function clip(text: string, limit = MAX_OUTPUT_CHARS): string {
   return text.length > limit
@@ -45,12 +48,22 @@ export function runCommand(input: {
 }): Promise<{ exitCode: number | null; stdout: string; stderr: string }> {
   const timeoutMs = (input.timeoutSeconds ?? DEFAULT_BASH_TIMEOUT_S) * 1_000;
   return new Promise((resolve) => {
+    // Its own process group: a timeout kills the pipeline bash started, not
+    // just bash, whose children would otherwise hold the output open forever.
     const child = spawn("bash", ["-lc", input.command], {
       cwd: WORKSPACE,
       env: commandEnv(),
-      timeout: timeoutMs,
-      killSignal: "SIGKILL",
+      detached: true,
     });
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        if (child.pid) process.kill(-child.pid, "SIGKILL");
+      } catch {
+        // Already gone.
+      }
+    }, timeoutMs);
     let stdout = "";
     let stderr = "";
     child.stdout.on("data", (chunk: Buffer) => {
@@ -59,18 +72,18 @@ export function runCommand(input: {
     child.stderr.on("data", (chunk: Buffer) => {
       if (stderr.length < MAX_OUTPUT_CHARS * 2) stderr += chunk.toString();
     });
-    child.on("close", (code, signal) => {
+    child.on("close", (code) => {
+      clearTimeout(timer);
       resolve({
         exitCode: code,
         stdout: clip(stdout),
         stderr: clip(
-          signal === "SIGKILL"
-            ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]`
-            : stderr,
+          timedOut ? `${stderr}\n[killed after ${timeoutMs / 1_000}s]` : stderr,
         ),
       });
     });
     child.on("error", (error) => {
+      clearTimeout(timer);
       resolve({ exitCode: null, stdout: "", stderr: error.message });
     });
   });
@@ -210,4 +223,23 @@ export async function fetchWebPage(input: {
     contentType,
     text: clip(text, input.maxChars ?? DEFAULT_FETCH_CHARS),
   };
+}
+
+/**
+ * The pages a tool call gives the bot grounds to cite: every result a search
+ * returned, and a fetched page only when it loaded with content. Read from the
+ * full output, since the audit copy is clipped.
+ */
+export function citableSources(name: string, output: unknown): string[] {
+  if (name === "web_fetch") {
+    const page = z
+      .object({
+        url: z.string(),
+        status: z.number().max(399),
+        text: z.string().trim().min(1),
+      })
+      .safeParse(output);
+    return page.success ? urlsIn(page.data.url) : [];
+  }
+  return name === "web_search" ? urlsIn(output).slice(0, MAX_SOURCES) : [];
 }

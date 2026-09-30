@@ -1,5 +1,6 @@
 import {
   capabilitiesForClassification,
+  limitSokoBotWrites,
   SOKO_BOT_SYSTEM_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
@@ -56,5 +57,40 @@ describe("system turn routes", () => {
       expect(capabilities).toContain("reply_to_task");
       expect(capabilities).toContain("create_task");
     }
+  });
+});
+
+describe("stand-up writes", () => {
+  const standup = SYSTEM_TURN_ROUTES.standup;
+  const capabilities = limitSokoBotWrites(
+    capabilitiesForClassification(
+      presetClassificationResult("beat", standup).classification,
+    ),
+    standup.writes,
+  );
+
+  it("keeps the Task work a stand-up is for, and every read", () => {
+    for (const capability of [
+      "create_task",
+      "assign_task",
+      "reply_to_task",
+      "update_memory",
+      "list_tasks",
+      "get_task_status",
+      "search_inbox",
+    ])
+      expect(capabilities).toContain(capability);
+  });
+
+  it("drops what invited busywork on quiet mornings", () => {
+    for (const capability of [
+      "create_schedule",
+      "delete_schedule",
+      "post_chat",
+      "upload_file",
+      "archive_task",
+      "update_task",
+    ])
+      expect(capabilities).not.toContain(capability);
   });
 });

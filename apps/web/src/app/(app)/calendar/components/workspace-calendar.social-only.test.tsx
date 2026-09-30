@@ -3,7 +3,7 @@ import type {
   WorkspaceCalendarItem,
   WorkspaceCalendarSource,
 } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter, type UrlUpdateEvent } from "nuqs/adapters/testing";
 import { type ComponentProps, type ReactNode } from "react";
@@ -300,6 +300,80 @@ describe("WorkspaceCalendar Social-only view", () => {
       expect(
         screen.queryByTestId("calendar-social-only"),
       ).not.toBeInTheDocument();
+    });
+
+    it("opens on the month, not the workspace calendar's week", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC",
+      );
+
+      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+    });
+
+    it("opens on the week on a phone", async () => {
+      const mediaQuery = {
+        matches: true,
+        media: "(max-width: 767px)",
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      } satisfies MediaQueryList;
+      vi.stubGlobal("innerWidth", 767);
+      vi.stubGlobal(
+        "matchMedia",
+        vi.fn(() => mediaQuery),
+      );
+
+      try {
+        renderCalendar(
+          { includeSocialPosts: true, socialPostsOnly: true },
+          "?timezone=UTC",
+        );
+
+        await waitFor(() =>
+          expect(screen.getByTestId("calendar-week")).toBeInTheDocument(),
+        );
+        expect(screen.queryByTestId("calendar-agenda")).not.toBeInTheDocument();
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("offers month and week, and no agenda list", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=agenda",
+      );
+
+      expect(screen.getByTestId("calendar-month")).toBeInTheDocument();
+      expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+        "view.month",
+        "view.week",
+      ]);
+    });
+
+    it("names the time zone its grid reads posts in", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=America/New_York",
+      );
+
+      expect(screen.getByTestId("calendar-timezone")).toHaveTextContent(
+        "timezone.showing",
+      );
+    });
+
+    it("keeps a view the reader picked", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=UTC&view=week",
+      );
+
+      expect(screen.getByTestId("calendar-week")).toBeInTheDocument();
     });
 
     it("ignores a socialOnly=false left in the URL by the workspace calendar", () => {

@@ -1077,6 +1077,334 @@ export const AdminSokoBotQualitySchema = {
     ]
 } as const;
 
+export const AdminSokoBotModelEvaluationsSchema = {
+    type: 'object',
+    properties: {
+        currentJudgeModel: {
+            type: 'string'
+        },
+        currentRouteModel: {
+            type: 'string'
+        },
+        judge: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotJudgeEvaluation'
+            }
+        },
+        router: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdminSokoBotRouterEvaluation'
+            }
+        }
+    },
+    required: [
+        'currentJudgeModel',
+        'currentRouteModel',
+        'judge',
+        'router'
+    ]
+} as const;
+
+export const AdminSokoBotJudgeEvaluationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        label: {
+            type: 'string'
+        },
+        inUseModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotJudgeModelSummary'
+            }
+        },
+        cases: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotJudgeCaseSummary'
+            }
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'label',
+        'inUseModel',
+        'models',
+        'cases'
+    ]
+} as const;
+
+export const SokoBotJudgeModelSummarySchema = {
+    type: 'object',
+    properties: {
+        model: {
+            type: 'string'
+        },
+        calls: {
+            type: 'integer'
+        },
+        errors: {
+            type: 'integer'
+        },
+        steady: {
+            type: 'integer'
+        },
+        repeated: {
+            type: 'integer'
+        },
+        matches: {
+            type: 'integer'
+        },
+        graded: {
+            type: 'integer'
+        },
+        falseFails: {
+            type: 'integer'
+        },
+        badCaught: {
+            type: 'integer'
+        },
+        bad: {
+            type: 'integer'
+        },
+        costPerCallUsd: {
+            type: 'number'
+        },
+        medianMs: {
+            type: 'number'
+        }
+    },
+    required: [
+        'model',
+        'calls',
+        'errors',
+        'steady',
+        'repeated',
+        'matches',
+        'graded',
+        'falseFails',
+        'badCaught',
+        'bad',
+        'costPerCallUsd',
+        'medianMs'
+    ]
+} as const;
+
+export const SokoBotJudgeCaseSummarySchema = {
+    type: 'object',
+    properties: {
+        caseId: {
+            type: 'string'
+        },
+        grade: {
+            type: 'string',
+            enum: [
+                'pass',
+                'weak',
+                'fail',
+                'uncertain'
+            ]
+        },
+        why: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        set: {
+            type: 'string',
+            enum: [
+                'lab',
+                'known-bad'
+            ]
+        },
+        answers: {
+            type: 'object',
+            additionalProperties: {
+                type: 'array',
+                items: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    enum: [
+                        'pass',
+                        'weak',
+                        'fail',
+                        null
+                    ]
+                }
+            }
+        },
+        contested: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'caseId',
+        'grade',
+        'why',
+        'set',
+        'answers',
+        'contested'
+    ]
+} as const;
+
+export const AdminSokoBotRouterEvaluationSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        label: {
+            type: 'string'
+        },
+        inUseModel: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        models: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotRouterModelSummary'
+            }
+        },
+        cases: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/SokoBotRouterCaseSummary'
+            }
+        }
+    },
+    required: [
+        'id',
+        'createdAt',
+        'label',
+        'inUseModel',
+        'models',
+        'cases'
+    ]
+} as const;
+
+export const SokoBotRouterModelSummarySchema = {
+    type: 'object',
+    properties: {
+        classifier: {
+            type: 'string'
+        },
+        calls: {
+            type: 'integer'
+        },
+        errors: {
+            type: 'integer'
+        },
+        correct: {
+            type: 'integer'
+        },
+        alwaysRight: {
+            type: 'integer'
+        },
+        steady: {
+            type: 'integer'
+        },
+        cases: {
+            type: 'integer'
+        },
+        overGrants: {
+            type: 'integer'
+        },
+        underGrants: {
+            type: 'integer'
+        },
+        medianMs: {
+            type: 'number'
+        },
+        p90Ms: {
+            type: 'number'
+        },
+        costPer1kUsd: {
+            type: 'number'
+        }
+    },
+    required: [
+        'classifier',
+        'calls',
+        'errors',
+        'correct',
+        'alwaysRight',
+        'steady',
+        'cases',
+        'overGrants',
+        'underGrants',
+        'medianMs',
+        'p90Ms',
+        'costPer1kUsd'
+    ]
+} as const;
+
+export const SokoBotRouterCaseSummarySchema = {
+    type: 'object',
+    properties: {
+        message: {
+            type: 'string'
+        },
+        previousReply: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        want: {
+            type: 'string'
+        },
+        answers: {
+            type: 'object',
+            additionalProperties: {
+                type: 'array',
+                items: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                }
+            }
+        },
+        contested: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'message',
+        'previousReply',
+        'want',
+        'answers',
+        'contested'
+    ]
+} as const;
+
 export const SokoBotVersionListSchema = {
     type: 'object',
     properties: {
@@ -1439,6 +1767,9 @@ export const AdminSokoBotVersionMigrationResultSchema = {
         moved: {
             type: 'integer'
         },
+        notified: {
+            type: 'integer'
+        },
         alreadyOnVersion: {
             type: 'integer'
         },
@@ -1468,6 +1799,7 @@ export const AdminSokoBotVersionMigrationResultSchema = {
     required: [
         'total',
         'moved',
+        'notified',
         'alreadyOnVersion',
         'failed',
         'failures'
@@ -1493,6 +1825,9 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
             type: 'string',
             minLength: 1,
             maxLength: 2000
+        },
+        notifyOwners: {
+            type: 'boolean'
         }
     },
     required: [
@@ -23986,6 +24321,71 @@ export const TaskParticipantsSchema = {
     },
     required: [
         'participants'
+    ]
+} as const;
+
+export const TaskSellerReceiptSchema = {
+    type: 'object',
+    properties: {
+        blockchainIdentifier: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        claimStatus: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        onChainState: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        settled: {
+            type: 'boolean'
+        },
+        txHash: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        withdrawnForSeller: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    unit: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    amount: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'unit',
+                    'amount'
+                ]
+            }
+        }
+    },
+    required: [
+        'blockchainIdentifier',
+        'claimStatus',
+        'onChainState',
+        'settled',
+        'txHash',
+        'withdrawnForSeller'
     ]
 } as const;
 

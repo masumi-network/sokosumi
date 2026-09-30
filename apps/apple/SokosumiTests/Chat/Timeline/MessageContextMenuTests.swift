@@ -133,6 +133,7 @@
       private static func fixture(editingRow: Bool = false, content: String = body,
                                   quote: Components.Schemas.ChatRoomMessageQuote? = nil) async throws -> MessageMenuFixture {
         var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: "room_1", content: content,
+                                                  createdAt: Date(),
                                                   sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
         message.id = "message_1"
         message.metadata = nil
@@ -285,6 +286,7 @@
       private static func twoRows(first: Calls, second: Calls) async throws -> MessageMenuFixture {
         func row(_ id: String, _ text: String, continuation: Bool, calls: Calls) -> MessageRowView {
           var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room_1", content: text,
+                                                    createdAt: Date(),
                                                     sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
           message.id = id
           message.metadata = nil

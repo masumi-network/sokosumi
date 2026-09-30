@@ -22,12 +22,16 @@ export {
   renderSokoBotMemory,
   sanitizeSokoBotMemoryMarkdown,
 } from "./memory.js";
-export { composeSokoBotIntroduction } from "./persona.js";
+export {
+  composeSokoBotIntroduction,
+  composeSokoBotVersionNotice,
+} from "./persona.js";
 export {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
@@ -71,6 +75,7 @@ export {
 } from "./scenarios.js";
 export {
   isSokoBotDecisionTarget,
+  SOKO_BOT_TASK_STATUSES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotDecisionTarget,
@@ -80,12 +85,15 @@ export {
   sokoBotCreateScheduleInputSchema,
   sokoBotCreateTaskInputSchema,
   sokoBotDecisionInputSchema,
+  sokoBotGenerateImageInputSchema,
+  sokoBotGetImageInputSchema,
   sokoBotHireAgentInputSchema,
   sokoBotJobIdInputSchema,
   sokoBotLinkTasksInputSchema,
   sokoBotListCalendarEventsInputSchema,
   sokoBotListFilesInputSchema,
   sokoBotListIntegrationToolsInputSchema,
+  sokoBotListTasksInputSchema,
   sokoBotManageReminderInputSchema,
   sokoBotMemoryUpdateInputSchema,
   sokoBotOpenDirectChatInputSchema,
@@ -93,6 +101,7 @@ export {
   sokoBotProvideJobInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
+  sokoBotReadFileInputSchema,
   sokoBotReplyToTaskInputSchema,
   sokoBotRunIntegrationToolInputSchema,
   sokoBotScheduleIdInputSchema,

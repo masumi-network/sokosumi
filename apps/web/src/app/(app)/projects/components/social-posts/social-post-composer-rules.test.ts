@@ -2,8 +2,9 @@ import type { SocialPostMediaRef } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import {
   socialPostComposerAccept,
+  socialPostComposerFormat,
   socialPostComposerIssue,
-  socialPostComposerProvider,
+  socialPostComposerProviders,
 } from "./social-post-composer-rules";
 
 function ref(kind: "image" | "video", mimeType: string): SocialPostMediaRef {
@@ -46,22 +47,45 @@ describe("socialPostComposerIssue", () => {
   );
 });
 
-describe("socialPostComposerProvider", () => {
-  it("prefers the selected connection over the stored post provider", () => {
-    expect(socialPostComposerProvider("x", "linkedin")).toBe("linkedin");
-    expect(socialPostComposerProvider("instagram", undefined)).toBe(
-      "instagram",
-    );
-    expect(socialPostComposerProvider(undefined, undefined)).toBe("x");
+describe("socialPostComposerProviders", () => {
+  it("prefers the selected connections over the stored post provider", () => {
+    expect(socialPostComposerProviders("x", ["linkedin"])).toEqual([
+      "linkedin",
+    ]);
+    expect(socialPostComposerProviders("instagram", [])).toEqual(["instagram"]);
+    expect(socialPostComposerProviders(undefined, [])).toEqual(["x"]);
+  });
+
+  it("lists each selected provider once", () => {
+    expect(
+      socialPostComposerProviders(undefined, ["x", "linkedin", "x"]),
+    ).toEqual(["x", "linkedin"]);
   });
 });
 
 describe("socialPostComposerAccept", () => {
   it("lists the provider's accepted MIME types", () => {
-    expect(socialPostComposerAccept("instagram")).toBe(
+    expect(socialPostComposerAccept(["instagram"])).toBe(
       "image/jpeg,video/mp4,video/quicktime",
     );
-    expect(socialPostComposerAccept("x")).toContain("image/png");
-    expect(socialPostComposerAccept("tiktok")).toBe("video/mp4");
+    expect(socialPostComposerAccept(["x"])).toContain("image/png");
+    expect(socialPostComposerAccept(["tiktok"])).toBe("video/mp4");
+  });
+
+  it("accepts only what every selected provider takes", () => {
+    expect(socialPostComposerAccept(["x", "instagram"])).not.toContain(
+      "image/png",
+    );
+    expect(socialPostComposerAccept(["x", "tiktok"])).toBe("video/mp4");
+  });
+});
+
+describe("socialPostComposerFormat", () => {
+  it("names what each provider publishes", () => {
+    expect(socialPostComposerFormat("x")).toBe("post");
+    expect(socialPostComposerFormat("linkedin")).toBe("post");
+    expect(socialPostComposerFormat("instagram")).toBe("mediaPost");
+    expect(socialPostComposerFormat("youtube")).toBe("video");
+    expect(socialPostComposerFormat("tiktok")).toBe("video");
   });
 });

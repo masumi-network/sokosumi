@@ -22,6 +22,8 @@ vi.mock("@/lib/auth.js", () => ({
   },
 }));
 
+vi.mock("@/lib/db/prisma", () => ({ default: {} }));
+
 vi.mock("@/routes/auth/set-password.route.js", () => ({
   handleSetPassword: vi.fn(),
 }));

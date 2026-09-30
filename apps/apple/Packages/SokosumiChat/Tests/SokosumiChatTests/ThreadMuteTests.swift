@@ -117,10 +117,10 @@ struct LiveThreadReplyCountTests {
   private let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
 
   @Test func aPendingShellAndAStreamOverlayAreNotReplies() {
-    var parent = chatRoomMessage(from: OutboundShell(clientTurnId: "parent", roomId: testRoomId, content: "Parent", sender: sender))
+    var parent = chatRoomMessage(from: OutboundShell(clientTurnId: "parent", roomId: testRoomId, content: "Parent", createdAt: Date(), sender: sender))
     parent.id = "parent"
     let pending = chatRoomMessage(from: OutboundShell(
-      clientTurnId: "turn", roomId: testRoomId, parentMessageId: "parent", content: "Reply", sender: sender
+      clientTurnId: "turn", roomId: testRoomId, parentMessageId: "parent", content: "Reply", createdAt: Date(), sender: sender
     ))
     var stream = pending
     stream.id = "stream:turn"

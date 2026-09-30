@@ -21,7 +21,15 @@ import {
  * the sidebar switcher's own list, so choosing here and choosing in the
  * sidebar are the same act.
  */
-export function SocialAccountsProjectPrompt({ notice }: { notice?: string }) {
+export function SocialAccountsProjectPrompt({
+  kind = "accounts",
+  notice,
+}: {
+  /** Accounts and drafts both belong to one project; say which one is waiting. */
+  kind?: "accounts" | "drafts";
+  notice?: string;
+}) {
+  const copy = kind === "drafts" ? "draftsNeedProject" : "accountsNeedProject";
   const t = useTranslations("App.Social");
   const { projectId, select } = useProjectScopeSwitch();
   const [open, setOpen] = useState(false);
@@ -34,10 +42,10 @@ export function SocialAccountsProjectPrompt({ notice }: { notice?: string }) {
     >
       <div className="space-y-1">
         <h2 id="social-accounts-heading" className="text-base font-semibold">
-          {t("accountsNeedProject.title")}
+          {t(`${copy}.title`)}
         </h2>
         <p className="text-muted-foreground text-sm">
-          {notice ?? t("accountsNeedProject.body")}
+          {notice ?? t(`${copy}.body`)}
         </p>
       </div>
 

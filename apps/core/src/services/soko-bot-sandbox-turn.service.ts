@@ -2,6 +2,7 @@ import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 import { getEnv } from "@/config/env";
 import {
@@ -11,15 +12,23 @@ import {
   forbidden,
   internalServerError,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  actionInputHash,
+} from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
-import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import {
+  persistedToolResult,
+  sanitizePersistedValue,
+  truncateUtf8,
+} from "@/lib/soko-bot/persisted-value";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
@@ -165,6 +174,24 @@ export async function recordSandboxAction(
     throw forbidden("Tool is not granted");
   const log = logFor(claims);
   if (input.name !== "update_plan") await markUntrusted(log, input.name);
+  // A tool-call row like Core's own tools, so what the bot read shows in the
+  // turn's record. No actor bot: a read in the sandbox is never a receipt.
+  await prisma.sokoBotToolCall.upsert({
+    where: {
+      turnId_toolCallId: {
+        turnId: claims.turnId,
+        toolCallId: input.toolCallId,
+      },
+    },
+    create: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      capability: input.name,
+      inputHash: actionInputHash(input.toolInput ?? null),
+      input: persistedToolResult(input.toolInput ?? null),
+    },
+    update: {},
+  });
   await log.append(
     runtimeEvent("actions.requested", {
       actions: [
@@ -178,17 +205,112 @@ export async function recordSandboxAction(
   );
 }
 
+const SANDBOX_OUTPUT_MAX_BYTES = 12_288;
+const SANDBOX_ERROR_DETAIL_MAX_BYTES = 1_000;
+
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
-  input: { name: string; toolCallId: string },
+  input: {
+    name: string;
+    toolCallId: string;
+    status?: "completed" | "failed";
+    output?: string;
+    sources?: string[];
+  },
 ): Promise<void> {
   await authorizeTurn(claims);
+  if (!isSokoBotSandboxCapability(input.name))
+    throw forbidden("Not a sandbox tool");
+  const failed = input.status === "failed";
+  await prisma.sokoBotToolCall.updateMany({
+    where: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      // Only the row the runner recorded for this tool: a reused call id
+      // must not settle one of Core's own calls.
+      capability: input.name,
+      status: "PENDING",
+    },
+    data: {
+      status: failed ? "FAILED" : "COMPLETED",
+      // The output is bounded on its own, so a long result can never crowd
+      // out the sources the answer's citations are checked against.
+      result: jsonInput(
+        sanitizePersistedValue({
+          output:
+            input.output === undefined
+              ? null
+              : truncateUtf8(input.output, SANDBOX_OUTPUT_MAX_BYTES),
+          sources: input.sources ?? [],
+        }),
+      ),
+      // Redacted as Core's own tool errors are: a failed fetch can echo a URL
+      // with a token in it, and this row is shown to the owner and the judge.
+      ...(failed
+        ? {
+            errorDetail: truncateUtf8(
+              redactSokoBotSensitiveText(input.output ?? ""),
+              SANDBOX_ERROR_DETAIL_MAX_BYTES,
+            ),
+          }
+        : {}),
+    },
+  });
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,
       callId: input.toolCallId,
+      ...(input.output === undefined
+        ? {}
+        : { output: sanitizePersistedValue(input.output) }),
     }),
   );
+}
+
+/**
+ * The runner's web search, exactly as `searchWeb` sends it: the Gateway's
+ * Perplexity tool forced, and one user message that is only the search
+ * terms. Perplexity makes no zero-retention commitment, so this call keeps
+ * "no prompt training" but not zero retention; anything else — a system
+ * prompt, history, another tool — keeps both.
+ */
+const MAX_SEARCH_PROMPT_LENGTH = 1_000;
+const gatewaySearchCallSchema = z.object({
+  tools: z.tuple([
+    z.object({
+      type: z.literal("provider"),
+      id: z.literal("gateway.perplexity_search"),
+    }),
+  ]),
+  toolChoice: z.object({
+    type: z.literal("tool"),
+    toolName: z.literal("perplexity_search"),
+  }),
+  prompt: z.tuple([
+    z.object({
+      role: z.literal("user"),
+      content: z.tuple([
+        z.object({
+          type: z.literal("text"),
+          text: z
+            .string()
+            .startsWith("Search the web for: ")
+            .max(MAX_SEARCH_PROMPT_LENGTH),
+        }),
+      ]),
+    }),
+  ]),
+});
+
+function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
+  return gatewaySearchCallSchema.safeParse(payload).success;
+}
+
+function withoutZeroRetention(
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  const { zeroDataRetention: _dropped, ...rest } = options;
+  return rest;
 }
 
 /**
@@ -226,7 +348,11 @@ export async function proxySandboxModelCall(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
-  payload.providerOptions = { gateway: policy.providerOptions.gateway };
+  payload.providerOptions = {
+    gateway: isGatewaySearchCall(payload)
+      ? withoutZeroRetention(policy.providerOptions.gateway)
+      : policy.providerOptions.gateway,
+  };
 
   const log = logFor(claims);
   await log.append(runtimeEvent("step.started", { modelId: version.model }));
@@ -265,13 +391,19 @@ export async function proxySandboxModelCall(
     }),
   );
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata);
+    assertSokoBotInferenceRegion(result.providerMetadata, {
+      model: version.model,
+      role: "agent",
+    });
   } catch (error) {
     throw badGateway(
       error instanceof Error ? error.message : "Inference region rejected",
     );
   }
-  if (gatewayRanTool(result.content, "web_search"))
+  if (
+    gatewayRanTool(result.content, "web_search") ||
+    gatewayRanTool(result.content, "perplexity_search")
+  )
     await markUntrusted(log, "web_search");
   return { status: 200, body: text };
 }

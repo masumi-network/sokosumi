@@ -39,6 +39,7 @@ export const CLI_COMMAND_CATALOG = [
   { command: "runtime start", usage: "TASK_ID [options]" },
   { command: "runtime complete", usage: "TASK_ID [options]" },
   { command: "runtime run", usage: "TASK_ID [options]" },
+  { command: "runtime receipt", usage: "TASK_ID [options]" },
   { command: "tasks list", usage: "[options]" },
   { command: "tasks create", usage: "[--organization-slug WORKSPACE_SLUG]" },
   {

@@ -34,7 +34,7 @@ public struct OutboundShell: Equatable, Sendable, Identifiable {
     parentMessageId: String? = nil,
     content: String,
     quote: Components.Schemas.ChatRoomMessageQuote? = nil,
-    createdAt: Date = Date(),
+    createdAt: Date,
     status: OutboundDeliveryStatus = .pending,
     errorMessage: String? = nil,
     sender: Components.Schemas.ChatRoomUserParticipant

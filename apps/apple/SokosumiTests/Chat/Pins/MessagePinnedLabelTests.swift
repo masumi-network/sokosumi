@@ -19,6 +19,7 @@
     @Test(arguments: [false, true])
     func pinLabelFitsHeaderAndContinuation(dark: Bool) async throws {
       var message = chatRoomMessage(from: .init(clientTurnId: "fixture", roomId: "room", content: "A pinned channel message.",
+                                                createdAt: Date(),
                                                 sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .offline)))
       message.id = "fixture"
       let content = VStack(alignment: .leading, spacing: 20) {

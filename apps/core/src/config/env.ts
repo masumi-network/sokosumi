@@ -64,6 +64,10 @@ const baseEnvSchema = z.object({
 
   // Better Auth
   BETTER_AUTH_SECRET: z.string().min(1),
+  // Shared by Production and Preview so production can hand a preview its
+  // Google or Microsoft sign-in. Unset, the proxy uses BETTER_AUTH_SECRET,
+  // which the two environments no longer share.
+  OAUTH_PROXY_SECRET: z.string().min(32).optional(),
   TURNSTILE_SECRET_KEY: z.string().min(1).optional(),
   BETTER_AUTH_URL: z.url(),
   BETTER_AUTH_COOKIE_DOMAIN: z.string().optional(),
@@ -125,14 +129,9 @@ const baseEnvSchema = z.object({
    * and this runs on every turn. `soko-bot:judge-eval` re-grades with any
    * model, so a case for changing it can be made with numbers.
    */
-  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-haiku-4.5"),
+  SOKO_BOT_JUDGE_MODEL: z.string().min(1).default("anthropic/claude-opus-5.5"),
   /** Immutable operator-issued preview partition; never accepted from API input. */
   SOKO_BOT_EVALUATION_ALLOWANCE: z.string().min(1).optional(),
-  /** Score every completed turn with the judge model. */
-  SOKO_BOT_TURN_JUDGE_ENABLED: z
-    .enum(["true", "false"])
-    .default("true")
-    .transform((value) => value === "true"),
   /**
    * fal.ai key for Soko Bot avatar generation and the Project image studio.
    * Neither feature can reach the provider without it; both degrade to a
@@ -240,6 +239,11 @@ const baseEnvSchema = z.object({
     .number()
     .positive()
     .default(50),
+  /**
+   * Local behaviour lab only: any Gateway model may run the agent without EU
+   * pinning. Ignored on every Vercel deployment (see `model-policy.ts`).
+   */
+  SOKO_BOT_LAB_GLOBAL_MODELS: z.enum(["true", "false"]).optional(),
 
   // Internal cron authentication
   CRON_SECRET: z.string().optional(),

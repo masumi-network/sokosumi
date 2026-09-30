@@ -12,8 +12,7 @@ interface CreditsCheckoutReturnProps {
 
 /**
  * Stripe credits/coupon return UI. Rendered once as a sibling of BillingTabs
- * (or on standalone /coupon) so tab unmount cannot remount the success modal
- * or re-fire purchase analytics.
+ * so tab unmount cannot remount the success modal or re-fire purchase analytics.
  */
 export async function CreditsCheckoutReturn({
   coworkersPromise,

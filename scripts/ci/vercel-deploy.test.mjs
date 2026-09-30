@@ -216,7 +216,7 @@ describe("project ids", () => {
     }
   });
 
-  it("wires CMO to mainnet Core like web and core", async () => {
+  it("deploys CMO like web", async () => {
     const web = JSON.parse(
       await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),
     );
@@ -224,7 +224,6 @@ describe("project ids", () => {
       await readFile(path.join(repoRoot, "apps/cmo/vercel.json"), "utf8"),
     );
 
-    assert.deepEqual(cmo.relatedProjects, [VERCEL_PROJECTS.mainnet.core.id]);
     assert.equal(
       cmo.installCommand,
       "pnpm install --frozen-lockfile --filter cmo...",

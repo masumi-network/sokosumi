@@ -72,6 +72,11 @@ import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import {
+  OAUTH_REFRESH_TOKEN_PREFIX,
+  oauthRefreshTokenOptions,
+} from "./auth-oauth-provider";
+import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
@@ -359,6 +364,8 @@ export const auth = betterAuth({
   ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
+
       switch (ctx.path) {
         case "/sign-up/email": {
           if (!ctx.body?.termsAccepted) {
@@ -591,17 +598,18 @@ export const auth = betterAuth({
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
-      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      ...oauthRefreshTokenOptions,
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
         opaqueAccessToken: "soko_access_token_",
-        refreshToken: "soko_refresh_token_",
+        refreshToken: OAUTH_REFRESH_TOKEN_PREFIX,
         clientSecret: "soko_client_secret_",
       },
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+      secret: env.OAUTH_PROXY_SECRET,
     }),
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.

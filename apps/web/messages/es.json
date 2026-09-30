@@ -284,7 +284,7 @@
       "connections": "Conexiones",
       "developer": "Desarrollador",
       "personal-assistant": "Asistente personal",
-      "history": "Transacciones",
+      "history": "Historial de créditos",
       "new": "Nuevo",
       "notifications": "Notificaciones",
       "projects": "Proyectos",
@@ -302,7 +302,8 @@
       "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
-      "social": "Social"
+      "social": "Social",
+      "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
       "StatusBadge": {
@@ -1330,7 +1331,7 @@
     "save": "Guardar",
     "TransactionHistory": {
       "Metadata": {
-        "title": "Transacciones",
+        "title": "Historial de créditos",
         "description": "Cada consumo de créditos de tu cuenta, del más reciente al más antiguo."
       },
       "Search": {
@@ -2273,7 +2274,7 @@
         "description": "Conecta cuentas de redes sociales a este proyecto. Redacta, programa y publica en cualquier plataforma conectada.",
         "account": "Cuenta de {provider}",
         "connect": "Conectar cuenta de {provider}",
-        "connectAccount": "Conectar cuenta",
+        "connectAccount": "Conectar X, YouTube, LinkedIn…",
         "actions": "Acciones de {account}",
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
@@ -2326,7 +2327,6 @@
         "loadMore": "Cargar más",
         "loading": "Cargando…",
         "title": "Publicaciones sociales",
-        "description": "Redacta, programa y publica en las cuentas de redes sociales conectadas a este proyecto.",
         "newPost": "Nueva publicación",
         "moreActions": "Acciones de la publicación",
         "noAccount": "Sin cuenta",
@@ -2334,17 +2334,16 @@
           "authorizationRevoked": "Se revocó el acceso de programación del Coworker. Reprograma esta publicación para publicarla."
         },
         "sections": {
-          "upcoming": "Próximas",
+          "calendar": "Calendario",
           "drafts": "Borradores",
-          "attention": "Requiere atención"
+          "attention": "Requiere atención",
+          "accounts": "Cuentas"
         },
         "selectedPost": "Publicación seleccionada",
         "empty": {
-          "upcoming": "Aún no hay publicaciones programadas.",
           "drafts": "Aún no hay borradores."
         },
         "emptyHint": {
-          "upcoming": "Programa una publicación y aparecerá aquí y en el calendario.",
           "drafts": "Guarda una publicación como borrador para terminarla más tarde."
         },
         "status": {
@@ -2366,7 +2365,7 @@
           "editTitle": "Editar publicación",
           "scheduleTitle": "Programar publicación",
           "rescheduleTitle": "Reprogramar publicación",
-          "description": "Escribe el texto, elige la cuenta y decide cuándo se publica.",
+          "description": "Elige dónde va, escríbela y decide cuándo sale.",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
@@ -2396,7 +2395,9 @@
             "video_required": "{provider} requiere un vídeo."
           },
           "account": "Cuenta",
-          "noAccount": "Elige una cuenta",
+          "accounts": "Publicar en",
+          "accountOption": "{provider} {handle}",
+          "noAccounts": "Aún no hay cuentas conectadas. Conecta una en la pestaña Cuentas.",
           "unknownHandle": "Cuenta desconocida",
           "scheduledAt": "Hora programada",
           "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
@@ -2406,7 +2407,33 @@
           "reschedule": "Reprogramar",
           "cancel": "Cancelar publicación",
           "edit": "Editar",
-          "close": "Cerrar"
+          "close": "Cerrar",
+          "schedulePicker": {
+            "quickPicks": "Opciones rápidas",
+            "quick": {
+              "inAnHour": "En una hora ({time})",
+              "tomorrowMorning": "Mañana {time}",
+              "nextMonday": "Lunes {time}"
+            },
+            "pickDate": "Elegir fecha",
+            "pickTime": "Elegir hora",
+            "dateSelected": "Fecha: {date}",
+            "timeSelected": "Hora: {time}",
+            "times": "Horas"
+          },
+          "timezone": {
+            "yours": "Las horas están en tu zona horaria, {zone}.",
+            "goesOut": "Sale el {date}, tu hora ({zone}).",
+            "postZone": "Programada para {date} en {zone}."
+          },
+          "platforms": "Límites por plataforma",
+          "platformLimit": "{provider}: {format} · {count} / {limit}",
+          "formats": {
+            "post": "publicación",
+            "mediaPost": "publicación con imagen o video",
+            "video": "video (el texto es el título y la descripción)"
+          },
+          "publishNow": "Publicar ahora"
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2414,8 +2441,8 @@
           "confirm": "Cancelar publicación"
         },
         "toasts": {
-          "created": "Borrador guardado.",
-          "scheduled": "Publicación programada.",
+          "created": "{count, plural, one {Borrador guardado.} other {# borradores guardados.}}",
+          "scheduled": "{count, plural, one {Publicación programada.} other {# publicaciones programadas.}}",
           "updated": "Publicación actualizada.",
           "canceled": "Publicación cancelada.",
           "conflict": "Esta publicación se modificó en otro lugar. Cargando la versión más reciente.",
@@ -2423,7 +2450,8 @@
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
-          "publishFailed": "Error al publicar: {error}"
+          "publishFailed": "Error al publicar: {error}",
+          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
@@ -2439,6 +2467,11 @@
           "title": "¿Publicar esta publicación ahora?",
           "description": "La publicación saldrá de inmediato en lugar de esperar a la hora programada.",
           "confirm": "Publicar ahora"
+        },
+        "connectPrompt": {
+          "title": "Conecta una cuenta para empezar a publicar",
+          "body": "Las publicaciones salen de las cuentas de X, Instagram, LinkedIn, Facebook y YouTube conectadas a este proyecto.",
+          "action": "Conectar X, YouTube, LinkedIn…"
         }
       },
       "Detail": {
@@ -2734,14 +2767,10 @@
       "title": "Social",
       "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
-      "calendar": {
-        "title": "Calendario de publicación",
-        "description": "Todas las publicaciones programadas de este proyecto, y nada más."
-      },
       "newPost": {
         "label": "Nueva publicación",
         "options": "Opciones de nueva publicación",
-        "manual": "Escribirla yo",
+        "manual": "Publicación manual",
         "manualHint": "Elige la cuenta, los medios y la hora.",
         "sokoBot": "Publicar con Soko Bot",
         "sokoBotHint": "Coméntalo en el chat; Soko Bot la redacta y la programa.",
@@ -2752,13 +2781,13 @@
         "chooseProjectTitle": "Elige un proyecto para esta publicación",
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
-      "allProjectsCalendar": {
-        "title": "Calendario de publicaciones",
-        "description": "Publicaciones programadas de todos los proyectos de este espacio de trabajo."
-      },
       "accountsNeedProject": {
-        "title": "Cuentas sociales",
+        "title": "Conectar X, YouTube, LinkedIn…",
         "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+      },
+      "draftsNeedProject": {
+        "title": "Borradores",
+        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto para ver y terminar sus borradores."
       },
       "loading": "Cargando Social…"
     },
@@ -2793,7 +2822,7 @@
           "exploreAgents": "Agentes",
           "filesAndOutputs": "Archivos y Outputs",
           "taskManager": "Tareas",
-          "history": "Transacciones",
+          "history": "Historial de créditos",
           "drive": "Archivos",
           "admin": "Administración",
           "settings": "Configuración",
@@ -3880,7 +3909,7 @@
           "noUsage": "No hay consumo registrado para este turno.",
           "Quality": {
             "title": "Calidad",
-            "notJudged": "Aún sin evaluar. El juez se ejecuta cuando el turno se cierra.",
+            "notJudged": "Sin calificar. Solo se califican los turnos del laboratorio.",
             "howScored": "La nota global es la media redondeada de las cuatro dimensiones, salvo que una honestidad de 2 o menos limita la global a 2, para que una afirmación inventada no pueda diluirse en el promedio.",
             "rubricUsed": "Evaluado con la rúbrica «{rubric}»",
             "judgeModel": "Modelo juez",
@@ -3989,7 +4018,7 @@
         },
         "Quality": {
           "title": "Calidad",
-          "description": "Evaluaciones del juez (1–5) de turnos reales fuera del laboratorio, en toda la flota, durante los últimos 30 días.",
+          "description": "Puntuaciones del juez (1–5) de turnos reales fuera del laboratorio en toda la flota, últimos 30 días. Los turnos reales ya no se califican, así que solo aparecen puntuaciones anteriores; los comentarios de los propietarios siguen registrándose.",
           "overall": "{judged} de {turns} turnos evaluados",
           "proactive": "{sent} mensajes proactivos, {actedOn} atendidos en un día",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4007,9 +4036,10 @@
           "turns": "Turnos",
           "avgScore": "Media",
           "realRunsByVersion": "Uso real por versión",
-          "descriptionBot": "Puntuaciones del juez (1–5) para los turnos reales de este bot, últimos 30 días."
+          "descriptionBot": "Puntuaciones del juez (1–5) de los turnos reales de este bot, últimos 30 días. Los turnos reales ya no se califican, así que solo aparecen puntuaciones anteriores."
         },
         "labLink": "Laboratorio de comportamiento",
+        "evaluationsLink": "Evaluaciones de modelos",
         "versionsLink": "Versiones",
         "Versions": {
           "title": "Versiones de Soko Bot",
@@ -4199,12 +4229,54 @@
           "defaultOption": "{name} (predeterminada para bots nuevos)",
           "reasonLabel": "Motivo",
           "reasonPlaceholder": "¿Por qué mueve la flota? (obligatorio, queda registrado para cada bot)",
+          "notifyLabel": "Avisar a los propietarios en el chat de su bot",
+          "notifyHint": "Cada bot movido publica un mensaje fijo con la versión que usa ahora y lo que cambia para su propietario. No inicia ningún turno.",
+          "notifyRequired": "Obligatorio para esta versión: funciona fuera de la UE, así que cada bot movido avisa a su propietario. No inicia ningún turno.",
           "confirm": "Mover {count} bots",
           "nothingToMove": "No hay nada que mover con esta selección.",
           "working": "Moviendo…",
           "done": "{moved} bots movidos.",
           "result": "Movidos: {moved}. Ya en esta versión: {alreadyOnVersion}. No se pudieron mover: {failed}.",
+          "notifiedResult": "Propietarios avisados: {notified}.",
           "error": "No se pudieron mover estos bots."
+        },
+        "Evaluations": {
+          "title": "Evaluaciones de modelos",
+          "description": "Cómo se comparan los modelos candidatos en casos calificados a mano, para el juez del laboratorio y el clasificador de rutas. Los scripts de apps/core/scripts añaden nuevas ejecuciones.",
+          "latestRun": "Última ejecución",
+          "inUse": "En uso",
+          "empty": "Aún no hay ejecuciones registradas.",
+          "disagreements": "{count, plural, one {# caso en que un juez discrepó de la calificación} other {# casos en que un juez discrepó de la calificación}}",
+          "misses": "{count, plural, one {# mensaje que un clasificador falló} other {# mensajes que un clasificador falló}}",
+          "earlierRuns": "{count, plural, one {# ejecución anterior} other {# ejecuciones anteriores}}",
+          "Judge": {
+            "title": "Juez del laboratorio",
+            "description": "Califica los turnos del laboratorio de comportamiento. Ahora funciona con {model}. Solo se califican los turnos del laboratorio.",
+            "model": "Modelo",
+            "matches": "Coincide con la calificación",
+            "steady": "Igual al repetir",
+            "falseFails": "Fallos falsos",
+            "badCaught": "Turnos malos detectados",
+            "errors": "Errores",
+            "cost": "Por turno",
+            "time": "Tiempo mediano",
+            "grade": "Calificado: {grade, select, pass {aprobado} weak {débil} fail {suspenso} other {incierto}}",
+            "knownBad": "Malo conocido"
+          },
+          "Router": {
+            "title": "Clasificador de rutas",
+            "description": "Decide qué herramientas recibe un turno. Se puntúa según las herramientas que obtiene cada mensaje etiquetado; conceder escritura que el mensaje no pidió es el error peligroso.",
+            "classifier": "Clasificador",
+            "correct": "Correctos",
+            "alwaysRight": "Siempre correcto",
+            "overGrants": "Escritura indebida",
+            "underGrants": "Solo lectura por error",
+            "median": "Mediana",
+            "p90": "p90",
+            "cost": "Por 1.000",
+            "after": "Tras la respuesta: «{reply}»",
+            "want": "Esperado"
+          }
         }
       },
       "MatchedChannels": {
@@ -6325,7 +6397,7 @@
       "moveFolderError": "Error al mover carpeta",
       "moveFolderAction": "Mover carpeta",
       "moveFileError": "Error al mover archivo",
-      "tasksFolder": "Tareas",
+      "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "Aún no hay archivos de tareas",
       "tasksEmptyDescription": "Los archivos de tareas aparecerán aquí cuando completes tareas",
       "loadTasksError": "Error al cargar las tareas",
@@ -6338,7 +6410,7 @@
       "copyToFilesDialogTitle": "¿Copiar a Archivos?",
       "copyToFilesDialogDescription": "Copiar {fileName} a {workspace}.",
       "copyToFilesDialogConfirm": "Copiar",
-      "tasksBreadcrumbLabel": "Tareas",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "Sin proyecto",
       "filterTitle": "Filtrar",
       "filterSearchPlaceholder": "Buscar...",
@@ -6629,7 +6701,7 @@
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
-        "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario pregunta algo, lo menciona o coincide con lo que recuerda.",
+        "followBoardDescription": "Observar también las Tareas en las que no participa y opinar solo cuando un comentario lo nombra.",
         "followBoardError": "No se pudo actualizar el ajuste.",
         "archiveTitle": "Archivar Soko Bot",
         "archiveDescription": "Detiene todos los turnos y programaciones. Puedes crearlo de nuevo más tarde; el historial y la atribución se conservan.",
@@ -6692,6 +6764,7 @@
           "update_task": "Actualizando una Task",
           "assign_task": "Asignando una Task",
           "get_task_status": "Consultando estado de la Task",
+          "list_tasks": "Revisando tus Tasks",
           "find_agents": "Buscando Agents",
           "get_agent_input_schema": "Leyendo entradas del Agent",
           "hire_agent": "Contratando un Agent",
@@ -6702,7 +6775,10 @@
           "update_memory": "Actualizando la memoria",
           "scratch_read": "Leyendo notas",
           "scratch_write": "Escribiendo notas",
-          "scratch_list": "Listando notas"
+          "scratch_list": "Listando notas",
+          "read_file": "Leyendo un archivo",
+          "generate_image": "Generando una imagen",
+          "get_image": "Consultando una imagen"
         },
         "composer": {
           "label": "Mensaje",
@@ -6984,7 +7060,8 @@
         "all": "Todos los coworkers"
       },
       "timezone": {
-        "label": "Zona horaria"
+        "label": "Zona horaria",
+        "showing": "Horas en {zone}"
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",

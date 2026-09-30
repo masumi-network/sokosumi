@@ -185,6 +185,7 @@ import {
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
+  getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminTask as coreGetAdminTask,
@@ -5054,6 +5055,15 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getAdminSokoBotModelEvaluations() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotModelEvaluations({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot model evaluations",
+    );
+  }
+
   async function getAdminSokoBot(sokoBotId: string) {
     return executeCoreOperation(
       getClient,
@@ -5904,6 +5914,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     promoteAdminSokoBotVersion,
     getAdminSokoBot,
     getAdminSokoBotQuality,
+    getAdminSokoBotModelEvaluations,
     performAdminSokoBotAction,
   };
 }

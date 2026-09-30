@@ -46,6 +46,7 @@ import Testing
 
   @Test func reversedResponsesPreserveOtherEmojiAndDeletedMessages() {
     var message = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Current content",
+                                              createdAt: Date(),
                                               sender: .init(id: "user", name: "User", email: "user@example.com", presence: .online)))
     message.id = "message"
     #expect(canReactToMessage(message))
