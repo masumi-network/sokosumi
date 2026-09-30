@@ -451,6 +451,41 @@ describe("Vercel web turbo build command", () => {
     );
   });
 
+  it("gates each app's build on its own turbo package", async () => {
+    for (const app of ["web", "core", "cmo"]) {
+      const config = JSON.parse(await readRepoFile("apps", app, "vercel.json"));
+      const { name } = JSON.parse(
+        await readRepoFile("apps", app, "package.json"),
+      );
+      assert.equal(
+        config.ignoreCommand,
+        `node ../../scripts/ci/vercel-ignore.mjs ${name}`,
+      );
+    }
+  });
+
+  it("lets only a production deployment of a new commit skip its build", async () => {
+    const { ignoreBase } = await import("../vercel-ignore.mjs");
+    const production = {
+      VERCEL_ENV: "production",
+      VERCEL_GIT_PREVIOUS_SHA: "aaa",
+      VERCEL_GIT_COMMIT_SHA: "bbb",
+    };
+
+    assert.equal(ignoreBase(production), "aaa");
+    // `/deploy` previews build the PR head whatever the last preview held.
+    assert.equal(ignoreBase({ ...production, VERCEL_ENV: "preview" }), null);
+    assert.equal(
+      ignoreBase({ ...production, VERCEL_GIT_PREVIOUS_SHA: undefined }),
+      null,
+    );
+    // A redeploy of the last deployed commit must build.
+    assert.equal(
+      ignoreBase({ ...production, VERCEL_GIT_COMMIT_SHA: "aaa" }),
+      null,
+    );
+  });
+
   it("runs turbo --filter=web and forces production only", async () => {
     const { turboBuildArgs } = await import(
       "../../../apps/web/scripts/vercel-build.mjs"
