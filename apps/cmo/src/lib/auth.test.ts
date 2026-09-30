@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type CmoAuth, createCmoAuth, renewSession } from "./auth";
 
-const CMO = "https://cmo.xyz";
+const CMO = "https://app.cmo.xyz";
 const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
 const PROXY_SECRET = "a-proxy-secret-shared-by-production-and-previews";
 const CORE = "https://core.test";
@@ -681,7 +681,7 @@ describe("CMO auth handler", () => {
     );
 
     expect(response.headers.get("location")).toMatch(
-      /^https:\/\/cmo\.xyz\/\?error=/,
+      /^https:\/\/app\.cmo\.xyz\/\?error=/,
     );
     expect(await sessionUser(auth, jar)).toBeNull();
   });
