@@ -2407,7 +2407,25 @@
           "reschedule": "Neu planen",
           "cancel": "Beitrag abbrechen",
           "edit": "Bearbeiten",
-          "close": "Schließen"
+          "close": "Schließen",
+          "schedulePicker": {
+            "quickPicks": "Schnellauswahl",
+            "quick": {
+              "inAnHour": "In einer Stunde ({time})",
+              "tomorrowMorning": "Morgen {time}",
+              "nextMonday": "Montag {time}"
+            },
+            "pickDate": "Datum wählen",
+            "pickTime": "Uhrzeit wählen",
+            "dateSelected": "Datum: {date}",
+            "timeSelected": "Uhrzeit: {time}",
+            "times": "Uhrzeiten"
+          },
+          "timezone": {
+            "yours": "Zeiten in deiner Zeitzone, {zone}.",
+            "goesOut": "Erscheint am {date}, deine Zeit ({zone}).",
+            "postZone": "Geplant für {date} in {zone}."
+          }
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -7033,7 +7051,8 @@
         "all": "Alle Coworker"
       },
       "timezone": {
-        "label": "Zeitzone"
+        "label": "Zeitzone",
+        "showing": "Zeiten in {zone}"
       },
       "empty": {
         "title": "Keine geplanten Freigaben entsprechen diesen Filtern.",
