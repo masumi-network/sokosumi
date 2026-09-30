@@ -2,7 +2,7 @@ import type { Prisma } from "@sokosumi/database";
 import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
-import { sokoBotOutcomeSummary } from "@/services/soko-bot-outcome.service";
+import { sokoBotOutcomeNote } from "@/services/soko-bot-outcome.service";
 
 import {
   ACTION_CAPABILITIES,
@@ -291,14 +291,14 @@ function describeRead(capability: string, value: unknown): string[] {
       "The latest job event is awaiting input; completion is not verified.",
     );
   if (read.fulfillment) {
-    const summary = sokoBotOutcomeSummary(read.fulfillment);
-    if (summary) observations.push(`Recorded outcome assessment: ${summary}`);
+    const note = sokoBotOutcomeNote(read.fulfillment);
+    if (note) observations.push(note);
     for (const id of read.fulfillment.remainingSteps.slice(0, 4)) {
       const criterion = read.fulfillment.acceptanceCriteria?.find(
         (item) => item.id === id,
       );
       observations.push(
-        `Still unverified: ${quoteRead(criterion?.description ?? id)}.`,
+        `Not confirmed yet: ${quoteRead(criterion?.description ?? id)}.`,
       );
     }
   }

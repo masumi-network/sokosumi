@@ -46,6 +46,7 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 vi.mock("@/services/soko-bot-outcome.service", () => ({
   assessSokoBotIntentOutcome: vi.fn(),
   invalidateSokoBotIntentOutcomes: vi.fn(),
+  sokoBotOutcomeNote: vi.fn().mockReturnValue(null),
   sokoBotOutcomeSummary: vi.fn().mockReturnValue(null),
 }));
 vi.mock("@/services/soko-bot-delivery.service", () => ({

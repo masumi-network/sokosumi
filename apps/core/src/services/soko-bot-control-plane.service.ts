@@ -77,6 +77,7 @@ import {
 import {
   assessSokoBotIntentOutcome,
   invalidateSokoBotIntentOutcomes,
+  sokoBotOutcomeNote,
   sokoBotOutcomeSummary,
 } from "@/services/soko-bot-outcome.service";
 import {
@@ -1754,9 +1755,11 @@ export class SokoBotControlPlane {
           "ARTIFACT_READABILITY_UNVERIFIED",
           "RESULT_EVIDENCE_UNAVAILABLE",
         ].includes(blockerKind);
+      const outcomeNote = sokoBotOutcomeNote(outcome);
       if (
         responseContract &&
         outcomeSummary &&
+        outcomeNote &&
         outcome &&
         ["PARTIAL", "BLOCKED", "FAILED", "CANCELLED"].includes(outcome.state) &&
         !isSokoBotSilentAnswer(responseContract.answerText) &&
@@ -1765,12 +1768,18 @@ export class SokoBotControlPlane {
           suppressBlockerPrefix
         )
       ) {
-        const answerText = `${outcomeSummary}\n\n${responseContract.answerText}`;
+        // The owner gets a plain sentence; the verifier's wording is kept on
+        // the contract for the admin view.
+        const answerText = `${outcomeNote}\n\n${responseContract.answerText}`;
         await tx.sokoBotTurn.update({
           where: { id: input.turnId },
           data: {
             finalAnswer: answerText,
-            responseContract: { ...responseContract, answerText },
+            responseContract: {
+              ...responseContract,
+              answerText,
+              outcomeSummary,
+            },
           },
         });
       }

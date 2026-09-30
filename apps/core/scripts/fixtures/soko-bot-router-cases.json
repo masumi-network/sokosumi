@@ -250,5 +250,27 @@
     "message": "thanks!",
     "want": "READ",
     "previousReply": "Created the task and assigned it to Hannah."
+  },
+  {
+    "message": "Archive [TEST] Launch QA.",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "Yes, archive [TEST] Launch QA.",
+    "want": "MANAGE:WORK",
+    "previousReply": "I can't archive it from here; please archive it directly in Taskboard."
+  },
+  {
+    "message": "Archive [TEST] Competitor pricing scan.",
+    "want": "MANAGE:WORK"
+  },
+  {
+    "message": "yes",
+    "want": "MANAGE:WORK",
+    "previousReply": "Want me to archive [TEST] Launch copy? It's a draft with no activity."
+  },
+  {
+    "message": "Archive all my [TEST] tasks",
+    "want": "MANAGE:WORK"
   }
 ]

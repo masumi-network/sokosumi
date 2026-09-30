@@ -58,7 +58,7 @@ const ROUTE_CRITERIA: Record<SokoBotRoute, string> = {
 };
 
 const WRITE_SCOPE_CRITERIA = {
-  WORK: "changes existing Tasks, Jobs or Projects",
+  WORK: "changes existing Tasks, Jobs or Projects, including archiving or cancelling them",
   SCHEDULE:
     "the assistant's own reminders, check-ins or recurring prompt schedules, including its daily stand-up and weekly wrap; not social media posts or calendar events",
   SOCIAL:
@@ -462,6 +462,15 @@ function routeFromAnswers(
   };
 }
 
+/**
+ * "Archive [TEST] Launch QA." scored 50% CLARIFY, "Archive TEST Launch QA."
+ * 87% MANAGE_WORK: Jev reads a bare bracket tag as a placeholder still to be
+ * filled in. Only what Jev sees changes; markdown links are left alone.
+ */
+export function unwrapTitleTags(message: string): string {
+  return message.replace(/\[([\p{L}\p{N} _-]{1,24})\](?!\()/gu, "$1");
+}
+
 export class JevTurnClassifier implements TurnClassifier {
   constructor(private readonly evaluate: RouteEvaluator = evaluateWithJev) {}
 
@@ -518,7 +527,7 @@ export class JevTurnClassifier implements TurnClassifier {
     try {
       const result = await this.evaluateWithRetry({
         state: {
-          message: message.slice(0, MAX_MESSAGE_LENGTH),
+          message: unwrapTitleTags(message).slice(0, MAX_MESSAGE_LENGTH),
           previousReply:
             context.previousReply?.slice(0, MAX_PREVIOUS_REPLY_LENGTH) ?? null,
           pendingProposals: pending.map((intent) => intent.desiredOutcome),

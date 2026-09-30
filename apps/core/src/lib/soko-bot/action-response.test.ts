@@ -808,10 +808,11 @@ describe("authoritative action responses", () => {
     expect(observed).toContain(
       'Latest reported task update ("coworker"): "Waiting for owner approval of the campaign budget.".',
     );
+    expect(observed).toContain("Only part of this is done so far.");
+    expect(observed).not.toMatch(/requested outcome|Result evidence/);
     expect(observed).toContain(
-      "Recorded outcome assessment: The requested outcome is partially complete. Result evidence is not yet available.",
+      'Not confirmed yet: "Approved campaign budget".',
     );
-    expect(observed).toContain('Still unverified: "Approved campaign budget".');
     expect(observed).toContain('"Budget approval", status "INPUT_REQUIRED"');
     expect(response.answerText).not.toContain("I approved");
     expect(response.appliedReceiptIds).toEqual(["receipt-one"]);

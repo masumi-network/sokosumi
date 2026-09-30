@@ -5295,3 +5295,65 @@ describe("find_agents", () => {
     );
   });
 });
+
+describe("archive_task without one named Task", () => {
+  const TASK_ID = "01960001-0001-7001-8001-0000000000aa";
+  function arm(userMessage: string, ownedTask: unknown) {
+    vi.clearAllMocks();
+    serializableTransactionMock.mockImplementation(
+      async (run: (tx: unknown) => unknown) =>
+        await run({
+          sokoBotTurn: {
+            findUniqueOrThrow: vi.fn().mockResolvedValue({
+              userMessage,
+              contextSnapshot: { packet: { tasks: [] } },
+            }),
+          },
+          sokoBotToolCall: { findFirst: vi.fn().mockResolvedValue(null) },
+          task: { findFirst: vi.fn().mockResolvedValue(ownedTask) },
+        }),
+    );
+    const service = new SokoBotRuntimeService();
+    const internals = service as unknown as {
+      requireMutationAuthority: () => Promise<unknown>;
+      createDecision: () => Promise<unknown>;
+    };
+    vi.spyOn(internals, "requireMutationAuthority").mockResolvedValue({});
+    const createDecision = vi
+      .spyOn(internals, "createDecision")
+      .mockResolvedValue({ id: "decision_1", status: "PENDING" });
+    return { service, createDecision };
+  }
+  const run = (service: SokoBotRuntimeService) =>
+    service["mutateTask"](
+      { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
+      { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
+      "call_1",
+      { capability: "archive_task" },
+    );
+
+  it("turns a bare yes into an approval card instead of failing", async () => {
+    // "yes" and "archive all my test tasks" name no single Task. Failing left
+    // the bot asking the owner to retype the exact sentence; a card lets the
+    // owner decide and the bot carry on.
+    const { service, createDecision } = arm("yes", { id: TASK_ID });
+    const result = await run(service);
+    expect(createDecision).toHaveBeenCalledWith(
+      expect.anything(),
+      "archive_task",
+      expect.objectContaining({ taskId: TASK_ID }),
+      "call_1",
+      true,
+    );
+    expect(result).toMatchObject({
+      approvalRequired: true,
+      decision: { id: "decision_1" },
+    });
+  });
+
+  it("does not raise a card for a Task the owner has no open copy of", async () => {
+    const { service, createDecision } = arm("archive all of them", null);
+    await expect(run(service)).rejects.toThrow(/Task not found/);
+    expect(createDecision).not.toHaveBeenCalled();
+  });
+});
