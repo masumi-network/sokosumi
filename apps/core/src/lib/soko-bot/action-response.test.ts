@@ -258,6 +258,29 @@ describe("authoritative action responses", () => {
     { verification: "NONE" as const },
     { committedAt: null },
     { targetId: null },
+  ])(
+    "keeps a refused attempt out of a turn the bot started itself %j",
+    async (change) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([receipt(change)]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Morning update.",
+      );
+      expect(result.answerText).not.toContain("Not confirmed");
+      // Still recorded for the claim check and the admin view.
+      expect(result.unfulfilledActions).toHaveLength(1);
+    },
+  );
+
+  it.each([
+    { status: "PENDING" as const },
+    { status: "FAILED" as const },
+    { disposition: "REJECTED" as const },
+    { verification: "NONE" as const },
+    { committedAt: null },
+    { targetId: null },
   ])("rejects incomplete proof %j", async (change) => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([receipt(change)]);
     const result = await buildActionResponse(

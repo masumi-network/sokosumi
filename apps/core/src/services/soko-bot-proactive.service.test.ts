@@ -46,8 +46,42 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 
 import {
   buildSystemBeatMessage,
+  followUpsBlock,
   proactiveGate,
 } from "./soko-bot-proactive.service";
+
+describe("followUpsBlock", () => {
+  const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";
+  const OPEN = "01a0efbb-778c-7669-86b6-d50d81e74288";
+
+  it("drops due follow-ups about Tasks that are archived or closed", async () => {
+    memoryFindFirstMock.mockResolvedValue({
+      markdown: [
+        "# Soko Bot memory",
+        "## Follow-ups",
+        `- 2026-09-29 check Hannah's estimate on ${ARCHIVED}`,
+        `- 2026-09-29 chase the review on ${OPEN}`,
+        "- 2026-09-29 call the venue",
+      ].join("\n\n"),
+    });
+    taskFindManyMock.mockResolvedValue([{ id: ARCHIVED }]);
+
+    const lines = await followUpsBlock(
+      "bot-1",
+      "Europe/Vienna",
+      new Date("2026-09-30T08:00:00Z"),
+    );
+
+    expect(lines.join("\n")).not.toContain(ARCHIVED);
+    expect(lines.join("\n")).toContain(OPEN);
+    expect(lines.join("\n")).toContain("call the venue");
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: [ARCHIVED, OPEN] } }),
+      }),
+    );
+  });
+});
 
 const ALICE_USER_ID = "alice-user";
 const ALICE_BOT_ID = "alice-bot";
