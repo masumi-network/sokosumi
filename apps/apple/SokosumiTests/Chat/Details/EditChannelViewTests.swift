@@ -105,6 +105,36 @@
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "edit-channel-members-failed.png")
       }
 
+      @Test func roomUpdateKeepsAgentEditsAndRefreshesHumansBeforeRetry() async throws {
+        var room = Components.Schemas.ChatRoom(id: "fixture", organizationId: "org", name: "Team", kind: .channel,
+                                               isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
+                                               unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+                                               userMembers: [.init(id: "me", name: "Me", email: "me@example.com", presence: .online)],
+                                               coworkerMembers: [], sokoBotMembers: [])
+        let model = ChannelEditing(room: room)
+        let roster = ChannelRoster(recipients: .init(targets: [], membersLoadFailed: true), isOwnerOrAdmin: false)
+        func content(_ room: Components.Schemas.ChatRoom) -> EditChannelView {
+          EditChannelView(room: room, currentUserId: "me", model: model, load: { roster }, save: { _, _ in false },
+                          requestLifecycle: { _ in }, guestAccess: .unused)
+        }
+        let host = NSHostingView(rootView: content(room))
+        let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 480, height: 560), styleMask: [.titled], backing: .buffered, defer: false)
+        window.contentView = host
+        window.orderFront(nil)
+        defer { window.orderOut(nil) }
+        _ = try await waitForView(in: host, timeoutMessage: "The initial member failure never settled") { model.canSave ? host : nil }
+        model.draft.recipients.insert(.sokoBot("bot"))
+        room.userMembers.append(.init(id: "newcomer", name: "Newcomer", email: "new@example.com", presence: .offline))
+        host.rootView = content(room)
+        _ = try await waitForView(in: host, timeoutMessage: "The sheet did not adopt the updated room") {
+          model.draft.recipients.contains(.human("newcomer")) ? host : nil
+        }
+        #expect(model.draft.recipients == [.human("me"), .human("newcomer"), .sokoBot("bot")])
+        await model.load { .init(recipients: .init(targets: []), isOwnerOrAdmin: false) }
+        #expect(!model.membersLoadFailed)
+        #expect(model.draft.recipients == [.human("me"), .human("newcomer"), .sokoBot("bot")])
+      }
+
       /// Draws over the window background until Vision reads every fragment; without Vision (CI) the text claims are skipped.
       private static func render(_ host: NSView, in window: NSWindow, expecting fragments: [String], absent: [String]) async throws -> NSBitmapImageRep {
         var lastLines: [String] = []

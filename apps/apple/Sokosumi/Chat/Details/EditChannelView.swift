@@ -5,6 +5,7 @@ import SwiftUI
 /// Web `edit-channel-dialog.tsx`: settings for organization owners/admins, roster for any host member, guest access
 /// for host members of external channels.
 struct EditChannelView: View {
+  let room: Components.Schemas.ChatRoom
   let currentUserId: String
   let load: () async throws -> ChannelRoster
   let save: (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool
@@ -18,6 +19,7 @@ struct EditChannelView: View {
   init(room: Components.Schemas.ChatRoom, currentUserId: String, model: ChannelEditing? = nil, load: @escaping () async throws -> ChannelRoster,
        save: @escaping (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool, requestLifecycle: @escaping (ChannelLifecycleAction) -> Void,
        guestAccess: GuestAccessActions) {
+    self.room = room
     self.currentUserId = currentUserId
     self.load = load
     self.save = save
@@ -77,7 +79,13 @@ struct EditChannelView: View {
     .frame(maxHeight: 760)
     .disabled(model.saving)
     .interactiveDismissDisabled(model.saving)
-    .task(id: retry) { await model.load(using: load) }
+    .task(id: retry) {
+      model.updateRoom(room)
+      await model.load(using: load)
+    }
+    .onChange(of: room) { _, room in
+      Task { @MainActor in model.updateRoom(room) }
+    }
   }
 
   /// Web "Manage channel": Leave for any member but a host channel's last host, Archive for owners/admins once the role is known.

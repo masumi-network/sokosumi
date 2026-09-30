@@ -3046,6 +3046,18 @@ Unverified: the app was not launched against Core. Not exercised: a real failed 
 
 How to test: make `GET /organizations/{id}/members` fail (for example a 500 from a local Core) and open a Channel's settings as a member: the People section reads "Members could not be loaded" with Retry, the AI coworker and Personal assistant toggles still work, and Save sends the room's current humans with the changed agents. As an owner/admin the name, topic and visibility fields and Archive also stay.
 
+### Codex review follow-up (2026-10-01)
+
+A second native window or a sidebar refresh can replace the room while the failed People sheet remains open. The original `@StateObject` retained its opening human roster, so an agent-only Save could remove a newly joined host member or restore a departed one. A successful Retry could reactivate the same old selection.
+
+`ChannelEditing.updateRoom` now adopts changed room human membership while preserving coworker and assistant edits; updates to presence, unread counts or other metadata leave deliberate human selections intact. The sheet synchronizes its current room before load/Retry and after room input changes, off the SwiftUI update. `ChannelEditDraft.preservesRoomMembers` follows accepted roster loads, and PATCH construction requires the current room: while People is unavailable, `WorkspaceState.updateChannel` supplies its latest local room and the request uses its non-guest humans plus the caller. A recovered member page restores human editing without seeding room membership from that organization page. Create channel remains unchanged.
+
+The workspace PATCH-body regression failed for both roles before the fix, then passed with a departed host, newcomer and guest. A separate recovery assertion failed before room synchronization, then passed without editing any human selection. OpenAPI `ClientTransport` fixtures now exercise a channel-roster 500, independent member/owner role, encoded Save, recovered member page, selected-human Save and preserved assistant edits; coworker or role failure still blocks the entire form. Hosted SwiftUI verifies an unchanged sheet identity receiving newer room membership, and model coverage verifies metadata-only selection preservation and guest-access Save blocking.
+
+Final review verification on author head `3966a901d` plus the follow-up: the full workspace test run reports **1,480 passed, 0 failed, 0 skipped** (CoreAPI 1, Auth 35, Chat 917, Realtime 53, Workspace 163, app 311). The macOS app build and iOS 17 `SokosumiWorkspace` build pass; pinned SwiftFormat reports 0/492 files requiring formatting, strict SwiftLint reports 0 violations, and repository Biome/typecheck gates pass. Test bundles and logs are retained under the isolated review child state for request [5920481194](https://github.com/masumi-network/sokosumi/pull/5513#issuecomment-5920481194).
+
+Real Core failed-roster/save/retry, keyboard focus and actual VoiceOver remain unverified. A room update that the client has not received is governed by the existing Core concurrency contract; this follow-up preserves the latest locally known roster and does not change that contract.
+
 ## Slice 25b1 — the jump mark's hold, look and reader scroll
 
 [#5509](https://github.com/masumi-network/sokosumi/pull/5509), branch `claude/apple-parity-25b-jump-highlight-scroll` on `origin/main` `3dcf02fa4` (started on `8a24feff5`; the fast-forward brought #5504, which touched `RoomTimelineView.swift` and `ReplyThreadView.swift` elsewhere, and #5503, Soko Bot only). 2026-09-30.

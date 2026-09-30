@@ -107,6 +107,23 @@ struct ChannelEditingTests {
     #expect(model.sections.map(\.id) == [.people, .coworkers, .assistant])
   }
 
+  @Test func roomMetadataUpdatePreservesSelectionsAndGuestAccessStopsSave() async throws {
+    var currentRoom = try room()
+    let model = ChannelEditing(room: currentRoom)
+    await model.load { .init(recipients: roster, isOwnerOrAdmin: true) }
+    model.draft.recipients.remove(.human("peer"))
+    model.draft.recipients.remove(.coworker("agent"))
+    let selected = model.draft.recipients
+    currentRoom.unreadCount = 3
+    model.updateRoom(currentRoom)
+    #expect(model.draft.recipients == selected)
+    #expect(model.canSave)
+    currentRoom.myAccess = .guest
+    model.updateRoom(currentRoom)
+    #expect(!model.canSave)
+    #expect(model.permissions?.canManageSettings == false)
+  }
+
   /// Web seeds the humans from the room (`hostRosterUserIds`), never from the organization list, so a save while
   /// that list failed sends the room's host members unchanged; nothing can remove a human the notice hides.
   @Test(arguments: [false, true])
@@ -117,7 +134,7 @@ struct ChannelEditingTests {
     model.draft.recipients.remove(.coworker("agent"))
     var sent: Components.Schemas.UpdateChatRoomRequest?
     let saved = await model.save { draft, permissions in
-      sent = draft.updateRequest(permissions: permissions, currentUserId: "me")
+      sent = draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: model.room)
       return true
     }
     #expect(saved)

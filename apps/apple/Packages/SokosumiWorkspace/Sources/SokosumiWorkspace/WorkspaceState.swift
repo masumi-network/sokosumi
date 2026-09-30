@@ -384,14 +384,14 @@ public final class WorkspaceState: ObservableObject {
   /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
   public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
     guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !roomMutationInFlight else { return false }
+          !roomMutationInFlight, let currentRoom = rooms.first(where: { $0.id == roomId }) else { return false }
     updatingRoom = true
     defer {
       if context == compositionContext {
         updatingRoom = false
       }
     }
-    let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
+    let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId, currentRoom: currentRoom)
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
     }
