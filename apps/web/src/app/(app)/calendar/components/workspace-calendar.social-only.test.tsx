@@ -356,6 +356,17 @@ describe("WorkspaceCalendar Social-only view", () => {
       ]);
     });
 
+    it("names the time zone its grid reads posts in", () => {
+      renderCalendar(
+        { includeSocialPosts: true, socialPostsOnly: true },
+        "?timezone=America/New_York",
+      );
+
+      expect(screen.getByTestId("calendar-timezone")).toHaveTextContent(
+        "timezone.showing",
+      );
+    });
+
     it("keeps a view the reader picked", () => {
       renderCalendar(
         { includeSocialPosts: true, socialPostsOnly: true },
