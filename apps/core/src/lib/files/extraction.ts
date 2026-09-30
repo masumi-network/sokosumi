@@ -141,14 +141,6 @@ export function classifyExtraction(input: {
   return "unsupported-unknown";
 }
 
-export function extractionStateForTreatment(
-  treatment: ExtractionTreatment,
-): FileExtractionState {
-  return treatment === "text" || treatment === "ooxml" || treatment === "pdf"
-    ? FileExtractionState.INDEXED
-    : FileExtractionState.UNSUPPORTED;
-}
-
 /** A short, honest reason shown next to a "Filename only" state. */
 export function extractionReasonForTreatment(
   treatment: ExtractionTreatment,
