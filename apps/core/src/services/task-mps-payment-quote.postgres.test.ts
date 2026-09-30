@@ -1,5 +1,5 @@
 /**
- * Use a disposable loopback PostgreSQL database named mps_baseline.
+ * Use a disposable loopback database: mps_baseline locally or job_sync_test in CI.
  * Apply all migrations, then select this file with RUN_DATABASE_INTEGRATION_TESTS=true.
  * MPS calls are mocked; storage, ownership, transactions, and constraints are real.
  */
@@ -99,11 +99,13 @@ describe.runIf(process.env.RUN_DATABASE_INTEGRATION_TESTS === "true")(
       const url = new URL(process.env.DATABASE_URL!);
       if (
         !["localhost", "127.0.0.1", "[::1]"].includes(url.hostname) ||
-        url.pathname !== "/mps_baseline" ||
+        !["/mps_baseline", "/job_sync_test"].includes(url.pathname) ||
         (url.searchParams.has("host") &&
           !url.searchParams.get("host")?.startsWith("/"))
       )
-        throw new Error("Disposable loopback database mps_baseline required");
+        throw new Error(
+          "Disposable loopback database mps_baseline or job_sync_test required",
+        );
       fixturesStarted = true;
       await prisma.user.create({
         data: {

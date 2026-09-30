@@ -173,6 +173,12 @@ Core route tests failed `2 failed | 33 passed (35)` before the change and passed
 The combined run also exposed slow fixture compression in one Masumi test.
 [REPORTED: package reviewer] Precomputed samples preserve the rejection checks; the full suite then returned `519 passed (519)`.
 
+[CORRECTION, VERIFIED: PR #5474 CI run `36701678509` and local reproduction]
+The first CI run failed because the new PostgreSQL test accepted only the local database name `mps_baseline`.
+CI uses `job_sync_test`. The guard now accepts both names and still requires loopback access.
+Against a disposable `job_sync_test`, the old guard returned `Test Files 1 failed (1)` and `Tests 4 skipped (4)`.
+After the fix, the same suite returned `Tests 4 passed (4)`. Application source did not change for this fix.
+
 ## Acceptance and migration preconditions
 
 - [x] [REPORTED: user decisions, 2026-09-30] Use an existing developer-managed MPS seller and encrypted Core storage through self-service CLI setup.
