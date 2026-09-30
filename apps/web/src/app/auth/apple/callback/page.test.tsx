@@ -18,6 +18,14 @@ describe("AppleAppCallbackPage", () => {
     expect(screen.getByText("AppleAppCallback.message")).toBeInTheDocument();
   });
 
+  it("puts the instructions in the main landmark, which no layout above supplies", async () => {
+    render(await AppleAppCallbackPage());
+
+    expect(screen.getByRole("main")).toContainElement(
+      screen.getByText("AppleAppCallback.message"),
+    );
+  });
+
   it("reads nothing from the request, so the authorization code stays unused", () => {
     expect(AppleAppCallbackPage).toHaveLength(0);
   });

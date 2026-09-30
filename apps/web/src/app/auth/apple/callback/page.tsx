@@ -18,7 +18,7 @@ export default async function AppleAppCallbackPage() {
   const t = await getTranslations("AppleAppCallback");
 
   return (
-    <div className="flex min-h-dvh items-center justify-center p-4">
+    <main className="flex min-h-dvh items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle className="text-center text-2xl font-bold">
@@ -29,6 +29,6 @@ export default async function AppleAppCallbackPage() {
           <p>{t("message")}</p>
         </CardContent>
       </Card>
-    </div>
+    </main>
   );
 }
