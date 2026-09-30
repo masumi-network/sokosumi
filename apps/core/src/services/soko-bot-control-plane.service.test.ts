@@ -1113,6 +1113,14 @@ describe("SokoBotControlPlane lifecycle", () => {
         skip: 1,
         take: 3,
         where: expect.objectContaining({ OR: expect.any(Array) }),
+        include: expect.objectContaining({
+          _count: {
+            select: expect.objectContaining({
+              // Auto-accepted actions leave rows behind; only PENDING waits.
+              pendingDecisions: { where: { status: "PENDING" } },
+            }),
+          },
+        }),
       }),
     );
     expect(result).toEqual({
@@ -2685,6 +2693,32 @@ describe("SokoBotControlPlane lifecycle", () => {
     ]) {
       expect(serialized).not.toContain(secret);
     }
+  });
+
+  it("keeps record ids whose digit groups look like a card number", async () => {
+    // A Luhn-valid 16-digit run: blanking it failed the admin response schema.
+    const eventId = "33559564-8375-4519-a0f7-535b2860f85f";
+    botFindFirstMock.mockResolvedValueOnce(
+      adminBot({
+        turns: [
+          {
+            id: "80438387-9191-4703-bd12-c54ee0fb7be9",
+            events: [{ id: eventId }],
+            toolCalls: [],
+            pendingDecisions: [],
+          },
+        ],
+        memoryRevisions: [],
+        legacyMessages: [],
+        pendingDecisions: [],
+        schedules: [],
+      }),
+    );
+
+    const detail = await new SokoBotControlPlane().getForAdmin(BOT_ID);
+
+    expect(detail.turns[0]?.id).toBe("80438387-9191-4703-bd12-c54ee0fb7be9");
+    expect(detail.turns[0]?.events[0]?.id).toBe(eventId);
   });
 
   it("deduplicates an admin action by request ID without repeating effects", async () => {

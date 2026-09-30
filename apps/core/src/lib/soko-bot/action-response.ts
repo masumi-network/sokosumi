@@ -8,6 +8,9 @@ import {
   verifyTaskArchiveReceipt,
 } from "./action-receipts";
 
+/** Turns an owner asked for; the rest the bot started itself. */
+const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
+
 export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
@@ -496,13 +499,23 @@ export async function buildActionResponse(
       }),
     ),
   ];
+  // A refused attempt matters to an owner who asked for it. On a turn the bot
+  // started itself nobody did, and "Not confirmed: …" read as a failure notice
+  // at the top of a morning update. An unknown outcome is always said.
+  const ownerAsked = unfulfilledActions.some(
+    (action) => action.reason !== "UNKNOWN",
+  )
+    ? await tx.sokoBotTurn
+        .findUnique({ where: { id: turnId }, select: { source: true } })
+        .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source))
+    : true;
   for (const action of unfulfilledActions) {
     const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
-    actionText.push(
-      action.reason === "UNKNOWN"
-        ? `Outcome unknown: ${label}. It has to be checked before trying again.`
-        : `Not confirmed: ${label}.`,
-    );
+    if (action.reason === "UNKNOWN")
+      actionText.push(
+        `Outcome unknown: ${label}. It has to be checked before trying again.`,
+      );
+    else if (ownerAsked) actionText.push(`Not confirmed: ${label}.`);
   }
   const narrative =
     parseActionNarrative(narrativeInput) ??

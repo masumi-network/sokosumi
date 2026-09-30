@@ -321,9 +321,15 @@ function adminRetryOperationKey(operationId: string): string {
   return createHash("sha256").update(operationId).digest("hex").slice(0, 32);
 }
 
+/** A record id is never a secret; blanking one fails the response schema. */
+const EXACT_UUID =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function redactAdminPresentation<T>(value: T): T {
   if (typeof value === "string") {
-    return redactSokoBotSensitiveText(value) as T;
+    return (
+      EXACT_UUID.test(value) ? value : redactSokoBotSensitiveText(value)
+    ) as T;
   }
   if (Array.isArray(value)) {
     return value.map((item) => redactAdminPresentation(item)) as T;
@@ -3567,7 +3573,12 @@ export class SokoBotControlPlane {
         include: {
           user: { select: { id: true, name: true, email: true } },
           _count: {
-            select: { turns: true, pendingDecisions: true, schedules: true },
+            select: {
+              turns: true,
+              // Auto-accepted actions leave ACCEPTED rows; only PENDING waits.
+              pendingDecisions: { where: { status: "PENDING" } },
+              schedules: true,
+            },
           },
         },
       }),
