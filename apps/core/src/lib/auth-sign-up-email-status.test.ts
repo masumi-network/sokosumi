@@ -9,7 +9,7 @@ import {
 } from "./auth-sign-up-email-status.js";
 
 // A real Better Auth instance with the captcha plugin in front, as in Core.
-function createTestAuth() {
+function createTestAuth({ rateLimited = false } = {}) {
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
     basePath: "/auth",
@@ -31,14 +31,21 @@ function createTestAuth() {
     }),
     emailAndPassword: { enabled: true },
     plugins: [createAuthCaptchaPlugin("test-secret"), signUpEmailStatus()],
-    rateLimit: { enabled: false },
+    rateLimit: rateLimited
+      ? { enabled: true, storage: "memory" }
+      : { enabled: false },
   });
-  function ask(body: unknown, token: string | null = "token") {
+  function ask(
+    body: unknown,
+    token: string | null = "token",
+    clientIp = "203.0.113.7",
+  ) {
     return auth.handler(
       new Request(`https://auth.example.com/auth${SIGN_UP_EMAIL_STATUS_PATH}`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
+          "x-forwarded-for": clientIp,
           ...(token ? { "x-captcha-response": token } : {}),
         },
         body: JSON.stringify(body),
@@ -143,11 +150,27 @@ describe("sign-up email status", () => {
     expect(await response.json()).not.toHaveProperty("exists");
   });
 
-  it("allows ten questions a minute from one address", () => {
-    const [rule] = signUpEmailStatus().rateLimit;
+  // Through the handler, not the plugin's rule object: the rule only works if
+  // Better Auth hands its matcher the path in the form the matcher expects.
+  it("answers ten questions a minute from one address and refuses the eleventh", async () => {
+    passCaptcha();
+    const { ask } = createTestAuth({ rateLimited: true });
 
-    expect(rule.pathMatcher(SIGN_UP_EMAIL_STATUS_PATH)).toBe(true);
-    expect(rule.pathMatcher("/sign-up/email")).toBe(false);
-    expect(rule).toMatchObject({ window: 60, max: 10 });
+    for (let question = 1; question <= 10; question += 1) {
+      const response = await ask({ email: `person-${question}@example.com` });
+      expect(response.status, `question ${question}`).toBe(200);
+    }
+
+    const refused = await ask({ email: "ada@example.com" });
+    expect(refused.status).toBe(429);
+    expect(await refused.json()).not.toHaveProperty("exists");
+
+    // The limit is per client address.
+    const elsewhere = await ask(
+      { email: "ada@example.com" },
+      "token",
+      "198.51.100.23",
+    );
+    expect(elsewhere.status).toBe(200);
   });
 });
