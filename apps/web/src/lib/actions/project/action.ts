@@ -11,12 +11,15 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
+import {
+  normalizeWebsiteUrl,
+  projectIdentifierSchema,
+  SOCIAL_POST_MEDIA_MAX,
+} from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
-import { projectIdentifierSchema } from "@/app/projects/project-identifier";
 import {
   type ActionResultDto,
   toActionResult,

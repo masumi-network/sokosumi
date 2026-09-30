@@ -356,6 +356,12 @@ export {
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
 export {
+  isValidProjectIdentifier,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  projectIdentifierSchema,
+  sanitizeProjectIdentifier,
+} from "./project-identifier.js";
+export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,

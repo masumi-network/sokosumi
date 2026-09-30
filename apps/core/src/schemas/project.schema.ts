@@ -6,6 +6,7 @@ import {
 import {
   isDesignMdBlobUrl,
   isProjectLogoBlobUrl,
+  projectIdentifierSchema as projectIdentifierValueSchema,
   SokosumiJobStatus,
 } from "@sokosumi/utils";
 
@@ -36,19 +37,11 @@ const projectWebsiteUrlSchema = z
     }
   }, "Website URL must use HTTP or HTTPS");
 
-export const projectIdentifierSchema = z
-  .string()
-  .trim()
-  .toUpperCase()
-  .regex(
-    /^[A-Z][A-Z0-9]{1,6}$/,
-    "Identifier must be 2-7 letters or digits and start with a letter",
-  )
-  .openapi({
-    description:
-      "Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.",
-    example: "SOK",
-  });
+export const projectIdentifierSchema = projectIdentifierValueSchema.openapi({
+  description:
+    "Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.",
+  example: "SOK",
+});
 
 const projectLogoUrlSchema = z
   .string()

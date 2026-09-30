@@ -1,6 +1,12 @@
 "use client";
 
-import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  isEmptyOrValidWebsiteUrl,
+  isValidProjectIdentifier,
+  normalizeWebsiteUrl,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  sanitizeProjectIdentifier,
+} from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -11,11 +17,6 @@ import { toast } from "sonner";
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
 import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
-import {
-  isValidProjectIdentifier,
-  PROJECT_IDENTIFIER_MAX_LENGTH,
-  sanitizeProjectIdentifier,
-} from "@/app/projects/project-identifier";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
