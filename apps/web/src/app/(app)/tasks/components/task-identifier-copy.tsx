@@ -4,13 +4,11 @@ import { copyTextWithToast } from "@/hooks/use-clipboard";
 
 interface TaskIdentifierCopyProps {
   identifier: string;
-  /** Accessible name, e.g. "Copy task ID". */
   copyLabel: string;
   copiedMessage: string;
   copyErrorMessage: string;
 }
 
-/** The task's short id (SOK-12) as quiet text; a click copies it. */
 export function TaskIdentifierCopy({
   identifier,
   copyLabel,
