@@ -182,6 +182,8 @@ const MESSAGES: Record<string, string> = {
   times: "Times",
   "toasts.unauthenticated": "Please sign in to continue.",
   "toasts.unauthenticatedAction": "Sign in",
+  "preview.open": "Preview",
+  "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
 };
@@ -260,6 +262,8 @@ function buildConnection(
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -310,6 +314,8 @@ const SCHEDULED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
@@ -352,6 +358,8 @@ const FAILED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   lastError: "X rejected the post (403 forbidden)",
@@ -381,6 +389,8 @@ const PUBLISHING_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   attemptCount: 1,
@@ -1417,6 +1427,48 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("previews a post as it will look on X and reschedules from there", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi HQ",
+              avatarUrl: null,
+              status: "active",
+            },
+          },
+        ]}
+        projectId={PROJECT_ID}
+        // A scheduled post lives on the calendar; a calendar link names it.
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    const dialog = screen.getByRole("dialog");
+    const preview = within(dialog).getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "x");
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByText("Scheduled text")).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Reschedule" }),
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "Reschedule post",
+      }),
+    ).toBeVisible();
+  });
+
   it("reschedules a scheduled post from the row menu", async () => {
     freezeClock();
     const user = userEvent.setup();
@@ -1611,6 +1663,8 @@ describe("ProjectSocialPosts", () => {
             socialConnection: {
               id: "connection-1",
               externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,

@@ -4372,6 +4372,8 @@ describe("Soko Bot project social tools", () => {
     socialConnection: {
       id: accountId,
       externalHandle: "launch",
+      displayName: null,
+      avatarUrl: null,
       status: "active",
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
@@ -4425,6 +4427,8 @@ describe("Soko Bot project social tools", () => {
         id: accountId,
         provider: "youtube",
         externalHandle: "Launch channel",
+        displayName: "Launch channel",
+        avatarUrl: null,
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,

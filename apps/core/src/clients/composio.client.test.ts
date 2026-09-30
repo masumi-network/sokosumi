@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ConnectedSocialIdentity } from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
@@ -95,7 +96,7 @@ describe("initiateProjectSocialConnection", () => {
         if (url.endsWith("/trs_123/execute")) {
           expect(JSON.parse(String(init.body))).toEqual({
             tool_slug: "TWITTER_USER_LOOKUP_ME",
-            arguments: {},
+            arguments: { user_fields: ["name", "profile_image_url"] },
           });
           return Response.json({
             data: { data: { id: "x_123", username: "alice" } },
@@ -116,7 +117,7 @@ describe("initiateProjectSocialConnection", () => {
         connectedAccountId: "ca_123",
         executorUserId: input.executorUserId,
       }),
-    ).resolves.toEqual({ id: "x_123", handle: "alice" });
+    ).resolves.toMatchObject({ id: "x_123", handle: "alice" });
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -383,54 +384,130 @@ describe("getConnectedSocialIdentity", () => {
     slug: string;
     args: Record<string, unknown>;
     payload: Record<string, unknown>;
-    identity: { id: string; handle: string | null };
+    identity: ConnectedSocialIdentity;
   }[] = [
     {
       provider: "x",
       slug: "TWITTER_USER_LOOKUP_ME",
-      args: {},
-      payload: { data: { id: "x_123", username: "alice" } },
-      identity: { id: "x_123", handle: "alice" },
+      args: { user_fields: ["name", "profile_image_url"] },
+      payload: {
+        data: {
+          id: "x_123",
+          username: "alice",
+          name: "Alice Doe",
+          profile_image_url:
+            "https://pbs.twimg.com/profile_images/1/a_normal.jpg",
+        },
+      },
+      identity: {
+        id: "x_123",
+        handle: "alice",
+        displayName: "Alice Doe",
+        avatarUrl: "https://pbs.twimg.com/profile_images/1/a_400x400.jpg",
+      },
     },
     {
       provider: "tiktok",
       slug: "TIKTOK_GET_USER_STATS",
-      args: { fields: ["open_id", "display_name"] },
+      args: { fields: ["open_id", "display_name", "avatar_url"] },
       payload: {
-        data: { user: { open_id: "tt_123", display_name: "Alice" } },
+        data: {
+          user: {
+            open_id: "tt_123",
+            display_name: "Alice",
+            avatar_url: "https://p16.tiktokcdn.com/a.jpeg",
+          },
+        },
         error: { code: "ok", message: "", log_id: "private-log-id" },
       },
-      identity: { id: "tt_123", handle: "Alice" },
+      identity: {
+        id: "tt_123",
+        handle: "Alice",
+        displayName: "Alice",
+        avatarUrl: "https://p16.tiktokcdn.com/a.jpeg",
+      },
     },
     {
       provider: "instagram",
       slug: "INSTAGRAM_GET_USER_INFO",
-      args: { ig_user_id: "me", fields: "id,username" },
-      payload: { id: "17841400000000000", username: "alice" },
-      identity: { id: "17841400000000000", handle: "alice" },
+      args: {
+        ig_user_id: "me",
+        fields: "id,username,name,profile_picture_url",
+      },
+      payload: {
+        id: "17841400000000000",
+        username: "alice",
+        name: "Alice Doe",
+        profile_picture_url: "https://scontent.cdninstagram.com/a.jpg",
+      },
+      identity: {
+        id: "17841400000000000",
+        handle: "alice",
+        displayName: "Alice Doe",
+        avatarUrl: "https://scontent.cdninstagram.com/a.jpg",
+      },
     },
     {
       provider: "linkedin",
       slug: "LINKEDIN_GET_MY_INFO",
       args: {},
-      payload: { response_dict: { author_id: "urn:li:person:alice" } },
-      identity: { id: "urn:li:person:alice", handle: null },
+      payload: {
+        response_dict: {
+          author_id: "urn:li:person:alice",
+          given_name: "Alice",
+          family_name: "Doe",
+          picture: "https://media.licdn.com/a.jpg",
+        },
+      },
+      identity: {
+        id: "urn:li:person:alice",
+        handle: null,
+        displayName: "Alice Doe",
+        avatarUrl: "https://media.licdn.com/a.jpg",
+      },
     },
     {
       provider: "facebook",
       slug: "FACEBOOK_LIST_MANAGED_PAGES",
-      args: { fields: "id,name", limit: 2 },
-      payload: { data: [{ id: "page_123", name: "Alice Studio" }] },
-      identity: { id: "page_123", handle: "Alice Studio" },
+      args: { fields: "id,name,picture", limit: 2 },
+      payload: {
+        data: [
+          {
+            id: "page_123",
+            name: "Alice Studio",
+            picture: { data: { url: "https://scontent.xx.fbcdn.net/a.jpg" } },
+          },
+        ],
+      },
+      identity: {
+        id: "page_123",
+        handle: "Alice Studio",
+        displayName: "Alice Studio",
+        avatarUrl: "https://scontent.xx.fbcdn.net/a.jpg",
+      },
     },
     {
       provider: "youtube",
       slug: "YOUTUBE_LIST_CHANNELS",
       args: { mine: true, part: "id,snippet", maxResults: 2 },
       payload: {
-        items: [{ id: "UC_123", snippet: { customUrl: "@alice" } }],
+        items: [
+          {
+            id: "UC_123",
+            snippet: {
+              customUrl: "@alice",
+              title: "Alice Channel",
+              thumbnails: { medium: { url: "https://yt3.ggpht.com/a.jpg" } },
+            },
+          },
+        ],
       },
-      identity: { id: "UC_123", handle: "@alice" },
+      identity: {
+        id: "UC_123",
+        handle: "@alice",
+        displayName: "Alice Channel",
+        avatarUrl: "https://yt3.ggpht.com/a.jpg",
+      },
     },
   ];
 
@@ -649,7 +726,7 @@ describe("getConnectedSocialIdentity", () => {
           connectedAccountId: "ca_selected",
           executorUserId: input.executorUserId,
         }),
-      ).resolves.toEqual({ id, handle: handle ?? null });
+      ).resolves.toMatchObject({ id, handle: handle ?? null });
     },
   );
 
@@ -687,7 +764,7 @@ describe("getConnectedSocialIdentity", () => {
         connectedAccountId: "ca_selected",
         executorUserId: input.executorUserId,
       }),
-    ).resolves.toEqual({ id: "page_123", handle: "Alice" });
+    ).resolves.toMatchObject({ id: "page_123", handle: "Alice" });
     expect(warn).toHaveBeenCalledWith(
       "[composio] delete Project Facebook identity session failed",
     );
