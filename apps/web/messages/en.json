@@ -1561,7 +1561,7 @@
       },
       "Tabs": {
         "tasks": "Tasks",
-        "jobs": "Jobs"
+        "calendar": "Calendar"
       },
       "Columns": {
         "backlog": "Backlog",
