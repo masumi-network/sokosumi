@@ -327,7 +327,14 @@ export function capabilitiesForClassification(
     MEMORY: ["update_memory"],
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat"],
-    FILE: ["upload_file", "generate_image"],
+    // A table the owner asks for is a Files table, not a markdown file.
+    FILE: [
+      "upload_file",
+      "generate_image",
+      "create_table",
+      "write_table_rows",
+      "update_table_columns",
+    ],
     INTEGRATION: ["run_integration_tool"],
     SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };

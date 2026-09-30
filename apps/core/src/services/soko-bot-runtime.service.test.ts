@@ -133,8 +133,11 @@ const {
     getJob: vi.fn(),
     reconcile: vi.fn(),
     credits: vi.fn(),
+    readBytes: vi.fn(),
+    assetFindFirst: vi.fn(),
   },
   files: {
+    resourceFindUnique: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -274,6 +277,7 @@ vi.mock("@/lib/image-studio/access", () => ({
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
+  readAssetBytes: images.readBytes,
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
@@ -310,6 +314,8 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
+    fileResource: { findUnique: files.resourceFindUnique },
+    projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     sokoBot: {
@@ -5523,7 +5529,7 @@ describe("Content Studio image tools", () => {
         projectId: "project-1",
         jobId: "job-1",
       }),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       jobId: "job-1",
       status: "SUCCEEDED",
       failureReason: null,
@@ -5532,6 +5538,145 @@ describe("Content Studio image tools", () => {
     expect(images.access.mock.invocationCallOrder[0]).toBeLessThan(
       images.reconcile.mock.invocationCallOrder[0],
     );
+  });
+
+  describe("a ready image in the owner's Files", () => {
+    const ready = {
+      id: "01a0f430-aaaa-7000-8000-000000000001",
+      status: "SUCCEEDED",
+      assetId: "asset-7",
+      failureReason: null,
+      prompt: "A purple robot logo",
+    };
+    beforeEach(() => {
+      images.getJob.mockResolvedValue(ready);
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+      images.assetFindFirst.mockResolvedValue({
+        blobPathname: "studio/asset-7.png",
+        contentType: "image/png",
+      });
+      images.readBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
+      files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v" });
+      files.activate.mockResolvedValue({ resourceId: "file-9" });
+      files.put.mockResolvedValue({});
+    });
+
+    it("copies it once into a Content Studio folder and returns its file id", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      const result = await service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: ready.id,
+      });
+      expect(result).toMatchObject({
+        file: {
+          id: "file-9",
+          name: "a-purple-robot-logo-01a0f430.png",
+          link: "/drive/files/file-9",
+        },
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        expect.any(Buffer),
+        expect.objectContaining({ access: "public", addRandomSuffix: false }),
+      );
+    });
+
+    it("hands back the existing copy instead of writing another", async () => {
+      files.resourceFindUnique.mockResolvedValue({
+        id: "file-9",
+        lifecycle: "ACTIVE",
+        tombstonedAt: null,
+      });
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ file: { id: "file-9" } });
+      expect(files.put).not.toHaveBeenCalled();
+      expect(images.readBytes).not.toHaveBeenCalled();
+    });
+
+    it("still reports the image when the copy fails", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      images.readBytes.mockRejectedValue(new Error("store down"));
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+    });
+  });
+
+  describe("Social media by file id", () => {
+    beforeEach(() => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+
+    it("turns a Drive file id into the reference the Social service stores", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "logo.png",
+          mimeType: "image/png",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/Content Studio/logo.png",
+        },
+      ]);
+      files.head.mockResolvedValue({
+        url: "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+      });
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).resolves.toEqual([
+        {
+          pathname: "drive/organizations/org-1/Content Studio/logo.png",
+          fileUrl:
+            "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+          name: "logo.png",
+          size: 3,
+          mimeType: "image/png",
+          kind: "image",
+        },
+      ]);
+    });
+
+    it("refuses a file the owner's Files do not hold", async () => {
+      files.loadLive.mockResolvedValue([]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not in the owner's Files");
+    });
+
+    it("refuses a document that no network can carry", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "notes.md",
+          mimeType: "text/markdown",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/notes.md",
+        },
+      ]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not an image or video");
+    });
   });
 
   it("returns nothing for a job that is not in the Project", async () => {
