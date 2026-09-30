@@ -1,6 +1,6 @@
 "use client";
 
-import { toast } from "sonner";
+import { copyTextWithToast } from "@/hooks/use-clipboard";
 
 interface TaskIdentifierCopyProps {
   identifier: string;
@@ -17,13 +17,11 @@ export function TaskIdentifierCopy({
   copiedMessage,
   copyErrorMessage,
 }: TaskIdentifierCopyProps) {
-  async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(identifier);
-      toast.success(copiedMessage);
-    } catch {
-      toast.error(copyErrorMessage);
-    }
+  function handleCopy() {
+    void copyTextWithToast(identifier, {
+      copySuccessMessage: copiedMessage,
+      copyErrorMessage,
+    });
   }
 
   return (
