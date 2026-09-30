@@ -76,6 +76,7 @@ import {
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
+import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
@@ -363,6 +364,8 @@ export const auth = betterAuth({
   ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
+
       switch (ctx.path) {
         case "/sign-up/email": {
           if (!ctx.body?.termsAccepted) {
@@ -606,6 +609,7 @@ export const auth = betterAuth({
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+      secret: env.OAUTH_PROXY_SECRET,
     }),
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.
