@@ -1,3 +1,7 @@
+import * as z from "zod";
+
+const namePartInputSchema = z.string().trim().min(1).max(64).nullable();
+
 /**
  * Better Auth additional-field schema — single source of truth for Core `auth.ts`
  * and web Better Auth client field inference.
@@ -11,11 +15,13 @@ export const betterAuthUserAdditionalFields = {
     type: "string",
     required: false,
     defaultValue: null,
+    validator: { input: namePartInputSchema },
   },
   lastName: {
     type: "string",
     required: false,
     defaultValue: null,
+    validator: { input: namePartInputSchema },
   },
   termsAccepted: {
     type: "boolean",

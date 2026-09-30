@@ -64,7 +64,24 @@ function createTestAuth() {
     );
     return auth.handler(new Request(magicLinkUrl));
   }
-  return { signUp, signInWithMagicLink, db };
+  async function updateUser(body: Record<string, unknown>, response: Response) {
+    const cookie = response.headers
+      .getSetCookie()
+      .map((value) => value.split(";")[0])
+      .join("; ");
+    return auth.handler(
+      new Request("https://auth.example.com/auth/update-user", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          origin: "https://auth.example.com",
+          cookie,
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+  }
+  return { signUp, signInWithMagicLink, updateUser, db };
 }
 
 describe("email sign-up name", () => {
@@ -141,4 +158,37 @@ describe("email sign-up name", () => {
     expect(await response.json()).toMatchObject({ code: "NAME_REQUIRED" });
     expect(db.user).toHaveLength(0);
   });
+
+  it("normalizes updated name parts without changing the display name", async () => {
+    const { signUp, updateUser, db } = createTestAuth();
+    const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+
+    const response = await updateUser(
+      { firstName: "  Augusta  ", lastName: "  Byron  " },
+      session,
+    );
+
+    expect(response.status).toBe(200);
+    expect(db.user[0]).toMatchObject({
+      firstName: "Augusta",
+      lastName: "Byron",
+      name: "Ada Lovelace",
+    });
+  });
+
+  it.each(["", "   ", 7, "a".repeat(65)])(
+    "rejects an invalid name part at the update endpoint: %j",
+    async (firstName) => {
+      const { signUp, updateUser, db } = createTestAuth();
+      const session = await signUp({ firstName: "Ada", lastName: "Lovelace" });
+
+      const response = await updateUser({ firstName }, session);
+
+      expect(response.status).toBe(400);
+      expect(db.user[0]).toMatchObject({
+        firstName: "Ada",
+        lastName: "Lovelace",
+      });
+    },
+  );
 });
