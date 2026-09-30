@@ -1328,6 +1328,7 @@
       "text": "Al crear una cuenta, aceptas los <terms>Términos de uso</terms> y la <privacy>Política de privacidad</privacy>."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Volver a Sokosumi",
       "continuing": "Continuando…",
       "continuingTo": "Continuando a {client}…",
       "errorTitle": "No se puede continuar",

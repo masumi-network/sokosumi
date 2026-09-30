@@ -139,7 +139,7 @@ describe("SignUp page", () => {
       expect.objectContaining({
         client: {
           name: "CMO",
-          uri: "https://cmo.xyz",
+          uri: "https://cmo.xyz/",
           logoUri: "https://cmo.xyz/logo.png",
         },
       }),
@@ -180,7 +180,7 @@ describe("SignUp page", () => {
       oauthQuery: OAUTH_QUERY,
       client: {
         name: "CMO",
-        uri: "https://cmo.xyz",
+        uri: "https://cmo.xyz/",
         logoUri: "https://cmo.xyz/logo.png",
       },
     });

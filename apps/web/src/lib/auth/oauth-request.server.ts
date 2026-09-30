@@ -69,5 +69,6 @@ export async function readOAuthRequest(
  * followed or loaded when they are absolute https URLs.
  */
 function httpsUrl(value: string | undefined): string | undefined {
-  return value && URL.parse(value)?.protocol === "https:" ? value : undefined;
+  const url = value ? URL.parse(value) : null;
+  return url?.protocol === "https:" ? url.href : undefined;
 }

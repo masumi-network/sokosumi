@@ -46,7 +46,7 @@ describe("readOAuthRequest", () => {
       query: SIGNED_QUERY,
       client: {
         name: "CMO",
-        uri: "https://cmo.xyz",
+        uri: "https://cmo.xyz/",
         logoUri: "https://cmo.xyz/logo.png",
       },
       canHandBack: false,
@@ -104,6 +104,9 @@ describe("readOAuthRequest", () => {
   });
 
   it.each([
+    "",
+    "   ",
+    "https%3A%2F%2Fcmo.xyz",
     "http://cmo.xyz",
     "javascript:alert(1)",
     "data:image/png;base64,AAAA",
@@ -120,4 +123,26 @@ describe("readOAuthRequest", () => {
       client: { name: "CMO", uri: undefined, logoUri: undefined },
     });
   });
+
+  it.each([
+    [" https://cmo.xyz/logo.png ", "https://cmo.xyz/logo.png"],
+    ["https:logo.png", "https://logo.png/"],
+    ["https:/logo.png", "https://logo.png/"],
+    ["https://cmo.xyz/\nlogo.png", "https://cmo.xyz/logo.png"],
+    ["https://cmo.xyz/a%20b.png", "https://cmo.xyz/a%20b.png"],
+  ])(
+    "normalizes HTTPS metadata before rendering (%s)",
+    async (value, expected) => {
+      getOAuthClientPublicPreloginMock.mockResolvedValue({
+        client_name: "CMO",
+        client_uri: value,
+        logo_uri: value,
+      });
+
+      expect(await read(SIGNED)).toMatchObject({
+        query: SIGNED_QUERY,
+        client: { name: "CMO", uri: expected, logoUri: expected },
+      });
+    },
+  );
 });

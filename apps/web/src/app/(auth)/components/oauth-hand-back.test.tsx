@@ -82,4 +82,26 @@ describe("OAuthHandBack", () => {
       "errorDescription",
     );
   });
+
+  it.each([
+    undefined,
+    { name: "CMO", uri: undefined, logoUri: undefined },
+    { name: "CMO", uri: undefined, logoUri: "https://cmo.xyz/logo.png" },
+  ])(
+    "offers an exit from a failed request without a client home (%o)",
+    async (client) => {
+      mockContinue.mockResolvedValue({
+        data: null,
+        error: { status: 400, message: "invalid_signature" },
+      });
+
+      render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={client} />);
+
+      await screen.findByRole("alert");
+      expect(
+        screen.getByRole("link", { name: "backToSokosumi" }),
+      ).toHaveAttribute("href", "/");
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+    },
+  );
 });

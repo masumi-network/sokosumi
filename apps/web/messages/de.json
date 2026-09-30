@@ -1328,6 +1328,7 @@
       "text": "Mit dem Erstellen eines Kontos stimmst du den <terms>Nutzungsbedingungen</terms> und der <privacy>Datenschutzrichtlinie</privacy> zu."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Zurück zu Sokosumi",
       "continuing": "Weiterleitung…",
       "continuingTo": "Weiter zu {client}…",
       "errorTitle": "Fortfahren nicht möglich",

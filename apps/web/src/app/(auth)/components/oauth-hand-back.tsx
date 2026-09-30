@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
@@ -69,6 +70,14 @@ export default function OAuthHandBack({
             ? t("errorDescriptionFor", { client: clientName })
             : t("errorDescription")}
         </p>
+        {!client?.uri ? (
+          <Link
+            href="/"
+            className="self-start rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+          >
+            {t("backToSokosumi")}
+          </Link>
+        ) : null}
       </div>
     );
   }

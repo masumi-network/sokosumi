@@ -38,11 +38,13 @@ export default function OAuthClientBackLink({
   return (
     <Link
       href={client.uri}
-      className="mb-4 inline-flex items-center gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+      className="mb-4 inline-flex max-w-full items-center gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
     >
-      <ArrowLeft aria-hidden className="size-4" />
+      <ArrowLeft aria-hidden className="size-4 shrink-0" />
       {logo}
-      {t("backTo", { client: client.name })}
+      <span className="min-w-0 wrap-anywhere">
+        {t("backTo", { client: client.name })}
+      </span>
     </Link>
   );
 }
