@@ -145,6 +145,7 @@ import {
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -2057,6 +2058,7 @@ export class SokoBotRuntimeService {
       where,
       _count: { _all: true },
     });
+    const charged = await taskCreditsCharged(tasks.map((task) => task.id));
     return {
       tasks: tasks.map((task) => {
         const latest = task.events[0];
@@ -2074,6 +2076,9 @@ export class SokoBotRuntimeService {
           project: task.project,
           idleDays: Math.floor((now - task.updatedAt.getTime()) / DAY_MS),
           updatedAt: task.updatedAt.toISOString(),
+          ...(charged.has(task.id)
+            ? { creditsCharged: roundCredits(charged.get(task.id)!) }
+            : {}),
           latest: latest
             ? {
                 status: latest.status,
@@ -2220,6 +2225,9 @@ export class SokoBotRuntimeService {
       assignee: task.assignee ?? task.assigneeSokoBot,
       project: task.project,
       updatedAt: task.updatedAt,
+      creditsCharged: roundCredits(
+        (await taskCreditsCharged([task.id])).get(task.id) ?? 0,
+      ),
       events: [...task.events].reverse().map((event) => ({
         id: event.id,
         at: event.createdAt,

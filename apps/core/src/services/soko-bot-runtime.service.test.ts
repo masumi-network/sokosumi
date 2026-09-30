@@ -302,8 +302,13 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 vi.mock("@/services/file-index.service", () => ({
   downloadBlob: files.download,
 }));
+const { taskChargeEventsMock } = vi.hoisted(() => ({
+  taskChargeEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
@@ -1488,6 +1493,11 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     ]);
     taskCountMock.mockResolvedValue(1);
+    // Two debits and a refund: only what was billed counts.
+    taskChargeEventsMock.mockResolvedValueOnce([
+      { taskId: "task-1", transaction: { amount: -4_000_000_000_000n } },
+      { taskId: "task-1", transaction: { amount: -213_100_000_000n } },
+    ]);
 
     const result = await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
@@ -1506,6 +1516,7 @@ describe("SokoBotRuntimeService authorization", () => {
           project: null,
           idleDays: 5,
           updatedAt: updatedAt.toISOString(),
+          creditsCharged: 421.31,
           latest: null,
         },
       ],
