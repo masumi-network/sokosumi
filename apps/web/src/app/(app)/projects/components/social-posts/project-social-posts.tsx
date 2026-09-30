@@ -10,6 +10,7 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
+  Link2,
   MoreHorizontal,
   RotateCcw,
 } from "lucide-react";
@@ -576,7 +577,9 @@ export function ProjectSocialPosts({
               const count =
                 candidate === "drafts" || candidate === "attention"
                   ? postsIn(candidate).length
-                  : 0;
+                  : candidate === "accounts"
+                    ? connections.length
+                    : 0;
               return (
                 <TabsTrigger
                   key={candidate}
@@ -606,6 +609,31 @@ export function ProjectSocialPosts({
           </TabsList>
           {actions}
         </div>
+
+        {accounts !== undefined &&
+        connections.length === 0 &&
+        tab !== "accounts" ? (
+          <div
+            className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+            data-testid="social-connect-prompt"
+          >
+            <div className="space-y-1">
+              <p className="text-sm font-medium">{t("connectPrompt.title")}</p>
+              <p className="text-muted-foreground text-sm text-pretty">
+                {t("connectPrompt.body")}
+              </p>
+            </div>
+            <Button
+              className="shrink-0"
+              onClick={() => showTab("accounts")}
+              size="sm"
+              type="button"
+            >
+              <Link2 className="size-4" aria-hidden />
+              {t("connectPrompt.action")}
+            </Button>
+          </div>
+        ) : null}
 
         {selectedPostCard}
 
