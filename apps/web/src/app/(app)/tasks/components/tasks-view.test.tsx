@@ -184,7 +184,7 @@ const CANCELED_TASK: TaskWithCoworker = {
 };
 
 const labels = {
-  tabs: { tasks: "Tasks", calendar: "Calendar" },
+  tabs: { tasks: "Board", calendar: "Calendar" },
   filters: {
     title: "Filters",
     searchPlaceholder: "Search",
@@ -445,7 +445,7 @@ describe("TasksView without the task-board guide", () => {
           "[data-tasks-empty-state-overlay], [data-tasks-empty-state-overlay-mobile]",
         ),
       ).toBeNull();
-      expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "Board" })).toHaveAttribute(
         "data-state",
         "active",
       );
