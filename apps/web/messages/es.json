@@ -2432,7 +2432,8 @@
             "post": "publicación",
             "mediaPost": "publicación con imagen o video",
             "video": "video (el texto es el título y la descripción)"
-          }
+          },
+          "publishNow": "Publicar ahora"
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -2449,7 +2450,8 @@
           "unauthenticated": "Inicia sesión para continuar.",
           "unauthenticatedAction": "Iniciar sesión",
           "published": "Publicación publicada.",
-          "publishFailed": "Error al publicar: {error}"
+          "publishFailed": "Error al publicar: {error}",
+          "publishedMany": "{count, plural, one {Publicación publicada.} other {# publicaciones publicadas.}}"
         },
         "needsReconnect": "Hay que volver a conectar la cuenta",
         "needsReconnectLink": "Volver a conectar la cuenta",
