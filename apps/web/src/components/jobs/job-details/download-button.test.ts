@@ -40,6 +40,23 @@ describe("markdownToExportHtml", () => {
     expect(body).not.toMatch(/onerror|style=/);
   });
 
+  // The only input markdown writes is a task list's disabled checkbox, and
+  // the tree rule forces every input into one. So does this.
+  it("prints every input as a disabled checkbox", async () => {
+    const body = await exportBody(
+      '<p>\n```\n<input type="text" value="x"><input>\n```\n\n- [x] done',
+    );
+    const inputs = body.match(/<input[^>]*>/g) ?? [];
+
+    expect(inputs).toHaveLength(3);
+    for (const input of inputs) {
+      expect(input).toContain('type="checkbox"');
+      expect(input).toContain("disabled");
+      expect(input).not.toContain("value");
+    }
+    expect(inputs.filter((input) => input.includes("checked"))).toHaveLength(1);
+  });
+
   it("keeps markup written inside a real fence as text", async () => {
     const body = await exportBody(`\`\`\`html\n${BLOCKED}\n\`\`\``);
 

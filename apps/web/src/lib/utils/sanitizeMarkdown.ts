@@ -179,12 +179,24 @@ export function sanitizeRenderedMarkdown(html: string): string {
       ...RAW_HTML_ATTRIBUTES,
       a: ["href", "title"],
       code: ["class"],
-      input: [{ name: "type", values: ["checkbox"] }, "checked", "disabled"],
+      input: ["type", "checked", "disabled"],
       ol: ["start"],
       td: ["align"],
       th: ["align"],
     },
     allowedClasses: { ...RAW_HTML_CLASSES, code: ["language-*"] },
+    // Every input is a task list's disabled checkbox, as the tree schema's
+    // `required` has it.
+    transformTags: {
+      input: (tagName, attribs) => ({
+        tagName,
+        attribs: {
+          type: "checkbox",
+          disabled: "",
+          ...("checked" in attribs ? { checked: "" } : {}),
+        },
+      }),
+    },
   });
 }
 
