@@ -4,9 +4,11 @@
 
 [PROPOSED] Status: Planned. Owner: coordinator. This document defines future work. This draft contains no payment implementation or live payment proof.
 
+[VERIFIED: documentation diff, 2026-09-30] This draft also corrects package instructions and delivery status in the CLI guides. Those corrections describe existing commands and merged receipt reads. They do not implement the future payment commands or complete the acceptance checks below.
+
 | Field | Proposed value |
 | --- | --- |
-| Draft PR title | `docs(cli): plan the MPS plugin workflow and payment proof` |
+| Draft PR title | `docs(cli): correct MPS delivery and installation docs` |
 | Implementation title | `feat(cli): complete the MPS payment workflow in the bundled plugin` |
 | Branch | `sok-1132-mps-plugin-flow` |
 | Parent branch | `sok-1132-mps-paid-runtime` |
@@ -20,6 +22,8 @@
 
 [PROPOSED] An operator installs the CLI and loads its bundled Skill on a supported host. The agent discovers its Coworker setup and requests the customer's approval for paid work. It uses the approved runtime path from Draft 2 and reports the matching settlement receipt. The instructions cover recovery from interrupted commands.
 
+[REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. The developer will retain control of its node and wallet. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. It will not require organization owner/admin rank. Implementation and live seller proof remain pending.
+
 ## Requirements
 
 1. [PROPOSED] The Skill must check the installed CLI's capabilities before suggesting payment commands. It must explain missing setup or an incompatible version. Do not assume another focused Skill is installed. Keep examples tied to the implemented command contract.
@@ -30,7 +34,7 @@
 
 ## Scope and reuse
 
-[PROPOSED] Extend the existing CLI package and bundled Skill. CLI remains a Core HTTP client. Draft 2 owns payment authorization enforcement, settlement evidence, and refund accounting. This draft must not defer a missing payment safety check into user instructions.
+[PROPOSED] Extend the existing CLI package and bundled Skill. CLI remains a Core HTTP client. Draft 1 owns payment approval and enforcement. Draft 2 owns funding recovery, settlement evidence, and refund accounting. This draft must not defer a missing payment safety check into user instructions.
 
 | Proposed path | Planned change |
 | --- | --- |
