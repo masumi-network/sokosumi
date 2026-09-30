@@ -36,12 +36,27 @@ public struct RoomHeaderIdentity: Equatable, Sendable {
   }
 }
 
-/// Web trims the topic and hides it when nothing is left, then draws it on one truncating line, where HTML folds
-/// every run of line breaks, tabs and spaces into one space. A title bar cannot fold, so the text arrives folded.
+/// Web trims the topic (`String.prototype.trim()`) and hides it when nothing is left, then draws it on one truncating
+/// line, where HTML folds every run of line breaks, tabs and spaces into one space. A title bar cannot fold, so the
+/// text arrives folded.
 func roomHeaderTopic(_ topic: String?) -> String? {
-  guard let trimmed = topic?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+  guard let scalars = topic?.unicodeScalars,
+        let first = scalars.firstIndex(where: { !isECMAScriptTrimmed($0) }),
+        let last = scalars.lastIndex(where: { !isECMAScriptTrimmed($0) })
+  else {
     return nil
   }
+  let trimmed = String(scalars[first ... last])
   // Scalar semantics: `\r\n` is one Character, which a grapheme-level class never matches.
   return trimmed.replacing(#/[ \t\n\r\f]+/#.matchingSemantics(.unicodeScalar), with: " ")
+}
+
+/// What ECMAScript's `trim()` removes: WhiteSpace (TAB, VT, FF, ZWNBSP and every `Zs`, SP and NBSP among them) and
+/// LineTerminator (LF, CR, U+2028, U+2029). Foundation's `.whitespacesAndNewlines` differs: it removes U+0085 and
+/// keeps U+FEFF.
+private func isECMAScriptTrimmed(_ scalar: Unicode.Scalar) -> Bool {
+  switch scalar {
+  case "\t", "\u{0B}", "\u{0C}", "\u{FEFF}", "\n", "\r", "\u{2028}", "\u{2029}": true
+  default: scalar.properties.generalCategory == .spaceSeparator
+  }
 }

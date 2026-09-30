@@ -21,6 +21,7 @@ struct RoomHeaderIdentityTests {
     isSelfDirect: Bool = false,
     groupName: String? = nil,
     members: [Components.Schemas.ChatRoomUserParticipant] = [],
+    coworkers: [Components.Schemas.ChatRoomCoworkerParticipant] = [],
     sokoBots: [Components.Schemas.ChatRoomSokoBotParticipant] = []
   ) -> Components.Schemas.ChatRoom {
     .init(
@@ -28,7 +29,7 @@ struct RoomHeaderIdentityTests {
       name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, groupName: groupName,
       topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
       createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
-      myAccess: access, userMembers: members, coworkerMembers: [], sokoBotMembers: sokoBots
+      myAccess: access, userMembers: members, coworkerMembers: coworkers, sokoBotMembers: sokoBots
     )
   }
 
@@ -80,7 +81,11 @@ struct RoomHeaderIdentityTests {
     ("  \n\t ", nil),
     ("  Weekly launch  ", "Weekly launch"),
     ("Goals:\n- ship\r\n- tell\tpeople", "Goals: - ship - tell people"),
-    ("Two  spaces\u{00A0}and a no-break space", "Two spaces\u{00A0}and a no-break space")
+    ("Two  spaces\u{00A0}and a no-break space", "Two spaces\u{00A0}and a no-break space"),
+    // ECMAScript `trim()`: U+FEFF is white space, U+0085 is neither white space nor a line terminator.
+    ("\u{FEFF}", nil),
+    ("\u{FEFF}  Weekly launch\u{3000}", "Weekly launch"),
+    ("Weekly launch\u{0085}", "Weekly launch\u{0085}")
   ])
   func theTopicIsTrimmedFoldedToOneLineAndHiddenWhenBlank(example: (String?, String?)) {
     #expect(RoomHeaderIdentity(room: Self.room(topic: example.0), currentUserId: Self.reader).topic == example.1)
@@ -94,13 +99,16 @@ struct RoomHeaderIdentityTests {
       Self.room(kind: .direct, name: "group", groupName: "Launch crew",
                 members: [Self.person(Self.reader, "Me"), ada, Self.person("user_grace", "Grace")]),
       Self.room(kind: .direct, name: "assistant", members: [Self.person(Self.reader, "Me")],
-                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, presence: .online)])
+                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, presence: .online)]),
+      Self.room(kind: .direct, name: "coworker", topic: "Ignored", members: [Self.person(Self.reader, "Me")],
+                coworkers: [.init(id: "cow_1", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)])
     ]
     #expect(rooms.map { RoomHeaderIdentity(room: $0, currentUserId: Self.reader) } == [
       .init(mark: .direct, title: "Ada", topic: nil),
       .init(mark: .direct, title: "Me", topic: nil),
       .init(mark: .direct, title: "Launch crew", topic: nil),
-      .init(mark: .direct, title: "Soko", topic: nil)
+      .init(mark: .direct, title: "Soko", topic: nil),
+      .init(mark: .direct, title: "Helper", topic: nil)
     ])
   }
 }
