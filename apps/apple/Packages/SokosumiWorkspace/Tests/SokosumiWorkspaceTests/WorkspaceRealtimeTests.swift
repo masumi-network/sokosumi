@@ -230,6 +230,8 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
   private(set) var presenceOrganizations: [String?] = []
   private(set) var publishedPresence: [ChatPresenceMemberData] = []
   private(set) var inFront: [Bool] = []
+  /// Room watches, Typing publishes and the disconnect, in the order the coordinator issued them.
+  private(set) var typingLog: [String] = []
   private var handler: RealtimeEventHandler?
 
   func connect(
@@ -251,6 +253,11 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func watchRoom(_ roomId: String?) {
     watchedRooms.append(roomId)
+    typingLog.append("watch \(roomId ?? "nil")")
+  }
+
+  func publishTyping(_ state: ChatTypingState, roomId: String) {
+    typingLog.append("\(state.rawValue) \(roomId)")
   }
 
   func setMembershipRooms(_ roomIds: Set<String>) {
@@ -275,6 +282,7 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 
   func disconnect() {
     disconnectCount += 1
+    typingLog.append("disconnect")
   }
 
   func deliver(_ event: ResolvedRealtimeDelivery) {
@@ -1150,7 +1158,107 @@ struct WorkspaceRealtimeTests {
     let lookup = try #require(operations.firstIndex(of: "get/workspaces/{id}"))
     #expect(read < lookup)
   }
+
+  /// Row 36a, ADR 0033: the room composer announces on the open room's typing channel, throttled,
+  /// and stops on send, on blur and on leaving, in that order on the wire.
+  @Test func typingAnnouncesFromTheOpenRoomAndStopsOnSendBlurAndLeaving() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState(notificationLoadScript + [
+      (201, realtimeCreatedBody(id: "550e8400-e29b-41d4-a716-446655440740", roomId: roomA, content: "hello")),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(fake.typingLog == ["watch \(roomA)"])
+    #expect(state.typing.roomId == roomA)
+
+    // Before the channel answers, an edit reaches nobody and opens no throttle window.
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin)
+    #expect(fake.typingLog == ["watch \(roomA)"])
+    state.applyTypingChannel(roomId: roomA, canPublish: true)
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(1))
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(5))
+    // Only the open room's composer announces.
+    state.composerEdited(roomId: roomB, hasText: true, now: typingOrigin.addingTimeInterval(6))
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(11))
+    #expect(fake.typingLog == ["watch \(roomA)", "started \(roomA)", "started \(roomA)"])
+
+    state.composerEdited(roomId: roomA, hasText: false, now: typingOrigin.addingTimeInterval(12))
+    state.composerStoppedTyping(roomId: roomA)
+    #expect(fake.typingLog.suffix(1) == ["stopped \(roomA)"] && fake.typingLog.count == 4)
+
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(13))
+    state.composerStoppedTyping(roomId: roomB)
+    state.composerStoppedTyping(roomId: roomA)
+    state.composerStoppedTyping(roomId: roomA)
+    #expect(fake.typingLog.suffix(2) == ["started \(roomA)", "stopped \(roomA)"] && fake.typingLog.count == 6)
+
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(14))
+    #expect(state.sendMessage("hello", auth: auth))
+    await waitForRealtimeIdle(state)
+    #expect(fake.typingLog.suffix(2) == ["started \(roomA)", "stopped \(roomA)"] && fake.typingLog.count == 8)
+
+    // Leaving tells the room before its channel goes; the next room starts unannounced.
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin.addingTimeInterval(15))
+    state.selectRoom(roomB, auth: auth)
+    await waitForRealtimeIdle(state)
+    #expect(fake.typingLog.suffix(3) == ["started \(roomA)", "stopped \(roomA)", "watch \(roomB)"])
+    state.composerEdited(roomId: roomB, hasText: true, now: typingOrigin.addingTimeInterval(16))
+    state.applyTypingChannel(roomId: roomB, canPublish: true)
+    state.composerEdited(roomId: roomB, hasText: true, now: typingOrigin.addingTimeInterval(17))
+    state.reset()
+    #expect(fake.typingLog.suffix(3) == ["started \(roomB)", "stopped \(roomB)", "disconnect"])
+    #expect(state.typing.roomId == nil)
+  }
+
+  @Test func typingLineFollowsTheOpenRoomsEventsAndExpiry() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState(notificationLoadScript + [
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    // Through the socket's ordered stream: another room's typist and the reader never show.
+    fake.deliver(.typingChannel(roomId: roomA, canPublish: false))
+    fake.deliver(.typing(roomId: roomB, signal: .init(userId: "stranger", state: .started)))
+    fake.deliver(.typing(roomId: roomA, signal: .init(userId: "user_1", state: .started)))
+    fake.deliver(.typing(roomId: roomA, signal: .init(userId: "pat", state: .started)))
+    for _ in 0 ..< 1000 where state.typing.typistIds.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.typing.typistIds == ["pat"])
+    // A subscribe-only token reads the room and stays quiet.
+    state.composerEdited(roomId: roomA, hasText: true, now: typingOrigin)
+    #expect(fake.typingLog == ["watch \(roomA)"])
+    fake.deliver(.typing(roomId: roomA, signal: .init(userId: "pat", state: .stopped)))
+    for _ in 0 ..< 1000 where !state.typing.typistIds.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.typing.typistIds.isEmpty)
+
+    state.applyTyping(roomId: roomA, signal: .init(userId: "pat", state: .started), now: typingOrigin)
+    state.applyTyping(roomId: roomA, signal: .init(userId: "kim", state: .started), now: typingOrigin.addingTimeInterval(4))
+    state.sweepTyping(now: typingOrigin.addingTimeInterval(11.9))
+    #expect(state.typing.typistIds == ["pat", "kim"])
+    state.sweepTyping(now: typingOrigin.addingTimeInterval(12))
+    #expect(state.typing.typistIds == ["kim"])
+    // A token that no longer grants the channel shows nobody.
+    state.applyTypingChannel(roomId: roomA, canPublish: nil)
+    #expect(state.typing.typistIds.isEmpty)
+
+    state.applyTyping(roomId: roomA, signal: .init(userId: "pat", state: .started), now: typingOrigin.addingTimeInterval(20))
+    #expect(state.typing.typistIds == ["pat"])
+    state.selectRoom(roomB, auth: auth)
+    #expect(state.typing.typistIds.isEmpty && state.typing.roomId == roomB)
+    await waitForRealtimeIdle(state)
+    state.reset()
+  }
 }
+
+private let typingOrigin = Date(timeIntervalSince1970: 1_800_000_000)
 
 private let notificationLoadScript: [(Int, String)] = [
   (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),

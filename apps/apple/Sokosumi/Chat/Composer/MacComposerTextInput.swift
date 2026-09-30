@@ -33,6 +33,9 @@
     var attachmentDragChanged: ((Bool) -> Void)?
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
+    /// The person's own edit, with the draft it left: typed or pasted text, a deletion, a formatting
+    /// command. Never a restored draft, a cleared one after send, or text the app inserted itself.
+    var onEdit: ((String) -> Void)?
 
     func makeNSView(context: Context) -> NSScrollView {
       let scroll = InputScrollView(frame: NSRect(x: 0, y: 0, width: 200, height: 24))
@@ -163,7 +166,11 @@
 
       func textDidChange(_ notification: Notification) {
         guard let input = notification.object as? InputView else { return }
-        parent.text = input.captureDraft()
+        let draft = input.captureDraft()
+        parent.text = draft
+        if !input.insertsUntypedText {
+          parent.onEdit?(draft)
+        }
         parent.commands?.refresh()
       }
 
@@ -305,6 +312,8 @@
           replacement = NSMutableAttributedString(string: label.isEmpty ? "link" : label, attributes: attributes)
         }
         replacement.addAttribute(ComposerInlineText.link, value: url, range: NSRange(location: 0, length: replacement.length))
+        insertsUntypedText = true
+        defer { insertsUntypedText = false }
         breakUndoCoalescing()
         replaceFormatting(MacComposerAttributedText.styled(replacement), range: range)
         setSelectedRange(NSRange(location: range.location + replacement.length, length: 0))
@@ -384,8 +393,9 @@
         deleting { super.cut(sender) }
       }
 
-      /// `insertAtCaret` inserts through `insertText` as well; only the person's own edits fire an input rule.
-      private var insertsUntypedText = false
+      /// Set while the app inserts text the person did not type (`insertAtCaret`, a saved link). Such text
+      /// fires no input rule and, as on web, announces no Typing.
+      private(set) var insertsUntypedText = false
 
       private func insertUntyped(_ text: String) {
         insertsUntypedText = true

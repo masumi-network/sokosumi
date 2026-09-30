@@ -6,7 +6,7 @@
 
 **Stack**: One Xcode workspace (`Sokosumi.xcworkspace`) holding `Sokosumi.xcodeproj` (product `Sokosumi`) and the five local packages as root packages, so the `Sokosumi` scheme runs the app tests and every package suite in one command. Build and test through the workspace, not the project — `-project` cannot reach the package test targets. macOS target first, shared Swift packages under `Packages/` (first: `CoreAPI`, generated via Swift OpenAPI Generator). No iOS target yet; packages must stay free of AppKit/SwiftUI so their domain behavior remains extractable for future native clients. No `package.json`. Xcode is outside turbo and Biome. Swift tooling (SwiftLint, SwiftFormat) installs via Mint with exact pins in `Mintfile`, not Homebrew directly.
 
-**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and the TokenStore port), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (Ably transport adapter, domain event delivery, room subscriptions and org presence), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
+**Key directories**: `Sokosumi/` (thin SwiftUI app: auth composition/browser adapter, workspace/chat composition, views), `Packages/CoreAPI/` (generated Core HTTP client), `Packages/SokosumiAuth/` (portable auth state, OAuth session and the TokenStore port), `Packages/SokosumiChat/` (portable WorkspaceSession/ConversationSidebar/RoomTimeline, avatar loading, scoped room/draft persistence, rooms/chat flows), `Packages/SokosumiRealtime/` (Ably transport adapter, domain event delivery, room subscriptions, org presence and the open room's typing channel), `Packages/SokosumiWorkspace/` (portable cross-package coordinator and integration tests), `SokosumiTests/` (app-target tests).
 
 ## Source navigation
 
@@ -22,7 +22,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.
 - `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
-- `Chat/Composer/`: draft-owning rich composer, Drive picker (`DriveFilePickerView`) and isolated native text input.
+- `Chat/Composer/`: draft-owning rich composer, the Typing line under the room composer (`RoomTypingLine`), Drive picker (`DriveFilePickerView`) and isolated native text input. Typing state and its channel stay in the shared packages.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
 - `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
 - `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.

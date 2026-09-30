@@ -46,7 +46,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/Chat/Invitations` | Channel invitation and guest join-link sheets opened from in-app links |
 | `Sokosumi/Chat/Pins` | Pinned-message inspector and preview cards |
 | `Sokosumi/Chat/Search` | Room Find toolbar, shared inspector presentation and search result rows |
-| `Sokosumi/Chat/Composer` | Rich composer, Drive picker and native text input |
+| `Sokosumi/Chat/Composer` | Rich composer, the Typing line under it, Drive picker and native text input |
 | `Sokosumi/Chat/Rendering` | Markdown, code, thought presentation, Soko Bot footer/hop badge and attachment chips/previews |
 | `Sokosumi/Shared` | Participant avatar, `PresenceDot`, `ParticipantProfileButton`, `ParticipantDetailsView` and the shared `WrappingRow` layout |
 | `Sokosumi/Settings` | Settings scene content (account, chat display, time format and chat notification delivery) and the time-format environment value |
@@ -61,7 +61,7 @@ The app composes these UI-free packages:
 | `CoreAPI` | Generated DTOs, HTTP client and client factory | None |
 | `SokosumiAuth` | OAuth lifecycle and the `TokenStore` persistence port | None |
 | `SokosumiChat` | Workspace/room/thread state, sends, streaming, parsing, avatar loading and chat persistence | `CoreAPI` |
-| `SokosumiRealtime` | Ably transport adapter, domain event delivery and org presence | `CoreAPI`, `SokosumiChat` |
+| `SokosumiRealtime` | Ably transport adapter, domain event delivery, org presence and the open room's typing channel | `CoreAPI`, `SokosumiChat` |
 
 Views render package state and dispatch user actions through `WorkspaceState`. HTTP operations belong to `ChatService`/`CoreAPI`; token lifecycle belongs to `SokosumiAuth`. Chat read backoff lives in `SokosumiChat` (`ChatReadCooldown` and its client middleware), shared across clients by app composition and scoped to the OAuth login generation. The composer owns transient typing state so each keystroke does not invalidate the timeline. Rendering parses into portable models in `SokosumiChat`, then presents those models in SwiftUI.
 
