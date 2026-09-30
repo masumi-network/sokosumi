@@ -20,7 +20,7 @@ it("returns Core outages without rendering the page or losing rotated cookies", 
     new Response(null, { status: 503, headers }),
   );
 
-  const response = await proxy(new NextRequest("https://cmo.xyz/"));
+  const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
   expect(response.status).toBe(503);
   expect(response.headers.getSetCookie()).toEqual(cookies);
