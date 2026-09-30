@@ -10,8 +10,8 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
-  buildSignedOAuthConsentQueryFromSearchParams,
+  buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   buildSignInUrlFromSignUp,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
@@ -21,20 +21,20 @@ import {
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
-describe("buildSignedOAuthConsentQueryFromSearchParams", () => {
+describe("buildSignedOAuthQueryFromSearchParams", () => {
   it("repairs base64 plus characters and keeps only signed parameters", () => {
     const params = new URLSearchParams(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&debug=unsigned&sig=abc+def%2Fghi%3D",
     );
 
-    expect(buildSignedOAuthConsentQueryFromSearchParams(params)).toBe(
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=abc%2Bdef%2Fghi%3D",
     );
   });
 
   it("returns undefined for an unsigned query", () => {
     expect(
-      buildSignedOAuthConsentQueryFromSearchParams(
+      buildSignedOAuthQueryFromSearchParams(
         new URLSearchParams("client_id=client_1"),
       ),
     ).toBeUndefined();
@@ -253,6 +253,17 @@ describe("buildSignUpUrlFromSignIn", () => {
       "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
     );
   });
+
+  it("carries the OAuth request as the sign-up page's own query", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
+        email: "user@example.com",
+      }),
+    ).toBe(
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&email=user%40example.com",
+    );
+  });
 });
 
 describe("buildSignInUrlFromSignUp", () => {
@@ -260,78 +271,52 @@ describe("buildSignInUrlFromSignUp", () => {
     expect(buildSignInUrlFromSignUp({})).toBe("/signin");
   });
 
-  it("carries the signed OAuth consent query to signin intact", () => {
-    const consentReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
-      new URLSearchParams(
-        "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
-      ),
-    );
-
-    const signInUrl = buildSignInUrlFromSignUp({
-      returnUrl: consentReturnUrl,
-    });
-
-    expect(signInUrl).toBe(
-      "/signin?returnUrl=%2Foauth%2Fconsent%3Fclient_id%3Dclient_1%26redirect_uri%3Dhttps%253A%252F%252Fexample.com%252Fcallback%26code_challenge%3Dchallenge_1%26exp%3D1772367377%26sig%3DmVXxByc5E32WEKh8YvwTBB%252BvbGZAR42ECbHJf8K%252F24s%253D",
-    );
+  it("carries the OAuth request as the sign-in page's own query", () => {
     expect(
-      new URL(signInUrl, "https://sokosumi.test").searchParams.get("returnUrl"),
-    ).toBe(consentReturnUrl);
+      buildSignInUrlFromSignUp({
+        oauthQuery:
+          "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+      }),
+    ).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    );
   });
 });
 
-describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
-  it("builds a consent return URL from URLSearchParams", () => {
+describe("buildOAuthResumeUrlFromSearchParams", () => {
+  it("returns undefined without a signed OAuth request", () => {
     const params = new URLSearchParams({
       client_id: "client_1",
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid&state=state_1&response_type=code",
-    );
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBeUndefined();
   });
 
-  it("returns undefined when required params are missing", () => {
-    const params = new URLSearchParams({
-      client_id: "client_1",
-      redirect_uri: "https://example.com/callback",
-    });
-
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBeUndefined();
-  });
-
-  it("preserves signed oauth query and filters app-only params", () => {
+  it("points at the sign-in page with the signed request and no app-only params", () => {
     const params = new URLSearchParams({
       client_id: "client_1",
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/oauth/consent?foo=bar",
+      returnUrl: "/chat",
       email: "user@example.com",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
 
   it("repairs a base64 signature whose encoded plus was decoded as a space", () => {
     const params = new URLSearchParams(
-      "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
+      "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
 });

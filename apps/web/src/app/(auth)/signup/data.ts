@@ -8,19 +8,19 @@ export const signUpFormData: FormData<
   {
     name: "name",
     placeholderKey: "Fields.Name.placeholder",
+    autoComplete: "name",
   },
   {
     name: "email",
     placeholderKey: "Fields.Email.placeholder",
+    autoComplete: "email",
   },
   {
     name: "password",
     placeholderKey: "Fields.Password.placeholder",
+    descriptionKey: "Fields.Password.hint",
     type: "password",
-  },
-  {
-    name: "termsAccepted",
-    type: "checkbox",
+    autoComplete: "new-password",
   },
   {
     name: "marketingOptIn",

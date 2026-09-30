@@ -1,4 +1,8 @@
-import { getUsersById } from "@sokosumi/core-client";
+import {
+  getUsersById,
+  getUsersByIdWorkspaceAccess,
+  postUsersByIdPersonalWorkspace,
+} from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
 import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -49,12 +53,35 @@ export function createCmoAuth(config: CmoAuthConfig) {
   const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
   let revocationEndpoint: Promise<string> | undefined;
 
-  function getCoreUser(accessToken: string) {
-    return getUsersById({
+  function asCurrentUser(accessToken: string) {
+    return {
       client: coreClient,
       path: { id: "me" },
       headers: { authorization: `Bearer ${accessToken}` },
-    });
+    };
+  }
+
+  function getCoreUser(accessToken: string) {
+    return getUsersById(asCurrentUser(accessToken));
+  }
+
+  /**
+   * A new Sokosumi account has no Workspace, and CMO skips the consent screen
+   * that used to create one (ADR 0046). False when Core could not say or do it.
+   */
+  async function ensurePersonalWorkspace(accessToken: string) {
+    const access = await getUsersByIdWorkspaceAccess(
+      asCurrentUser(accessToken),
+    );
+    if (!access.data) return false;
+    const { hasPersonalWorkspace, hasOrganizationMembership } =
+      access.data.data;
+    if (hasPersonalWorkspace || hasOrganizationMembership) return true;
+    const created = await postUsersByIdPersonalWorkspace(
+      asCurrentUser(accessToken),
+    );
+    // 409: another request created it a moment earlier.
+    return created.data !== undefined || created.response?.status === 409;
   }
 
   /** Throws on any failure; the sign-out hook logs it and still signs out. */
@@ -182,6 +209,9 @@ export function createCmoAuth(config: CmoAuthConfig) {
               if (!tokens.accessToken) return null;
               const { data } = await getCoreUser(tokens.accessToken);
               if (!data) return null;
+              if (!(await ensurePersonalWorkspace(tokens.accessToken))) {
+                return null;
+              }
               const user = data.data;
               return {
                 id: user.id,

@@ -14,13 +14,32 @@ interface FinishAuthInPlaceOptions {
   eventType: "signIn" | "signUp";
   provider: AuthMethodId;
   returnUrl: string | undefined;
+  /** What the sign-in or sign-up call returned. */
+  result?: unknown;
+}
+
+/**
+ * When the page carries an OAuth request, Core's OAuth provider answers the
+ * sign-in or sign-up itself with `{ redirect: true, url }`, and Better Auth's
+ * client is already navigating there.
+ */
+function isOAuthProviderRedirect(result: unknown): boolean {
+  return (
+    typeof result === "object" &&
+    result !== null &&
+    "redirect" in result &&
+    result.redirect === true &&
+    "url" in result &&
+    typeof result.url === "string"
+  );
 }
 
 /**
  * Completes a sign-in or sign-up that did not hand Better Auth a
  * `callbackURL` (credential sign-in, credential sign-up, passkey): wait for
  * the session cookie to settle, count the conversion only if a session
- * exists, then navigate to the destination.
+ * exists, then navigate to the destination, unless the OAuth provider has
+ * already answered with one.
  *
  * The navigation is a full document load, not `router.replace`. The Next
  * client router cache still holds the pre-login middleware result for the
@@ -36,6 +55,7 @@ export async function finishAuthInPlace({
   eventType,
   provider,
   returnUrl,
+  result,
 }: FinishAuthInPlaceOptions): Promise<void> {
   const session = await waitForAuthSession({
     context: eventType === "signUp" ? "signup" : "login",
@@ -54,6 +74,11 @@ export async function finishAuthInPlace({
         fireGTMEvent.signIn(provider);
         break;
     }
+  }
+  // Navigate once. A second navigation would deliver the authorization code
+  // twice, and Core revokes a confidential client's tokens for that.
+  if (isOAuthProviderRedirect(result)) {
+    return;
   }
   window.location.replace(normalizeAuthReturnUrl(returnUrl));
 }

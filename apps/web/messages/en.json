@@ -1186,7 +1186,8 @@
         },
         "Header": {
           "title": "Login",
-          "description": "Hire agents on our platform"
+          "description": "Hire agents on our platform",
+          "descriptionFor": "Sign in with your Sokosumi account to continue to {client}"
         },
         "Form": {
           "submit": "Login",
@@ -1233,7 +1234,8 @@
         "Header": {
           "title": "Register",
           "viaInvitation": "(via invitation)",
-          "description": "Hire agents on our platform"
+          "description": "Hire agents on our platform",
+          "descriptionFor": "Create your Sokosumi account to continue to {client}"
         },
         "Form": {
           "submit": "Register",
@@ -1244,14 +1246,6 @@
             },
             "Name": {
               "placeholder": "Name"
-            },
-            "TermsAccepted": {
-              "Label": {
-                "iAgreeTo": "I agree to the",
-                "termsOfService": "Terms of Service",
-                "and": "and",
-                "privacyPolicy": "Privacy Policy"
-              }
             },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news from Sokosumi"
@@ -1267,11 +1261,11 @@
               "invalidEmail": "Input valid email to see or create organizations"
             },
             "Password": {
-              "placeholder": "Password"
+              "placeholder": "Password",
+              "hint": "Use 8 or more characters"
             }
           },
           "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to register",
             "emailDomainNotAllowed": "Email domain not allowed",
             "badInput": "Please input form correctly."
           },
@@ -1321,6 +1315,17 @@
           }
         }
       }
+    },
+    "TermsNotice": {
+      "text": "By creating an account, you agree to the <terms>Terms of Service</terms> and the <privacy>Privacy Policy</privacy>."
+    },
+    "OAuthHandBack": {
+      "continuing": "Continuing…",
+      "continuingTo": "Continuing to {client}…",
+      "errorTitle": "Unable to continue",
+      "errorTitleFor": "Unable to continue to {client}",
+      "errorDescription": "This sign-in request has expired or is no longer valid. Go back to the app you came from and start again.",
+      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again."
     }
   },
   "App": {
@@ -7357,9 +7362,6 @@
           "invalid": "Password must be a valid string.",
           "min": "Password must be at least 8 characters",
           "max": "Password must be at most 128 characters",
-          "lowercase": "Password must contain at least one lowercase letter.",
-          "uppercase": "Password must contain at least one uppercase letter.",
-          "number": "Password must contain at least one number.",
           "required": "Password is required"
         },
         "CurrentPassword": {

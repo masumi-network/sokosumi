@@ -101,6 +101,24 @@ describe("finishAuthInPlace", () => {
     expect(mockSignInEvent).not.toHaveBeenCalled();
   });
 
+  it("leaves the navigation to the OAuth provider's answer", async () => {
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+
+    // Better Auth's client is already on its way to this address.
+    await finishAuthInPlace({
+      eventType: "signUp",
+      provider: "credential",
+      returnUrl: "/signin?client_id=cmo&sig=signed",
+      result: {
+        redirect: true,
+        url: "https://app.cmo.xyz/api/auth/callback/sokosumi?code=abc",
+      },
+    });
+
+    expect(mockSignUpEvent).toHaveBeenCalledWith("credential");
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
   it("never navigates off-origin", async () => {
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 

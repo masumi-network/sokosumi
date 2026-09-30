@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import { getAuth } from "../lib/auth";
-import { signIn, signOut } from "./actions";
+import { createAccount, signIn, signOut } from "./actions";
 
 interface HomePageProps {
   searchParams: Promise<{ error?: string | string[] }>;
@@ -26,6 +26,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <SignedOut
       error={typeof error === "string" ? error : undefined}
+      createAccount={createAccount}
       signIn={signIn}
     />
   );

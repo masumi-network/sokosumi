@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
@@ -27,7 +27,7 @@ export default function SocialSignupAutoInitiator({
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") ?? undefined;
   const effectiveReturnUrl =
-    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+    returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 

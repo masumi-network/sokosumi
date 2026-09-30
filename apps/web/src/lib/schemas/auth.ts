@@ -33,7 +33,6 @@ export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     name: nameSchema(t),
     email: emailSchema(t),
     password: passwordSchema(t),
-    termsAccepted: z.boolean(),
     marketingOptIn: z.boolean().optional(),
   });
 

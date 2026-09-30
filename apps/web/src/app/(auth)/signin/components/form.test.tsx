@@ -314,6 +314,49 @@ describe("SignInForm", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
+  it("leaves the navigation to the OAuth provider when the page carries an OAuth request", async () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+    mockSignInEmail.mockResolvedValue({
+      data: {
+        redirect: true,
+        url: "https://app.cmo.xyz/api/auth/callback/sokosumi?code=abc",
+      },
+      error: null,
+    });
+    mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+
+    render(<SignInForm />);
+
+    await submitValidSignInForm();
+
+    await waitFor(() => {
+      expect(fireGTMEvent.signIn).toHaveBeenCalledWith("credential");
+    });
+    // Better Auth's client follows the provider's answer. A second
+    // navigation would deliver the authorization code twice.
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+    expect(mockReplace).not.toHaveBeenCalled();
+  });
+
+  it("carries the OAuth request on the register link", () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "abc+def/ghi=",
+    });
+
+    render(<SignInForm />);
+
+    expect(screen.getByRole("link", { name: "Register.link" })).toHaveAttribute(
+      "href",
+      "/signup?client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
   it("does not count a login when no session appears", async () => {
     mockSignInEmail.mockResolvedValue({
       data: {},

@@ -15,7 +15,8 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -47,7 +48,7 @@ export default function SignInForm({
   } = useAuthCaptcha("signin");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
 
@@ -114,6 +115,7 @@ export default function SignInForm({
         eventType: "signIn",
         provider: "credential",
         returnUrl: effectiveReturnUrl,
+        result: result.data,
       });
     });
   };
@@ -136,10 +138,13 @@ export default function SignInForm({
   const signUpUrl = useMemo(
     () =>
       buildSignUpUrlFromSignIn({
-        returnUrl: effectiveReturnUrl,
+        returnUrl,
+        oauthQuery: returnUrl
+          ? undefined
+          : buildSignedOAuthQueryFromSearchParams(searchParams),
         email: prefilledEmail ?? email,
       }),
-    [effectiveReturnUrl, prefilledEmail, email],
+    [returnUrl, searchParams, prefilledEmail, email],
   );
 
   const { isSubmitting } = form.formState;
