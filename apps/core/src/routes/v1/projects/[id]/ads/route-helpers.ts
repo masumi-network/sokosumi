@@ -11,7 +11,7 @@ import {
   serviceUnavailable,
 } from "@/helpers/error";
 
-export function mapProjectAdServiceError(error: unknown): never {
+export function mapAdsServiceError(error: unknown): never {
   if (error instanceof HTTPException) throw error;
   if (error instanceof ComposioConfigError) {
     throw serviceUnavailable(
@@ -21,5 +21,5 @@ export function mapProjectAdServiceError(error: unknown): never {
   if (error instanceof ComposioApiError || error instanceof ComposioToolError) {
     throw badGateway("The ads provider could not complete the request.");
   }
-  throw internalServerError("Unable to manage ad accounts.");
+  throw internalServerError("Unable to complete the ads request.");
 }

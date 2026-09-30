@@ -215,9 +215,12 @@ export async function requireScopedProject(
   {
     client = prisma,
     requireOpen = false,
+    closedMessage = "Cannot connect accounts to a closing or closed Project",
   }: {
     client?: Pick<Prisma.TransactionClient, "project">;
     requireOpen?: boolean;
+    /** Message of the 409 for a closing or closed Project. */
+    closedMessage?: string;
   } = {},
 ): Promise<void> {
   const project = await client.project.findFirst({
@@ -228,18 +231,23 @@ export async function requireScopedProject(
     throw notFound("Project not found");
   }
   if (requireOpen && (project.closingAt || project.closedAt)) {
-    throw conflict("Cannot connect accounts to a closing or closed Project");
+    throw conflict(closedMessage);
   }
 }
 
 export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
+  options: { closedMessage?: string } = {},
 ): Promise<void> {
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  await requireScopedProject(input, { client: tx, requireOpen: true });
+  await requireScopedProject(input, {
+    client: tx,
+    requireOpen: true,
+    ...options,
+  });
 }
 
 async function requireTargetConnection(input: {

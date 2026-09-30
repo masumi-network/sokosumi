@@ -16,15 +16,20 @@ const DATAFORSEO = { toolkitSlug: "dataforseo", name: "DataForSEO" };
 const PLATFORM_EXECUTOR_USER_ID = "sokosumi:platform";
 const DATAFORSEO_OK = 20000;
 const MAX_KEYWORDS = 50;
+const TREND_MONTHS = 12;
 const COMPETITION_LEVELS = ["LOW", "MEDIUM", "HIGH"] as const;
 
 /** A market keyword. Money is USD. */
 export const marketKeywordSchema = z.object({
   keyword: z.string(),
   searchVolume: z.number().nullable(),
-  /** Oldest to newest. */
+  /** The 12 most recent months, oldest to newest; null where DataForSEO has no volume. */
   trend: z.array(
-    z.object({ year: z.number(), month: z.number(), searchVolume: z.number() }),
+    z.object({
+      year: z.number(),
+      month: z.number(),
+      searchVolume: z.number().nullable(),
+    }),
   ),
   competition: z.enum(COMPETITION_LEVELS).nullable(),
   competitionIndex: z.number().nullable(),
@@ -39,6 +44,11 @@ export interface MarketKeywordQuery {
   locationCode: number;
   languageCode: string;
 }
+
+const envelopeSchema = z.object({
+  status_code: z.number().nullish(),
+  status_message: z.string().nullish(),
+});
 
 const taskSchema = z.object({
   status_code: z.number(),
@@ -73,24 +83,27 @@ function toMarketKeyword(
     keyword: row.keyword,
     searchVolume: row.search_volume ?? null,
     trend: (row.monthly_searches ?? [])
-      .flatMap((point) =>
-        point.search_volume == null
-          ? []
-          : [
-              {
-                year: point.year,
-                month: point.month,
-                searchVolume: point.search_volume,
-              },
-            ],
-      )
-      .sort((a, b) => a.year - b.year || a.month - b.month),
+      .map((point) => ({
+        year: point.year,
+        month: point.month,
+        searchVolume: point.search_volume ?? null,
+      }))
+      .sort((a, b) => a.year - b.year || a.month - b.month)
+      .slice(-TREND_MONTHS),
     competition: competition ?? null,
     competitionIndex: row.competition_index ?? null,
     cpc: row.cpc ?? null,
     lowTopOfPageBid: row.low_top_of_page_bid ?? null,
     highTopOfPageBid: row.high_top_of_page_bid ?? null,
   };
+}
+
+function refused(statusCode: number, statusMessage?: string | null) {
+  return new ComposioToolError({
+    message: "DataForSEO refused the request",
+    providerMessage: statusMessage,
+    providerStatus: statusCode,
+  });
 }
 
 /**
@@ -113,6 +126,7 @@ export async function fetchMarketKeywords(
       connectedAccountId,
       executorUserId: PLATFORM_EXECUTOR_USER_ID,
       toolkit: DATAFORSEO,
+      label: "platform DataForSEO",
       toolSlugs: [KEYWORDS_FOR_KEYWORDS],
     },
     (execute) =>
@@ -123,14 +137,14 @@ export async function fetchMarketKeywords(
         sort_by: "search_volume",
       }),
   );
+  const envelope = parseToolRow(payload, envelopeSchema, context);
+  if (envelope.status_code != null && envelope.status_code !== DATAFORSEO_OK) {
+    throw refused(envelope.status_code, envelope.status_message);
+  }
   const [row] = requireToolRows(payload, "tasks", context);
   const task = parseToolRow(row, taskSchema, context);
   if (task.status_code !== DATAFORSEO_OK) {
-    throw new ComposioToolError({
-      message: "DataForSEO refused the request",
-      providerMessage: task.status_message,
-      providerStatus: task.status_code,
-    });
+    throw refused(task.status_code, task.status_message);
   }
   return parseToolRows(task.result ?? [], keywordSuggestionSchema, context)
     .map(toMarketKeyword)

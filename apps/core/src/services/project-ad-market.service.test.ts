@@ -13,10 +13,12 @@ const m = vi.hoisted(() => {
     profileUpsert: vi.fn(),
     snapshotFindUnique: vi.fn(),
     snapshotUpsert: vi.fn(),
+    snapshotDeleteMany: vi.fn(),
   };
   return {
     ...fns,
     tx: {
+      $transaction: (ops: Promise<unknown>[]) => Promise.all(ops),
       projectAdMarketProfile: {
         findUnique: fns.profileFindUnique,
         upsert: fns.profileUpsert,
@@ -24,6 +26,7 @@ const m = vi.hoisted(() => {
       projectAdMarketSnapshot: {
         findUnique: fns.snapshotFindUnique,
         upsert: fns.snapshotUpsert,
+        deleteMany: fns.snapshotDeleteMany,
       },
     },
   };
@@ -94,6 +97,7 @@ describe("project ad market service", () => {
     m.requireLockedOpenProject.mockResolvedValue(undefined);
     m.profileFindUnique.mockResolvedValue(storedProfile);
     m.fetchMarketKeywords.mockResolvedValue([keyword]);
+    m.snapshotDeleteMany.mockResolvedValue({ count: 0 });
     m.snapshotUpsert.mockImplementation(
       async (args: { create: { fetchedAt: Date } }) => ({
         fetchedAt: args.create.fetchedAt,
@@ -113,6 +117,22 @@ describe("project ad market service", () => {
         updatedAt: storedProfile.updatedAt,
       });
     });
+
+    it.each([
+      ["country", { locationCode: 1 }],
+      ["language", { languageCode: "xx" }],
+    ])(
+      "fails loudly on a stored %s outside the supported set",
+      async (_n, override) => {
+        m.profileFindUnique.mockResolvedValue({
+          ...storedProfile,
+          ...override,
+        });
+        await expect(getProjectAdMarketProfile(scope)).rejects.toMatchObject({
+          status: 500,
+        });
+      },
+    );
 
     it("does not read the profile of a Project outside the Workspace", async () => {
       m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
@@ -143,6 +163,7 @@ describe("project ad market service", () => {
       expect(m.requireLockedOpenProject).toHaveBeenCalledWith(
         m.tx,
         expect.objectContaining(scope),
+        { closedMessage: "Cannot change a closing or closed Project" },
       );
       expect(profile.countryCode).toBe("DE");
     });
@@ -175,11 +196,13 @@ describe("project ad market service", () => {
     it("fetches on a cache miss and stores the normalized keywords under the profile key", async () => {
       m.snapshotFindUnique.mockResolvedValue(null);
       const result = await listProjectAdMarketKeywords(scope);
-      expect(m.fetchMarketKeywords).toHaveBeenCalledWith({
-        keywords: ["Running Shoes", "trail"],
-        locationCode: 2276,
-        languageCode: "de",
-      });
+      expect(m.fetchMarketKeywords).toHaveBeenCalledWith(
+        expect.objectContaining({
+          keywords: ["Running Shoes", "trail"],
+          locationCode: 2276,
+          languageCode: "de",
+        }),
+      );
       expect(m.snapshotFindUnique).toHaveBeenCalledWith({
         where: {
           projectId_kind_requestKey: {
@@ -203,8 +226,19 @@ describe("project ad market service", () => {
       );
       expect(result).toEqual({
         keywords: [keyword],
-        currency: "USD",
         fetchedAt: NOW,
+      });
+    });
+
+    it("replaces the Project's other keyword snapshots with the current one", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      await listProjectAdMarketKeywords(scope);
+      expect(m.snapshotDeleteMany).toHaveBeenCalledWith({
+        where: {
+          projectId: PROJECT_ID,
+          kind: "keywords",
+          NOT: { requestKey: KEY },
+        },
       });
     });
 
@@ -213,11 +247,11 @@ describe("project ad market service", () => {
       m.snapshotFindUnique.mockResolvedValue({ payload: [keyword], fetchedAt });
       expect(await listProjectAdMarketKeywords(scope)).toEqual({
         keywords: [keyword],
-        currency: "USD",
         fetchedAt,
       });
       expect(m.fetchMarketKeywords).not.toHaveBeenCalled();
       expect(m.snapshotUpsert).not.toHaveBeenCalled();
+      expect(m.snapshotDeleteMany).not.toHaveBeenCalled();
     });
 
     it("refetches a stale snapshot and bumps fetchedAt on update", async () => {

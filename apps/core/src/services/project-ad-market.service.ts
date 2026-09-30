@@ -7,6 +7,7 @@ import { internalServerError, notFound } from "@/helpers/error";
 import {
   fetchMarketKeywords,
   type MarketKeyword,
+  type MarketKeywordQuery,
   marketKeywordSchema,
 } from "@/lib/ads/dataforseo";
 import {
@@ -14,6 +15,7 @@ import {
   type AdMarketCountryCode,
   type AdMarketLanguageCode,
   countryCodeOfLocation,
+  isAdMarketLanguage,
 } from "@/lib/ads/markets";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
@@ -39,20 +41,20 @@ export interface AdMarketProfile {
 
 export interface AdMarketKeywords {
   keywords: MarketKeyword[];
-  currency: "USD";
   fetchedAt: Date;
 }
 
 function toProfile(profile: ProjectAdMarketProfile): AdMarketProfile {
   const countryCode = countryCodeOfLocation(profile.locationCode);
-  if (!countryCode) {
-    throw internalServerError("Market profile has an unsupported country");
+  if (!countryCode || !isAdMarketLanguage(profile.languageCode)) {
+    throw internalServerError(
+      "Market profile has an unsupported country or language",
+    );
   }
   return {
     keywords: profile.keywords,
     countryCode,
-    // Only supported languages are written.
-    languageCode: profile.languageCode as AdMarketLanguageCode,
+    languageCode: profile.languageCode,
     updatedAt: profile.updatedAt,
   };
 }
@@ -91,7 +93,9 @@ export async function setProjectAdMarketProfile(
     languageCode: input.languageCode,
   };
   const profile = await serializableTransaction(async (tx) => {
-    await requireLockedOpenProject(tx, input);
+    await requireLockedOpenProject(tx, input, {
+      closedMessage: "Cannot change a closing or closed Project",
+    });
     return tx.projectAdMarketProfile.upsert({
       where: { projectId: input.projectId },
       create: { projectId: input.projectId, ...data },
@@ -102,7 +106,7 @@ export async function setProjectAdMarketProfile(
 }
 
 /** The same profile, in any keyword order or case, maps to the same key. */
-function keywordsRequestKey(profile: ProjectAdMarketProfile): string {
+function keywordsRequestKey(profile: MarketKeywordQuery): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
@@ -128,49 +132,46 @@ export async function listProjectAdMarketKeywords(
   if (!profile) throw notFound("Market profile not set");
 
   const requestKey = keywordsRequestKey(profile);
-  const cached = await prisma.projectAdMarketSnapshot.findUnique({
-    where: {
-      projectId_kind_requestKey: {
-        projectId: input.projectId,
-        kind: KEYWORDS_SNAPSHOT,
-        requestKey,
-      },
+  const snapshotKey = {
+    projectId_kind_requestKey: {
+      projectId: input.projectId,
+      kind: KEYWORDS_SNAPSHOT,
+      requestKey,
     },
+  };
+  const cached = await prisma.projectAdMarketSnapshot.findUnique({
+    where: snapshotKey,
   });
   if (cached && Date.now() - cached.fetchedAt.getTime() < SNAPSHOT_TTL_MS) {
     const parsed = z.array(marketKeywordSchema).safeParse(cached.payload);
     if (parsed.success) {
-      return {
-        keywords: parsed.data,
-        currency: "USD",
-        fetchedAt: cached.fetchedAt,
-      };
+      return { keywords: parsed.data, fetchedAt: cached.fetchedAt };
     }
   }
 
-  const keywords = await fetchMarketKeywords({
-    keywords: profile.keywords,
-    locationCode: profile.locationCode,
-    languageCode: profile.languageCode,
-  });
+  const keywords = await fetchMarketKeywords(profile);
   // fetchedAt only defaults on insert, so set it on update too.
   const fetchedAt = new Date();
-  await prisma.projectAdMarketSnapshot.upsert({
-    where: {
-      projectId_kind_requestKey: {
+  // The profile changed since any other snapshot was taken: drop those with it.
+  await prisma.$transaction([
+    prisma.projectAdMarketSnapshot.upsert({
+      where: snapshotKey,
+      create: {
         projectId: input.projectId,
         kind: KEYWORDS_SNAPSHOT,
         requestKey,
+        payload: keywords,
+        fetchedAt,
       },
-    },
-    create: {
-      projectId: input.projectId,
-      kind: KEYWORDS_SNAPSHOT,
-      requestKey,
-      payload: keywords,
-      fetchedAt,
-    },
-    update: { payload: keywords, fetchedAt },
-  });
-  return { keywords, currency: "USD", fetchedAt };
+      update: { payload: keywords, fetchedAt },
+    }),
+    prisma.projectAdMarketSnapshot.deleteMany({
+      where: {
+        projectId: input.projectId,
+        kind: KEYWORDS_SNAPSHOT,
+        NOT: { requestKey },
+      },
+    }),
+  ]);
+  return { keywords, fetchedAt };
 }

@@ -78,7 +78,6 @@ const keywordsResult = {
       highTopOfPageBid: null,
     },
   ],
-  currency: "USD",
   fetchedAt: new Date("2026-10-01T11:00:00.000Z"),
 };
 
@@ -206,12 +205,11 @@ describe("Project ads market routes", () => {
   describe("keywords", () => {
     const url = `${BASE}/keywords`;
 
-    it("returns keywords with USD currency and nulls intact", async () => {
+    it("returns keywords with nulls intact", async () => {
       const response = await createApp().request(url);
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({
         data: {
-          currency: "USD",
           fetchedAt: "2026-10-01T11:00:00.000Z",
           keywords: [
             { keyword: "running shoes", searchVolume: 5400, cpc: 1.25 },
@@ -223,6 +221,11 @@ describe("Project ads market routes", () => {
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
       });
+    });
+
+    it("has no currency field: money is documented as USD", async () => {
+      const body = await (await createApp().request(url)).json();
+      expect(body.data).not.toHaveProperty("currency");
     });
 
     it("is 404 without a market profile", async () => {

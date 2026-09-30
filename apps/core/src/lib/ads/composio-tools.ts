@@ -31,22 +31,25 @@ export type ExecuteAdsTool = (
 /**
  * Runs `run` in a tool-router session pinned to one connected account and to
  * the given tools only, then deletes the session. The session reuses the
- * Composio tool-session helpers. `toolkit.name` only labels errors.
+ * Composio tool-session helpers. `toolkit.name` and `label` only name the
+ * session in errors; `label` defaults to `Project <name>`.
  */
 export async function withAdsToolSession<T>(
   input: AdsConnectedAccount & {
     toolkit: { toolkitSlug: string; name: string };
+    label?: string;
     toolSlugs: readonly string[];
   },
   run: (execute: ExecuteAdsTool) => Promise<T>,
 ): Promise<T> {
   const { name, toolkitSlug } = input.toolkit;
+  const label = input.label ?? `Project ${name}`;
   const sessionId = await createComposioToolSession({
     toolkitSlug,
     connectedAccountId: input.connectedAccountId,
     executorUserId: input.executorUserId,
     toolSlugs: input.toolSlugs,
-    context: `create Project ${name} session`,
+    context: `create ${label} session`,
   });
   try {
     return await run((toolSlug, args) =>
@@ -59,10 +62,7 @@ export async function withAdsToolSession<T>(
       }),
     );
   } finally {
-    await deleteComposioToolSession(
-      sessionId,
-      `delete Project ${name} session`,
-    );
+    await deleteComposioToolSession(sessionId, `delete ${label} session`);
   }
 }
 

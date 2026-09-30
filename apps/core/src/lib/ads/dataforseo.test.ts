@@ -55,6 +55,7 @@ describe("fetchMarketKeywords", () => {
         connectedAccountId: "ca_seo",
         executorUserId: "sokosumi:platform",
         toolSlugs: ["DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE"],
+        context: "create platform DataForSEO session",
       }),
     );
     expect(m.executeTool).toHaveBeenCalledWith(
@@ -68,7 +69,10 @@ describe("fetchMarketKeywords", () => {
         },
       }),
     );
-    expect(m.deleteSession).toHaveBeenCalledWith("sess_1", expect.any(String));
+    expect(m.deleteSession).toHaveBeenCalledWith(
+      "sess_1",
+      "delete platform DataForSEO session",
+    );
   });
 
   it("maps, orders the trend oldest first and sorts by volume with nulls last", async () => {
@@ -103,6 +107,7 @@ describe("fetchMarketKeywords", () => {
         searchVolume: 5400,
         trend: [
           { year: 2025, month: 12, searchVolume: 4000 },
+          { year: 2026, month: 1, searchVolume: null },
           { year: 2026, month: 8, searchVolume: 6000 },
         ],
         competition: "HIGH",
@@ -134,6 +139,35 @@ describe("fetchMarketKeywords", () => {
     ]);
   });
 
+  it("keeps the 12 most recent months, null months included, oldest first", async () => {
+    // 2025-09 .. 2026-10, newest first as DataForSEO may return it.
+    const months = Array.from({ length: 14 }, (_, i) => ({
+      year: 2025 + Math.floor((8 + i) / 12),
+      month: ((8 + i) % 12) + 1,
+      search_volume: i === 5 ? null : i,
+    })).reverse();
+    m.executeTool.mockResolvedValue(
+      task([{ keyword: "a", search_volume: 1, monthly_searches: months }]),
+    );
+    const [keyword] = await fetchMarketKeywords(query);
+    expect(keyword?.trend).toHaveLength(12);
+    expect(keyword?.trend[0]).toEqual({
+      year: 2025,
+      month: 11,
+      searchVolume: 2,
+    });
+    expect(keyword?.trend[3]).toEqual({
+      year: 2026,
+      month: 2,
+      searchVolume: null,
+    });
+    expect(keyword?.trend[11]).toEqual({
+      year: 2026,
+      month: 10,
+      searchVolume: 13,
+    });
+  });
+
   it("keeps the 50 highest-volume keywords", async () => {
     m.executeTool.mockResolvedValue(
       task(
@@ -161,6 +195,19 @@ describe("fetchMarketKeywords", () => {
       ComposioToolError,
     );
     expect(m.deleteSession).toHaveBeenCalled();
+  });
+
+  it("raises a tool error, with DataForSEO's message kept for logs, for a failed envelope", async () => {
+    m.executeTool.mockResolvedValue({
+      status_code: 40101,
+      status_message: "Authentication failed.",
+      tasks: [],
+    });
+    await expect(fetchMarketKeywords(query)).rejects.toMatchObject({
+      name: "ComposioToolError",
+      providerStatus: 40101,
+      providerMessage: "Authentication failed.",
+    });
   });
 
   it("rejects a response without tasks or with a malformed row", async () => {

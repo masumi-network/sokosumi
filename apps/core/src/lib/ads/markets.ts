@@ -40,3 +40,9 @@ export function countryCodeOfLocation(
   );
   return entry ? (entry[0] as AdMarketCountryCode) : null;
 }
+
+export function isAdMarketLanguage(
+  languageCode: string,
+): languageCode is AdMarketLanguageCode {
+  return (AD_MARKET_LANGUAGES as readonly string[]).includes(languageCode);
+}

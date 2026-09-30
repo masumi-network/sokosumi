@@ -13,7 +13,7 @@ import { listAdMarketKeywordsResponseSchema } from "@/schemas/project-ad-market.
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 import { listProjectAdMarketKeywords } from "@/services/project-ad-market.service";
 
-import { mapProjectAdServiceError } from "../../route-helpers.js";
+import { mapAdsServiceError } from "../../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -54,7 +54,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return ok(c, listAdMarketKeywordsResponseSchema.parse(result));
     } catch (error) {
-      return mapProjectAdServiceError(error);
+      return mapAdsServiceError(error);
     }
   });
 }

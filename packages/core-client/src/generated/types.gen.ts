@@ -5633,7 +5633,6 @@ export type ListAdMarketKeywordsResponse = {
      * At most 50, by search volume descending, nulls last
      */
     keywords: Array<AdMarketKeyword>;
-    currency: 'USD';
     /**
      * When DataForSEO was last asked; results are cached for 24h
      */
@@ -5641,7 +5640,7 @@ export type ListAdMarketKeywordsResponse = {
 };
 
 /**
- * Money is USD. Fields DataForSEO does not report are null. trend runs oldest to newest.
+ * Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.
  */
 export type AdMarketKeyword = {
     keyword: string;
@@ -5649,7 +5648,7 @@ export type AdMarketKeyword = {
     trend: Array<{
         year: number;
         month: number;
-        searchVolume: number;
+        searchVolume: number | null;
     }>;
     competition: 'LOW' | 'MEDIUM' | 'HIGH' | null;
     competitionIndex: number | null;

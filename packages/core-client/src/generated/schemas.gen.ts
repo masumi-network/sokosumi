@@ -18828,12 +18828,6 @@ export const ListAdMarketKeywordsResponseSchema = {
             },
             description: 'At most 50, by search volume descending, nulls last'
         },
-        currency: {
-            type: 'string',
-            enum: [
-                'USD'
-            ]
-        },
         fetchedAt: {
             type: 'string',
             format: 'date-time',
@@ -18843,7 +18837,6 @@ export const ListAdMarketKeywordsResponseSchema = {
     },
     required: [
         'keywords',
-        'currency',
         'fetchedAt'
     ]
 } as const;
@@ -18872,7 +18865,10 @@ export const AdMarketKeywordSchema = {
                         type: 'number'
                     },
                     searchVolume: {
-                        type: 'number'
+                        type: [
+                            'number',
+                            'null'
+                        ]
                     }
                 },
                 required: [
@@ -18929,7 +18925,7 @@ export const AdMarketKeywordSchema = {
         'lowTopOfPageBid',
         'highTopOfPageBid'
     ],
-    description: 'Money is USD. Fields DataForSEO does not report are null. trend runs oldest to newest.'
+    description: 'Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.'
 } as const;
 
 export const SocialPostSchema = {

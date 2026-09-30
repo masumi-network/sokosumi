@@ -60,7 +60,7 @@ export const adMarketKeywordSchema = marketKeywordSchema.openapi(
   "AdMarketKeyword",
   {
     description:
-      "Money is USD. Fields DataForSEO does not report are null. trend runs oldest to newest.",
+      "Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.",
   },
 );
 
@@ -69,7 +69,6 @@ export const listAdMarketKeywordsResponseSchema = z
     keywords: z.array(adMarketKeywordSchema).openapi({
       description: "At most 50, by search volume descending, nulls last",
     }),
-    currency: z.literal("USD"),
     fetchedAt: dateTimeSchema.openapi({
       description: "When DataForSEO was last asked; results are cached for 24h",
     }),
