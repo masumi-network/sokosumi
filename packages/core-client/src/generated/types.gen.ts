@@ -6977,6 +6977,18 @@ export type TaskParticipants = {
     participants: Array<TaskParticipant>;
 };
 
+export type TaskSellerReceipt = {
+    blockchainIdentifier: string | null;
+    claimStatus: string | null;
+    onChainState: string | null;
+    settled: boolean;
+    txHash: string | null;
+    withdrawnForSeller: Array<{
+        unit: string | null;
+        amount: string | null;
+    }>;
+};
+
 export type TaskWorkspace = {
     /**
      * Task title
@@ -50155,6 +50167,111 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type GetTasksByIdReceiptData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/receipt';
+};
+
+export type GetTasksByIdReceiptErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - coworker lacks the tasks capability
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Stored task payment cannot be read
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway - payment node failed or mismatched
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptError = GetTasksByIdReceiptErrors[keyof GetTasksByIdReceiptErrors];
+
+export type GetTasksByIdReceiptResponses = {
+    /**
+     * Task seller receipt
+     */
+    200: {
+        data: TaskSellerReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptResponse = GetTasksByIdReceiptResponses[keyof GetTasksByIdReceiptResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;
