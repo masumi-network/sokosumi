@@ -942,6 +942,22 @@ describe("setTaskStatusFromDrag", () => {
     });
   });
 
+  it("revalidates the task route rather than one concrete URL", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({ id: "task-1", status: TaskStatus.DRAFT }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+  });
+
   it("includes a trimmed comment when reopening completed to ready", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({

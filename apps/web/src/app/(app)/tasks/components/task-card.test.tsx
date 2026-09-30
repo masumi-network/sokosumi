@@ -39,6 +39,7 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     id: "task-1",
     name: "Ship filter",
     status: TaskStatus.READY,
+    identifier: null,
     priority: "NONE",
     visibility,
     description: null,
@@ -92,6 +93,40 @@ describe("TaskCard priority", () => {
 
     expect(screen.queryByRole("img", { name: "NONE" })).not.toBeInTheDocument();
     expect(document.querySelector("[data-priority]")).toBeNull();
+  });
+});
+
+describe("TaskCard short id", () => {
+  it("shows the identifier before the name and links with the slug URL", () => {
+    render(
+      <TaskCard
+        task={{
+          ...buildTask(TaskVisibility.PUBLIC),
+          identifier: "SOK-12",
+        }}
+      />,
+    );
+
+    const identifier = screen.getByText("SOK-12");
+    expect(identifier).toHaveClass("text-muted-foreground", "tabular-nums");
+    expect(
+      identifier.compareDocumentPosition(screen.getByText("Ship filter")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
+      "href",
+      "/tasks/SOK-12-ship-filter",
+    );
+  });
+
+  it("shows no identifier and links by id without a project", () => {
+    render(<TaskCard task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(screen.queryByText(/^SOK-/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
   });
 });
 
