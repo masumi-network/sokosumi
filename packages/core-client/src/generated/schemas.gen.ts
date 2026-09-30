@@ -18121,6 +18121,22 @@ export const ProjectSocialConnectionSchema = {
             ],
             example: 'sokosumi'
         },
+        displayName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Sokosumi'
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
+        },
         status: {
             type: 'string',
             enum: [
@@ -18152,6 +18168,8 @@ export const ProjectSocialConnectionSchema = {
         'id',
         'provider',
         'externalHandle',
+        'displayName',
+        'avatarUrl',
         'status',
         'connectedAt',
         'disconnectedAt'
@@ -18570,6 +18588,22 @@ export const SocialPostSocialConnectionSchema = {
             ],
             example: 'sokosumi'
         },
+        displayName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Sokosumi'
+        },
+        avatarUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            description: 'Profile picture copy in Sokosumi storage',
+            example: 'https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg'
+        },
         status: {
             type: 'string',
             enum: [
@@ -18584,6 +18618,8 @@ export const SocialPostSocialConnectionSchema = {
     required: [
         'id',
         'externalHandle',
+        'displayName',
+        'avatarUrl',
         'status'
     ]
 } as const;

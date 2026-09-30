@@ -99,6 +99,8 @@ export const socialPostSocialConnectionSchema = z
       example: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
     }),
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
+    displayName: projectSocialConnectionSchema.shape.displayName,
+    avatarUrl: projectSocialConnectionSchema.shape.avatarUrl,
     status: projectSocialConnectionSchema.shape.status,
   })
   .openapi("SocialPostSocialConnection");
