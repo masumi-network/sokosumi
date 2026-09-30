@@ -2425,6 +2425,13 @@
             "yours": "Las horas están en tu zona horaria, {zone}.",
             "goesOut": "Sale el {date}, tu hora ({zone}).",
             "postZone": "Programada para {date} en {zone}."
+          },
+          "platforms": "Límites por plataforma",
+          "platformLimit": "{provider}: {format} · {count} / {limit}",
+          "formats": {
+            "post": "publicación",
+            "mediaPost": "publicación con imagen o video",
+            "video": "video (el texto es el título y la descripción)"
           }
         },
         "cancelDialog": {

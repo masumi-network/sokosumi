@@ -83,3 +83,19 @@ export function socialPostComposerAccept(
     )
     .join(",");
 }
+
+/**
+ * What a provider publishes a Sokosumi post as, from its media rule: a plain
+ * post (text, optionally with media), a media post that needs an image or a
+ * video, or a video whose text becomes its title and description.
+ */
+export type SocialPostComposerFormat = "post" | "mediaPost" | "video";
+
+export function socialPostComposerFormat(
+  provider: SocialPostProvider,
+): SocialPostComposerFormat {
+  const requirement = SOCIAL_POST_MEDIA_REQUIREMENTS[provider];
+  if (requirement === "video") return "video";
+  if (requirement === "any") return "mediaPost";
+  return "post";
+}
