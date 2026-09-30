@@ -356,6 +356,18 @@ export function buildSignedOAuthQueryFromSearchParams(
 }
 
 /**
+ * The signed request asks the person to sign in again (`prompt=login`, or a
+ * `max_age`), even when they already have a session.
+ */
+export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
+  const params = new URLSearchParams(oauthQuery);
+  return (
+    params.has("max_age") ||
+    (params.get("prompt")?.split(" ").includes("login") ?? false)
+  );
+}
+
+/**
  * Where a person with an OAuth request goes when a sign-in leaves the page
  * (magic link, or a social sign-in the OAuth provider did not answer): the
  * sign-in page with the signed request as its own query. Arriving there signed
@@ -369,11 +381,7 @@ export function buildOAuthResumeUrlFromSearchParams(
   const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
   if (!oauthQuery) return undefined;
 
-  const params = new URLSearchParams(oauthQuery);
-  if (
-    params.has("max_age") ||
-    params.get("prompt")?.split(" ").includes("login")
-  ) {
+  if (oauthRequestRequiresSignIn(oauthQuery)) {
     return `/oauth/consent?${oauthQuery}`;
   }
 

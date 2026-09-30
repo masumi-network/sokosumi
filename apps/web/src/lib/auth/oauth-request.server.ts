@@ -5,6 +5,7 @@ import {
   type AuthRedirectSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   getRedirectQueryString,
+  oauthRequestRequiresSignIn,
 } from "./auth.utils";
 
 export interface OAuthRequest {
@@ -39,14 +40,11 @@ export async function readOAuthRequest(
     getSession(),
     getOAuthClientPublicPrelogin(clientId, query),
   ]);
-  // Handing such a request back would only return the person to this page.
-  const requiresSignIn =
-    params.has("max_age") ||
-    (params.get("prompt")?.split(" ").includes("login") ?? false);
-
   return {
     query,
     clientName: client?.client_name || undefined,
-    canHandBack: session != null && !requiresSignIn,
+    // Handing back a request that asks to sign in again would only return
+    // the person to this page.
+    canHandBack: session != null && !oauthRequestRequiresSignIn(query),
   };
 }
