@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import { ClientSecretField } from "./client-secret-field";
 import type {
@@ -145,7 +146,10 @@ export function CreateOAuthClientDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={`app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain ${showingCredentials ? "[&>button]:hidden" : ""}`}
+        className={cn(
+          "app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain",
+          showingCredentials && "[&>button]:hidden",
+        )}
         onEscapeKeyDown={(event) => {
           if (showingCredentials) {
             event.preventDefault();
