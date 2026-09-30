@@ -47,20 +47,6 @@ const nextConfig: NextConfig = {
         destination: "/share/:token",
         permanent: true,
       },
-      // Coupon checkout used to return to /coupon. Billing owns the coupon
-      // tab now; keep a 308 so ?session_id= still reaches checkout return.
-      {
-        source: "/coupon",
-        destination: "/billing?tab=coupon",
-        permanent: true,
-      },
-      // Bare /organizations bounced to home. Keep a 308 so bookmarks still
-      // resolve. /organizations/:slug is a different path and is not matched.
-      {
-        source: "/organizations",
-        destination: "/",
-        permanent: true,
-      },
       // Task Schedules moved out of Tasks and Calendar to /schedules.
       // Query strings pass through, so projectId and scheduleState survive.
       {
@@ -84,23 +70,6 @@ const nextConfig: NextConfig = {
         source: "/projects/:projectId/calendar",
         has: [{ type: "query", key: "view", value: "schedules" }],
         destination: "/schedules?projectId=:projectId",
-        permanent: true,
-      },
-      // Nested project calendar/social/studio bounce pages. Query strings
-      // pass through, so postId, v, s, and extra project scope survive.
-      {
-        source: "/projects/:projectId/calendar",
-        destination: "/calendar?projectId=:projectId",
-        permanent: true,
-      },
-      {
-        source: "/projects/:projectId/social",
-        destination: "/social?projectId=:projectId",
-        permanent: true,
-      },
-      {
-        source: "/projects/:projectId/studio",
-        destination: "/studio?projectId=:projectId",
         permanent: true,
       },
     ];
