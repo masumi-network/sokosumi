@@ -165,6 +165,84 @@ describe("IdentityOnboardingForm", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(["personal", "organization"])(
+    "uses refreshed valid names when cached fields were incomplete: %s",
+    async (choice) => {
+      const user = userEvent.setup();
+      const view = renderForm(ADA_WITHOUT_LAST_NAME);
+      view.rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <IdentityOnboardingForm {...ADA} workspaceReady={false} />
+        </NextIntlClientProvider>,
+      );
+
+      expect(
+        screen.queryByTestId("workspace-gate-identity-last-name"),
+      ).toBeNull();
+      if (choice === "organization") {
+        await user.click(screen.getByRole("radio", { name: /Organization/i }));
+      }
+      await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+      if (choice === "organization") {
+        expect(await screen.findByTestId("create-org-wizard")).toBeTruthy();
+        expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+      } else {
+        await waitFor(() => {
+          expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+          expect(locationReplaceMock).toHaveBeenCalledWith("/");
+        });
+      }
+      expect(updateUserMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses stored names after returning to the same hidden pair", async () => {
+    const user = userEvent.setup();
+    const view = renderForm();
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm
+          {...ADA}
+          initialLastName=""
+          askName
+          workspaceReady={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await user.clear(screen.getByTestId("workspace-gate-identity-last-name"));
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm {...ADA} workspaceReady={false} />
+      </NextIntlClientProvider>,
+    );
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() =>
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce(),
+    );
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite a refreshed stored pair with hidden cached names", async () => {
+    const user = userEvent.setup();
+    const view = renderForm();
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm
+          {...ADA}
+          initialFirstName="Grace"
+          initialLastName="Hopper"
+          workspaceReady={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() => {
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
   it("does not ask for a name sign-up already gave", async () => {
     const user = userEvent.setup();
     renderForm();

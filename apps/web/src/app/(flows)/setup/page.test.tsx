@@ -234,6 +234,53 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).toContain('"initialName":"Countess of Lovelace"');
   });
 
+  it.each([
+    { firstName: undefined, lastName: "Lovelace", askName: true },
+    { firstName: "Ada", lastName: null, askName: true },
+    { firstName: "", lastName: "Lovelace", askName: true },
+    { firstName: "Ada", lastName: " \t ", askName: true },
+    { firstName: " Ada ", lastName: " Lovelace ", askName: false },
+    { firstName: "a".repeat(100), lastName: "b".repeat(27), askName: false },
+    { firstName: "a".repeat(27), lastName: "b".repeat(100), askName: false },
+    { firstName: "a".repeat(128), lastName: "b", askName: true },
+  ])(
+    "validates and passes the same trimmed stored pair: $askName",
+    async (parts) => {
+      readRouteSessionMock.mockResolvedValue({
+        status: "authenticated",
+        session: {
+          user: {
+            id: "user-1",
+            name: "Display name",
+            firstName: parts.firstName,
+            lastName: parts.lastName,
+          },
+          session: { id: "session-1" },
+        },
+      });
+      getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+      const { default: WorkspaceGatePage } = await import("./page");
+      const serialized = JSON.stringify(await WorkspaceGatePage());
+      expect(serialized).toContain(`"askName":${parts.askName}`);
+      expect(serialized).toContain(
+        JSON.stringify({
+          initialFirstName: parts.firstName?.trim() ?? "",
+        }).slice(1, -1),
+      );
+      expect(serialized).toContain(
+        JSON.stringify({ initialLastName: parts.lastName?.trim() ?? "" }).slice(
+          1,
+          -1,
+        ),
+      );
+      expect(serialized).toContain(
+        parts.askName
+          ? "identityDescriptionEnter"
+          : "identityDescriptionChoose",
+      );
+    },
+  );
+
   it("asks again when the stored name does not pass validation", async () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",

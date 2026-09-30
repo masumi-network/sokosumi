@@ -181,7 +181,19 @@ export function IdentityOnboardingForm({
       {showIdentityFields ? (
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSetupSubmit)}
+            onSubmit={(event) => {
+              if (askName) {
+                void form.handleSubmit(handleSetupSubmit)(event);
+                return;
+              }
+              // The page validates this stored pair. A refresh can hide fields
+              // while the form still holds an earlier, possibly invalid draft.
+              event.preventDefault();
+              handleSetupSubmit({
+                firstName: initialFirstName,
+                lastName: initialLastName,
+              });
+            }}
             className="space-y-6"
             data-testid="workspace-gate-identity-form"
           >
