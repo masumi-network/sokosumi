@@ -43,6 +43,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
       <OAuthHandBack
         oauthQuery={oauthRequest.query}
         clientName={oauthRequest.clientName}
+        accountToConfirm={oauthRequest.accountToConfirm}
       />
     );
   }

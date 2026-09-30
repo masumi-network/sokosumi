@@ -1,14 +1,49 @@
 import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import OAuthHandBack from "./oauth-hand-back";
 
 const mockContinue = vi.fn();
+const mockSignOut =
+  vi.fn<
+    (
+      userId: string,
+      options: {
+        fetchOptions: {
+          onSuccess: () => void;
+          onError: (context: { error: unknown }) => void;
+        };
+      },
+    ) => Promise<void>
+  >();
+const mockRefresh = vi.fn();
+const mockToastError = vi.fn();
 
 vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string, values?: { client?: string }) =>
-    values?.client ? `${key}:${values.client}` : key,
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, string>) =>
+        values ? `${key}:${Object.values(values).join(",")}` : key,
+      {
+        rich: (key: string, values: { email: string }) =>
+          `${key}:${values.email}`,
+      },
+    ),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: mockRefresh }),
+}));
+
+vi.mock("sonner", () => ({
+  toast: { error: (...args: unknown[]) => mockToastError(...args) },
+}));
+
+vi.mock("@/lib/auth/sign-out.client", () => ({
+  signOutWithPushRelease: (...args: Parameters<typeof mockSignOut>) =>
+    mockSignOut(...args),
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -20,10 +55,28 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const OAUTH_QUERY = "client_id=cmo&exp=1772367377&sig=signed";
+const CREATE_QUERY = `${OAUTH_QUERY}&prompt=create`;
+// Core signs a request for ten minutes; `exp` is in seconds.
+const EXPIRES_AT = 1772367377 * 1000;
+const BEFORE_EXPIRY = new Date(EXPIRES_AT - 5 * 60_000);
+const ACCOUNT = {
+  id: "user-1",
+  name: "Ada Lovelace",
+  email: "ada@example.com",
+};
 
 describe("OAuthHandBack", () => {
   beforeEach(() => {
     mockContinue.mockReset();
+    mockSignOut.mockReset();
+    mockRefresh.mockReset();
+    mockToastError.mockReset();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(BEFORE_EXPIRY);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("hands the request back to the provider exactly once", async () => {
@@ -74,5 +127,214 @@ describe("OAuthHandBack", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "errorDescription",
     );
+  });
+
+  describe("when the product asked for a new account", () => {
+    it("asks which account to use instead of continuing", () => {
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      expect(mockContinue).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("heading", { name: "chooseAccountTitleFor:CMO" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("signedInAs:ada@example.com"),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "continueAs:Ada Lovelace" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      ).toBeInTheDocument();
+    });
+
+    it("hands the request back exactly once as the signed-in account", async () => {
+      const user = userEvent.setup();
+      mockContinue.mockResolvedValue({
+        data: {
+          redirect: true,
+          url: "https://app.cmo.xyz/api/auth/callback/sokosumi?code=abc",
+        },
+        error: null,
+      });
+      render(
+        <StrictMode>
+          <OAuthHandBack
+            oauthQuery={CREATE_QUERY}
+            clientName="CMO"
+            accountToConfirm={ACCOUNT}
+          />
+        </StrictMode>,
+      );
+
+      const continueButton = screen.getByRole("button", {
+        name: "continueAs:Ada Lovelace",
+      });
+      await user.click(continueButton);
+      await user.click(continueButton);
+
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+      expect(mockContinue).toHaveBeenCalledWith({
+        created: true,
+        oauth_query: CREATE_QUERY,
+      });
+      expect(mockSignOut).not.toHaveBeenCalled();
+      // It never navigates itself: Better Auth's client follows the answer.
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it("names the account by email when it has no name", () => {
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          accountToConfirm={{ ...ACCOUNT, name: " " }}
+        />,
+      );
+
+      expect(
+        screen.getByRole("heading", { name: "chooseAccountTitle" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "continueAs:ada@example.com" }),
+      ).toBeInTheDocument();
+    });
+
+    it("shows the error when the provider refuses the request", async () => {
+      const user = userEvent.setup();
+      mockContinue.mockResolvedValue({
+        data: null,
+        error: { status: 400, message: "invalid_signature" },
+      });
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "continueAs:Ada Lovelace" }),
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "errorDescriptionFor:CMO",
+      );
+    });
+
+    it("signs out of Sokosumi and shows the form again for another account", async () => {
+      const user = userEvent.setup();
+      mockSignOut.mockImplementation(async (_userId, options) => {
+        options.fetchOptions.onSuccess();
+      });
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      );
+
+      expect(mockSignOut).toHaveBeenCalledWith("user-1", expect.anything());
+      // The page renders again with the same signed request, now signed out.
+      await waitFor(() => {
+        expect(mockRefresh).toHaveBeenCalledTimes(1);
+      });
+      expect(mockContinue).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["has expired", EXPIRES_AT + 1000],
+      ["has too little time left for another sign-in", EXPIRES_AT - 60_000],
+    ])("keeps the person signed in when the request %s", async (_when, now) => {
+      const user = userEvent.setup();
+      vi.setSystemTime(now);
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      );
+
+      // The form could not use the request; signing out would gain nothing.
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "errorDescriptionFor:CMO",
+      );
+      expect(mockSignOut).not.toHaveBeenCalled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it("shows the expiry error when Core refuses the request on sign-out", async () => {
+      const user = userEvent.setup();
+      // Core, not this browser's clock, decides the request has expired.
+      mockSignOut.mockImplementation(async (_userId, options) => {
+        options.fetchOptions.onError({
+          error: { status: 400, error: "invalid_signature" },
+        });
+      });
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      );
+
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "errorDescriptionFor:CMO",
+      );
+      expect(mockToastError).not.toHaveBeenCalled();
+      expect(mockRefresh).not.toHaveBeenCalled();
+    });
+
+    it("lets the person choose again when signing out fails", async () => {
+      const user = userEvent.setup();
+      mockSignOut.mockImplementation(async (_userId, options) => {
+        options.fetchOptions.onError({
+          error: { status: 500, error: "unavailable" },
+        });
+      });
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          clientName="CMO"
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      );
+
+      await waitFor(() => {
+        expect(mockToastError).toHaveBeenCalledWith("signOutError");
+      });
+      expect(mockRefresh).not.toHaveBeenCalled();
+      expect(
+        screen.getByRole("button", { name: "useAnotherAccount" }),
+      ).toBeEnabled();
+      expect(
+        screen.getByRole("button", { name: "continueAs:Ada Lovelace" }),
+      ).toBeEnabled();
+    });
   });
 });

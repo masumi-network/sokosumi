@@ -18,6 +18,8 @@ import {
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
   normalizeAuthReturnUrl,
+  oauthRequestAsksForNewAccount,
+  oauthRequestExpiresSoon,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -38,6 +40,51 @@ describe("buildSignedOAuthQueryFromSearchParams", () => {
         new URLSearchParams("client_id=client_1"),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("oauthRequestAsksForNewAccount", () => {
+  it.each([
+    ["create", true],
+    ["consent create", true],
+    ["login", false],
+    ["created", false],
+  ])("reads prompt=%s as %s", (prompt, expected) => {
+    expect(
+      oauthRequestAsksForNewAccount(`client_id=cmo&prompt=${prompt}`),
+    ).toBe(expected);
+  });
+
+  it("finds no request for a new account without a prompt", () => {
+    expect(oauthRequestAsksForNewAccount("client_id=cmo")).toBe(false);
+  });
+});
+
+describe("oauthRequestExpiresSoon", () => {
+  // `exp` is in seconds: 2026-09-30T10:10:00Z.
+  const QUERY = `client_id=cmo&exp=${Date.parse("2026-09-30T10:10:00Z") / 1000}`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["with five minutes left", "2026-09-30T10:05:00Z", false],
+    ["with exactly two minutes left", "2026-09-30T10:08:00Z", true],
+    ["with one minute left", "2026-09-30T10:09:00Z", true],
+    ["after it expired", "2026-09-30T10:11:00Z", true],
+  ])("reads a request %s as %s", (_when, now, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(now));
+
+    expect(oauthRequestExpiresSoon(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    ["no", "client_id=cmo"],
+    ["an unreadable", "client_id=cmo&exp=soon"],
+  ])("treats a request with %s expiry as expiring", (_kind, query) => {
+    expect(oauthRequestExpiresSoon(query)).toBe(true);
   });
 });
 

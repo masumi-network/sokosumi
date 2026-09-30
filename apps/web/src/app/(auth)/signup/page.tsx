@@ -43,6 +43,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       <OAuthHandBack
         oauthQuery={oauthRequest.query}
         clientName={oauthRequest.clientName}
+        accountToConfirm={oauthRequest.accountToConfirm}
       />
     );
   }

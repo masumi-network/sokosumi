@@ -361,11 +361,39 @@ export function buildSignedOAuthQueryFromSearchParams(
  * `max_age`), even when they already have a session.
  */
 export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
-  const params = new URLSearchParams(oauthQuery);
   return (
-    params.has("max_age") ||
-    (params.get("prompt")?.split(" ").includes("login") ?? false)
+    new URLSearchParams(oauthQuery).has("max_age") ||
+    hasOAuthPrompt(oauthQuery, "login")
   );
+}
+
+/**
+ * Less of the signed request's life is left than a new sign-in or sign-up
+ * takes. Core signs a request for ten minutes (`exp`, in seconds, from its
+ * `codeExpiresIn`) and refuses it afterwards.
+ */
+const OAUTH_REQUEST_MIN_REMAINING_MS = 2 * 60_000;
+
+export function oauthRequestExpiresSoon(oauthQuery: string): boolean {
+  const expiresAt = Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
+  return !(expiresAt - Date.now() > OAUTH_REQUEST_MIN_REMAINING_MS);
+}
+
+function hasOAuthPrompt(oauthQuery: string, prompt: string): boolean {
+  return (
+    new URLSearchParams(oauthQuery)
+      .get("prompt")
+      ?.split(" ")
+      .includes(prompt) ?? false
+  );
+}
+
+/**
+ * The signed request comes from a product's "Create account"
+ * (`prompt=create`).
+ */
+export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
+  return hasOAuthPrompt(oauthQuery, "create");
 }
 
 /**

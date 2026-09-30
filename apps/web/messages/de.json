@@ -1333,7 +1333,13 @@
       "errorTitle": "Fortfahren nicht möglich",
       "errorTitleFor": "Fortfahren mit {client} nicht möglich",
       "errorDescription": "Diese Anmeldeanfrage ist abgelaufen oder nicht mehr gültig. Gehe zurück zur App, von der du gekommen bist, und starte erneut.",
-      "errorDescriptionFor": "Diese Anmeldeanfrage ist abgelaufen oder nicht mehr gültig. Gehe zurück zu {client} und starte erneut."
+      "errorDescriptionFor": "Diese Anmeldeanfrage ist abgelaufen oder nicht mehr gültig. Gehe zurück zu {client} und starte erneut.",
+      "chooseAccountTitle": "Konto auswählen",
+      "chooseAccountTitleFor": "Konto für {client} auswählen",
+      "signedInAs": "Bei Sokosumi angemeldet als <account>{email}</account>",
+      "continueAs": "Weiter als {account}",
+      "useAnotherAccount": "Anderes Konto verwenden",
+      "signOutError": "Abmelden fehlgeschlagen. Versuche es erneut."
     }
   },
   "App": {
