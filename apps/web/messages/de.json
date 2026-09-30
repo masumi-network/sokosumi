@@ -302,7 +302,8 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Gedächtnis",
-      "social": "Social"
+      "social": "Social",
+      "evaluations": "Modellvergleiche"
     },
     "Jobs": {
       "StatusBadge": {
@@ -3880,7 +3881,7 @@
           "noUsage": "Für diesen Turn wurde kein Verbrauch erfasst.",
           "Quality": {
             "title": "Qualität",
-            "notJudged": "Noch nicht bewertet. Der Judge läuft, nachdem ein Turn abgeschlossen ist.",
+            "notJudged": "Nicht bewertet. Nur Lab-Durchläufe werden bewertet.",
             "howScored": "Die Gesamtnote ist der gerundete Mittelwert der vier Dimensionen – mit einer Ausnahme: Bei einer Ehrlichkeit von 2 oder darunter wird die Gesamtnote auf 2 gedeckelt, damit eine erfundene Aussage nicht weggemittelt werden kann.",
             "rubricUsed": "Bewertet nach dem Raster „{rubric}“",
             "judgeModel": "Judge-Modell",
@@ -3989,7 +3990,7 @@
         },
         "Quality": {
           "title": "Qualität",
-          "description": "Judge-Bewertungen (1–5) für echte Durchläufe außerhalb des Labs, flottenweit, letzte 30 Tage.",
+          "description": "Bewertungen (1–5) für echte Durchläufe außerhalb des Labs in der gesamten Flotte, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen; Feedback der Besitzer wird weiter erfasst.",
           "overall": "{judged} von {turns} Durchläufen bewertet",
           "proactive": "{sent} proaktive Nachrichten, {actedOn} innerhalb eines Tages aufgegriffen",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4007,9 +4008,10 @@
           "turns": "Durchläufe",
           "avgScore": "Ø Score",
           "realRunsByVersion": "Echte Nutzung nach Version",
-          "descriptionBot": "Judge-Bewertungen (1–5) für echte Turns dieses Bots, letzte 30 Tage."
+          "descriptionBot": "Bewertungen (1–5) für die echten Durchläufe dieses Bots, letzte 30 Tage. Echte Durchläufe werden nicht mehr bewertet, daher erscheinen nur frühere Bewertungen."
         },
         "labLink": "Verhaltenslabor",
+        "evaluationsLink": "Modellvergleiche",
         "versionsLink": "Versionen",
         "Versions": {
           "title": "Soko-Bot-Versionen",
@@ -4199,12 +4201,54 @@
           "defaultOption": "{name} (Standard für neue Bots)",
           "reasonLabel": "Grund",
           "reasonPlaceholder": "Warum verschieben Sie die Flotte? (erforderlich, wird für jeden Bot festgehalten)",
+          "notifyLabel": "Besitzer im Chat ihres Bots informieren",
+          "notifyHint": "Jeder verschobene Bot schreibt eine feste Nachricht, welche Version er jetzt nutzt und was sich für seinen Besitzer ändert. Dabei wird kein Durchlauf gestartet.",
+          "notifyRequired": "Für diese Version Pflicht: Sie läuft außerhalb der EU, daher informiert jeder verschobene Bot seinen Besitzer. Dabei wird kein Durchlauf gestartet.",
           "confirm": "{count} Bots verschieben",
           "nothingToMove": "Für diese Auswahl gibt es nichts zu verschieben.",
           "working": "Wird verschoben…",
           "done": "{moved} Bots verschoben.",
           "result": "Verschoben: {moved}. Bereits auf dieser Version: {alreadyOnVersion}. Nicht verschiebbar: {failed}.",
+          "notifiedResult": "Informierte Besitzer: {notified}.",
           "error": "Diese Bots konnten nicht verschoben werden."
+        },
+        "Evaluations": {
+          "title": "Modellvergleiche",
+          "description": "Wie Kandidatenmodelle auf von Hand bewerteten Fällen abschneiden, für den Lab-Bewerter und den Routing-Klassifikator. Neue Läufe entstehen mit den Skripten in apps/core/scripts.",
+          "latestRun": "Letzter Lauf",
+          "inUse": "Im Einsatz",
+          "empty": "Noch keine Läufe erfasst.",
+          "disagreements": "{count, plural, one {# Fall, in dem ein Bewerter von der Einstufung abwich} other {# Fälle, in denen ein Bewerter von der Einstufung abwich}}",
+          "misses": "{count, plural, one {# Nachricht, die ein Klassifikator falsch einordnete} other {# Nachrichten, die ein Klassifikator falsch einordnete}}",
+          "earlierRuns": "{count, plural, one {# früherer Lauf} other {# frühere Läufe}}",
+          "Judge": {
+            "title": "Lab-Bewerter",
+            "description": "Bewertet Durchläufe im Verhaltenslabor. Läuft jetzt auf {model}. Bewertet werden nur Lab-Durchläufe.",
+            "model": "Modell",
+            "matches": "Stimmt mit Einstufung",
+            "steady": "Gleich bei Wiederholung",
+            "falseFails": "Falsche Fehlschläge",
+            "badCaught": "Schlechte Durchläufe erkannt",
+            "errors": "Fehler",
+            "cost": "Pro Durchlauf",
+            "time": "Median-Zeit",
+            "grade": "Eingestuft: {grade, select, pass {bestanden} weak {schwach} fail {durchgefallen} other {unsicher}}",
+            "knownBad": "Bekannt schlecht"
+          },
+          "Router": {
+            "title": "Routing-Klassifikator",
+            "description": "Entscheidet, welche Werkzeuge ein Durchlauf erhält. Bewertet wird, welche Werkzeuge jede markierte Nachricht bekommt; Schreibrechte, die eine Nachricht nicht verlangt hat, sind der gefährliche Fehler.",
+            "classifier": "Klassifikator",
+            "correct": "Richtig",
+            "alwaysRight": "Immer richtig",
+            "overGrants": "Unnötige Schreibrechte",
+            "underGrants": "Fälschlich nur Lesen",
+            "median": "Median",
+            "p90": "p90",
+            "cost": "Pro 1.000",
+            "after": "Nach der Antwort: „{reply}“",
+            "want": "Erwartet"
+          }
         }
       },
       "MatchedChannels": {
@@ -6629,7 +6673,7 @@
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
-        "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar etwas fragt, ihn erwähnt oder zu seiner Erinnerung passt.",
+        "followBoardDescription": "Auch Tasks beobachten, an denen er nicht beteiligt ist, und sich nur melden, wenn ein Kommentar ihn beim Namen nennt.",
         "followBoardError": "Einstellung konnte nicht gespeichert werden.",
         "archiveTitle": "Soko Bot archivieren",
         "archiveDescription": "Stoppt alle Turns und Zeitpläne. Du kannst ihn später erneut erstellen; Verlauf und Zuordnung bleiben erhalten.",
@@ -6692,6 +6736,7 @@
           "update_task": "Task wird aktualisiert",
           "assign_task": "Task wird zugewiesen",
           "get_task_status": "Task-Status wird geprüft",
+          "list_tasks": "Tasks werden durchgesehen",
           "find_agents": "Agents werden gesucht",
           "get_agent_input_schema": "Agent-Eingaben werden gelesen",
           "hire_agent": "Agent wird beauftragt",
@@ -6702,7 +6747,10 @@
           "update_memory": "Gedächtnis wird aktualisiert",
           "scratch_read": "Notizen werden gelesen",
           "scratch_write": "Notizen werden geschrieben",
-          "scratch_list": "Notizen werden aufgelistet"
+          "scratch_list": "Notizen werden aufgelistet",
+          "read_file": "Datei wird gelesen",
+          "generate_image": "Bild wird erstellt",
+          "get_image": "Bild wird geprüft"
         },
         "composer": {
           "label": "Nachricht",

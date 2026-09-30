@@ -129,9 +129,14 @@ async function loadChatLinkedTurn(
       : null,
     steps: turn.events.map((event) => sokoBotCapabilityLabel(event.toolName)),
     pendingDecisionIds: turn.pendingDecisions.map((decision) => decision.id),
-    taskIds: turn.delegations
-      .map((delegation) => delegation.taskId)
-      .filter((id): id is string => id !== null),
+    // Creating and assigning one Task are two delegations, not two Tasks.
+    taskIds: [
+      ...new Set(
+        turn.delegations
+          .map((delegation) => delegation.taskId)
+          .filter((id): id is string => id !== null),
+      ),
+    ],
   };
 }
 
@@ -238,15 +243,70 @@ export async function introduceSokoBot(input: {
     });
     return created;
   });
+  await announceBotMessage(room.id, message.id);
+  return { messageId: message.id };
+}
+
+async function announceBotMessage(roomId: string, messageId: string) {
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
   );
   await Promise.all([
-    invalidateChatRoomMessageReaders({
-      roomId: room.id,
-    }),
-    publishChatRoomMessageRealtimeById(message.id, "create"),
+    invalidateChatRoomMessageReaders({ roomId }),
+    publishChatRoomMessageRealtimeById(messageId, "create"),
   ]);
+}
+
+/**
+ * A fixed message from the bot into its owner's direct chat, outside any
+ * turn: nothing is classified and nothing wakes the bot. `key` makes it
+ * idempotent, so a retry posts once. Null when the bot is gone or the owner
+ * has no chat with it yet.
+ */
+export async function postSokoBotOwnerNotice(input: {
+  sokoBotId: string;
+  content: string;
+  key: string;
+}): Promise<{ messageId: string } | null> {
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: input.sokoBotId, archivedAt: null },
+    select: { id: true, userId: true },
+  });
+  if (!bot) return null;
+  const room = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId: bot.id } },
+      userMembers: { some: { userId: bot.userId } },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+  if (!room) return null;
+  const message = await prisma.$transaction(async (tx) => {
+    const posted = await tx.chatRoomMessage.upsert({
+      where: {
+        roomId_clientMessageId: {
+          roomId: room.id,
+          clientMessageId: `soko-bot:notice:${input.key}`,
+        },
+      },
+      create: {
+        roomId: room.id,
+        clientMessageId: `soko-bot:notice:${input.key}`,
+        senderSokoBotId: bot.id,
+        content: input.content,
+      },
+      update: {},
+      select: { id: true },
+    });
+    await tx.chatRoom.update({
+      where: { id: room.id },
+      data: { updatedAt: new Date() },
+    });
+    return posted;
+  });
+  await announceBotMessage(room.id, message.id);
   return { messageId: message.id };
 }
 

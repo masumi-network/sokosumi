@@ -129,3 +129,27 @@ describe("external action receipts", () => {
     ).toBe("UNKNOWN");
   });
 });
+
+describe("image receipts", () => {
+  it("acknowledges an image job the provider took", () => {
+    expect(
+      externalActionReceipt("generate_image", {
+        jobId: "job-1",
+        status: "QUEUED",
+      }),
+    ).toMatchObject({
+      targetId: "job-1",
+      disposition: "APPLIED",
+      verification: "PROVIDER_ACK",
+    });
+  });
+
+  it("leaves an uncertain submission unknown", () => {
+    expect(
+      externalActionReceipt("generate_image", {
+        jobId: "job-1",
+        status: "SUBMISSION_UNCERTAIN",
+      }),
+    ).toMatchObject({ targetId: null, disposition: "UNKNOWN" });
+  });
+});

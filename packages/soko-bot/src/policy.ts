@@ -17,6 +17,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "archive_task",
   "assign_task",
   "get_task_status",
+  "list_tasks",
   "reply_to_task",
   "update_assigned_task",
   "link_tasks",
@@ -38,9 +39,12 @@ export const SOKO_BOT_CAPABILITIES = [
   "post_chat",
   "open_direct_chat",
   "list_files",
+  "read_file",
   "list_tables",
   "read_table",
   "upload_file",
+  "generate_image",
+  "get_image",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -107,6 +111,8 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
   "provide_job_input",
   "run_integration_tool",
   "upload_file",
+  // Spends credits, and its prompt is the kind of thing a page can inject.
+  "generate_image",
   "post_chat",
   "open_direct_chat",
   "reply_to_task",
@@ -125,12 +131,15 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "list_tasks",
   "get_job_status",
   "read_memory",
   "list_schedules",
   "list_chats",
   "read_chat",
   "list_files",
+  "read_file",
+  "get_image",
   "list_tables",
   "read_table",
   "list_integrations",
@@ -141,6 +150,10 @@ const DIRECT_READ_CAPABILITIES = [
   "list_project_social_accounts",
   "list_social_posts",
   "get_social_post",
+  // Reads the marketplace listing in Sokosumi and spends nothing, so "what
+  // could this cost?" is answerable below the hire route's bar. The input
+  // schema stays on the hire route: fetching it calls the seller's server.
+  "find_agents",
 ] as const satisfies readonly SokoBotCapability[];
 
 /** Social posts can publish externally, including edits to already queued content. */
@@ -167,6 +180,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
   // the plainest sense: it puts the bot in front of a colleague.
   "open_direct_chat",
   "upload_file",
+  "generate_image",
   "create_table",
   "write_table_rows",
   "update_table_columns",
@@ -186,6 +200,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
 export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "list_tasks",
   "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
 
@@ -255,7 +270,6 @@ export const SOKO_BOT_ROUTE_CAPABILITIES = {
     ...SCHEDULE_CAPABILITIES,
     ...CHAT_FILE_WRITE_CAPABILITIES,
     "update_memory",
-    "find_agents",
     "get_agent_input_schema",
     "hire_agent",
     "request_user_decision",
@@ -286,6 +300,20 @@ export const SOKO_BOT_MEMORY_LIMITS = {
   maxEntryLength: 500,
 } as const;
 
+/**
+ * The reads every owner route has, and of its writes only those listed. For
+ * turns Core starts itself, whose job needs far fewer writes than the route.
+ */
+export function limitSokoBotWrites(
+  capabilities: readonly SokoBotCapability[],
+  writes: readonly SokoBotCapability[],
+): SokoBotCapability[] {
+  const reads: readonly SokoBotCapability[] = OWNER_BASE_CAPABILITIES;
+  return capabilities.filter(
+    (capability) => reads.includes(capability) || writes.includes(capability),
+  );
+}
+
 export function capabilitiesForClassification(
   classification: TurnClassification,
 ): readonly SokoBotCapability[] {
@@ -303,7 +331,7 @@ export function capabilitiesForClassification(
     MEMORY: ["update_memory"],
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat"],
-    FILE: ["upload_file"],
+    FILE: ["upload_file", "generate_image"],
     INTEGRATION: ["run_integration_tool", "request_user_decision"],
     SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };
@@ -333,6 +361,8 @@ export interface TurnClassification {
   requiresClarification: boolean;
   requiresApproval: boolean;
   proposedTaskBrief?: string;
+  /** The write route Jev leaned toward but was not sure of; reads only. */
+  unsureRoute?: SokoBotRoute;
 }
 
 export function isSokoBotCapability(value: string): value is SokoBotCapability {

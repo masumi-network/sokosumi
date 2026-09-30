@@ -4,6 +4,7 @@ import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -121,6 +122,7 @@ export class SokoBotEventsSyncService {
         where: {
           ...(cursor ? { id: { gt: cursor } } : {}),
           OR: [{ taskId: { not: null } }, { jobId: { not: null } }],
+          ...INVOLVING_DELEGATION,
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
           turn: {

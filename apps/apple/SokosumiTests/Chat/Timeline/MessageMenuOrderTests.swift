@@ -11,6 +11,7 @@
     private static func message(from sender: String = "Ada") -> Components.Schemas.ChatRoomMessage {
       var message = chatRoomMessage(from: .init(
         clientTurnId: "turn", roomId: "room_1", content: "Release notes are up.",
+        createdAt: Date(),
         sender: .init(id: "user_\(sender)", name: sender, email: "\(sender.lowercased())@example.com", presence: .offline)
       ))
       message.id = "message_1"

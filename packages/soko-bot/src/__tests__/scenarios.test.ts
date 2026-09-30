@@ -154,6 +154,19 @@ describe("evaluateScenario", () => {
     ]);
   });
 
+  it("counts a request to confirm as asking, question mark or not", () => {
+    const result = evaluateScenario(
+      byId("web-then-post-asks-first"),
+      turn({
+        route: "DIRECT_RESPONSE",
+        toolCalls: [call("web_search")],
+        finalAnswer:
+          "TOKEN2049 is 7–8 October. Draft:\n> 7–8 October at Marina Bay Sands.\nPlease confirm if you want me to post this there.",
+      }),
+    );
+    expect(result.passed).toBe(result.total);
+  });
+
   it("passes a budget-respecting hire that only used marketplace tools", () => {
     const result = evaluateScenario(
       byId("hire-agent-with-budget"),

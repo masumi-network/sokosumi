@@ -8,6 +8,7 @@ import {
   extractDocumentAsync,
   FILE_CHUNK_MAX_PER_VERSION,
   FILE_EXTRACTOR_VERSION,
+  joinExtractedChunks,
   normalizeExtractedText,
 } from "./extraction";
 
@@ -374,5 +375,24 @@ describe("an OOXML document says what it did not read", () => {
     expect(result.state).toBe(FileExtractionState.INDEXED);
     expect(result.coverage).toBe(1);
     expect(result.reason).toBeNull();
+  });
+});
+
+describe("joinExtractedChunks", () => {
+  it("rebuilds the text without repeating the overlap at each seam", () => {
+    const text = Array.from(
+      { length: 60 },
+      (_, index) =>
+        `Sentence ${index} says something distinct about the launch.`,
+    ).join(" ");
+    const chunks = chunkExtractedText(text);
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(joinExtractedChunks(chunks)).toBe(text);
+  });
+
+  it("keeps chunks apart when they share no text", () => {
+    expect(
+      joinExtractedChunks([{ text: "First part." }, { text: "Second part." }]),
+    ).toBe("First part.\n\nSecond part.");
   });
 });

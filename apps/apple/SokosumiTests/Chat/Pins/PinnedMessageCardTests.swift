@@ -21,6 +21,7 @@
       let items = try sources.enumerated().map { index, source in
         let message = source.map {
           chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: room.id, content: $0,
+                                      createdAt: Date(),
                                       sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .online)))
         }
         let payload = try message.map { try JSONDecoder().decode(
@@ -89,6 +90,7 @@
       let measurements = sources.map { _ in HeightMeasurement() }
       let items = try sources.enumerated().map { index, source in
         let message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: room.id, content: source.content, quote: source.quote,
+                                                  createdAt: Date(),
                                                   sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .online)))
         let payload = try JSONDecoder().decode(Components.Schemas.ChatRoomPinnedMessageListItem.MessagePayload.self,
                                                from: JSONEncoder().encode(message))

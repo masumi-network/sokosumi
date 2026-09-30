@@ -20,7 +20,10 @@ interface UseChatRefreshSchedulerOptions {
   healthy: boolean;
   /** Poll cadence while unhealthy (the pre-SOK-986 interval). */
   fallbackIntervalMs: number;
-  /** Read at once on mount and on key change (sidebar), not only after an interval. */
+  /**
+   * Read at once on mount and on key change, not only after an interval.
+   * This read runs in the background too, like an explicit request.
+   */
   refreshOnMount?: boolean;
   /**
    * Read once when `healthy` flips back on. For consumers with no
@@ -186,8 +189,11 @@ export function useChatRefreshScheduler({
     document.addEventListener("visibilitychange", onForegroundChange);
     window.addEventListener("online", onOnline);
 
+    // The first read is what the page shows, not background upkeep: it must
+    // not wait for focus. Typing the URL leaves focus in the address bar, and
+    // a room opened in a background tab would otherwise sit on skeletons.
     if (refreshOnMount) {
-      void run();
+      void run(true);
     } else {
       schedule();
     }

@@ -34,6 +34,7 @@ struct ThreadTimelineTests {
 
   @Test func replyEventsAndShellsStayInTheirParentScope() {
     let shell = OutboundShell(clientTurnId: "turn", roomId: testRoomId, parentMessageId: "root", content: "reply",
+                              createdAt: Date(),
                               sender: .init(id: "me", name: "Me", email: "me@example.com", presence: .online))
     var confirmed = chatRoomMessage(from: shell)
     confirmed.id = "confirmed"

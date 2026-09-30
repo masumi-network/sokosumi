@@ -159,7 +159,7 @@
       private func fixtureMessages(media: Bool) -> [Components.Schemas.ChatRoomMessage] {
         let fixtureId = UUID().uuidString
         return (0 ..< 100).map { index in
-          var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: "Message \(index): " + String(repeating: "A paragraph with **bold text**, a [link](https://example.com), and inline `code`.\n\n", count: media ? 2 : 8), sender: .init(id: "fixture-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
+          var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "fixture", content: "Message \(index): " + String(repeating: "A paragraph with **bold text**, a [link](https://example.com), and inline `code`.\n\n", count: media ? 2 : 8), createdAt: Date(), sender: .init(id: "fixture-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
           message.id = "fixture-\(index)"
           if media {
             let url = "https://scroll-fixture.invalid/\(fixtureId)-image-\(index).png"

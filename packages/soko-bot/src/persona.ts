@@ -39,3 +39,19 @@ export function composeSokoBotIntroduction(persona: SokoBotPersona): string {
     `What should we tackle first?`,
   ].join("\n");
 }
+
+/**
+ * What an owner reads in their bot's chat after an administrator moves the
+ * bot onto another version: which one, and what changes for them.
+ */
+export function composeSokoBotVersionNotice(version: {
+  id: string;
+  summary: string;
+  releaseNote?: string;
+}): string {
+  return [
+    `I've been updated to version ${version.id}.`,
+    ``,
+    version.releaseNote ?? version.summary,
+  ].join("\n");
+}

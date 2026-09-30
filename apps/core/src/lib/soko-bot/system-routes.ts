@@ -28,9 +28,22 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "Morning briefing: brief and update memory follow-ups.",
   },
-  /** Daily stand-up: brief, nudge stuck work, draft Tasks for explicit asks. */
+  /**
+   * Daily stand-up: brief, nudge stuck work, start one Task when it is worth
+   * it. No schedules, chat posts or files: on a quiet morning those tools
+   * invited busywork in the behaviour lab.
+   */
   standup: {
     route: "DELEGATE_TASK",
+    writes: [
+      "create_task",
+      "assign_task",
+      "find_coworkers",
+      "reply_to_task",
+      "link_tasks",
+      "update_memory",
+      "request_user_decision",
+    ],
     reason: "Daily stand-up: nudge stuck work and draft requested Tasks.",
   },
   /** Weekly wrap: summarise and bring memory up to date. */

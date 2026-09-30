@@ -64,7 +64,7 @@ public func resolveRealtimeEnvelope(
 /// emptied. Identity, timestamps, sender and the thread reply bar stay.
 public func tombstoneTranscriptMessage(
   _ message: Components.Schemas.ChatRoomMessage,
-  now: Date = Date()
+  now: Date
 ) -> Components.Schemas.ChatRoomMessage {
   var tombstone = message
   tombstone.content = ""
@@ -137,7 +137,7 @@ public func applyRealtimeFullEvent(
 public func applyRealtimeTombstone(
   messages: [Components.Schemas.ChatRoomMessage],
   messageId: String,
-  now: Date = Date()
+  now: Date
 ) -> [Components.Schemas.ChatRoomMessage] {
   guard messages.contains(where: { $0.id == messageId }) else { return messages }
   return messages.map { $0.id == messageId ? tombstoneTranscriptMessage($0, now: now) : $0 }

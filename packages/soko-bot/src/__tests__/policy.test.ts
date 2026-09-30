@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   capabilitiesForClassification,
   exceedsUnattendedHireBudget,
+  limitSokoBotWrites,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_TEAMMATE_CAPABILITIES,
@@ -290,5 +291,26 @@ describe("exceedsUnattendedHireBudget", () => {
         ceiling,
       }),
     ).toBe(true);
+  });
+});
+
+describe("limitSokoBotWrites", () => {
+  it("keeps every read and only the listed writes", () => {
+    const limited = limitSokoBotWrites(
+      ["get_task_status", "list_tasks", "create_task", "post_chat", "bash"],
+      ["create_task"],
+    );
+    expect(limited).toEqual([
+      "get_task_status",
+      "list_tasks",
+      "create_task",
+      "bash",
+    ]);
+  });
+
+  it("never adds a write the route did not have", () => {
+    expect(limitSokoBotWrites(["get_task_status"], ["hire_agent"])).toEqual([
+      "get_task_status",
+    ]);
   });
 });

@@ -26,10 +26,6 @@ vi.mock("ai", async (importOriginal) => ({
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: vi.fn().mockResolvedValue({ disabled: true }),
 }));
-vi.mock("@/services/soko-bot-lab-judge.service", () => ({
-  judgeTurnQuality: vi.fn(),
-  reportFailedTurnJudge: vi.fn(),
-}));
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: { resolveDecision },
 }));
@@ -57,6 +53,7 @@ vi.mock("@/lib/soko-bot/action-response", () => ({
 vi.mock("@/services/soko-bot-outcome.service", () => ({
   assessSokoBotIntentOutcome: vi.fn(),
   invalidateSokoBotIntentOutcomes: vi.fn(),
+  sokoBotOutcomeNote: vi.fn().mockReturnValue(null),
   sokoBotOutcomeSummary: vi.fn().mockReturnValue(null),
 }));
 vi.mock("@/services/soko-bot-delivery.service", () => ({

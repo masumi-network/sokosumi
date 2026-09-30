@@ -11,7 +11,9 @@ const {
   sokoBotFindFirst,
   roomUpdate,
   publish,
+  messageUpsert,
 } = vi.hoisted(() => ({
+  messageUpsert: vi.fn(),
   turnFindUnique: vi.fn(),
   mentionUpdateMany: vi.fn(),
   messageUpdate: vi.fn(),
@@ -46,6 +48,7 @@ vi.mock("@/lib/db/prisma", () => ({
           update: messageUpdate,
           delete: messageDelete,
           create: messageCreate,
+          upsert: messageUpsert,
         },
         chatRoom: { update: roomUpdate },
       }),
@@ -76,6 +79,7 @@ import prisma from "@/lib/db/prisma";
 import {
   introduceSokoBot,
   persistSokoBotChatTurn,
+  postSokoBotOwnerNotice,
   publishSokoBotChatProgress,
 } from "./soko-bot-chat.service";
 
@@ -234,6 +238,53 @@ describe("introduceSokoBot", () => {
     expect(result).toEqual({ messageId: "msg-existing" });
     expect(messageCreate).not.toHaveBeenCalled();
     expect(publishChatRoomsChanged).not.toHaveBeenCalled();
+  });
+});
+
+describe("postSokoBotOwnerNotice", () => {
+  beforeEach(() => {
+    sokoBotFindFirst.mockResolvedValue({ id: "bot-a", userId: "owner" });
+    roomFindFirst.mockResolvedValue({ id: "room-a" });
+    messageUpsert.mockResolvedValue({ id: "notice-1" });
+  });
+
+  it("posts once per key into the owner's chat with the bot", async () => {
+    const result = await postSokoBotOwnerNotice({
+      sokoBotId: "bot-a",
+      content: "I've been updated to version v19.",
+      key: "version:run-1:bot-a",
+    });
+    expect(result).toEqual({ messageId: "notice-1" });
+    expect(roomFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          kind: "direct",
+          sokoBotMembers: { some: { sokoBotId: "bot-a" } },
+          userMembers: { some: { userId: "owner" } },
+        },
+      }),
+    );
+    // Keyed, so a retried run cannot post the same notice twice.
+    expect(messageUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          roomId_clientMessageId: {
+            roomId: "room-a",
+            clientMessageId: "soko-bot:notice:version:run-1:bot-a",
+          },
+        },
+        update: {},
+      }),
+    );
+    expect(publish).toHaveBeenCalledWith("notice-1", "create");
+  });
+
+  it("posts nothing when the owner has no chat with the bot yet", async () => {
+    roomFindFirst.mockResolvedValue(null);
+    await expect(
+      postSokoBotOwnerNotice({ sokoBotId: "bot-a", content: "x", key: "k" }),
+    ).resolves.toBeNull();
+    expect(messageUpsert).not.toHaveBeenCalled();
   });
 });
 

@@ -267,6 +267,11 @@ export {
   extractHttpLinks,
 } from "./markdown-links-extract.js";
 export {
+  collectMarkdownUrlExcludedRanges,
+  findBareHttpUrlHits,
+  findHttpAutolinks,
+} from "./markdown-url-scan.js";
+export {
   NextJobAction,
   NextJobActionErrorType,
   OnChainTransactionStatus,

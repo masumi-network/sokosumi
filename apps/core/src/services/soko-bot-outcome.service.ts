@@ -18,6 +18,7 @@ import {
 } from "@/lib/soko-bot/action-receipts";
 
 const VERIFIER_VERSION = "transactional-receipts-v1";
+const TASK_DELEGATION_CAPABILITIES = new Set(["create_task", "assign_task"]);
 
 /** User-facing state comes from assessed evidence, never generated success prose. */
 export function sokoBotOutcomeSummary(
@@ -69,6 +70,33 @@ export function sokoBotOutcomeSummary(
   ]
     .filter(Boolean)
     .join(" ");
+}
+/**
+ * What the owner reads when the outcome is not done: one plain sentence. The
+ * assessment wording above names verifier states and acceptance criteria, so
+ * it stays in the turn's response contract for the admin view.
+ */
+export function sokoBotOutcomeNote(
+  outcome:
+    | { state: SokoBotFulfillmentState; blockerKind: string | null }
+    | null
+    | undefined,
+): string | null {
+  if (!outcome || outcome.blockerKind === "NO_ACCEPTANCE_CRITERIA") return null;
+  switch (outcome.state) {
+    case "PARTIAL":
+      return "Only part of this is done so far.";
+    case "BLOCKED":
+      return outcome.blockerKind === "UNCERTAIN_ACTION"
+        ? "I couldn't confirm whether this went through, so I'll check before trying again."
+        : "This isn't done yet.";
+    case "FAILED":
+      return "This didn't go through.";
+    case "CANCELLED":
+      return "This was cancelled.";
+    default:
+      return null;
+  }
 }
 const criteriaSchema = z
   .array(
@@ -405,18 +433,28 @@ export async function assessSokoBotIntentOutcome(
     invalidation?.assessedAt,
   );
   const criteria = criteriaSchema.safeParse(assessmentCriteria);
+  // Tasks this intent created or assigned carry the delegated result.
+  const taskIds = [
+    ...new Set([
+      ...(targetIds.success ? targetIds.data : []),
+      ...currentReceipts.flatMap((receipt) =>
+        TASK_DELEGATION_CAPABILITIES.has(receipt.capability) && receipt.targetId
+          ? [receipt.targetId]
+          : [],
+      ),
+    ]),
+  ];
   const taskEvidence: TaskOutcomeEvidence[] = [];
   if (
     criteria.success &&
     criteria.data.some((criterion) => criterion.kind === "OUTCOME") &&
-    targetIds.success &&
-    targetIds.data.length > 0
+    taskIds.length > 0
   ) {
     // Reuse the runtime's audience boundary. Never fetch arbitrary result URLs;
     // external artifacts remain unverified until an authorized reader checks them.
     const tasks = await tx.task.findMany({
       where: {
-        id: { in: targetIds.data.slice(0, 32) },
+        id: { in: taskIds.slice(0, 32) },
         workspaceId: turn.workspaceId,
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(
