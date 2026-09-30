@@ -86,16 +86,18 @@ describe("sanitizeMarkdown", () => {
     expect(sanitizeMarkdown(markdown)).toContain("&gt; quoted");
   });
 
-  it("keeps & in a bare URL that sanitize-html would encode", () => {
+  it("encodes bare URL ampersands for the Markdown parser", () => {
     expect(sanitizeMarkdown("see https://a.test/?p=1&c=1&d=2.")).toBe(
-      "see https://a.test/?p=1&c=1&d=2.",
+      "see https://a.test/?p=1&amp;c=1&amp;d=2.",
     );
-    expect(sanitizeMarkdown("www.a.test/?p=1&c=1")).toBe("www.a.test/?p=1&c=1");
+    expect(sanitizeMarkdown("www.a.test/?p=1&c=1")).toBe(
+      "www.a.test/?p=1&amp;c=1",
+    );
   });
 
   it("leaves & outside a bare URL encoded", () => {
     expect(sanitizeMarkdown("Tom & Jerry https://a.test/?p=1&c=1 R&D")).toBe(
-      "Tom &amp; Jerry https://a.test/?p=1&c=1 R&amp;D",
+      "Tom &amp; Jerry https://a.test/?p=1&amp;c=1 R&amp;D",
     );
     expect(sanitizeMarkdown('<a href="https://a.test/?p=1&c=1">link</a>')).toBe(
       '<a href="https://a.test/?p=1&amp;c=1">link</a>',

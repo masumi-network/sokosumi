@@ -22,4 +22,61 @@ describe("Markdown bare URL autolinks", () => {
     expect(link).toHaveAttribute("href", "http://www.a.test/?p=1&c=1");
     expect(link).toHaveTextContent("www.a.test/?p=1&c=1");
   });
+
+  it.each(["URL:", "!", "1", ">", "("])(
+    "keeps query delimiters after the GFM prefix %s",
+    (prefix) => {
+      const url = "https://a.test/?p=1&c=1";
+      const { container } = render(<Markdown>{`${prefix}${url}`}</Markdown>);
+      expect(container.querySelector("a")).toHaveAttribute("href", url);
+    },
+  );
+
+  it.each([
+    "https://a.test/?p=1&",
+    "https://a.test/?p=1;&c=1",
+    "www.a.test/?p=1&",
+  ])("keeps query delimiters in %s", (url) => {
+    const { container } = render(<Markdown>{url}</Markdown>);
+    expect(container.querySelector("a")).toHaveAttribute(
+      "href",
+      url.startsWith("www.") ? `http://${url}` : url,
+    );
+    expect(container.querySelector("a")).toHaveTextContent(url);
+  });
+
+  it("preserves entity decoding in explicit link destinations", () => {
+    const { container } = render(
+      <Markdown>{"[link](https://a.test/?p=1&amp;amp;c=1)"}</Markdown>,
+    );
+    expect(container.querySelector("a")).toHaveAttribute(
+      "href",
+      "https://a.test/?p=1&amp;c=1",
+    );
+  });
+
+  it("preserves entities in HTML attributes containing URL text", () => {
+    const { container } = render(
+      <Markdown>
+        {
+          '<img src="https://a.test/pic.png" alt="see https://a.test/?p=1&amp;copy;">'
+        }
+      </Markdown>,
+    );
+    expect(container.querySelector("img")).toHaveAttribute(
+      "alt",
+      "see https://a.test/?p=1&copy;",
+    );
+  });
+
+  it.each([
+    "` https://a.test/?p=1&amp;c=1 `",
+    "```\nhttps://a.test/?p=1&amp;c=1\n```",
+  ])("leaves the existing code entity behavior unchanged: %s", (source) => {
+    const { container } = render(<Markdown>{source}</Markdown>);
+    expect(container.querySelector("a")).toBeNull();
+    expect(container.querySelector("code")).toHaveTextContent(
+      "https://a.test/?p=1&amp;c=1",
+    );
+  });
 });
