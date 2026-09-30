@@ -171,7 +171,7 @@ export function dropUnverifiedLinks(
 
   if (dropped === 0) return { text, dropped };
   return {
-    text: `${cleaned.trimEnd()}\n\nI left out ${dropped === 1 ? "a link" : `${dropped} links`} I could not confirm from a page I opened.`,
+    text: `${cleaned.trimEnd()}\n\n(I removed ${dropped === 1 ? "a link" : `${dropped} links`} I couldn't check.)`,
     dropped,
   };
 }

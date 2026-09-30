@@ -133,7 +133,7 @@ describe("finishTurn", () => {
     const message = completedMessage();
     expect(message).toContain("([site](https://www.token2049.com/singapore))");
     expect(message).not.toContain("blocked.example");
-    expect(message).toContain("I left out a link");
+    expect(message).toContain("I removed a link");
     expect(turnUpdate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: {

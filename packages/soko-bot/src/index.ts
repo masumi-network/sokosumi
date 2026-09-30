@@ -75,6 +75,7 @@ export {
 } from "./scenarios.js";
 export {
   isSokoBotDecisionTarget,
+  SOKO_BOT_TASK_STATUSES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   type SokoBotDecisionTarget,

@@ -12,7 +12,7 @@ const evidence = new Set(
     "http://example.org/report?page=2",
   ]),
 );
-const NOTE = "I left out a link I could not confirm from a page I opened.";
+const NOTE = "(I removed a link I couldn't check.)";
 
 describe("normalizeCitation", () => {
   it("ignores scheme case, fragments and trailing slashes", () => {

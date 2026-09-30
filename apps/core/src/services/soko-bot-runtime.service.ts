@@ -1877,11 +1877,15 @@ export class SokoBotRuntimeService {
           authorized.turn.userId,
           authorized.askedByKind,
         ),
-        input.state === "open"
-          ? { status: { notIn: finished } }
-          : input.state === "finished"
-            ? { status: { in: finished } }
-            : {},
+        // An exact status is the question itself; `state` would only
+        // contradict it (FAILED is finished, yet "open" is the default).
+        input.status
+          ? { status: { in: [input.status].flat() } }
+          : input.state === "open"
+            ? { status: { notIn: finished } }
+            : input.state === "finished"
+              ? { status: { in: finished } }
+              : {},
         input.projectId ? { projectId: input.projectId } : {},
         input.idleDays
           ? {
@@ -1933,6 +1937,13 @@ export class SokoBotRuntimeService {
       }),
       prisma.task.count({ where }),
     ]);
+    // Counts past the page: "what is stuck" needs every INPUT_REQUIRED Task,
+    // not the ones among the latest few that happened to be listed.
+    const byStatus = await prisma.task.groupBy({
+      by: ["status"],
+      where,
+      _count: { _all: true },
+    });
     return {
       tasks: tasks.map((task) => {
         const latest = task.events[0];
@@ -1960,6 +1971,9 @@ export class SokoBotRuntimeService {
         };
       }),
       total,
+      byStatus: Object.fromEntries(
+        byStatus.map((row) => [row.status, row._count._all]),
+      ),
     };
   }
 

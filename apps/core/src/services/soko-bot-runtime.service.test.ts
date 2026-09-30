@@ -37,6 +37,7 @@ const {
   taskFindFirstMock,
   taskFindManyMock,
   taskCountMock,
+  taskGroupByMock,
   files,
   images,
   marketplace,
@@ -124,6 +125,7 @@ const {
   taskFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskCountMock: vi.fn(),
+  taskGroupByMock: vi.fn().mockResolvedValue([]),
   marketplace: { list: vi.fn(), rate: vi.fn() },
   images: {
     access: vi.fn(),
@@ -355,6 +357,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findFirst: taskFindFirstMock,
       findMany: taskFindManyMock,
       count: taskCountMock,
+      groupBy: taskGroupByMock,
     },
     job: { findFirst: jobFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
@@ -1466,6 +1469,7 @@ describe("SokoBotRuntimeService authorization", () => {
         },
       ],
       total: 1,
+      byStatus: {},
     });
     const { where } = taskFindManyMock.mock.calls[0][0];
     expect(where.AND).toEqual(
@@ -1489,6 +1493,63 @@ describe("SokoBotRuntimeService authorization", () => {
       ]),
     );
     expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it("filters by exact status and counts every match by status", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What is stuck?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    const input = { status: ["INPUT_REQUIRED", "FAILED"] };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000011",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(8);
+    taskGroupByMock.mockResolvedValueOnce([
+      { status: "INPUT_REQUIRED", _count: { _all: 6 } },
+      { status: "FAILED", _count: { _all: 2 } },
+    ]);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_stuck",
+      input,
+    });
+
+    expect(result).toMatchObject({
+      total: 8,
+      byStatus: { INPUT_REQUIRED: 6, FAILED: 2 },
+    });
+    const { where } = taskFindManyMock.mock.calls[0][0];
+    // FAILED is a finished status; the default "open" must not hide it.
+    expect(where.AND).toContainEqual({
+      status: { in: ["INPUT_REQUIRED", "FAILED"] },
+    });
+    expect(where.AND).not.toContainEqual({
+      status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+    });
   });
 
   it("lists only public Tasks for a teammate", async () => {
