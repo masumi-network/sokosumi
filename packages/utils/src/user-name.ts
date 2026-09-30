@@ -5,6 +5,14 @@ export function resolveAccountDisplayName(name: string, email: string): string {
   return name.trim() || email;
 }
 
+/** Display name a user starts with: first and last name, trimmed. */
+export function joinFirstAndLastName(
+  firstName: string,
+  lastName: string,
+): string {
+  return `${firstName.trim()} ${lastName.trim()}`.trim();
+}
+
 /**
  * Given name only (e.g. greetings). Uses namefully; mononyms supported.
  * Returns undefined when input is blank or unparsable.

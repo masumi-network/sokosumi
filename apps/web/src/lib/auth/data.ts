@@ -11,6 +11,20 @@ export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       error: t?.("Name.max"),
     });
 
+export const firstNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+  z
+    .string({ error: t?.("FirstName.required") })
+    .trim()
+    .min(1, { error: t?.("FirstName.required") })
+    .max(64, { error: t?.("FirstName.max") });
+
+export const lastNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+  z
+    .string({ error: t?.("LastName.required") })
+    .trim()
+    .min(1, { error: t?.("LastName.required") })
+    .max(64, { error: t?.("LastName.max") });
+
 export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .email({ error: t?.("Email.invalid") })

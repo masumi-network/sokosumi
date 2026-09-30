@@ -132,8 +132,12 @@ describe("SignUpForm OAuth workflow", () => {
     const user = userEvent.setup();
 
     await user.type(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-      "New User",
+      screen.getByPlaceholderText("Fields.FirstName.placeholder"),
+      "New",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Fields.LastName.placeholder"),
+      "User",
     );
     await user.type(
       screen.getByPlaceholderText("Fields.Email.placeholder"),
@@ -160,12 +164,15 @@ describe("SignUpForm OAuth workflow", () => {
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
-  it("lets a password manager recognise name, email and new password", () => {
+  it("lets a password manager recognise names, email and new password", () => {
     render(<SignUpForm />);
 
     expect(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-    ).toHaveAttribute("autocomplete", "name");
+      screen.getByPlaceholderText("Fields.FirstName.placeholder"),
+    ).toHaveAttribute("autocomplete", "given-name");
+    expect(
+      screen.getByPlaceholderText("Fields.LastName.placeholder"),
+    ).toHaveAttribute("autocomplete", "family-name");
     expect(
       screen.getByPlaceholderText("Fields.Email.placeholder"),
     ).toHaveAttribute("autocomplete", "email");
@@ -253,8 +260,11 @@ describe("SignUpForm OAuth workflow", () => {
       screen.queryByPlaceholderText("Fields.ConfirmPassword.placeholder"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-    ).toBeInTheDocument();
+      screen.getByPlaceholderText("Fields.FirstName.placeholder"),
+    ).toHaveAttribute("autocomplete", "given-name");
+    expect(
+      screen.getByPlaceholderText("Fields.LastName.placeholder"),
+    ).toHaveAttribute("autocomplete", "family-name");
     expect(
       screen.getByPlaceholderText("Fields.Password.placeholder"),
     ).toHaveAttribute("type", "password");
@@ -370,6 +380,8 @@ describe("SignUpForm OAuth workflow", () => {
 
     expect(signUpPayload).toEqual(
       expect.objectContaining({
+        firstName: "New",
+        lastName: "User",
         name: "New User",
         email: "new-user@example.com",
         password: "Passw0rd!",

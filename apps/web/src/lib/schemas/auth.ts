@@ -3,8 +3,9 @@ import * as z from "zod";
 import {
   confirmPasswordSchema,
   emailSchema,
+  firstNameSchema,
   inputPasswordSchema,
-  nameSchema,
+  lastNameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
 
@@ -30,7 +31,8 @@ export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
 export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
-    name: nameSchema(t),
+    firstName: firstNameSchema(t),
+    lastName: lastNameSchema(t),
     email: emailSchema(t),
     password: passwordSchema(t),
     marketingOptIn: z.boolean().optional(),

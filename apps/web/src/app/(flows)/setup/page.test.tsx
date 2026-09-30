@@ -96,7 +96,12 @@ describe("WorkspaceGatePage", () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",
       session: {
-        user: { id: "user-1", name: "Ada Lovelace" },
+        user: {
+          id: "user-1",
+          name: "Ada Lovelace",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
         session: { id: "session-1" },
       },
     });

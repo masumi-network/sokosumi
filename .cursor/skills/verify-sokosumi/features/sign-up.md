@@ -38,7 +38,7 @@ curl -sS -X POST "$CORE_URL/auth/sign-up/email" \
   -H 'content-type: application/json' \
   -H "origin: $WEB_URL" \
   -H 'x-captcha-response: XXXX.DUMMY.TOKEN.XXXX' \
-  -d '{"email":"<unique>@sokosumi.test","password":"Password123!","name":"Verify Agent","termsAccepted":true}'
+  -d '{"email":"<unique>@sokosumi.test","password":"Password123!","firstName":"Verify","lastName":"Agent","termsAccepted":true}'
 ```
 
 Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alone as UI signup proof — only as account creation so sign-in can be driven. Report the checkbox gap if the UI path was the intended entry.

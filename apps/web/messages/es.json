@@ -1241,8 +1241,11 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
+            "FirstName": {
               "placeholder": "Nombre"
+            },
+            "LastName": {
+              "placeholder": "Apellido"
             },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -7338,8 +7341,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Nombre",
-        "placeholder": "Tu nombre",
+        "firstNameLabel": "Nombre",
+        "lastNameLabel": "Apellido",
         "persistError": "No pudimos actualizar tu nombre."
       },
       "Schema": {
@@ -7352,6 +7355,14 @@
           "max": "El nombre no puede superar los 128 caracteres.",
           "invalid": "El nombre debe ser una cadena válida.",
           "required": "El nombre es obligatorio"
+        },
+        "FirstName": {
+          "max": "El nombre no puede superar los 64 caracteres.",
+          "required": "El nombre es obligatorio"
+        },
+        "LastName": {
+          "max": "El apellido no puede superar los 64 caracteres.",
+          "required": "El apellido es obligatorio"
         },
         "Organization": {
           "invalid": "La organización debe ser una cadena válida.",
@@ -7538,8 +7549,6 @@
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
     "retry": "Reintentar",
     "Identity": {
-      "nameLabel": "Nombre",
-      "namePlaceholder": "Tu nombre",
       "choiceLabel": "¿Cómo quieres trabajar?",
       "choiceHint": "Puedes añadir otro espacio de trabajo en cualquier momento.",
       "personalTitle": "Personal",

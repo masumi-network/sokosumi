@@ -1241,8 +1241,11 @@
             "Email": {
               "placeholder": "E-Mail"
             },
-            "Name": {
-              "placeholder": "Name"
+            "FirstName": {
+              "placeholder": "Vorname"
+            },
+            "LastName": {
+              "placeholder": "Nachname"
             },
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
@@ -7338,8 +7341,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Name",
-        "placeholder": "Dein Name",
+        "firstNameLabel": "Vorname",
+        "lastNameLabel": "Nachname",
         "persistError": "Wir konnten deinen Namen nicht aktualisieren."
       },
       "Schema": {
@@ -7352,6 +7355,14 @@
           "max": "Name darf maximal 128 Zeichen lang sein.",
           "invalid": "Name muss eine gültige Zeichenkette sein.",
           "required": "Name ist erforderlich"
+        },
+        "FirstName": {
+          "max": "Vorname darf maximal 64 Zeichen lang sein.",
+          "required": "Vorname ist erforderlich"
+        },
+        "LastName": {
+          "max": "Nachname darf maximal 64 Zeichen lang sein.",
+          "required": "Nachname ist erforderlich"
         },
         "Organization": {
           "invalid": "Organisation muss eine gültige Zeichenkette sein.",
@@ -7538,8 +7549,6 @@
     "unavailableBody": "Versuche es gleich noch einmal. Wenn das Problem bleibt, melde dich ab und wieder an, oder kontaktiere den Support. Abmelden ist hier immer möglich.",
     "retry": "Erneut versuchen",
     "Identity": {
-      "nameLabel": "Name",
-      "namePlaceholder": "Dein Name",
       "choiceLabel": "Wie möchtest du arbeiten?",
       "choiceHint": "Du kannst jederzeit einen weiteren Arbeitsbereich hinzufügen.",
       "personalTitle": "Persönlich",

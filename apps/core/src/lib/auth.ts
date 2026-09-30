@@ -78,6 +78,7 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { resolveSignUpNameBody } from "./auth-sign-up-name";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
@@ -374,7 +375,7 @@ export const auth = betterAuth({
             });
           }
 
-          break;
+          return { context: { body: resolveSignUpNameBody(ctx.body) } };
         }
       }
     }),

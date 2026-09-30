@@ -5,6 +5,8 @@ import {
   confirmPasswordSchema,
   currentPasswordSchema,
   emailSchema,
+  firstNameSchema,
+  lastNameSchema,
   nameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
@@ -15,6 +17,18 @@ export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   });
 
 export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
+
+export const firstAndLastNameFormSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z.object({
+    firstName: firstNameSchema(t),
+    lastName: lastNameSchema(t),
+  });
+
+export type FirstAndLastNameFormType = z.infer<
+  ReturnType<typeof firstAndLastNameFormSchema>
+>;
 
 export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({

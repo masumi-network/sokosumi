@@ -181,6 +181,23 @@ describe("social provider options", () => {
     });
   });
 
+  it("maps the provider's given and family name to first and last name", async () => {
+    await expect(
+      socialProviderOptions.microsoft.mapProfileToUser({
+        name: "Ada Lovelace",
+        picture: "",
+        given_name: " Ada ",
+        family_name: "",
+      }),
+    ).resolves.toStrictEqual({
+      name: "Ada Lovelace",
+      image: undefined,
+      firstName: "Ada",
+      lastName: undefined,
+      emailVerified: true,
+    });
+  });
+
   it("falls back when social profile mapping fails", async () => {
     uploadProfileImageMock.mockRejectedValueOnce(new Error("upload failed"));
 

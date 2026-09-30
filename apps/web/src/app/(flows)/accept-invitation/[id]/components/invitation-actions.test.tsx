@@ -51,16 +51,18 @@ const messages = {
   Library: {
     Auth: {
       NameField: {
-        label: "Name",
-        placeholder: "Your name",
+        firstNameLabel: "First name",
+        lastNameLabel: "Last name",
         persistError: "Name update failed",
       },
       Schema: {
-        Name: {
-          invalid: "Invalid name",
-          required: "Name is required",
-          min: "Name must be at least 2 characters",
-          max: "Name is too long",
+        FirstName: {
+          required: "First name is required",
+          max: "First name is too long",
+        },
+        LastName: {
+          required: "Last name is required",
+          max: "Last name is too long",
         },
       },
     },
@@ -143,11 +145,16 @@ describe("InvitationActions name collection", () => {
 
     renderActions();
 
-    await actor.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await actor.type(screen.getByTestId("collect-user-first-name"), "Ada");
+    await actor.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
     await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+      expect(updateUserMock).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        name: "Ada Lovelace",
+      });
     });
     expect(acceptInvitationMock).not.toHaveBeenCalled();
 
@@ -164,7 +171,9 @@ describe("InvitationActions name collection", () => {
     const actor = userEvent.setup();
     renderActions({ ...user, name: "Ada Lovelace" });
 
-    expect(screen.queryByTestId("collect-user-name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("collect-user-first-name"),
+    ).not.toBeInTheDocument();
     await actor.click(screen.getByRole("button", { name: "Join Acme" }));
 
     await waitFor(() => {

@@ -1241,8 +1241,11 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
-              "placeholder": "Name"
+            "FirstName": {
+              "placeholder": "First name"
+            },
+            "LastName": {
+              "placeholder": "Last name"
             },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
@@ -7338,8 +7341,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Name",
-        "placeholder": "Your name",
+        "firstNameLabel": "First name",
+        "lastNameLabel": "Last name",
         "persistError": "We could not update your name."
       },
       "Schema": {
@@ -7352,6 +7355,14 @@
           "max": "Name must be at most 128 characters.",
           "invalid": "Name must be a valid string.",
           "required": "Name is required"
+        },
+        "FirstName": {
+          "max": "First name must be at most 64 characters.",
+          "required": "First name is required"
+        },
+        "LastName": {
+          "max": "Last name must be at most 64 characters.",
+          "required": "Last name is required"
         },
         "Organization": {
           "invalid": "Organization must be a valid string.",
@@ -7538,8 +7549,6 @@
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "nameLabel": "Name",
-      "namePlaceholder": "Your name",
       "choiceLabel": "How do you want to work?",
       "choiceHint": "You can add another workspace at any time.",
       "personalTitle": "Personal",

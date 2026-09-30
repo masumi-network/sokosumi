@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { authClient } from "@/lib/auth/auth.client";
 
-import { persistUserName, userHasName } from "./persist-user-name";
+import { persistFirstAndLastName, userHasName } from "./persist-user-name";
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
@@ -24,16 +24,33 @@ describe("userHasName", () => {
   });
 });
 
-describe("persistUserName", () => {
-  it("returns ok when updateUser succeeds", async () => {
+const ADA = { firstName: "Ada", lastName: "Lovelace" };
+
+describe("persistFirstAndLastName", () => {
+  it("derives the display name for a user who has none", async () => {
     vi.mocked(authClient.updateUser).mockResolvedValueOnce({
       data: null,
       error: null,
     });
 
-    const result = await persistUserName("Ada");
+    const result = await persistFirstAndLastName(ADA, " ");
 
     expect(result.isOk()).toBe(true);
+    expect(authClient.updateUser).toHaveBeenLastCalledWith({
+      ...ADA,
+      name: "Ada Lovelace",
+    });
+  });
+
+  it("leaves an existing display name alone", async () => {
+    vi.mocked(authClient.updateUser).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    await persistFirstAndLastName(ADA, "Countess of Lovelace");
+
+    expect(authClient.updateUser).toHaveBeenLastCalledWith(ADA);
   });
 
   it("returns err with the update message when updateUser fails", async () => {
@@ -42,7 +59,7 @@ describe("persistUserName", () => {
       error: { message: "Name rejected" },
     });
 
-    const result = await persistUserName("Ada");
+    const result = await persistFirstAndLastName(ADA, "");
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {

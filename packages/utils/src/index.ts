@@ -444,6 +444,7 @@ export {
 } from "./user-metadata.js";
 export {
   getFirstName,
+  joinFirstAndLastName,
   resolveAccountDisplayName,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
