@@ -123,12 +123,6 @@ describe("listMetaCampaigns", () => {
         daily_budget: "1000",
       },
       {
-        id: "13",
-        name: "Gone",
-        status: "DELETED",
-        effective_status: "DELETED",
-      },
-      {
         id: "14",
         name: "Odd",
         status: "ACTIVE",
@@ -156,7 +150,7 @@ describe("listMetaCampaigns", () => {
     mockTools(campaignList, insights);
   });
 
-  it("merges campaigns with insights and leaves deleted ones out", async () => {
+  it("merges campaigns with insights and maps the effective status", async () => {
     expect(await listMetaCampaigns(campaignInput)).toEqual([
       {
         id: "10",
@@ -188,7 +182,7 @@ describe("listMetaCampaigns", () => {
         // Zero clicks: cpc is null, not Infinity.
         id: "12",
         name: "Done",
-        status: "ENDED",
+        status: "OTHER",
         objective: "OUTCOME_SALES",
         dailyBudget: 10,
         spend: 3,
@@ -219,6 +213,26 @@ describe("listMetaCampaigns", () => {
     expect(await listMetaCampaigns(campaignInput)).toEqual([]);
   });
 
+  it("asks for campaigns with a field array", async () => {
+    await listMetaCampaigns(campaignInput);
+    expect(executeToolMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolSlug: "METAADS_LIST_CAMPAIGNS",
+        arguments: expect.objectContaining({
+          ad_account_id: "act_1",
+          fields: [
+            "id",
+            "name",
+            "status",
+            "effective_status",
+            "objective",
+            "daily_budget",
+          ],
+        }),
+      }),
+    );
+  });
+
   it("asks for campaign-level insights over the range and pins the two tools", async () => {
     await listMetaCampaigns({ ...campaignInput, range: "LAST_30_DAYS" });
     expect(executeToolMock).toHaveBeenCalledWith(
@@ -227,6 +241,7 @@ describe("listMetaCampaigns", () => {
         arguments: expect.objectContaining({
           object_id: "act_1",
           level: "campaign",
+          fields: ["campaign_id", "spend", "impressions", "clicks"],
           date_preset: "last_30d",
         }),
       }),
@@ -266,13 +281,8 @@ describe("listMetaCampaigns", () => {
     expect(campaign?.dailyBudget).toBe(5000);
   });
 
-  it("finds rows nested as data.data", async () => {
-    mockTools({ data: { data: campaignList.data } }, { data: insights });
-    expect(await listMetaCampaigns(campaignInput)).toHaveLength(4);
-  });
-
   it.each([null, {}, { unexpected: true }])(
-    "raises an unrecognizable payload (%j) instead of returning nothing",
+    "raises a payload without a data list (%j) instead of returning nothing",
     async (payload) => {
       mockTools(payload, insights);
       await expect(listMetaCampaigns(campaignInput)).rejects.toBeInstanceOf(
@@ -300,20 +310,19 @@ describe("listMetaCampaigns", () => {
             paging: { cursors: { after: "page2" } },
           };
         }
-        // Nested shape on the last page, without a further cursor.
+        // Last page, without a further cursor.
         return {
-          data: {
-            data: isList
-              ? [{ id: "11", name: "Two", status: "PAUSED" }]
-              : [
-                  {
-                    campaign_id: "11",
-                    spend: "2",
-                    impressions: "20",
-                    clicks: "2",
-                  },
-                ],
-          },
+          data: isList
+            ? [{ id: "11", name: "Two", status: "PAUSED" }]
+            : [
+                {
+                  campaign_id: "11",
+                  spend: "2",
+                  impressions: "20",
+                  clicks: "2",
+                },
+              ],
+          paging: { cursors: { before: "page1" } },
         };
       },
     );

@@ -35,8 +35,6 @@ const META_STATUSES: Record<string, AdCampaignStatus> = {
   ACTIVE: "ACTIVE",
   PAUSED: "PAUSED",
   CAMPAIGN_PAUSED: "PAUSED",
-  ARCHIVED: "ENDED",
-  COMPLETED: "ENDED",
 };
 
 const metaAdAccountSchema = z.object({
@@ -92,11 +90,9 @@ const metaInsightSchema = z.object({
   clicks: z.coerce.number().nullish(),
 });
 
-/** The `after` cursor of the next page, wherever the tool nests Graph's paging. */
+/** The `after` cursor of the next page. */
 function nextCursor(payload: Record<string, unknown> | null): string | null {
-  const paging =
-    record(payload?.paging) ?? record(record(payload?.data)?.paging);
-  const after = record(paging?.cursors)?.after;
+  const after = record(record(payload?.paging)?.cursors)?.after;
   return typeof after === "string" && after ? after : null;
 }
 
@@ -126,7 +122,11 @@ async function listAllRows(
   return rows;
 }
 
-/** Non-deleted campaigns of an ad account with spend and clicks over the range. Conversions are not reported. */
+/**
+ * Campaigns of an ad account with spend and clicks over the range. Meta only
+ * returns archived and deleted campaigns when asked, which we do not.
+ * Conversions are not reported.
+ */
 export async function listMetaCampaigns(
   input: AdsConnectedAccount & {
     adAccountId: string;
@@ -148,7 +148,14 @@ export async function listMetaCampaigns(
           LIST_CAMPAIGNS,
           {
             ad_account_id: adAccountId,
-            fields: "id,name,status,effective_status,objective,daily_budget",
+            fields: [
+              "id",
+              "name",
+              "status",
+              "effective_status",
+              "objective",
+              "daily_budget",
+            ],
           },
           "list Meta campaigns",
         ),
@@ -157,8 +164,10 @@ export async function listMetaCampaigns(
           GET_INSIGHTS,
           {
             object_id: adAccountId,
+            // Graph aggregates an `act_` object's insights per campaign at this
+            // level. Verify against a live account.
             level: "campaign",
-            fields: "campaign_id,spend,impressions,clicks",
+            fields: ["campaign_id", "spend", "impressions", "clicks"],
             date_preset: DATE_PRESETS[range],
           },
           "list Meta campaign insights",
@@ -183,27 +192,21 @@ export async function listMetaCampaigns(
       conversions: null,
     })),
   );
-  return campaigns
-    .filter(
-      (campaign) =>
-        campaign.status !== "DELETED" &&
-        campaign.effective_status !== "DELETED",
-    )
-    .map((campaign) =>
-      buildAdCampaign(
-        {
-          id: campaign.id,
-          name: campaign.name,
-          status:
-            META_STATUSES[campaign.effective_status ?? campaign.status ?? ""] ??
-            "OTHER",
-          objective: campaign.objective ?? null,
-          dailyBudget:
-            campaign.daily_budget == null
-              ? null
-              : fromMinorUnits(campaign.daily_budget, currency),
-        },
-        totals.get(campaign.id) ?? noAdMetrics(null),
-      ),
-    );
+  return campaigns.map((campaign) =>
+    buildAdCampaign(
+      {
+        id: campaign.id,
+        name: campaign.name,
+        status:
+          META_STATUSES[campaign.effective_status ?? campaign.status ?? ""] ??
+          "OTHER",
+        objective: campaign.objective ?? null,
+        dailyBudget:
+          campaign.daily_budget == null
+            ? null
+            : fromMinorUnits(campaign.daily_budget, currency),
+      },
+      totals.get(campaign.id) ?? noAdMetrics(null),
+    ),
+  );
 }

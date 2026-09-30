@@ -178,7 +178,11 @@ describe("listGoogleCampaigns", () => {
     range: "LAST_30_DAYS" as const,
   };
 
+  const CAMPAIGN_FIELD_MASK = "campaign.id,campaign.name";
+
   const campaignRows = {
+    fieldMask: CAMPAIGN_FIELD_MASK,
+    requestId: "req_1",
     results: [
       {
         campaign: {
@@ -191,14 +195,14 @@ describe("listGoogleCampaigns", () => {
         campaignBudget: { amountMicros: "12500000" },
       },
       {
-        // snake_case, numeric id, nothing spent in the range
+        // numeric id, nothing spent in the range
         campaign: {
           id: 2,
           name: "Paused promo",
           status: "PAUSED",
-          advertising_channel_type: "DISPLAY",
+          advertisingChannelType: "DISPLAY",
         },
-        campaign_budget: { amount_micros: 5000000 },
+        campaignBudget: { amountMicros: 5000000 },
       },
       {
         campaign: {
@@ -216,28 +220,26 @@ describe("listGoogleCampaigns", () => {
   };
 
   const metricRows = {
-    data: [
+    fieldMask: "campaign.id,metrics.costMicros",
+    requestId: "req_2",
+    results: [
       {
-        results: [
-          {
-            campaign: { id: "1" },
-            metrics: {
-              costMicros: "20000000",
-              impressions: "1000",
-              clicks: "40",
-              conversions: 3.5,
-            },
-          },
-          {
-            campaign: { id: "3" },
-            metrics: {
-              costMicros: "0",
-              impressions: "500",
-              clicks: "0",
-              conversions: 0,
-            },
-          },
-        ],
+        campaign: { id: "1" },
+        metrics: {
+          costMicros: "20000000",
+          impressions: "1000",
+          clicks: "40",
+          conversions: 3.5,
+        },
+      },
+      {
+        campaign: { id: "3" },
+        metrics: {
+          costMicros: "0",
+          impressions: "500",
+          clicks: "0",
+          conversions: 0,
+        },
       },
     ],
   };
@@ -314,24 +316,12 @@ describe("listGoogleCampaigns", () => {
   });
 
   it("returns an empty list for an account without campaigns", async () => {
-    mockQueries({ results: [] }, { results: [] });
+    const empty = { results: [], fieldMask: CAMPAIGN_FIELD_MASK };
+    mockQueries(empty, empty);
     expect(await listGoogleCampaigns(campaignInput)).toEqual([]);
   });
 
-  it("finds rows under a nested data object", async () => {
-    mockQueries({ data: { results: campaignRows.results } }, metricRows);
-    expect(await listGoogleCampaigns(campaignInput)).toHaveLength(4);
-  });
-
-  it("returns an empty list when Google streams only an empty batch", async () => {
-    const emptyBatch = {
-      data: [{ fieldMask: "campaign.id", requestId: "r1" }],
-    };
-    mockQueries(emptyBatch, emptyBatch);
-    expect(await listGoogleCampaigns(campaignInput)).toEqual([]);
-  });
-
-  it("raises a payload with no recognizable rows instead of returning nothing", async () => {
+  it("raises a payload without a results list instead of returning nothing", async () => {
     mockQueries({ unexpected: true }, metricRows);
     await expect(listGoogleCampaigns(campaignInput)).rejects.toBeInstanceOf(
       ComposioApiError,
@@ -386,7 +376,13 @@ describe("listGoogleCampaigns", () => {
   });
 
   it("raises a row that does not match the expected shape", async () => {
-    mockQueries({ results: [{ campaign: { name: "no id" } }] }, metricRows);
+    mockQueries(
+      {
+        results: [{ campaign: { name: "no id" } }],
+        fieldMask: CAMPAIGN_FIELD_MASK,
+      },
+      metricRows,
+    );
     await expect(listGoogleCampaigns(campaignInput)).rejects.toThrow(
       /invalid response/,
     );

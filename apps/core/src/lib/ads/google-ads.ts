@@ -157,11 +157,7 @@ export async function listGoogleCampaigns(
       ),
   );
   const campaigns = parseToolRows(
-    requireToolRows(
-      campaignPayload,
-      "results",
-      "list Google Ads campaigns",
-    ).map(camelizeKeys),
+    requireToolRows(campaignPayload, "results", "list Google Ads campaigns"),
     campaignRowSchema,
     "list Google Ads campaigns",
   );
@@ -171,7 +167,7 @@ export async function listGoogleCampaigns(
         metricPayload,
         "results",
         "list Google Ads campaign metrics",
-      ).map(camelizeKeys),
+      ),
       metricRowSchema,
       "list Google Ads campaign metrics",
     ).map((row) => ({
