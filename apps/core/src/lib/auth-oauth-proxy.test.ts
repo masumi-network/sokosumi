@@ -152,6 +152,8 @@ describe("OAuth proxy between a preview and production", () => {
   });
 
   it("signs a preview in through production when only the proxy secret is shared", async () => {
+    // The hand-off must come back to the branch URL, not this deployment's.
+    vi.stubEnv("VERCEL_URL", "core-abc123.preview.example.com");
     const production = createProduction(PROXY_SECRET);
     const preview = createPreview(PROXY_SECRET);
 
