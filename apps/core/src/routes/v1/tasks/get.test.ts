@@ -677,7 +677,7 @@ describe("GET /tasks", () => {
     expect(taskFindManyMock).not.toHaveBeenCalled();
   });
 
-  it("sorts by priority, then newest created, with sort=priority", async () => {
+  it("sorts by priority, then most recently updated, with sort=priority", async () => {
     const response = await createApp().request(
       "http://localhost/?sort=priority",
     );
@@ -685,7 +685,7 @@ describe("GET /tasks", () => {
     expect(response.status).toBe(200);
     expect(taskFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: [{ priority: "asc" }, { createdAt: "desc" }, { id: "desc" }],
+        orderBy: [{ priority: "asc" }, { updatedAt: "desc" }, { id: "desc" }],
       }),
     );
   });
