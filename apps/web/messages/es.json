@@ -2407,7 +2407,25 @@
           "reschedule": "Reprogramar",
           "cancel": "Cancelar publicación",
           "edit": "Editar",
-          "close": "Cerrar"
+          "close": "Cerrar",
+          "schedulePicker": {
+            "quickPicks": "Opciones rápidas",
+            "quick": {
+              "inAnHour": "En una hora ({time})",
+              "tomorrowMorning": "Mañana {time}",
+              "nextMonday": "Lunes {time}"
+            },
+            "pickDate": "Elegir fecha",
+            "pickTime": "Elegir hora",
+            "dateSelected": "Fecha: {date}",
+            "timeSelected": "Hora: {time}",
+            "times": "Horas"
+          },
+          "timezone": {
+            "yours": "Las horas están en tu zona horaria, {zone}.",
+            "goesOut": "Sale el {date}, tu hora ({zone}).",
+            "postZone": "Programada para {date} en {zone}."
+          }
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -7033,7 +7051,8 @@
         "all": "Todos los coworkers"
       },
       "timezone": {
-        "label": "Zona horaria"
+        "label": "Zona horaria",
+        "showing": "Horas en {zone}"
       },
       "empty": {
         "title": "Ninguna ejecución programada coincide con estos filtros.",

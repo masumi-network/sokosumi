@@ -2407,7 +2407,25 @@
           "reschedule": "Reschedule",
           "cancel": "Cancel post",
           "edit": "Edit",
-          "close": "Close"
+          "close": "Close",
+          "schedulePicker": {
+            "quickPicks": "Quick picks",
+            "quick": {
+              "inAnHour": "In an hour ({time})",
+              "tomorrowMorning": "Tomorrow {time}",
+              "nextMonday": "Monday {time}"
+            },
+            "pickDate": "Pick a date",
+            "pickTime": "Pick a time",
+            "dateSelected": "Date: {date}",
+            "timeSelected": "Time: {time}",
+            "times": "Times"
+          },
+          "timezone": {
+            "yours": "Times are in your time zone, {zone}.",
+            "goesOut": "Goes out {date}, your time ({zone}).",
+            "postZone": "Scheduled as {date} in {zone}."
+          }
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -7033,7 +7051,8 @@
         "all": "All coworkers"
       },
       "timezone": {
-        "label": "Time zone"
+        "label": "Time zone",
+        "showing": "Times in {zone}"
       },
       "empty": {
         "title": "No scheduled releases match these filters.",
