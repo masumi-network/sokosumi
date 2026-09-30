@@ -585,6 +585,21 @@ describe("SocialButtons", () => {
     expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
   });
 
+  it("asks for the magic-link address with an email keyboard and no autocorrect", async () => {
+    const user = userEvent.setup();
+    render(<SocialButtons showMagicLink />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    );
+
+    const email = screen.getByRole("textbox", { name: "magic-link-email" });
+    expect(email).toHaveAttribute("type", "email");
+    expect(email).toHaveAttribute("autocomplete", "email");
+    expect(email).toHaveAttribute("autocapitalize", "none");
+    expect(email).toHaveAttribute("spellcheck", "false");
+  });
+
   it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {
     const user = userEvent.setup();
     requestCaptchaMock.mockResolvedValueOnce(null);

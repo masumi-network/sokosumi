@@ -315,6 +315,9 @@ export default function SocialButtons({
           )}
           <Input
             type="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            spellCheck={false}
             className="text-center placeholder:text-center"
             value={magicLinkEmail}
             onChange={(event) => {
