@@ -18378,26 +18378,6 @@ export const ProjectAdProviderSchema = {
     example: 'google_ads'
 } as const;
 
-export const InitiateProjectAdConnectionResponseSchema = {
-    type: 'object',
-    properties: {
-        connectionId: {
-            type: 'string',
-            minLength: 1,
-            example: 'ca_123'
-        },
-        redirectUrl: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://connect.composio.dev/link-token'
-        }
-    },
-    required: [
-        'connectionId',
-        'redirectUrl'
-    ]
-} as const;
-
 export const InitiateProjectAdConnectionRequestSchema = {
     type: 'object',
     properties: {
@@ -18430,12 +18410,15 @@ export const FinalizeProjectAdConnectionResponseSchema = {
 } as const;
 
 export const ProjectAdConnectionSchema = {
-    type: 'object',
+    type: [
+        'object',
+        'null'
+    ],
     properties: {
         id: {
             type: 'string',
             format: 'uuid',
-            description: 'Pass this as `connectionId` when attaching accounts',
+            description: 'Pass this as `adConnectionId` when attaching accounts',
             example: 'cccccccc-cccc-4ccc-cccc-cccccccccccc'
         },
         provider: {
@@ -18460,7 +18443,8 @@ export const ProjectAdConnectionSchema = {
         'provider',
         'status',
         'createdAt'
-    ]
+    ],
+    description: 'Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked'
 } as const;
 
 export const AvailableAdAccountSchema = {
@@ -18486,43 +18470,20 @@ export const AvailableAdAccountSchema = {
                 'null'
             ],
             example: 'Europe/Berlin'
-        },
-        loginCustomerId: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Google manager account reaching this account, if any'
         }
     },
     required: [
         'externalAccountId',
         'name',
         'currency',
-        'timeZone',
-        'loginCustomerId'
-    ]
-} as const;
-
-export const FinalizeProjectAdConnectionRequestSchema = {
-    type: 'object',
-    properties: {
-        connectionId: {
-            type: 'string',
-            minLength: 1,
-            description: 'The `connectionId` returned by initiate',
-            example: 'ca_123'
-        }
-    },
-    required: [
-        'connectionId'
+        'timeZone'
     ]
 } as const;
 
 export const AttachProjectAdAccountsRequestSchema = {
     type: 'object',
     properties: {
-        connectionId: {
+        adConnectionId: {
             type: 'string',
             format: 'uuid',
             description: 'The connection `id` returned by finalize'
@@ -18538,7 +18499,7 @@ export const AttachProjectAdAccountsRequestSchema = {
         }
     },
     required: [
-        'connectionId',
+        'adConnectionId',
         'externalAccountIds'
     ]
 } as const;

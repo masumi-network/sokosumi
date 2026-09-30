@@ -27,6 +27,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
       502: jsonErrorResponse("Bad Gateway"),
@@ -38,6 +39,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    // Ads share the social beta gate.
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId, accountId } = c.req.valid("param");

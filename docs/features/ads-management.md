@@ -32,7 +32,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 
 - Execution of per-user toolkits: reuse the restricted `tool_router` session pattern in `apps/core/src/clients/composio.client.ts` (`getConnectedSocialIdentity`, `publishXPost`): pin toolkit, connected account and an allow-list of tools.
 - DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints. Parse DataForSEO's documented response with zod.
-- Google manager accounts need `login-customer-id`; store it on the ad account.
+- Google Ads v1 supports directly accessible customer accounts only. Composio's `googleads` tools have no `login-customer-id` parameter, so manager accounts and their client accounts are not offered; `loginCustomerId` stays null (column kept for later).
 - Money in API responses: decimal number in account currency + `currency` (ISO code). Google micros ÷ 1e6, Meta minor units ÷ 100.
 
 ## Data model (Prisma, `packages/database`)
@@ -49,8 +49,8 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 |---|---|---|
 | GET | `/ads/accounts` | Connected ad accounts |
 | POST | `/ads/connections/initiate` `{provider}` | Composio link → `{redirectUrl, connectionId}` |
-| POST | `/ads/connections/finalize` `{connectionId}` | Store connection, return `availableAccounts[]` |
-| POST | `/ads/accounts` `{connectionId, externalAccountIds[]}` | Attach chosen accounts |
+| POST | `/ads/connections/finalize` `{connectionId}` | Store connection, return `availableAccounts[]`; a grant with no ad accounts is revoked and returns `connection: null` |
+| POST | `/ads/accounts` `{adConnectionId, externalAccountIds[]}` | Attach chosen accounts; already attached accounts are returned unchanged |
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |

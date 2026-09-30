@@ -29,9 +29,9 @@ const input = {
   executorUserId: "sokosumi:project-executor:project_1",
 };
 
-function gaqlResult(customerId: string, query: string): unknown {
-  if (query.includes("FROM customer LIMIT 1")) {
-    if (customerId === "111") {
+function customerResult(customerId: string): Record<string, unknown> {
+  switch (customerId) {
+    case "111":
       return {
         data: [
           {
@@ -48,51 +48,30 @@ function gaqlResult(customerId: string, query: string): unknown {
           },
         ],
       };
-    }
-    if (customerId === "222") {
-      // snake_case, JSON string, manager account
+    case "222":
+      // Manager account: its clients are out of reach without login-customer-id.
       return {
-        data: JSON.stringify([
-          {
-            results: [
-              {
-                customer: {
-                  id: 222,
-                  descriptive_name: "Agency",
-                  currency_code: "USD",
-                  manager: true,
-                },
-              },
-            ],
-          },
-        ]),
-      };
-    }
-    throw new ComposioToolError({ message: "no access" });
-  }
-  return {
-    data: [
-      {
         results: [
           {
-            customerClient: {
-              id: "333",
-              descriptiveName: "",
+            customer: {
+              id: "222",
+              descriptiveName: "Agency",
               currencyCode: "USD",
-              timeZone: "America/New_York",
-            },
-          },
-          {
-            customerClient: {
-              id: "111",
-              descriptiveName: "Direct Shop",
-              currencyCode: "EUR",
+              manager: true,
             },
           },
         ],
-      },
-    ],
-  };
+      };
+    case "333":
+      // snake_case, numeric id, no name
+      return {
+        results: [
+          { customer: { id: 333, currency_code: "USD", time_zone: "UTC" } },
+        ],
+      };
+    default:
+      throw new ComposioToolError({ message: "no access" });
+  }
 }
 
 describe("listGoogleAdAccounts", () => {
@@ -102,39 +81,46 @@ describe("listGoogleAdAccounts", () => {
     executeToolMock.mockImplementation(
       async (call: {
         toolSlug: string;
-        arguments: { customer_id?: string; query?: string };
-      }) => {
-        if (call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS") {
-          return {
-            resource_names: ["customers/111", "customers/222", "customers/999"],
-          };
-        }
-        return gaqlResult(
-          call.arguments.customer_id ?? "",
-          call.arguments.query ?? "",
-        );
-      },
+        arguments: { customer_id?: string };
+      }) =>
+        call.toolSlug === "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS"
+          ? {
+              resource_names: [
+                "customers/111",
+                "customers/222",
+                "customers/333",
+                "customers/999",
+              ],
+            }
+          : customerResult(call.arguments.customer_id ?? ""),
     );
   });
 
-  it("lists direct accounts and manager clients, skipping unreachable customers", async () => {
-    const accounts = await listGoogleAdAccounts(input);
-    expect(accounts).toEqual([
+  it("lists direct customer accounts only", async () => {
+    expect(await listGoogleAdAccounts(input)).toEqual([
       {
         externalAccountId: "111",
         name: "Direct Shop",
         currency: "EUR",
         timeZone: "Europe/Berlin",
-        loginCustomerId: null,
       },
       {
         externalAccountId: "333",
         name: "Account 333",
         currency: "USD",
-        timeZone: "America/New_York",
-        loginCustomerId: "222",
+        timeZone: "UTC",
       },
     ]);
+  });
+
+  it("never queries manager client accounts", async () => {
+    await listGoogleAdAccounts(input);
+    const queries = executeToolMock.mock.calls.map(
+      ([call]) => call.arguments.query ?? "",
+    );
+    expect(queries.some((query: string) => /customer_client/.test(query))).toBe(
+      false,
+    );
   });
 
   it("pins the session to the connected account and the account tools, then deletes it", async () => {

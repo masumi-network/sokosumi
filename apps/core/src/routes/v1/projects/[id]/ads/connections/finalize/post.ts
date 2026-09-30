@@ -9,11 +9,11 @@ import {
 } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { finalizeProjectAdConnectionResponseSchema } from "@/schemas/project-ad-account.schema";
 import {
-  finalizeProjectAdConnectionRequestSchema,
-  finalizeProjectAdConnectionResponseSchema,
-  projectAdProjectParamsSchema,
-} from "@/schemas/project-ad-account.schema";
+  finalizeProjectSocialConnectionRequestSchema,
+  projectSocialConnectionProjectParamsSchema,
+} from "@/schemas/project-social-connection.schema";
 import { finalizeProjectAdConnection } from "@/services/project-ad-accounts.service";
 
 import { mapProjectAdServiceError } from "../../route-helpers.js";
@@ -26,12 +26,12 @@ const route = withOrganizationSlugHeaderParameter(
       "Finish a redeemed ad connection and list the ad accounts it can reach. Safe to retry. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
-      params: projectAdProjectParamsSchema,
+      params: projectSocialConnectionProjectParamsSchema,
       body: {
         required: true,
         content: {
           "application/json": {
-            schema: finalizeProjectAdConnectionRequestSchema,
+            schema: finalizeProjectSocialConnectionRequestSchema,
           },
         },
       },
@@ -56,6 +56,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    // Ads share the social beta gate.
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");

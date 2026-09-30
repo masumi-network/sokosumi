@@ -239,6 +239,8 @@ describe("initiateComposioConnection", () => {
           linkedin: false,
           facebook: false,
           youtube: false,
+          google_ads: false,
+          meta_ads: false,
         },
       },
     });

@@ -3,6 +3,7 @@ import type { z } from "@hono/zod-openapi";
 import {
   ComposioApiError,
   deleteComposioToolSession,
+  record,
 } from "@/clients/composio.client";
 import {
   createComposioToolSession,
@@ -20,8 +21,6 @@ export interface AvailableAdAccount {
   /** ISO 4217 code. */
   currency: string;
   timeZone: string | null;
-  /** Google manager account id to send as `login-customer-id`; null for direct access and Meta. */
-  loginCustomerId: string | null;
 }
 
 export interface AdsConnectedAccount {
@@ -32,7 +31,7 @@ export interface AdsConnectedAccount {
 export type ExecuteAdsTool = (
   toolSlug: string,
   args: Record<string, unknown>,
-) => Promise<unknown>;
+) => Promise<Record<string, unknown> | null>;
 
 /**
  * Runs `run` in a tool-router session pinned to one connected account and to
@@ -72,37 +71,22 @@ export async function withAdsToolSession<T>(
   }
 }
 
-function parseJson(value: string): unknown {
-  try {
-    return JSON.parse(value);
-  } catch {
-    return undefined;
-  }
-}
-
-function findRows(
-  value: unknown,
-  key: string,
-  depth: number,
-): unknown[] | null {
-  if (depth > 5) return null;
-  const parsed = typeof value === "string" ? parseJson(value) : value;
-  if (Array.isArray(parsed)) {
-    // A streamed result is a list of batches; a plain list holds the rows.
-    return parsed.flatMap((item) => findRows(item, key, depth + 1) ?? [item]);
-  }
-  if (typeof parsed !== "object" || parsed === null) return null;
-  const fields = parsed as Record<string, unknown>;
-  if (Array.isArray(fields[key])) return fields[key];
-  return "data" in fields ? findRows(fields.data, key, depth + 1) : null;
-}
-
 /**
- * Rows of a tool result, however Composio wrapped them: under `key`, under
- * `data`, as a JSON string, or as a list of streamed batches.
+ * Rows of a tool payload: under `key`, or under `data` either directly or as a
+ * list of streamed batches that each hold their rows under `key`.
  */
-export function toolRows(payload: unknown, key: string): unknown[] {
-  return findRows(payload, key, 0) ?? [];
+export function toolRows(
+  payload: Record<string, unknown> | null,
+  key: string,
+): unknown[] {
+  const direct = payload?.[key];
+  if (Array.isArray(direct)) return direct;
+  const data = payload?.data;
+  if (!Array.isArray(data)) return [];
+  return data.flatMap((batch) => {
+    const rows = record(batch)?.[key];
+    return Array.isArray(rows) ? rows : [batch];
+  });
 }
 
 /** Parses every row, treating one that does not match as an unusable response. */

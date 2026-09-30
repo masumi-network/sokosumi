@@ -5439,11 +5439,6 @@ export const ProjectAdProvider = { GOOGLE_ADS: 'google_ads', META_ADS: 'meta_ads
 
 export type ProjectAdProvider = typeof ProjectAdProvider[keyof typeof ProjectAdProvider];
 
-export type InitiateProjectAdConnectionResponse = {
-    connectionId: string;
-    redirectUrl: string;
-};
-
 export type InitiateProjectAdConnectionRequest = {
     provider: ProjectAdProvider;
 };
@@ -5453,15 +5448,18 @@ export type FinalizeProjectAdConnectionResponse = {
     availableAccounts: Array<AvailableAdAccount>;
 };
 
+/**
+ * Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked
+ */
 export type ProjectAdConnection = {
     /**
-     * Pass this as `connectionId` when attaching accounts
+     * Pass this as `adConnectionId` when attaching accounts
      */
     id: string;
     provider: ProjectAdProvider;
     status: 'active' | 'reauthorization_required' | 'disconnected';
     createdAt: Date;
-};
+} | null;
 
 export type AvailableAdAccount = {
     /**
@@ -5474,24 +5472,13 @@ export type AvailableAdAccount = {
      */
     currency: string;
     timeZone: string | null;
-    /**
-     * Google manager account reaching this account, if any
-     */
-    loginCustomerId: string | null;
-};
-
-export type FinalizeProjectAdConnectionRequest = {
-    /**
-     * The `connectionId` returned by initiate
-     */
-    connectionId: string;
 };
 
 export type AttachProjectAdAccountsRequest = {
     /**
      * The connection `id` returned by finalize
      */
-    connectionId: string;
+    adConnectionId: string;
     externalAccountIds: Array<string>;
 };
 
@@ -38972,7 +38959,7 @@ export type PostProjectsByIdAdsConnectionsInitiateResponses = {
      * Project ad connection initiated
      */
     201: {
-        data: InitiateProjectAdConnectionResponse;
+        data: InitiateProjectSocialConnectionResponse;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -38984,7 +38971,7 @@ export type PostProjectsByIdAdsConnectionsInitiateResponses = {
 export type PostProjectsByIdAdsConnectionsInitiateResponse = PostProjectsByIdAdsConnectionsInitiateResponses[keyof PostProjectsByIdAdsConnectionsInitiateResponses];
 
 export type PostProjectsByIdAdsConnectionsFinalizeData = {
-    body: FinalizeProjectAdConnectionRequest;
+    body: FinalizeProjectSocialConnectionRequest;
     headers?: {
         /**
          * Optional organization slug to set the organization context.
@@ -39190,6 +39177,21 @@ export type DeleteProjectsByIdAdsAccountsByAccountIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

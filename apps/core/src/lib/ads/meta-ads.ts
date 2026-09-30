@@ -43,7 +43,6 @@ export async function listMetaAdAccounts(
       name: account.name?.trim() || externalAccountId,
       currency: account.currency,
       timeZone: account.timezone_name ?? null,
-      loginCustomerId: null,
     };
   });
 }

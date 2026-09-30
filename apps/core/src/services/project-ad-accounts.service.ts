@@ -1,3 +1,9 @@
+import type {
+  Prisma,
+  ProjectAdAccount,
+  ProjectAdConnection,
+} from "@sokosumi/database";
+
 import {
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
@@ -11,13 +17,19 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
-import { badRequest, conflict, notFound } from "@/helpers/error";
+import {
+  badRequest,
+  conflict,
+  internalServerError,
+  notFound,
+} from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import { listGoogleAdAccounts } from "@/lib/ads/google-ads";
 import { listMetaAdAccounts } from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
 import {
   projectConnectorUserId,
   projectExecutorUserId,
@@ -35,18 +47,19 @@ interface ProjectScope {
 export interface ProjectAdConnectionSummary {
   id: string;
   provider: ProjectAdProvider;
-  status: string;
+  status: "active" | "reauthorization_required" | "disconnected";
   createdAt: Date;
 }
 
-interface ProjectAdConnectionRecord {
-  id: string;
-  projectId: string;
-  provider: string;
-  composioConnectedAccountId: string;
-  connectorUserId: string;
-  status: string;
-  createdAt: Date;
+export interface FinalizeProjectAdConnectionResult {
+  /** Null when the grant reaches no ad accounts: nothing is stored and it is revoked. */
+  connection: ProjectAdConnectionSummary | null;
+  availableAccounts: AvailableAdAccount[];
+}
+
+export interface PendingProjectAdRevocation {
+  adConnectionId: string;
+  connectedAccountId: string;
 }
 
 function adProviderOf(connection: { provider: string }): ProjectAdProvider {
@@ -57,12 +70,16 @@ function adProviderOf(connection: { provider: string }): ProjectAdProvider {
 }
 
 function summarizeConnection(
-  connection: ProjectAdConnectionRecord,
+  connection: ProjectAdConnection,
 ): ProjectAdConnectionSummary {
+  const status = projectAdConnectionStatusSchema.safeParse(connection.status);
+  if (!status.success) {
+    throw internalServerError("Ad connection has an unknown status");
+  }
   return {
     id: connection.id,
     provider: adProviderOf(connection),
-    status: connection.status,
+    status: status.data,
     createdAt: connection.createdAt,
   };
 }
@@ -92,10 +109,11 @@ function requireAdAuthConfigId(provider: ProjectAdProvider): string {
   return authConfigId;
 }
 
+// OAuth intents live in ProjectSocialConnectionIntent, shared with social.
 export async function initiateProjectAdConnection(
   input: ProjectScope & { userId: string; provider: ProjectAdProvider },
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input, prisma, true);
+  await requireScopedProject(input, { requireOpen: true });
   const authConfigId = requireAdAuthConfigId(input.provider);
   const connection = await initiateComposioConnection({
     authConfigId,
@@ -130,18 +148,16 @@ export async function initiateProjectAdConnection(
 
 /**
  * Turns a redeemed OAuth callback into a ProjectAdConnection and lists the ad
- * accounts it can reach. Safe to retry: a finished connection is returned as is.
+ * accounts it can reach. Safe to retry: a finished connection is returned as
+ * is. A grant that reaches no ad accounts is revoked and never stored.
  */
 export async function finalizeProjectAdConnection(
   input: ProjectScope & { userId: string; connectionId: string },
-): Promise<{
-  connection: ProjectAdConnectionSummary;
-  availableAccounts: AvailableAdAccount[];
-}> {
-  await requireScopedProject(input, prisma, true);
+): Promise<FinalizeProjectAdConnectionResult> {
+  await requireScopedProject(input, { requireOpen: true });
   const connectorUserId = projectConnectorUserId(input.userId);
 
-  const findExisting = async () => {
+  const findExisting = async (): Promise<ProjectAdConnection | null> => {
     const existing = await prisma.projectAdConnection.findUnique({
       where: { composioConnectedAccountId: input.connectionId },
     });
@@ -154,7 +170,9 @@ export async function finalizeProjectAdConnection(
     }
     return existing;
   };
-  const respond = async (connection: ProjectAdConnectionRecord) => ({
+  const respond = async (
+    connection: ProjectAdConnection,
+  ): Promise<FinalizeProjectAdConnectionResult> => ({
     connection: summarizeConnection(connection),
     availableAccounts: await listAvailableAccounts(connection),
   });
@@ -196,6 +214,15 @@ export async function finalizeProjectAdConnection(
     provider,
     composioConnectedAccountId: input.connectionId,
   });
+  if (availableAccounts.length === 0) {
+    await revokeComposioConnectedAccount({
+      connectedAccountId: input.connectionId,
+    });
+    await prisma.projectSocialConnectionIntent.deleteMany({
+      where: { connectionId: input.connectionId },
+    });
+    return { connection: null, availableAccounts: [] };
+  }
 
   try {
     const connection = await serializableTransaction(async (tx) => {
@@ -230,17 +257,21 @@ export async function finalizeProjectAdConnection(
   }
 }
 
+/**
+ * Attaches accounts the connection can reach. An account already attached to
+ * the Project is returned unchanged, so repeating a request is harmless.
+ */
 export async function attachProjectAdAccounts(
-  input: ProjectScope & { connectionId: string; externalAccountIds: string[] },
-) {
-  await requireScopedProject(input, prisma, true);
+  input: ProjectScope & {
+    adConnectionId: string;
+    externalAccountIds: string[];
+  },
+): Promise<ProjectAdAccount[]> {
+  await requireScopedProject(input, { requireOpen: true });
   const connection = await prisma.projectAdConnection.findFirst({
-    where: { id: input.connectionId, projectId: input.projectId },
+    where: { id: input.adConnectionId, projectId: input.projectId },
   });
   if (!connection) throw notFound("Ad connection not found");
-  if (connection.status !== "active") {
-    throw conflict("Ad connection is not active");
-  }
   const provider = adProviderOf(connection);
 
   const available = new Map(
@@ -257,51 +288,46 @@ export async function attachProjectAdAccounts(
     return account;
   });
 
-  const previous = await prisma.projectAdAccount.findMany({
-    where: {
-      projectId: input.projectId,
-      provider,
-      externalAccountId: { in: chosen.map((a) => a.externalAccountId) },
-      NOT: { connectionId: connection.id },
-    },
-    select: { connectionId: true },
-  });
-  const accounts = await prisma.$transaction(
-    chosen.map((account) => {
-      const data = {
-        connectionId: connection.id,
-        loginCustomerId: account.loginCustomerId,
-        name: account.name,
-        currency: account.currency,
-        timeZone: account.timeZone,
-      };
-      return prisma.projectAdAccount.upsert({
-        where: {
-          projectId_provider_externalAccountId: {
+  return serializableTransaction(async (tx) => {
+    await requireLockedOpenProject(tx, input);
+    // A detach of the connection's last account closes it in its own transaction.
+    const current = await tx.projectAdConnection.findUnique({
+      where: { id: connection.id },
+    });
+    if (current?.status !== "active") {
+      throw conflict("Ad connection is not active");
+    }
+    const accounts: ProjectAdAccount[] = [];
+    for (const account of chosen) {
+      accounts.push(
+        await tx.projectAdAccount.upsert({
+          where: {
+            projectId_provider_externalAccountId: {
+              projectId: input.projectId,
+              provider,
+              externalAccountId: account.externalAccountId,
+            },
+          },
+          create: {
             projectId: input.projectId,
+            connectionId: connection.id,
             provider,
             externalAccountId: account.externalAccountId,
+            name: account.name,
+            currency: account.currency,
+            timeZone: account.timeZone,
           },
-        },
-        create: {
-          ...data,
-          projectId: input.projectId,
-          provider,
-          externalAccountId: account.externalAccountId,
-        },
-        update: data,
-      });
-    }),
-  );
-
-  // Accounts moved to this grant may have emptied an older one.
-  for (const { connectionId } of new Set(previous)) {
-    await releaseUnusedConnection(connectionId);
-  }
-  return accounts;
+          update: {},
+        }),
+      );
+    }
+    return accounts;
+  }, "Ad connection changed. Please retry.");
 }
 
-export async function listProjectAdAccounts(input: ProjectScope) {
+export async function listProjectAdAccounts(
+  input: ProjectScope,
+): Promise<ProjectAdAccount[]> {
   await requireScopedProject(input);
   return prisma.projectAdAccount.findMany({
     where: { projectId: input.projectId },
@@ -309,45 +335,83 @@ export async function listProjectAdAccounts(input: ProjectScope) {
   });
 }
 
-/** Revokes and deletes a connection left without ad accounts; a failed revoke never blocks the caller. */
-async function releaseUnusedConnection(connectionId: string): Promise<void> {
-  const connection = await prisma.projectAdConnection.findUnique({
-    where: { id: connectionId },
-    include: { _count: { select: { accounts: true } } },
-  });
-  if (!connection || connection._count.accounts > 0) return;
-  try {
-    await revokeComposioConnectedAccount({
-      connectedAccountId: connection.composioConnectedAccountId,
-    });
-  } catch {
-    console.warn("[ads] revoke of an unused ad connection failed");
-  }
-  await prisma.projectAdConnection.delete({ where: { id: connection.id } });
-}
-
+/**
+ * Detaches an ad account. The connection's last account also revokes the
+ * Composio authorization: the connection is first closed to new attaches (in
+ * the same transaction that sees it is last), then revoked, then deleted. A
+ * failed revoke reopens it, so the detach can be retried.
+ */
 export async function detachProjectAdAccount(
   input: ProjectScope & { accountId: string },
 ): Promise<void> {
   await requireScopedProject(input);
-  const account = await prisma.projectAdAccount.findFirst({
-    where: { id: input.accountId, projectId: input.projectId },
-    include: { connection: true },
-  });
-  if (!account) throw notFound("Ad account not found");
+  const closing = await serializableTransaction(async (tx) => {
+    const account = await tx.projectAdAccount.findFirst({
+      where: { id: input.accountId, projectId: input.projectId },
+      include: { connection: true },
+    });
+    if (!account) throw notFound("Ad account not found");
+    const siblings = await tx.projectAdAccount.count({
+      where: { connectionId: account.connectionId, NOT: { id: account.id } },
+    });
+    if (siblings > 0) {
+      await tx.projectAdAccount.delete({ where: { id: account.id } });
+      return null;
+    }
+    await tx.projectAdConnection.update({
+      where: { id: account.connectionId },
+      data: { status: "disconnected" },
+    });
+    return {
+      adConnectionId: account.connectionId,
+      connectedAccountId: account.connection.composioConnectedAccountId,
+      previousStatus: account.connection.status,
+    };
+  }, "Ad account changed. Please retry.");
+  if (!closing) return;
 
-  const siblings = await prisma.projectAdAccount.count({
-    where: { connectionId: account.connectionId, NOT: { id: account.id } },
-  });
-  if (siblings > 0) {
-    await prisma.projectAdAccount.delete({ where: { id: account.id } });
-    return;
+  try {
+    await revokeComposioConnectedAccount({
+      connectedAccountId: closing.connectedAccountId,
+    });
+  } catch (error) {
+    await prisma.projectAdConnection.updateMany({
+      where: { id: closing.adConnectionId },
+      data: { status: closing.previousStatus },
+    });
+    throw error;
   }
-  // Last account: revoke first, so a failed revoke leaves everything retryable.
-  await revokeComposioConnectedAccount({
-    connectedAccountId: account.connection.composioConnectedAccountId,
+  await prisma.projectAdConnection.deleteMany({
+    where: { id: closing.adConnectionId },
   });
-  await prisma.projectAdConnection.delete({
-    where: { id: account.connectionId },
+}
+
+/** Called inside the close loop's transaction: the next ad grant still to revoke. */
+export async function getPendingProjectAdRevocation(
+  tx: Pick<Prisma.TransactionClient, "projectAdConnection">,
+  projectId: string,
+): Promise<PendingProjectAdRevocation | null> {
+  const connection = await tx.projectAdConnection.findFirst({
+    where: { projectId },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    select: { id: true, composioConnectedAccountId: true },
+  });
+  return connection
+    ? {
+        adConnectionId: connection.id,
+        connectedAccountId: connection.composioConnectedAccountId,
+      }
+    : null;
+}
+
+/** Revokes first, so a failed revoke leaves the connection for the next attempt. */
+export async function revokeProjectAdConnectionForClose(
+  pending: PendingProjectAdRevocation,
+): Promise<void> {
+  await revokeComposioConnectedAccount({
+    connectedAccountId: pending.connectedAccountId,
+  });
+  await prisma.projectAdConnection.deleteMany({
+    where: { id: pending.adConnectionId },
   });
 }

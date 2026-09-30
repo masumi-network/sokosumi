@@ -12,8 +12,8 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   attachProjectAdAccountsRequestSchema,
   projectAdAccountSchema,
-  projectAdProjectParamsSchema,
 } from "@/schemas/project-ad-account.schema";
+import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 import { attachProjectAdAccounts } from "@/services/project-ad-accounts.service";
 
 import { mapProjectAdServiceError } from "../route-helpers.js";
@@ -26,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
       "Attach ad accounts from a finalized connection to a Project. Only accounts the connection can reach are accepted; attaching again is a no-op. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
-      params: projectAdProjectParamsSchema,
+      params: projectSocialConnectionProjectParamsSchema,
       body: {
         required: true,
         content: {
@@ -55,16 +55,17 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    // Ads share the social beta gate.
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
-    const { connectionId, externalAccountIds } = c.req.valid("json");
+    const { adConnectionId, externalAccountIds } = c.req.valid("json");
 
     try {
       const accounts = await attachProjectAdAccounts({
         projectId,
         workspaceId: workspaceContext.workspaceId,
-        connectionId,
+        adConnectionId,
         externalAccountIds,
       });
       return ok(c, z.array(projectAdAccountSchema).parse(accounts));

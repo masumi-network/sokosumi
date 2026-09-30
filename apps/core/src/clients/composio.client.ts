@@ -1,6 +1,7 @@
 import { Composio } from "@composio/core";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
 import {
   PROJECT_SOCIAL_PROVIDERS,
@@ -34,7 +35,10 @@ export class ComposioConfigError extends Error {
         failure: "missing_configuration",
         apiKeyConfigured: Boolean(env.COMPOSIO_API_KEY),
         authConfigsConfigured: Object.fromEntries(
-          Object.entries(PROJECT_SOCIAL_PROVIDERS).map(([provider, config]) => [
+          Object.entries({
+            ...PROJECT_SOCIAL_PROVIDERS,
+            ...PROJECT_AD_PROVIDERS,
+          }).map(([provider, config]) => [
             provider,
             Boolean(env[config.authConfigEnv]),
           ]),

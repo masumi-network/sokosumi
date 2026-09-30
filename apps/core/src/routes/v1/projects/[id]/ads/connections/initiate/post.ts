@@ -9,11 +9,11 @@ import {
 } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { initiateProjectAdConnectionRequestSchema } from "@/schemas/project-ad-account.schema";
 import {
-  initiateProjectAdConnectionRequestSchema,
-  initiateProjectAdConnectionResponseSchema,
-  projectAdProjectParamsSchema,
-} from "@/schemas/project-ad-account.schema";
+  initiateProjectSocialConnectionResponseSchema,
+  projectSocialConnectionProjectParamsSchema,
+} from "@/schemas/project-social-connection.schema";
 import { initiateProjectAdConnection } from "@/services/project-ad-accounts.service";
 
 import { mapProjectAdServiceError } from "../../route-helpers.js";
@@ -26,7 +26,7 @@ const route = withOrganizationSlugHeaderParameter(
       "Begin connecting a Google Ads or Meta Ads account to a Project. Complete the returned link in the OAuth popup, then finalize. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
     request: {
-      params: projectAdProjectParamsSchema,
+      params: projectSocialConnectionProjectParamsSchema,
       body: {
         required: true,
         content: {
@@ -38,7 +38,7 @@ const route = withOrganizationSlugHeaderParameter(
     },
     responses: {
       201: jsonSuccessResponse(
-        initiateProjectAdConnectionResponseSchema,
+        initiateProjectSocialConnectionResponseSchema,
         "Project ad connection initiated",
       ),
       401: jsonErrorResponse("Unauthorized"),
@@ -56,6 +56,7 @@ const route = withOrganizationSlugHeaderParameter(
 export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
   app.openapi(route, async (c) => {
     const userContext = requireInteractiveUserAuthContext(c.var.authContext);
+    // Ads share the social beta gate.
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { id: projectId } = c.req.valid("param");
@@ -70,7 +71,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return created(
         c,
-        initiateProjectAdConnectionResponseSchema.parse(connection),
+        initiateProjectSocialConnectionResponseSchema.parse(connection),
       );
     } catch (error) {
       return mapProjectAdServiceError(error);

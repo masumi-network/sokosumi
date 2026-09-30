@@ -212,8 +212,13 @@ function isLiveIntent(
 
 export async function requireScopedProject(
   input: { projectId: string; workspaceId: string },
-  client: Pick<Prisma.TransactionClient, "project"> = prisma,
-  requireOpen = false,
+  {
+    client = prisma,
+    requireOpen = false,
+  }: {
+    client?: Pick<Prisma.TransactionClient, "project">;
+    requireOpen?: boolean;
+  } = {},
 ): Promise<void> {
   const project = await client.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
@@ -234,7 +239,7 @@ export async function requireLockedOpenProject(
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  await requireScopedProject(input, tx, true);
+  await requireScopedProject(input, { client: tx, requireOpen: true });
 }
 
 async function requireTargetConnection(input: {
@@ -314,7 +319,7 @@ async function refreshActiveConnectionStatus(
 export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input, prisma, true);
+  await requireScopedProject(input, { requireOpen: true });
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -395,7 +400,7 @@ export async function initiateProjectSocialConnection(
 export async function finalizeProjectSocialConnection(
   input: FinalizeProjectSocialConnectionInput,
 ): Promise<ProjectSocialConnectionSummary> {
-  await requireScopedProject(input, prisma, true);
+  await requireScopedProject(input, { requireOpen: true });
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
   });

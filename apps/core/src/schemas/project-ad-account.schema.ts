@@ -5,23 +5,14 @@ import {
   type ProjectAdProvider,
 } from "@/config/ads-providers";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 
 export const projectAdProviderSchema = z
   .enum(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])
   .openapi("ProjectAdProvider", { example: "google_ads" });
 
-export const projectAdProjectParamsSchema = z.object({
-  id: z
-    .string()
-    .uuid()
-    .openapi({
-      param: { name: "id", in: "path" },
-      example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
-    }),
-});
-
-export const projectAdAccountParamsSchema = projectAdProjectParamsSchema.extend(
-  {
+export const projectAdAccountParamsSchema =
+  projectSocialConnectionProjectParamsSchema.extend({
     accountId: z
       .string()
       .uuid()
@@ -29,22 +20,27 @@ export const projectAdAccountParamsSchema = projectAdProjectParamsSchema.extend(
         param: { name: "accountId", in: "path" },
         example: "bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb",
       }),
-  },
-);
+  });
+
+export const projectAdConnectionStatusSchema = z.enum([
+  "active",
+  "reauthorization_required",
+  "disconnected",
+]);
 
 export const projectAdConnectionSchema = z
   .object({
     id: z.string().uuid().openapi({
-      description: "Pass this as `connectionId` when attaching accounts",
+      description: "Pass this as `adConnectionId` when attaching accounts",
       example: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
     }),
     provider: projectAdProviderSchema,
-    status: z.enum(["active", "reauthorization_required", "disconnected"]),
+    status: projectAdConnectionStatusSchema,
     createdAt: dateTimeSchema,
   })
   .openapi("ProjectAdConnection");
 
-const adAccountFields = {
+const availableAdAccountFields = {
   externalAccountId: z.string().openapi({
     description: "Google customer id or Meta `act_…` id",
     example: "1234567890",
@@ -55,13 +51,10 @@ const adAccountFields = {
     example: "EUR",
   }),
   timeZone: z.string().nullable().openapi({ example: "Europe/Berlin" }),
-  loginCustomerId: z.string().nullable().openapi({
-    description: "Google manager account reaching this account, if any",
-  }),
 };
 
 export const availableAdAccountSchema = z
-  .object(adAccountFields)
+  .object(availableAdAccountFields)
   .openapi("AvailableAdAccount");
 
 export const projectAdAccountSchema = z
@@ -69,7 +62,10 @@ export const projectAdAccountSchema = z
     id: z.string().uuid(),
     connectionId: z.string().uuid(),
     provider: projectAdProviderSchema,
-    ...adAccountFields,
+    ...availableAdAccountFields,
+    loginCustomerId: z.string().nullable().openapi({
+      description: "Google manager account reaching this account, if any",
+    }),
     createdAt: dateTimeSchema,
   })
   .openapi("ProjectAdAccount");
@@ -78,34 +74,19 @@ export const initiateProjectAdConnectionRequestSchema = z
   .object({ provider: projectAdProviderSchema })
   .openapi("InitiateProjectAdConnectionRequest");
 
-export const initiateProjectAdConnectionResponseSchema = z
-  .object({
-    connectionId: z.string().min(1).openapi({ example: "ca_123" }),
-    redirectUrl: z.url().openapi({
-      example: "https://connect.composio.dev/link-token",
-    }),
-  })
-  .openapi("InitiateProjectAdConnectionResponse");
-
-export const finalizeProjectAdConnectionRequestSchema = z
-  .object({
-    connectionId: z.string().min(1).openapi({
-      description: "The `connectionId` returned by initiate",
-      example: "ca_123",
-    }),
-  })
-  .openapi("FinalizeProjectAdConnectionRequest");
-
 export const finalizeProjectAdConnectionResponseSchema = z
   .object({
-    connection: projectAdConnectionSchema,
+    connection: projectAdConnectionSchema.nullable().openapi({
+      description:
+        "Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked",
+    }),
     availableAccounts: z.array(availableAdAccountSchema),
   })
   .openapi("FinalizeProjectAdConnectionResponse");
 
 export const attachProjectAdAccountsRequestSchema = z
   .object({
-    connectionId: z.string().uuid().openapi({
+    adConnectionId: z.string().uuid().openapi({
       description: "The connection `id` returned by finalize",
     }),
     externalAccountIds: z.array(z.string().min(1)).min(1).max(50),

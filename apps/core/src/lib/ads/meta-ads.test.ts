@@ -51,14 +51,12 @@ describe("listMetaAdAccounts", () => {
         name: "Brand",
         currency: "EUR",
         timeZone: "Europe/Berlin",
-        loginCustomerId: null,
       },
       {
         externalAccountId: "act_2",
         name: "act_2",
         currency: "USD",
         timeZone: null,
-        loginCustomerId: null,
       },
     ]);
     expect(createSessionMock).toHaveBeenCalledWith(
@@ -72,13 +70,6 @@ describe("listMetaAdAccounts", () => {
       "sess_1",
       expect.any(String),
     );
-  });
-
-  it("accepts the list as a JSON string", async () => {
-    executeToolMock.mockResolvedValue({
-      data: JSON.stringify([{ id: "act_1", name: "Brand", currency: "EUR" }]),
-    });
-    expect(await listMetaAdAccounts(input)).toHaveLength(1);
   });
 
   it("returns nothing when the user has no ad accounts", async () => {

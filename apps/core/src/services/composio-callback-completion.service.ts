@@ -12,10 +12,7 @@ import {
 } from "@/config/social-providers";
 import { notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
-
-function projectConnectorUserId(userId: string): string {
-  return `sokosumi:user:${userId}`;
-}
+import { projectConnectorUserId } from "@/services/project-social-connections.service";
 
 function providerToolkitSlug(provider: string): string | null {
   if (isProjectSocialProvider(provider)) {

@@ -6,7 +6,7 @@ import {
   ComposioConfigError,
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
-import { forbidden, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -185,14 +185,14 @@ describe("Project ads routes", () => {
   it("attaches accounts and lists them without internal columns", async () => {
     const app = createApp();
     const attached = await post(app, "accounts", {
-      connectionId: CONNECTION_UUID,
+      adConnectionId: CONNECTION_UUID,
       externalAccountIds: ["111"],
     });
     expect(attached.status).toBe(200);
     expect(m.attach).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
-      connectionId: CONNECTION_UUID,
+      adConnectionId: CONNECTION_UUID,
       externalAccountIds: ["111"],
     });
 
@@ -209,11 +209,34 @@ describe("Project ads routes", () => {
 
   it("rejects an attach without any account id", async () => {
     const response = await post(createApp(), "accounts", {
-      connectionId: CONNECTION_UUID,
+      adConnectionId: CONNECTION_UUID,
       externalAccountIds: [],
     });
     expect(response.status).toBe(422);
     expect(m.attach).not.toHaveBeenCalled();
+  });
+
+  it("lets a finalize of an empty grant return a null connection", async () => {
+    m.finalize.mockResolvedValueOnce({
+      connection: null,
+      availableAccounts: [],
+    });
+    const response = await post(createApp(), "connections/finalize", {
+      connectionId: "ca_123",
+    });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { connection: null, availableAccounts: [] },
+    });
+  });
+
+  it("passes a detach conflict through as 409", async () => {
+    m.detach.mockRejectedValue(conflict("Ad account changed. Please retry."));
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}`,
+      { method: "DELETE" },
+    );
+    expect(response.status).toBe(409);
   });
 
   it("detaches an account with 204", async () => {
@@ -271,7 +294,7 @@ describe("Project ads routes", () => {
         post(app, "connections/initiate", { provider: "google_ads" }),
         post(app, "connections/finalize", { connectionId: "ca_123" }),
         post(app, "accounts", {
-          connectionId: CONNECTION_UUID,
+          adConnectionId: CONNECTION_UUID,
           externalAccountIds: ["111"],
         }),
         app.request(

@@ -4,7 +4,6 @@ import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
-  type ExecuteAdsTool,
   parseToolRows,
   toolRows,
   withAdsToolSession,
@@ -14,25 +13,18 @@ const LIST_ACCESSIBLE_CUSTOMERS = "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS";
 const SEARCH_STREAM_GAQL = "GOOGLEADS_SEARCH_STREAM_GAQL";
 const MAX_CUSTOMERS = 50;
 
-const CUSTOMER_FIELDS = [
-  "id",
-  "descriptive_name",
-  "currency_code",
-  "time_zone",
-  "manager",
-];
-const CUSTOMER_QUERY = `SELECT ${CUSTOMER_FIELDS.map((f) => `customer.${f}`).join(", ")} FROM customer LIMIT 1`;
-const CLIENTS_QUERY = `SELECT ${CUSTOMER_FIELDS.map((f) => `customer_client.${f}`).join(", ")} FROM customer_client WHERE customer_client.level > 0 AND customer_client.manager = FALSE AND customer_client.status = 'ENABLED'`;
+const CUSTOMER_QUERY =
+  "SELECT customer.id, customer.descriptive_name, customer.currency_code, customer.time_zone, customer.manager FROM customer LIMIT 1";
 
-const googleCustomerSchema = z.object({
-  id: z.coerce.string().min(1),
-  descriptiveName: z.string().nullish(),
-  currencyCode: z.string().min(1),
-  timeZone: z.string().nullish(),
-  manager: z.boolean().nullish(),
+const customerRowSchema = z.object({
+  customer: z.object({
+    id: z.coerce.string().min(1),
+    descriptiveName: z.string().nullish(),
+    currencyCode: z.string().min(1),
+    timeZone: z.string().nullish(),
+    manager: z.boolean().nullish(),
+  }),
 });
-const customerRowSchema = z.object({ customer: googleCustomerSchema });
-const clientRowSchema = z.object({ customerClient: googleCustomerSchema });
 
 /** Composio may return Google's REST camelCase or the proto snake_case. */
 function camelizeKeys(value: unknown): unknown {
@@ -46,34 +38,10 @@ function camelizeKeys(value: unknown): unknown {
   );
 }
 
-async function gaqlRows(
-  execute: ExecuteAdsTool,
-  customerId: string,
-  query: string,
-): Promise<unknown[]> {
-  const payload = await execute(SEARCH_STREAM_GAQL, {
-    customer_id: customerId,
-    query,
-  });
-  return toolRows(payload, "results").map(camelizeKeys);
-}
-
-function toAvailableAccount(
-  customer: z.infer<typeof googleCustomerSchema>,
-  loginCustomerId: string | null,
-): AvailableAdAccount {
-  return {
-    externalAccountId: customer.id,
-    name: customer.descriptiveName?.trim() || `Account ${customer.id}`,
-    currency: customer.currencyCode,
-    timeZone: customer.timeZone ?? null,
-    loginCustomerId,
-  };
-}
-
 /**
- * Accounts the connected Google user can run campaigns on. A manager account
- * is not listed itself; its client accounts are, reached through it.
+ * Customer accounts the connected Google user can open directly. Manager
+ * accounts are left out: Composio's Google Ads tools have no
+ * `login-customer-id`, so their client accounts are out of reach.
  */
 export async function listGoogleAdAccounts(
   input: AdsConnectedAccount,
@@ -85,32 +53,40 @@ export async function listGoogleAdAccounts(
       toolSlugs: [LIST_ACCESSIBLE_CUSTOMERS, SEARCH_STREAM_GAQL],
     },
     async (execute) => {
-      const resourceNames = toolRows(
+      const customerIds = toolRows(
         await execute(LIST_ACCESSIBLE_CUSTOMERS, {}),
         "resource_names",
-      );
-      const customerIds = resourceNames
+      )
         .filter((name): name is string => typeof name === "string")
         .map((name) => name.replace(/^customers\//, ""))
         .slice(0, MAX_CUSTOMERS);
 
-      const perCustomer = await Promise.all(
+      const accounts = await Promise.all(
         customerIds.map(async (customerId) => {
           try {
-            const [customer] = parseToolRows(
-              await gaqlRows(execute, customerId, CUSTOMER_QUERY),
+            const rows = toolRows(
+              await execute(SEARCH_STREAM_GAQL, {
+                customer_id: customerId,
+                query: CUSTOMER_QUERY,
+              }),
+              "results",
+            ).map(camelizeKeys);
+            const [row] = parseToolRows(
+              rows,
               customerRowSchema,
               "describe Google Ads customer",
             );
-            if (!customer) return [];
-            if (!customer.customer.manager) {
-              return [toAvailableAccount(customer.customer, null)];
-            }
-            return parseToolRows(
-              await gaqlRows(execute, customerId, CLIENTS_QUERY),
-              clientRowSchema,
-              "list Google Ads client accounts",
-            ).map((row) => toAvailableAccount(row.customerClient, customerId));
+            const customer = row?.customer;
+            if (!customer || customer.manager) return [];
+            return [
+              {
+                externalAccountId: customer.id,
+                name:
+                  customer.descriptiveName?.trim() || `Account ${customer.id}`,
+                currency: customer.currencyCode,
+                timeZone: customer.timeZone ?? null,
+              },
+            ];
           } catch (error) {
             // Google lists customers the user cannot query (cancelled, no access).
             if (error instanceof ComposioToolError) return [];
@@ -118,15 +94,7 @@ export async function listGoogleAdAccounts(
           }
         }),
       );
-
-      // A client reachable directly keeps direct access over its manager.
-      const accounts = new Map<string, AvailableAdAccount>();
-      for (const account of perCustomer.flat()) {
-        const existing = accounts.get(account.externalAccountId);
-        if (!existing || (existing.loginCustomerId && !account.loginCustomerId))
-          accounts.set(account.externalAccountId, account);
-      }
-      return [...accounts.values()];
+      return accounts.flat();
     },
   );
 }
