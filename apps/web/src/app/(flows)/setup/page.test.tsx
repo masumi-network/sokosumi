@@ -203,8 +203,9 @@ describe("WorkspaceGatePage", () => {
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("identityTitle");
-    expect(serialized).toContain("identityDescriptionConfirm");
+    expect(serialized).toContain("identityDescriptionChoose");
     expect(serialized).not.toContain("identityDescriptionEnter");
+    expect(serialized).toContain('"askName":false');
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
     expect(serialized).not.toContain("unavailableTitle");
     expect(serialized).not.toContain("data-workspace-gate-actions");
@@ -229,8 +230,30 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(await WorkspaceGatePage());
 
     expect(serialized).toContain("identityDescriptionEnter");
-    expect(serialized).not.toContain("identityDescriptionConfirm");
+    expect(serialized).not.toContain("identityDescriptionChoose");
     expect(serialized).toContain('"initialName":"Countess of Lovelace"');
+  });
+
+  it("asks again when the stored name does not pass validation", async () => {
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: {
+          id: "user-1",
+          name: "",
+          firstName: "a".repeat(64),
+          lastName: "b".repeat(64),
+        },
+        session: { id: "session-1" },
+      },
+    });
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(await WorkspaceGatePage());
+
+    expect(serialized).toContain("identityDescriptionEnter");
+    expect(serialized).toContain('"askName":true');
   });
 
   it("asks a nameless user to enter their name", async () => {
@@ -253,7 +276,7 @@ describe("WorkspaceGatePage", () => {
     const serialized = JSON.stringify(ui);
 
     expect(serialized).toContain("identityDescriptionEnter");
-    expect(serialized).not.toContain("identityDescriptionConfirm");
+    expect(serialized).not.toContain("identityDescriptionChoose");
   });
 
   it("renders the pending queue instead of identity onboarding", async () => {

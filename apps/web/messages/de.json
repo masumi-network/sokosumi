@@ -7546,7 +7546,7 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Wie möchtest du arbeiten?",
-    "identityDescriptionConfirm": "Bestätige deinen Namen und wähle eine Option.",
+    "identityDescriptionChoose": "Wähle eine Option.",
     "identityDescriptionEnter": "Gib deinen Namen ein.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescriptionInvitations": "Nimm eine Organisationseinladung an, um Sokosumi in dieser Organisation zu öffnen.",
