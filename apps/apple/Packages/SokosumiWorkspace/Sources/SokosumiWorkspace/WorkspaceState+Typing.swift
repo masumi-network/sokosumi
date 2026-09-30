@@ -64,7 +64,9 @@ extension WorkspaceState {
     typingSweepTask = typing.nextExpiry(after: now).map { expiry in
       Task { [weak self] in
         do { try await Task.sleep(for: .seconds(expiry.timeIntervalSince(now))) } catch { return }
-        self?.sweepTyping(now: expiry)
+        // A paused app may wake after several deadlines. Expire against the wake
+        // time, not the old deadline, so stale typists disappear together.
+        self?.sweepTyping(now: Date())
       }
     }
   }

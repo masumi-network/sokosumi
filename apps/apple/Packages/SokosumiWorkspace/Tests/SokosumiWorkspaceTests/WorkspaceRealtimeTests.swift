@@ -1212,6 +1212,23 @@ struct WorkspaceRealtimeTests {
     #expect(state.typing.roomId == nil)
   }
 
+  @Test func aDelayedTypingSweepDropsEveryExpiredTypist() async throws {
+    let (state, _, _) = try realtimeState([])
+    state.watchRoom(roomA)
+    // Simulate a paused reader: its scheduled deadline and both heartbeats are already
+    // in the past when the task wakes. The first deadline is one second after the
+    // second heartbeat, so this exercises the timer without waiting twelve seconds.
+    let beforePause = Date().addingTimeInterval(-40)
+    state.applyTyping(roomId: roomA, signal: .init(userId: "pat", state: .started), now: beforePause)
+    state.applyTyping(roomId: roomA, signal: .init(userId: "kim", state: .started), now: beforePause.addingTimeInterval(11))
+    #expect(state.typing.typistIds == ["pat", "kim"])
+    for _ in 0 ..< 150 where !state.typing.typistIds.isEmpty {
+      try await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(state.typing.typistIds.isEmpty)
+    state.reset()
+  }
+
   @Test func typingLineFollowsTheOpenRoomsEventsAndExpiry() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState(notificationLoadScript + [

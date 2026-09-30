@@ -31,8 +31,9 @@ final class RoomTypingChannel: @unchecked Sendable {
     self.realtime = realtime
     self.userId = userId
     self.onEvent = onEvent
-    connectionListener = realtime.connection.on { [weak self] change in
-      guard change.current == .connected else { return }
+    // Token renewal emits `update` while still connected. Only a real reconnect
+    // starts another authorization; reacting to our own renewal would mint forever.
+    connectionListener = realtime.connection.on(.connected) { [weak self] _ in
       self?.queue.async { [weak self] in
         guard let self, active, scope.roomId != nil else { return }
         synchronize()
