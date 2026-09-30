@@ -2675,6 +2675,9 @@ model SokoBotSchedule {
   enabled             Boolean   @default(true)
   timezone            String
   cronExpression      String
+  /// Fires once at `nextRunAt`, then disables itself. `cronExpression` then
+  /// only mirrors that wall-clock time for display.
+  runOnce             Boolean   @default(false)
   prompt              String
   /// External Hermes schedule id. Cutover imports use it for idempotency.
   legacyScheduleId    String?   @unique

@@ -85,6 +85,8 @@ export const sokoBotScheduleSchema = z
     enabled: z.boolean(),
     timezone: z.string(),
     cronExpression: z.string(),
+    /** Fires once at `nextRunAt`, then disables itself. */
+    runOnce: z.boolean().optional(),
     prompt: z.string(),
     /** Built-in rhythm key; owners can pause but not delete these. */
     systemKey: z.string().nullable().optional(),

@@ -4028,7 +4028,8 @@
           "working": "Working…",
           "actionDone": "Schedule action completed.",
           "actionError": "Could not complete schedule action.",
-          "noRuns": "No runs yet."
+          "noRuns": "No runs yet.",
+          "runOnce": "One-time"
         },
         "Memory": {
           "title": "Memory",
