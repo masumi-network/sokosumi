@@ -7,7 +7,7 @@ import rehypeSanitize from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
-import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
+import { rehypeSearchTermHighlight } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
 import { prepareMermaidMarkdown } from "@/components/mermaid/markdown-mermaid";
@@ -124,6 +124,13 @@ function isMarkdownInlineCode(
     return false;
   }
   return !markdownCodeText(children).includes("\n");
+}
+
+function toDisplayMarkdown(source: string) {
+  const normalized = normalizeLooseInlineMarkdown(source);
+  const sanitized = sanitizeMarkdown(normalized);
+  // Display-only: bare domains become links; stored message text stays plain.
+  return linkifyBareDomainsInMarkdown(sanitized);
 }
 
 interface MarkdownProps {
@@ -338,19 +345,13 @@ export default function Markdown({
   // longer re-parses every message on screen. A room transcript with a
   // hundred or two messages felt that on every keystroke and every jump.
   const rendered = useMemo(() => {
-    function transform(source: string) {
-      const highlighted = applyMarkdownHighlighting(source, {
-        term: highlightTerm,
-      });
-      const normalized = normalizeLooseInlineMarkdown(highlighted);
-      const sanitized = sanitizeMarkdown(normalized);
-      // Display-only: bare domains become links; stored message text stays plain.
-      return linkifyBareDomainsInMarkdown(sanitized);
-    }
     const mermaid = enableMermaid
-      ? prepareMermaidMarkdown({ source: children, highlightTerm, transform })
+      ? prepareMermaidMarkdown({
+          source: children,
+          transform: toDisplayMarkdown,
+        })
       : undefined;
-    const displayMarkdown = mermaid?.markdown ?? transform(children);
+    const displayMarkdown = mermaid?.markdown ?? toDisplayMarkdown(children);
     return (
       <ReactMarkdown
         remarkPlugins={[
@@ -360,11 +361,13 @@ export default function Markdown({
           [remarkEmoji, { emoticon: true }],
         ]}
         // The sanitizer sits directly behind `rehype-raw`, ahead of the
-        // plugins that add our own classes and data attributes.
+        // plugins that add our own elements, classes and data attributes.
         rehypePlugins={[
           rehypeRaw,
           [rehypeSanitize, markdownHastSchema],
           ...(mermaid ? [mermaid.rehypeMermaid] : []),
+          // Before the code highlighter, while a fence is still one text node.
+          [rehypeSearchTermHighlight, highlightTerm],
           rehypeMarkdownCodeHighlight,
         ]}
         components={components}

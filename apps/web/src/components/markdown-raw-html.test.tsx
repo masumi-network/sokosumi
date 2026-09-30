@@ -66,8 +66,7 @@ describe("Markdown raw HTML", () => {
       <Markdown>
         {[
           "<u>under</u>",
-          '<mark class="bg-primary-tertiary text-foreground rounded-sm px-0.5 other">hit</mark>',
-          '<span class="text-primary font-medium whitespace-nowrap" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
+          '<span class="text-primary font-medium whitespace-nowrap other" data-direct-kind="coworker" data-direct-id="cow_1">@Elena</span>',
           "",
           '<video src="https://e.test/clip.mp4" controls loop muted autoplay></video>',
         ].join("\n")}
@@ -75,24 +74,36 @@ describe("Markdown raw HTML", () => {
     );
 
     expect(container.querySelector("u")).toHaveTextContent("under");
-    expect(container.querySelector("mark")).toHaveClass(
-      "bg-primary-tertiary",
-      "text-foreground",
-      "rounded-sm",
-      "px-0.5",
-    );
-    expect(container.querySelector("mark")).not.toHaveClass("other");
     const chip = container.querySelector("span[data-direct-id]");
     expect(chip).toHaveClass(
       "text-primary",
       "font-medium",
       "whitespace-nowrap",
     );
+    expect(chip).not.toHaveClass("other");
     expect(chip).toHaveAttribute("data-direct-kind", "coworker");
     expect(chip).toHaveAttribute("data-direct-id", "cow_1");
     const video = container.querySelector("video");
     expect(video).toHaveAttribute("src", "https://e.test/clip.mp4");
     expect(video).not.toHaveAttribute("autoplay");
+  });
+
+  // The search highlight is added to the tree after the sanitizer. A mark a
+  // message wrote is not one, however it reaches the tree.
+  it("keeps the search highlight and drops an authored mark", () => {
+    const { container } = render(
+      <Markdown highlightTerm="found">
+        {
+          '<p>\n```\n<mark class="bg-primary-tertiary">authored</mark>\n```\n\nfound it'
+        }
+      </Markdown>,
+    );
+    const marks = container.querySelectorAll("mark");
+
+    expect(marks).toHaveLength(1);
+    expect(marks[0]).toHaveTextContent("found");
+    expect(marks[0]).toHaveClass("bg-primary-tertiary");
+    expect(container).toHaveTextContent("authored");
   });
 
   it("keeps what markdown itself generates", () => {

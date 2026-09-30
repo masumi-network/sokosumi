@@ -77,7 +77,6 @@ const RAW_HTML_TAGS = [
   "video",
   "audio",
   "code",
-  "mark",
   "span",
   "u",
 ];
@@ -102,12 +101,6 @@ const MARKDOWN_GENERATED_TAGS = [
   "tr",
 ];
 
-const MARK_CLASSES = [
-  "bg-primary-tertiary",
-  "text-foreground",
-  "rounded-sm",
-  "px-0.5",
-];
 const SPAN_CLASSES = ["text-primary", "font-medium", "whitespace-nowrap"];
 // Intentionally omit autoplay — product requires user-started playback.
 const MEDIA_ATTRIBUTES = ["src", "controls", "loop", "muted"];
@@ -146,7 +139,6 @@ export const markdownHastSchema: Schema = {
     video: MEDIA_ATTRIBUTES,
     audio: MEDIA_ATTRIBUTES,
     source: ["src"],
-    mark: [["className", ...MARK_CLASSES]],
     span: [["className", ...SPAN_CLASSES], "dataDirectKind", "dataDirectId"],
   },
   // `sanitize-html`'s own `nonTextTags`: their text goes with the tag.
@@ -159,10 +151,9 @@ const RAW_HTML_ATTRIBUTES = {
   video: [...MEDIA_ATTRIBUTES, "width", "height"],
   audio: [...MEDIA_ATTRIBUTES, "width", "height"],
   source: ["src"],
-  mark: ["class"],
   span: ["class", "data-direct-kind", "data-direct-id"],
 };
-const RAW_HTML_CLASSES = { mark: MARK_CLASSES, span: SPAN_CLASSES };
+const RAW_HTML_CLASSES = { span: SPAN_CLASSES };
 
 /**
  * The same rule for markdown already rendered to an HTML string, for a
