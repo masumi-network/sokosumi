@@ -1,6 +1,8 @@
 model User {
   id            String    @id @default(uuid(7))
   name          String
+  firstName     String?
+  lastName      String?
   email         String
   emailVerified Boolean
   image         String?

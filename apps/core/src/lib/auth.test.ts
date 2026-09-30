@@ -2398,7 +2398,7 @@ describe("core auth config", () => {
             before: (ctx: {
               body?: Record<string, unknown>;
               path: string;
-            }) => Promise<void>;
+            }) => Promise<unknown>;
           };
         },
       ]
@@ -2406,10 +2406,19 @@ describe("core auth config", () => {
 
     await expect(
       config.hooks.before({
-        body: { termsAccepted: true },
+        body: { termsAccepted: true, firstName: "Ada", lastName: "Lovelace" },
         path: "/sign-up/email",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual({
+      context: {
+        body: {
+          termsAccepted: true,
+          firstName: "Ada",
+          lastName: "Lovelace",
+          name: "Ada Lovelace",
+        },
+      },
+    });
   });
 
   it.each(["/callback/:id/oauth-proxy", "/oauth-proxy-callback"])(

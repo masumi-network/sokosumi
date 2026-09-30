@@ -1,15 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { joinFirstAndLastName } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AuthForm } from "@/auth/components/form/auth-form";
+import { BaseForm } from "@/auth/components/form/base-form";
+import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { signUpFormData } from "@/auth/signup/data";
+import { signUpFormData, signUpNameFormData } from "@/auth/signup/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
@@ -57,7 +59,8 @@ export default function SignUpForm({
     ),
     defaultValues: {
       email: prefilledEmail ?? "",
-      name: "",
+      firstName: "",
+      lastName: "",
       password: "",
       marketingOptIn: false,
     },
@@ -84,7 +87,11 @@ export default function SignUpForm({
       const result = await signUp.email({
         fetchOptions,
         email: values.email,
-        name: values.name,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        // Core derives the display name from the two parts; the client type
+        // still asks for one.
+        name: joinFirstAndLastName(values.firstName, values.lastName),
         password: values.password,
         // Creating the account is the acceptance; the page says so.
         termsAccepted: true,
@@ -143,12 +150,19 @@ export default function SignUpForm({
   const isPending = isSubmitting || isLeaving;
 
   return (
-    <AuthForm
-      form={form}
-      formData={formData}
-      namespace="Auth.Pages.SignUp.Form"
-      onSubmit={handleSubmit}
-    >
+    <BaseForm form={form} onSubmit={handleSubmit}>
+      <div className="grid grid-cols-2 items-start gap-3">
+        <FormFields
+          form={form}
+          formData={signUpNameFormData}
+          namespace="Auth.Pages.SignUp.Form"
+        />
+      </div>
+      <FormFields
+        form={form}
+        formData={formData}
+        namespace="Auth.Pages.SignUp.Form"
+      />
       <div className="flex flex-col gap-4">
         {captcha}
         <SubmitButton
@@ -164,6 +178,6 @@ export default function SignUpForm({
           <SignInLink />
         </div>
       </div>
-    </AuthForm>
+    </BaseForm>
   );
 }

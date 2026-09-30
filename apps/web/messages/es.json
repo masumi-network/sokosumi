@@ -1241,8 +1241,11 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
+            "FirstName": {
               "placeholder": "Nombre"
+            },
+            "LastName": {
+              "placeholder": "Apellido"
             },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -4515,8 +4518,8 @@
     "Account": {
       "Name": {
         "title": "Cambiar nombre",
-        "description": "Actualizar tu nombre de visualización",
-        "newName": "Nuevo nombre",
+        "description": "Actualizar tu nombre y tu nombre de visualización",
+        "displayName": "Nombre de visualización",
         "currentPassword": "Contraseña actual",
         "submit": "Actualizar nombre",
         "success": "Nombre actualizado correctamente",
@@ -7338,8 +7341,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Nombre",
-        "placeholder": "Tu nombre",
+        "firstNameLabel": "Nombre",
+        "lastNameLabel": "Apellido",
         "persistError": "No pudimos actualizar tu nombre."
       },
       "Schema": {
@@ -7352,6 +7355,15 @@
           "max": "El nombre no puede superar los 128 caracteres.",
           "invalid": "El nombre debe ser una cadena válida.",
           "required": "El nombre es obligatorio"
+        },
+        "FirstName": {
+          "required": "El nombre es obligatorio"
+        },
+        "LastName": {
+          "required": "El apellido es obligatorio"
+        },
+        "FullName": {
+          "max": "El nombre y el apellido juntos no pueden superar los 128 caracteres, incluido el espacio."
         },
         "Organization": {
           "invalid": "La organización debe ser una cadena válida.",
@@ -7538,8 +7550,6 @@
     "unavailableBody": "Inténtalo de nuevo en un momento. Si sigue fallando, cierra sesión y vuelve a entrar, o contacta con soporte. Cerrar sesión siempre está disponible aquí.",
     "retry": "Reintentar",
     "Identity": {
-      "nameLabel": "Nombre",
-      "namePlaceholder": "Tu nombre",
       "choiceLabel": "¿Cómo quieres trabajar?",
       "choiceHint": "Puedes añadir otro espacio de trabajo en cualquier momento.",
       "personalTitle": "Personal",

@@ -1241,8 +1241,11 @@
             "Email": {
               "placeholder": "Email"
             },
-            "Name": {
-              "placeholder": "Name"
+            "FirstName": {
+              "placeholder": "First name"
+            },
+            "LastName": {
+              "placeholder": "Last name"
             },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
@@ -4551,8 +4554,8 @@
     "Account": {
       "Name": {
         "title": "Change name",
-        "description": "Update your display name",
-        "newName": "New name",
+        "description": "Update your name and display name",
+        "displayName": "Display name",
         "currentPassword": "Current password",
         "submit": "Update name",
         "success": "Name updated successfully",
@@ -7338,8 +7341,8 @@
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Name",
-        "placeholder": "Your name",
+        "firstNameLabel": "First name",
+        "lastNameLabel": "Last name",
         "persistError": "We could not update your name."
       },
       "Schema": {
@@ -7352,6 +7355,15 @@
           "max": "Name must be at most 128 characters.",
           "invalid": "Name must be a valid string.",
           "required": "Name is required"
+        },
+        "FirstName": {
+          "required": "First name is required"
+        },
+        "LastName": {
+          "required": "Last name is required"
+        },
+        "FullName": {
+          "max": "First and last name together must be at most 128 characters, including the space."
         },
         "Organization": {
           "invalid": "Organization must be a valid string.",
@@ -7538,8 +7550,6 @@
     "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "nameLabel": "Name",
-      "namePlaceholder": "Your name",
       "choiceLabel": "How do you want to work?",
       "choiceHint": "You can add another workspace at any time.",
       "personalTitle": "Personal",

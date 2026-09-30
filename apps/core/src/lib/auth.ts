@@ -79,6 +79,11 @@ import {
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
+import {
+  resolveSignUpNameBody,
+  validateUpdatedUserName,
+  validateUserNameLength,
+} from "./auth-user-name";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
@@ -268,6 +273,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user, _ctx) => {
+          validateUserNameLength(user.firstName, user.lastName);
           const withName = {
             ...user,
             name: user.name?.trim() ?? "",
@@ -374,6 +380,10 @@ export const auth = betterAuth({
             });
           }
 
+          return { context: { body: resolveSignUpNameBody(ctx.body) } };
+        }
+        case "/update-user": {
+          await validateUpdatedUserName(ctx);
           break;
         }
       }
