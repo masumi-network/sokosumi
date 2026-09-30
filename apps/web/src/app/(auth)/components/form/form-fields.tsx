@@ -127,6 +127,8 @@ function FormInput<T extends FieldValues>({
       autoComplete={autoComplete}
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}
+      // Phones would otherwise capitalise and autocorrect the address.
+      {...(type === "email" && { autoCapitalize: "none", spellCheck: false })}
       {...field}
       value={field.value}
       disabled={disabled}
