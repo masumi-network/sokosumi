@@ -8,20 +8,13 @@ import {
   parseJobFile,
   parseJobLink,
 } from "../models/job-output.js";
+import { listResponse, requireId } from "../models/parse-helpers.js";
 
 const JOBS_PATH = "/v1/jobs";
 
 export interface SubmitJobInputData {
   eventId?: string;
   inputData?: Record<string, unknown>;
-}
-
-function requireId(id: string, name: string): void {
-  if (!id) throw new Error(`${name} is required`);
-}
-
-function listResponse(parsed: ApiResponse<unknown>): ApiResponse<unknown[]> {
-  return { ...parsed, data: Array.isArray(parsed.data) ? parsed.data : [] };
 }
 
 export async function fetchJobs(

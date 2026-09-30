@@ -7,6 +7,8 @@ import {
   type ServerResponse,
 } from "node:http";
 
+import { asRecord } from "../api/models/parse-helpers.js";
+
 export interface OAuthTokenCredentials {
   authToken: string;
   refreshToken: string | null;
@@ -95,12 +97,6 @@ function requireText(value: string | undefined, label: string): string {
   const text = String(value || "").trim();
   if (!text) throw new Error(`${label} is required`);
   return text;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 export function buildAuthorizationUrl({
