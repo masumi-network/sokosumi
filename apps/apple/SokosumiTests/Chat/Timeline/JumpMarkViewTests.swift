@@ -53,6 +53,16 @@
       /// Rows of the transcript's viewport whose pixel `column` points in differs from the viewport's top row
       /// there. Left of the avatars the only thing drawn is the mark.
       private static func markedRows(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> Int {
+        try columnDifferences(in: host, scroll: scroll, column: column).count { $0 > 0.04 }
+      }
+
+      /// How strongly the mark draws: the largest difference down the viewport's `column` from its top row.
+      private static func washStrength(in host: NSView, scroll: NSScrollView) throws -> CGFloat {
+        try columnDifferences(in: host, scroll: scroll, column: 6).max() ?? 0
+      }
+
+      /// Each viewport row's colour difference, in `column` points, from the viewport's top row.
+      private static func columnDifferences(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> [CGFloat] {
         host.layoutSubtreeIfNeeded()
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
@@ -64,10 +74,10 @@
         let top = Int((frame.minY + 2) * scale), bottom = Int((frame.maxY - scroll.contentInsets.bottom - 2) * scale)
         let pixelX = Int(column * scale)
         let reference = try #require(bitmap.colorAt(x: pixelX, y: top)?.usingColorSpace(.deviceRGB))
-        return (top ..< bottom).count { pixelY in
-          guard let color = bitmap.colorAt(x: pixelX, y: pixelY)?.usingColorSpace(.deviceRGB) else { return false }
+        return (top ..< bottom).map { pixelY in
+          guard let color = bitmap.colorAt(x: pixelX, y: pixelY)?.usingColorSpace(.deviceRGB) else { return 0 }
           return abs(color.redComponent - reference.redComponent) + abs(color.greenComponent - reference.greenComponent)
-            + abs(color.blueComponent - reference.blueComponent) > 0.04
+            + abs(color.blueComponent - reference.blueComponent)
         }
       }
 
@@ -120,18 +130,41 @@
       }
 
       /// Web `fadeOutHighlight`: a wheel over the list at full strength fades the mark over 320 ms rather than
-      /// cutting it.
+      /// cutting it. The Thread's mark is read from its jump target. The room's is drawn from view state, so it is
+      /// read from pixels: the wheel goes in once the wash holds still, which it does only at full strength, and
+      /// the fade shows as frames between full and gone. Under Reduce Motion the leave fade drops the mark at once
+      /// (web's `prefers-reduced-motion` block, globals.css), so there it only has to be gone; GitHub's macOS
+      /// runners turn Reduce Motion on.
       @Test(arguments: [false, true])
       func aWheelAtFullStrengthFadesTheMarkOut(thread: Bool) async throws {
         let landing = try await Self.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
-        if !thread {
+        let full: CGFloat
+        if thread {
+          try await Self.poll(host) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
+          #expect(state.thread.jumpTarget?.mark?.stage(at: Date()) == .full)
+          full = 0
+        } else {
           _ = try await waitForView(in: host, timeoutMessage: "The landed row was never marked") {
             (try? Self.markedRows(in: host, scroll: scroll, column: 6)).map { $0 > 40 } == true ? scroll : nil
           }
+          // Past the 450 ms opening, so a paused frame there cannot pass for full strength.
+          try await Task.sleep(for: .milliseconds(500))
+          var last: CGFloat = -1
+          var steady: CGFloat = 0
+          try await Self.poll(host) {
+            let strength = try Self.washStrength(in: host, scroll: scroll)
+            defer { last = strength }
+            if strength > 0.04, abs(strength - last) < 0.002 {
+              steady = strength
+              return true
+            }
+            return false
+          }
+          #expect(steady > 0.04, "The landed row reached full strength.")
+          full = steady
         }
-        try await Task.sleep(for: .seconds(1))
         let wheeled = ContinuousClock.now
         try Self.wheel(scroll, host: host)
         if thread {
@@ -140,14 +173,18 @@
           try await Self.poll(host) { state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget == nil, "The fade is over.")
         } else {
-          try await Task.sleep(for: .milliseconds(40))
-          let marked = try Self.markedRows(in: host, scroll: scroll, column: 6)
-          // The fade draws from the clock, so a runner that held the main actor past it has nothing left to see.
-          if wheeled.duration(to: ContinuousClock.now) < .milliseconds(200) {
-            #expect(marked > 40, "Fading, not cut.")
+          var partial = false
+          try await Self.poll(host) {
+            let strength = try Self.washStrength(in: host, scroll: scroll)
+            if strength > 0.04, strength < full - 0.01 {
+              partial = true
+            }
+            return strength <= 0.04
           }
-          try await Self.poll(host) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
-          #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The fade is over.")
+          #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The mark is gone.")
+          if !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            #expect(partial, "Fading, not cut: no frame between full strength and gone.")
+          }
         }
         // Well inside the 4.5 s hold: the wheel ended it, not its timer.
         let gone = wheeled.duration(to: ContinuousClock.now)
