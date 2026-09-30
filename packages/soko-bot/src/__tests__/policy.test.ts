@@ -42,10 +42,12 @@ describe("Soko Bot route capability ceilings", () => {
       expect(capabilities).toContain("get_task_status");
     },
   );
-  it("lets the hiring route propose an owner decision", () => {
-    expect(SOKO_BOT_ROUTE_CAPABILITIES.HIRE_AGENT).toContain(
-      "request_user_decision",
-    );
+  it("offers no approval-card tool on any route", () => {
+    // Bots act, or ask in chat; nothing waits on an owner card.
+    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))
+      expect(capabilities as readonly string[]).not.toContain(
+        "request_user_decision",
+      );
   });
 
   it("keeps ambiguous routes read-only", () => {
@@ -92,41 +94,6 @@ describe("Soko Bot route capability ceilings", () => {
         expect(allowed).not.toContain(write);
       }
     }
-  });
-
-  it("allows durable owner proposals on task and hiring routes", () => {
-    const version = getSokoBotVersion(DEFAULT_SOKO_BOT_VERSION_ID);
-    for (const route of [
-      "MANAGE_WORK",
-      "DELEGATE_TASK",
-      "HIRE_AGENT",
-    ] as const) {
-      const grant = applyVersionCapabilities(
-        version,
-        SOKO_BOT_ROUTE_CAPABILITIES[route],
-      );
-      expect(grant).toContain("request_user_decision");
-      if (route !== "HIRE_AGENT") expect(grant).toContain("archive_task");
-    }
-    for (const route of ["DIRECT_RESPONSE", "CLARIFY", "MIXED"] as const) {
-      expect(SOKO_BOT_ROUTE_CAPABILITIES[route]).not.toContain(
-        "request_user_decision",
-      );
-    }
-    for (const ceiling of [
-      SOKO_BOT_TEAMMATE_CAPABILITIES,
-      SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
-    ]) {
-      expect(applyVersionCapabilities(version, ceiling)).not.toContain(
-        "request_user_decision",
-      );
-    }
-    expect(
-      applyVersionCapabilities(
-        { ...version, capabilities: ["get_task_status"] },
-        SOKO_BOT_ROUTE_CAPABILITIES.MANAGE_WORK,
-      ),
-    ).not.toContain("request_user_decision");
   });
 
   it("grants archive only on task mutation routes", () => {

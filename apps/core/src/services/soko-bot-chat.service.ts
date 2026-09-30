@@ -28,7 +28,6 @@ const CAPABILITY_LABELS: Record<string, string> = {
   hire_agent: "Hiring an Agent",
   get_job_status: "Checking Job status",
   provide_job_input: "Answering a Job",
-  request_user_decision: "Asking for your approval",
   read_memory: "Reading memory",
   update_memory: "Updating memory",
   web_search: "Searching the web",

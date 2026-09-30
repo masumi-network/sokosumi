@@ -384,7 +384,7 @@ describe("sandbox turn service", () => {
         toolCallId: "c5",
         toolInput: {},
       }),
-    ).rejects.toThrow("request_user_decision");
+    ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).not.toHaveBeenCalled();
   });
 });
