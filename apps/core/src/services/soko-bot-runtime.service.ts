@@ -62,7 +62,7 @@ import {
   tableMutationSchema,
   tableQuerySchema,
 } from "@sokosumi/utils";
-import { list, put } from "@vercel/blob";
+import { head, list, put } from "@vercel/blob";
 import { HTTPException } from "hono/http-exception";
 import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
@@ -466,8 +466,13 @@ export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
 export class SokoBotRuntimeAuthorizationError extends Error {}
 export class SokoBotRuntimeConflictError extends Error {}
 export class SokoBotRuntimeValidationError extends Error {}
+/**
+ * An outside-effect tool refused before it touched anything, so nothing
+ * happened: the attempt is rejected, not of unknown outcome.
+ */
+export class SokoBotRefusedUnsentError extends SokoBotRuntimeValidationError {}
 /** The studio refused an image before sending it: nothing happened. */
-export class SokoBotImageRefusedError extends SokoBotRuntimeValidationError {}
+export class SokoBotImageRefusedError extends SokoBotRefusedUnsentError {}
 
 /** Schedule tools never need approval; their domain errors become tool errors the model can read. */
 async function runScheduleTool<T>(run: () => Promise<T>): Promise<T> {
@@ -1813,27 +1818,40 @@ export class SokoBotRuntimeService {
    * Write a text file into the owner's Drive. Core uploads server-side rather
    * than minting a client grant, because a tool call cannot perform the
    * browser's second step; the catalog steps are the same as a human upload,
-   * so the file is searchable, tagged and related like any other.
+   * so the file is searchable, tagged and related like any other. Replacing
+   * an existing file is a new version of it, as a human re-upload is.
    */
   private async uploadFile(
     authorized: AuthorizedSokoBotRuntime,
-    input: { filename: string; content: string; contentType?: string },
+    input: {
+      filename: string;
+      content: string;
+      contentType?: string;
+      overwrite?: boolean;
+    },
   ) {
     const drive = await this.ownerDrive(authorized);
     const pathname = drive.pathname(input.filename);
-    // The human upload route refuses to overwrite (409). The bot must not be
-    // able to silently replace an owner's file because a model reused a name.
-    const existing = await list({ prefix: pathname, limit: 1 });
-    if (existing.blobs.some((blob) => blob.pathname === pathname)) {
-      throw new SokoBotRuntimeValidationError(
-        `A file named "${input.filename}" already exists; choose another name`,
-      );
-    }
     const contentType = input.contentType ?? "text/markdown";
     // Text only: this tool writes what the model composed, never binary.
     if (!isTextMimeType(contentType)) {
-      throw new SokoBotRuntimeValidationError(
+      throw new SokoBotRefusedUnsentError(
         "Only text files can be written with upload_file",
+      );
+    }
+    // A reused name must not silently replace an owner's file: replacing one
+    // takes an explicit `overwrite`, and only a text file can be replaced.
+    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
+      (blob) => blob.pathname === pathname,
+    );
+    if (existing && !input.overwrite) {
+      throw new SokoBotRefusedUnsentError(
+        `A file named "${input.filename}" already exists. To replace its content, call upload_file again with overwrite: true; to keep it, choose another name.`,
+      );
+    }
+    if (existing && !isTextMimeType((await head(existing.url)).contentType)) {
+      throw new SokoBotRefusedUnsentError(
+        `"${input.filename}" is not a text file, so upload_file cannot replace it; choose another name`,
       );
     }
     const key = { ...drive.key, pathname };
@@ -1849,6 +1867,7 @@ export class SokoBotRuntimeService {
       access: "public",
       contentType,
       addRandomSuffix: false,
+      allowOverwrite: Boolean(existing),
     });
     const activated = await activateDriveUploadResource({
       key,
@@ -1861,6 +1880,7 @@ export class SokoBotRuntimeService {
     return {
       id: activated?.resourceId ?? null,
       filename: displayName,
+      replaced: Boolean(existing),
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
@@ -3716,7 +3736,7 @@ export class SokoBotRuntimeService {
       });
       return result;
     } catch (error) {
-      const refusedUnsent = error instanceof SokoBotImageRefusedError;
+      const refusedUnsent = error instanceof SokoBotRefusedUnsentError;
       await prisma.sokoBotToolCall.updateMany({
         where: {
           turnId: input.turnId,
@@ -3732,7 +3752,7 @@ export class SokoBotRuntimeService {
         data: {
           status: "FAILED",
           // A rolled-back local attempt is not an enduring semantic
-          // reservation, and neither is an image the studio refused unsent.
+          // reservation, and neither is an effect refused before it was sent.
           ...(!externalEffect || refusedUnsent ? { operationKey: null } : {}),
           disposition: ACTION_CAPABILITIES.has(input.capability)
             ? EXTERNAL_EFFECT_CAPABILITIES.has(input.capability) &&

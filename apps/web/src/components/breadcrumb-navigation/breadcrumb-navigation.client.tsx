@@ -131,6 +131,10 @@ function generateSegments(
       // its own label.
       if (segment === "design-md" && !isCurrent) return;
 
+      // /drive/files/{id} is one file's page; /drive/files is no page at all.
+      if (segment === "files" && pathSegments[0] === "drive" && index === 1)
+        return;
+
       // No org overview page — /organizations/* hides the parent segment (SOK-546).
       // Admin org routes keep it for Admin > Organizations > {name}.
       if (segment === "organizations" && pathSegments[0] === "organizations") {
