@@ -169,6 +169,7 @@ import SwiftUI
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
+            workspaces.thread.landJump(target.requestId)
           }
           .task(id: workspaces.thread.jumpTarget?.mark) {
             guard let mark = workspaces.thread.jumpTarget?.mark else { return }

@@ -135,8 +135,8 @@
         let wheeled = ContinuousClock.now
         try Self.wheel(scroll, host: host)
         if thread {
-          try await Self.poll(host) { state.thread.jumpTarget?.mark.leftAt != nil || state.thread.jumpTarget == nil }
-          #expect(state.thread.jumpTarget?.mark.leftAt != nil, "Fading, not cut.")
+          try await Self.poll(host) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
+          #expect(state.thread.jumpTarget?.mark?.leftAt != nil, "Fading, not cut.")
           try await Self.poll(host) { state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget == nil, "The fade is over.")
         } else {
@@ -185,7 +185,8 @@
         }
         #expect(scroll.contentView.bounds.minY - before > 50, "The drag moved the thread: \(before) to \(scroll.contentView.bounds.minY)")
         #expect(state.thread.jumpTarget?.messageId == "fixture-2")
-        #expect(state.thread.jumpTarget?.mark.leftAt == nil, "The mark stands.")
+        let mark = try #require(state.thread.jumpTarget?.mark)
+        #expect(mark.leftAt == nil, "The mark stands.")
       }
 
       /// The mark in both lights, drawn by the real row at full strength over the window background.
