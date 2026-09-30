@@ -5946,7 +5946,8 @@ export const TaskLinkSchema = {
             id: 'tsk_b',
             name: 'Review onboarding copy',
             status: 'READY',
-            archivedAt: null
+            archivedAt: null,
+            identifier: 'SOK-12'
         },
         note: 'Blocked until onboarding copy is approved'
     }
@@ -5993,19 +5994,29 @@ export const TaskLinkPeerTaskSchema = {
             ],
             format: 'date-time',
             example: null
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-12',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the peer has no project.'
         }
     },
     required: [
         'id',
         'name',
         'status',
-        'archivedAt'
+        'archivedAt',
+        'identifier'
     ],
     example: {
         id: 'tsk_b',
         name: 'Review onboarding copy',
         status: 'READY',
-        archivedAt: null
+        archivedAt: null,
+        identifier: 'SOK-12'
     }
 } as const;
 

@@ -83,6 +83,7 @@ interface TaskDetailViewProps {
    * able to edit, comment, or mutate the task.
    */
   forceReadOnly?: boolean;
+  relatedTaskHrefBasePath?: string;
 }
 
 /**
@@ -94,6 +95,7 @@ interface TaskDetailViewProps {
 export async function TaskDetailView({
   task,
   forceReadOnly = false,
+  relatedTaskHrefBasePath,
 }: TaskDetailViewProps) {
   const taskId = task.id;
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
@@ -244,6 +246,7 @@ export async function TaskDetailView({
                   duplicate: t("actions.relations.duplicate"),
                 }}
                 statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
+                hrefBasePath={relatedTaskHrefBasePath}
               />
             </div>
           </aside>

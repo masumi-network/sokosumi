@@ -1,9 +1,13 @@
 import type { Prisma } from "@sokosumi/database";
+import { PROJECT_IDENTIFIER_MAX_LENGTH } from "@sokosumi/utils";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-// Trailing text after the number is a URL slug and is ignored.
-const IDENTIFIER_PATTERN = /^([A-Za-z][A-Za-z0-9]{1,6})-(\d{1,9})(?:-.*)?$/;
+// Trailing text after the number is a URL slug and is ignored. Prefix length
+// matches PROJECT_IDENTIFIER_MAX_LENGTH (letter + up to 6 more chars).
+const IDENTIFIER_PATTERN = new RegExp(
+  `^([A-Za-z][A-Za-z0-9]{1,${PROJECT_IDENTIFIER_MAX_LENGTH - 1}})-(\\d{1,9})(?:-.*)?$`,
+);
 
 export type TaskRef =
   | { kind: "id"; id: string }

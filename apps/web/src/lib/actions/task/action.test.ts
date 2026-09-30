@@ -81,6 +81,7 @@ function buildTaskLink(
       name: string;
       status: TaskStatus;
       archivedAt: null;
+      identifier: null;
     };
   }>,
 ) {
@@ -93,6 +94,7 @@ function buildTaskLink(
       name: "Old parent",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
     ...overrides,
   };
@@ -150,6 +152,7 @@ describe("task link actions", () => {
           name: "New parent",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -455,6 +458,7 @@ describe("task link actions", () => {
           name: "Old parent 1",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
       buildTaskLink({
@@ -464,6 +468,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -595,6 +600,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);

@@ -1569,6 +1569,10 @@ export type TaskLinkPeerTask = {
     name: string;
     status: TaskStatus & unknown;
     archivedAt: Date | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
+     */
+    identifier: string | null;
 };
 
 export type TaskFile = {

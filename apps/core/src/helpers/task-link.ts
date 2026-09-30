@@ -47,6 +47,10 @@ function mapTaskLinkPeerTask(peerTask: TaskLinkRow["toTask"]) {
     name: peerTask.name,
     status: peerTask.status,
     archivedAt: peerTask.archivedAt ?? null,
+    identifier:
+      peerTask.project?.identifier && peerTask.number !== null
+        ? `${peerTask.project.identifier}-${peerTask.number}`
+        : null,
   };
 }
 
