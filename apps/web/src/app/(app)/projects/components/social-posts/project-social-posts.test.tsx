@@ -129,7 +129,9 @@ const MESSAGES: Record<string, string> = {
     "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
-  "composer.noAccount": "Choose an account",
+  "composer.accounts": "Post to",
+  "composer.accountOption": "{provider} {handle}",
+  "composer.noAccounts": "No accounts connected yet.",
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
@@ -697,6 +699,162 @@ describe("ProjectSocialPosts", () => {
       "280 / 280",
     );
     expect(saveDraft).toBeEnabled();
+  });
+
+  it("shows where the post goes at the top of the composer", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const accounts = within(dialog).getByRole("group", { name: "Post to" });
+    // Before the text: the reader picks where it goes first.
+    expect(
+      accounts.compareDocumentPosition(within(dialog).getByLabelText("Text")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("retries only the accounts that failed after a partial save", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hello" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hello",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+    });
+    // X is saved already, so it leaves the selection; LinkedIn stays.
+    expect(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(3);
+    });
+    expect(createProjectSocialPost).toHaveBeenLastCalledWith(
+      expect.objectContaining({ socialConnectionId: "connection-2" }),
+    );
+  });
+
+  it("saves one draft per account picked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hello" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hello",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(2);
+    });
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ socialConnectionId: "connection-1" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ socialConnectionId: "connection-2" }),
+    );
+    expect(screen.getByTestId("social-post-post-x")).toBeVisible();
+    expect(screen.getByTestId("social-post-post-li")).toBeVisible();
   });
 
   it("keeps Schedule disabled without an account or a future time", async () => {
