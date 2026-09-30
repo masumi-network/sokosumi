@@ -95,7 +95,9 @@ export default async function WorkspaceGatePage() {
       : surface === "pending-invites"
         ? "pendingInvitesTitle"
         : "identityTitle";
-  const hasName = Boolean(session.user.name?.trim());
+  const initialFirstName = session.user.firstName?.trim() ?? "";
+  const initialLastName = session.user.lastName?.trim() ?? "";
+  const hasName = Boolean(initialFirstName && initialLastName);
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
@@ -127,12 +129,16 @@ export default async function WorkspaceGatePage() {
           <IdentityOnboardingForm
             key="identity-onboarding"
             initialName={session.user.name?.trim() ?? ""}
+            initialFirstName={initialFirstName}
+            initialLastName={initialLastName}
             workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (
           <PendingInvitesQueue
             items={queueItems}
             initialName={session.user.name?.trim() ?? ""}
+            initialFirstName={session.user.firstName}
+            initialLastName={session.user.lastName}
           />
         ) : (
           <p className="text-muted-foreground text-sm">

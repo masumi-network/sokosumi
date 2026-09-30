@@ -28,6 +28,9 @@ interface AccountSettingsProps {
   billingDetailsLoadError?: ReactNode;
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
+  userName?: string;
+  userFirstName?: null | string;
+  userLastName?: null | string;
   userImage?: null | string;
   userLogo?: null | string;
   userMetadata?: null | string;
@@ -48,6 +51,9 @@ export function AccountSettings({
   billingDetailsLoadError,
   designMdValue,
   credentialAccountsLoadError,
+  userName = "",
+  userFirstName,
+  userLastName,
   userImage,
   userLogo,
   userMetadata,
@@ -71,7 +77,11 @@ export function AccountSettings({
         <div className="md:col-span-2">
           <ProfileImageSection userImage={userImage} />
         </div>
-        <NameForm />
+        <NameForm
+          name={userName}
+          firstName={userFirstName ?? ""}
+          lastName={userLastName ?? ""}
+        />
         <EmailForm />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (

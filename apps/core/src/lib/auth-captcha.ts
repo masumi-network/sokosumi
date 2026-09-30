@@ -4,6 +4,8 @@ import {
 } from "@sokosumi/utils";
 import { captcha } from "better-auth/plugins";
 
+import { SIGN_UP_EMAIL_STATUS_PATH } from "./auth-sign-up-email-status.js";
+
 export function createAuthCaptchaPlugin(secretKey: string | undefined) {
   // Omitting the secret disables server-side verification in any environment.
   if (!secretKey) return { id: "captcha-disabled" };
@@ -19,6 +21,7 @@ export function createAuthCaptchaPlugin(secretKey: string | undefined) {
     // account-email entry point, including resends and address changes.
     endpoints: [
       "/sign-up/email",
+      SIGN_UP_EMAIL_STATUS_PATH,
       "/sign-in/email",
       "/request-password-reset",
       "/send-verification-email",

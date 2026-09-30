@@ -31,6 +31,8 @@ export default function InvitationActions({
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
   const { persistIfNeeded, NameFields } = useCollectUserName(
     user?.name?.trim() ?? "",
+    user?.firstName,
+    user?.lastName,
   );
 
   const { id, email } = invitation;

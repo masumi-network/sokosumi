@@ -96,7 +96,12 @@ describe("WorkspaceGatePage", () => {
     readRouteSessionMock.mockResolvedValue({
       status: "authenticated",
       session: {
-        user: { id: "user-1", name: "Ada Lovelace" },
+        user: {
+          id: "user-1",
+          name: "Ada Lovelace",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
         session: { id: "session-1" },
       },
     });
@@ -203,6 +208,29 @@ describe("WorkspaceGatePage", () => {
     expect(serialized).toContain('"initialName":"Ada Lovelace"');
     expect(serialized).not.toContain("unavailableTitle");
     expect(serialized).not.toContain("data-workspace-gate-actions");
+  });
+
+  it("asks a user who has a display name but no name parts to enter them", async () => {
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session: {
+        user: {
+          id: "user-1",
+          name: "Countess of Lovelace",
+          firstName: null,
+          lastName: null,
+        },
+        session: { id: "session-1" },
+      },
+    });
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(await WorkspaceGatePage());
+
+    expect(serialized).toContain("identityDescriptionEnter");
+    expect(serialized).not.toContain("identityDescriptionConfirm");
+    expect(serialized).toContain('"initialName":"Countess of Lovelace"');
   });
 
   it("asks a nameless user to enter their name", async () => {

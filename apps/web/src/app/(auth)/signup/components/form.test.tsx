@@ -116,7 +116,20 @@ describe("SignUpForm OAuth workflow", () => {
     });
   });
 
+  const onFormStart = vi.fn();
+
+  function renderForm() {
+    return render(
+      <SignUpForm
+        email="new-user@example.com"
+        onFormStart={onFormStart}
+        onPendingChange={vi.fn()}
+      />,
+    );
+  }
+
   beforeEach(() => {
+    onFormStart.mockReset();
     mockReplace.mockReset();
     mockLocationReplace.mockReset();
     mockSignUpEmail.mockReset();
@@ -131,18 +144,9 @@ describe("SignUpForm OAuth workflow", () => {
   async function submitSignUpForm(password: string) {
     const user = userEvent.setup();
 
-    await user.type(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-      "New User",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Fields.Email.placeholder"),
-      "new-user@example.com",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Fields.Password.placeholder"),
-      password,
-    );
+    await user.type(screen.getByLabelText("Fields.FirstName.label"), "New");
+    await user.type(screen.getByLabelText("Fields.LastName.label"), "User");
+    await user.type(screen.getByLabelText("Fields.Password.label"), password);
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
 
@@ -150,8 +154,8 @@ describe("SignUpForm OAuth workflow", () => {
     return submitSignUpForm("Passw0rd!");
   }
 
-  it("asks for name, email and password, with updates as the only checkbox", () => {
-    render(<SignUpForm />);
+  it("asks for name and password, with updates as the only checkbox", () => {
+    renderForm();
 
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
     expect(
@@ -160,18 +164,47 @@ describe("SignUpForm OAuth workflow", () => {
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
-  it("lets a password manager recognise name, email and new password", () => {
-    render(<SignUpForm />);
+  it("lets a password manager recognise names, email and new password", () => {
+    const { container } = renderForm();
 
-    expect(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-    ).toHaveAttribute("autocomplete", "name");
-    expect(
-      screen.getByPlaceholderText("Fields.Email.placeholder"),
-    ).toHaveAttribute("autocomplete", "email");
-    expect(
-      screen.getByPlaceholderText("Fields.Password.placeholder"),
-    ).toHaveAttribute("autocomplete", "new-password");
+    expect(screen.getByLabelText("Fields.FirstName.label")).toHaveAttribute(
+      "autocomplete",
+      "given-name",
+    );
+    expect(screen.getByLabelText("Fields.LastName.label")).toHaveAttribute(
+      "autocomplete",
+      "family-name",
+    );
+    expect(screen.getByLabelText("Fields.Password.label")).toHaveAttribute(
+      "autocomplete",
+      "new-password",
+    );
+    // The email was confirmed on the step before. It is not asked again, but
+    // the new password still has to be saved against it.
+    expect(screen.queryByTestId("auth-field-email")).not.toBeInTheDocument();
+    const username = container.querySelector('input[autocomplete="username"]');
+    expect(username).toHaveValue("new-user@example.com");
+    expect(username).toHaveAttribute("readonly");
+    expect(username).toHaveAttribute("aria-hidden", "true");
+  });
+
+  it("moves focus to the first name when the step opens", async () => {
+    renderForm();
+
+    // react-hook-form defers the focus by a tick.
+    await waitFor(() => {
+      expect(screen.getByLabelText("Fields.FirstName.label")).toHaveFocus();
+    });
+  });
+
+  it("reports the first input to the flow", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    expect(onFormStart).not.toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Fields.FirstName.label"), "N");
+
+    expect(onFormStart).toHaveBeenCalled();
   });
 
   it("accepts a lower-case password of eight characters and sends the terms acceptance", async () => {
@@ -179,7 +212,7 @@ describe("SignUpForm OAuth workflow", () => {
       data: { user: { id: "user-1" } },
       error: null,
     });
-    render(<SignUpForm />);
+    renderForm();
 
     await submitSignUpForm("abcdefgh");
 
@@ -196,14 +229,14 @@ describe("SignUpForm OAuth workflow", () => {
   });
 
   it("rejects a password of seven characters with the stated rule", async () => {
-    render(<SignUpForm />);
+    renderForm();
 
     await submitSignUpForm("abcdefg");
 
     expect(await screen.findByText("Password.min")).toBeInTheDocument();
     // The rule reaches a screen reader through the field's description.
     expect(
-      screen.getByPlaceholderText("Fields.Password.placeholder"),
+      screen.getByLabelText("Fields.Password.label"),
     ).toHaveAccessibleDescription("Password.min");
     expect(mockSignUpEmail).not.toHaveBeenCalled();
   });
@@ -215,7 +248,7 @@ describe("SignUpForm OAuth workflow", () => {
     };
     mockSignUpEmail.mockResolvedValueOnce({ data: null, error });
     captchaErrorMessageMock.mockReturnValue("Translated captcha error");
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -229,7 +262,7 @@ describe("SignUpForm OAuth workflow", () => {
       data: null,
       error: { status: 400, error: "invalid_signature" },
     });
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -241,23 +274,21 @@ describe("SignUpForm OAuth workflow", () => {
 
   it("does not register when verification is cancelled", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
-    render(<SignUpForm />);
+    renderForm();
     await submitValidSignUpForm();
     expect(mockSignUpEmail).not.toHaveBeenCalled();
   });
 
   it("renders signup with a single password field", () => {
-    render(<SignUpForm />);
+    renderForm();
 
     expect(
-      screen.queryByPlaceholderText("Fields.ConfirmPassword.placeholder"),
+      screen.queryByLabelText("Fields.ConfirmPassword.label"),
     ).not.toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("Fields.Name.placeholder"),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("Fields.Password.placeholder"),
-    ).toHaveAttribute("type", "password");
+    expect(screen.getByLabelText("Fields.Password.label")).toHaveAttribute(
+      "type",
+      "password",
+    );
   });
 
   it("counts the signup in place and leaves with a full document load", async () => {
@@ -269,7 +300,7 @@ describe("SignUpForm OAuth workflow", () => {
     });
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -298,7 +329,7 @@ describe("SignUpForm OAuth workflow", () => {
     });
     mockWaitForAuthSession.mockResolvedValue(null);
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -320,7 +351,7 @@ describe("SignUpForm OAuth workflow", () => {
       error: null,
     });
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -358,7 +389,7 @@ describe("SignUpForm OAuth workflow", () => {
     });
     mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -370,6 +401,8 @@ describe("SignUpForm OAuth workflow", () => {
 
     expect(signUpPayload).toEqual(
       expect.objectContaining({
+        firstName: "New",
+        lastName: "User",
         name: "New User",
         email: "new-user@example.com",
         password: "Passw0rd!",
@@ -391,45 +424,6 @@ describe("SignUpForm OAuth workflow", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("links to sign-in without a query when there is no OAuth request", () => {
-    render(<SignUpForm />);
-
-    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
-      "href",
-      "/signin",
-    );
-  });
-
-  it("carries the OAuth request on the sign-in link", () => {
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      exp: "1772367377",
-      sig: "abc+def/ghi=",
-    });
-
-    render(<SignUpForm />);
-
-    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
-      "href",
-      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
-    );
-  });
-
-  it("keeps the returnUrl on the sign-in link", () => {
-    mockSearchParams = new URLSearchParams({
-      returnUrl: "/accept-invitation/invite_123",
-    });
-
-    render(<SignUpForm />);
-
-    expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
-      "href",
-      "/signin?returnUrl=%2Faccept-invitation%2Finvite_123",
-    );
-  });
-
   it("keeps a left-edge submit spinner after credential signup succeeds", async () => {
     mockSignUpEmail.mockResolvedValue({
       data: {
@@ -438,7 +432,7 @@ describe("SignUpForm OAuth workflow", () => {
       error: null,
     });
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 
@@ -465,7 +459,7 @@ describe("SignUpForm OAuth workflow", () => {
       error: { message: "Email already in use" },
     });
 
-    render(<SignUpForm />);
+    renderForm();
 
     await submitValidSignUpForm();
 

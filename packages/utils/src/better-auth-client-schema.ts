@@ -1,8 +1,29 @@
+import * as z from "zod";
+
+// Core auth hooks validate the combined length with the other name part.
+const namePartInputSchema = z.string().trim().min(1).nullable();
+
 /**
  * Better Auth additional-field schema — single source of truth for Core `auth.ts`
  * and web Better Auth client field inference.
  */
 export const betterAuthUserAdditionalFields = {
+  // Null means "not given": magic-link and social sign-ups create the user
+  // before anyone is asked, and users from before these fields never were.
+  // An empty string is never stored. Email sign-up requires both and derives
+  // the initial display `name` from them.
+  firstName: {
+    type: "string",
+    required: false,
+    defaultValue: null,
+    validator: { input: namePartInputSchema },
+  },
+  lastName: {
+    type: "string",
+    required: false,
+    defaultValue: null,
+    validator: { input: namePartInputSchema },
+  },
   termsAccepted: {
     type: "boolean",
     required: true,
