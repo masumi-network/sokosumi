@@ -1258,8 +1258,7 @@
               "invalidEmail": "Introduce un email válido para ver o crear organizaciones"
             },
             "Password": {
-              "placeholder": "Contraseña",
-              "hint": "Usa 8 caracteres o más"
+              "placeholder": "Contraseña"
             }
           },
           "Errors": {

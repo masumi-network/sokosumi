@@ -160,14 +160,6 @@ describe("SignUpForm OAuth workflow", () => {
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
-  it("states the password rule before anything is typed", () => {
-    render(<SignUpForm />);
-
-    expect(
-      screen.getByPlaceholderText("Fields.Password.placeholder"),
-    ).toHaveAccessibleDescription("Fields.Password.hint");
-  });
-
   it("lets a password manager recognise name, email and new password", () => {
     render(<SignUpForm />);
 
@@ -209,6 +201,10 @@ describe("SignUpForm OAuth workflow", () => {
     await submitSignUpForm("abcdefg");
 
     expect(await screen.findByText("Password.min")).toBeInTheDocument();
+    // The rule reaches a screen reader through the field's description.
+    expect(
+      screen.getByPlaceholderText("Fields.Password.placeholder"),
+    ).toHaveAccessibleDescription("Password.min");
     expect(mockSignUpEmail).not.toHaveBeenCalled();
   });
 

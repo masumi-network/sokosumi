@@ -1258,8 +1258,7 @@
               "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
             },
             "Password": {
-              "placeholder": "Passwort",
-              "hint": "Verwende mindestens 8 Zeichen"
+              "placeholder": "Passwort"
             }
           },
           "Errors": {

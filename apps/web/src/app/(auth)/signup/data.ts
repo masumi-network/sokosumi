@@ -18,7 +18,6 @@ export const signUpFormData: FormData<
   {
     name: "password",
     placeholderKey: "Fields.Password.placeholder",
-    descriptionKey: "Fields.Password.hint",
     type: "password",
     autoComplete: "new-password",
   },

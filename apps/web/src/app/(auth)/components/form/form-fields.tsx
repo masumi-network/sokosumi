@@ -11,7 +11,6 @@ import type {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormMessage,
@@ -54,11 +53,6 @@ export function FormFields<T extends FieldValues>({
                   authT={authT}
                 />
               </FormControl>
-              {formDataItem.descriptionKey && (
-                <FormDescription>
-                  {t(formDataItem.descriptionKey)}
-                </FormDescription>
-              )}
               <FormMessage />
             </FormItem>
           )}
@@ -69,7 +63,7 @@ export function FormFields<T extends FieldValues>({
 }
 
 // `FormControl` hands its child the field id and the ARIA wiring to the
-// description and the error; the rest props carry them to the input.
+// error message; the rest props carry them to the input.
 interface FormInputProps<T extends FieldValues>
   extends Pick<
     React.ComponentProps<"input">,

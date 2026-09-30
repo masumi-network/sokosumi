@@ -1258,8 +1258,7 @@
               "invalidEmail": "Input valid email to see or create organizations"
             },
             "Password": {
-              "placeholder": "Password",
-              "hint": "Use 8 or more characters"
+              "placeholder": "Password"
             }
           },
           "Errors": {
