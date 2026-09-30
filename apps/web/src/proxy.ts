@@ -2,6 +2,7 @@ import { resolveBetterAuthCookiePrefix } from "@sokosumi/utils";
 import { getSessionCookie } from "better-auth/cookies";
 import { type NextRequest, NextResponse } from "next/server";
 
+import { APPLE_APP_SITE_ASSOCIATION_PATH } from "@/config/apple-app-site-association";
 import { applyDocumentSecurityHeaders } from "@/config/document-security-headers";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
@@ -14,6 +15,10 @@ import {
 } from "@/lib/pending-organization-join-cookie";
 
 const EXCLUDED_PATHS = [
+  // Documents other systems fetch with no cookie: Apple's CDN reads the app
+  // site association and rejects a redirect, and OAuth clients read the
+  // authorization server metadata.
+  "/.well-known/",
   "/auth/",
   "/signin",
   "/login",
@@ -76,7 +81,12 @@ export async function proxy(request: NextRequest) {
       );
       return maintenanceApiResponse;
     }
-    if (pathname !== "/maintenance") {
+    // The association file stays up: Apple's CDN re-reads it, and a redirect
+    // would leave the Apple app unable to sign in after maintenance ends.
+    if (
+      pathname !== "/maintenance" &&
+      pathname !== APPLE_APP_SITE_ASSOCIATION_PATH
+    ) {
       const maintenanceRedirect = NextResponse.redirect(
         new URL("/maintenance", request.url),
       );

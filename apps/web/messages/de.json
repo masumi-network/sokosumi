@@ -7330,6 +7330,10 @@
     "description": "Wir führen derzeit Wartungsarbeiten durch",
     "message": "Wir arbeiten daran, dein Erlebnis zu verbessern. Schau bald wieder vorbei."
   },
+  "AppleAppCallback": {
+    "title": "Zurück zur Sokosumi-App",
+    "message": "Die Anmeldung wurde in der App nicht abgeschlossen. Schließe dieses Fenster, öffne die Sokosumi-App und melde dich erneut an."
+  },
   "Library": {
     "Auth": {
       "NameField": {
