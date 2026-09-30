@@ -11,6 +11,7 @@ import SocialButtons, {
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 import { SignUpEmailStep } from "./email-step";
@@ -22,7 +23,7 @@ import SignInLink from "./sign-in-link";
 interface SignUpFlowProps {
   invitationId?: string | undefined;
   /** The product that sent the person here through Sign in with Sokosumi. */
-  clientName?: string | undefined;
+  client?: OAuthRequestClient | undefined;
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
   lastUsedMethod: SignInMethodId | null;
@@ -38,7 +39,7 @@ interface SignUpFlowProps {
  */
 export default function SignUpFlow({
   invitationId,
-  clientName,
+  client,
   prefilledEmail,
   returnUrl,
   lastUsedMethod,
@@ -74,7 +75,7 @@ export default function SignUpFlow({
   if (step === "details") {
     return (
       <div className="flex flex-1 flex-col">
-        <SignUpHeader invitationId={invitationId} clientName={clientName} />
+        <SignUpHeader invitationId={invitationId} client={client} />
         <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
           <ConfirmedEmail
             email={email}
@@ -109,7 +110,7 @@ export default function SignUpFlow({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SignUpHeader invitationId={invitationId} clientName={clientName} />
+      <SignUpHeader invitationId={invitationId} client={client} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <SignUpEmailStep
           defaultEmail={email}

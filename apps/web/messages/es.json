@@ -1334,6 +1334,9 @@
       "errorTitleFor": "No se puede continuar a {client}",
       "errorDescription": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a la aplicación desde la que llegaste y empieza de nuevo.",
       "errorDescriptionFor": "Esta solicitud de inicio de sesión ha caducado o ya no es válida. Vuelve a {client} y empieza de nuevo."
+    },
+    "OAuthClient": {
+      "backTo": "Volver a {client}"
     }
   },
   "App": {

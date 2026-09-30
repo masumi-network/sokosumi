@@ -42,7 +42,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     return (
       <OAuthHandBack
         oauthQuery={oauthRequest.query}
-        clientName={oauthRequest.clientName}
+        client={oauthRequest.client}
       />
     );
   }
@@ -64,7 +64,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
   return (
     <SignUpFlow
       invitationId={invitationId}
-      clientName={oauthRequest?.clientName}
+      client={oauthRequest?.client}
       prefilledEmail={email}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}

@@ -20,6 +20,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const OAUTH_QUERY = "client_id=cmo&exp=1772367377&sig=signed";
+const CMO = { name: "CMO", uri: "https://cmo.xyz", logoUri: undefined };
 
 describe("OAuthHandBack", () => {
   beforeEach(() => {
@@ -38,7 +39,7 @@ describe("OAuthHandBack", () => {
     // StrictMode mounts twice; a second hand-back would issue a second code.
     render(
       <StrictMode>
-        <OAuthHandBack oauthQuery={OAUTH_QUERY} clientName="CMO" />
+        <OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />
       </StrictMode>,
     );
 
@@ -51,6 +52,7 @@ describe("OAuthHandBack", () => {
     expect(mockContinue).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status")).toHaveTextContent("continuingTo:CMO");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("stays on the page with an error when the provider refuses the request", async () => {
@@ -59,10 +61,15 @@ describe("OAuthHandBack", () => {
       error: { status: 400, message: "invalid_signature" },
     });
 
-    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} clientName="CMO" />);
+    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "errorDescriptionFor:CMO",
+    );
+    // The request is dead; the way out is back to the product.
+    expect(screen.getByRole("link", { name: "backTo:CMO" })).toHaveAttribute(
+      "href",
+      "https://cmo.xyz",
     );
   });
 

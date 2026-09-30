@@ -4,14 +4,16 @@ import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 
+import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
+import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 
 interface OAuthHandBackProps {
   /** The signed OAuth request the page carries. */
   oauthQuery: string;
   /** The product the person is continuing to, when Core could name it. */
-  clientName?: string | undefined;
+  client?: OAuthRequestClient | undefined;
 }
 
 /**
@@ -26,9 +28,10 @@ interface OAuthHandBackProps {
  */
 export default function OAuthHandBack({
   oauthQuery,
-  clientName,
+  client,
 }: OAuthHandBackProps) {
   const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
   const [hasFailed, setHasFailed] = useState(false);
   const hasStarted = useRef(false);
 
@@ -55,6 +58,7 @@ export default function OAuthHandBack({
   if (hasFailed) {
     return (
       <div role="alert" className="flex flex-1 flex-col gap-2 p-6">
+        {client ? <OAuthClientBackLink client={client} /> : null}
         <h1 className="text-2xl font-light text-balance tracking-tight">
           {clientName
             ? t("errorTitleFor", { client: clientName })

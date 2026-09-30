@@ -96,6 +96,8 @@ describe("SignIn page", () => {
     getOAuthClientPublicPreloginMock.mockResolvedValue({
       client_id: "cmo",
       client_name: "CMO",
+      client_uri: "https://cmo.xyz",
+      logo_uri: "https://cmo.xyz/logo.png",
     });
   });
 
@@ -121,7 +123,7 @@ describe("SignIn page", () => {
     expect(screen.getByTestId("terms-notice")).toBeInTheDocument();
   });
 
-  it("names the product the person is continuing to", async () => {
+  it("shows the product the person is continuing to", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
@@ -132,11 +134,17 @@ describe("SignIn page", () => {
       OAUTH_QUERY,
     );
     expect(headerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: "CMO" }),
+      expect.objectContaining({
+        client: {
+          name: "CMO",
+          uri: "https://cmo.xyz",
+          logoUri: "https://cmo.xyz/logo.png",
+        },
+      }),
     );
   });
 
-  it("names no product without an OAuth request", async () => {
+  it("shows no product without an OAuth request", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve({}) }));
@@ -144,7 +152,7 @@ describe("SignIn page", () => {
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(headerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: undefined }),
+      expect.objectContaining({ client: undefined }),
     );
   });
 
@@ -155,7 +163,7 @@ describe("SignIn page", () => {
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
     expect(headerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: undefined }),
+      expect.objectContaining({ client: undefined }),
     );
     expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
   });
@@ -168,7 +176,11 @@ describe("SignIn page", () => {
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: OAUTH_QUERY,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
     });
     expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
   });

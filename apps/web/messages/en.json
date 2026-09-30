@@ -1334,6 +1334,9 @@
       "errorTitleFor": "Unable to continue to {client}",
       "errorDescription": "This sign-in request has expired or is no longer valid. Go back to the app you came from and start again.",
       "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again."
+    },
+    "OAuthClient": {
+      "backTo": "Back to {client}"
     }
   },
   "App": {
