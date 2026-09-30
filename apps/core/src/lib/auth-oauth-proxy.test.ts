@@ -5,6 +5,7 @@ import { betterAuth } from "better-auth/minimal";
 import { oAuthProxy } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { EnvConfig } from "@/config/env";
+import { asServedOnVercel } from "@/test-fixtures/served-on-vercel";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 
 const PRODUCTION = "https://api.example.com";
@@ -83,14 +84,6 @@ function createPreview(proxySecret?: string) {
 }
 
 type Core = ReturnType<typeof createCore>;
-
-/**
- * Vercel terminates TLS before the function, and `@hono/node-server` reads the
- * scheme off the socket, so Better Auth sees every request as plain HTTP.
- */
-function asServedOnVercel(url: string): string {
-  return url.replace(/^https:/, "http:");
-}
 
 /** Starts Google sign-in on the preview and follows Google back to production. */
 async function signInThroughProduction(preview: Core, production: Core) {
