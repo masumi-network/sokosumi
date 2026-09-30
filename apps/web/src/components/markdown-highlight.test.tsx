@@ -32,6 +32,15 @@ describe("Markdown search term highlight", () => {
     },
   );
 
+  it("marks only the term, not text an author wrapped in mark", () => {
+    const container = renderHighlighted("<mark>authored</mark> and a test");
+
+    expect(container).toHaveTextContent("authored and a test");
+    expect(
+      [...container.querySelectorAll("mark")].map((mark) => mark.textContent),
+    ).toEqual(["test"]);
+  });
+
   it("treats regex characters in the term literally", () => {
     const container = renderHighlighted("Costs $100 (net).", "$100 (");
 

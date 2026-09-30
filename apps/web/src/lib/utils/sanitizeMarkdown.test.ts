@@ -86,6 +86,12 @@ describe("sanitizeMarkdown", () => {
     expect(sanitizeMarkdown(markdown)).toContain("&gt; quoted");
   });
 
+  it("drops an authored mark and keeps its text", () => {
+    expect(
+      sanitizeMarkdown('a <mark class="bg-primary-tertiary">found</mark> word'),
+    ).toBe("a found word");
+  });
+
   it("strips autoplay from video and audio tags", () => {
     const markdown = [
       '<video src="https://blob.example.com/clip.mp4" controls autoplay></video>',
