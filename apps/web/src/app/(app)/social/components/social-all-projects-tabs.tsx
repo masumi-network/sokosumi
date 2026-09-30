@@ -83,8 +83,10 @@ export function SocialAllProjectsTabs({
       </div>
 
       <TabsContent className="space-y-4" value="calendar">
-        {/* Not `notFound()`: the id came from a switchable scope, not from
-            the path, so the repair is to pick another project. */}
+        {/* The calendar shows every project's posts as they are; picking a
+            project is asked for where it is needed, on Drafts and Accounts.
+            Not `notFound()` for a lost id: it came from a switchable scope,
+            not from the path, so the repair is to pick another project. */}
         {notice ? <SocialAccountsProjectPrompt notice={notice} /> : null}
         {calendar}
       </TabsContent>

@@ -84,6 +84,9 @@ const MESSAGES: Record<string, string> = {
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
   "sections.accounts": "Accounts",
+  "connectPrompt.title": "Connect an account to start posting",
+  "connectPrompt.body": "Posts go out from this project's accounts.",
+  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
   selectedPost: "Selected post",
   "empty.drafts": "No drafts yet.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
@@ -501,7 +504,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
       "Calendar ",
       "Drafts 1",
-      "Accounts ",
+      "Accounts 1",
     ]);
     expect(screen.getByText("Calendar panel")).toBeVisible();
     expect(screen.getByRole("button", { name: "Page action" })).toBeVisible();
@@ -509,6 +512,52 @@ describe("ProjectSocialPosts", () => {
     await openTab(user, "Accounts");
     expect(screen.getByText("Accounts panel")).toBeVisible();
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+  });
+
+  it("leads with connecting an account while the project has none", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const prompt = screen.getByTestId("social-connect-prompt");
+    expect(
+      within(prompt).getByText("Connect an account to start posting"),
+    ).toBeVisible();
+    await user.click(
+      within(prompt).getByRole("button", {
+        name: "Connect X, YouTube, LinkedIn…",
+      }),
+    );
+
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts connected accounts on the Accounts tab and drops the prompt", () => {
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Accounts")).toHaveTextContent("Accounts 1");
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the tab the URL names", () => {
