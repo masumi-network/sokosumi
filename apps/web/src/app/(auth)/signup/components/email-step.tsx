@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -55,6 +55,7 @@ export function SignUpEmailStep({
     getErrorMessage,
   } = useAuthCaptcha("signup");
   const [accountExists, setAccountExists] = useState(false);
+  const signInLinkRef = useRef<HTMLAnchorElement>(null);
   const form = useForm<SignUpEmailFormSchemaType>({
     resolver: zodResolver(
       signUpEmailFormSchema(useTranslations("Library.Auth.Schema")),
@@ -67,6 +68,19 @@ export function SignUpEmailStep({
       form.setFocus("email");
     }
   });
+
+  const { isSubmitting } = form.formState;
+
+  // A submitting fieldset cannot receive focus. Wait until it is enabled;
+  // an invitation keeps the field disabled, so focus its recovery link.
+  useEffect(() => {
+    if (!accountExists || isSubmitting) return;
+    if (emailLocked) {
+      signInLinkRef.current?.focus();
+    } else {
+      form.setFocus("email");
+    }
+  }, [accountExists, emailLocked, form, isSubmitting]);
 
   async function handleSubmit({ email }: SignUpEmailFormSchemaType) {
     await runWithCaptcha(async (fetchOptions) => {
@@ -92,13 +106,10 @@ export function SignUpEmailStep({
 
       if (result.data.exists) {
         setAccountExists(true);
-        // The button this came from is replaced below, so focus moves to the
-        // field the message belongs to.
-        form.setError(
-          "email",
-          { type: "exists", message: t("Errors.emailExists") },
-          { shouldFocus: true },
-        );
+        form.setError("email", {
+          type: "exists",
+          message: t("Errors.emailExists"),
+        });
         return;
       }
 
@@ -125,11 +136,15 @@ export function SignUpEmailStep({
         }
         namespace="Auth.Pages.SignUp.Form"
       />
+      <p role="status" className="sr-only">
+        {accountExists && emailLocked ? t("Errors.emailExists") : null}
+      </p>
       <div className="flex flex-col gap-4">
         {captcha}
         {accountExists ? (
           <Button asChild variant="primary" className="w-full">
             <Link
+              ref={signInLinkRef}
               href={signInHref}
               onClick={() => {
                 rememberSignInEmailHint(form.getValues("email"));
@@ -140,7 +155,7 @@ export function SignUpEmailStep({
           </Button>
         ) : (
           <SubmitButton
-            isSubmitting={form.formState.isSubmitting}
+            isSubmitting={isSubmitting}
             spinnerPosition="start"
             label={t("continueWithEmail")}
             className="w-full"

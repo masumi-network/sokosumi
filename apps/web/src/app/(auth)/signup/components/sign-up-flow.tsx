@@ -54,6 +54,7 @@ export default function SignUpFlow({
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
+  const [isDetailsPending, setIsDetailsPending] = useState(false);
   const formStarted = useRef(false);
 
   // when user first sees the register page
@@ -82,6 +83,7 @@ export default function SignUpFlow({
                 <Button
                   type="button"
                   variant="link"
+                  disabled={isDetailsPending}
                   className="h-auto p-0 align-baseline"
                   onClick={() => {
                     setCameBack(true);
@@ -99,6 +101,7 @@ export default function SignUpFlow({
             email={email}
             returnUrl={returnUrl}
             onFormStart={handleFormStart}
+            onPendingChange={setIsDetailsPending}
           />
           {showMagicLink ? (
             <>

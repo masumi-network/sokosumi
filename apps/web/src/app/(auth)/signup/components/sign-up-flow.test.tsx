@@ -159,7 +159,24 @@ describe("SignUpFlow", () => {
     mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
     render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
 
+    // happy-dom focuses disabled descendants; browsers do not. Model that
+    // boundary so focus requested while the network call is pending fails.
+    const emailInput = emailField();
+    const focus = emailInput.focus.bind(emailInput);
+    vi.spyOn(emailInput, "focus").mockImplementation(() => {
+      if (!emailInput.closest("fieldset[disabled]")) focus();
+    });
+    let resolveStatus:
+      | ((result: { data: { exists: boolean }; error: null }) => void)
+      | undefined;
+    emailStatusMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
     await continueWith(user, "ada@example.com");
+    expect(emailInput.closest("fieldset")).toBeDisabled();
+    resolveStatus?.({ data: { exists: true }, error: null });
 
     expect(await screen.findByText("Errors.emailExists")).toBeVisible();
     expect(emailField()).toHaveAccessibleDescription("Errors.emailExists");
@@ -295,6 +312,35 @@ describe("SignUpFlow", () => {
     expect(
       screen.queryByRole("button", { name: "changeEmail" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("focuses the recovery link when an invitation email already exists", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    mockSearchParams = new URLSearchParams({
+      returnUrl: "/accept-invitation/inv_1",
+    });
+    render(
+      <SignUpFlow
+        showMagicLink
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const recoveryLink = await screen.findByRole("link", {
+      name: "logInInstead",
+    });
+    await waitFor(() => expect(recoveryLink).toHaveFocus());
+    expect(emailField()).toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Errors.emailExists");
+    expect(recoveryLink).toHaveAttribute(
+      "href",
+      "/signin?returnUrl=%2Faccept-invitation%2Finv_1",
+    );
   });
 
   it("counts the register view once and the form start once across steps", async () => {

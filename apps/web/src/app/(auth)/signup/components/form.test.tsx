@@ -120,7 +120,11 @@ describe("SignUpForm OAuth workflow", () => {
 
   function renderForm() {
     return render(
-      <SignUpForm email="new-user@example.com" onFormStart={onFormStart} />,
+      <SignUpForm
+        email="new-user@example.com"
+        onFormStart={onFormStart}
+        onPendingChange={vi.fn()}
+      />,
     );
   }
 
