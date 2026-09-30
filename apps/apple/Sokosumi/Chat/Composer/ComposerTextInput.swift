@@ -31,7 +31,7 @@ import SwiftUI
     var body: some View {
       ComposerLayout {
         HStack(alignment: .top, spacing: 8) {
-          MacComposerTextInput(text: $text, modifierReturnSubmits: cancelEdit != nil, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, attachmentDragChanged: attachmentDragChanged, onPaste: onPaste, insertion: insertion, onEdit: onEdit)
+          MacComposerTextInput(text: $text, cancel: cancelEdit, onBlur: onBlur, submit: submit, placeholder: placeholder, emojiPickerRequest: emojiPickerRequest, commands: commands, channels: channels, mentions: mentions, attachFiles: attachFiles, attachImage: attachImage, attachmentDragChanged: attachmentDragChanged, onPaste: onPaste, insertion: insertion, onEdit: onEdit)
           if let cancelEdit {
             MessageEditControls(canSave: canSend, save: { _ = submit() }, cancel: cancelEdit)
           }
