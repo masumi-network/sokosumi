@@ -90,13 +90,15 @@ async function taskLabels(
   );
 }
 
+/** Literal text inside markdown: a Task called "[TEST] Launch" keeps its brackets. */
 function linkText(value: string): string {
-  return value.replace(/[[\]\\]/g, "").slice(0, 120);
+  return value.slice(0, 120).replace(/[[\]\\]/g, "\\$&");
 }
 
 function actionTarget(
   call: { capability: string; targetId: string | null; result?: unknown },
   tasks: Map<string, TaskLabel>,
+  jobAgents: Map<string, string>,
 ): string {
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
@@ -108,8 +110,18 @@ function actionTarget(
     if (studio.success)
       return `([Open in Content Studio](${studio.data.studioUrl}))`;
   }
-  if (call.capability === "upload_file" && id.startsWith("https://"))
-    return `([Open file](${id}))`;
+  if (call.capability === "upload_file" && id.startsWith("https://")) {
+    const file = z
+      .object({ filename: z.string().min(1) })
+      .safeParse(call.result);
+    return file.success ? linkText(file.data.filename) : "";
+  }
+  if (call.capability === "hire_agent") {
+    const agentId = jobAgents.get(id);
+    return agentId
+      ? `([Open job](/agents/${encodeURIComponent(agentId)}/jobs/${encodeURIComponent(id)}))`
+      : "";
+  }
   const task = tasks.get(id);
   // Anything else is named by its label alone: a raw id tells the owner
   // nothing.
@@ -431,17 +443,51 @@ export async function buildActionResponse(
         : [],
     ),
   );
-  const actionText = unique.map(
-    (call) =>
-      `${call.turnId !== turnId ? "Previously verified: " : ""}${[
-        call.disposition === "ALREADY_SATISFIED"
-          ? "Already satisfied"
-          : ACTION_LABELS[call.capability],
-        actionTarget(call, tasks),
-      ]
-        .filter(Boolean)
-        .join(" ")}.`,
+  const hiredJobIds = unique.flatMap((call) =>
+    call.capability === "hire_agent" && call.targetId ? [call.targetId] : [],
   );
+  const jobAgents = new Map(
+    hiredJobIds.length
+      ? (
+          await tx.job.findMany({
+            where: { id: { in: hiredJobIds } },
+            select: { id: true, agentId: true },
+          })
+        ).map((job) => [job.id, job.agentId])
+      : [],
+  );
+  // One line per effect: a hire the runtime executed on its accepted call and
+  // recorded twice, or one Task reached two ways, is still one thing done.
+  const actionText = [
+    ...new Set(
+      unique.map(
+        (call) =>
+          `${call.turnId !== turnId ? "Previously verified: " : ""}${[
+            call.disposition === "ALREADY_SATISFIED"
+              ? "Already satisfied"
+              : ACTION_LABELS[call.capability],
+            actionTarget(call, tasks, jobAgents),
+          ]
+            .filter(Boolean)
+            .join(" ")}.`,
+      ),
+    ),
+  ];
+  // A file link on its own line renders as the file's card in chat.
+  const attachments = [
+    ...new Set(
+      unique.flatMap((call) => {
+        const file = z
+          .object({ filename: z.string().min(1) })
+          .safeParse(call.result);
+        return call.capability === "upload_file" &&
+          call.targetId?.startsWith("https://") &&
+          file.success
+          ? [`[${linkText(file.data.filename)}](${call.targetId})`]
+          : [];
+      }),
+    ),
+  ];
   for (const action of unfulfilledActions) {
     const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
     actionText.push(
@@ -501,7 +547,11 @@ export async function buildActionResponse(
     answerText: silent
       ? "Nothing to add."
       : calls.length || narrativeText.length
-        ? [actionText.join("\n"), narrativeText.join("\n")]
+        ? [
+            actionText.join("\n"),
+            attachments.join("\n"),
+            narrativeText.join("\n"),
+          ]
             .filter(Boolean)
             .join("\n\n")
         : actionRequested

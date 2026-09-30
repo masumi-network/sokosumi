@@ -129,9 +129,14 @@ async function loadChatLinkedTurn(
       : null,
     steps: turn.events.map((event) => sokoBotCapabilityLabel(event.toolName)),
     pendingDecisionIds: turn.pendingDecisions.map((decision) => decision.id),
-    taskIds: turn.delegations
-      .map((delegation) => delegation.taskId)
-      .filter((id): id is string => id !== null),
+    // Creating and assigning one Task are two delegations, not two Tasks.
+    taskIds: [
+      ...new Set(
+        turn.delegations
+          .map((delegation) => delegation.taskId)
+          .filter((id): id is string => id !== null),
+      ),
+    ],
   };
 }
 

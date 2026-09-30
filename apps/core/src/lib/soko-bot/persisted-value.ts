@@ -5,10 +5,13 @@ import {
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
 import { jsonInput } from "@/helpers/prisma-json";
+import { urlsIn } from "@/lib/soko-bot/citations";
 
 const PERSISTED_VALUE_MAX_DEPTH = 8;
 const TOOL_RESULT_MAX_BYTES = 16_384;
 const PERSISTED_COLLECTION_MAX_ITEMS = 100;
+/** Room kept for the addresses of a result too large to store whole. */
+const TRUNCATED_SOURCES_MAX_BYTES = 8_192;
 
 /**
  * Redacts secrets and bounds size before anything the model produced or
@@ -70,13 +73,34 @@ export function truncateUtf8(value: string, maxBytes: number): string {
   return value.slice(0, low);
 }
 
-/** A tool input or result as stored on its row: sanitized, and at most 16 KB. */
+/**
+ * The addresses in a result, as far as they fit. A truncated preview cuts
+ * them off, and the link check reads stored results: without these a link the
+ * bot's own tool returned (a long board read, a Task with many comments) was
+ * dropped from its answer as unconfirmed.
+ */
+function truncatedSources(value: unknown): string[] {
+  const sources: string[] = [];
+  let bytes = 0;
+  for (const url of urlsIn(value)) {
+    bytes += Buffer.byteLength(url, "utf8") + 3;
+    if (bytes > TRUNCATED_SOURCES_MAX_BYTES) break;
+    sources.push(url);
+  }
+  return sources;
+}
+
+/**
+ * A tool input or result as stored on its row: sanitized, and at most 16 KB,
+ * plus the addresses of one that had to be cut.
+ */
 export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
   const sanitized = sanitizePersistedValue(value);
   const serialized = JSON.stringify(sanitized);
   if (Buffer.byteLength(serialized, "utf8") <= TOOL_RESULT_MAX_BYTES) {
     return jsonInput(sanitized);
   }
+  const sources = truncatedSources(sanitized);
   const emptyWrapper = JSON.stringify({ truncated: true, preview: "" });
   let preview = truncateUtf8(
     serialized,
@@ -95,5 +119,5 @@ export function persistedToolResult(value: unknown): Prisma.InputJsonValue {
     );
     wrapper = { truncated: true, preview };
   }
-  return jsonInput(wrapper);
+  return jsonInput(sources.length ? { ...wrapper, sources } : wrapper);
 }

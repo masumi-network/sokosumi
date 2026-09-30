@@ -11,6 +11,7 @@ const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
   task: { findFirst: vi.fn(), findMany: vi.fn() },
+  job: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
@@ -52,6 +53,49 @@ function replay() {
     operationKey: null,
   });
 }
+
+describe("action lines the owner reads", () => {
+  it("says a hire once and links the job", async () => {
+    const hire = {
+      capability: "hire_agent",
+      targetId: "job-one",
+      verification: "PROVIDER_ACK" as const,
+      effectEventId: null,
+    };
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ ...hire, id: "hire-a", toolCallId: "call-a" }),
+      receipt({ ...hire, id: "hire-b", toolCallId: "call-b" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    db.job.findMany.mockResolvedValueOnce([
+      { id: "job-one", agentId: "agent-one" },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Hired agent ([Open job](/agents/agent-one/jobs/job-one)).",
+    );
+    expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
+  });
+
+  it("names an uploaded file and shows it as its own card", async () => {
+    const url =
+      "https://store.public.blob.vercel-storage.com/drive/users/u/test-notes.md";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "upload_file",
+        targetId: url,
+        verification: "PROVIDER_ACK",
+        effectEventId: null,
+        result: { filename: "test-notes.md", url, size: 12 },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Uploaded file test-notes.md.\n\n[test-notes.md](${url})`,
+    );
+  });
+});
 
 describe("authoritative action responses", () => {
   beforeEach(() => {
@@ -184,7 +228,7 @@ describe("authoritative action responses", () => {
     ]);
     const result = await buildActionResponse(prisma, "turn-current", "Done.");
     expect(result.answerText).toBe(
-      "Created task [x402 news draft](/tasks/task-one).\nAssigned task [x402 news draft](/tasks/task-one) → Hannah.",
+      "Created task [x402 news \\[draft\\]](/tasks/task-one).\nAssigned task [x402 news \\[draft\\]](/tasks/task-one) → Hannah.",
     );
   });
 

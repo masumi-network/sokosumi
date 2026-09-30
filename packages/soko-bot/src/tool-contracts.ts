@@ -28,9 +28,35 @@ export const sokoBotTaskIdInputSchema = z
   .object({ taskId: z.string().min(1) })
   .strict();
 
+/** Every Task status, as Core stores it. */
+export const SOKO_BOT_TASK_STATUSES = [
+  "DRAFT",
+  "QUEUED",
+  "READY",
+  "GRANT_PENDING",
+  "INPUT_REQUIRED",
+  "APPROVAL_REQUIRED",
+  "AUTHENTICATION_REQUIRED",
+  "OUT_OF_CREDITS",
+  "CREDITS_TOPPED_UP",
+  "RUNNING",
+  "AWAITING_EXTERNAL",
+  "COMPLETED",
+  "FAILED",
+  "CANCELED",
+] as const;
+
+const taskStatusSchema = z.enum(SOKO_BOT_TASK_STATUSES);
+
 export const sokoBotListTasksInputSchema = z
   .object({
     state: z.enum(["open", "finished", "all"]).default("open"),
+    status: z
+      .union([
+        taskStatusSchema,
+        z.array(taskStatusSchema).min(1).max(SOKO_BOT_TASK_STATUSES.length),
+      ])
+      .optional(),
     query: z.string().trim().min(1).max(200).optional(),
     assignee: z.string().trim().min(1).max(160).optional(),
     idleDays: z.number().int().min(1).max(365).optional(),
@@ -613,7 +639,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   get_task_status:
     "Read a Task in full: status, assignee, description, the latest events with the Coworker's comments (questions, results, failure reasons), attached files, and linked Tasks.",
   list_tasks:
-    "List the owner's Tasks on the board. Filter by state (open, finished, all), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first. Use get_task_status for one Task in full.",
+    "List the owner's Tasks on the board. Filter by state (open, finished, all), exact status (one or several, e.g. INPUT_REQUIRED and FAILED for what is stuck; it replaces state), words in the name, assignee (a name, or \"unassigned\"), idle for at least idleDays, or project. Returns each Task's status, assignee, project, days since it last changed, and latest update, newest first; `total` and `byStatus` count every match, not just the page shown. Use get_task_status for one Task in full.",
   reply_to_task:
     "Post a comment on a Task as the project manager. With status READY it answers a Coworker's INPUT_REQUIRED question or restarts a FAILED task with guidance; without status it only comments.",
   update_assigned_task:
