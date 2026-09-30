@@ -28,7 +28,7 @@ struct RoomDetailsView: View {
         if room.kind == .channel {
           Section("Channel") {
             Text(room.name).font(.headline)
-            Text(visibility).foregroundStyle(.secondary)
+            Text(ChannelMark(room.discoverability).channelDescription).foregroundStyle(.secondary)
             if let topic = room.topic?.trimmingCharacters(in: .whitespacesAndNewlines), !topic.isEmpty {
               Text(topic).textSelection(.enabled)
             }
@@ -86,14 +86,6 @@ struct RoomDetailsView: View {
       editChannel = nil
       nameGroup = nil
       lifecycle = nil
-    }
-  }
-
-  private var visibility: String {
-    switch room.discoverability {
-    case ._private: "Private channel"
-    case .external: "External channel"
-    default: "Public channel"
     }
   }
 
