@@ -89,7 +89,8 @@ interface ProjectSocialConnectionRecord {
   disconnectedAt: Date | null;
 }
 
-function projectConnectorUserId(userId: string): string {
+/** Composio user id that owns a connection the given user authorized. */
+export function projectConnectorUserId(userId: string): string {
   return `sokosumi:user:${userId}`;
 }
 
@@ -209,7 +210,7 @@ function isLiveIntent(
   );
 }
 
-async function requireScopedProject(
+export async function requireScopedProject(
   input: { projectId: string; workspaceId: string },
   client: Pick<Prisma.TransactionClient, "project"> = prisma,
   requireOpen = false,
@@ -222,13 +223,11 @@ async function requireScopedProject(
     throw notFound("Project not found");
   }
   if (requireOpen && (project.closingAt || project.closedAt)) {
-    throw conflict(
-      "Cannot connect social accounts to a closing or closed Project",
-    );
+    throw conflict("Cannot connect accounts to a closing or closed Project");
   }
 }
 
-async function requireLockedOpenProject(
+export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
 ): Promise<void> {

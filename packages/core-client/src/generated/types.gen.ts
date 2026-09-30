@@ -5414,6 +5414,87 @@ export type DisconnectProjectSocialConnectionResponse = ProjectSocialConnection 
     providerRevocation: 'succeeded' | 'failed' | 'skipped';
 };
 
+export type ProjectAdAccount = {
+    id: string;
+    connectionId: string;
+    provider: ProjectAdProvider;
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+    /**
+     * Google manager account reaching this account, if any
+     */
+    loginCustomerId: string | null;
+    createdAt: Date;
+};
+
+export const ProjectAdProvider = { GOOGLE_ADS: 'google_ads', META_ADS: 'meta_ads' } as const;
+
+export type ProjectAdProvider = typeof ProjectAdProvider[keyof typeof ProjectAdProvider];
+
+export type InitiateProjectAdConnectionResponse = {
+    connectionId: string;
+    redirectUrl: string;
+};
+
+export type InitiateProjectAdConnectionRequest = {
+    provider: ProjectAdProvider;
+};
+
+export type FinalizeProjectAdConnectionResponse = {
+    connection: ProjectAdConnection;
+    availableAccounts: Array<AvailableAdAccount>;
+};
+
+export type ProjectAdConnection = {
+    /**
+     * Pass this as `connectionId` when attaching accounts
+     */
+    id: string;
+    provider: ProjectAdProvider;
+    status: 'active' | 'reauthorization_required' | 'disconnected';
+    createdAt: Date;
+};
+
+export type AvailableAdAccount = {
+    /**
+     * Google customer id or Meta `act_…` id
+     */
+    externalAccountId: string;
+    name: string;
+    /**
+     * ISO 4217 code; money is a decimal in this currency
+     */
+    currency: string;
+    timeZone: string | null;
+    /**
+     * Google manager account reaching this account, if any
+     */
+    loginCustomerId: string | null;
+};
+
+export type FinalizeProjectAdConnectionRequest = {
+    /**
+     * The `connectionId` returned by initiate
+     */
+    connectionId: string;
+};
+
+export type AttachProjectAdAccountsRequest = {
+    /**
+     * The connection `id` returned by finalize
+     */
+    connectionId: string;
+    externalAccountIds: Array<string>;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
@@ -38463,6 +38544,735 @@ export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponses = {
 };
 
 export type DeleteProjectsByIdSocialConnectionsByConnectionIdResponse = DeleteProjectsByIdSocialConnectionsByConnectionIdResponses[keyof DeleteProjectsByIdSocialConnectionsByConnectionIdResponses];
+
+export type GetProjectsByIdAdsAccountsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type GetProjectsByIdAdsAccountsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsError = GetProjectsByIdAdsAccountsErrors[keyof GetProjectsByIdAdsAccountsErrors];
+
+export type GetProjectsByIdAdsAccountsResponses = {
+    /**
+     * Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsAccountsResponse = GetProjectsByIdAdsAccountsResponses[keyof GetProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsAccountsData = {
+    body: AttachProjectAdAccountsRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts';
+};
+
+export type PostProjectsByIdAdsAccountsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsError = PostProjectsByIdAdsAccountsErrors[keyof PostProjectsByIdAdsAccountsErrors];
+
+export type PostProjectsByIdAdsAccountsResponses = {
+    /**
+     * Attached Project ad accounts
+     */
+    200: {
+        data: Array<ProjectAdAccount>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsAccountsResponse = PostProjectsByIdAdsAccountsResponses[keyof PostProjectsByIdAdsAccountsResponses];
+
+export type PostProjectsByIdAdsConnectionsInitiateData = {
+    body: InitiateProjectAdConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/initiate';
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateError = PostProjectsByIdAdsConnectionsInitiateErrors[keyof PostProjectsByIdAdsConnectionsInitiateErrors];
+
+export type PostProjectsByIdAdsConnectionsInitiateResponses = {
+    /**
+     * Project ad connection initiated
+     */
+    201: {
+        data: InitiateProjectAdConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsInitiateResponse = PostProjectsByIdAdsConnectionsInitiateResponses[keyof PostProjectsByIdAdsConnectionsInitiateResponses];
+
+export type PostProjectsByIdAdsConnectionsFinalizeData = {
+    body: FinalizeProjectAdConnectionRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/finalize';
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeError = PostProjectsByIdAdsConnectionsFinalizeErrors[keyof PostProjectsByIdAdsConnectionsFinalizeErrors];
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponses = {
+    /**
+     * Project ad connection and its available ad accounts
+     */
+    200: {
+        data: FinalizeProjectAdConnectionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostProjectsByIdAdsConnectionsFinalizeResponse = PostProjectsByIdAdsConnectionsFinalizeResponses[keyof PostProjectsByIdAdsConnectionsFinalizeResponses];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        accountId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/accounts/{accountId}';
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdError = DeleteProjectsByIdAdsAccountsByAccountIdErrors[keyof DeleteProjectsByIdAdsAccountsByAccountIdErrors];
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponses = {
+    /**
+     * Ad account detached
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsAccountsByAccountIdResponse = DeleteProjectsByIdAdsAccountsByAccountIdResponses[keyof DeleteProjectsByIdAdsAccountsByAccountIdResponses];
 
 export type GetProjectsByIdSocialPostsData = {
     body?: never;

@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  PROJECT_AD_PROVIDERS,
+  type ProjectAdProvider,
+} from "@/config/ads-providers";
+import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
@@ -91,6 +95,71 @@ describe("completeComposioCallback", () => {
       });
     },
   );
+
+  it.each(Object.keys(PROJECT_AD_PROVIDERS) as ProjectAdProvider[])(
+    "redeems the pinned %s ads callback",
+    async (provider) => {
+      const { toolkitSlug } = PROJECT_AD_PROVIDERS[provider];
+      socialConnectionIntentFindUniqueMock.mockResolvedValue({
+        initiatingUserId: "user_123",
+        provider,
+        authConfigId: `ac_${provider}`,
+        callbackRedeemedAt: null,
+        expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+        project: { closingAt: null, closedAt: null },
+      });
+      completeComposioAuthMock.mockResolvedValue({
+        connectedAccountId: "ca_123",
+        toolkitSlug,
+      });
+      getProjectSocialConnectedAccountMock.mockResolvedValue({
+        id: "ca_123",
+        toolkitSlug,
+        authConfigId: `ac_${provider}`,
+        connectorUserId: "sokosumi:user:user_123",
+      });
+      const { completeComposioCallback } = await import(
+        "./composio-callback-completion.service"
+      );
+      await expect(
+        completeComposioCallback({
+          connectionId: "ca_123",
+          sessionUri: "single-use",
+          userId: "user_123",
+        }),
+      ).resolves.toBeUndefined();
+      expect(socialConnectionIntentUpdateManyMock).toHaveBeenCalledWith({
+        where: expect.objectContaining({ provider }),
+        data: { callbackRedeemedAt: expect.any(Date) },
+      });
+    },
+  );
+
+  it("rejects an ads callback whose account is another toolkit", async () => {
+    socialConnectionIntentFindUniqueMock.mockResolvedValue({
+      initiatingUserId: "user_123",
+      provider: "google_ads",
+      authConfigId: "ac_google_ads",
+      callbackRedeemedAt: null,
+      expiresAt: new Date("2026-09-03T10:15:00.000Z"),
+      project: { closingAt: null, closedAt: null },
+    });
+    completeComposioAuthMock.mockResolvedValue({
+      connectedAccountId: "ca_123",
+      toolkitSlug: "metaads",
+    });
+    const { completeComposioCallback } = await import(
+      "./composio-callback-completion.service"
+    );
+    await expect(
+      completeComposioCallback({
+        connectionId: "ca_123",
+        sessionUri: "single-use",
+        userId: "user_123",
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(socialConnectionIntentUpdateManyMock).not.toHaveBeenCalled();
+  });
 
   it.each([
     { toolkitSlug: "instagram" },

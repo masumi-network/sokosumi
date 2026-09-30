@@ -3,6 +3,10 @@ import {
   getProjectSocialConnectedAccount,
 } from "@/clients/composio.client";
 import {
+  isProjectAdProvider,
+  PROJECT_AD_PROVIDERS,
+} from "@/config/ads-providers";
+import {
   isProjectSocialProvider,
   PROJECT_SOCIAL_PROVIDERS,
 } from "@/config/social-providers";
@@ -11,6 +15,16 @@ import prisma from "@/lib/db/prisma";
 
 function projectConnectorUserId(userId: string): string {
   return `sokosumi:user:${userId}`;
+}
+
+function providerToolkitSlug(provider: string): string | null {
+  if (isProjectSocialProvider(provider)) {
+    return PROJECT_SOCIAL_PROVIDERS[provider].toolkitSlug;
+  }
+  if (isProjectAdProvider(provider)) {
+    return PROJECT_AD_PROVIDERS[provider].toolkitSlug;
+  }
+  return null;
 }
 
 /**
@@ -22,7 +36,7 @@ export async function completeComposioCallback(input: {
   sessionUri: string;
   userId: string;
 }): Promise<void> {
-  const socialIntent = await prisma.projectSocialConnectionIntent.findUnique({
+  const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
     select: {
       initiatingUserId: true,
@@ -33,14 +47,15 @@ export async function completeComposioCallback(input: {
       project: { select: { closingAt: true, closedAt: true } },
     },
   });
-  if (socialIntent) {
+  if (intent) {
+    const toolkitSlug = providerToolkitSlug(intent.provider);
     if (
-      socialIntent.initiatingUserId !== input.userId ||
-      !isProjectSocialProvider(socialIntent.provider) ||
-      socialIntent.callbackRedeemedAt !== null ||
-      socialIntent.expiresAt <= new Date() ||
-      socialIntent.project.closingAt ||
-      socialIntent.project.closedAt
+      intent.initiatingUserId !== input.userId ||
+      !toolkitSlug ||
+      intent.callbackRedeemedAt !== null ||
+      intent.expiresAt <= new Date() ||
+      intent.project.closingAt ||
+      intent.project.closedAt
     ) {
       throw notFound("Unknown or expired connection");
     }
@@ -49,8 +64,6 @@ export async function completeComposioCallback(input: {
       sessionUri: input.sessionUri,
       userId: projectConnectorUserId(input.userId),
     });
-    const toolkitSlug =
-      PROJECT_SOCIAL_PROVIDERS[socialIntent.provider].toolkitSlug;
     if (
       completion.connectedAccountId !== input.connectionId ||
       completion.toolkitSlug !== toolkitSlug
@@ -61,7 +74,7 @@ export async function completeComposioCallback(input: {
     if (
       account.id !== input.connectionId ||
       account.toolkitSlug !== toolkitSlug ||
-      account.authConfigId !== socialIntent.authConfigId ||
+      account.authConfigId !== intent.authConfigId ||
       account.connectorUserId !== projectConnectorUserId(input.userId)
     ) {
       throw notFound("Unknown or expired connection");
@@ -71,8 +84,8 @@ export async function completeComposioCallback(input: {
       where: {
         connectionId: input.connectionId,
         initiatingUserId: input.userId,
-        provider: socialIntent.provider,
-        authConfigId: socialIntent.authConfigId,
+        provider: intent.provider,
+        authConfigId: intent.authConfigId,
         callbackRedeemedAt: null,
         expiresAt: { gt: redeemedAt },
         project: { closingAt: null, closedAt: null },
