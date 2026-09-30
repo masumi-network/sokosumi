@@ -179,6 +179,14 @@ CI uses `job_sync_test`. The guard now accepts both names and still requires loo
 Against a disposable `job_sync_test`, the old guard returned `Test Files 1 failed (1)` and `Tests 4 skipped (4)`.
 After the fix, the same suite returned `Tests 4 passed (4)`. Application source did not change for this fix.
 
+[CORRECTION, VERIFIED: main merge and disposable PostgreSQL, 2026-09-30]
+Main advanced to `17746d664` with a later migration. The draft merged that commit without conflicts.
+The migration-order check then returned `1 failed | 13 passed (14)` because this draft's migration sorted before the new baseline.
+Its folder is now `20260930180000_mps_seller_and_task_quote`; its SQL is unchanged.
+The ordering check returned `14 passed (14)` after the rename.
+A fresh disposable database applied all 413 migrations. Drift returned `-- This is an empty migration.`
+These checks cover the combined history. The earlier 411-baseline result describes the previous main revision.
+
 ## Acceptance and migration preconditions
 
 - [x] [REPORTED: user decisions, 2026-09-30] Use an existing developer-managed MPS seller and encrypted Core storage through self-service CLI setup.
