@@ -218,6 +218,22 @@ describe("SignUpFlow", () => {
     ).toBeEnabled();
   });
 
+  it("says to start again when the OAuth request expired before the first step", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: null,
+      error: { status: 400, statusText: "", error: "invalid_signature" },
+    });
+    render(<SignUpFlow showMagicLink={false} lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalledWith("errorDescription");
+    });
+    expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
   it("asks Core nothing when the security check is cancelled", async () => {
     const user = userEvent.setup();
     requestCaptchaMock.mockResolvedValueOnce(null);

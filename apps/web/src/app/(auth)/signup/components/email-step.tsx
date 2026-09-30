@@ -15,6 +15,7 @@ import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
+import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
   type SignUpEmailFormSchemaType,
   signUpEmailFormSchema,
@@ -45,6 +46,7 @@ export function SignUpEmailStep({
   onContinue,
 }: SignUpEmailStepProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const oauthT = useTranslations("Auth.OAuthHandBack");
   const signInHref = useSignInHref();
   const {
     widget: captcha,
@@ -73,6 +75,13 @@ export function SignUpEmailStep({
       );
 
       if (result.error) {
+        // The auth client adds the page's OAuth request to every call, this
+        // one included, and Core refuses the call when that request is stale.
+        if (isRejectedOAuthRequestError(result.error)) {
+          toast.error(oauthT("errorDescription"));
+          return;
+        }
+
         // Core puts the captcha's error code on the body; the client types
         // only the transport fields.
         const error: { code?: string; message?: string } = result.error;

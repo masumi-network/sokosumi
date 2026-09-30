@@ -81,6 +81,19 @@ describe("sign-up email status", () => {
     expect(await response.json()).toEqual({ exists: false });
   });
 
+  it("accepts the OAuth request the auth client adds to every call", async () => {
+    passCaptcha();
+    const { ask } = createTestAuth();
+
+    const response = await ask({
+      email: "ada@example.com",
+      oauth_query: "client_id=cmo&exp=1772367377&sig=signed-value",
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ exists: true });
+  });
+
   it("answers nothing about the account beyond that", async () => {
     passCaptcha();
     const { ask } = createTestAuth();
