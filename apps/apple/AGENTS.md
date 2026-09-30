@@ -16,7 +16,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
-- `Chat/Timeline/`: room scrolling, message rows and timeline status rows.
+- `Chat/Timeline/`: room scrolling, message rows, timeline status rows and the room header in the title bar (`RoomHeaderModifier`). The header's mark, name and topic come from `RoomHeaderIdentity` in `SokosumiChat`.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
 - `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.
@@ -24,7 +24,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, the Typing line under the room composer (`RoomTypingLine`), Drive picker (`DriveFilePickerView`) and isolated native text input. Typing state and its channel stay in the shared packages.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).
-- `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton` and `ParticipantDetailsView`. Avatar networking and presence state remain in `SokosumiChat`.
+- `Shared/`: reusable participant avatar, `PresenceDot`, `ParticipantProfileButton`, `ParticipantDetailsView` and the one symbol per Channel mark (`ChannelMark.systemImage`; the mark itself is portable). Avatar networking and presence state remain in `SokosumiChat`.
 - `Settings/`: Settings scene content and the `timeFormat` environment value; preference state and networking stay in the shared packages.
 - `Notifications/`: `UNUserNotificationCenter` adapter (`ChatNotificationCenter`) and its lifecycle modifier for local chat banners while the app runs. The banner rules, preferences and navigation stay in the shared packages; no push registration.
 
