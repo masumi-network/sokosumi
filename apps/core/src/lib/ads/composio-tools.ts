@@ -3,6 +3,7 @@ import type { z } from "@hono/zod-openapi";
 import {
   ComposioApiError,
   deleteComposioToolSession,
+  record,
 } from "@/clients/composio.client";
 import {
   createComposioToolSession,
@@ -70,13 +71,53 @@ export async function withAdsToolSession<T>(
   }
 }
 
-/** Rows a tool returned under `key`; none when the key is missing. */
+function findRows(
+  payload: Record<string, unknown> | null,
+  key: string,
+): unknown[] | null {
+  if (!payload) return null;
+  const direct = payload[key];
+  if (Array.isArray(direct)) return direct;
+  const data = payload.data;
+  if (Array.isArray(data)) {
+    return data.flatMap((batch) => {
+      const fields = record(batch);
+      const rows = fields?.[key];
+      if (Array.isArray(rows)) return rows;
+      // Google streams an empty result as a batch with only a field mask.
+      return fields && "fieldMask" in fields && !(key in fields) ? [] : [batch];
+    });
+  }
+  return findRows(record(data), key);
+}
+
+/**
+ * Rows of a tool payload: under `key`, or under `data` either directly, nested
+ * in a `data` object, or as a list of streamed batches that each hold their
+ * rows under `key`. A payload with none of these has no rows.
+ */
 export function toolRows(
   payload: Record<string, unknown> | null,
   key: string,
 ): unknown[] {
-  const rows = payload?.[key];
-  return Array.isArray(rows) ? rows : [];
+  return findRows(payload, key) ?? [];
+}
+
+/** Like {@link toolRows}, but a payload with no recognizable rows is an unusable response. */
+export function requireToolRows(
+  payload: Record<string, unknown> | null,
+  key: string,
+  context: string,
+): unknown[] {
+  const rows = findRows(payload, key);
+  if (!rows) {
+    throw new ComposioApiError(
+      502,
+      undefined,
+      `${context} returned an invalid response`,
+    );
+  }
+  return rows;
 }
 
 /** Parses every row, treating one that does not match as an unusable response. */

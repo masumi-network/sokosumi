@@ -18508,6 +18508,122 @@ export const AttachProjectAdAccountsRequestSchema = {
     ]
 } as const;
 
+export const ListAdCampaignsResponseSchema = {
+    type: 'object',
+    properties: {
+        campaigns: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdCampaign'
+            }
+        },
+        range: {
+            $ref: '#/components/schemas/AdRange'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code of the ad account; money is in this currency',
+            example: 'EUR'
+        }
+    },
+    required: [
+        'campaigns',
+        'range',
+        'currency'
+    ]
+} as const;
+
+export const AdCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Provider campaign id'
+        },
+        name: {
+            type: 'string'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'ACTIVE',
+                'PAUSED',
+                'ENDED',
+                'OTHER'
+            ]
+        },
+        objective: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Google channel type or Meta objective',
+            example: 'SEARCH'
+        },
+        dailyBudget: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Decimal in the account currency',
+            example: 25.5
+        },
+        spend: {
+            type: 'number',
+            description: 'Over the range, decimal'
+        },
+        impressions: {
+            type: 'number'
+        },
+        clicks: {
+            type: 'number'
+        },
+        ctr: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'clicks / impressions; null without impressions'
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'spend / clicks; null without clicks'
+        },
+        conversions: {
+            type: [
+                'number',
+                'null'
+            ],
+            description: 'Null when the provider does not report conversions (Meta)'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'status',
+        'objective',
+        'dailyBudget',
+        'spend',
+        'impressions',
+        'clicks',
+        'ctr',
+        'cpc',
+        'conversions'
+    ]
+} as const;
+
+export const AdRangeSchema = {
+    type: 'string',
+    enum: [
+        'LAST_7_DAYS',
+        'LAST_30_DAYS'
+    ],
+    example: 'LAST_30_DAYS'
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {
