@@ -62,13 +62,6 @@ export function sourceKindsForActor(
   );
 }
 
-export function sourceAdmitsActorKind(
-  sourceKind: FileSourceKind,
-  actorKind: FileActorKind,
-): boolean {
-  return SOURCE_ACTOR_CEILING[sourceKind].includes(actorKind);
-}
-
 export async function ensureEvidenceScope(
   key: EvidenceScopeKey,
   client: Prisma.TransactionClient = prisma,
