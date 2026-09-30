@@ -55,6 +55,13 @@ vi.mock("@/lib/db/prisma", () => ({
     ),
   },
 }));
+const { createOrGetDirectRoomMock } = vi.hoisted(() => ({
+  createOrGetDirectRoomMock: vi.fn(),
+}));
+vi.mock("@/routes/v1/chats/rooms/helpers", () => ({
+  createOrGetDirectRoom: createOrGetDirectRoomMock,
+}));
+
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: publish,
 }));
@@ -243,7 +250,14 @@ describe("introduceSokoBot", () => {
 
 describe("postSokoBotOwnerNotice", () => {
   beforeEach(() => {
-    sokoBotFindFirst.mockResolvedValue({ id: "bot-a", userId: "owner" });
+    sokoBotFindFirst.mockResolvedValue({
+      id: "bot-a",
+      userId: "owner",
+      workspaceId: "ws-a",
+      workspace: { organizationId: "org-a" },
+      name: "Joseph",
+      user: { name: "Owner" },
+    });
     roomFindFirst.mockResolvedValue({ id: "room-a" });
     messageUpsert.mockResolvedValue({ id: "notice-1" });
   });
@@ -279,11 +293,45 @@ describe("postSokoBotOwnerNotice", () => {
     expect(publish).toHaveBeenCalledWith("notice-1", "create");
   });
 
-  it("posts nothing when the owner has no chat with the bot yet", async () => {
-    roomFindFirst.mockResolvedValue(null);
+  it("opens the owner's chat, introduces the bot, then posts", async () => {
+    roomFindFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "room-new" });
+    createOrGetDirectRoomMock.mockResolvedValue({
+      room: { id: "room-new" },
+      created: true,
+    });
+    const result = await postSokoBotOwnerNotice({
+      sokoBotId: "bot-a",
+      content: "x",
+      key: "k",
+    });
+    expect(createOrGetDirectRoomMock).toHaveBeenCalledWith({
+      organizationId: "org-a",
+      currentUserId: "owner",
+      memberUserIds: [],
+      coworkerIds: [],
+      sokoBotIds: ["bot-a"],
+    });
+    expect(messageCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ roomId: "room-new" }),
+      }),
+    );
+    expect(messageUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({ roomId: "room-new", content: "x" }),
+      }),
+    );
+    expect(result).toEqual({ messageId: "notice-1" });
+  });
+
+  it("posts nothing for a bot that is gone", async () => {
+    sokoBotFindFirst.mockResolvedValue(null);
     await expect(
       postSokoBotOwnerNotice({ sokoBotId: "bot-a", content: "x", key: "k" }),
     ).resolves.toBeNull();
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
     expect(messageUpsert).not.toHaveBeenCalled();
   });
 });
