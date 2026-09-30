@@ -557,7 +557,11 @@ export function ProjectSocialPosts({
         onValueChange={(value) => {
           const next = tabs.find((candidate) => candidate === value);
           // The first tab is the default, so it keeps the URL clean.
-          if (next) showTab(next === tabs[0] ? null : next);
+          // The first tab is the default and keeps the URL clean, unless a
+          // linked post would pull the page back to its own tab.
+          if (next) {
+            showTab(next === tabs[0] && !selectedSection ? null : next);
+          }
         }}
       >
         <div className="flex items-center justify-between gap-2">

@@ -282,6 +282,17 @@ describe("SocialPage", () => {
     await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
   });
 
+  it("loads the month range for a stale view=agenda link", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit({ projectId: "project-1", view: "agenda" });
+
+    // Social has no agenda list; the agenda range would leave the month
+    // grid missing posts.
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: undefined });
+  });
+
   it("opens the scoped project's posts, calendar and accounts", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 

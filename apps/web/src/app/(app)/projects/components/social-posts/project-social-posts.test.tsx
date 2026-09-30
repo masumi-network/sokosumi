@@ -511,6 +511,25 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
+  it("still opens the calendar after a link opened a draft's tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-draft"
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    await openTab(user, "Calendar");
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+  });
+
   it("opens the tab the URL names", () => {
     renderUi(
       <NuqsTestingAdapter searchParams="?tab=drafts">

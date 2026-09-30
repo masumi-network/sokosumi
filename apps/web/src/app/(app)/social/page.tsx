@@ -27,6 +27,15 @@ import { SocialPageShell } from "./components/social-page-shell";
 // Wait for the current session and project access before rendering.
 export const instant = false;
 
+/**
+ * Social's calendar has no agenda list, but older links (and the workspace
+ * calendar's phone default) can still carry `view=agenda`; loading that
+ * range would leave the month grid missing posts.
+ */
+function withoutAgendaView<T extends { view?: string }>(query: T): T {
+  return query.view === "agenda" ? { ...query, view: undefined } : query;
+}
+
 interface SocialPageProps {
   searchParams: Promise<CalendarPageSearchParams & { postId?: string }>;
 }
@@ -63,7 +72,10 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       // Drop an id the workspace no longer has, or the calendar would filter
       // to a project that is not there.
       loadWorkspaceCalendarPage({
-        searchParams: Promise.resolve({ ...query, projectId: undefined }),
+        searchParams: Promise.resolve({
+          ...withoutAgendaView(query),
+          projectId: undefined,
+        }),
       }),
       sokoBotService.getMine().catch(() => null),
     ]);
@@ -93,7 +105,10 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
       query.postId
         ? projectService.getSocialPost(project.id, query.postId)
         : Promise.resolve(null),
-      loadWorkspaceCalendarPage({ projectId: project.id, searchParams }),
+      loadWorkspaceCalendarPage({
+        projectId: project.id,
+        searchParams: Promise.resolve(withoutAgendaView(query)),
+      }),
       sokoBotService.getMine().catch(() => null),
     ]);
   const activeConnections = connections.filter(
