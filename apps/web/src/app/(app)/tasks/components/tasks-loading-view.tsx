@@ -30,7 +30,7 @@ interface TasksLoadingViewProps {
 /** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
 export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
   tabs: {
-    tasks: "Tasks",
+    tasks: "Board",
     calendar: "Calendar",
   },
   columns: {
