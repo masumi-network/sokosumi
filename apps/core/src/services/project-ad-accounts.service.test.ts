@@ -19,6 +19,8 @@ const m = vi.hoisted(() => {
     metaCampaigns: vi.fn(),
     googleUpdate: vi.fn(),
     metaUpdate: vi.fn(),
+    googleCreate: vi.fn(),
+    metaCreate: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -80,11 +82,13 @@ vi.mock("@/lib/ads/google-ads", () => ({
   listGoogleAdAccounts: m.listGoogle,
   listGoogleCampaigns: m.googleCampaigns,
   updateGoogleCampaign: m.googleUpdate,
+  createGoogleCampaign: m.googleCreate,
 }));
 vi.mock("@/lib/ads/meta-ads", () => ({
   listMetaAdAccounts: m.listMeta,
   listMetaCampaigns: m.metaCampaigns,
   updateMetaCampaign: m.metaUpdate,
+  createMetaCampaign: m.metaCreate,
 }));
 vi.mock("@/services/project-social-connections.service", () => ({
   projectConnectorUserId: (userId: string) => `sokosumi:user:${userId}`,
@@ -101,6 +105,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: m.tx }));
 
 import {
   attachProjectAdAccounts,
+  createProjectAdCampaign,
   detachProjectAdAccount,
   finalizeProjectAdConnection,
   getPendingProjectAdRevocation,
@@ -656,6 +661,112 @@ describe("project ad accounts service", () => {
     it("does not touch the provider when the Project is not in the Workspace", async () => {
       m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
       await expect(update()).rejects.toMatchObject({ status: 404 });
+      expect(m.accountFindFirst).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("create campaign", () => {
+    const accountRow = (
+      provider: string,
+      externalAccountId: string,
+      status = "active",
+      currency = "EUR",
+    ) => ({
+      id: ACCOUNT_UUID,
+      provider,
+      externalAccountId,
+      currency,
+      connection: { ...storedConnection, provider, status },
+    });
+    const create = (
+      changes: Partial<Parameters<typeof createProjectAdCampaign>[0]> = {},
+    ) =>
+      createProjectAdCampaign({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        name: "Spring sale",
+        dailyBudget: 12.5,
+        ...changes,
+      });
+    const connected = {
+      connectedAccountId: "ca_1",
+      executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+    };
+
+    it("creates a Google campaign inside the attached customer, ignoring any objective", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleCreate.mockResolvedValue("42");
+      await expect(create({ objective: "OUTCOME_SALES" })).resolves.toEqual({
+        id: "42",
+      });
+      expect(m.googleCreate).toHaveBeenCalledWith({
+        ...connected,
+        customerId: "111",
+        name: "Spring sale",
+        dailyBudget: 12.5,
+      });
+      expect(m.metaCreate).not.toHaveBeenCalled();
+    });
+
+    it("creates a Meta campaign with its objective inside the attached ad account", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      m.metaCreate.mockResolvedValue("120001");
+      await expect(create({ objective: "OUTCOME_LEADS" })).resolves.toEqual({
+        id: "120001",
+      });
+      expect(m.metaCreate).toHaveBeenCalledWith({
+        ...connected,
+        adAccountId: "act_9",
+        name: "Spring sale",
+        dailyBudget: 12.5,
+        objective: "OUTCOME_LEADS",
+      });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("rejects a Meta campaign without an objective before calling Meta", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      await expect(create()).rejects.toMatchObject({
+        status: 422,
+        message: expect.stringContaining("objective"),
+      });
+      expect(m.metaCreate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["JPY", 12.5],
+      ["USD", 12.345],
+    ])(
+      "rejects a %s budget of %d with more decimals than the currency has",
+      async (currency, dailyBudget) => {
+        m.accountFindFirst.mockResolvedValue(
+          accountRow("google_ads", "111", "active", currency),
+        );
+        await expect(create({ dailyBudget })).rejects.toMatchObject({
+          status: 422,
+          message: expect.stringContaining(currency),
+        });
+        expect(m.googleCreate).not.toHaveBeenCalled();
+      },
+    );
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(create()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("google_ads", "111", "disconnected"),
+      );
+      await expect(create()).rejects.toMatchObject({ status: 409 });
+      expect(m.googleCreate).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the provider when the Project is not in the Workspace", async () => {
+      m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
+      await expect(create()).rejects.toMatchObject({ status: 404 });
       expect(m.accountFindFirst).not.toHaveBeenCalled();
     });
   });

@@ -9,6 +9,7 @@ import {
   AD_CAMPAIGN_SETTABLE_STATUSES,
   AD_CAMPAIGN_STATUSES,
   AD_RANGES,
+  META_CAMPAIGN_OBJECTIVES,
 } from "@/lib/ads/campaigns";
 import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
 
@@ -180,3 +181,26 @@ export const updateAdCampaignRequestSchema = z
     },
   )
   .openapi("UpdateAdCampaignRequest");
+
+export const createAdCampaignRequestSchema = z
+  .object({
+    name: z.string().trim().min(1).max(255).openapi({ example: "Spring sale" }),
+    dailyBudget: z.number().positive().openapi({
+      description:
+        "Decimal in the account currency, greater than 0, with at most the currency's decimal places (JPY 0, USD 2)",
+      example: 25.5,
+    }),
+    objective: z.enum(META_CAMPAIGN_OBJECTIVES).optional().openapi({
+      description:
+        "Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)",
+    }),
+  })
+  .openapi("CreateAdCampaignRequest", {
+    description: "There is no status: a new campaign is always created paused",
+  });
+
+export const createAdCampaignResponseSchema = z
+  .object({
+    id: z.string().openapi({ description: "Provider campaign id" }),
+  })
+  .openapi("CreateAdCampaignResponse");

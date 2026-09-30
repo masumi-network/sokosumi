@@ -26,6 +26,7 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 }));
 
 import {
+  createMetaCampaign,
   listMetaAdAccounts,
   listMetaCampaigns,
   updateMetaCampaign,
@@ -511,4 +512,81 @@ describe("updateMetaCampaign", () => {
       ).rejects.toBeInstanceOf(ComposioToolError);
     },
   );
+});
+
+describe("createMetaCampaign", () => {
+  const create = {
+    ...input,
+    adAccountId: "act_1",
+    name: "Spring sale",
+    dailyBudget: 12.34,
+    objective: "OUTCOME_TRAFFIC" as const,
+  };
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockResolvedValue({ id: "120001", success: true });
+  });
+
+  it("creates a paused campaign with a decimal daily budget and returns its id", async () => {
+    await expect(createMetaCampaign(create)).resolves.toBe("120001");
+    expect(executeToolMock).toHaveBeenCalledTimes(1);
+    expect(executeToolMock.mock.calls[0]?.[0]).toMatchObject({
+      toolSlug: "METAADS_CREATE_CAMPAIGN",
+      arguments: {
+        account_id: "act_1",
+        name: "Spring sale",
+        objective: "OUTCOME_TRAFFIC",
+        status: "PAUSED",
+        daily_budget: 12.34,
+        special_ad_categories: [],
+      },
+    });
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolkitSlug: "metaads",
+        toolSlugs: ["METAADS_CREATE_CAMPAIGN"],
+      }),
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("prefixes an account id that lacks act_", async () => {
+    await createMetaCampaign({ ...create, adAccountId: "1" });
+    expect(executeToolMock.mock.calls[0]?.[0].arguments.account_id).toBe(
+      "act_1",
+    );
+  });
+
+  it("raises a provider error and still deletes the session", async () => {
+    executeToolMock.mockRejectedValue(
+      new ComposioToolError({ message: "refused" }),
+    );
+    await expect(createMetaCampaign(create)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["success false", { id: "1", success: false }],
+    ["no payload", {}],
+    ["null", null],
+  ])(
+    "raises a tool error when the create returns %s",
+    async (_name, result) => {
+      executeToolMock.mockResolvedValue(result);
+      await expect(createMetaCampaign(create)).rejects.toBeInstanceOf(
+        ComposioToolError,
+      );
+    },
+  );
+
+  it("raises a success without a campaign id as an invalid response", async () => {
+    executeToolMock.mockResolvedValue({ success: true });
+    await expect(createMetaCampaign(create)).rejects.toThrow(
+      /invalid response/,
+    );
+  });
 });

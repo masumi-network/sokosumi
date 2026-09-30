@@ -24,6 +24,7 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
 }));
 
 import {
+  createGoogleCampaign,
   listGoogleAdAccounts,
   listGoogleCampaigns,
   updateGoogleCampaign,
@@ -573,4 +574,180 @@ describe("updateGoogleCampaign", () => {
       ).rejects.toBeInstanceOf(ComposioToolError);
     },
   );
+});
+
+describe("createGoogleCampaign", () => {
+  const create = {
+    ...input,
+    customerId: "111",
+    name: "Spring sale",
+    dailyBudget: 12.34,
+  };
+  const budgetResult = {
+    results: [{ resource_name: "customers/111/campaignBudgets/7" }],
+  };
+  const campaignResult = {
+    results: [{ resource_name: "customers/111/campaigns/42" }],
+    successful_count: 1,
+    total_operations_count: 1,
+  };
+  const calls = () => executeToolMock.mock.calls.map(([call]) => call);
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
+        ? budgetResult
+        : campaignResult,
+    );
+  });
+
+  it("creates a private budget, then a paused Search campaign on it, and returns the campaign id", async () => {
+    await expect(createGoogleCampaign(create)).resolves.toBe("42");
+    const [budgetCall, campaignCall] = calls();
+    expect(budgetCall).toMatchObject({
+      toolSlug: "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+      arguments: {
+        customer_id: "111",
+        operations: [
+          {
+            create: {
+              name: expect.stringMatching(/^Spring sale budget [0-9a-f]{8}$/),
+              amount_micros: 12340000,
+              delivery_method: "STANDARD",
+              explicitly_shared: false,
+            },
+          },
+        ],
+      },
+    });
+    // The budget tool takes no operation_type.
+    expect(budgetCall.arguments.operations[0]).not.toHaveProperty(
+      "operation_type",
+    );
+    expect(campaignCall).toMatchObject({
+      toolSlug: "GOOGLEADS_MUTATE_CAMPAIGNS",
+      arguments: {
+        customer_id: "111",
+        operations: [
+          {
+            operation_type: "create",
+            create: {
+              name: "Spring sale",
+              status: "paused",
+              advertising_channel_type: "search",
+              campaign_budget: "customers/111/campaignBudgets/7",
+              manual_cpc: {},
+              network_settings: {
+                target_google_search: true,
+                target_search_network: false,
+                target_content_network: false,
+              },
+              contains_eu_political_advertising:
+                "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+            },
+          },
+        ],
+      },
+    });
+    expect(calls()).toHaveLength(2);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolkitSlug: "googleads",
+        toolSlugs: [
+          "GOOGLEADS_MUTATE_CAMPAIGNS",
+          "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+        ],
+      }),
+    );
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("gives each budget its own name and keeps it within Google's length limit", async () => {
+    const longName = "x".repeat(255);
+    await createGoogleCampaign({ ...create, name: longName });
+    await createGoogleCampaign({ ...create, name: longName });
+    const names = calls()
+      .filter((call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS")
+      .map((call) => call.arguments.operations[0].create.name as string);
+    expect(new Set(names).size).toBe(2);
+    for (const name of names) expect(name.length).toBeLessThanOrEqual(255);
+  });
+
+  it("removes the budget and rethrows when the campaign is not created", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) => {
+      if (call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS")
+        return budgetResult;
+      throw new ComposioToolError({ message: "refused" });
+    });
+    // The budget tool answers both the create and the remove.
+    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+    const budgetCalls = calls().filter(
+      (call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+    );
+    expect(budgetCalls).toHaveLength(2);
+    expect(budgetCalls[1]?.arguments).toEqual({
+      customer_id: "111",
+      operations: [{ remove: "customers/111/campaignBudgets/7" }],
+    });
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("removes the budget when the campaign create reports a partial failure", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
+        ? budgetResult
+        : { results: [], partial_failure_error: { code: 3 } },
+    );
+    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+    expect(
+      calls().filter(
+        (call) => call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("raises the campaign error even when removing the budget fails too", async () => {
+    executeToolMock.mockImplementation(
+      async (call: {
+        toolSlug: string;
+        arguments: { operations: object[] };
+      }) => {
+        if (call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGNS")
+          throw new ComposioToolError({ message: "campaign refused" });
+        if (call.arguments.operations[0]?.hasOwnProperty("remove"))
+          throw new ComposioToolError({ message: "remove refused" });
+        return budgetResult;
+      },
+    );
+    await expect(createGoogleCampaign(create)).rejects.toThrow(
+      /campaign refused/,
+    );
+  });
+
+  it("creates no campaign and removes nothing when the budget is not created", async () => {
+    executeToolMock.mockResolvedValue({ results: [] });
+    await expect(createGoogleCampaign(create)).rejects.toBeInstanceOf(
+      ComposioToolError,
+    );
+    expect(calls()).toHaveLength(1);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("keeps the budget when the created campaign has no usable id", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS"
+        ? budgetResult
+        : { results: [{ resource_name: "customers/111/campaigns/abc" }] },
+    );
+    await expect(createGoogleCampaign(create)).rejects.toThrow(
+      /invalid response/,
+    );
+    expect(calls()).toHaveLength(2);
+  });
 });

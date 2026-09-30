@@ -1,9 +1,12 @@
+import { randomUUID } from "node:crypto";
+
 import { z } from "@hono/zod-openapi";
 
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
+  type AdCampaignCreate,
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
@@ -14,11 +17,13 @@ import {
 import {
   type AdsConnectedAccount,
   type AvailableAdAccount,
+  parseToolRow,
   parseToolRows,
   requireToolRows,
   toolRows,
   withAdsToolSession,
 } from "@/lib/ads/composio-tools";
+import { tryUseLogger } from "@/lib/evlog";
 
 const LIST_ACCESSIBLE_CUSTOMERS = "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS";
 const SEARCH_STREAM_GAQL = "GOOGLEADS_SEARCH_STREAM_GAQL";
@@ -301,6 +306,113 @@ export async function updateGoogleCampaign(
           "change Google Ads campaign status",
         );
       }
+    },
+  );
+}
+
+const resultSchema = z.object({ resource_name: z.string().min(1) });
+const campaignResourceNameSchema = z
+  .string()
+  .regex(/^customers\/\d+\/campaigns\/\d+$/);
+const MAX_BUDGET_NAME_LENGTH = 255;
+
+/** Resource name of the first result of a mutation that was applied. */
+function mutatedResourceName(
+  payload: Record<string, unknown> | null,
+  context: string,
+): string {
+  requireMutated(payload, context);
+  return parseToolRow(toolRows(payload, "results")[0], resultSchema, context)
+    .resource_name;
+}
+
+/**
+ * Creates a paused Search campaign with its own (not shared) daily budget and
+ * returns the campaign id. The budget goes first because the campaign needs
+ * its resource name. When the campaign is not created, the budget is removed
+ * again (best effort) and the campaign error is raised.
+ *
+ * The create schema has no Maximize clicks field, only `manual_cpc` (empty:
+ * no bid strategy) or a portfolio strategy, so the campaign uses manual CPC.
+ */
+export async function createGoogleCampaign(
+  input: AdsConnectedAccount & AdCampaignCreate & { customerId: string },
+): Promise<string> {
+  const { customerId, name, dailyBudget, ...connected } = input;
+
+  return withAdsToolSession(
+    {
+      ...connected,
+      provider: "google_ads",
+      toolSlugs: [MUTATE_CAMPAIGNS, MUTATE_CAMPAIGN_BUDGETS],
+    },
+    async (execute) => {
+      // Budget names are unique per customer; the suffix avoids clashes with
+      // earlier campaigns of the same name.
+      const budgetName = `${name.slice(0, MAX_BUDGET_NAME_LENGTH - 16)} budget ${randomUUID().slice(0, 8)}`;
+      const budget = mutatedResourceName(
+        await execute(MUTATE_CAMPAIGN_BUDGETS, {
+          customer_id: customerId,
+          operations: [
+            {
+              create: {
+                name: budgetName,
+                amount_micros: Math.round(dailyBudget * MICROS),
+                delivery_method: "STANDARD",
+                explicitly_shared: false,
+              },
+            },
+          ],
+        }),
+        "create Google Ads campaign budget",
+      );
+
+      let campaignResourceName: string;
+      try {
+        campaignResourceName = mutatedResourceName(
+          await execute(MUTATE_CAMPAIGNS, {
+            customer_id: customerId,
+            operations: [
+              {
+                operation_type: "create",
+                create: {
+                  name,
+                  status: "paused",
+                  advertising_channel_type: "search",
+                  campaign_budget: budget,
+                  manual_cpc: {},
+                  network_settings: {
+                    target_google_search: true,
+                    target_search_network: false,
+                    target_content_network: false,
+                  },
+                  contains_eu_political_advertising:
+                    "DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING",
+                },
+              },
+            ],
+          }),
+          "create Google Ads campaign",
+        );
+      } catch (error) {
+        try {
+          await execute(MUTATE_CAMPAIGN_BUDGETS, {
+            customer_id: customerId,
+            operations: [{ remove: budget }],
+          });
+        } catch {
+          tryUseLogger()?.warn("could not remove unused Google Ads budget", {
+            ads: { customerId, budget },
+          });
+        }
+        throw error;
+      }
+      const resourceName = parseToolRow(
+        campaignResourceName,
+        campaignResourceNameSchema,
+        "create Google Ads campaign",
+      );
+      return resourceName.slice(resourceName.lastIndexOf("/") + 1);
     },
   );
 }

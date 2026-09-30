@@ -27,17 +27,21 @@ import {
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import {
   type AdCampaign,
+  type AdCampaignCreate,
   type AdCampaignUpdate,
   type AdRange,
   currencyFractionDigits,
+  type MetaCampaignObjective,
 } from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
 import {
+  createGoogleCampaign,
   listGoogleAdAccounts,
   listGoogleCampaigns,
   updateGoogleCampaign,
 } from "@/lib/ads/google-ads";
 import {
+  createMetaCampaign,
   listMetaAdAccounts,
   listMetaCampaigns,
   updateMetaCampaign,
@@ -401,6 +405,17 @@ export async function listProjectAdCampaigns(
   return { campaigns, range: input.range, currency: account.currency };
 }
 
+/** A budget with more decimals than the currency has cannot be charged exactly. */
+function requireBudgetPrecision(dailyBudget: number, currency: string): void {
+  const digits = currencyFractionDigits(currency);
+  const scaled = dailyBudget * 10 ** digits;
+  if (Math.abs(scaled - Math.round(scaled)) > 1e-6) {
+    throw unprocessableEntity(
+      `Daily budget in ${currency} can have at most ${digits} decimal places`,
+    );
+  }
+}
+
 /**
  * Pauses, resumes and/or changes the daily budget of a campaign of an attached
  * ad account. The provider modules prove the campaign belongs to that account
@@ -412,13 +427,7 @@ export async function updateProjectAdCampaign(
 ): Promise<void> {
   const account = await requireActiveAdAccount(input);
   if (input.dailyBudget !== undefined) {
-    const digits = currencyFractionDigits(account.currency);
-    const scaled = input.dailyBudget * 10 ** digits;
-    if (Math.abs(scaled - Math.round(scaled)) > 1e-6) {
-      throw unprocessableEntity(
-        `Daily budget in ${account.currency} can have at most ${digits} decimal places`,
-      );
-    }
+    requireBudgetPrecision(input.dailyBudget, account.currency);
   }
   const change = {
     ...account.connected,
@@ -437,6 +446,42 @@ export async function updateProjectAdCampaign(
       adAccountId: account.externalAccountId,
     });
   }
+}
+
+/**
+ * Creates a paused campaign in an attached ad account and returns its id. Meta
+ * needs an objective; Google creates Search campaigns and ignores it. All
+ * refusals happen before the provider is called.
+ */
+export async function createProjectAdCampaign(
+  input: ProjectScope &
+    AdCampaignCreate & { accountId: string; objective?: MetaCampaignObjective },
+): Promise<{ id: string }> {
+  const account = await requireActiveAdAccount(input);
+  requireBudgetPrecision(input.dailyBudget, account.currency);
+  const campaign = {
+    ...account.connected,
+    name: input.name,
+    dailyBudget: input.dailyBudget,
+  };
+  if (account.provider === "google_ads") {
+    return {
+      id: await createGoogleCampaign({
+        ...campaign,
+        customerId: account.externalAccountId,
+      }),
+    };
+  }
+  if (!input.objective) {
+    throw unprocessableEntity("Meta campaigns need an objective");
+  }
+  return {
+    id: await createMetaCampaign({
+      ...campaign,
+      adAccountId: account.externalAccountId,
+      objective: input.objective,
+    }),
+  };
 }
 
 /**
