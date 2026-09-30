@@ -75,11 +75,9 @@ describe("NameForm", () => {
     await submit(user);
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({
-        firstName: null,
-        lastName: null,
-        name: "Ada Lovelace",
-      });
+      // The stored parts are not written: null stays null for a user from
+      // before they existed, which is what marks that user as such.
+      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
     });
   });
 

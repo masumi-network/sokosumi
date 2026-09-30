@@ -54,9 +54,11 @@ export function NameForm({ name, firstName, lastName }: NameFormProps) {
 
   const handleSubmit = async (values: AccountNameFormType) => {
     const updateUserResult = await authClient.updateUser({
-      // Empty only for a user who never had name parts; stored as absent.
-      firstName: values.firstName || null,
-      lastName: values.lastName || null,
+      // Both or neither: the schema allows empty parts only for a user who
+      // has none, and then the stored parts are left exactly as they are.
+      ...(values.firstName && values.lastName
+        ? { firstName: values.firstName, lastName: values.lastName }
+        : {}),
       name: values.name,
     });
 
