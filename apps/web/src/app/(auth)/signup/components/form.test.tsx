@@ -186,6 +186,9 @@ describe("SignUpForm OAuth workflow", () => {
     expect(username).toHaveValue("new-user@example.com");
     expect(username).toHaveAttribute("readonly");
     expect(username).toHaveAttribute("aria-hidden", "true");
+    expect(username).toHaveAttribute("type", "email");
+    expect(username).toHaveAttribute("autocapitalize", "none");
+    expect(username).toHaveAttribute("spellcheck", "false");
   });
 
   it("moves focus to the first name when the step opens", async () => {

@@ -28,6 +28,8 @@ interface SignUpFlowProps {
   returnUrl?: string | undefined;
   lastUsedMethod: SignInMethodId | null;
   showMagicLink: boolean;
+  /** Shown above the email step, e.g. why a sign-in brought the person back. */
+  notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
   children?: ReactNode;
 }
@@ -44,6 +46,7 @@ export default function SignUpFlow({
   returnUrl,
   lastUsedMethod,
   showMagicLink,
+  notice,
   children,
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
@@ -112,6 +115,7 @@ export default function SignUpFlow({
     <div className="flex flex-1 flex-col">
       <SignUpHeader invitationId={invitationId} client={client} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
+        {notice}
         <SignUpEmailStep
           defaultEmail={email}
           emailLocked={Boolean(prefilledEmail)}

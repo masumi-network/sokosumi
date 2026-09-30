@@ -28,6 +28,10 @@ vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
 }));
 
+vi.mock("next-intl", () => ({
+  useTranslations: () => (key: string) => key,
+}));
+
 vi.mock("@/auth/components/divider", () => ({
   __esModule: true,
   default: () => <div data-testid="divider" />,
@@ -210,5 +214,25 @@ describe("SignIn page", () => {
     expect(socialButtonsMock).toHaveBeenCalledWith(
       expect.objectContaining({ showMagicLink: true }),
     );
+  });
+
+  it("explains why a sign-in brought the person back", async () => {
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({ error: "account_not_linked" }),
+      }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("accountNotLinked");
+  });
+
+  it("shows no error notice on a plain visit", async () => {
+    const { default: Page } = await import("./page");
+
+    render(await Page({ searchParams: Promise.resolve({}) }));
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

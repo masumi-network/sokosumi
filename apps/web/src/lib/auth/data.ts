@@ -46,8 +46,10 @@ export const firstAndLastNameSchema = (
 
 export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
-    .email({ error: t?.("Email.invalid") })
-    .min(1, { error: t?.("Email.required") });
+    .string({ error: t?.("Email.invalid") })
+    .trim()
+    .min(1, { error: t?.("Email.required") })
+    .pipe(z.email({ error: t?.("Email.invalid") }));
 
 // Length only, matching what Core enforces.
 export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>

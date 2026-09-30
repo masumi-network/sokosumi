@@ -1338,6 +1338,12 @@
     },
     "OAuthClient": {
       "backTo": "Zurück zu {client}"
+    },
+    "SignInError": {
+      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem Magic Link an und verbinde Google oder Microsoft danach unter Verbindungen.",
+      "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
+      "linkExpired": "Dieser Magic Link ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
+      "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut."
     }
   },
   "App": {

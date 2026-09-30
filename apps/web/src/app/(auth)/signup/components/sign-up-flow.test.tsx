@@ -102,7 +102,10 @@ describe("SignUpFlow", () => {
       <SignUpFlow showMagicLink lastUsedMethod="google" returnUrl="/agents" />,
     );
 
+    expect(emailField()).toHaveAttribute("type", "email");
     expect(emailField()).toHaveAttribute("autocomplete", "email");
+    expect(emailField()).toHaveAttribute("autocapitalize", "none");
+    expect(emailField()).toHaveAttribute("spellcheck", "false");
     expect(emailField()).not.toHaveFocus();
     expect(socialButtonsMock).toHaveBeenCalledWith({
       returnUrl: "/agents",
@@ -154,6 +157,29 @@ describe("SignUpFlow", () => {
       screen.getByRole("group", { name: "Fields.Email.label" }),
     ).toHaveTextContent("ada@example.com");
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
+  });
+
+  // The browser strips the space from what is typed into an email input, but
+  // not from an address handed over from sign-in.
+  it("checks and carries a handed-over address without its trailing space", async () => {
+    const user = userEvent.setup();
+    render(
+      <SignUpFlow
+        showMagicLink
+        lastUsedMethod={null}
+        prefilledEmail="ada@example.com "
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    expect(emailStatusMock).toHaveBeenCalledWith(
+      "/sign-up/email-status",
+      expect.objectContaining({ body: { email: "ada@example.com" } }),
+    );
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: "ada@example.com" }),
+    );
   });
 
   function notice() {

@@ -25,7 +25,10 @@ export function BaseForm<T extends FieldValues>({
 
   return (
     <Form {...form}>
+      {/* The schema validates; the browser's own email check would show an
+          untranslated tooltip instead of the form's message. */}
       <form
+        noValidate
         onSubmit={form.handleSubmit(onSubmit)}
         onChange={onChange}
         className={cn(className)}

@@ -35,6 +35,28 @@ describe("SOK-1144 password reset feedback", () => {
     });
   });
 
+  it("asks for the address with an email keyboard and no autocorrect", () => {
+    render(<ForgotPasswordForm />);
+
+    const email = screen.getByTestId("auth-field-email");
+    expect(email).toHaveAttribute("type", "email");
+    expect(email).toHaveAttribute("autocomplete", "email");
+    expect(email).toHaveAttribute("autocapitalize", "none");
+    expect(email).toHaveAttribute("spellcheck", "false");
+  });
+
+  // The browser strips the space from what is typed into an email input, but
+  // not from an address handed over from sign-in.
+  it("sends a handed-over address without its trailing space", async () => {
+    render(<ForgotPasswordForm initialEmail="ada@example.com " />);
+
+    await submit();
+
+    expect(requestPasswordReset).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "ada@example.com" }),
+    );
+  });
+
   it("keeps success visible on the form without redirecting", async () => {
     render(<ForgotPasswordForm initialEmail="person@example.com" />);
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
