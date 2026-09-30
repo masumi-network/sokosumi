@@ -153,24 +153,48 @@ export const markdownHastSchema: Schema = {
   strip: ["script", "style", "textarea", "option", "xmp"],
 };
 
+const RAW_HTML_ATTRIBUTES = {
+  a: ["href"],
+  img: ["src", "alt", "title", "width", "height"],
+  video: [...MEDIA_ATTRIBUTES, "width", "height"],
+  audio: [...MEDIA_ATTRIBUTES, "width", "height"],
+  source: ["src"],
+  mark: ["class"],
+  span: ["class", "data-direct-kind", "data-direct-id"],
+};
+const RAW_HTML_CLASSES = { mark: MARK_CLASSES, span: SPAN_CLASSES };
+
+/**
+ * The same rule for markdown already rendered to an HTML string, for a
+ * renderer that is not `<Markdown>` and so has no tree to hand over.
+ *
+ * It reads the renderer's output rather than its input, for the reason
+ * `markdownHastSchema` reads the tree: the output is what the renderer
+ * decided, and a pass over the input can only guess at it.
+ */
+export function sanitizeRenderedMarkdown(html: string): string {
+  return sanitizeHtml(html, {
+    allowedTags: [...RAW_HTML_TAGS, ...MARKDOWN_GENERATED_TAGS],
+    allowedAttributes: {
+      ...RAW_HTML_ATTRIBUTES,
+      a: ["href", "title"],
+      code: ["class"],
+      input: [{ name: "type", values: ["checkbox"] }, "checked", "disabled"],
+      ol: ["start"],
+      td: ["align"],
+      th: ["align"],
+    },
+    allowedClasses: { ...RAW_HTML_CLASSES, code: ["language-*"] },
+  });
+}
+
 export function sanitizeMarkdown(markdown: string): string {
   const { tokenized, codeBlocks } = tokenizeFencedCodeBlocks(markdown);
   const replacedMarkdown = handleMarkdownReplaces(tokenized);
   const sanitized = sanitizeHtml(replacedMarkdown, {
     allowedTags: RAW_HTML_TAGS,
-    allowedAttributes: {
-      a: ["href"],
-      img: ["src", "alt", "title", "width", "height"],
-      video: [...MEDIA_ATTRIBUTES, "width", "height"],
-      audio: [...MEDIA_ATTRIBUTES, "width", "height"],
-      source: ["src"],
-      mark: ["class"],
-      span: ["class", "data-direct-kind", "data-direct-id"],
-    },
-    allowedClasses: {
-      mark: MARK_CLASSES,
-      span: SPAN_CLASSES,
-    },
+    allowedAttributes: RAW_HTML_ATTRIBUTES,
+    allowedClasses: RAW_HTML_CLASSES,
   });
 
   // sanitize-html encodes text `>` as `&gt;`. That is correct in HTML and
