@@ -8,7 +8,7 @@ import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 import { SokoBotsHero } from "./components/soko-bots-hero";
-import { TeamChart } from "./components/team-chart";
+import { TeamCarousel } from "./components/team-carousel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -65,7 +65,7 @@ export default async function SokoBotsPage() {
                 across the view, not a line floating inside the content. */}
             <hr className="border-border -mx-4" />
           </div>
-          <TeamChart team={team} />
+          <TeamCarousel team={team} />
         </section>
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
