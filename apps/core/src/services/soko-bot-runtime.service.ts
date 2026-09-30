@@ -988,8 +988,9 @@ export class SokoBotRuntimeService {
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
     const sokoBotId = authorized.turn.sokoBotId;
+    const scope = await this.chatRoomScope(authorized, sokoBotId);
     const rooms = await prisma.chatRoom.findMany({
-      where: await this.chatRoomScope(authorized, sokoBotId),
+      where: scope,
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: {
@@ -999,29 +1000,8 @@ export class SokoBotRuntimeService {
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
-        userMembers: {
-          where: { userId: authorized.turn.userId },
-          take: 1,
-          select: { userId: true },
-        },
       },
     });
-    // The owner's unread counts are theirs: only an owner turn sees them, and
-    // only for rooms the owner is in.
-    const ownerRoomIds =
-      authorized.askedByKind === "OWNER"
-        ? rooms
-            .filter((room) => room.userMembers.length > 0)
-            .map((room) => room.id)
-        : [];
-    const { getChatRoomUnreadCounts } = await import(
-      "@/routes/v1/chats/rooms/room-unread"
-    );
-    const unread = await getChatRoomUnreadCounts(
-      ownerRoomIds,
-      authorized.turn.userId,
-      prisma,
-    );
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
@@ -1029,11 +1009,69 @@ export class SokoBotRuntimeService {
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
-        ...(ownerRoomIds.includes(room.id)
-          ? { ownerUnread: unread.get(room.id)?.total ?? 0 }
-          : {}),
       })),
+      ...(authorized.askedByKind === "OWNER"
+        ? { ownerUnread: await this.ownerUnreadRooms(authorized, scope) }
+        : {}),
     };
+  }
+
+  /**
+   * The owner's unread chats as their sidebar counts them: every room the
+   * owner is in within this workspace, the bot's own or not. Names and counts
+   * only; reading a room still needs the bot's own membership.
+   */
+  private async ownerUnreadRooms(
+    authorized: AuthorizedSokoBotRuntime,
+    scope: Prisma.ChatRoomWhereInput,
+  ) {
+    const rooms = await prisma.chatRoom.findMany({
+      where: {
+        archivedAt: null,
+        organizationId: scope.organizationId,
+        userMembers: { some: { userId: authorized.turn.userId } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        name: true,
+        groupName: true,
+        kind: true,
+        sokoBotMembers: {
+          where: { sokoBotId: authorized.turn.sokoBotId },
+          take: 1,
+          select: { sokoBotId: true },
+        },
+        userMembers: {
+          where: { userId: authorized.turn.userId },
+          take: 1,
+          select: { mutedAt: true },
+        },
+      },
+    });
+    const { getChatRoomUnreadCounts } = await import(
+      "@/routes/v1/chats/rooms/room-unread"
+    );
+    const unread = await getChatRoomUnreadCounts(
+      rooms.map((room) => room.id),
+      authorized.turn.userId,
+      prisma,
+    );
+    return rooms.flatMap((room) => {
+      const count = unread.get(room.id)?.total ?? 0;
+      if (count === 0) return [];
+      return [
+        {
+          roomId: room.id,
+          name: room.groupName ?? room.name,
+          kind: room.kind,
+          unread: count,
+          youAreMember: room.sokoBotMembers.length > 0,
+          ...(room.userMembers[0]?.mutedAt ? { muted: true } : {}),
+        },
+      ];
+    });
   }
 
   /**
