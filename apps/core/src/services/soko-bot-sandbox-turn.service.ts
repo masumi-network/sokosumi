@@ -430,11 +430,19 @@ async function settleAndStop(log: RuntimeEventLog): Promise<void> {
 /** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
-  input: { text: string; finishReason: string },
+  input: { text: string; finishReason: string; reasoning?: string },
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   const log = logFor(claims);
   try {
+    // The provider's own summary, never raw chain of thought. The event
+    // projection redacts and bounds it before it is stored.
+    const reasoning = input.reasoning?.trim();
+    if (reasoning) {
+      await log.append(
+        runtimeEvent("reasoning.completed", { text: reasoning }),
+      );
+    }
     await finishTurn({
       log,
       turnId: claims.turnId,
