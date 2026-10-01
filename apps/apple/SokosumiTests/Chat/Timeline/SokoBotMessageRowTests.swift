@@ -9,8 +9,8 @@
   import SwiftUI
   import Testing
 
-  /// Soko Bot rows in the transcript: the settled reply's footer (approvals,
-  /// rating, Tasks) and the assistant-to-assistant hop badge.
+  /// Soko Bot rows in the transcript: the settled reply's footer (approvals and
+  /// Tasks; the rating is in the hover toolbar, row 38b) and the assistant-to-assistant hop badge.
   @MainActor struct SokoBotMessageRowTests {
     private func botMessage(id: String, content: String, metadata: [String: any Sendable]) throws -> Components.Schemas.ChatRoomMessage {
       try .init(
@@ -57,18 +57,12 @@
         "mention_id": "mention_1",
         "soko_bot": ["turn_id": "turn_1", "pending_decision_ids": ["dec_1", "dec_2"] as [String], "task_ids": ["task_1"] as [String]] as [String: any Sendable]
       ])
-      let rated = try botMessage(id: "rated", content: "Your Tuesday is clear after 3 pm; I moved the two reviews to Wednesday morning.", metadata: [
-        "soko_bot": ["turn_id": "turn_2", "source": "SCHEDULE"] as [String: String]
-      ])
       let hop = try botMessage(id: "hop", content: "Passing this on to Bob's assistant.", metadata: [
         "soko_bot_chain": ["depth": 3, "max_depth": 3, "room_messages_this_hour": 7, "room_messages_per_hour": 20] as [String: Int]
       ])
       let chain = try #require(SokoBotChainMetadata(message: hop))
-      let ratedTurn = try #require(SokoBotTurnMetadata(message: rated))
       let content = VStack(alignment: .leading, spacing: 12) {
         MessageRowView(message: waiting, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil)
-        SokoBotMessageFooterContent(turn: ratedTurn, feedback: true)
-          .padding(.leading, 42)
         MessageRowView(message: hop, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil, onQuote: {})
         HStack(spacing: 8) {
           SokoBotChainBadge(chain: chain)

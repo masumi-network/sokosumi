@@ -1,11 +1,14 @@
 #if os(macOS)
   import AppKit
+  import SokosumiChat
   import SwiftUI
 
   /// One entry of a message's right-click menu. The row's menu and its accessibility actions read the same list.
   enum MessageMenuAction: Hashable {
     /// Copies the reader's text selection in this message.
     case copySelection
+    /// A Soko Bot turn's thumbs (row 38b).
+    case useful, notUseful
     case addReaction, edit, quote, reply
     case pin, unpin, copyLink, sendToSelf
     case delete
@@ -13,6 +16,8 @@
     var title: String {
       switch self {
       case .copySelection: String(localized: "Copy")
+      case .useful: SokoBotFeedback.title(useful: true)
+      case .notUseful: SokoBotFeedback.title(useful: false)
       case .addReaction: String(localized: "Add reaction")
       case .edit: String(localized: "Edit message")
       case .quote: String(localized: "Quote message")
@@ -28,6 +33,8 @@
     var systemImage: String {
       switch self {
       case .copySelection: "doc.on.doc"
+      case .useful: "hand.thumbsup"
+      case .notUseful: "hand.thumbsdown"
       case .addReaction: "face.smiling"
       case .edit: "pencil"
       case .quote: "quote.opening"
@@ -43,6 +50,8 @@
 
   /// The actions a message row offers, filled from its callbacks.
   struct MessageMenuAvailability: Equatable {
+    /// A Soko Bot turn's thumbs; the chosen one is checked.
+    var sokoBotFeedback: SokoBotFeedback?
     var canReact = false
     var canEdit = false
     var canQuote = false
@@ -53,15 +62,16 @@
     var canSendToSelf = false
     var canDelete = false
 
-    /// Web's hover pill order (React, Edit, Quote, Thread), then its ⋯ overflow order (Pin, Copy link,
-    /// Send to yourself), then Delete on its own: the Mac puts the destructive action last. A text
-    /// selection in the message puts Copy first, as in any Mac text menu.
+    /// Web's hover pill order (a Soko Bot turn's thumbs, then React, Edit, Quote, Thread), then its ⋯ overflow
+    /// order (Pin, Copy link, Send to yourself), then Delete on its own: the Mac puts the destructive action
+    /// last. A text selection in the message puts Copy first, as in any Mac text menu.
     func sections(hasSelection: Bool) -> [[MessageMenuAction]] {
+      let thumbs: [MessageMenuAction] = sokoBotFeedback == nil ? [] : [.useful, .notUseful]
       let toolbar: [MessageMenuAction?] = [canReact ? .addReaction : nil, canEdit ? .edit : nil,
                                            canQuote ? .quote : nil, canReply ? .reply : nil]
       let overflow: [MessageMenuAction?] = [pinned.map { $0 ? .unpin : .pin },
                                             canCopyLink ? .copyLink : nil, canSendToSelf ? .sendToSelf : nil]
-      return [hasSelection ? [.copySelection] : [], toolbar.compactMap(\.self), overflow.compactMap(\.self),
+      return [hasSelection ? [.copySelection] : [], thumbs, toolbar.compactMap(\.self), overflow.compactMap(\.self),
               canDelete ? [.delete] : []].filter { !$0.isEmpty }
     }
   }
@@ -138,6 +148,9 @@
       item.representedObject = action
       item.image = NSImage(systemSymbolName: action.systemImage, accessibilityDescription: nil)
       item.isEnabled = !busy.contains(action)
+      if let feedback = availability.sokoBotFeedback, action == .useful || action == .notUseful {
+        item.state = feedback.isChosen(useful: action == .useful) ? .on : .off
+      }
       return item
     }
 
