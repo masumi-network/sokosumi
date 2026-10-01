@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -10,7 +11,10 @@ import {
   it,
   vi,
 } from "vitest";
-import { rememberSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
+import {
+  rememberAuthEmailHint,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
@@ -130,6 +134,7 @@ describe("SignInForm", () => {
     mockWaitForAuthSession.mockResolvedValue(undefined);
     mockSearchParams = new URLSearchParams();
     window.location.href = "http://localhost/";
+    window.sessionStorage.clear();
   });
 
   async function submitValidSignInForm() {
@@ -214,7 +219,7 @@ describe("SignInForm", () => {
 
   it("starts from the email sign-up handed over, editable, with focus on the password", async () => {
     const user = userEvent.setup();
-    rememberSignInEmailHint("ada@example.com");
+    rememberAuthEmailHint("ada@example.com");
 
     render(<SignInForm />);
 
@@ -232,7 +237,7 @@ describe("SignInForm", () => {
   });
 
   it("uses the handed-over email once", async () => {
-    rememberSignInEmailHint("ada@example.com");
+    rememberAuthEmailHint("ada@example.com");
     const first = render(<SignInForm />);
     await waitFor(() => {
       expect(
@@ -249,7 +254,7 @@ describe("SignInForm", () => {
   });
 
   it("keeps a locked invitation email over a handed-over one", () => {
-    rememberSignInEmailHint("ada@example.com");
+    rememberAuthEmailHint("ada@example.com");
 
     render(<SignInForm prefilledEmail="invited@example.com" />);
 
@@ -428,6 +433,95 @@ describe("SignInForm", () => {
       "href",
       "/signup?client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
     );
+  });
+
+  it("retains the one-time hint in Strict Mode", () => {
+    rememberAuthEmailHint("ada@example.com");
+    render(
+      <StrictMode>
+        <SignInForm />
+      </StrictMode>,
+    );
+    expect(screen.getByPlaceholderText("Fields.Email.placeholder")).toHaveValue(
+      "ada@example.com",
+    );
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("clears an old hint for a middle-click Register", () => {
+    render(<SignInForm />);
+    rememberAuthEmailHint("stale@example.com");
+    fireEvent(
+      screen.getByRole("link", { name: "Register.link" }),
+      new MouseEvent("auxclick", { bubbles: true, button: 1 }),
+    );
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("hands the typed email to sign-up instead of putting it in the register link", async () => {
+    const user = userEvent.setup();
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<SignInForm returnUrl="/agents" />);
+
+    await user.type(
+      screen.getByPlaceholderText("Fields.Email.placeholder"),
+      "ada@exmaple.com",
+    );
+    const register = screen.getByRole("link", { name: "Register.link" });
+    // A query email is an invitation's fixed address.
+    expect(register).toHaveAttribute("href", "/signup?returnUrl=%2Fagents");
+
+    fireEvent.click(register);
+
+    expect(takeAuthEmailHint()).toBe("ada@exmaple.com");
+  });
+
+  it("leaves no email behind when register opens in another tab", async () => {
+    const user = userEvent.setup();
+    render(<SignInForm />);
+    await user.type(
+      screen.getByPlaceholderText("Fields.Email.placeholder"),
+      "ada@example.com",
+    );
+
+    // The other tab cannot read this tab's hint, so this tab would show it
+    // on its next sign-in or sign-up instead.
+    fireEvent.click(screen.getByRole("link", { name: "Register.link" }), {
+      metaKey: true,
+    });
+
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("keeps an invitation's address and id on the register link", () => {
+    render(
+      <SignInForm
+        returnUrl="/accept-invitation/inv_1"
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
+      />,
+    );
+
+    const register = screen.getByRole("link", { name: "Register.link" });
+    expect(register).toHaveAttribute(
+      "href",
+      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
+    );
+
+    fireEvent.click(register);
+
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("hands a locked email without an invitation to sign-up as a starting value", () => {
+    render(<SignInForm prefilledEmail="invited@example.com" />);
+
+    const register = screen.getByRole("link", { name: "Register.link" });
+    expect(register).toHaveAttribute("href", "/signup");
+
+    fireEvent.click(register);
+
+    expect(takeAuthEmailHint()).toBe("invited@example.com");
   });
 
   it("does not count a login when no session appears", async () => {

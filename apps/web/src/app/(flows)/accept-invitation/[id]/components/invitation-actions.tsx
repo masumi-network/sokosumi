@@ -50,9 +50,7 @@ export default function InvitationActions({
     const params = new URLSearchParams();
     params.set("returnUrl", getReturnUrlFromCurrentLocation());
     params.set("email", email);
-    if (path === "/signup") {
-      params.set("invitationId", id);
-    }
+    params.set("invitationId", id);
     router.push(`${path}?${params.toString()}`);
   };
 

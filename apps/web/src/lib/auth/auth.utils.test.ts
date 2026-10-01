@@ -349,25 +349,35 @@ describe("buildSignUpUrlFromSignIn", () => {
     expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
   });
 
-  it("preserves returnUrl and email in signup link", () => {
+  it("preserves returnUrl in signup link", () => {
     expect(
       buildSignUpUrlFromSignIn({
         returnUrl: "/accept-invitation/invite_123?foo=bar",
-        email: "user@example.com",
       }),
-    ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
-    );
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
   });
 
   it("carries the OAuth request as the sign-up page's own query", () => {
     expect(
       buildSignUpUrlFromSignIn({
         oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
-        email: "user@example.com",
+        returnUrl: "/agents",
       }),
     ).toBe(
-      "/signup?client_id=client_1&exp=1772367377&sig=signed&email=user%40example.com",
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&returnUrl=%2Fagents",
+    );
+  });
+});
+
+describe("buildSignUpUrlFromSignIn with an invitation", () => {
+  it("keeps the invited address and its invitation, which sign-up locks", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        returnUrl: "/accept-invitation/inv_1",
+        invitation: { id: "inv_1", email: "invited@example.com" },
+      }),
+    ).toBe(
+      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
     );
   });
 });
@@ -609,4 +619,33 @@ describe("createAuthSessionGetter", () => {
 
     await expect(getSession()).resolves.toBeNull();
   });
+});
+
+describe("auth page URL round trips", () => {
+  it.each([buildSignUpUrlFromSignIn, buildSignInUrlFromSignUp])(
+    "preserves signed multi-value OAuth parameters and an escaped return URL",
+    (buildUrl) => {
+      const oauthQuery =
+        "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
+      const returnUrl =
+        "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
+      const url = new URL(
+        buildUrl({
+          oauthQuery,
+          returnUrl,
+          invitation: { id: "inv_1", email: "ada+invite@example.com" },
+        }),
+        "https://sokosumi.test",
+      );
+      expect(url.searchParams.get("returnUrl")).toBe(returnUrl);
+      expect(url.searchParams.get("sig")).toBe("abc+def/ghi=");
+      expect(url.searchParams.getAll("ba_param")).toEqual([
+        "scope",
+        "client_id",
+      ]);
+      expect(url.searchParams.get("scope")).toBe("openid email");
+      expect(url.searchParams.get("email")).toBe("ada+invite@example.com");
+      expect(url.searchParams.get("invitationId")).toBe("inv_1");
+    },
+  );
 });
