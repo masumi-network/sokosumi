@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -309,6 +309,67 @@ describe("OAuthHandBack", () => {
         expect(mockSignOut).not.toHaveBeenCalled();
       },
     );
+
+    it.each(["another-user", null])(
+      "does not authorize a replaced session (%s) while the claim is pending",
+      async (userId) => {
+        let finishClaim = () => {};
+        mockClaimSignUpConversion.mockReturnValue(
+          new Promise<null>((resolve) => {
+            finishClaim = () => resolve(null);
+          }),
+        );
+        render(
+          <OAuthHandBack
+            oauthQuery={CREATE_QUERY}
+            accountToConfirm={ACCOUNT}
+          />,
+        );
+        await userEvent
+          .setup()
+          .click(
+            screen.getByRole("button", { name: "continueAs:Ada Lovelace" }),
+          );
+        expect(mockClaimSignUpConversion).toHaveBeenCalledOnce();
+        expect(mockContinue).not.toHaveBeenCalled();
+
+        mockGetSession.mockResolvedValue({
+          data: userId ? { user: { ...ACCOUNT, id: userId } } : null,
+          error: null,
+        });
+        await act(async () => finishClaim());
+
+        expect(mockRefresh).toHaveBeenCalledOnce();
+        expect(mockContinue).not.toHaveBeenCalled();
+        expect(mockSignOut).not.toHaveBeenCalled();
+      },
+    );
+
+    it("allows retry when the account recheck after claiming fails", async () => {
+      mockGetSession
+        .mockResolvedValueOnce({ data: { user: ACCOUNT }, error: null })
+        .mockRejectedValueOnce(new Error("offline"));
+      mockContinue.mockResolvedValue({
+        data: { redirect: true, url: "https://app.cmo.xyz/callback?code=abc" },
+        error: null,
+      });
+      render(
+        <OAuthHandBack oauthQuery={CREATE_QUERY} accountToConfirm={ACCOUNT} />,
+      );
+      const user = userEvent.setup();
+      const button = screen.getByRole("button", {
+        name: "continueAs:Ada Lovelace",
+      });
+      await user.click(button);
+      await waitFor(() =>
+        expect(mockToastError).toHaveBeenCalledWith("accountCheckError"),
+      );
+      expect(mockContinue).not.toHaveBeenCalled();
+      expect(button).toBeEnabled();
+
+      await user.click(button);
+      await waitFor(() => expect(mockContinue).toHaveBeenCalledOnce());
+    });
 
     it.each(["continueAs:Ada Lovelace", "useAnotherAccount"])(
       "allows retry when account validation fails before %s",

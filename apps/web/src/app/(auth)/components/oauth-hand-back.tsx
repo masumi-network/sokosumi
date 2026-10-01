@@ -67,7 +67,7 @@ function useHandBack(oauthQuery: string) {
   const [hasFailed, setHasFailed] = useState(false);
   const hasStarted = useRef(false);
 
-  function handBack() {
+  function handBack(checkAccount?: () => Promise<boolean>) {
     // StrictMode mounts twice in development, and a person can press twice.
     // A second hand-back would issue a second authorization code.
     if (hasStarted.current) {
@@ -85,10 +85,16 @@ function useHandBack(oauthQuery: string) {
         }
       })
       .catch(() => undefined)
-      .then(() =>
-        authClient.oauth2.continue({ created: true, oauth_query: oauthQuery }),
-      )
-      .then((result) => {
+      .then(async () => {
+        // Another tab can replace a confirmed account while the claim waits.
+        if (checkAccount && !(await checkAccount())) {
+          hasStarted.current = false;
+          return;
+        }
+        const result = await authClient.oauth2.continue({
+          created: true,
+          oauth_query: oauthQuery,
+        });
         if (result.error || !(result.data?.redirect && result.data.url)) {
           setHasFailed(true);
         }
@@ -151,26 +157,29 @@ function AccountChoice({
       setPendingChoice(null);
     }
 
-    // Another tab can replace the session after this account was rendered.
-    // Recheck before confirming it or signing it out.
-    try {
-      const result = await authClient.getSession({
-        query: { disableCookieCache: true },
-      });
-      if (result.error) throw result.error;
-      if (result.data?.user.id !== account.id) {
-        router.refresh();
+    async function checkAccount() {
+      // Recheck before changing auth and after the conversion claim waits.
+      try {
+        const result = await authClient.getSession({
+          query: { disableCookieCache: true },
+        });
+        if (result.error) throw result.error;
+        if (result.data?.user.id !== account.id) {
+          router.refresh();
+          chooseAgain();
+          return false;
+        }
+        return true;
+      } catch {
+        toast.error(t("accountCheckError"));
         chooseAgain();
-        return;
+        return false;
       }
-    } catch {
-      toast.error(t("accountCheckError"));
-      chooseAgain();
-      return;
     }
+    if (!(await checkAccount())) return;
 
     if (choice === "continue") {
-      handBack();
+      handBack(checkAccount);
       return;
     }
     // Account validation also consumes request lifetime.
