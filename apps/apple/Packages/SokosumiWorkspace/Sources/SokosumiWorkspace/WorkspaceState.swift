@@ -202,6 +202,8 @@ public final class WorkspaceState: ObservableObject {
   /// `WorkspaceState+Typing`. Not forwarded to `objectWillChange`: only the Typing line reads it.
   public let typing = RoomTyping()
   var typingSweepTask: Task<Void, Never>?
+  /// The open room's live read marks (row 31b1); see `WorkspaceState+ReadReceipts`.
+  public let roomReads = RoomReadMarks()
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
@@ -248,7 +250,7 @@ public final class WorkspaceState: ObservableObject {
     self.clientProvider = clientProvider
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -862,7 +864,7 @@ public final class WorkspaceState: ObservableObject {
     }
   }
 
-  /// Who is reachable, present or typing right now: state no HTTP read would return.
+  /// Who is reachable, present, typing or reading right now: state no HTTP read would return yet.
   private func handleLiveStateEvent(_ event: ResolvedRealtimeDelivery) {
     switch event {
     case let .connectionHealth(healthy):
@@ -875,6 +877,8 @@ public final class WorkspaceState: ObservableObject {
       applyTyping(roomId: roomId, signal: signal, now: Date())
     case let .typingChannel(roomId, canPublish):
       applyTypingChannel(roomId: roomId, canPublish: canPublish)
+    case let .roomRead(event):
+      applyRoomRead(event)
     default:
       break
     }
