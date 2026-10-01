@@ -1634,8 +1634,7 @@
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
-        "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden"
+        "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
@@ -1682,25 +1681,6 @@
         },
         "visibilityLabel": "Sichtbarkeit",
         "visibilityPrivate": "Privat"
-      },
-      "Jobs": {
-        "filterButton": "Filter",
-        "agentLabel": "Agent",
-        "jobStatusLabel": "Job-Status",
-        "jobStatusOptions": {
-          "INITIATED": "Initiiert",
-          "AWAITING_PAYMENT": "Zahlung ausstehend",
-          "AWAITING_INPUT": "Input erforderlich",
-          "RUNNING": "In Bearbeitung",
-          "COMPLETED": "Abgeschlossen",
-          "FAILED": "Fehlgeschlagen"
-        },
-        "recentTitle": "Zuletzt",
-        "emptyRecent": "Keine kürzlich abgeschlossenen Jobs.",
-        "emptyList": "Noch keine Jobs. Beauftrage einen Coworker, dann erscheinen sie hier.",
-        "emptySection": "Keine Jobs in diesem Status.",
-        "untitled": "Unbenannter Job",
-        "unknownAgent": "Unbekannter Agent"
       },
       "Detail": {
         "back": "Zurück zu Tasks",

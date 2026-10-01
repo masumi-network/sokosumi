@@ -248,7 +248,7 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 | Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
 | UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
 | Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
-| Localized view models | `TaskWithCoworker`, jobs-tab row types | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
+| Localized view models | `TaskWithCoworker` | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
 
 **Decision test:** If a value is (a) Masumi payment-protocol state, (b) a stable error `kind`, (c) UI-derived display state, (d) Better Auth `/auth` shape, or (e) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
 
@@ -289,7 +289,7 @@ Better Auth session and account shapes are a **documented exception** under [Cor
 ### View models vs Core DTOs
 
 - **Services and actions return Core DTOs** (`Agent`, `JobSummary`, `Task`, `TaskListItem`, …). Do not invent a web-wide domain model layer that parallels Core shapes.
-- **Thin view models are allowed only where UI needs computed or joined fields.** Keep them next to the consuming feature (e.g. `apps/web/src/app/(app)/tasks/types/task-board.ts` for `TaskWithCoworker`, `tasks/types/tasks-view-job.ts` for the jobs tab row). Document the type as a view model in a short comment.
+- **Thin view models are allowed only where UI needs computed or joined fields.** Keep them next to the consuming feature (e.g. `apps/web/src/app/(app)/tasks/types/task-board.ts` for `TaskWithCoworker`). Document the type as a view model in a short comment.
 - **Mappers live next to the consuming UI** (e.g. `mapTaskToTaskWithCoworker` in `tasks/utils/task-view-model.ts`). Do not put feature view-model mappers under `src/lib/types/` or generic `src/lib/utils/`.
 - **Prefer pushing shared computed fields to Core** when more than one surface needs them. Example: `jobStatusSettled` is on Core `JobSummary` / `Job` — web must not recompute settlement from timestamps.
 - **`src/lib/types/core-dto.ts`** stays for cross-cutting Core helpers and field-derived type aliases — not for feature view models.

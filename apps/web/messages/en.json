@@ -1634,8 +1634,7 @@
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
-        "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs"
+        "loadCreateTask": "Failed to load create task form"
       },
       "Card": {
         "comments": "Comments",
@@ -1682,25 +1681,6 @@
         },
         "visibilityLabel": "Visibility",
         "visibilityPrivate": "Private"
-      },
-      "Jobs": {
-        "filterButton": "Filters",
-        "agentLabel": "Agent",
-        "jobStatusLabel": "Job status",
-        "jobStatusOptions": {
-          "INITIATED": "Initiated",
-          "AWAITING_PAYMENT": "Awaiting payment",
-          "AWAITING_INPUT": "Awaiting input",
-          "RUNNING": "Running",
-          "COMPLETED": "Completed",
-          "FAILED": "Failed"
-        },
-        "recentTitle": "Recent",
-        "emptyRecent": "No recently finished jobs.",
-        "emptyList": "No jobs yet. Hire a coworker and your jobs show up here.",
-        "emptySection": "No jobs in this status.",
-        "untitled": "Untitled job",
-        "unknownAgent": "Unknown agent"
       },
       "Detail": {
         "back": "Back to tasks",
