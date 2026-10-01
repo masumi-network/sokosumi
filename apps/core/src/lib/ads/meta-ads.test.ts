@@ -25,7 +25,11 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   executeComposioTool: executeToolMock,
 }));
 
-import { listMetaAdAccounts, listMetaCampaigns } from "./meta-ads";
+import {
+  listMetaAdAccounts,
+  listMetaCampaigns,
+  updateMetaCampaign,
+} from "./meta-ads";
 
 const input = {
   connectedAccountId: "ca_meta",
@@ -355,4 +359,156 @@ describe("listMetaCampaigns", () => {
       /invalid response/,
     );
   });
+});
+
+describe("updateMetaCampaign", () => {
+  const update = {
+    ...input,
+    adAccountId: "act_1",
+    campaignId: "10",
+  };
+  const campaignObject = (overrides: Record<string, unknown> = {}) => ({
+    id: "10",
+    account_id: "1",
+    objective: "OUTCOME_TRAFFIC",
+    daily_budget: "2550",
+    ...overrides,
+  });
+  const saved = { success: true };
+  const writes = () =>
+    executeToolMock.mock.calls
+      .map(([call]) => call)
+      .filter((call) => call.toolSlug === "METAADS_UPDATE_CAMPAIGN");
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "METAADS_GET_OBJECT" ? campaignObject() : saved,
+    );
+  });
+
+  it("reads the campaign's account before writing", async () => {
+    await updateMetaCampaign({ ...update, status: "PAUSED" });
+    expect(executeToolMock.mock.calls[0]?.[0]).toMatchObject({
+      toolSlug: "METAADS_GET_OBJECT",
+      arguments: {
+        object_id: "10",
+        fields: ["id", "account_id", "objective", "daily_budget"],
+      },
+    });
+  });
+
+  it("sets the status", async () => {
+    await updateMetaCampaign({ ...update, status: "ACTIVE" });
+    expect(writes().map((call) => call.arguments)).toEqual([
+      { campaign_id: "10", status: "ACTIVE" },
+    ]);
+  });
+
+  it("sets the budget as a decimal in the account currency", async () => {
+    await updateMetaCampaign({ ...update, dailyBudget: 12.34 });
+    expect(writes().map((call) => call.arguments)).toEqual([
+      { campaign_id: "10", daily_budget: 12.34 },
+    ]);
+  });
+
+  it("sends status and budget in one call", async () => {
+    await updateMetaCampaign({ ...update, status: "PAUSED", dailyBudget: 20 });
+    expect(writes().map((call) => call.arguments)).toEqual([
+      { campaign_id: "10", status: "PAUSED", daily_budget: 20 },
+    ]);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolkitSlug: "metaads",
+        toolSlugs: ["METAADS_GET_OBJECT", "METAADS_UPDATE_CAMPAIGN"],
+      }),
+    );
+  });
+
+  it("accepts an account id with the act_ prefix", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "METAADS_GET_OBJECT"
+        ? campaignObject({ account_id: "act_1" })
+        : saved,
+    );
+    await updateMetaCampaign({ ...update, status: "PAUSED" });
+    expect(writes()).toHaveLength(1);
+  });
+
+  it("returns 404 without writing for a campaign of another ad account", async () => {
+    executeToolMock.mockResolvedValue(campaignObject({ account_id: "2" }));
+    await expect(
+      updateMetaCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(writes()).toEqual([]);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 404 without writing for an object that is not a campaign", async () => {
+    // An ad set has an account and a daily budget, but no campaign objective.
+    executeToolMock.mockResolvedValue(
+      campaignObject({ objective: undefined, campaign_id: "9" }),
+    );
+    await expect(
+      updateMetaCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(writes()).toEqual([]);
+  });
+
+  it("raises a campaign without an account id instead of writing", async () => {
+    executeToolMock.mockResolvedValue({ id: "10" });
+    await expect(
+      updateMetaCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toThrow(/invalid response/);
+    expect(writes()).toEqual([]);
+  });
+
+  it.each([{ daily_budget: null }, { daily_budget: undefined }])(
+    "returns 409 without any write when the budget is on the ad sets (%j)",
+    async (overrides) => {
+      executeToolMock.mockResolvedValue(campaignObject(overrides));
+      await expect(
+        updateMetaCampaign({ ...update, status: "PAUSED", dailyBudget: 9 }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(writes()).toEqual([]);
+    },
+  );
+
+  it("still changes status for a campaign whose budget is on its ad sets", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "METAADS_GET_OBJECT"
+        ? campaignObject({ daily_budget: null })
+        : saved,
+    );
+    await updateMetaCampaign({ ...update, status: "PAUSED" });
+    expect(writes()).toHaveLength(1);
+  });
+
+  it("raises a provider error and still deletes the session", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) => {
+      if (call.toolSlug === "METAADS_GET_OBJECT") return campaignObject();
+      throw new ComposioToolError({ message: "refused" });
+    });
+    await expect(
+      updateMetaCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toBeInstanceOf(ComposioToolError);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["success false", { success: false }],
+    ["no payload", {}],
+    ["null", null],
+  ])(
+    "raises a tool error when the update returns %s",
+    async (_name, result) => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "METAADS_GET_OBJECT" ? campaignObject() : result,
+      );
+      await expect(
+        updateMetaCampaign({ ...update, status: "PAUSED" }),
+      ).rejects.toBeInstanceOf(ComposioToolError);
+    },
+  );
 });

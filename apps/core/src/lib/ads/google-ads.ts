@@ -1,9 +1,11 @@
 import { z } from "@hono/zod-openapi";
 
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
+import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
   type AdCampaignStatus,
+  type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
   noAdMetrics,
@@ -20,6 +22,8 @@ import {
 
 const LIST_ACCESSIBLE_CUSTOMERS = "GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS";
 const SEARCH_STREAM_GAQL = "GOOGLEADS_SEARCH_STREAM_GAQL";
+const MUTATE_CAMPAIGNS = "GOOGLEADS_MUTATE_CAMPAIGNS";
+const MUTATE_CAMPAIGN_BUDGETS = "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS";
 const MAX_CUSTOMERS = 50;
 const MICROS = 1_000_000;
 
@@ -192,5 +196,111 @@ export async function listGoogleCampaigns(
       },
       totals.get(campaign.id) ?? noAdMetrics(0),
     ),
+  );
+}
+
+const campaignLookupRowSchema = z.object({
+  campaign: z.object({ campaignBudget: z.string().min(1) }),
+  campaignBudget: z.object({ explicitlyShared: z.boolean().nullish() }),
+});
+
+/** A mutation that reports no result for its operation, or a partial failure, did not apply. */
+function requireMutated(
+  payload: Record<string, unknown> | null,
+  context: string,
+): void {
+  if (
+    toolRows(payload, "results").length === 0 ||
+    payload?.partial_failure_error
+  ) {
+    throw new ComposioToolError({ message: `${context} was not applied` });
+  }
+}
+
+/**
+ * Pauses, resumes and/or changes the daily budget of a campaign of the
+ * customer. The campaign is looked up inside the customer first (404 when it
+ * is not there), and every refusal happens before the first write. The budget
+ * goes first, so a failed status change never follows a silent budget change.
+ *
+ * Operation shapes follow the tool schemas: campaign operations need
+ * `operation_type`, a lowercase status and no `update_mask`; budget
+ * operations have an `update_mask` and no `operation_type`.
+ */
+export async function updateGoogleCampaign(
+  input: AdsConnectedAccount &
+    AdCampaignUpdate & { customerId: string; campaignId: string },
+): Promise<void> {
+  const { customerId, campaignId, status, dailyBudget, ...connected } = input;
+  if (!/^\d+$/.test(campaignId)) throw notFound("Campaign not found");
+  const campaignResourceName = `customers/${customerId}/campaigns/${campaignId}`;
+  // The id is digits only, so the query cannot be altered by it.
+  const lookupQuery = `SELECT campaign.id, campaign.campaign_budget, campaign_budget.explicitly_shared FROM campaign WHERE campaign.id = ${campaignId} AND campaign.status != 'REMOVED'`;
+
+  await withAdsToolSession(
+    {
+      ...connected,
+      provider: "google_ads",
+      toolSlugs: [
+        SEARCH_STREAM_GAQL,
+        MUTATE_CAMPAIGNS,
+        MUTATE_CAMPAIGN_BUDGETS,
+      ],
+    },
+    async (execute) => {
+      const [row] = parseToolRows(
+        requireToolRows(
+          await execute(SEARCH_STREAM_GAQL, {
+            customer_id: customerId,
+            query: lookupQuery,
+          }),
+          "results",
+          "look up Google Ads campaign",
+        ),
+        campaignLookupRowSchema,
+        "look up Google Ads campaign",
+      );
+      if (!row) throw notFound("Campaign not found");
+      if (dailyBudget !== undefined && row.campaignBudget.explicitlyShared) {
+        throw conflict(
+          "This campaign uses a shared budget; change it in Google Ads",
+        );
+      }
+
+      if (dailyBudget !== undefined) {
+        requireMutated(
+          await execute(MUTATE_CAMPAIGN_BUDGETS, {
+            customer_id: customerId,
+            operations: [
+              {
+                update: {
+                  resource_name: row.campaign.campaignBudget,
+                  amount_micros: Math.round(dailyBudget * MICROS),
+                },
+                update_mask: "amount_micros",
+              },
+            ],
+          }),
+          "change Google Ads campaign budget",
+        );
+      }
+      if (status !== undefined) {
+        requireMutated(
+          await execute(MUTATE_CAMPAIGNS, {
+            customer_id: customerId,
+            operations: [
+              {
+                operation_type: "update",
+                update: {
+                  resource_name: campaignResourceName,
+                  status: status === "ACTIVE" ? "enabled" : "paused",
+                },
+              },
+            ],
+          }),
+          "change Google Ads campaign status",
+        );
+      }
+    },
   );
 }

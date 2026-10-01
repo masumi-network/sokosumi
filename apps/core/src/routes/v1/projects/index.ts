@@ -1,4 +1,5 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import mountUpdateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campaigns/[campaignId]/patch.js";
 import mountListProjectAdCampaigns from "./[id]/ads/accounts/[accountId]/campaigns/get.js";
 import mountDeleteProjectAdAccount from "./[id]/ads/accounts/[accountId]/delete.js";
 import mountListProjectAdAccounts from "./[id]/ads/accounts/get.js";
@@ -71,6 +72,7 @@ mountFinalizeProjectAdConnection(app);
 mountAttachProjectAdAccounts(app);
 mountDeleteProjectAdAccount(app);
 mountListProjectAdCampaigns(app);
+mountUpdateProjectAdCampaign(app);
 mountListProjectSocialPosts(app);
 mountPublishProjectSocialPost(app);
 mountCreateProjectSocialPost(app);
