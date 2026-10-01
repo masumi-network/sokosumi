@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { joinFirstAndLastName } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -16,7 +17,6 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import {
   signUpMarketingFormData,
-  signUpNameFormData,
   signUpPasswordFormData,
 } from "@/auth/signup/data";
 import {
@@ -24,7 +24,9 @@ import {
   EmailCodeField,
   useDescribeEmailCodeError,
 } from "@/components/auth/email-code-field";
+import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { useAuthCaptcha } from "@/components/auth-captcha";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
@@ -33,8 +35,11 @@ import {
   buildOAuthResumeUrlFromSearchParams,
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
+import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { signUpFormSchema } from "@/lib/schemas/auth";
+
+import { useSignInHref } from "./sign-in-link";
 
 interface SignUpFormProps {
   /** Confirmed on the step before this one. */
@@ -66,6 +71,10 @@ export default function SignUpForm({
   const [isLeaving, setIsLeaving] = useState(false);
   const [prefersPassword, setPrefersPassword] = useState(false);
   const [refusedCode, setRefusedCode] = useState(0);
+  // Step 1 found no account, but one can appear since, e.g. through Google
+  // in another tab.
+  const [accountExists, setAccountExists] = useState(false);
+  const signInHref = useSignInHref();
   const {
     widget: captcha,
     runWithCaptcha,
@@ -139,6 +148,7 @@ export default function SignUpForm({
   ) => {
     track("Sign Up", { provider: "credential" });
 
+    setAccountExists(false);
     onPendingChange(true);
     let willLeave = false;
     try {
@@ -166,19 +176,16 @@ export default function SignUpForm({
           const errorCode =
             "code" in result.error ? result.error.code : undefined;
 
-          switch (errorCode) {
-            case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
-              toast.error(t("Errors.emailDomainNotAllowed"));
-              break;
-            default:
-              toast.error(
-                getErrorMessage(
-                  result.error,
-                  result.error.message ?? t("error"),
-                ),
-              );
-              break;
+          if (
+            errorCode === AuthErrorCode.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL
+          ) {
+            setAccountExists(true);
+            return;
           }
+
+          toast.error(
+            getErrorMessage(result.error, result.error.message ?? t("error")),
+          );
           return;
         }
 
@@ -239,13 +246,10 @@ export default function SignUpForm({
         aria-hidden="true"
         className="sr-only"
       />
-      <div className="grid grid-cols-2 items-start gap-3">
-        <FormFields
-          form={form}
-          formData={signUpNameFormData}
-          namespace="Auth.Pages.SignUp.Form"
-        />
-      </div>
+      <FirstAndLastNameFields
+        control={form.control}
+        testIdPrefix="auth-field"
+      />
       {isCodeStep ? (
         <Controller
           control={form.control}
@@ -278,6 +282,29 @@ export default function SignUpForm({
         formData={signUpMarketingFormData}
         namespace="Auth.Pages.SignUp.Form"
       />
+      {accountExists ? (
+        <Alert>
+          <AlertTitle>{t("AccountExists.title")}</AlertTitle>
+          <AlertDescription>
+            <p>{t("AccountExists.description")}</p>
+            <Link
+              href={signInHref}
+              onClick={(event) =>
+                // An invitation's address travels in the link itself.
+                rememberAuthEmailHintOnClick(
+                  event,
+                  searchParams.get("invitationId") && searchParams.get("email")
+                    ? ""
+                    : email,
+                )
+              }
+              className="text-primary font-medium hover:underline"
+            >
+              {t("AccountExists.logIn")}
+            </Link>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <div className="flex flex-col gap-4">
         {isCodeStep ? emailCode.captcha : captcha}
         <SubmitButton

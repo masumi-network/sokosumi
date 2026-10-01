@@ -1,5 +1,5 @@
 import { betterAuthUserAdditionalFields } from "@sokosumi/utils";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
@@ -103,8 +103,9 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
-    EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
+    USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
   },
 }));
 
@@ -180,8 +181,8 @@ describe("SignUpForm OAuth workflow", () => {
   async function submitSignUpForm(password: string) {
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Fields.FirstName.label"), "New");
-    await user.type(screen.getByLabelText("Fields.LastName.label"), "User");
+    await user.type(screen.getByLabelText("firstNameLabel"), "New");
+    await user.type(screen.getByLabelText("lastNameLabel"), "User");
     await user.type(screen.getByLabelText("Fields.Password.label"), password);
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
@@ -203,11 +204,11 @@ describe("SignUpForm OAuth workflow", () => {
   it("lets a password manager recognise names, email and new password", () => {
     const { container } = renderForm();
 
-    expect(screen.getByLabelText("Fields.FirstName.label")).toHaveAttribute(
+    expect(screen.getByLabelText("firstNameLabel")).toHaveAttribute(
       "autocomplete",
       "given-name",
     );
-    expect(screen.getByLabelText("Fields.LastName.label")).toHaveAttribute(
+    expect(screen.getByLabelText("lastNameLabel")).toHaveAttribute(
       "autocomplete",
       "family-name",
     );
@@ -227,12 +228,22 @@ describe("SignUpForm OAuth workflow", () => {
     expect(username).toHaveAttribute("spellcheck", "false");
   });
 
+  it("stacks the name fields on a phone and pairs them from the sm breakpoint", () => {
+    renderForm();
+
+    const lastName = screen.getByLabelText("lastNameLabel");
+    let row = screen.getByLabelText("firstNameLabel").parentElement;
+    while (row && !row.contains(lastName)) row = row.parentElement;
+    expect(row).toHaveClass("grid", "sm:grid-cols-2");
+    expect(row).not.toHaveClass("grid-cols-2");
+  });
+
   it("moves focus to the first name when the step opens", async () => {
     renderForm();
 
     // react-hook-form defers the focus by a tick.
     await waitFor(() => {
-      expect(screen.getByLabelText("Fields.FirstName.label")).toHaveFocus();
+      expect(screen.getByLabelText("firstNameLabel")).toHaveFocus();
     });
   });
 
@@ -241,7 +252,7 @@ describe("SignUpForm OAuth workflow", () => {
     renderForm();
     expect(onFormStart).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText("Fields.FirstName.label"), "N");
+    await user.type(screen.getByLabelText("firstNameLabel"), "N");
 
     expect(onFormStart).toHaveBeenCalled();
   });
@@ -267,6 +278,15 @@ describe("SignUpForm OAuth workflow", () => {
     );
   });
 
+  it("states the password rule before the first submit", () => {
+    renderForm();
+
+    expect(screen.getByText("Fields.Password.description")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Fields.Password.label"),
+    ).toHaveAccessibleDescription("Fields.Password.description");
+  });
+
   it("rejects a password of seven characters with the stated rule", async () => {
     renderForm();
 
@@ -276,8 +296,107 @@ describe("SignUpForm OAuth workflow", () => {
     // The rule reaches a screen reader through the field's description.
     expect(
       screen.getByLabelText("Fields.Password.label"),
-    ).toHaveAccessibleDescription("Password.min");
+    ).toHaveAccessibleDescription("Fields.Password.description Password.min");
     expect(mockSignUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("offers Log in, keeping the query and the email, when the account exists by now", async () => {
+    // e.g. the person signed up with Google in another tab meanwhile.
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+        message: "User already exists. Use another email.",
+        status: 422,
+      },
+    });
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    vi.mocked(toast.error).mockClear();
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("AccountExists.title");
+    expect(notice).toHaveTextContent("AccountExists.description");
+    expect(toast.error).not.toHaveBeenCalled();
+    const logIn = screen.getByRole("link", { name: "AccountExists.logIn" });
+    expect(logIn).toHaveAttribute("href", "/signin?returnUrl=%2Fagents");
+
+    window.sessionStorage.clear();
+    fireEvent.click(logIn);
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
+  });
+
+  const existingAccountError = {
+    data: null,
+    error: {
+      code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+      message: "User already exists. Use another email.",
+      status: 422,
+    },
+  };
+
+  it("keeps the signed OAuth request on the Log in link", async () => {
+    mockSignUpEmail.mockResolvedValueOnce(existingAccountError);
+    mockSearchParams = new URLSearchParams({
+      client_id: "test-client",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const logIn = await screen.findByRole("link", {
+      name: "AccountExists.logIn",
+    });
+    const href = new URL(logIn.getAttribute("href") ?? "", "http://localhost");
+    expect(href.pathname).toBe("/signin");
+    expect(href.searchParams.get("client_id")).toBe("test-client");
+    expect(href.searchParams.get("sig")).toBe("signed-value");
+  });
+
+  it("leaves an invitation's address in the link, not in the hint", async () => {
+    mockSignUpEmail.mockResolvedValueOnce(existingAccountError);
+    mockSearchParams = new URLSearchParams({
+      invitationId: "invitation-1",
+      email: EMAIL,
+    });
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const logIn = await screen.findByRole("link", {
+      name: "AccountExists.logIn",
+    });
+    expect(logIn.getAttribute("href")).toContain("invitationId=invitation-1");
+    window.sessionStorage.setItem("auth-email-hint", "stale@example.com");
+    fireEvent.click(logIn);
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBeNull();
+  });
+
+  it("drops the notice when a later submit fails for another reason", async () => {
+    mockSignUpEmail
+      .mockResolvedValueOnce(existingAccountError)
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "INTERNAL", message: "Server error" },
+      });
+    renderForm();
+
+    await submitValidSignUpForm();
+    await screen.findByRole("alert");
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => {
+      expect(mockSignUpEmail).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 
   it("shows translated captcha errors from Core", async () => {
@@ -608,8 +727,8 @@ describe("SignUpForm email code", () => {
   });
 
   async function typeNames(user: ReturnType<typeof userEvent.setup>) {
-    await user.type(screen.getByLabelText("Fields.FirstName.label"), "Ada");
-    await user.type(screen.getByLabelText("Fields.LastName.label"), "Lovelace");
+    await user.type(screen.getByLabelText("firstNameLabel"), "Ada");
+    await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
   }
 
   it("opens on the code that step 1 sent, without repeating the address", async () => {
@@ -675,7 +794,7 @@ describe("SignUpForm email code", () => {
     await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
-      expect(screen.getByLabelText("Fields.FirstName.label")).toHaveAttribute(
+      expect(screen.getByLabelText("firstNameLabel")).toHaveAttribute(
         "aria-invalid",
         "true",
       );
