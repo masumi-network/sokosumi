@@ -73,6 +73,14 @@ export const adminSokoBotService = {
     return response.data;
   },
 
+  async setAvatar(sokoBotId: string, avatarId: string) {
+    const response = await coreClient.setAdminSokoBotAvatar(
+      sokoBotId,
+      avatarId,
+    );
+    return response.data;
+  },
+
   async listVersions(): Promise<SokoBotVersionList> {
     const response = await coreClient.listAdminSokoBotVersions();
     return response.data;

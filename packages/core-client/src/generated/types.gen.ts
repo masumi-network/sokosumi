@@ -766,6 +766,10 @@ export type AdminSokoBotActionRequest = {
     reason: string;
 };
 
+export type ClaimSokoBotAvatarRequest = {
+    avatarId: string;
+};
+
 export type AdminUserOverviewItem = {
     id: string;
     name: string;
@@ -6243,10 +6247,6 @@ export type IntroduceSokoBotRequest = {
     roomId: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
-};
-
 export type SokoBotVersion = {
     id: string;
     name: string;
@@ -9600,6 +9600,98 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
+
+export type SetAdminSokoBotAvatarData = {
+    body?: ClaimSokoBotAvatarRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar';
+};
+
+export type SetAdminSokoBotAvatarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+
+export type SetAdminSokoBotAvatarResponses = {
+    /**
+     * The bot's new mascot
+     */
+    200: {
+        data: {
+            avatarImageUrl: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
 export type ListAdminUsersData = {
     body?: never;

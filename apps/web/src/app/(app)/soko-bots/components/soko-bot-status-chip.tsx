@@ -32,7 +32,11 @@ const SOKO_BOT_STATUS_MARKERS: Record<SokoBotStatus, StatusMarkerSpec> = {
   },
 };
 
-/** A bot's status, drawn the way the Task board draws a task's. */
+/**
+ * A bot's status, drawn the way the Task board draws a task's. Idle is the
+ * resting state of nearly every bot, so it draws nothing: a chip only shows
+ * when there is something to notice.
+ */
 export function SokoBotStatusChip({
   status,
   label,
@@ -44,6 +48,7 @@ export function SokoBotStatusChip({
   size?: "sm" | "md";
   className?: string;
 }) {
+  if (status === "IDLE") return null;
   const marker = SOKO_BOT_STATUS_MARKERS[status];
   const style = getToneStyle(marker.tone);
   return (

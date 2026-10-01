@@ -3428,6 +3428,19 @@ export const AdminSokoBotActionRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const ClaimSokoBotAvatarRequestSchema = {
+    type: 'object',
+    properties: {
+        avatarId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'avatarId'
+    ]
+} as const;
+
 export const AdminUserOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -21775,19 +21788,6 @@ export const IntroduceSokoBotRequestSchema = {
     },
     required: [
         'roomId'
-    ]
-} as const;
-
-export const ClaimSokoBotAvatarRequestSchema = {
-    type: 'object',
-    properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'avatarId'
     ]
 } as const;
 

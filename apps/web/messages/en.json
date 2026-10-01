@@ -4359,6 +4359,13 @@
             "after": "After the reply: “{reply}”",
             "want": "Expected"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Give this bot a mascot from the shared pool, as its owner would.",
+          "apply": "Set avatar",
+          "done": "Avatar updated.",
+          "error": "Could not set the avatar."
         }
       },
       "MatchedChannels": {

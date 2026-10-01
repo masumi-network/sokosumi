@@ -113,6 +113,13 @@ describe("TeamRoster", () => {
     ]);
   });
 
+  it("shows a status chip only when the bot is not idle", async () => {
+    render(await TeamRoster({ team }));
+
+    expect(screen.getByText("RUNNING")).toBeInTheDocument();
+    expect(screen.queryByText("IDLE")).toBeNull();
+  });
+
   it("puts people without an assistant on the not-set-up line", async () => {
     render(await TeamRoster({ team }));
 

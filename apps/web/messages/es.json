@@ -4323,6 +4323,13 @@
             "after": "Tras la respuesta: «{reply}»",
             "want": "Esperado"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Dale a este bot una mascota del grupo compartido, como lo haría su dueño.",
+          "apply": "Asignar avatar",
+          "done": "Avatar actualizado.",
+          "error": "No se pudo asignar el avatar."
         }
       },
       "MatchedChannels": {

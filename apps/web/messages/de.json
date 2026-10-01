@@ -4323,6 +4323,13 @@
             "after": "Nach der Antwort: „{reply}“",
             "want": "Erwartet"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "apply": "Avatar setzen",
+          "done": "Avatar aktualisiert.",
+          "error": "Der Avatar konnte nicht gesetzt werden."
         }
       },
       "MatchedChannels": {

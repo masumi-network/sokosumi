@@ -455,6 +455,7 @@ import {
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
+  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
@@ -4720,6 +4721,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminSokoBotAvatar({
+          client,
+          path: { sokoBotId },
+          body: { avatarId },
+        }),
+      "Failed to set Soko Bot avatar",
+    );
+  }
+
   async function introduceMySokoBot(body: { roomId: string }) {
     return executeCoreOperation(
       getClient,
@@ -5866,6 +5880,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
+    setAdminSokoBotAvatar,
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,

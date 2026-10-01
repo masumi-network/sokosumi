@@ -168,6 +168,33 @@ interface DeleteBotParams extends AuthenticatedRequest {
   input: unknown;
 }
 
+const setAvatarSchema = z.object({
+  sokoBotId: z.string().uuid(),
+  avatarId: z.string().uuid(),
+});
+
+/** Gives another user's bot a mascot from the shared pool. */
+export const setAdminSokoBotAvatarAction = withSession<
+  DeleteBotParams,
+  ActionResultDto<{ avatarImageUrl: string }, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = setAvatarSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    const { sokoBotId, avatarId } = parsed.data;
+    const result = await adminSokoBotService.setAvatar(sokoBotId, avatarId);
+    revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${sokoBotId}`);
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
 const deleteBotSchema = z.object({ sokoBotId: z.string().uuid() });
 
 export const deleteAdminSokoBotAction = withSession<
