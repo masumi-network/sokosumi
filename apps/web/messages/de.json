@@ -302,7 +302,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Gedächtnis",
-      "social": "Social",
+      "social": "Social-Planung",
       "evaluations": "Modellvergleiche"
     },
     "Jobs": {
@@ -1568,6 +1568,10 @@
         }
       },
       "SokoBot": {
+        "connectPrompt": "Verbinde Mail und Kalender, damit {bot} deine Meetings vorbereiten und Follow-ups nachhalten kann.",
+        "connectProvider": "{name} verbinden",
+        "connectDismiss": "Ausblenden",
+        "connectError": "Die Verbindung konnte nicht gestartet werden.",
         "feedbackAsk": "Nützlich?",
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
@@ -2809,7 +2813,7 @@
       "creditsCheckedOn": "Preis geprüft am {date}"
     },
     "Social": {
-      "title": "Social",
+      "title": "Social-Planung",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
@@ -2862,6 +2866,7 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "Neu",
           "newTask": "Neue Aufgabe",
           "search": "Suche",
           "exploreAgents": "Agenten",
@@ -2877,7 +2882,7 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social"
+          "social": "Social-Planung"
         },
         "ChatLists": {
           "title": "Letzte Chats",
@@ -3795,7 +3800,8 @@
           "unnamed": "Unbenannt",
           "archived": "Archiviert",
           "version": "Version",
-          "showDormant": "Ungenutzte und archivierte anzeigen ({count})"
+          "showDormant": "Ungenutzte und archivierte anzeigen ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Zurück zu Soko Bots",
@@ -3814,7 +3820,8 @@
           "viewsNav": "Bot-Ansichten",
           "views": {
             "status": "Status",
-            "advanced": "Erweitert"
+            "advanced": "Erweitert",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Diesen Soko Bot löschen",
@@ -3826,6 +3833,17 @@
             "deleted": "Soko Bot gelöscht.",
             "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
             "error": "Dieser Soko Bot konnte nicht gelöscht werden."
+          },
+          "chat": {
+            "readOnly": "Nur lesen",
+            "roomsNav": "Chats",
+            "ownerRoom": "Besitzer",
+            "loadOlder": "Ältere laden",
+            "loading": "Wird geladen…",
+            "noMessages": "Noch keine Nachrichten.",
+            "empty": "Mit diesem Bot hat noch niemand gechattet.",
+            "deleted": "Nachricht gelöscht",
+            "loadError": "Ältere Nachrichten konnten nicht geladen werden."
           }
         },
         "Actions": {

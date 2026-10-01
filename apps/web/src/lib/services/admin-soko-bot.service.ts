@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   AdminSokoBotActionRequest,
+  AdminSokoBotChatRoom,
   AdminSokoBotDetail,
   AdminSokoBotList,
   AdminSokoBotModelEvaluations,
@@ -9,6 +10,7 @@ import type {
   AdminSokoBotVersionMigrationRequest,
   AdminSokoBotVersionMigrationResult,
   AdminSokoBotVersionUsage,
+  ChatRoomMessage,
   SokoBotGatewayModelList,
   SokoBotVersionDetail,
   SokoBotVersionList,
@@ -148,6 +150,29 @@ export const adminSokoBotService = {
       }
       throw error;
     }
+  },
+
+  /** The bot's direct chats, newest first; read-only for support. */
+  async listChats(sokoBotId: string): Promise<AdminSokoBotChatRoom[]> {
+    const response = await coreClient.listAdminSokoBotChats(sokoBotId);
+    return response.data;
+  },
+
+  /** One page of a chat in reading order, plus the cursor to older messages. */
+  async listChatMessages(
+    sokoBotId: string,
+    roomId: string,
+    cursor?: string,
+  ): Promise<{ messages: ChatRoomMessage[]; nextCursor: string | null }> {
+    const response = await coreClient.listAdminSokoBotChatMessages(
+      sokoBotId,
+      roomId,
+      { cursor, limit: 50 },
+    );
+    return {
+      messages: response.data,
+      nextCursor: response.meta.pagination?.nextCursor ?? null,
+    };
   },
 
   async performAction(

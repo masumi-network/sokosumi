@@ -1,6 +1,8 @@
 import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountPerformAdminSokoBotAction from "./[sokoBotId]/actions/post.js";
 import mountSetAdminSokoBotAvatar from "./[sokoBotId]/avatar/post.js";
+import mountListAdminSokoBotChatMessages from "./[sokoBotId]/chats/[roomId]/messages/get.js";
+import mountListAdminSokoBotChats from "./[sokoBotId]/chats/get.js";
 import mountDeleteAdminSokoBot from "./[sokoBotId]/delete.js";
 import mountGetAdminSokoBot from "./[sokoBotId]/get.js";
 import mountGetAdminSokoBotAvailability from "./availability/get.js";
@@ -33,6 +35,8 @@ mountArchiveAdminSokoBotVersion(app);
 mountPromoteAdminSokoBotVersion(app);
 mountGetAdminSokoBotVersionUsage(app);
 mountMigrateAdminSokoBotVersions(app);
+mountListAdminSokoBotChats(app);
+mountListAdminSokoBotChatMessages(app);
 mountGetAdminSokoBot(app);
 mountPerformAdminSokoBotAction(app);
 mountSetAdminSokoBotAvatar(app);

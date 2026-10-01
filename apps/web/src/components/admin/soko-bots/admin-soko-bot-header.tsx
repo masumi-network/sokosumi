@@ -9,17 +9,18 @@ import { Button } from "@/components/ui/button";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-/** Shared chrome for the two operator views of one bot: status and advanced. */
+/** Shared chrome for the operator views of one bot: status, chat, advanced. */
 export async function AdminSokoBotHeader({
   bot,
   active,
 }: {
   bot: AdminSokoBotDetail;
-  active: "status" | "advanced";
+  active: "status" | "chat" | "advanced";
 }) {
   const t = await getTranslations("App.Admin.SokoBots.Detail");
   const tabs = [
     { key: "status" as const, href: `${ADMIN_SOKO_BOTS_ROUTE}/${bot.id}` },
+    { key: "chat" as const, href: `${ADMIN_SOKO_BOTS_ROUTE}/${bot.id}/chat` },
     {
       key: "advanced" as const,
       href: `${ADMIN_SOKO_BOTS_ROUTE}/${bot.id}/advanced`,
