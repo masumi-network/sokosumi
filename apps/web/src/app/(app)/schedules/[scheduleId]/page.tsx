@@ -40,8 +40,8 @@ const UPCOMING_RUNS_FETCH_LIMIT = 100;
 const CREATED_TASKS_LIMIT = 20;
 /**
  * A Run now Run takes its time just before its Task is stored, so the label
- * lookup starts a little before the oldest listed Task. Inside that window
- * there are about as many Run now Runs as listed Tasks.
+ * lookup starts a little before the oldest listed Task. Archived Tasks keep
+ * their Run rows, so the service reads every page in that window.
  */
 const MANUAL_RUN_LOOKBACK_MS = 60_000;
 const MANUAL_RUNS_FETCH_LIMIT = 100;

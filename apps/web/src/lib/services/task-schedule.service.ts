@@ -99,17 +99,26 @@ export const taskScheduleService = (() => {
     return result.data;
   }
 
-  /** The Run now Runs from `from` on, oldest first. */
+  /** All Run now Runs in this window; `limit` is the Core page size. */
   async function listManualRuns(
     id: string,
     params: { from: Date; limit: number },
   ): Promise<TaskScheduleRun[]> {
-    const result = await coreClient.listTaskScheduleRuns(id, {
-      from: params.from,
-      manual: "true",
-      limit: params.limit,
-    });
-    return result.data;
+    const runs: TaskScheduleRun[] = [];
+    const to = new Date();
+    let cursor: string | undefined;
+    do {
+      const result = await coreClient.listTaskScheduleRuns(id, {
+        from: params.from,
+        to,
+        manual: "true",
+        limit: params.limit,
+        cursor,
+      });
+      runs.push(...result.data);
+      cursor = result.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return runs;
   }
 
   /** Run now: one extra Run that creates its Task at once. */

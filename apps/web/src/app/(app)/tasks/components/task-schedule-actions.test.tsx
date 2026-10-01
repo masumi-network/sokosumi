@@ -118,6 +118,8 @@ describe("TaskScheduleActions", () => {
       });
       await waitFor(() => expect(refreshMock).toHaveBeenCalled());
       expect(toastMock.success).toHaveBeenCalledWith("ranNow", {
+        duration: Infinity,
+        closeButton: true,
         action: { label: "openTask", onClick: expect.any(Function) },
       });
       toastMock.success.mock.calls[0][1].action.onClick();
@@ -138,6 +140,30 @@ describe("TaskScheduleActions", () => {
     });
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
     expect(toastMock.success).toHaveBeenCalledWith("paused");
+  });
+
+  it("blocks another Run now submit while the first is pending", async () => {
+    let complete: (() => void) | undefined;
+    runTaskScheduleNowMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        complete = resolve;
+      });
+      return { ok: false, error: { kind: "failed", message: "Failed" } };
+    });
+    const user = userEvent.setup();
+    renderActions("ACTIVE");
+    const button = screen.getByRole("button", { name: "runNow" });
+
+    await user.click(button);
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(runTaskScheduleNowMock).toHaveBeenCalledTimes(1);
+    expect(complete).toBeDefined();
+    complete?.();
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toastMock.error).toHaveBeenCalledWith("failed");
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("resumes a Paused schedule", async () => {

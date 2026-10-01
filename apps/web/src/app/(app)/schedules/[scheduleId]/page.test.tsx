@@ -1,9 +1,10 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getScheduleMock = vi.fn();
 const listUpcomingRunsMock = vi.fn();
+const listManualRunsMock = vi.fn();
 const listTasksMock = vi.fn();
 const getSessionMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -75,7 +76,8 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
     getSchedule: (scheduleId: string) => getScheduleMock(scheduleId),
     listUpcomingRuns: (scheduleId: string, params: unknown) =>
       listUpcomingRunsMock(scheduleId, params),
-    listManualRuns: async () => [],
+    listManualRuns: (scheduleId: string, params: unknown) =>
+      listManualRunsMock(scheduleId, params),
   },
 }));
 
@@ -121,6 +123,7 @@ describe("TaskScheduleDetailPage", () => {
     });
     getProjectFilterOptionsMock.mockResolvedValue([]);
     listUpcomingRunsMock.mockResolvedValue([]);
+    listManualRunsMock.mockResolvedValue([]);
     listTasksMock.mockResolvedValue({ tasks: [] });
   });
 
@@ -140,5 +143,32 @@ describe("TaskScheduleDetailPage", () => {
     await renderPage();
 
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+  });
+
+  it("labels manual Tasks from the complete Run list", async () => {
+    getScheduleMock.mockResolvedValue({ ...SCHEDULE, projectId: null });
+    const createdAt = new Date("2026-10-01T09:00:00Z");
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        {
+          id: "manual-task",
+          name: "Manual report",
+          createdAt,
+          status: "READY",
+        },
+        { id: "rule-task", name: "Rule report", createdAt, status: "READY" },
+      ],
+    });
+    listManualRunsMock.mockResolvedValue([{ releasedTaskId: "manual-task" }]);
+
+    await renderPage();
+
+    expect(screen.getAllByText("Detail.taskRunNow")).toHaveLength(1);
+    expect(
+      screen.getByRole("link", { name: /Manual report/ }),
+    ).toHaveTextContent("Detail.taskRunNow");
+    expect(
+      screen.getByRole("link", { name: /Rule report/ }),
+    ).not.toHaveTextContent("Detail.taskRunNow");
   });
 });

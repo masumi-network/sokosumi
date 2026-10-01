@@ -101,6 +101,8 @@ export function TaskScheduleActions({
       }
       const { taskId } = result.value;
       toast.success(tActions("ranNow"), {
+        duration: Infinity,
+        closeButton: true,
         action: {
           label: tActions("openTask"),
           onClick: () => router.push(`/tasks/${taskId}`),
