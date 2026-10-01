@@ -72,6 +72,7 @@ import { useRoomUrlAsk } from "@/app/chat/hooks/use-room-url-ask";
 import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
+import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -205,7 +206,6 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   getRoomDisplayName,
-  getRoomParticipantPreviews,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -223,6 +223,7 @@ import {
   shouldUseCoworkerRoomStream,
   sokoBotMentionSlug,
 } from "./room-helpers";
+import { RoomMembersPanel } from "./room-members-panel";
 import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
 import {
@@ -230,7 +231,6 @@ import {
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
-import { RoomRosterPanel } from "./room-roster-panel";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
@@ -742,9 +742,6 @@ function RoomView({
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
   const [rosterOpen, setRosterOpen] = useState(false);
-  const handleOpenEditChannel = useCallback(() => {
-    setEditChannelOpen(true);
-  }, []);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -1025,51 +1022,17 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
-  // Matched channels are roster-managed only from the admin hub.
-  const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
     discoverability: selectedRoom?.discoverability,
     myAccess: selectedRoom?.myAccess,
     hasActiveOrganization: Boolean(activeOrganization),
   });
-  // Host-org channel members rewrite roster; guests and matched cannot.
-  const canEditSelectedRoomMembers = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      !isMatchedChannel,
-  );
-  // Name/topic/discoverability and archive: organization owner/admin only.
-  // Guests and matched members never manage host channel settings.
-  const canManageSelectedRoomSettings = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      !isMatchedChannel &&
-      isOrgOwnerOrAdmin,
-  );
-  const canArchiveSelectedRoom = canManageSelectedRoomSettings;
-  // Host members on external channels invite guests; guests never invite.
-  const canInviteGuestsToSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      selectedRoom.myAccess === "member" &&
-      selectedRoom.discoverability === "external",
-  );
-  // Any participant can leave. Host-org channels keep the last host member so
-  // an empty roster cannot block archive (org owner/admin). Matched channels
-  // allow last-member leave (Core auto-archives). Guests may always leave.
-  const canLeaveSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      (isGuestInSelectedRoom ||
-        isMatchedChannel ||
-        selectedRoom.userMembers.filter((member) => member.access === "member")
-          .length > 1),
-  );
+  // Name/topic/visibility and archive: organization owner/admin only. Everyone
+  // else manages membership from the members panel instead.
+  const canManageSelectedRoomSettings =
+    selectedRoom != null &&
+    canManageChannelSettings(selectedRoom, isOrgOwnerOrAdmin);
   const isCoworkerStreamRoom = selectedRoom
     ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
@@ -1982,17 +1945,21 @@ function RoomView({
     setThreadListOpen(true);
   }
 
-  function handleToggleRoster() {
-    if (rosterOpen) {
-      setRosterOpen(false);
-      return;
-    }
+  function openRoster() {
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
     setThreadListOpen(false);
     setPinnedOpen(false);
     setRosterOpen(true);
+  }
+
+  function handleToggleRoster() {
+    if (rosterOpen) {
+      setRosterOpen(false);
+      return;
+    }
+    openRoster();
   }
 
   function openPinnedPanel() {
@@ -2142,6 +2109,21 @@ function RoomView({
     open: handleOpenThreadListFromUrl,
   });
 
+  // A Channel's settings are for an owner or admin; anyone else asking gets
+  // its members panel. A group Direct's name is anyone's to change. Reached
+  // through a ref so the URL reader's effect keeps one `open`.
+  const openEditChannelRef = useRef(() => {});
+  openEditChannelRef.current = () => {
+    if (selectedRoom?.kind === "channel" && !canManageSelectedRoomSettings) {
+      openRoster();
+      return;
+    }
+    setEditChannelOpen(true);
+  };
+  const handleOpenEditChannelFromUrl = useCallback(() => {
+    openEditChannelRef.current();
+  }, []);
+
   useRoomUrlAsk({
     // Channels and group Directs only, the way the row that asks is. Any
     // other Direct has no dialog to open, so it has no ask to read either.
@@ -2153,7 +2135,7 @@ function RoomView({
     pathname,
     searchParams,
     replace: router.replace,
-    open: handleOpenEditChannel,
+    open: handleOpenEditChannelFromUrl,
   });
 
   useRoomNotificationDeepLink({
@@ -3005,16 +2987,9 @@ function RoomView({
         onToggleThreadList={() => showThreadList({ toggle: true })}
         rosterOpen={rosterOpen}
         onToggleRoster={handleToggleRoster}
+        onOpenRoster={openRoster}
         currentUserId={currentUserId}
-        organizationMembers={organizationMembers}
-        coworkers={coworkers}
-        sokoBots={sokoBots}
-        canEditMembers={canEditSelectedRoomMembers}
         canManageSettings={canManageSelectedRoomSettings}
-        canArchive={canArchiveSelectedRoom}
-        canLeave={canLeaveSelectedRoom}
-        canInviteGuests={canInviteGuestsToSelectedRoom}
-        membersLoadFailed={membersLoadFailed}
         editOpen={editChannelOpen}
         onEditOpenChange={setEditChannelOpen}
         showParticipants={showHeaderParticipants}
@@ -3496,30 +3471,20 @@ function RoomView({
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (
-              <RoomRosterPanel
-                participants={getRoomParticipantPreviews(selectedRoom)}
+              <RoomMembersPanel
+                room={selectedRoom}
                 currentUserId={currentUserId}
+                isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+                organizationMembers={organizationMembers}
+                coworkers={coworkers}
+                sokoBots={sokoBots}
+                membersLoadFailed={membersLoadFailed}
                 readStateFor={readReceipts.readStateFor}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
                 onClose={() => {
                   setRosterOpen(false);
-                }}
-                labels={{
-                  title: t("RoomRoster.title"),
-                  humansTitle: t("RoomRoster.humansTitle"),
-                  agentsTitle: t("RoomRoster.agentsTitle"),
-                  close: t("RoomRoster.close"),
-                  readAt: (time) => t("SeenBy.readAt", { time }),
-                  notRead: t("SeenBy.notRead"),
-                  empty: t("RoomRoster.empty"),
-                  coworkerBadge: t("coworkerBadge"),
-                  personalAssistantBadge: t("personalAssistantBadge"),
-                  message: (name) => t("RoomRoster.message", { name }),
-                  copy: (value) => t("RoomRoster.copy", { value }),
-                  copySuccess: t("RoomRoster.copySuccess"),
-                  copyError: t("RoomRoster.copyError"),
                 }}
               />
             ) : null

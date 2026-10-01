@@ -133,7 +133,7 @@ function renderSidebar() {
               pendingInvitations={pendingInvitations}
               currentUserId="user-1"
               organizationId="org-1"
-              canDeleteArchivedRooms
+              isOrgOwnerOrAdmin
               dismissSheetOnNavigate={false}
               paintOnly
             />

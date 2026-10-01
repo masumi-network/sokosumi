@@ -464,12 +464,9 @@ describe("canManageChatRoomLifecycle", () => {
 });
 
 describe("assertChatRoomPatchAuth", () => {
-  it("allows a plain member to PATCH roster-only", () => {
+  it("lets a plain member send a PATCH that changes no setting", () => {
     expect(() =>
-      assertChatRoomPatchAuth({
-        role: MemberRole.MEMBER,
-        body: { memberUserIds: ["user_a"], coworkerIds: [] },
-      }),
+      assertChatRoomPatchAuth({ role: MemberRole.MEMBER, body: {} }),
     ).not.toThrow();
   });
 
@@ -482,15 +479,11 @@ describe("assertChatRoomPatchAuth", () => {
     ).toThrow(/organization owner or admin/i);
   });
 
-  it("allows an organization admin to PATCH settings and roster", () => {
+  it("allows an organization admin to PATCH settings", () => {
     expect(() =>
       assertChatRoomPatchAuth({
         role: MemberRole.ADMIN,
-        body: {
-          name: "Ops",
-          memberUserIds: ["user_a"],
-          coworkerIds: [],
-        },
+        body: { name: "Ops" },
       }),
     ).not.toThrow();
   });

@@ -356,6 +356,7 @@ export function mapChatRoom(
       caption: sokoBotCaption(sokoBot),
       image: sokoBot.avatarImageUrl ?? null,
       avatarSeed: sokoBotAvatarSeedFor(sokoBot),
+      ownerUserId: sokoBot.userId,
       presence: "online" as const,
     })),
   };
@@ -631,6 +632,7 @@ function mapChatRoomMessageSender(
         caption: sokoBotCaption(row.senderSokoBot),
         image: row.senderSokoBot.avatarImageUrl ?? null,
         avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
+        ownerUserId: row.senderSokoBot.userId,
         presence: "online" as const,
       },
     };
@@ -1224,9 +1226,8 @@ export function chatRoomPatchTouchesSettings(body: {
 }
 
 /**
- * Split PATCH gates (after caller proven access=member, not guest):
- * settings (name/topic/discoverability) need OWNER/ADMIN; roster rewrite is
- * allowed for any host-org room member. Fail settings before any writes.
+ * PATCH gate (after caller proven access=member, not guest): settings
+ * (name/topic/discoverability) need OWNER/ADMIN. Fail before any writes.
  */
 export function assertChatRoomPatchAuth(options: {
   role: string;
@@ -1234,8 +1235,6 @@ export function assertChatRoomPatchAuth(options: {
     name?: unknown;
     topic?: unknown;
     discoverability?: unknown;
-    memberUserIds?: unknown;
-    coworkerIds?: unknown;
   };
 }): void {
   if (

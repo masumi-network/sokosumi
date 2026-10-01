@@ -3,7 +3,6 @@
 import type {
   ChatRoomGuestInviteLink,
   ChatRoomInvitation,
-  ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import { Copy, Link2, Loader2, Trash2, UserPlus } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
@@ -20,7 +19,6 @@ import {
   createRoomInvitationAction,
   listRoomGuestInviteLinksAction,
   listRoomInvitationsAction,
-  removeRoomGuestAction,
   revokeRoomGuestInviteLinkAction,
   revokeRoomInvitationAction,
 } from "@/app/chat/actions";
@@ -54,23 +52,17 @@ const MAX_USES_PRESETS = [
 
 interface GuestInviteSectionProps {
   roomId: string;
-  /** Current guest participants (from room DTO). */
-  guests: ChatRoomUserParticipant[];
-  /** Called after a guest is removed so the parent can refresh room state. */
-  onGuestRemoved?: (userId: string) => void;
 }
 
 /**
- * Guest invite UI for external channels.
+ * Guest invite UI for external channels: email invites, shareable links, and
+ * the pending ones of each. Guests already in the channel are listed (and
+ * removed) in the members panel.
  *
- * Parent mounts this only while the edit dialog is open (and keys by room id)
+ * Parent mounts this only while the add dialog shows it (and keys by room id)
  * so reopen remounts and refetches pending invites — no open-synced useEffect.
  */
-export function GuestInviteSection({
-  roomId,
-  guests,
-  onGuestRemoved,
-}: GuestInviteSectionProps) {
+export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
   const t = useTranslations("App.Channels.GuestInvite");
   const format = useFormatter();
   const [email, setEmail] = useState("");
@@ -84,7 +76,6 @@ export function GuestInviteSection({
   const [linkMaxUses, setLinkMaxUses] = useState<string>(MAX_USES_UNLIMITED);
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokingToken, setRevokingToken] = useState<string | null>(null);
-  const [removingUserId, setRemovingUserId] = useState<string | null>(null);
 
   const loadInvitations = useCallback(async () => {
     setIsLoading(true);
@@ -218,21 +209,8 @@ export function GuestInviteSection({
     setInviteLinks((prev) => prev.filter((link) => link.token !== token));
   }
 
-  async function handleRemoveGuest(userId: string, label: string) {
-    if (removingUserId) return;
-    setRemovingUserId(userId);
-    const result = await removeRoomGuestAction(roomId, userId);
-    setRemovingUserId(null);
-    if (!result.ok) {
-      toast.error(result.error.message);
-      return;
-    }
-    toast.success(t("removeGuestSuccess", { name: label }));
-    onGuestRemoved?.(userId);
-  }
-
   return (
-    <div className="min-w-0 space-y-4 overflow-x-hidden border-t pt-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       <div className="min-w-0 space-y-1">
         <p className="flex items-center gap-2 text-sm font-medium">
           <UserPlus className="size-4 shrink-0" aria-hidden />
@@ -495,56 +473,6 @@ export function GuestInviteSection({
                 </p>
               </li>
             ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <p className="text-muted-foreground text-xs font-medium">
-          {t("guestsTitle")}
-        </p>
-        {guests.length === 0 ? (
-          <p className="text-muted-foreground text-sm">{t("guestsEmpty")}</p>
-        ) : (
-          <ul className="space-y-1.5">
-            {guests.map((guest) => {
-              const label = guest.name?.trim() || guest.email;
-              return (
-                <li
-                  key={guest.id}
-                  className="bg-card-background flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm"
-                >
-                  <span className="min-w-0 truncate">
-                    {label}
-                    {guest.name?.trim() ? (
-                      <span className="text-muted-foreground">
-                        {" "}
-                        ({guest.email})
-                      </span>
-                    ) : null}
-                  </span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="size-8 shrink-0"
-                    aria-label={t("removeGuestAria", { name: label })}
-                    title={t("removeGuest")}
-                    disabled={removingUserId === guest.id}
-                    onClick={() => void handleRemoveGuest(guest.id, label)}
-                  >
-                    {removingUserId === guest.id ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Trash2 className="size-4" aria-hidden />
-                    )}
-                  </Button>
-                </li>
-              );
-            })}
           </ul>
         )}
       </div>

@@ -6039,9 +6039,7 @@
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Salir del canal",
-        "actionsOnlyDescription": "Sal de este canal cuando ya no lo necesites. La configuración del canal la gestionan los administradores.",
+        "editDescription": "Actualiza el nombre, el tema y la visibilidad del canal.",
         "name": "Name",
         "nameRequired": "El nombre del canal es obligatorio.",
         "namePlaceholder": "Launch planning",
@@ -6055,7 +6053,8 @@
         "personalAssistants": "Asistentes personales",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes"
+        "save": "Save changes",
+        "manageGuests": "Gestionar invitados"
       },
       "MentionStatus": {
         "failed": "No se pudo responder",
@@ -6284,7 +6283,8 @@
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
         "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse.",
         "external": "Externo",
-        "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización."
+        "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización.",
+        "externalLocked": "Este canal tiene invitados. Quítalos antes de hacerlo público o privado."
       },
       "CreateWizard": {
         "title": "Crear un canal",
@@ -6314,13 +6314,31 @@
         "open": "Miembros",
         "title": "Miembros",
         "humansTitle": "Personas",
+        "guestsTitle": "Invitados",
         "agentsTitle": "Coworkers",
         "close": "Cerrar miembros",
         "empty": "No hay miembros.",
         "message": "Mensaje a {name}",
         "copy": "Copiar {value}",
         "copySuccess": "Copiado al portapapeles",
-        "copyError": "No se pudo copiar."
+        "copyError": "No se pudo copiar.",
+        "add": "Añadir miembros",
+        "memberActions": "Más acciones para {name}",
+        "remove": "Quitar del canal",
+        "removeConfirmTitle": "¿Quitar a {name} de este canal?",
+        "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
+        "removeSuccess": "Se quitó a {name} del canal.",
+        "undo": "Deshacer"
+      },
+      "AddMembers": {
+        "title": "Añadir miembros",
+        "description": "Añade personas, coworkers y tus asistentes personales a {name}.",
+        "membersTab": "De tu organización",
+        "guestsTab": "Invitar desde fuera",
+        "submit": "Añadir",
+        "chooseSomeone": "Elige a quién añadir.",
+        "nobodyToAdd": "Todas las personas que puedes añadir ya están en este canal.",
+        "success": "{count, plural, one {Se añadió # miembro.} other {Se añadieron # miembros.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
@@ -6358,7 +6376,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
-        "left": "{name} salió"
+        "left": "{name} salió",
+        "added": "{actor} añadió a {name}",
+        "removed": "{actor} quitó a {name}"
       },
       "GroupName": {
         "rename": "Cambiar nombre",
@@ -6389,11 +6409,6 @@
         "send": "Enviar invitación",
         "invalidEmail": "Introduce un correo válido.",
         "inviteSuccess": "Invitación enviada a {email}.",
-        "guestsTitle": "Invitados",
-        "guestsEmpty": "Aún no hay invitados.",
-        "removeGuest": "Quitar invitado",
-        "removeGuestAria": "Quitar invitado {name}",
-        "removeGuestSuccess": "Se quitó a {name} del canal.",
         "pendingTitle": "Invitaciones pendientes",
         "empty": "No hay invitaciones pendientes.",
         "loading": "Cargando invitaciones…",

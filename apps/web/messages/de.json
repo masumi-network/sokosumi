@@ -6039,9 +6039,7 @@
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
         "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Kanal verlassen",
-        "actionsOnlyDescription": "Verlasse diesen Kanal, wenn du ihn nicht mehr brauchst. Die Kanaleinstellungen werden von Admins verwaltet.",
+        "editDescription": "Name, Thema und Sichtbarkeit des Kanals ändern.",
         "name": "Name",
         "nameRequired": "Kanalname ist erforderlich.",
         "namePlaceholder": "Launch planning",
@@ -6055,7 +6053,8 @@
         "personalAssistants": "Persönliche Assistenten",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes"
+        "save": "Save changes",
+        "manageGuests": "Gäste verwalten"
       },
       "MentionStatus": {
         "failed": "Antwort fehlgeschlagen",
@@ -6284,7 +6283,8 @@
         "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
         "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
         "external": "Extern",
-        "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft."
+        "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft.",
+        "externalLocked": "Dieser Kanal hat Gäste. Entferne sie, bevor du ihn öffentlich oder privat machst."
       },
       "CreateWizard": {
         "title": "Kanal erstellen",
@@ -6314,13 +6314,31 @@
         "open": "Mitglieder",
         "title": "Mitglieder",
         "humansTitle": "Personen",
+        "guestsTitle": "Gäste",
         "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",
-        "copyError": "Kopieren fehlgeschlagen."
+        "copyError": "Kopieren fehlgeschlagen.",
+        "add": "Mitglieder hinzufügen",
+        "memberActions": "Weitere Aktionen für {name}",
+        "remove": "Aus dem Kanal entfernen",
+        "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
+        "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
+        "removeSuccess": "{name} aus dem Kanal entfernt.",
+        "undo": "Rückgängig"
+      },
+      "AddMembers": {
+        "title": "Mitglieder hinzufügen",
+        "description": "Füge {name} Personen, Coworker und deine persönlichen Assistenten hinzu.",
+        "membersTab": "Aus deiner Organisation",
+        "guestsTab": "Von außen einladen",
+        "submit": "Hinzufügen",
+        "chooseSomeone": "Wähle aus, wen du hinzufügen möchtest.",
+        "nobodyToAdd": "Alle, die du hinzufügen kannst, sind bereits in diesem Kanal.",
+        "success": "{count, plural, one {# Mitglied hinzugefügt.} other {# Mitglieder hinzugefügt.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
@@ -6358,7 +6376,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
-        "left": "{name} hat den Channel verlassen"
+        "left": "{name} hat den Channel verlassen",
+        "added": "{actor} hat {name} hinzugefügt",
+        "removed": "{actor} hat {name} entfernt"
       },
       "GroupName": {
         "rename": "Umbenennen",
@@ -6389,11 +6409,6 @@
         "send": "Einladung senden",
         "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
         "inviteSuccess": "Einladung an {email} gesendet.",
-        "guestsTitle": "Gäste",
-        "guestsEmpty": "Noch keine Gäste.",
-        "removeGuest": "Gast entfernen",
-        "removeGuestAria": "Gast {name} entfernen",
-        "removeGuestSuccess": "{name} aus dem Kanal entfernt.",
         "pendingTitle": "Ausstehende Einladungen",
         "empty": "Keine ausstehenden Einladungen.",
         "loading": "Einladungen werden geladen…",

@@ -215,6 +215,8 @@ function mentionLookupMapsFromCatalog(
         caption: null,
         image: data.image,
         avatarSeed: null,
+        // Not on the mention catalog, and nothing reading this lookup asks.
+        ownerUserId: "",
         presence: "offline",
       };
       sokoBotsById.set(data.id, sokoBot);

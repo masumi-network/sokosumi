@@ -374,7 +374,7 @@ export function createOrganizationChatList({
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}
-      canDeleteArchivedRooms={false}
+      isOrgOwnerOrAdmin={false}
       dismissSheetOnNavigate={false}
       paintOnly={paintOnly}
     />
