@@ -37,15 +37,6 @@ interface FakeCore {
   userLookups: number;
   /** The names `/v1/users/me` answers with. */
   user: { name: string; firstName: string | null; lastName: string | null };
-  /** What `/v1/users/me/workspace-access` answers. */
-  workspaceAccess: {
-    hasPersonalWorkspace: boolean;
-    hasOrganizationMembership: boolean;
-  };
-  /** Status of `POST /v1/users/me/personal-workspace`. */
-  personalWorkspaceStatus: 201 | 409 | 500;
-  /** How often CMO has asked Core to create a personal Workspace. */
-  personalWorkspaceCreates: number;
 }
 
 /**
@@ -192,40 +183,6 @@ async function createFakeCore(): Promise<FakeCore> {
           meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_1" },
         });
       }
-      case "/v1/users/me/workspace-access": {
-        const bearer = request.headers.get("authorization")?.slice(7) ?? "";
-        if (!accessTokens.has(bearer)) {
-          return json({ error: "Unauthorized" }, 401);
-        }
-        return json({
-          data: {
-            gate: "ready",
-            ...fake.workspaceAccess,
-            hasPendingOrganizationInvites: false,
-          },
-          meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_2" },
-        });
-      }
-      case "/v1/users/me/personal-workspace": {
-        const bearer = request.headers.get("authorization")?.slice(7) ?? "";
-        if (request.method !== "POST" || !accessTokens.has(bearer)) {
-          return json({ error: "Unauthorized" }, 401);
-        }
-        fake.personalWorkspaceCreates += 1;
-        if (fake.personalWorkspaceStatus !== 201) {
-          return json(
-            { error: "Personal workspace already exists" },
-            fake.personalWorkspaceStatus,
-          );
-        }
-        return json(
-          {
-            data: { workspaceId: "11111111-1111-7111-8111-111111111111" },
-            meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_3" },
-          },
-          201,
-        );
-      }
       case "/auth/oauth2/revoke": {
         const form = new URLSearchParams(await request.text());
         if (!hasClientCredentials(request, form)) {
@@ -267,12 +224,6 @@ async function createFakeCore(): Promise<FakeCore> {
     userLookupDown: false,
     userLookups: 0,
     user: { name: "Ada Lovelace", firstName: "Ada", lastName: "Lovelace" },
-    workspaceAccess: {
-      hasPersonalWorkspace: true,
-      hasOrganizationMembership: false,
-    },
-    personalWorkspaceStatus: 201,
-    personalWorkspaceCreates: 0,
   };
   return fake;
 }
@@ -441,64 +392,6 @@ describe("CMO auth handler", () => {
 
     expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
     expect(url.searchParams.get("prompt")).toBe("create");
-  });
-
-  it("creates a personal Workspace at sign-in for a person who has none", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
-
-    await signIn(auth, jar, core);
-
-    expect(core.personalWorkspaceCreates).toBe(1);
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
-
-  it("leaves the Workspaces of a person who has a personal one untouched", async () => {
-    await signIn(auth, jar, core);
-
-    expect(core.personalWorkspaceCreates).toBe(0);
-  });
-
-  it("leaves the Workspaces of an organization member untouched", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: true,
-    };
-
-    await signIn(auth, jar, core);
-
-    expect(core.personalWorkspaceCreates).toBe(0);
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
-
-  it("signs in when another request created the personal Workspace a moment earlier", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
-    core.personalWorkspaceStatus = 409;
-
-    const response = await signIn(auth, jar, core);
-
-    expect(response.headers.get("location")).toBe("/");
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
-
-  it("does not sign in when Core cannot create the personal Workspace", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
-    core.personalWorkspaceStatus = 500;
-
-    const response = await signIn(auth, jar, core);
-
-    expect(response.headers.get("location")).toMatch(
-      /^https:\/\/app\.cmo\.xyz\/\?error=/,
-    );
-    expect(await sessionUser(auth, jar)).toBeNull();
   });
 
   it("signs in on the callback and returns name and email from the session", async () => {
