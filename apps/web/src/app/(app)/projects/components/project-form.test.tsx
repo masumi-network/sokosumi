@@ -41,6 +41,8 @@ vi.mock("next-intl", () => ({
         return `Hint ${values?.example}`;
       if (key === "Wizard.name.identifierInvalid") return "Identifier invalid";
       if (key === "Wizard.name.identifierTaken") return "Identifier taken";
+      if (key === "Wizard.name.identifierImmutable")
+        return "Identifier immutable";
       if (key.startsWith("chips.")) return key.slice("chips.".length);
       return key;
     };
@@ -368,5 +370,33 @@ describe("ProjectForm", () => {
 
     await user.type(screen.getByLabelText("Identifier"), "2");
     expect(screen.queryByText("Identifier taken")).not.toBeInTheDocument();
+  });
+
+  it("shows an immutable identifier on the field instead of a toast", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: false,
+      error: { kind: "identifier_immutable" },
+    });
+    render(
+      <ProjectForm
+        mode="edit"
+        projectId="project-1"
+        labels={baseLabels}
+        initialValues={{ name: "Old name", identifier: "OLD" }}
+        showCancel={false}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Identifier"), "1");
+    await user.click(screen.getByRole("button", { name: "Save project" }));
+
+    expect(await screen.findByText("Identifier immutable")).toBeInTheDocument();
+    expect(screen.getByLabelText("Identifier")).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 });

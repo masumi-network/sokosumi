@@ -2244,7 +2244,8 @@
           "identifierPlaceholder": "Automatisch",
           "identifierHint": "Wird in Task-IDs verwendet, z. B. {example}",
           "identifierInvalid": "2-7 Buchstaben oder Ziffern, beginnend mit einem Buchstaben.",
-          "identifierTaken": "Diese Kennung wird in diesem Workspace bereits verwendet."
+          "identifierTaken": "Diese Kennung wird in diesem Workspace bereits verwendet.",
+          "identifierImmutable": "Diese Kennung kann nicht mehr geändert werden, nachdem Tasks nummeriert wurden."
         },
         "briefing": {
           "title": "Briefing schreiben",

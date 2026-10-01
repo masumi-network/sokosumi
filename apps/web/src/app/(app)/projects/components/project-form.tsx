@@ -74,7 +74,9 @@ export function ProjectForm({
   const isModal = variant === "modal";
   const [name, setName] = useState(initialValues?.name ?? "");
   const [identifier, setIdentifier] = useState(initialValues?.identifier ?? "");
-  const [isIdentifierTaken, setIsIdentifierTaken] = useState(false);
+  const [identifierFieldError, setIdentifierFieldError] = useState<
+    "identifier_taken" | "identifier_immutable" | null
+  >(null);
   const [website, setWebsite] = useState(initialValues?.websiteUrl ?? "");
   const [briefing, setBriefing] = useState(initialValues?.briefing ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -87,16 +89,19 @@ export function ProjectForm({
   const isIdentifierValid = identifier
     ? isValidProjectIdentifier(identifier)
     : !isIdentifierRequired;
-  const identifierError = isIdentifierTaken
-    ? t("Wizard.name.identifierTaken")
-    : identifier && !isIdentifierValid
-      ? t("Wizard.name.identifierInvalid")
-      : null;
+  const identifierError =
+    identifierFieldError === "identifier_taken"
+      ? t("Wizard.name.identifierTaken")
+      : identifierFieldError === "identifier_immutable"
+        ? t("Wizard.name.identifierImmutable")
+        : identifier && !isIdentifierValid
+          ? t("Wizard.name.identifierInvalid")
+          : null;
   const isSubmitDisabled =
     !name.trim() ||
     !isWebsiteValid ||
     !isIdentifierValid ||
-    isIdentifierTaken ||
+    identifierFieldError !== null ||
     isSubmitting;
 
   function updateSubmitting(nextIsSubmitting: boolean) {
@@ -129,7 +134,7 @@ export function ProjectForm({
             });
 
       if (!result.ok) {
-        setIsIdentifierTaken(true);
+        setIdentifierFieldError(result.error.kind);
         return;
       }
 
@@ -241,7 +246,7 @@ export function ProjectForm({
                     setIdentifier(
                       sanitizeProjectIdentifier(event.target.value),
                     );
-                    setIsIdentifierTaken(false);
+                    setIdentifierFieldError(null);
                   }}
                   disabled={isSubmitting}
                   aria-invalid={Boolean(identifierError)}

@@ -171,7 +171,15 @@ export function TaskMetadata({
           <PropertyRow
             label={priorityLabels.priority}
             value={priorityLabels.levels[task.priority]}
-            icon={<TaskPriorityIcon priority={task.priority} />}
+            icon={
+              <TaskPriorityIcon
+                priority={task.priority}
+                className={cn(
+                  task.priority === "URGENT" && "text-destructive",
+                  task.priority === "NONE" && "text-muted-foreground",
+                )}
+              />
+            }
           >
             <span
               className={cn(

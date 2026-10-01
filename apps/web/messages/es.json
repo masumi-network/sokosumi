@@ -2244,7 +2244,8 @@
           "identifierPlaceholder": "Automático",
           "identifierHint": "Se usa en los ID de tareas, p. ej. {example}",
           "identifierInvalid": "Usa de 2 a 7 letras o dígitos, empezando por una letra.",
-          "identifierTaken": "Este identificador ya se usa en este espacio de trabajo."
+          "identifierTaken": "Este identificador ya se usa en este espacio de trabajo.",
+          "identifierImmutable": "Este identificador no se puede cambiar después de numerar tareas."
         },
         "briefing": {
           "title": "Escribe el briefing",

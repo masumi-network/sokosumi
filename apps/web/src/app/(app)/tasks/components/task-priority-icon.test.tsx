@@ -21,21 +21,38 @@ describe("TaskPriorityIcon", () => {
     expect(bars(container)).toEqual(expected);
   });
 
-  it("NONE is three muted dashes", () => {
+  it("NONE is three dashes in currentColor", () => {
     const { container } = render(
       <TaskPriorityIcon priority={TaskPriority.NONE} />,
     );
 
     expect(container.querySelectorAll("rect")).toHaveLength(3);
-    expect(container.querySelector("svg")).toHaveClass("text-muted-foreground");
+    expect(container.querySelector("svg")).toHaveAttribute(
+      "fill",
+      "currentColor",
+    );
   });
 
-  it("URGENT is a single destructive shape", () => {
+  it("URGENT is a single shape in currentColor", () => {
     const { container } = render(
       <TaskPriorityIcon priority={TaskPriority.URGENT} />,
     );
 
     expect(container.querySelectorAll("path")).toHaveLength(1);
+    expect(container.querySelector("svg")).toHaveAttribute(
+      "fill",
+      "currentColor",
+    );
+  });
+
+  it("forwards className for caller accents", () => {
+    const { container } = render(
+      <TaskPriorityIcon
+        priority={TaskPriority.URGENT}
+        className="text-destructive"
+      />,
+    );
+
     expect(container.querySelector("svg")).toHaveClass("text-destructive");
   });
 
