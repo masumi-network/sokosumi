@@ -44,8 +44,9 @@ const STATE_ACTION_TOAST = {
 } as const satisfies Record<TaskScheduleStateAction, string>;
 
 /**
- * Edit, run now, pause, resume, end, and delete for the schedule's owner. An
- * Ended schedule is final: it can only be deleted.
+ * Edit, run now, pause, resume, end, and delete, for whoever Core says may
+ * change the schedule (`canWrite`). An Ended schedule is final: it can only be
+ * deleted.
  */
 export function TaskScheduleActions({
   schedule,
