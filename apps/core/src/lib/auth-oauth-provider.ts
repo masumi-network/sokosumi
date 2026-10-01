@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { OAuthOptions } from "@better-auth/oauth-provider";
 
+export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
 
 export const oauthRefreshTokenOptions = {
