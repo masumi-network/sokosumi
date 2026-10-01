@@ -14,24 +14,15 @@ import {
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
-import { ImagePlus, Loader2, Upload } from "lucide-react";
+import { Check, ImagePlus, Loader2, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { TaskFormModal } from "@/app/tasks/components/task-form-modal";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   type ActionError,
   toActionRejectionError,
@@ -62,6 +53,7 @@ import {
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
+import { PreviewAvatar } from "./social-post-preview-parts";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -76,6 +68,8 @@ export type SocialPostComposerMode =
 interface SocialPostComposerDialogProps {
   connections: ProjectSocialConnection[];
   mode: SocialPostComposerMode;
+  /** Takes the reader to where accounts are connected; absent, none is offered. */
+  onConnectAccount?: () => void;
   onError: (error: ActionError) => void;
   onOpenChange: (open: boolean) => void;
   onSaved: (post: SocialPost) => void;
@@ -102,6 +96,7 @@ function resolveTimezone(): string {
 export function SocialPostComposerDialog({
   connections,
   mode,
+  onConnectAccount,
   onError,
   onOpenChange,
   onSaved,
@@ -185,9 +180,9 @@ export function SocialPostComposerDialog({
     (candidate) => validateSocialPostMedia(candidate, media).ok,
   );
   const textValid = isScheduleOnly || (composerIssue === null && !overLimit);
+  // An empty composer explains itself: its button is off until there is text.
   const requirementHint =
     composerIssue === "text_required" ||
-    composerIssue === "text_or_media_required" ||
     composerIssue === "media_required" ||
     composerIssue === "video_required"
       ? composerIssue
@@ -216,8 +211,6 @@ export function SocialPostComposerDialog({
     mediaValid &&
     selectedConnections.length > 0 &&
     !isBusy;
-  // With no time picked, posting now is what the reader is here to do.
-  const publishNowIsPrimary = mode.kind === "create" && scheduledAt === "";
   const isReschedule = post?.status === "SCHEDULED";
 
   function toggleConnection(id: string): void {
@@ -442,33 +435,52 @@ export function SocialPostComposerDialog({
     }
   }
 
-  /** What ⌘/Ctrl+Enter runs: the main action for what the reader has filled. */
-  const shortcutAction: Exclude<PendingSubmit, null> =
-    // Picking a time is all the schedule dialog does, so there it schedules
-    // (or waits for a time) and never saves a new draft.
+  /**
+   * The one main action, which follows When: a time schedules, "Now" posts,
+   * and an existing post with no time saves. ⌘/Ctrl+Enter runs it. Picking a
+   * time is all the schedule dialog does, so it never saves a new draft.
+   */
+  const canPostNow = mode.kind === "create" && connections.length > 0;
+  const primaryAction: Exclude<PendingSubmit, null> =
     scheduledAt !== "" || isScheduleOnly
       ? "schedule"
-      : mode.kind === "create"
+      : canPostNow
         ? "publish"
         : "save";
+  const primaryEnabled =
+    primaryAction === "schedule"
+      ? canSchedule
+      : primaryAction === "publish"
+        ? canPublishNow
+        : canSave;
+  const saveLabel =
+    mode.kind === "edit" && mode.post.status !== "DRAFT"
+      ? t("composer.save")
+      : t("composer.saveDraft");
+  const scheduleLabel =
+    scheduledAtValid && scheduledDate
+      ? t(isReschedule ? "composer.rescheduleFor" : "composer.scheduleFor", {
+          date: formatter.dateTime(scheduledDate, "dateTime"),
+        })
+      : isReschedule
+        ? t("composer.reschedule")
+        : t("composer.schedule");
+  const primaryLabel =
+    primaryAction === "schedule"
+      ? scheduleLabel
+      : primaryAction === "publish"
+        ? t("composer.publishNow")
+        : saveLabel;
+  const needsAccount =
+    !isScheduleOnly &&
+    primaryAction !== "save" &&
+    connections.length > 0 &&
+    selectedConnections.length === 0;
 
-  function handleSubmitShortcut(): void {
-    if (shortcutAction === "schedule") void handleSchedule();
-    else if (shortcutAction === "publish") void handlePublishNow();
+  function runPrimary(): void {
+    if (primaryAction === "schedule") void handleSchedule();
+    else if (primaryAction === "publish") void handlePublishNow();
     else void handleSaveDraft();
-  }
-
-  /** The shortcut, shown on the button it runs. */
-  function shortcutHint(action: Exclude<PendingSubmit, null>) {
-    if (action !== shortcutAction) return null;
-    return (
-      <kbd
-        aria-hidden
-        className="hidden font-sans text-xs opacity-70 sm:inline"
-      >
-        ⌘↵
-      </kbd>
-    );
   }
 
   async function handleSaveDraft(): Promise<void> {
@@ -600,16 +612,37 @@ export function SocialPostComposerDialog({
     </div>
   );
 
+  const hasContent = trimmedText !== "" || media.length > 0;
+  const footerMessage = scheduledAtTooSoon ? (
+    <p id={scheduledAtErrorId} className="text-destructive">
+      {t("composer.scheduledAtTooSoon")}
+    </p>
+  ) : requirementHint && !isScheduleOnly ? (
+    <p data-testid="social-post-requirement-hint">
+      {t(`composer.requirements.${requirementHint}`, {
+        provider: socialPostProviderLabel(issueProvider),
+      })}
+    </p>
+  ) : needsAccount ? (
+    <p>{t("composer.pickAccount")}</p>
+  ) : null;
+
   return (
-    <Dialog
+    <TaskFormModal
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen && isBusy) return;
-        onOpenChange(nextOpen);
+      onOpenChange={onOpenChange}
+      title={title}
+      cancelLabel={t("composer.dismiss")}
+      isDismissDisabled={isBusy}
+      onOpenAutoFocus={(event) => {
+        // Straight to the text: the account is already picked.
+        if (isScheduleOnly) return;
+        event.preventDefault();
+        textareaRef.current?.focus();
       }}
     >
-      <DialogContent
-        className="sm:max-w-lg md:max-w-4xl"
+      <div
+        className="flex min-h-0 flex-1 flex-col"
         onKeyDown={(event) => {
           if (
             event.key === "Enter" &&
@@ -622,44 +655,54 @@ export function SocialPostComposerDialog({
             event.currentTarget.contains(event.target)
           ) {
             event.preventDefault();
-            handleSubmitShortcut();
+            runPrimary();
           }
         }}
-        onOpenAutoFocus={(event) => {
-          // Straight to the text: the account is already picked.
-          if (isScheduleOnly) return;
-          event.preventDefault();
-          textareaRef.current?.focus();
-        }}
       >
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>{t("composer.description")}</DialogDescription>
-        </DialogHeader>
-
-        <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,22rem)]">
+        <div className="app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
           <form
-            className="space-y-4"
+            className="flex min-w-0 flex-1 flex-col md:app-scrollbar md:overflow-y-auto"
             data-testid="social-post-composer"
             onSubmit={(event) => {
               event.preventDefault();
             }}
           >
-            <div className="space-y-2">
-              <p className="text-sm font-medium" id={accountsLabelId}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:px-8">
+              <span
+                className="text-muted-foreground text-sm font-medium"
+                id={accountsLabelId}
+              >
                 {multiAccount ? t("composer.accounts") : t("composer.account")}
-              </p>
+              </span>
               {connections.length === 0 ? (
-                <p
-                  className="text-muted-foreground text-sm"
+                <div
+                  className="flex w-full flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed px-4 py-3"
                   data-testid="social-post-no-accounts"
                 >
-                  {t("composer.noAccounts")}
-                </p>
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-sm font-medium">
+                      {t("composer.noAccountsTitle")}
+                    </p>
+                    <p className="text-muted-foreground text-xs text-pretty">
+                      {t("composer.noAccounts")}
+                    </p>
+                  </div>
+                  {onConnectAccount ? (
+                    <Button
+                      onClick={onConnectAccount}
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    >
+                      <Plus className="size-4" aria-hidden />
+                      {t("composer.connectAccount")}
+                    </Button>
+                  ) : null}
+                </div>
               ) : (
                 <div
                   aria-labelledby={accountsLabelId}
-                  className="flex flex-wrap gap-2"
+                  className="flex flex-wrap items-center gap-2"
                   data-testid="social-post-accounts"
                   role="group"
                 >
@@ -669,7 +712,7 @@ export function SocialPostComposerDialog({
                       formatHandle(connection.externalHandle) ||
                       t("composer.unknownHandle");
                     return (
-                      <Button
+                      <button
                         aria-label={t("composer.accountOption", {
                           provider: socialPostProviderLabel(
                             connection.provider,
@@ -678,25 +721,47 @@ export function SocialPostComposerDialog({
                         })}
                         aria-pressed={selected}
                         className={cn(
-                          "h-9 gap-2 rounded-full px-3",
+                          "focus-visible:ring-ring inline-flex h-8 shrink-0 items-center gap-2 rounded-full border ps-1 pe-3 text-sm font-medium outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50",
                           selected
-                            ? "border-primary bg-primary-quinary text-foreground hover:bg-primary-quaternary"
-                            : "text-muted-foreground",
+                            ? "border-foreground text-foreground"
+                            : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
                         )}
                         disabled={isBusy}
                         key={connection.id}
                         onClick={() => toggleConnection(connection.id)}
-                        size="sm"
                         type="button"
-                        variant="outline"
                       >
-                        <SocialPostProviderIcon
-                          aria-hidden
-                          className="size-4"
-                          provider={connection.provider}
-                        />
+                        {connection.avatarUrl ? (
+                          <span className="relative shrink-0">
+                            <PreviewAvatar
+                              account={{
+                                handle: connection.externalHandle,
+                                displayName: connection.displayName,
+                                avatarUrl: connection.avatarUrl,
+                              }}
+                              className="size-6"
+                              name={connection.displayName ?? handle}
+                            />
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="bg-background absolute -end-1 -bottom-1 size-3.5 rounded-full p-px"
+                              provider={connection.provider}
+                            />
+                          </span>
+                        ) : (
+                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                            <SocialPostProviderIcon
+                              aria-hidden
+                              className="size-3.5"
+                              provider={connection.provider}
+                            />
+                          </span>
+                        )}
                         <span className="max-w-40 truncate">{handle}</span>
-                      </Button>
+                        {selected ? (
+                          <Check className="size-3.5" aria-hidden />
+                        ) : null}
+                      </button>
                     );
                   })}
                 </div>
@@ -704,149 +769,136 @@ export function SocialPostComposerDialog({
             </div>
 
             {isScheduleOnly ? null : (
-              <>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor={textId}>{t("composer.text")}</Label>
-                    <span
-                      aria-live="polite"
-                      className={cn(
-                        "text-xs tabular-nums",
-                        overLimit
-                          ? "text-destructive"
-                          : "text-muted-foreground",
-                      )}
-                      data-testid="social-post-character-count"
-                    >
-                      {t("composer.characters", {
-                        count: text.length,
-                        limit: textLimit,
-                      })}
-                    </span>
-                  </div>
-                  {/* One platform: the count above already is its limit. */}
-                  {providers.length > 1 ? (
-                    <ul
-                      aria-label={t("composer.platforms")}
-                      className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
-                      data-testid="social-post-platforms"
-                    >
-                      {providers.map((candidate) => {
-                        const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
-                        const over = text.length > limit;
-                        return (
-                          <li
-                            className={cn(
-                              "inline-flex items-center gap-1.5",
-                              over
-                                ? "text-destructive"
-                                : "text-muted-foreground",
-                            )}
-                            data-testid={`social-post-platform-${candidate}`}
-                            key={candidate}
-                          >
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={candidate}
-                            />
-                            <span>
-                              {t("composer.platformLimit", {
-                                provider: socialPostProviderLabel(candidate),
-                                format: t(
-                                  `composer.formats.${socialPostComposerFormat(candidate)}`,
-                                ),
-                                count: text.length,
-                                limit,
-                              })}
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
-                  <Textarea
-                    id={textId}
-                    aria-invalid={overLimit || undefined}
+              <div className="space-y-3 border-t px-6 py-5 md:px-8">
+                <textarea
+                  id={textId}
+                  aria-invalid={overLimit || undefined}
+                  aria-label={t("composer.text")}
+                  className="placeholder:text-muted-foreground field-sizing-content min-h-40 w-full resize-none border-0 bg-transparent px-0 text-base leading-relaxed shadow-none outline-none"
+                  disabled={isBusy}
+                  onChange={(event) => setText(event.target.value)}
+                  placeholder={t("composer.textPlaceholder")}
+                  ref={textareaRef}
+                  value={text}
+                />
+                {media.length > 0 ? mediaStrip : null}
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
                     disabled={isBusy}
-                    onChange={(event) => setText(event.target.value)}
-                    placeholder={t("composer.textPlaceholder")}
-                    ref={textareaRef}
-                    rows={5}
-                    value={text}
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <ImagePlus className="size-4" aria-hidden />
+                    {t("composer.media.addFromDrive")}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-muted-foreground"
+                    disabled={isBusy}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    {uploadPending ? (
+                      <Loader2
+                        className="size-4 animate-spin motion-reduce:animate-pulse"
+                        aria-hidden
+                      />
+                    ) : (
+                      <Upload className="size-4" aria-hidden />
+                    )}
+                    {uploadPending
+                      ? t("composer.media.uploading")
+                      : t("composer.media.upload")}
+                  </Button>
+                  <input
+                    ref={fileInputRef}
+                    accept={accept}
+                    className="hidden"
+                    onChange={(event) => {
+                      const file = event.target.files?.[0];
+                      event.target.value = "";
+                      if (file) {
+                        void handleUpload(file);
+                      }
+                    }}
+                    type="file"
                   />
+                  <span
+                    aria-live="polite"
+                    className={cn(
+                      "ms-auto text-xs tabular-nums",
+                      overLimit ? "text-destructive" : "text-muted-foreground",
+                    )}
+                    data-testid="social-post-character-count"
+                  >
+                    {t("composer.characters", {
+                      count: text.length,
+                      limit: textLimit,
+                    })}
+                  </span>
                 </div>
-
-                <div className="space-y-2">
-                  {media.length > 0 ? mediaStrip : null}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isBusy}
-                      onClick={() => setPickerOpen(true)}
-                    >
-                      <ImagePlus className="size-4" aria-hidden />
-                      {t("composer.media.addFromDrive")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={isBusy}
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      {uploadPending ? (
-                        <Loader2
-                          className="size-4 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        <Upload className="size-4" aria-hidden />
-                      )}
-                      {uploadPending
-                        ? t("composer.media.uploading")
-                        : t("composer.media.upload")}
-                    </Button>
-                    <input
-                      ref={fileInputRef}
-                      accept={accept}
-                      className="hidden"
-                      onChange={(event) => {
-                        const file = event.target.files?.[0];
-                        event.target.value = "";
-                        if (file) {
-                          void handleUpload(file);
-                        }
-                      }}
-                      type="file"
-                    />
-                    <span className="text-muted-foreground text-xs">
-                      {t("composer.media.hint", {
-                        provider: socialPostProviderLabel(provider),
-                      })}
-                    </span>
-                  </div>
-                  {requirementHint ? (
-                    <p
-                      className="text-muted-foreground text-xs"
-                      data-testid="social-post-requirement-hint"
-                    >
-                      {t(`composer.requirements.${requirementHint}`, {
-                        provider: socialPostProviderLabel(issueProvider),
-                      })}
-                    </p>
-                  ) : null}
-                </div>
-              </>
+                {/* One platform: the count above already is its limit. */}
+                {providers.length > 1 ? (
+                  <ul
+                    aria-label={t("composer.platforms")}
+                    className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+                    data-testid="social-post-platforms"
+                  >
+                    {providers.map((candidate) => {
+                      const limit = SOCIAL_POST_TEXT_LIMITS[candidate];
+                      const over = text.length > limit;
+                      return (
+                        <li
+                          className={cn(
+                            "inline-flex items-center gap-1.5",
+                            over ? "text-destructive" : "text-muted-foreground",
+                          )}
+                          data-testid={`social-post-platform-${candidate}`}
+                          key={candidate}
+                        >
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={candidate}
+                          />
+                          <span>
+                            {t("composer.platformLimit", {
+                              provider: socialPostProviderLabel(candidate),
+                              format: t(
+                                `composer.formats.${socialPostComposerFormat(candidate)}`,
+                              ),
+                              count: text.length,
+                              limit,
+                            })}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : null}
+              </div>
             )}
 
-            <div className="space-y-2">
-              <p className="text-sm font-medium" id={scheduledAtId}>
-                {t("composer.scheduledAt")}
-              </p>
+            <section
+              aria-labelledby={scheduledAtId}
+              className="space-y-3 border-t px-6 py-5 md:px-8"
+            >
+              <div className="space-y-1">
+                <h3 id={scheduledAtId} className="text-sm font-semibold">
+                  {t("composer.when")}
+                </h3>
+                {mode.kind === "edit" ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("composer.whenOptional")}
+                  </p>
+                ) : null}
+              </div>
               <SocialPostSchedulePicker
+                allowNow={canPostNow}
                 describedBy={
                   scheduledAtTooSoon ? scheduledAtErrorId : undefined
                 }
@@ -891,101 +943,84 @@ export function SocialPostComposerDialog({
                   </p>
                 ) : null}
               </div>
-              {scheduledAtTooSoon ? (
-                <p id={scheduledAtErrorId} className="text-destructive text-sm">
-                  {t("composer.scheduledAtTooSoon")}
-                </p>
-              ) : null}
-            </div>
+            </section>
           </form>
-          <aside className="space-y-2">
-            <p className="text-muted-foreground text-xs font-medium">
-              {t("preview.dialogTitle")}
-            </p>
-            <SocialPostPreview
-              account={previewAccount}
-              media={media}
-              provider={selectedConnections[0]?.provider ?? providers[0]}
-              text={text}
-              timestamp={scheduledAtValid ? scheduledDate : null}
-            />
-          </aside>
+
+          {previewAccount || hasContent ? (
+            <aside
+              aria-label={t("preview.open")}
+              className="bg-background-muted flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
+            >
+              <p className="text-muted-foreground text-xs font-medium">
+                {t("preview.open")}
+              </p>
+              <SocialPostPreview
+                account={previewAccount}
+                className={cn(!hasContent && "opacity-60")}
+                media={media}
+                provider={selectedConnections[0]?.provider ?? providers[0]}
+                text={hasContent ? text : t("composer.previewEmpty")}
+                timestamp={scheduledAtValid ? scheduledDate : null}
+              />
+            </aside>
+          ) : null}
         </div>
 
-        <DialogFooter className="gap-2 sm:gap-2">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={isBusy}
-            onClick={() => onOpenChange(false)}
+        <div className="flex shrink-0 flex-col items-stretch gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
+          <div
+            aria-live="polite"
+            className="text-muted-foreground min-w-0 flex-1 text-sm"
           >
-            {t("composer.close")}
-          </Button>
-          {isScheduleOnly ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canSave}
-              onClick={() => {
-                void handleSaveDraft();
-              }}
-            >
-              {pending === "save" ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
-              {mode.kind === "edit" && mode.post.status !== "DRAFT"
-                ? t("composer.save")
-                : t("composer.saveDraft")}
-              {shortcutHint("save")}
-            </Button>
-          )}
-          {mode.kind === "create" ? (
-            <Button
-              type="button"
-              variant={publishNowIsPrimary ? "default" : "outline"}
-              disabled={!canPublishNow}
-              onClick={() => {
-                void handlePublishNow();
-              }}
-            >
-              {pending === "publish" ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
-              {t("composer.publishNow")}
-              {shortcutHint("publish")}
-            </Button>
-          ) : null}
-          <Button
-            type="button"
-            variant={publishNowIsPrimary ? "outline" : "default"}
-            disabled={!canSchedule}
-            onClick={() => {
-              void handleSchedule();
-            }}
-          >
-            {pending === "schedule" ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
+            {footerMessage}
+          </div>
+          <div className="flex items-center justify-end gap-2">
+            {!isScheduleOnly && primaryAction !== "save" ? (
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!canSave}
+                onClick={() => {
+                  void handleSaveDraft();
+                }}
+              >
+                {pending === "save" ? (
+                  <Loader2
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                    aria-hidden
+                  />
+                ) : null}
+                {saveLabel}
+              </Button>
             ) : null}
-            {isReschedule ? t("composer.reschedule") : t("composer.schedule")}
-            {shortcutHint("schedule")}
-          </Button>
-        </DialogFooter>
+            <Button
+              type="button"
+              className="min-w-28"
+              disabled={!primaryEnabled}
+              onClick={runPrimary}
+            >
+              {pending === primaryAction ? (
+                <Loader2
+                  className="size-4 animate-spin motion-reduce:animate-pulse"
+                  aria-hidden
+                />
+              ) : null}
+              {primaryLabel}
+              <kbd
+                aria-hidden
+                className="hidden font-sans text-xs opacity-70 sm:inline"
+              >
+                ⌘↵
+              </kbd>
+            </Button>
+          </div>
+        </div>
+      </div>
 
-        <DriveFilePicker
-          open={pickerOpen}
-          onOpenChange={setPickerOpen}
-          onSelect={handleSelectDriveFile}
-        />
-      </DialogContent>
-    </Dialog>
+      <DriveFilePicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={handleSelectDriveFile}
+      />
+    </TaskFormModal>
   );
 }
