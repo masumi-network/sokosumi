@@ -9,9 +9,9 @@ export function Logo() {
       <img
         alt=""
         className="logo-mark"
-        height={56}
+        height={486}
         src="/logo.svg"
-        width={37}
+        width={334}
       />
       CMO.XYZ
     </span>

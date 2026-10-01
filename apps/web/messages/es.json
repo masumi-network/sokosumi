@@ -2404,7 +2404,6 @@
           "editTitle": "Editar publicación",
           "scheduleTitle": "Programar publicación",
           "rescheduleTitle": "Reprogramar publicación",
-          "description": "Elige dónde va, escríbela y decide cuándo sale.",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
@@ -2413,7 +2412,6 @@
             "upload": "Subir",
             "uploading": "Subiendo…",
             "remove": "Quitar {name}",
-            "hint": "Adjunta imágenes o un vídeo, dentro de los límites de {provider}.",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
             "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
@@ -2436,9 +2434,8 @@
           "account": "Cuenta",
           "accounts": "Publicar en",
           "accountOption": "{provider} {handle}",
-          "noAccounts": "Aún no hay cuentas conectadas. Conecta una en la pestaña Cuentas.",
+          "noAccounts": "Conecta una para publicar o programar. Aun así puedes guardar un borrador.",
           "unknownHandle": "Cuenta desconocida",
-          "scheduledAt": "Hora programada",
           "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
           "saveDraft": "Guardar borrador",
           "save": "Guardar",
@@ -2458,7 +2455,8 @@
             "pickTime": "Elegir hora",
             "dateSelected": "Fecha: {date}",
             "timeSelected": "Hora: {time}",
-            "times": "Horas"
+            "times": "Horas",
+            "now": "Ahora"
           },
           "timezone": {
             "yours": "Las horas están en tu zona horaria, {zone}.",
@@ -2472,7 +2470,16 @@
             "mediaPost": "publicación con imagen o video",
             "video": "video (el texto es el título y la descripción)"
           },
-          "publishNow": "Publicar ahora"
+          "publishNow": "Publicar ahora",
+          "when": "Cuándo",
+          "whenOptional": "Opcional. Déjalo vacío para mantener un borrador.",
+          "scheduleFor": "Programar para {date}",
+          "rescheduleFor": "Reprogramar para {date}",
+          "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
+          "connectAccount": "Conectar cuenta",
+          "dismiss": "Cancelar",
+          "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
+          "pickAccount": "Elige una cuenta en la que publicar."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
@@ -3806,6 +3813,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Buscar por bot, nombre del propietario o correo…",
+          "outOfCredits": "Sin créditos",
           "totalCount": "{count, plural, one {# bot} other {# bots}}",
           "loadError": "No se pudieron cargar los Soko Bots.",
           "empty": "No se encontraron Soko Bots.",
@@ -6704,7 +6712,8 @@
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
+        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
       },
       "Memory": {
         "title": "Memoria",
@@ -6757,7 +6766,12 @@
         "showFewer": "Mostrar menos",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
-        "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"
+        "kindsMailCalendar": "Lee tu bandeja de entrada y calendario",
+        "connectedNotRead": "Conectado · se lee cuando un resumen o una reunión lo necesita",
+        "lastRead": "Conectado · leído {when}",
+        "connectedTools": "Conectado",
+        "manage": "Gestionar",
+        "browseAll": "Ver todas las apps"
       },
       "Schedules": {
         "builtIn": "Integrado",
@@ -6803,7 +6817,8 @@
           "timezoneTitle": "Zona horaria",
           "timezoneDescription": "Para el stand-up, el resumen semanal y \"hoy\" en los informes.",
           "error": "No se pudo guardar el ajuste.",
-          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
+          "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
@@ -7021,13 +7036,19 @@
         },
         "Usage": {
           "title": "Uso",
-          "description": "Todo lo que este asistente ha gastado desde que lo creaste.",
+          "description": "Todo lo que este asistente ha gastado desde que lo creaste, incluidos los Coworkers y Agents que contrató.",
           "credits": "Créditos gastados",
           "turns": "en {count, plural, one {# turno} other {# turnos}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} entrada · {output} salida",
           "modelCost": "Coste del modelo",
-          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno"
+          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno",
+          "creditSplit": "{own} en sus propios turnos · {delegated} en Coworkers y Agents",
+          "creditsOwnOnly": "Todo en sus propios turnos"
+        },
+        "Connectors": {
+          "title": "Herramientas",
+          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {

@@ -10,20 +10,15 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  connectSokoBotIntegrationAction,
-  disconnectSokoBotIntegrationAction,
-  searchSokoBotIntegrationCatalogAction,
-} from "@/lib/actions/soko-bot/action";
-import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { searchSokoBotIntegrationCatalogAction } from "@/lib/actions/soko-bot/action";
 import { cn } from "@/lib/utils";
+import {
+  describeIntegration,
+  type SokoBotIntegration as Integration,
+  useIntegrationActions,
+} from "./use-integration-actions";
 
-type Integration = SokoBotIntegrations["integrations"][number];
-
-/**
- * Connected accounts (Gmail, Outlook, Google Calendar). Connect sends the
- * owner through Composio's OAuth and back to the return page.
- */
+/** Connected accounts (Gmail, Outlook, Google Calendar) and the app catalog. */
 const GRID_INITIAL = 8;
 
 export function IntegrationsSection({
@@ -36,7 +31,7 @@ export function IntegrationsSection({
 }) {
   const t = useTranslations("App.SokoBot.Integrations");
   const format = useFormatter();
-  const [busy, setBusy] = useState<string | null>(null);
+  const { busy, connect, disconnect } = useIntegrationActions();
   const [, startTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<
@@ -77,36 +72,6 @@ export function IntegrationsSection({
     });
   }
 
-  function connect(provider: string) {
-    setBusy(provider);
-    startTransition(async () => {
-      const returnUrl = `${window.location.origin}${SOKO_BOT_ROUTE}/integrations/return?provider=${encodeURIComponent(provider)}`;
-      const result = await connectSokoBotIntegrationAction({
-        provider,
-        returnUrl,
-      });
-      if (!result.ok) {
-        setBusy(null);
-        toast.error(result.error.message ?? t("connectError"));
-        return;
-      }
-      window.location.assign(result.value.redirectUrl);
-    });
-  }
-
-  function disconnect(provider: string) {
-    setBusy(provider);
-    startTransition(async () => {
-      const result = await disconnectSokoBotIntegrationAction({ provider });
-      setBusy(null);
-      if (!result.ok) {
-        toast.error(result.error.message ?? t("disconnectError"));
-        return;
-      }
-      toast.success(t("disconnected"));
-    });
-  }
-
   if (!initial.configured) {
     return <p className="text-muted-foreground text-sm">{t("unavailable")}</p>;
   }
@@ -119,7 +84,7 @@ export function IntegrationsSection({
             <Tile
               name={integration.name}
               logoUrl={integration.logoUrl}
-              caption={describe(integration, t, format)}
+              caption={describeIntegration(integration, t, format)}
               status={integration.status}
               hasError={Boolean(integration.lastErrorAt)}
               busy={busy === integration.provider}
@@ -254,37 +219,6 @@ function Tile({
       </span>
     </button>
   );
-}
-
-function describe(
-  integration: Integration,
-  t: ReturnType<typeof useTranslations<"App.SokoBot.Integrations">>,
-  format: ReturnType<typeof useFormatter>,
-): string {
-  switch (integration.status) {
-    case "ACTIVE":
-      if (integration.lastErrorAt && integration.lastError) {
-        return t("lastError", { error: integration.lastError.slice(0, 80) });
-      }
-      return integration.lastIngestAt
-        ? t("lastChecked", {
-            when: format.relativeTime(new Date(integration.lastIngestAt)),
-          })
-        : t("connectedNotChecked");
-    case "PENDING":
-      return t("pending");
-    case "FAILED":
-    case "REVOKED":
-      return integration.lastError ?? t("failed");
-    default:
-      return integration.kinds.includes("email")
-        ? integration.kinds.includes("calendar")
-          ? t("kindsMailCalendar")
-          : t("kindsMail")
-        : integration.kinds.includes("calendar")
-          ? t("kindsCalendar")
-          : t("kindsGeneric");
-  }
 }
 
 function StatusDot({
