@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { OAuthOptions } from "@better-auth/oauth-provider";
+import { symmetricDecrypt } from "better-auth/crypto";
+import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
 
@@ -37,6 +39,50 @@ export function acceptCmoPreviewCallback(
     (registeredUris.some((uri) => uri === CMO_PRODUCTION_CALLBACK) &&
       CMO_PREVIEW_CALLBACK.test(redirectUri))
   );
+}
+
+type GetJwks = NonNullable<NonNullable<JwtOptions["adapter"]>["getJwks"]>;
+
+/**
+ * The signing keys this Core can decrypt. A database forked from production
+ * (a preview, a Neon agent branch) holds production's keys, encrypted with a
+ * secret this Core does not have, so signing an ID token fails. Leaving them
+ * out lets Better Auth create a key of this Core's own.
+ */
+async function readDecryptableJwks(
+  ctx: Parameters<GetJwks>[0],
+): Promise<Jwk[]> {
+  const keys = await ctx.context.adapter.findMany<Jwk>({ model: "jwks" });
+  const decryptable = await Promise.all(
+    keys.map((key) =>
+      symmetricDecrypt({
+        key: ctx.context.secretConfig,
+        data: JSON.parse(key.privateKey),
+      }).then(
+        () => true,
+        () => false,
+      ),
+    ),
+  );
+  const usable = keys.filter((_key, index) => decryptable[index]);
+  if (usable.length < keys.length) {
+    ctx.context.logger.warn(
+      `Skipped ${keys.length - usable.length} JWKS signing key(s) encrypted with another secret`,
+    );
+  }
+  return usable;
+}
+
+/**
+ * Outside production, signing skips keys encrypted with another secret.
+ * Production keeps the default key store: there an undecryptable key means
+ * a wrong BETTER_AUTH_SECRET, and replacing the key would break every ID
+ * token clients already hold, so it must fail loudly.
+ */
+export function jwtKeyStoreOptions(
+  isProduction: boolean,
+): Pick<JwtOptions, "adapter"> {
+  return isProduction ? {} : { adapter: { getJwks: readDecryptableJwks } };
 }
 
 interface OAuthRefreshTokenBody {

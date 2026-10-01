@@ -338,10 +338,13 @@ vi.mock("@/clients/stripe.client", () => ({
   },
 }));
 
-vi.mock("@/config/env", () => ({
+vi.mock("@/config/env", async (importOriginal) => ({
   getEnv: () => getEnvMock(),
   getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
   getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
+  isProductionEnvironment: (
+    await importOriginal<typeof import("@/config/env")>()
+  ).isProductionEnvironment,
 }));
 
 vi.mock("@/config/better-auth-production-url", () => ({

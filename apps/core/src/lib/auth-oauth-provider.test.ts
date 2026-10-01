@@ -5,10 +5,12 @@ import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isProductionEnvironment } from "@/config/env";
 import {
   acceptCmoPreviewCallback,
   handleOAuthRefreshTokenRequest,
   isRefreshTokenRotating,
+  jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
 
@@ -521,4 +523,83 @@ describe("acceptCmoPreviewCallback", () => {
       false,
     );
   });
+});
+
+describe("jwtKeyStoreOptions", () => {
+  const PRODUCTION_SECRET = "production-secret-that-is-long-enough-for-tests";
+  const PREVIEW_SECRET = "preview-secret-that-is-long-enough-for-the-tests";
+
+  function createSigner(db: MemoryDb, secret: string, isProduction: boolean) {
+    return betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret,
+      database: memoryAdapter(db),
+      plugins: [
+        jwt({
+          disableSettingJwtHeader: true,
+          ...jwtKeyStoreOptions(isProduction),
+        }),
+      ],
+    });
+  }
+
+  function sign(auth: ReturnType<typeof createSigner>) {
+    return auth.api.signJWT({ body: { payload: { sub: USER_ID } } });
+  }
+
+  // A database forked from production: one key, under production's secret.
+  async function forkedDb() {
+    const db = createDb();
+    await sign(createSigner(db, PRODUCTION_SECRET, true));
+    expect(db.jwks).toHaveLength(1);
+    return db;
+  }
+
+  it("signs with a key of its own when the stored key is another secret's", async () => {
+    const db = await forkedDb();
+    const preview = createSigner(db, PREVIEW_SECRET, false);
+
+    await expect(sign(preview)).resolves.toHaveProperty("token");
+    expect(db.jwks).toHaveLength(2);
+
+    // The new key is reused, not minted again.
+    await sign(preview);
+    expect(db.jwks).toHaveLength(2);
+  });
+
+  it("publishes only the keys it can sign with", async () => {
+    const db = await forkedDb();
+    const preview = createSigner(db, PREVIEW_SECRET, false);
+    await sign(preview);
+
+    const { keys } = await preview.api.getJwks();
+
+    expect(keys.map((key) => key.kid)).toEqual([db.jwks[1].id]);
+  });
+
+  it("fails loudly in production instead of replacing the key", async () => {
+    const db = await forkedDb();
+
+    await expect(sign(createSigner(db, PREVIEW_SECRET, true))).rejects.toThrow(
+      "Failed to decrypt private key",
+    );
+    expect(db.jwks).toHaveLength(1);
+  });
+
+  it.each([
+    ["production", "production", false],
+    // Vercel runs previews with NODE_ENV=production.
+    ["preview", "production", true],
+    [undefined, "development", true],
+    [undefined, "production", false],
+  ] as const)(
+    "with VERCEL_ENV=%s and NODE_ENV=%s skips foreign keys: %s",
+    (VERCEL_ENV, NODE_ENV, skips) => {
+      expect(
+        "adapter" in
+          jwtKeyStoreOptions(isProductionEnvironment({ VERCEL_ENV, NODE_ENV })),
+      ).toBe(skips);
+    },
+  );
 });

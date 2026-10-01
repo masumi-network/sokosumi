@@ -50,6 +50,7 @@ import {
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
+  isProductionEnvironment,
 } from "@/config/env";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
@@ -77,6 +78,7 @@ import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
   acceptCmoPreviewCallback,
+  jwtKeyStoreOptions,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
@@ -674,7 +676,10 @@ export const auth = betterAuth({
       // middleware, so no first-party caller needs the session.
       enableSessionForAPIKeys: false,
     }),
-    jwt({ disableSettingJwtHeader: true }),
+    jwt({
+      disableSettingJwtHeader: true,
+      ...jwtKeyStoreOptions(isProductionEnvironment(env)),
+    }),
     createAuthOrganizationPlugin(),
     passkey({
       rpID: env.BETTER_AUTH_RP_ID,
