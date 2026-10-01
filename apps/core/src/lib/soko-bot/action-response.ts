@@ -11,6 +11,10 @@ import {
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 
+/** Shown when the claim check could not run; meant for someone who asked. */
+export const HELD_BACK_REPLY =
+  "I held back this reply because it could not be checked just now.";
+
 export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
@@ -537,12 +541,17 @@ export async function buildActionResponse(
   // A refused attempt matters to an owner who asked for it. On a turn the bot
   // started itself nobody did, and "Not confirmed: …" read as a failure notice
   // at the top of a morning update. An unknown outcome is always said.
+  let ownerStarted: boolean | undefined;
+  const isOwnerStarted = async () => {
+    ownerStarted ??= await tx.sokoBotTurn
+      .findUnique({ where: { id: turnId }, select: { source: true } })
+      .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source));
+    return ownerStarted;
+  };
   const ownerAsked = unfulfilledActions.some(
     (action) => action.reason !== "UNKNOWN",
   )
-    ? await tx.sokoBotTurn
-        .findUnique({ where: { id: turnId }, select: { source: true } })
-        .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source))
+    ? await isOwnerStarted()
     : true;
   for (const action of unfulfilledActions) {
     const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
@@ -578,7 +587,11 @@ export async function buildActionResponse(
       observations.push(...describeRead(read.capability, read.result));
     }
   }
-  const message = narrative?.message || null;
+  // A turn the bot started itself has nobody waiting on a held-back reply.
+  const message =
+    narrative?.message === HELD_BACK_REPLY && !(await isOwnerStarted())
+      ? null
+      : narrative?.message || null;
   const question =
     !message && narrative?.kind === "CLARIFY" && narrative.question
       ? QUESTIONS[narrative.question]
@@ -592,9 +605,15 @@ export async function buildActionResponse(
         ? [question]
         : []
       : [...observations, ...(question ? [question] : [])];
+  // On a turn nobody asked for, "nothing changed" is not news: the turn ends
+  // silent like "Nothing to add." instead of posting a placeholder.
+  const nothingToSay =
+    !calls.length && !narrativeText.length && !actionText.length;
   const silent =
     !calls.length &&
-    (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));
+    (narrative?.kind === "SILENT" ||
+      isSokoBotSilentAnswer(answerText) ||
+      (actionRequested && nothingToSay && !(await isOwnerStarted())));
   return {
     appliedReceiptIds,
     narrative,
