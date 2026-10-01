@@ -88,12 +88,12 @@ private func roomEnvelope(_ room: Components.Schemas.ChatRoom) throws -> String 
   return try rosterEnvelope(#require(String(data: encoder.encode(room), encoding: .utf8)))
 }
 
-private func errorEnvelope(_ error: String, message: String) -> String {
+func errorEnvelope(_ error: String, message: String) -> String {
   #"{"error":"\#(error)","message":"\#(message)","meta":{"timestamp":"\#(rosterTimestamp)","requestId":"test","path":"/users/me/organizations/org/member","method":"GET"}}"#
 }
 
-/// Every way the caller's own membership read can fail short of a 401 (web catches all of them).
-private let roleReadFailures: [(Int, String)] = [
+/// Every way the caller's own membership read can fail short of a 401 (web catches all of them). Shared with the archived-list tests.
+let roleReadFailures: [(Int, String)] = [
   (403, errorEnvelope("Forbidden", message: "Forbidden")),
   (500, errorEnvelope("Internal Server Error", message: "Unavailable")),
   (503, #"{"message":"Try again"}"#),
