@@ -163,15 +163,16 @@ describe("project actions", () => {
     ).not.toHaveProperty("identifier");
   });
 
-  it("rejects an identifier Core would refuse before calling it", async () => {
+  it("returns identifier_invalid when the identifier fails the schema", async () => {
     const { createProject, updateProject } = await import("./action");
 
     await expect(
       createProject({ name: "Launch plan", identifier: "1AB" }),
-    ).rejects.toThrow("Invalid project identifier");
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
     await expect(
       updateProject({ projectId: "project-1", name: "N", identifier: "A" }),
-    ).rejects.toThrow("Invalid project identifier");
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
+    expect(projectServiceMock.createProject).not.toHaveBeenCalled();
     expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
   });
 
