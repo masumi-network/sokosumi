@@ -244,6 +244,7 @@ import {
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
+import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
 
@@ -255,6 +256,12 @@ export interface RoomsClientProps {
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
+  /**
+   * Caller's own role in the active organization, from their membership. Not
+   * derived from `organizationMembers`: that list is empty while it loads
+   * and when it fails.
+   */
+  isOrgOwnerOrAdmin: boolean;
   coworkers: Coworker[];
   sokoBots?: ChatComposeSokoBot[];
   selectedRoomId: string | null;
@@ -516,6 +523,7 @@ function RoomView({
   rooms,
   organizationMembers: organizationMembersProp,
   currentUserId,
+  isOrgOwnerOrAdmin,
   coworkers: coworkersProp,
   sokoBots: sokoBotsProp = [],
   selectedRoomId,
@@ -1025,11 +1033,6 @@ function RoomView({
     myAccess: selectedRoom?.myAccess,
     hasActiveOrganization: Boolean(activeOrganization),
   });
-  const currentMemberRole = organizationMembers.find(
-    (member) => member.user.id === currentUserId,
-  )?.role;
-  const isOrgOwnerOrAdmin =
-    currentMemberRole === "owner" || currentMemberRole === "admin";
   // Host-org channel members rewrite roster; guests and matched cannot.
   const canEditSelectedRoomMembers = Boolean(
     selectedRoom &&
@@ -3284,6 +3287,12 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
+              {/* The prompt checks the bot is the viewer's own before it shows. */}
+              {isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                <SokoBotConnectPrompt
+                  sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                />
+              ) : null}
               <RoomSessionComposer
                 ref={roomComposerRef}
                 roomId={selectedRoom.id}

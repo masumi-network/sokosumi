@@ -81,6 +81,22 @@ describe("action lines the owner reads", () => {
     expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
   });
 
+  it("links a scheduled social post to where the owner finds it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "schedule_social_post",
+        targetId: "post-one",
+        result: { id: "post-one", projectId: "project-one" },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    db.job.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Scheduled social post ([Open post](/social?projectId=project-one&postId=post-one)).",
+    );
+  });
+
   it("says a comment that canceled a Task canceled it", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({

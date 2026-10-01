@@ -44,7 +44,8 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    @State private var highlightedId: String?
+    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
+    @State private var jumpMark: JumpMark?
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
@@ -118,14 +119,14 @@ import SwiftUI
         .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
             scrollIntent.followLatest()
-            highlightedId = nil
+            jumpMark = nil
           }
         }
         .onDisappear { jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
         }
         .onChange(of: roomId) { _, _ in
-          highlightedId = nil
+          jumpMark = nil
           jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
           pendingQuote = nil
@@ -231,7 +232,7 @@ import SwiftUI
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                                 isHighlighted: highlightedId == message.id,
+                                 jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
@@ -296,8 +297,15 @@ import SwiftUI
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-          if phase == .interacting || phase == .tracking {
-            highlightedId = nil
+          if phase.endsJumpMark {
+            jumpMark = jumpMark?.readerScrolled(at: Date())
+          }
+        }
+        .task(id: jumpMark) {
+          guard let mark = jumpMark else { return }
+          try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+          if !Task.isCancelled, jumpMark == mark {
+            jumpMark = nil
           }
         }
         .onChange(of: messages.last?.id) { _, _ in
@@ -313,7 +321,7 @@ import SwiftUI
                   if try await workspaces.returnToLatest(auth: auth) {
                     scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
-                    highlightedId = nil
+                    jumpMark = nil
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
                   }
                 } catch { jumpError = friendlyMessage(for: error) }
@@ -323,10 +331,10 @@ import SwiftUI
         }
         .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { old, new in
           // Closing Pins widens and reflows rich text. Restore the acknowledged
-          // target after that layout change, until the reader starts scrolling.
-          if old != new, let highlightedId, !userIsScrolling {
-            scrollPosition.scrollTo(id: highlightedId, anchor: .center)
-            proxy.scrollTo(highlightedId, anchor: .center)
+          // target after that layout change while its mark lasts, until the reader starts scrolling.
+          if old != new, let marked = jumpMark?.messageId, !userIsScrolling {
+            scrollPosition.scrollTo(id: marked, anchor: .center)
+            proxy.scrollTo(marked, anchor: .center)
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
@@ -376,7 +384,7 @@ import SwiftUI
 
     private func completeVisibleJump(_ target: String) {
       guard quoteTarget == target else { return }
-      highlightedId = target
+      jumpMark = JumpMark(messageId: target, landedAt: Date())
       quoteTarget = nil
       jumpCompletion?.resume(returning: true)
       jumpCompletion = nil

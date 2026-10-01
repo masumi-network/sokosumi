@@ -1,10 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
-import { resolveOrganizationBillingPlan } from "@sokosumi/database/helpers";
-import {
-  creditBucketRepository,
-  subscriptionRepository,
-} from "@sokosumi/database/repositories";
-import { convertCreditsToCents, hasAdminRole } from "@sokosumi/utils";
+import { creditBucketRepository } from "@sokosumi/database/repositories";
+import { convertCreditsToCents } from "@sokosumi/utils";
 
 import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
@@ -34,54 +30,10 @@ export function sokoBotUsageCents(costUsdMicros: bigint): bigint {
   );
 }
 
-export async function userHasSokoBotPaidCoverage(
-  userId: string,
-): Promise<boolean> {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true },
-  });
-  if (hasAdminRole(user?.role)) return true;
-
-  const personal =
-    await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
-      userId,
-      prisma,
-    );
-  if (personal && personal.plan !== "free") return true;
-
-  const memberships = await prisma.member.findMany({
-    where: { userId },
-    select: { organizationId: true },
-  });
-  for (const membership of memberships) {
-    const billingPlan = await resolveOrganizationBillingPlan(
-      membership.organizationId,
-      prisma,
-    );
-    if (
-      billingPlan.mode === "enterprise_contract" &&
-      billingPlan.isConsumable
-    ) {
-      return true;
-    }
-    if (billingPlan.mode === "self_serve" && billingPlan.plan !== "free") {
-      return true;
-    }
-  }
-  return false;
-}
-
 export async function requireSokoBotTurnFunding(
   userId: string,
   sokoBotId: string,
 ): Promise<void> {
-  if (!(await userHasSokoBotPaidCoverage(userId))) {
-    throw new SokoBotBillingAccessError(
-      "A paid subscription is required to use Soko Bot.",
-    );
-  }
-
   const [completedTurns, shortfallTurn] = await Promise.all([
     prisma.sokoBotTurn.findMany({
       where: {

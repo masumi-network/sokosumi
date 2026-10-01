@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { type CmoAuth, createCmoAuth, renewSession } from "./auth";
-import { sokosumiSignInBody } from "./sokosumi-oauth";
+import { SIGNED_OUT_COOKIE, sokosumiSignInBody } from "./sokosumi-oauth";
 
 const CMO = "https://app.cmo.xyz";
 const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
@@ -302,6 +302,10 @@ class CookieJar {
     }
   }
 
+  set(name: string, value: string) {
+    this.cookies.set(name, value);
+  }
+
   header(): string {
     return [...this.cookies]
       .map(([name, value]) => `${name}=${value}`)
@@ -345,7 +349,9 @@ async function send(
 async function startSignIn(
   auth: CmoAuth,
   jar: CookieJar,
-  options: { createAccount: boolean } = { createAccount: false },
+  options: Parameters<typeof sokosumiSignInBody>[0] = {
+    createAccount: false,
+  },
 ): Promise<string> {
   const response = await send(auth, jar, "/api/auth/sign-in/social", {
     method: "POST",
@@ -431,6 +437,15 @@ describe("CMO auth handler", () => {
     expect(url.searchParams.has("prompt")).toBe(false);
   });
 
+  it("starts Sign in with the login prompt after a CMO sign-out", async () => {
+    const url = new URL(
+      await startSignIn(auth, jar, { createAccount: false, signInAgain: true }),
+    );
+
+    expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
+    expect(url.searchParams.get("prompt")).toBe("login");
+  });
+
   it("starts Create account with the create prompt", async () => {
     const url = new URL(await startSignIn(auth, jar, { createAccount: true }));
 
@@ -513,6 +528,14 @@ describe("CMO auth handler", () => {
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
+  });
+
+  it("forgets a CMO sign-out once the next sign-in succeeds", async () => {
+    jar.set(SIGNED_OUT_COOKIE, "1");
+
+    await signIn(auth, jar, core);
+
+    expect(jar.names()).not.toContain(SIGNED_OUT_COOKIE);
   });
 
   it("keeps the Sokosumi tokens out of readable cookies", async () => {
@@ -807,6 +830,7 @@ describe("CMO auth handler", () => {
   });
 
   it("returns to the signed-out page when consent is declined", async () => {
+    jar.set(SIGNED_OUT_COOKIE, "1");
     const { state } = core.approve(await startSignIn(auth, jar));
 
     const response = await send(
@@ -820,6 +844,7 @@ describe("CMO auth handler", () => {
       `${CMO}/?error=access_denied`,
     );
     expect(await sessionUser(auth, jar)).toBeNull();
+    expect(jar.names()).toContain(SIGNED_OUT_COOKIE);
   });
 
   it("returns to the signed-out page when the sign-in state is gone", async () => {
@@ -887,6 +912,7 @@ describe("CMO auth handler", () => {
       oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
     });
     const previewJar = new CookieJar(PREVIEW);
+    previewJar.set(SIGNED_OUT_COOKIE, "1");
 
     const authorizeUrl = await startSignIn(preview, previewJar);
     expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
@@ -909,6 +935,7 @@ describe("CMO auth handler", () => {
       `${location.pathname}${location.search}`,
     );
     expect(done.headers.get("location")).toBe("/");
+    expect(previewJar.names()).not.toContain(SIGNED_OUT_COOKIE);
     expect(await sessionUser(preview, previewJar)).toEqual({
       name: "Ada Lovelace",
       email: "ada@example.com",

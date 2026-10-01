@@ -8,6 +8,7 @@ import { RoomOpenLoadingView } from "@/app/chat/components/room-open-loading-vie
 import { loadRoomShellRoster } from "@/app/chat/load-room-shell-roster";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSession } from "@/lib/auth/auth.server";
+import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { userService } from "@/lib/services/user.service";
 import { isUuidString } from "@/lib/utils/uuid";
@@ -33,6 +34,7 @@ interface ChatRoomShellProps {
   activeOrganization: Organization | null;
   rooms: ChatRoom[];
   currentUserId: string;
+  isOrgOwnerOrAdmin: boolean;
   selectedRoomId: string;
   /** Null when personal workspace has no org roster to load. */
   organizationIdForRoster: string | null;
@@ -93,6 +95,7 @@ function progressiveRoomOpen(shell: ChatRoomShellProps) {
       rooms={shell.rooms}
       organizationMembers={[]}
       currentUserId={shell.currentUserId}
+      isOrgOwnerOrAdmin={shell.isOrgOwnerOrAdmin}
       coworkers={[]}
       selectedRoomId={shell.selectedRoomId}
       messageLoadFailed={false}
@@ -159,12 +162,26 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
       activeOrganization: null,
       rooms: [selectedRoom],
       currentUserId,
+      isOrgOwnerOrAdmin: false,
       selectedRoomId: selectedRoom.id,
       organizationIdForRoster: null,
     });
   }
 
-  const selectedRoom = await chatRoomService.getRoom(roomId);
+  // Channel settings gate on the caller's own membership, never on the org
+  // roster: that list streams in after the shell paints and soft-fails to [].
+  const [selectedRoom, currentMember] = await Promise.all([
+    chatRoomService.getRoom(roomId),
+    userService
+      .getMyMemberInOrganization(activeOrganization.id)
+      .catch((error: unknown) => {
+        console.error("Failed to load organization membership", {
+          organizationId: activeOrganization.id,
+          error,
+        });
+        return null;
+      }),
+  ]);
 
   if (!selectedRoom) {
     redirect(ROOM_UNAVAILABLE_HREF);
@@ -185,6 +202,9 @@ export async function ChatRoomPageContent({ params }: ChatRoomPageProps) {
     activeOrganization,
     rooms: [selectedRoom],
     currentUserId,
+    isOrgOwnerOrAdmin: Boolean(
+      currentMember && isOrganizationOwnerOrAdmin(currentMember.role),
+    ),
     selectedRoomId: selectedRoom.id,
     organizationIdForRoster: activeOrganization.id,
   });
