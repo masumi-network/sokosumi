@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
   HardDrive,
@@ -35,11 +36,11 @@ import {
 } from "@/components/ui/sidebar-classes";
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
-
+import { useMarkFeatureSeen } from "./feature-badges";
 import {
-  SIDEBAR_NEW_LABEL_CLASS,
-  SidebarLabelWithNew,
-} from "./sidebar-new-badge";
+  SIDEBAR_FEATURE_LABEL_CLASS,
+  SidebarFeatureLabel,
+} from "./sidebar-feature-label";
 
 interface MenuItemConfig {
   key: string;
@@ -50,7 +51,7 @@ interface MenuItemConfig {
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
-  isNew?: boolean;
+  feature: AnnouncedFeature;
 }
 
 /**
@@ -84,6 +85,7 @@ function ScopedMenuItems({
   const newTaskWizard = useOptionalNewTaskWizard();
   const hasAssignedSeat = useHasAssignedOrganizationSeat();
   const { isMobile, setOpenMobile } = useSidebar();
+  const markFeatureSeen = useMarkFeatureSeen();
 
   function handleSearchClick() {
     historySearch?.openHistorySearch();
@@ -122,6 +124,7 @@ function ScopedMenuItems({
       label: t("newTask"),
       Icon: Plus,
       separatorAfter: true,
+      feature: AnnouncedFeature.NEW_TASK,
     },
     {
       key: "search",
@@ -130,24 +133,28 @@ function ScopedMenuItems({
       onClick: handleSearchClick,
       shortcutLabel: historySearch?.searchShortcutLabel,
       ariaKeyshortcuts: historySearch ? "Meta+K Control+K" : undefined,
+      feature: AnnouncedFeature.SEARCH,
     },
     {
       key: "explore-agents",
       href: "/agents",
       label: t("exploreAgents"),
       Icon: Bot,
+      feature: AnnouncedFeature.AGENTS,
     },
     {
       key: "task-manager",
       href: "/tasks",
       label: t("taskManager"),
       Icon: ListTodo,
+      feature: AnnouncedFeature.TASKS,
     },
     {
       key: "schedules",
       href: TASK_SCHEDULES_PATH,
       label: t("schedules"),
       Icon: Repeat,
+      feature: AnnouncedFeature.SCHEDULES,
     },
     // Scoped by `?projectId=` like the rows above it, so `hrefFor` carries the
     // reader's project across without the studio knowing about the switcher.
@@ -156,7 +163,7 @@ function ScopedMenuItems({
       href: "/studio",
       label: t("contentStudio"),
       Icon: ImagePlus,
-      isNew: true,
+      feature: AnnouncedFeature.CONTENT_STUDIO,
     },
     // Social used to be a tab inside a project. It is a destination of its
     // own now, scoped the same way the studio is, and it is still behind the
@@ -168,7 +175,7 @@ function ScopedMenuItems({
             href: "/social",
             label: t("social"),
             Icon: Share2,
-            isNew: true,
+            feature: AnnouncedFeature.SOCIAL,
           },
         ]
       : []),
@@ -180,7 +187,7 @@ function ScopedMenuItems({
             href: "/drive",
             label: t("drive"),
             Icon: HardDrive,
-            isNew: true,
+            feature: AnnouncedFeature.DRIVE,
           },
         ]
       : []),
@@ -206,7 +213,7 @@ function ScopedMenuItems({
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
-                isNew,
+                feature,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
                 // The pill wears the rail square's 4px inset and 4px padding
@@ -240,10 +247,10 @@ function ScopedMenuItems({
                       className={cn(
                         SIDEBAR_ROW_LABEL_CLASS,
                         SIDEBAR_ROW_FIXED_LABEL_CLASS,
-                        isNew && SIDEBAR_NEW_LABEL_CLASS,
+                        SIDEBAR_FEATURE_LABEL_CLASS,
                       )}
                     >
-                      {isNew ? <SidebarLabelWithNew label={label} /> : label}
+                      <SidebarFeatureLabel label={label} feature={feature} />
                     </span>
                   </>
                 );
@@ -264,6 +271,7 @@ function ScopedMenuItems({
                           <SheetClose asChild>
                             <Link
                               href={hrefFor(href)}
+                              onClick={() => markFeatureSeen(feature)}
                               aria-current={isActive ? "page" : undefined}
                               className={cn(
                                 key === "new-task"
@@ -280,7 +288,10 @@ function ScopedMenuItems({
                       ) : (
                         <SidebarMenuButton
                           type="button"
-                          onClick={onClick}
+                          onClick={() => {
+                            markFeatureSeen(feature);
+                            onClick?.();
+                          }}
                           data-sidebar-new-task={
                             key === "new-task" ? "" : undefined
                           }

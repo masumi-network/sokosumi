@@ -732,6 +732,110 @@ export const PatchAdminAgentMetadataOverrideBodySchema = {
     }
 } as const;
 
+export const AdminBadgeCampaignListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/BadgeCampaign'
+    }
+} as const;
+
+export const BadgeCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'feature',
+        'startsAt',
+        'endsAt',
+        'createdAt'
+    ]
+} as const;
+
+export const AnnouncedFeatureSchema = {
+    type: 'string',
+    enum: [
+        'SOKO_BOTS',
+        'NEW_TASK',
+        'SEARCH',
+        'AGENTS',
+        'TASKS',
+        'SCHEDULES',
+        'CONTENT_STUDIO',
+        'SOCIAL',
+        'DRIVE',
+        'THREADS',
+        'UNREADS'
+    ],
+    example: 'DRIVE'
+} as const;
+
+export const CreateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'feature',
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
+export const UpdateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
 export const AdminOrganizationOptionSchema = {
     type: 'object',
     properties: {
@@ -15619,6 +15723,39 @@ export const NoticeKindSchema = {
         'ANNOUNCEMENT'
     ],
     example: 'LEGAL_TERMS'
+} as const;
+
+export const UserBadgeCampaignsSchema = {
+    type: 'object',
+    properties: {
+        badgeCampaigns: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    feature: {
+                        $ref: '#/components/schemas/AnnouncedFeature'
+                    },
+                    endsAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'feature',
+                    'endsAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'badgeCampaigns'
+    ]
 } as const;
 
 export const BlobFileSchema = {
