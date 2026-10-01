@@ -73,6 +73,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import {
   batchTableRows,
@@ -3119,7 +3120,8 @@ export class SokoBotRuntimeService {
         where: {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
-          ownerId: authorized.turn.userId,
+          // What the owner may change in the app, not only what they created.
+          ...buildTaskWriteAccessWhere(authorized.turn.userId),
         },
         select: {
           id: true,
