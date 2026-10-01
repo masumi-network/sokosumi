@@ -15,6 +15,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
+  requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import {
   lockCalendarScope,
@@ -41,6 +42,7 @@ import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  isPrivateTaskVisibleToCoworker,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -520,6 +522,12 @@ export function canWriteTaskSchedule(
   ) {
     return false;
   }
+  if (
+    writer.kind === "coworker" &&
+    !isPrivateTaskVisibleToCoworker(schedule, writer)
+  ) {
+    return false;
+  }
   return (
     writer.kind === "user" ||
     schedule.creatorCoworkerId === writer.coworkerId ||
@@ -592,10 +600,26 @@ export async function updateTaskSchedule(
 
     const assignees = nextAssigneeWrite(input);
     requireScheduleAssignee(assignees?.assigneeUserId);
+    if (
+      assignees?.assigneeSokoBotId &&
+      assignees.assigneeSokoBotId === current.assigneeSokoBotId
+    ) {
+      await requireTaskAssignableSokoBot(
+        assignees.assigneeSokoBotId,
+        current.workspaceId,
+        tx,
+      );
+    }
     await requireTaskReferences(
       {
         projectId: input.projectId,
         ...assignees,
+        // Keeping the stored bot is not a new assignment to its owner's PA.
+        // Shared editors send the full blueprint, including that existing bot.
+        assigneeSokoBotId:
+          assignees?.assigneeSokoBotId === current.assigneeSokoBotId
+            ? undefined
+            : assignees?.assigneeSokoBotId,
         workspaceId: current.workspaceId,
         actor: toDomainActor(actor),
       },

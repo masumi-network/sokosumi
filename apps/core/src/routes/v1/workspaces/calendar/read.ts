@@ -11,6 +11,7 @@ import {
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   buildHumanTaskVisibilityWhere,
@@ -21,7 +22,10 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
-import { type AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  resolveUserContext,
+} from "@/middleware/auth";
 import {
   socialPostCalendarItemSchema,
   workspaceCalendarEntrySchema,
@@ -74,6 +78,13 @@ export async function getCalendarAccessWhere(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<CalendarAccessWhere | undefined> {
+  const userContext = resolveUserContext(authContext);
+  if (userContext) {
+    await requireAssignedOrganizationSeat(
+      userContext.userId,
+      userContext.organizationId,
+    );
+  }
   // Soko Bots do not work with Task Schedules; they see the Tasks created.
   if (authContext.actor === "sokoBot") {
     return {

@@ -16,10 +16,12 @@ import {
   vi,
 } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 
 const {
+  hasAssignedOrganizationSeatMock,
   coworkerFindFirstMock,
   memberFindFirstMock,
   projectFindFirstMock,
@@ -31,6 +33,7 @@ const {
   vendorGrantFindUniqueMock,
   resolveWorkspaceForContextMock,
 } = vi.hoisted(() => ({
+  hasAssignedOrganizationSeatMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
   taskFindManyMock: vi.fn(),
   taskCountMock: vi.fn(),
@@ -47,6 +50,11 @@ vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))
     .stubAuthMiddleware,
+}));
+
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/helpers")>()),
+  hasAssignedOrganizationSeat: hasAssignedOrganizationSeatMock,
 }));
 
 vi.mock(
@@ -119,6 +127,7 @@ let readWorkspaceCalendar: typeof import("./read").readWorkspaceCalendar;
 
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("requestId", "req_calendar");
     c.set("isAuthenticated", true);
@@ -230,6 +239,7 @@ describe("GET /workspaces/calendar", () => {
     vi.clearAllMocks();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
+    hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     coworkerFindFirstMock.mockResolvedValue({ id: "coworker_123" });
     projectFindFirstMock.mockResolvedValue({ id: PROJECT_ID });
     memberFindFirstMock.mockResolvedValue({ id: "member_123" });
@@ -538,6 +548,67 @@ describe("GET /workspaces/calendar", () => {
       },
     ]);
   });
+
+  it.each<AuthenticationContext>([
+    { ...USER_AUTH_CONTEXT, organizationId: "paid_org" },
+    {
+      ...COWORKER_AUTH_CONTEXT,
+      context: { userId: "user_123", organizationId: "paid_org" },
+    },
+  ])(
+    "refuses calendar run controls for unseated $actor actors",
+    async (authContext) => {
+      hasAssignedOrganizationSeatMock.mockResolvedValue(false);
+      vendorGrantFindUniqueMock.mockResolvedValue({
+        id: "grant_123",
+        status: VendorGrantStatus.GRANTED,
+        permission: "workspace",
+      });
+      taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+        createRun({ schedule: { ownerId: "another_member" } }),
+      ]);
+
+      const response = await requestCalendar(createApp(authContext));
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).toMatchObject({
+        kind: "organization_seat_required",
+      });
+      expect(taskScheduleOccurrenceFindManyMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each<AuthenticationContext>([
+    { ...USER_AUTH_CONTEXT, organizationId: "paid_org" },
+    {
+      ...COWORKER_AUTH_CONTEXT,
+      context: { userId: "user_123", organizationId: "paid_org" },
+    },
+  ])(
+    "offers another owner's PUBLIC run to seated $actor actors",
+    async (authContext) => {
+      vendorGrantFindUniqueMock.mockResolvedValue({
+        id: "grant_123",
+        status: VendorGrantStatus.GRANTED,
+        permission: "workspace",
+      });
+      taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+        createRun({ schedule: { ownerId: "another_member" } }),
+      ]);
+
+      const response = await requestCalendar(createApp(authContext));
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: [expect.objectContaining({ canChangeRun: true })],
+      });
+      expect(hasAssignedOrganizationSeatMock).toHaveBeenCalledWith(
+        "user_123",
+        "paid_org",
+        expect.anything(),
+      );
+    },
+  );
 
   it("shows a coworker without a workspace grant no planned Runs", async () => {
     // The Coworker is bound to the member by a Task assigned to it.

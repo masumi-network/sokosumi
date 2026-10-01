@@ -8,6 +8,7 @@ import {
   PROJECT_ID,
   resetTaskScheduleTestDb,
   runsOf,
+  SOKO_BOT_ID,
   seedRun,
   seedTaskSchedule,
   taskScheduleTestDb,
@@ -482,6 +483,63 @@ describe("PATCH /tasks/schedules/{id}", () => {
     });
   });
 
+  it.each([false, true])(
+    "lets a teammate save the owner's existing Soko Bot with rule change=%s",
+    async (changeRule) => {
+      const schedule = seedTaskSchedule({ assigneeSokoBotId: SOKO_BOT_ID });
+
+      const response = await patch(
+        schedule.id,
+        {
+          expectedRevision: 0,
+          name: "Renamed by a teammate",
+          assigneeId: null,
+          assigneeSokoBotId: SOKO_BOT_ID,
+          assigneeUserId: null,
+          ...(changeRule
+            ? {
+                rule: { expr: "0 7 * * 5", timezone: "UTC", endsMode: "NEVER" },
+              }
+            : {}),
+        },
+        createTaskScheduleTestApp(mountPatchTaskSchedule, userAuth(MEMBER_ID)),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: {
+          ownerId: OWNER_ID,
+          assigneeSokoBotId: SOKO_BOT_ID,
+          canWrite: true,
+        },
+      });
+    },
+  );
+
+  it("does not preserve a Soko Bot that is no longer usable in the workspace", async () => {
+    const schedule = seedTaskSchedule({ assigneeSokoBotId: SOKO_BOT_ID });
+    taskScheduleTestDb.sokoBots.delete(SOKO_BOT_ID);
+    const response = await patch(
+      schedule.id,
+      { expectedRevision: 0, name: "Renamed", assigneeSokoBotId: SOKO_BOT_ID },
+      createTaskScheduleTestApp(mountPatchTaskSchedule, userAuth(MEMBER_ID)),
+    );
+    expect(response.status).toBe(404);
+    expect(stored(schedule.id)?.revision).toBe(0);
+  });
+
+  it("does not let a teammate newly assign the owner's Soko Bot", async () => {
+    const schedule = seedTaskSchedule();
+    const response = await patch(
+      schedule.id,
+      { expectedRevision: 0, assigneeSokoBotId: SOKO_BOT_ID },
+      createTaskScheduleTestApp(mountPatchTaskSchedule, userAuth(MEMBER_ID)),
+    );
+
+    expect(response.status).toBe(403);
+    expect(stored(schedule.id)?.assigneeSokoBotId).toBeNull();
+  });
+
   it("hides another member's private schedule", async () => {
     const schedule = seedTaskSchedule({ visibility: "PRIVATE" });
 
@@ -515,6 +573,30 @@ describe("PATCH /tasks/schedules/{id}", () => {
       });
 
       expect(response.status).toBe(200);
+    });
+
+    it("reports loss of private access after clearing its assignee", async () => {
+      const schedule = seedTaskSchedule({
+        visibility: "PRIVATE",
+        creatorUserId: null,
+        creatorCoworkerId: COWORKER_ID,
+        assigneeId: COWORKER_ID,
+      });
+
+      const response = await coworkerPatch(schedule.id, {
+        expectedRevision: 0,
+        assigneeId: null,
+      });
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: { ownerId: OWNER_ID, assigneeId: null, canWrite: false },
+      });
+      const next = await coworkerPatch(schedule.id, {
+        expectedRevision: 1,
+        name: "No longer readable",
+      });
+      expect(next.status).toBe(404);
     });
 
     it("edits another member's workspace-visible schedule it is assigned to", async () => {

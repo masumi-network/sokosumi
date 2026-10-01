@@ -157,6 +157,9 @@ describe("TaskScheduleActions", () => {
 
     await user.click(button);
     expect(button).toBeDisabled();
+    for (const control of screen.getAllByRole("button")) {
+      expect(control).toBeDisabled();
+    }
     await user.click(button);
     expect(runTaskScheduleNowMock).toHaveBeenCalledTimes(1);
     expect(complete).toBeDefined();

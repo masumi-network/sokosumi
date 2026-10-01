@@ -336,6 +336,28 @@ describe("POST /tasks/schedules", () => {
   });
 
   describe("Coworker", () => {
+    it("returns false canWrite for an unreadable private create and its replay", async () => {
+      const app = createTaskScheduleTestApp(
+        mountPostTaskSchedule,
+        COWORKER_AUTH,
+      );
+      const input = {
+        operationId: "01960001-0001-7001-8001-0000000000cc",
+        name: "Private unassigned report",
+        visibility: "PRIVATE",
+        rule: WEEKLY_RULE,
+      };
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const response = await post(input, app);
+        expect(response.status).toBe(201);
+        expect(await response.json()).toMatchObject({
+          data: { ownerId: OWNER_ID, visibility: "PRIVATE", canWrite: false },
+        });
+      }
+      expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    });
+
     it("creates a schedule as its creator in a granted workspace", async () => {
       const response = await post(
         { name: "Weekly report", rule: WEEKLY_RULE, assigneeId: COWORKER_ID },

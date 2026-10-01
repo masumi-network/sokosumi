@@ -37,7 +37,7 @@ vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
 }));
 
 vi.mock("@/app/tasks/components/task-schedule-actions", () => ({
-  TaskScheduleActions: () => null,
+  TaskScheduleActions: () => <button type="button">schedule actions</button>,
 }));
 
 vi.mock("@/app/tasks/components/task-schedule-state-badge", () => ({
@@ -90,7 +90,7 @@ const SCHEDULE = {
   ownerId: "user-owner",
   canWrite: false,
   state: "ACTIVE",
-  visibility: "WORKSPACE",
+  visibility: "PUBLIC",
   nextRunAt: null,
   releasedCount: 0,
   rule: {
@@ -145,6 +145,22 @@ describe("TaskScheduleDetailPage", () => {
 
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
   });
+
+  it.each([
+    { ownerId: "user-owner", canWrite: true },
+    { ownerId: "user-1", canWrite: false },
+  ])(
+    "uses Core's canWrite=$canWrite instead of owner identity",
+    async (permission) => {
+      getScheduleMock.mockResolvedValue({ ...SCHEDULE, ...permission });
+
+      await renderPage();
+
+      expect(
+        screen.queryAllByRole("button", { name: "schedule actions" }),
+      ).toHaveLength(permission.canWrite ? 1 : 0);
+    },
+  );
 
   it("labels manual Tasks from the complete Run list", async () => {
     getScheduleMock.mockResolvedValue({ ...SCHEDULE, projectId: null });
