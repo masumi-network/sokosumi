@@ -1,4 +1,3 @@
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -8,6 +7,7 @@ import {
 } from "@/clients/composio.client";
 import {
   badRequest,
+  integrationNotConfigured,
   internalServerError,
   serviceUnavailable,
 } from "@/helpers/error";
@@ -15,12 +15,7 @@ import {
 export function mapProjectSocialConnectionServiceError(error: unknown): never {
   if (error instanceof HTTPException) throw error;
   if (error instanceof ComposioConfigError) {
-    throw serviceUnavailable(
-      "Integrations are not configured on this server.",
-      {
-        kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
-      },
-    );
+    throw integrationNotConfigured();
   }
   if (error instanceof ComposioIdentityError) {
     throw badRequest(error.message, error.kind ? { kind: error.kind } : {});

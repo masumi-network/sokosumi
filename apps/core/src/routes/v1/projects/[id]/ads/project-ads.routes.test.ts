@@ -322,14 +322,14 @@ describe("Project ads routes", () => {
       expect((await discard()).status).toBe(404);
     });
 
-    it("maps a failed revoke to 502 and keeps the row", async () => {
+    it("maps a failed revoke to 502", async () => {
       m.discard.mockRejectedValue(new ComposioApiError(500, undefined, "boom"));
       expect((await discard()).status).toBe(502);
     });
 
     it("rejects a malformed connection id", async () => {
       const response = await discard(createApp(), "not-a-uuid");
-      expect(response.status).toBeGreaterThanOrEqual(400);
+      expect(response.status).toBe(422);
       expect(m.discard).not.toHaveBeenCalled();
     });
 

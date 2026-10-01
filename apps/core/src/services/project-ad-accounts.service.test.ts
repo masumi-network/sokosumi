@@ -463,6 +463,24 @@ describe("project ad accounts service", () => {
       expect(m.accountUpsert).not.toHaveBeenCalled();
     });
 
+    it("reopens as active when a concurrent discard had already closed it", async () => {
+      m.connectionFindFirst.mockResolvedValue({
+        ...storedConnection,
+        status: "disconnected",
+      });
+      m.revoke.mockRejectedValue(new Error("composio down"));
+      await expect(
+        discardProjectAdConnection({
+          ...scope,
+          adConnectionId: CONNECTION_UUID,
+        }),
+      ).rejects.toThrow("composio down");
+      expect(m.connectionUpdateMany).toHaveBeenCalledWith({
+        where: { id: CONNECTION_UUID, status: "disconnected" },
+        data: { status: "active" },
+      });
+    });
+
     it("rejects a connection of another Project", async () => {
       m.connectionFindFirst.mockResolvedValue(null);
       await expect(attachProjectAdAccounts(input)).rejects.toMatchObject({
@@ -797,7 +815,7 @@ describe("project ad accounts service", () => {
         detachProjectAdAccount({ ...scope, accountId: ACCOUNT_UUID }),
       ).rejects.toThrow("composio down");
       expect(m.connectionUpdateMany).toHaveBeenCalledWith({
-        where: { id: CONNECTION_UUID },
+        where: { id: CONNECTION_UUID, status: "disconnected" },
         data: { status: "active" },
       });
       expect(m.connectionDeleteMany).not.toHaveBeenCalled();
@@ -873,7 +891,7 @@ describe("project ad accounts service", () => {
         }),
       ).rejects.toThrow("composio down");
       expect(m.connectionUpdateMany).toHaveBeenCalledWith({
-        where: { id: CONNECTION_UUID },
+        where: { id: CONNECTION_UUID, status: "disconnected" },
         data: { status: "active" },
       });
       expect(m.connectionDeleteMany).not.toHaveBeenCalled();

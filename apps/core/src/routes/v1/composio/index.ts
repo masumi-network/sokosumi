@@ -5,7 +5,11 @@ import {
   ComposioApiError,
   ComposioConfigError,
 } from "@/clients/composio.client";
-import { badRequest, serviceUnavailable } from "@/helpers/error";
+import {
+  badRequest,
+  integrationNotConfigured,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
@@ -72,9 +76,7 @@ export function mountComposioCallback(
     } catch (error) {
       if (error instanceof HTTPException) throw error;
       if (error instanceof ComposioConfigError) {
-        throw serviceUnavailable(
-          "Integrations are not configured on this server.",
-        );
+        throw integrationNotConfigured();
       }
       if (error instanceof ComposioApiError) {
         if (

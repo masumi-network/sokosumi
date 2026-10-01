@@ -1,4 +1,3 @@
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -8,19 +7,14 @@ import {
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import {
   badGateway,
+  integrationNotConfigured,
   internalServerError,
-  serviceUnavailable,
 } from "@/helpers/error";
 
 export function mapAdsServiceError(error: unknown): never {
   if (error instanceof HTTPException) throw error;
   if (error instanceof ComposioConfigError) {
-    throw serviceUnavailable(
-      "Ads integrations are not configured on this server.",
-      {
-        kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
-      },
-    );
+    throw integrationNotConfigured();
   }
   if (error instanceof ComposioApiError || error instanceof ComposioToolError) {
     throw badGateway("The ads provider could not complete the request.");

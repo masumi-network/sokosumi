@@ -1,4 +1,5 @@
 import { z } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
@@ -216,6 +217,12 @@ export const serviceUnavailable = (
 ): HTTPException => {
   return createHTTPException(503, message, metadata);
 };
+
+/** 503 for a `ComposioConfigError`: Web matches on the kind, not the message. */
+export const integrationNotConfigured = (): HTTPException =>
+  serviceUnavailable("Integrations are not configured on this server.", {
+    kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+  });
 
 export function shouldReportHttpException(error: HTTPException): boolean {
   if (error.status < 500) {
