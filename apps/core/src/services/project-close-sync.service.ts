@@ -14,6 +14,10 @@ import {
 } from "@/helpers/project-close-notifications";
 import prisma from "@/lib/db/prisma";
 import {
+  getPendingProjectAdRevocation,
+  revokeProjectAdConnectionForClose,
+} from "@/services/project-ad-accounts.service";
+import {
   getPendingProjectSocialRevocation,
   revokeProjectSocialConnectionForClose,
 } from "@/services/project-social-connections.service";
@@ -231,9 +235,9 @@ async function processClaimedProjectClose(
   options: ProjectCloseSyncExecutionOptions,
 ): Promise<ProcessProjectCloseResult> {
   let processedSchedules = 0;
-  let processedSocialConnections = 0;
+  let processedRevocations = 0;
   while (
-    processedSchedules + processedSocialConnections <
+    processedSchedules + processedRevocations <
       PROJECT_CLOSE_SCHEDULE_BATCH_SIZE &&
     options.shouldContinue() &&
     !options.abortSignal.aborted &&
@@ -281,6 +285,12 @@ async function processClaimedProjectClose(
       );
       if (pendingSocialRevocation)
         return { kind: "revoke-social" as const, pendingSocialRevocation };
+      const pendingAdRevocation = await getPendingProjectAdRevocation(
+        tx,
+        operation.projectId,
+      );
+      if (pendingAdRevocation)
+        return { kind: "revoke-ads" as const, pendingAdRevocation };
 
       if (!candidateSchedule) {
         const eventId = await finalizeProjectClose(tx, {
@@ -314,11 +324,15 @@ async function processClaimedProjectClose(
       };
     });
 
-    if (outcome.kind === "revoke-social") {
-      await revokeProjectSocialConnectionForClose(
-        outcome.pendingSocialRevocation,
-      );
-      processedSocialConnections += 1;
+    if (outcome.kind === "revoke-social" || outcome.kind === "revoke-ads") {
+      if (outcome.kind === "revoke-social") {
+        await revokeProjectSocialConnectionForClose(
+          outcome.pendingSocialRevocation,
+        );
+      } else {
+        await revokeProjectAdConnectionForClose(outcome.pendingAdRevocation);
+      }
+      processedRevocations += 1;
       continue;
     }
     if (outcome.kind === "lost") break;

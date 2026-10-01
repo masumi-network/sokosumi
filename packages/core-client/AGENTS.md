@@ -29,3 +29,7 @@ import { NotificationPreferenceSchema } from "@sokosumi/core-client/schemas";
 | `pnpm --filter @sokosumi/core-client generate` | Regenerates from a running Core at `http://localhost:8787/v1/openapi.json` |
 
 After regenerating, run `pnpm typecheck` to catch DTO drift in consumers. Do not chain typecheck into the generate script. Commit the regenerated files as-is.
+
+## Nullable objects
+
+Write a nullable named object as `z.union([schema, z.null()])`, never `schema.nullable()`. `.nullable()` on a named schema drops `| null` from the OpenAPI doc, so the generated type is non-null and the response transformer reads the object's dates without a guard (throws on `null`). `pnpm --filter @sokosumi/core-client test` covers the known cases; add a case when you add one.
