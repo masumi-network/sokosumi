@@ -60,6 +60,7 @@ function createProject(id: string, name: string) {
     latestUpdateMd: null,
     latestUpdateMdUpdatedAt: null,
     websiteUrl: null,
+    identifier: "SOK",
     logo: null,
     designMdUrl: null,
     designMdExtractionId: null,

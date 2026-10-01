@@ -40,6 +40,8 @@ export const CORE_API_ERROR_KINDS = {
   TASK_SCHEDULE_MOVED: "task_schedule_moved",
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
+  PROJECT_IDENTIFIER_TAKEN: "project_identifier_taken",
+  PROJECT_IDENTIFIER_IMMUTABLE: "project_identifier_immutable",
 } as const;
 
 export type CoreApiErrorKind =

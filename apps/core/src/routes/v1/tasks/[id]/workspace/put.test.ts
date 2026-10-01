@@ -204,6 +204,8 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     status: TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
     priority: TaskPriority.NONE,
+    number: null,
+    identifier: null,
     credits: 0,
     grantResumeStatus: null,
     pendingVendorGrantId: null,

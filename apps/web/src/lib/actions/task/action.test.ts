@@ -81,6 +81,7 @@ function buildTaskLink(
       name: string;
       status: TaskStatus;
       archivedAt: null;
+      identifier: null;
     };
   }>,
 ) {
@@ -93,6 +94,7 @@ function buildTaskLink(
       name: "Old parent",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
     ...overrides,
   };
@@ -102,7 +104,13 @@ function buildTask(
   overrides?: Partial<
     Pick<
       Task,
-      "id" | "name" | "description" | "assigneeId" | "projectId" | "status"
+      | "id"
+      | "name"
+      | "description"
+      | "assigneeId"
+      | "projectId"
+      | "status"
+      | "identifier"
     >
   >,
 ): Task {
@@ -114,6 +122,7 @@ function buildTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     status: TaskStatus.READY,
+    identifier: null,
     ...overrides,
   } as Task;
 }
@@ -150,6 +159,7 @@ describe("task link actions", () => {
           name: "New parent",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -455,6 +465,7 @@ describe("task link actions", () => {
           name: "Old parent 1",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
       buildTaskLink({
@@ -464,6 +475,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -595,6 +607,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -940,6 +953,22 @@ describe("setTaskStatusFromDrag", () => {
     expect(taskServiceMock.createTaskEvent).toHaveBeenCalledWith("task-1", {
       status: TaskStatus.READY,
     });
+  });
+
+  it("revalidates the task route rather than one concrete URL", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({ id: "task-1", status: TaskStatus.DRAFT }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/[taskId]", "page");
   });
 
   it("includes a trimmed comment when reopening completed to ready", async () => {

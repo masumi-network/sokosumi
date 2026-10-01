@@ -17,6 +17,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { setTaskPriority } from "@/lib/actions/task/action";
 import { cn } from "@/lib/utils";
 
@@ -74,33 +79,42 @@ export function TaskMetadataPriorityField({
     });
   }
 
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={`${labels.priority}: ${labels.levels[current]}`}
-          disabled={isPending}
+  const ariaLabel = `${labels.priority}: ${labels.levels[current]}`;
+
+  const trigger = (
+    <PopoverTrigger asChild>
+      <button
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        disabled={isPending}
+        className={cn(
+          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+          ROW_TRIGGER_CLASS,
+        )}
+      >
+        <span className="flex size-5 shrink-0 items-center justify-center">
+          <TaskPriorityIcon priority={current} />
+        </span>
+        <span
           className={cn(
-            "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
-            ROW_TRIGGER_CLASS,
+            "truncate",
+            current === "NONE" && "text-muted-foreground",
           )}
         >
-          <span className="flex size-5 shrink-0 items-center justify-center">
-            <TaskPriorityIcon priority={current} />
-          </span>
-          <span
-            className={cn(
-              "truncate",
-              current === "NONE" && "text-muted-foreground",
-            )}
-          >
-            {labels.levels[current]}
-          </span>
-        </button>
-      </PopoverTrigger>
+          {labels.levels[current]}
+        </span>
+      </button>
+    </PopoverTrigger>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Tooltip>
+        <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+        <TooltipContent side="left">{ariaLabel}</TooltipContent>
+      </Tooltip>
       <PopoverContent align="start" className="w-64 p-0">
         <Command>
           <CommandInput

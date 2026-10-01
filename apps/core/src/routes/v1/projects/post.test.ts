@@ -1,5 +1,7 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -60,6 +62,30 @@ const WORKSPACE_CONTEXT = {
   organizationId: null,
 } satisfies WorkspaceVariables["workspaceContext"];
 
+const createdProject = {
+  id: "33333333-3333-4333-8333-333333333333",
+  workspaceId: WORKSPACE_CONTEXT.workspaceId,
+  name: "Alpha",
+  identifier: "ALP",
+  filesToken: null,
+  websiteUrl: null,
+  logo: null,
+  designMdUrl: null,
+  designMdExtractionId: null,
+  briefing: null,
+  briefingUrl: null,
+  contextMd: null,
+  contextMdUrl: null,
+  contextMdUpdatedAt: null,
+  contextMdModel: null,
+  contextMdUpdatingSince: null,
+  contextMdVersion: 0,
+  latestUpdateMd: null,
+  latestUpdateMdUpdatedAt: null,
+  createdAt: new Date("2026-04-02T12:00:00.000Z"),
+  updatedAt: new Date("2026-04-02T12:00:00.000Z"),
+};
+
 function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   const app = new OpenAPIHonoWithAuth();
 
@@ -73,6 +99,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   });
 
   mountPostProject(app);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -92,6 +119,7 @@ describe("POST /projects", () => {
       name: "Alpha",
       filesToken: null,
       websiteUrl: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,
@@ -134,6 +162,55 @@ describe("POST /projects", () => {
     });
   });
 
+  it("creates a project with an uppercased identifier", async () => {
+    projectCreateMock.mockResolvedValue({
+      ...createdProject,
+      identifier: "SOK",
+    });
+
+    const res = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Alpha", identifier: "sok" }),
+    });
+
+    expect(res.status).toBe(201);
+    expect(projectCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({ identifier: "SOK" }),
+    });
+    const body = (await res.json()) as { data: { identifier: string } };
+    expect(body.data.identifier).toBe("SOK");
+  });
+
+  it("rejects an invalid identifier", async () => {
+    const res = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Alpha", identifier: "1x" }),
+    });
+
+    expect(res.status).toBe(422);
+    expect(projectCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the identifier is taken in the workspace", async () => {
+    projectCreateMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["workspaceId", "identifier"] },
+    });
+
+    const res = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Alpha", identifier: "SOK" }),
+    });
+
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string; message?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN);
+    expect(body.message).toContain("Project identifier");
+  });
+
   it("stores one token and uploads a briefing under it", async () => {
     const createdProject = {
       id: "33333333-3333-4333-8333-333333333333",
@@ -141,6 +218,7 @@ describe("POST /projects", () => {
       name: "Alpha",
       filesToken: "secret_token",
       websiteUrl: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,
@@ -214,6 +292,7 @@ describe("POST /projects", () => {
       name: "Branded",
       filesToken: null,
       websiteUrl: "https://example.com",
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,
