@@ -57,7 +57,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
   }
 
   return (
-    <AdsPageShell projectName={project.name} title={t("title")}>
+    <AdsPageShell title={t("title")}>
       <AdsTabs />
     </AdsPageShell>
   );

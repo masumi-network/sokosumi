@@ -2811,8 +2811,8 @@
         "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns."
       },
       "error": {
-        "title": "Something went wrong",
-        "description": "Ads could not be loaded. Try again.",
+        "title": "Failed to load ads",
+        "description": "Try again in a moment.",
         "retry": "Try again"
       }
     },

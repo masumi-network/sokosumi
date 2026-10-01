@@ -52,7 +52,7 @@ export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
   adminSettingsChrome: AccountAdminSettingsChrome;
   /** Social and Ads are still behind the beta; their rows exist only where the pages do. */
-  socialMenuEnabled?: boolean;
+  socialBetaEnabled?: boolean;
 }
 
 export function YouPageClient({
@@ -65,7 +65,7 @@ export function YouPageClient({
   buyCreditsLabel,
   buyCreditsPath,
   adminSettingsChrome,
-  socialMenuEnabled = false,
+  socialBetaEnabled = false,
 }: YouPageClientProps): ReactElement {
   const t = useTranslations("App.Sidebar.Account");
   const tCredit = useTranslations("Components.UserAvatar");
@@ -188,23 +188,23 @@ export function YouPageClient({
               label={tMenu("contentStudio")}
               testId="you-studio"
             />
-            {/* The sidebar's Social row, for phones, where the You page is
-                the menu. */}
-            {socialMenuEnabled ? (
-              <MobileStackedMenuLink
-                href={SOCIAL_HREF}
-                icon={<Share2 className="size-4 shrink-0" aria-hidden />}
-                label={tMenu("social")}
-                testId="you-social"
-              />
-            ) : null}
-            {socialMenuEnabled ? (
-              <MobileStackedMenuLink
-                href={ADS_HREF}
-                icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
-                label={tMenu("ads")}
-                testId="you-ads"
-              />
+            {/* The sidebar's Social and Ads rows, for phones, where the You
+                page is the menu. */}
+            {socialBetaEnabled ? (
+              <>
+                <MobileStackedMenuLink
+                  href={SOCIAL_HREF}
+                  icon={<Share2 className="size-4 shrink-0" aria-hidden />}
+                  label={tMenu("social")}
+                  testId="you-social"
+                />
+                <MobileStackedMenuLink
+                  href={ADS_HREF}
+                  icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
+                  label={tMenu("ads")}
+                  testId="you-ads"
+                />
+              </>
             ) : null}
             <MobileStackedMenuLink
               href={DRIVE_HREF}

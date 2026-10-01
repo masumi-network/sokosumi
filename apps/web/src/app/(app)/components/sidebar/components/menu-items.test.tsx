@@ -117,13 +117,13 @@ let sidebarIsMobile = true;
 function renderMenu(
   hasAssignedSeat = true,
   isMobile = true,
-  socialMenuEnabled = false,
+  socialBetaEnabled = false,
 ) {
   sidebarIsMobile = isMobile;
   return render(
     <TestQueryProvider>
       <OrganizationSeatContext value={hasAssignedSeat}>
-        <MenuItems socialMenuEnabled={socialMenuEnabled} />
+        <MenuItems socialBetaEnabled={socialBetaEnabled} />
       </OrganizationSeatContext>
     </TestQueryProvider>,
   );

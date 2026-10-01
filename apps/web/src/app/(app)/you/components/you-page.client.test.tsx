@@ -135,7 +135,7 @@ describe("YouPageClient", () => {
   });
 
   it("links Social next to Content Studio for people in the Social beta", () => {
-    renderYouPage({ socialMenuEnabled: true });
+    renderYouPage({ socialBetaEnabled: true });
 
     const social = screen.getByTestId("you-social");
     expect(social).toHaveAttribute("href", "/social");
@@ -152,7 +152,7 @@ describe("YouPageClient", () => {
   });
 
   it("links Ads after Social for people in the Social beta", () => {
-    renderYouPage({ socialMenuEnabled: true });
+    renderYouPage({ socialBetaEnabled: true });
 
     const ads = screen.getByTestId("you-ads");
     expect(ads).toHaveAttribute("href", "/ads");

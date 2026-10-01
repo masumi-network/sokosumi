@@ -2811,8 +2811,8 @@
         "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto."
       },
       "error": {
-        "title": "Algo salió mal",
-        "description": "No se pudieron cargar los anuncios. Inténtalo de nuevo.",
+        "title": "No se pudieron cargar los anuncios",
+        "description": "Inténtalo de nuevo en un momento.",
         "retry": "Reintentar"
       }
     },

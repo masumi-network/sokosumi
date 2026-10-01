@@ -91,16 +91,16 @@ describe("AdsPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
   });
 
-  it("opens the scoped project's tabs under the page title and project name", async () => {
+  it("opens the scoped project's tabs under a hidden page heading", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
 
     await visit({ projectId: "project-1" });
 
     expect(projectServiceMock.getProjectById).toHaveBeenCalledWith("project-1");
-    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
-      "App.Ads.title",
-    );
-    expect(screen.getByText("Launch plan")).toBeInTheDocument();
+    const [heading] = screen.getAllByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("App.Ads.title");
+    expect(heading).toHaveClass("sr-only");
+    expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
     expect(screen.getByTestId("ads-tabs")).toBeInTheDocument();
   });
 

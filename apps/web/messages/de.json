@@ -2811,8 +2811,8 @@
         "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten."
       },
       "error": {
-        "title": "Etwas ist schiefgelaufen",
-        "description": "Ads konnten nicht geladen werden. Versuche es erneut.",
+        "title": "Ads konnten nicht geladen werden",
+        "description": "Versuche es gleich noch einmal.",
         "retry": "Erneut versuchen"
       }
     },

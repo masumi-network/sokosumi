@@ -2,34 +2,23 @@ import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { cn } from "@/lib/utils";
 
 /**
- * Ads as a destination of its own: the same surface Social and the studio
- * draw, with a visible title because the page has no other place to name its
- * project. The title is the string the route's metadata uses, so the tab and
- * the heading cannot disagree.
+ * Ads as a destination of its own.
+ *
+ * The same surface Social draws, with no visible headline: the breadcrumb and
+ * the project switcher already name the page and the project. The `h1` is
+ * `sr-only` so the heading outline still starts at the page, and it reads the
+ * same string as the route's metadata.
  */
 export function AdsPageShell({
   children,
-  projectName,
   title,
 }: {
   children: React.ReactNode;
-  /** Absent while the project is still loading. */
-  projectName?: string;
   title: string;
 }) {
   return (
-    <div
-      className={cn(
-        PROJECTS_WORKSPACE_SHELL_CLASS,
-        "flex min-w-0 flex-col gap-6 pt-2 md:pt-3",
-      )}
-    >
-      <header className="space-y-1">
-        <h1 className="text-xl font-semibold tracking-tight">{title}</h1>
-        {projectName ? (
-          <p className="text-muted-foreground text-sm">{projectName}</p>
-        ) : null}
-      </header>
+    <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "min-w-0 pt-2 md:pt-3")}>
+      <h1 className="sr-only">{title}</h1>
       {children}
     </div>
   );

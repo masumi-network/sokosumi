@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
+import { EmptyState } from "@/components/common/empty-state";
+import { Button } from "@/components/ui/button";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
   SEGMENTED_TABS_LIST_CLASS_NAME,
@@ -12,8 +14,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
-
-import { AdsEmptyState } from "./ads-empty-state";
 
 const ADS_TABS = ["campaigns", "market", "accounts"] as const;
 
@@ -56,22 +56,25 @@ export function AdsTabs() {
       </TabsList>
 
       <TabsContent value="campaigns">
-        <AdsEmptyState
-          actionLabel={t("campaigns.emptyAction")}
-          body={t("campaigns.emptyBody")}
-          onAction={() => void setTab("accounts")}
+        <EmptyState
+          action={
+            <Button onClick={() => void setTab("accounts")} type="button">
+              {t("campaigns.emptyAction")}
+            </Button>
+          }
+          description={t("campaigns.emptyBody")}
           title={t("campaigns.emptyTitle")}
         />
       </TabsContent>
       <TabsContent value="market">
-        <AdsEmptyState
-          body={t("market.emptyBody")}
+        <EmptyState
+          description={t("market.emptyBody")}
           title={t("market.emptyTitle")}
         />
       </TabsContent>
       <TabsContent value="accounts">
-        <AdsEmptyState
-          body={t("accounts.emptyBody")}
+        <EmptyState
+          description={t("accounts.emptyBody")}
           title={t("accounts.emptyTitle")}
         />
       </TabsContent>
