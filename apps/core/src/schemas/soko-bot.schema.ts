@@ -939,6 +939,7 @@ export const sokoBotTeamSchema = z
             avatarImageUrl: z.string().nullable(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
+            lastActivityAt: dateTimeSchema.nullable(),
           })
           .nullable(),
       }),

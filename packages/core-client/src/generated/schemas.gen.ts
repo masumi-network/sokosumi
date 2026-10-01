@@ -4204,6 +4204,19 @@ export const AdminSokoBotActionRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const ClaimSokoBotAvatarRequestSchema = {
+    type: 'object',
+    properties: {
+        avatarId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'avatarId'
+    ]
+} as const;
+
 export const AdminUserOverviewItemSchema = {
     type: 'object',
     properties: {
@@ -21824,19 +21837,6 @@ export const IntroduceSokoBotRequestSchema = {
     ]
 } as const;
 
-export const ClaimSokoBotAvatarRequestSchema = {
-    type: 'object',
-    properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'avatarId'
-    ]
-} as const;
-
 export const SokoBotVersionSchema = {
     type: 'object',
     properties: {
@@ -22148,6 +22148,14 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
+                            },
+                            lastActivityAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
                             }
                         },
                         required: [
@@ -22155,7 +22163,8 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status'
+                            'status',
+                            'lastActivityAt'
                         ]
                     }
                 },
