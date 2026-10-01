@@ -240,6 +240,23 @@ async function runSubagent(
   return { findings: result.text || "(no findings)" };
 }
 
+/** Each provider's switch for a returned reasoning summary; others ignore it. */
+const REASONING_SUMMARY_OPTIONS = {
+  openai: { reasoningSummary: "auto" },
+  google: { thinkingConfig: { includeThoughts: true } },
+};
+
+/** The summaries the provider returned across steps, capped; undefined if none. */
+function reasoningSummary(
+  steps: readonly { reasoningText?: string | undefined }[],
+): string | undefined {
+  const text = steps
+    .map((step) => step.reasoningText?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+  return text ? text.slice(0, 20_000) : undefined;
+}
+
 async function main(): Promise<void> {
   let start: TurnStart;
   try {
@@ -267,6 +284,9 @@ async function main(): Promise<void> {
         forSubagent: false,
       }),
       stopWhen: stepCountIs(start.maxSteps),
+      // Ask for the provider's reasoning summary (never raw thoughts) so the
+      // chat can show what the bot considered, as Coworker replies do.
+      providerOptions: REASONING_SUMMARY_OPTIONS,
       abortSignal: AbortSignal.any([
         stopped.signal,
         AbortSignal.timeout(budgetMs),
@@ -280,6 +300,7 @@ async function main(): Promise<void> {
         result.text ||
         (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
+      reasoning: reasoningSummary(result.steps),
     });
   } catch (error) {
     if (isInactive(error)) {

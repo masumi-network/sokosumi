@@ -4,13 +4,19 @@ import Foundation
 public extension ChannelEditDraft {
   /// PATCH rewrites the whole host roster; web sends the three id lists on every save and
   /// the settings fields only when the caller may manage them (roster-only body otherwise).
-  func updateRequest(permissions: ChannelEditPermissions, currentUserId: String) -> Components.Schemas.UpdateChatRoomRequest {
+  func updateRequest(permissions: ChannelEditPermissions, currentUserId: String, currentRoom: Components.Schemas.ChatRoom) -> Components.Schemas.UpdateChatRoomRequest {
     var humans = Set([currentUserId])
+    if preservesRoomMembers {
+      humans.formUnion(currentRoom.userMembers.filter { $0.access?.value1 != .guest }.map(\.id))
+    }
     var coworkers = Set<String>()
     var assistants = Set<String>()
     for recipient in recipients {
       switch recipient {
-      case let .human(id): humans.insert(id)
+      case let .human(id):
+        if !preservesRoomMembers {
+          humans.insert(id)
+        }
       case let .coworker(id): coworkers.insert(id)
       case let .sokoBot(id): assistants.insert(id)
       }

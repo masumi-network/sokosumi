@@ -155,11 +155,11 @@ describe("Seen by reserve", () => {
 
   it("reserves nothing when the Soko Bot footer follows the body", () => {
     const { container } = renderRow({
-      metadata: { soko_bot: { turn_id: "turn-1" } },
+      metadata: { soko_bot: { turn_id: "turn-1", task_ids: ["task-1"] } },
     });
 
     expect(inlineReserve(container)).toBeNull();
-    expect(container.textContent).toContain("feedbackAsk");
+    expect(container.querySelector('a[href="/tasks/task-1"]')).not.toBeNull();
   });
 
   it("reserves nothing when a reaction row already clears the corner", () => {

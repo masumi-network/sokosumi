@@ -1,11 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
-import { TeamRoster, YourAssistantCard } from "./components/roster";
+import {
+  SokoBotsHero,
+  TeamSection,
+  YourAssistantSection,
+} from "./components/roster";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -16,7 +21,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** Your assistant first, then everyone else's, paired with its person. */
+/**
+ * Laid out like the Agents page: a hero that says what a Soko Bot is, then
+ * your own assistant, then everyone else's.
+ */
 export default async function SokoBotsPage() {
   await getSessionOrRedirect();
   const [t, team] = await Promise.all([
@@ -30,27 +38,21 @@ export default async function SokoBotsPage() {
   const stats = me?.bot
     ? await sokoBotService.getStats().catch(() => null)
     : null;
-  const others = team?.members.filter((member) => !member.isYou) ?? [];
 
   return (
-    <div className="flex w-full flex-col gap-6 py-2">
-      <header className="flex items-baseline gap-2">
-        <h1 className="text-foreground text-sm font-semibold">{t("title")}</h1>
-        {team ? (
-          <span className="text-muted-foreground text-xs tabular-nums">
-            {t("teamSummary", {
-              bots: others.filter((member) => member.bot).length,
-              people: others.length,
-            })}
-          </span>
-        ) : null}
-      </header>
-      <YourAssistantCard me={me} stats={stats} />
-      {team ? (
-        <TeamRoster team={team} />
-      ) : (
-        <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
-      )}
+    <div className="w-full">
+      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
+        {/* One tier, spaced the way the Agents hero and its gallery are. */}
+        <div className="space-y-12 md:space-y-16">
+          <SokoBotsHero team={team} />
+          <YourAssistantSection me={me} stats={stats} />
+          {team ? (
+            <TeamSection team={team} />
+          ) : (
+            <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
