@@ -31,7 +31,7 @@ overrides:
   # Do not use undici@<7.30.0 — that would also rewrite @vercel/blob's 6.x.
   # Pin latest 7.x (7.30.0).
   "undici@>=7.0.0 <7.30.0": "7.30.0"
-  # eve@0.68.0 still pins undici@8.9.0. GHSA-8436-99hf-9mmv covers
+  # eve@0.69.0 still pins undici@8.10.2. GHSA-8436-99hf-9mmv covers
   # >=8.0.0 <8.10.2. Pin latest 8.x. Selector starts at 8 so 6.x/7.x stay put.
   "undici@>=8.0.0 <8.11.2": "8.11.2"
 
