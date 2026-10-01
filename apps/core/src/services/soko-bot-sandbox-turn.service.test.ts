@@ -167,6 +167,32 @@ describe("sandbox turn service", () => {
     });
   });
 
+  it("passes the runner's reasoning-summary switches through, and nothing else", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, {
+      ...modelRequest(),
+      body: JSON.stringify({
+        prompt: [],
+        providerOptions: {
+          gateway: { only: ["openai"] },
+          openai: { reasoningSummary: "auto", store: true },
+          google: {
+            thinkingConfig: { includeThoughts: true, thinkingBudget: 99 },
+          },
+          anthropic: { thinking: { type: "enabled" } },
+        },
+      }),
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sent = JSON.parse(String(init.body));
+    expect(sent.providerOptions.openai).toEqual({ reasoningSummary: "auto" });
+    expect(sent.providerOptions.google).toEqual({
+      thinkingConfig: { includeThoughts: true },
+    });
+    expect(sent.providerOptions).not.toHaveProperty("anthropic");
+    expect(sent.providerOptions.gateway.only).not.toContain("openai");
+  });
+
   it("still meters a call whose region is rejected", async () => {
     fetchMock.mockResolvedValue(
       new Response(
