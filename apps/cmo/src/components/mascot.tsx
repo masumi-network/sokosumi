@@ -16,7 +16,6 @@ async function mountMascot(
   container: HTMLElement,
   onReady: (ready: boolean) => void,
   signal: AbortSignal,
-  isPaused: () => boolean,
 ): Promise<() => void> {
   const THREE = await import("three");
   const { GLTFLoader } = await import("three/addons/loaders/GLTFLoader.js");
@@ -139,7 +138,7 @@ async function mountMascot(
     const startTime = performance.now();
     function render() {
       if (disposed) return;
-      if (reducedMotion.matches || isPaused()) {
+      if (reducedMotion.matches) {
         pivot.rotation.set(0, 0, 0);
         pivot.position.y = 0;
       } else {
@@ -181,8 +180,6 @@ interface MascotProps {
 export function Mascot({ className }: MascotProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const pausedRef = useRef(false);
 
   useEffect(() => {
     const stage = stageRef.current;
@@ -195,7 +192,6 @@ export function Mascot({ className }: MascotProps) {
         if (!controller.signal.aborted) setReady(nextReady);
       },
       controller.signal,
-      () => pausedRef.current,
     )
       .then((dispose) => {
         if (controller.signal.aborted) dispose();
@@ -226,18 +222,6 @@ export function Mascot({ className }: MascotProps) {
         preload
       />
       <div className="mascot-stage" ref={stageRef} aria-hidden="true" />
-      {ready && (
-        <button
-          className="button button-secondary mascot-motion"
-          type="button"
-          onClick={() => {
-            pausedRef.current = !pausedRef.current;
-            setPaused(pausedRef.current);
-          }}
-        >
-          {paused ? "Resume animation" : "Pause animation"}
-        </button>
-      )}
     </div>
   );
 }
