@@ -1,4 +1,5 @@
 import { render, waitFor } from "@testing-library/react";
+import { track } from "@vercel/analytics";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SocialSignupAutoInitiator from "./social-signup-auto-initiator";
@@ -39,7 +40,26 @@ describe("SocialSignupAutoInitiator", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
+    vi.mocked(track).mockReset();
     mockSearchParams = new URLSearchParams();
+  });
+
+  it("tracks a direct sign-up link as a sign-up", async () => {
+    render(
+      <SocialSignupAutoInitiator
+        provider="microsoft"
+        providerName="Microsoft"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+    });
+    expect(track).toHaveBeenCalledWith("Sign Up", {
+      provider: "microsoft",
+      direct_signup_link: true,
+    });
+    expect(track).not.toHaveBeenCalledWith("Sign In", expect.anything());
   });
 
   function getSubmittedReturnUrls(): {

@@ -6,6 +6,11 @@ import SocialAuthCallback from "./social-auth-callback";
 const mockReplace = vi.fn();
 const mockSignIn = vi.fn();
 const mockSignUp = vi.fn();
+const mockClaimSignUpConversion = vi.fn();
+
+vi.mock("@/lib/actions/auth/action", () => ({
+  claimSignUpConversion: () => mockClaimSignUpConversion(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -36,6 +41,7 @@ describe("SocialAuthCallback", () => {
       data: { session: { id: "session-1" } },
       error: null,
     });
+    mockClaimSignUpConversion.mockResolvedValue("microsoft");
   });
 
   afterEach(() => {
@@ -61,7 +67,7 @@ describe("SocialAuthCallback", () => {
     },
   );
 
-  it("fires sign_up on the signup callback", async () => {
+  it("fires sign_up for the social sign-up it claims", async () => {
     setSearch("?provider=microsoft");
 
     render(<SocialAuthCallback eventType="signUp" />);
@@ -69,7 +75,31 @@ describe("SocialAuthCallback", () => {
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith("/");
     });
+    expect(mockClaimSignUpConversion).toHaveBeenCalledTimes(1);
     expect(mockSignUp).toHaveBeenCalledWith("microsoft");
+  });
+
+  it("fires no second sign_up for a sign-up another page already counted", async () => {
+    mockClaimSignUpConversion.mockResolvedValue(null);
+    setSearch("?provider=microsoft");
+
+    render(<SocialAuthCallback eventType="signUp" />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/");
+    });
+    expect(mockSignUp).not.toHaveBeenCalled();
+  });
+
+  it("claims no sign-up on the sign-in callback", async () => {
+    setSearch("?provider=google");
+
+    render(<SocialAuthCallback eventType="signIn" />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/");
+    });
+    expect(mockClaimSignUpConversion).not.toHaveBeenCalled();
   });
 
   it("fires login when the session appears on retry", async () => {
