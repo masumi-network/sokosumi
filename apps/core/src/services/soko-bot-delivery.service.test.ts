@@ -388,6 +388,44 @@ describe("durable delivery", () => {
     expect(mocks.publish).toHaveBeenCalledWith("asked", "mention_status");
   });
 
+  it("delivers a reply to a teammate in their own direct chat with the bot", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          requestedByUserId: "teammate",
+          chatResponseMessageId: "placeholder",
+          chatMentionId: "mention",
+          destinationAudience: {
+            userIds: ["teammate"],
+            coworkerIds: [],
+            botIds: ["bot"],
+          },
+        }),
+      }),
+    );
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "teammate" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    await deliverSokoBotDelivery("delivery");
+    expect(mocks.room).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userMembers: { some: { userId: "teammate" } },
+        }),
+      }),
+    );
+    expect(mocks.persistChat).toHaveBeenCalledWith("turn", expect.anything());
+    expect(mocks.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SUPPRESSED" }),
+      }),
+    );
+  });
+
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {
     mocks.workspace.mockResolvedValue(null);
     await deliverSokoBotDelivery("delivery");
