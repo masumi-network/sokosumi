@@ -112,3 +112,27 @@ export const discardAdConnection = adsAction(
     await adsService.discardConnection(projectId, adConnectionId);
   },
 );
+
+/** Pauses or resumes a campaign, or changes its daily budget, in one call. */
+export const updateAdCampaign = adsAction(
+  z
+    .object({
+      projectId: trimmedId,
+      accountId: trimmedId,
+      campaignId: trimmedId,
+      status: z.enum(["ACTIVE", "PAUSED"]).optional(),
+      dailyBudget: z.number().positive().optional(),
+    })
+    .refine(
+      ({ status, dailyBudget }) =>
+        status !== undefined || dailyBudget !== undefined,
+      { message: "Nothing to update" },
+    ),
+  async ({ projectId, accountId, campaignId, status, dailyBudget }) => {
+    await adsService.updateCampaign(projectId, accountId, campaignId, {
+      ...(status ? { status } : {}),
+      ...(dailyBudget !== undefined ? { dailyBudget } : {}),
+    });
+    revalidatePath("/ads");
+  },
+);
