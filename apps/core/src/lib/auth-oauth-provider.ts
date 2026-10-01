@@ -14,6 +14,31 @@ export const oauthRefreshTokenOptions = {
   refreshTokenReuseInterval: 30,
 } satisfies Partial<OAuthOptions>;
 
+/** Production CMO's callback: marks the CMO client in a preview database. */
+const CMO_PRODUCTION_CALLBACK =
+  "https://app.cmo.xyz/api/auth/callback/sokosumi";
+
+/** A CMO preview's branch alias, truncated with a hash when the branch is long. */
+const CMO_PREVIEW_CALLBACK =
+  /^https:\/\/sokosumi-cmo-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
+
+/**
+ * Preview Core only: lets the CMO client sign a CMO preview in at its own
+ * callback, so a preview never needs its URI written into the preview
+ * database (ADR 0045). Every other client and URI must match exactly.
+ */
+export function acceptCmoPreviewCallback(
+  redirectUri: string,
+  registeredUris: readonly string[],
+  defaultResult: boolean,
+): boolean {
+  return (
+    defaultResult ||
+    (registeredUris.includes(CMO_PRODUCTION_CALLBACK) &&
+      CMO_PREVIEW_CALLBACK.test(redirectUri))
+  );
+}
+
 interface OAuthRefreshTokenBody {
   grant_type: "refresh_token";
   [key: string]: string | string[];

@@ -76,6 +76,7 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
+  acceptCmoPreviewCallback,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
@@ -703,6 +704,10 @@ export const auth = betterAuth({
       ],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
+      // Production keeps exact redirect URI matching (ADR 0045).
+      ...(env.VERCEL_ENV === "preview"
+        ? { validateRedirectUri: acceptCmoPreviewCallback }
+        : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       ...oauthRefreshTokenOptions,
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)

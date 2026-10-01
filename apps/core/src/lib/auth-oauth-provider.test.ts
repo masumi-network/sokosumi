@@ -6,6 +6,7 @@ import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  acceptCmoPreviewCallback,
   handleOAuthRefreshTokenRequest,
   isRefreshTokenRotating,
   oauthRefreshTokenOptions,
@@ -410,5 +411,114 @@ describe("isRefreshTokenRotating", () => {
     expect(
       await isRefreshTokenRotating(token, prefix, async () => rotation),
     ).toBe(expected);
+  });
+});
+
+describe("acceptCmoPreviewCallback", () => {
+  const CMO_CALLBACK = "https://app.cmo.xyz/api/auth/callback/sokosumi";
+  const PREVIEW_CALLBACK =
+    "https://sokosumi-cmo-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi";
+
+  // Better Auth's authorize endpoint on an in-memory store, with the hook.
+  async function authorize(registeredUris: string[], redirectUri: string) {
+    const db = createDb();
+    db.oauthClient[0].redirectUris = registeredUris;
+    const auth = betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret: "test-secret-that-is-long-enough-for-better-auth",
+      database: memoryAdapter(db),
+      plugins: [
+        jwt({ disableSettingJwtHeader: true }),
+        oauthProvider({
+          loginPage: "https://app.example.com/signin",
+          consentPage: "https://app.example.com/oauth/consent",
+          validateRedirectUri: acceptCmoPreviewCallback,
+        }),
+      ],
+    });
+    const query = new URLSearchParams({
+      response_type: "code",
+      client_id: CLIENT_ID,
+      redirect_uri: redirectUri,
+      scope: "openid",
+      state: "state-1",
+      code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGcSZ7j9Gc",
+      code_challenge_method: "S256",
+    });
+    const response = await auth.handler(
+      new Request(`https://auth.example.com/auth/oauth2/authorize?${query}`),
+    );
+    return response.headers.get("location") ?? "";
+  }
+
+  it("sends a CMO preview's sign-in on to the login page", async () => {
+    expect(await authorize([CMO_CALLBACK], PREVIEW_CALLBACK)).toMatch(
+      /^https:\/\/app\.example\.com\/signin\?/,
+    );
+  });
+
+  it("still signs the CLI in at a loopback port", async () => {
+    expect(
+      await authorize(
+        ["http://127.0.0.1/oauth/callback"],
+        "http://127.0.0.1:53682/oauth/callback",
+      ),
+    ).toMatch(/^https:\/\/app\.example\.com\/signin\?/);
+  });
+
+  it("refuses a preview callback for a client that is not CMO", async () => {
+    expect(
+      await authorize(["https://other.example.com/callback"], PREVIEW_CALLBACK),
+    ).toContain("error=invalid_redirect");
+  });
+
+  it("keeps exact matches for every client", () => {
+    expect(
+      acceptCmoPreviewCallback(
+        "https://other.example.com/callback",
+        ["https://other.example.com/callback"],
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a branch alias Vercel truncated with a hash", () => {
+    expect(
+      acceptCmoPreviewCallback(
+        "https://sokosumi-cmo-git-claude-sidebar-new-badge-featu-fceb86.preview.cmo.xyz/api/auth/callback/sokosumi",
+        [CMO_CALLBACK],
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["a production host", "https://app.cmo.xyz/api/auth/callback/other"],
+    [
+      "a per-deployment URL",
+      "https://sokosumi-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
+      "another project on the suffix",
+      "https://evil-git-x.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
+      "a lookalike domain",
+      "https://sokosumi-cmo-git-x.preview.cmo.xyz.evil.com/api/auth/callback/sokosumi",
+    ],
+    ["plain HTTP", PREVIEW_CALLBACK.replace("https:", "http:")],
+    ["a port", PREVIEW_CALLBACK.replace(".xyz/", ".xyz:8443/")],
+    ["user info", PREVIEW_CALLBACK.replace("https://", "https://user@")],
+    ["a query", `${PREVIEW_CALLBACK}?next=/`],
+    ["a fragment", `${PREVIEW_CALLBACK}#x`],
+    [
+      "another path",
+      PREVIEW_CALLBACK.replace("/callback/sokosumi", "/callback/google"),
+    ],
+  ])("refuses %s", (_label, redirectUri) => {
+    expect(acceptCmoPreviewCallback(redirectUri, [CMO_CALLBACK], false)).toBe(
+      false,
+    );
   });
 });
