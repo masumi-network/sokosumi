@@ -302,7 +302,7 @@
       "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
-      "social": "Social",
+      "social": "Programación social",
       "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
@@ -1568,6 +1568,10 @@
         }
       },
       "SokoBot": {
+        "connectPrompt": "Conecta tu correo y tu calendario para que {bot} prepare tus reuniones y haga seguimiento.",
+        "connectProvider": "Conectar {name}",
+        "connectDismiss": "Descartar",
+        "connectError": "No se pudo iniciar la conexión.",
         "feedbackAsk": "¿Útil?",
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
@@ -2809,7 +2813,7 @@
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
     "Social": {
-      "title": "Social",
+      "title": "Programación social",
       "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
@@ -2862,6 +2866,7 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "Nuevo",
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "exploreAgents": "Agentes",
@@ -2877,7 +2882,7 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Social"
+          "social": "Programación social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
@@ -3795,7 +3800,8 @@
           "unnamed": "Sin nombre",
           "archived": "Archivado",
           "version": "Versión",
-          "showDormant": "Mostrar sin uso y archivados ({count})"
+          "showDormant": "Mostrar sin uso y archivados ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Volver a Soko Bots",
@@ -3814,7 +3820,8 @@
           "viewsNav": "Vistas del bot",
           "views": {
             "status": "Estado",
-            "advanced": "Avanzado"
+            "advanced": "Avanzado",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Eliminar este Soko Bot",
@@ -3826,6 +3833,17 @@
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
             "error": "No se pudo eliminar este Soko Bot."
+          },
+          "chat": {
+            "readOnly": "Solo lectura",
+            "roomsNav": "Chats",
+            "ownerRoom": "Propietario",
+            "loadOlder": "Cargar anteriores",
+            "loading": "Cargando…",
+            "noMessages": "Aún no hay mensajes.",
+            "empty": "Nadie ha chateado con este bot todavía.",
+            "deleted": "Mensaje eliminado",
+            "loadError": "No se pudieron cargar los mensajes anteriores."
           }
         },
         "Actions": {
@@ -7020,19 +7038,14 @@
       "title": "Soko Bots",
       "description": "Los Soko Bots son los compañeros de IA que construyes tú mismo. Cada persona tiene un asistente personal que delega trabajo, hace seguimiento y la mantiene al día. Aquí aparecerán más tipos de Soko Bots.",
       "unavailable": "La vista del equipo no está disponible ahora mismo.",
-      "personalWorkspace": "Espacio personal",
-      "peopleCount": "{count, plural, one {# persona} other {# personas}}",
       "you": "tú",
       "noAssistant": "Sin asistente todavía",
       "createAssistant": "Crea tu asistente personal",
       "createAssistantHint": "Lleva un minuto. Elige nombre e imagen.",
       "assistantFallback": "Asistente personal",
-      "yourAssistant": "Tu asistente personal",
-      "assistantOf": "Asistente personal de {name}",
       "openChat": "Abrir chat",
-      "messageAssistant": "Escribirle",
       "chatError": "No se pudo abrir el chat.",
-      "manage": "Abrir",
+      "manage": "Ajustes",
       "teamTitle": "Equipo",
       "teamDescription": "Todas las personas de este espacio y los Soko Bots que crearon.",
       "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
@@ -7041,7 +7054,10 @@
       "heroCta": "Crea tu Soko Bot",
       "heroCtaHint": "Un minuto: elige un nombre y una cara.",
       "teamCount": "{humans, plural, one {# humano} other {# humanos}}, {bots, plural, =0 {aún sin Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot no está disponible temporalmente"
+      "disabled": "Soko Bot no está disponible temporalmente",
+      "message": "Escribir",
+      "previous": "Personas anteriores",
+      "next": "Siguientes personas"
     },
     "Calendar": {
       "Metadata": {

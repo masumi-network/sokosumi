@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
-import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
 import { SokoBotsHero } from "./components/soko-bots-hero";
-import { TeamChart } from "./components/team-chart";
+import { TeamCarousel } from "./components/team-carousel";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -24,11 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
  * every person and the Soko Bot they built.
  */
 export default async function SokoBotsPage() {
-  const session = await getSessionOrRedirect();
-  // Same beta gate as the assistant route.
-  if (!hasSokoBotBetaAccess(session.user)) {
-    notFound();
-  }
+  await getSessionOrRedirect();
   const [t, team, avatars] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {
@@ -65,7 +59,7 @@ export default async function SokoBotsPage() {
                 across the view, not a line floating inside the content. */}
             <hr className="border-border -mx-4" />
           </div>
-          <TeamChart team={team} />
+          <TeamCarousel team={team} />
         </section>
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>

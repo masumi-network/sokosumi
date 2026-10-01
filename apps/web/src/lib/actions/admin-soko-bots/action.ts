@@ -4,6 +4,7 @@ import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
   AdminSokoBotVersionMigrationResult,
+  ChatRoomMessage,
   SokoBotAvailability,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
@@ -122,6 +123,48 @@ export const listAdminSokoBotsAction = withSession<
       );
     }
     return toActionResult(ok(await adminSokoBotService.list(parsed.data)));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+const chatPageSchema = z.object({
+  sokoBotId: z.string().trim().min(1),
+  roomId: z.string().trim().min(1),
+  cursor: z.string().trim().min(1),
+});
+
+interface ChatPageParams extends AuthenticatedRequest {
+  sokoBotId: string;
+  roomId: string;
+  cursor: string;
+}
+
+/** An older page of a bot's chat for the read-only admin transcript. */
+export const loadAdminSokoBotChatPageAction = withSession<
+  ChatPageParams,
+  ActionResultDto<
+    { messages: ChatRoomMessage[]; nextCursor: string | null },
+    ActionError
+  >
+>(async ({ session, sokoBotId, roomId, cursor }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = chatPageSchema.safeParse({ sokoBotId, roomId, cursor });
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    return toActionResult(
+      ok(
+        await adminSokoBotService.listChatMessages(
+          parsed.data.sokoBotId,
+          parsed.data.roomId,
+          parsed.data.cursor,
+        ),
+      ),
+    );
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }

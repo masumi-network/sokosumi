@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import {
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -152,12 +151,16 @@ vi.mock("./soko-bot-delivery.service", () => ({
   deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { postOwnerNoticeMock } = vi.hoisted(() => ({
-  postOwnerNoticeMock: vi.fn(),
-}));
+const { postOwnerNoticeMock, openOwnerRoomMock, chatRoomFindFirstMock } =
+  vi.hoisted(() => ({
+    postOwnerNoticeMock: vi.fn(),
+    openOwnerRoomMock: vi.fn(),
+    chatRoomFindFirstMock: vi.fn(),
+  }));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
   postSokoBotOwnerNotice: postOwnerNoticeMock,
+  findOrOpenOwnerDirectRoom: openOwnerRoomMock,
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -172,7 +175,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn().mockResolvedValue({ message: { roomId: "room-1" } }),
     },
     chatRoom: {
-      findFirst: vi.fn().mockResolvedValue({ id: "room-1" }),
+      findFirst: chatRoomFindFirstMock,
       findUnique: vi.fn().mockResolvedValue({
         userMembers: [],
         coworkerMembers: [],
@@ -386,6 +389,7 @@ beforeEach(() => {
 describe("SokoBotControlPlane lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatRoomFindFirstMock.mockReset().mockResolvedValue({ id: "room-1" });
     availabilityMock.mockResolvedValue({
       disabled: false,
       disabledAt: null,
@@ -1516,9 +1520,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
-  it("grants a teammate mention only the teammate ceiling", async () => {
-    // The bot answers into a shared room, so the owner's private reads must
-    // not be on the grant and the packet must be built for a teammate.
+  it("grants a teammate mention the route's tools, not a read-only ceiling", async () => {
+    // The turn runs as the owner, on the owner's accounts and credits; the
+    // packet still records who asked.
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
     turnFindUniqueMock.mockResolvedValue(null);
@@ -1555,17 +1559,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     const granted = turnCreateMock.mock.calls[0]?.[0]?.data
       ?.capabilityNames as string[];
-    expect(granted).toEqual([...SOKO_BOT_TEAMMATE_CAPABILITIES]);
-    for (const ownerPrivate of [
-      "search_inbox",
-      "read_email",
-      "list_calendar_events",
-      "list_files",
-      "read_memory",
-      "read_chat",
-    ]) {
-      expect(granted).not.toContain(ownerPrivate);
-    }
+    expect(granted).toEqual(
+      expect.arrayContaining(["search_inbox", "list_files"]),
+    );
     // The packet's `actor` is the owner on every turn, so the asker's id has
     // to travel with the audience or the bot cannot tell who it is answering.
     expect(contextBuilder.build).toHaveBeenCalledWith(
@@ -1618,6 +1614,70 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Core wrote this prompt from mail; no shell or web for it.
     expect(data?.capabilityNames).not.toContain("bash");
     expect(data?.capabilityNames).not.toContain("web_fetch");
+  });
+
+  it("opens the owner's chat for a proactive turn when there is none", async () => {
+    // Bots whose owner never opened their chat dead-lettered every stand-up,
+    // wrap and inbox check with "no destination", and looked dead for days.
+    jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue(null);
+    openOwnerRoomMock.mockResolvedValue({ id: "room-new" });
+    turnCreateMock.mockResolvedValue({ id: "turn_sched", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_sched",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-first-standup",
+      message: "Daily stand-up.",
+      source: "SCHEDULE",
+    });
+
+    expect(openOwnerRoomMock).toHaveBeenCalledTimes(1);
+    expect(turnCreateMock).toHaveBeenCalled();
+  });
+
+  it("keeps an archived owner chat suppressed instead of opening another", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    // No live room, but an archived one exists.
+    chatRoomFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "room-archived" });
+
+    await expect(
+      new SokoBotControlPlane(
+        runtimeWithReset(vi.fn()),
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "client-turn-archived",
+        message: "Daily stand-up.",
+        source: "SCHEDULE",
+      }),
+    ).rejects.toThrow("No authorized destination");
+    expect(openOwnerRoomMock).not.toHaveBeenCalled();
   });
 
   it("grants a self-started turn the same spend it grants the owner", async () => {
@@ -3554,6 +3614,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 describe("SET_VERSION and fleet migration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatRoomFindFirstMock.mockReset().mockResolvedValue({ id: "room-1" });
     availabilityMock.mockResolvedValue({
       disabled: false,
       disabledAt: null,

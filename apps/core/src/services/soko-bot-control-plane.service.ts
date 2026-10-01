@@ -18,7 +18,6 @@ import {
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
@@ -118,6 +117,41 @@ export class SokoBotNoDestinationError extends Error {}
 export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
 export class SokoBotDisabledError extends Error {}
+
+/**
+ * A proactive turn needs somewhere to speak. An owner who never opened the
+ * bot's chat has nowhere, so every schedule, event and ingest dead-lettered
+ * and the bot looked dead. The owner's own direct room is always authorized;
+ * it is opened here. A room that exists but was archived stays suppressed.
+ */
+async function openFirstOwnerDirectRoom(
+  sokoBotId: string,
+  userId: string,
+): Promise<{ id: string } | null> {
+  const anyDirect = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId } },
+      userMembers: { some: { userId } },
+    },
+    select: { id: true },
+  });
+  if (anyDirect) return null;
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: sokoBotId, userId, archivedAt: null },
+    select: {
+      id: true,
+      userId: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!bot) return null;
+  const { findOrOpenOwnerDirectRoom } = await import(
+    "@/services/soko-bot-chat.service"
+  );
+  return findOrOpenOwnerDirectRoom(bot);
+}
 
 async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -2108,7 +2142,7 @@ export class SokoBotControlPlane {
       ? { id: conversationMention.message.roomId }
       : input.chat
         ? null
-        : await prisma.chatRoom.findFirst({
+        : ((await prisma.chatRoom.findFirst({
             // Rooms carry no workspace; the bot's membership scopes this to
             // the workspace the bot lives in (one bot per user and workspace).
             where: {
@@ -2118,7 +2152,10 @@ export class SokoBotControlPlane {
               userMembers: { some: { userId: input.userId } },
             },
             select: { id: true },
-          });
+          })) ??
+          (["SCHEDULE", "EVENT", "INGEST"].includes(source)
+            ? await openFirstOwnerDirectRoom(bot.id, input.userId)
+            : null));
     if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
       throw new SokoBotNoDestinationError(
         "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",
@@ -2250,9 +2287,10 @@ export class SokoBotControlPlane {
         "Soko Bot classifier unavailable for scheduled turn",
       );
     }
-    // A teammate may ask the owner's bot questions but never spend the owner's
-    // credits, create work in their name, or read the owner's private surfaces:
-    // the answer is published back into the shared room.
+    // A teammate asking someone else's bot gets the same tools the owner
+    // would: the turn runs as the owner, on the owner's credits and accounts,
+    // and the owner's console shows who asked. Only another assistant asking
+    // stays read-only, so assistants cannot drive each other in a loop.
 
     // Self-started turns keep every capability of their route, hiring
     // included. Withholding only `hire_agent` read as a spend limit and was
@@ -2319,9 +2357,7 @@ export class SokoBotControlPlane {
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
-        : requestedByTeammate
-          ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-          : routeCapabilities) as readonly SokoBotCapability[],
+        : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();

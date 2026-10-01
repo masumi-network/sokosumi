@@ -37,6 +37,10 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
   };
 }
 
+/** Shown on hover (or focus) where hover exists; always shown on touch. */
+const revealOnHover =
+  "transition-opacity focus-within:opacity-100 [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100";
+
 /** Thumbs on any message the bot produced; feeds the admin quality metric. */
 function FeedbackButtons({ turnId }: { turnId: string }) {
   const t = useTranslations("App.Chat.SokoBot");
@@ -50,7 +54,9 @@ function FeedbackButtons({ turnId }: { turnId: string }) {
   }
   if (sent !== null) {
     return (
-      <span className="text-muted-foreground inline-flex items-center gap-1.5 text-xs">
+      <span
+        className={`text-muted-foreground inline-flex items-center gap-1.5 text-xs ${revealOnHover}`}
+      >
         {sent ? (
           <ThumbsUp aria-hidden className="size-3" />
         ) : (
@@ -61,7 +67,9 @@ function FeedbackButtons({ turnId }: { turnId: string }) {
     );
   }
   return (
-    <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+    <span
+      className={`text-muted-foreground inline-flex items-center gap-1 text-xs ${revealOnHover}`}
+    >
       <span className="mr-0.5">{t("feedbackAsk")}</span>
       <button
         type="button"

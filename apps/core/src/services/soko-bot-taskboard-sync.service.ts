@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -142,11 +141,11 @@ export class SokoBotTaskboardSyncService {
     const bots = await prisma.sokoBot.findMany({
       orderBy: { id: "asc" },
       take: 50,
-      where: withBetaBotOwner({
+      where: {
         ...(scan.cursorId ? { id: { gt: scan.cursorId } } : {}),
         archivedAt: null,
         adminPausedAt: null,
-      }),
+      },
       select: {
         id: true,
         name: true,

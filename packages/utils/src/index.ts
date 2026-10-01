@@ -280,7 +280,6 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
-export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
