@@ -28,9 +28,9 @@ export default function SocialAuthCallback({
     const validationResult = authMethodIdSchema.safeParse(provider);
     const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
 
-    // Social and magic-link land here via a full page load (Better Auth
-    // hard-redirects to `callbackURL` on success). Credential and passkey
-    // never reach this page: they fire in place before their own
+    // Social sign-ins land here via a full page load (Better Auth
+    // hard-redirects to `callbackURL` on success). Credential, passkey and
+    // email code never reach this page: they fire in place before their own
     // full-document leave. The GTM event on this page survives the hard nav
     // — see apps/web/TRACKING.md. `router.replace` below is safe because
     // this *is* a new document, so it carries no pre-login router cache.

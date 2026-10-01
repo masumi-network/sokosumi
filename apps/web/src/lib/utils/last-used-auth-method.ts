@@ -2,7 +2,7 @@ export type LastUsedAuthMethod =
   | "google"
   | "microsoft"
   | "passkey"
-  | "magic-link"
+  | "email-otp"
   | "email";
 
 export function parseLastUsedAuthMethod(
@@ -12,7 +12,7 @@ export function parseLastUsedAuthMethod(
     value === "google" ||
     value === "microsoft" ||
     value === "passkey" ||
-    value === "magic-link" ||
+    value === "email-otp" ||
     value === "email"
   ) {
     return value;

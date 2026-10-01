@@ -8,8 +8,10 @@ import Divider from "@/auth/components/divider";
 import SocialButtons, {
   type SignInMethodId,
 } from "@/auth/components/social-buttons";
+import { useEmailCode } from "@/auth/components/use-email-code";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -17,7 +19,6 @@ import { fireGTMEvent } from "@/lib/gtm-events";
 import { SignUpEmailStep } from "./email-step";
 import SignUpForm from "./form";
 import SignUpHeader from "./header";
-import { SignUpMagicLink } from "./magic-link";
 import SignInLink from "./sign-in-link";
 
 interface SignUpFlowProps {
@@ -27,7 +28,6 @@ interface SignUpFlowProps {
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
   lastUsedMethod: SignInMethodId | null;
-  showMagicLink: boolean;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -35,9 +35,9 @@ interface SignUpFlowProps {
 }
 
 /**
- * Sign-up in two steps. The first asks for the email beside the providers;
- * the second asks for name and password, or sends a Magic Link to the email
- * already given.
+ * Sign-up in two steps. The first asks for the email beside the providers
+ * and, for a new address, emails a code right away. The second asks for the
+ * name and that code, or the name and a password instead.
  */
 export default function SignUpFlow({
   invitationId,
@@ -45,7 +45,6 @@ export default function SignUpFlow({
   prefilledEmail,
   returnUrl,
   lastUsedMethod,
-  showMagicLink,
   notice,
   children,
 }: SignUpFlowProps) {
@@ -55,6 +54,13 @@ export default function SignUpFlow({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
+  // Lives here, not in step 2: Continue sends the code before step 2 opens.
+  const emailCode = useEmailCode({
+    eventType: "signUp",
+    returnUrl: effectiveReturnUrl,
+    // Record UTM attribution for every successful signup.
+    beforeLeaving: handleUtmConversion,
+  });
   // An invitation fixes the address. Any other query email is only a
   // starting value, so a mistyped one can still be fixed.
   const emailLocked = Boolean(invitationId && prefilledEmail);
@@ -98,15 +104,10 @@ export default function SignUpFlow({
           <SignUpForm
             email={email}
             returnUrl={returnUrl}
+            emailCode={emailCode}
             onFormStart={handleFormStart}
             onPendingChange={setIsDetailsPending}
           />
-          {showMagicLink ? (
-            <>
-              <Divider labelKey="magicLinkDivider" />
-              <SignUpMagicLink email={email} returnUrl={effectiveReturnUrl} />
-            </>
-          ) : null}
           {children}
         </div>
       </div>
@@ -123,8 +124,11 @@ export default function SignUpFlow({
           emailLocked={emailLocked}
           autoFocus={cameBack}
           onFormStart={handleFormStart}
-          onContinue={(confirmedEmail) => {
+          continueCaptcha={emailCode.captcha}
+          onContinue={async (confirmedEmail) => {
             setEmail(confirmedEmail);
+            // A failed send has said so; step 2 then opens on the password.
+            await emailCode.sendCode(confirmedEmail);
             setStep("details");
           }}
         />

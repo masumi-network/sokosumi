@@ -46,7 +46,7 @@ describe("SocialAuthCallback", () => {
     window.history.replaceState({}, "", `/auth/callback/signin${search}`);
   }
 
-  it.each(["credential", "magic-link", "passkey", "google"] as const)(
+  it.each(["credential", "email-otp", "passkey", "google"] as const)(
     "fires login for provider=%s and forwards to returnUrl",
     async (provider) => {
       setSearch(`?provider=${provider}&returnUrl=%2Fchat`);

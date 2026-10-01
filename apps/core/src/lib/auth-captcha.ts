@@ -26,7 +26,7 @@ export function createAuthCaptchaPlugin(secretKey: string | undefined) {
       "/request-password-reset",
       "/send-verification-email",
       "/change-email",
-      "/sign-in/magic-link",
+      "/email-otp/send-verification-otp",
     ],
   });
 }

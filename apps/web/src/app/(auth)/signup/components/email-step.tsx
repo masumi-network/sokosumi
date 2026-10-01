@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -43,7 +43,10 @@ interface SignUpEmailStepProps {
   /** Set when the user came back here from the next step. */
   autoFocus: boolean;
   onFormStart: () => void;
-  onContinue: (email: string) => void;
+  /** Runs while the button still spins, e.g. to email a code. */
+  onContinue: (email: string) => Promise<void> | void;
+  /** The check the work after Continue needs, shown beside this step's. */
+  continueCaptcha?: ReactNode;
 }
 
 /**
@@ -61,6 +64,7 @@ export function SignUpEmailStep({
   autoFocus,
   onFormStart,
   onContinue,
+  continueCaptcha,
 }: SignUpEmailStepProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const oauthT = useTranslations("Auth.OAuthHandBack");
@@ -131,7 +135,7 @@ export function SignUpEmailStep({
         return;
       }
 
-      onContinue(email);
+      await onContinue(email);
     });
   }
 
@@ -195,6 +199,7 @@ export function SignUpEmailStep({
         </div>
         <div className="flex flex-col gap-4">
           {captcha}
+          {continueCaptcha}
           {/* Both controls share one cell. The submit button stays underneath
               and the link fades in over it, so the fill never dips. The
               submit button is positioned (for its spinner), so the link must

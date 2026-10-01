@@ -77,3 +77,18 @@ export function resolveSignUpNameBody(
     name: joinFirstAndLastName(firstName, lastName),
   };
 }
+
+/**
+ * An email code creates the account when the address is new. The sign-up
+ * page sends the person's names with the code, and they follow the same
+ * rules as email sign-up. The sign-in page sends none, and the account starts
+ * without a name, which setup asks for.
+ */
+export function resolveEmailCodeSignInNameBody(
+  body: Record<string, unknown> | undefined,
+) {
+  if (body?.firstName === undefined && body?.lastName === undefined) {
+    return body;
+  }
+  return resolveSignUpNameBody(body);
+}

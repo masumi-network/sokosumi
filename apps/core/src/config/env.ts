@@ -552,7 +552,7 @@ export function getBetterAuthPublicBaseUrl(): string {
     !env.VERCEL_URL
   ) {
     console.warn(
-      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (magic-link emails may point at the wrong host)",
+      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (email links may point at the wrong host)",
     );
   }
 
