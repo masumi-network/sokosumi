@@ -1328,6 +1328,7 @@
       "text": "Mit dem Erstellen eines Kontos stimmst du den <terms>Nutzungsbedingungen</terms> und der <privacy>Datenschutzrichtlinie</privacy> zu."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Zurück zu Sokosumi",
       "continuing": "Weiterleitung…",
       "continuingTo": "Weiter zu {client}…",
       "errorTitle": "Fortfahren nicht möglich",
@@ -1341,6 +1342,9 @@
       "useAnotherAccount": "Anderes Konto verwenden",
       "accountCheckError": "Dein Konto konnte nicht überprüft werden. Versuche es erneut.",
       "signOutError": "Abmelden fehlgeschlagen. Versuche es erneut."
+    },
+    "OAuthClient": {
+      "backTo": "Zurück zu {client}"
     },
     "SignInError": {
       "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem Magic Link an und verbinde Google oder Microsoft danach unter Verbindungen.",

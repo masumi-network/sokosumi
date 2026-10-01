@@ -1328,6 +1328,7 @@
       "text": "By creating an account, you agree to the <terms>Terms of Service</terms> and the <privacy>Privacy Policy</privacy>."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Back to Sokosumi",
       "continuing": "Continuing…",
       "continuingTo": "Continuing to {client}…",
       "errorTitle": "Unable to continue",
@@ -1341,6 +1342,9 @@
       "useAnotherAccount": "Use another account",
       "accountCheckError": "Could not check your account. Try again.",
       "signOutError": "Could not sign out. Try again."
+    },
+    "OAuthClient": {
+      "backTo": "Back to {client}"
     },
     "SignInError": {
       "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or a Magic Link first, then connect Google or Microsoft under Connections.",
