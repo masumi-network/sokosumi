@@ -1,7 +1,13 @@
 "use client";
 
 import type { Project } from "@sokosumi/core-client";
-import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  isEmptyOrValidWebsiteUrl,
+  isValidProjectIdentifier,
+  normalizeWebsiteUrl,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  sanitizeProjectIdentifier,
+} from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -23,6 +29,11 @@ import { createProject } from "@/lib/actions/project/action";
 import { cn } from "@/lib/utils";
 
 import type { ProjectCreationSource } from "./project-form";
+
+type IdentifierFieldError =
+  | "identifier_invalid"
+  | "identifier_taken"
+  | "identifier_immutable";
 
 const SETUP_STEPS = 3;
 
@@ -48,6 +59,9 @@ export function CreateProjectWizard({
   const t = useTranslations("App.Projects");
   const [step, setStep] = useState(0);
   const [name, setName] = useState(initialName);
+  const [identifier, setIdentifier] = useState("");
+  const [identifierFieldError, setIdentifierFieldError] =
+    useState<IdentifierFieldError | null>(null);
   const [website, setWebsite] = useState("");
   const [briefing, setBriefing] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +71,23 @@ export function CreateProjectWizard({
   const trimmedName = name.trim();
   const normalizedWebsite = normalizeWebsiteUrl(website);
   const isWebsiteValid = isEmptyOrValidWebsiteUrl(website);
-  const canContinueFromName = trimmedName.length > 0 && isWebsiteValid;
+  const isIdentifierValid = identifier
+    ? isValidProjectIdentifier(identifier)
+    : true;
+  const identifierError =
+    identifierFieldError === "identifier_taken"
+      ? t("Wizard.name.identifierTaken")
+      : identifierFieldError === "identifier_immutable"
+        ? t("Wizard.name.identifierImmutable")
+        : identifierFieldError === "identifier_invalid" ||
+            (identifier && !isIdentifierValid)
+          ? t("Wizard.name.identifierInvalid")
+          : null;
+  const canContinueFromName =
+    trimmedName.length > 0 &&
+    isWebsiteValid &&
+    isIdentifierValid &&
+    identifierFieldError === null;
   const isBrandStep = createdProjectId !== null && Boolean(normalizedWebsite);
 
   function updateSubmitting(nextIsSubmitting: boolean) {
@@ -120,12 +150,14 @@ export function CreateProjectWizard({
     try {
       const result = await createProject({
         name: trimmedName,
+        ...(identifier ? { identifier } : {}),
         briefing: briefing.trim() || null,
         websiteUrl: normalizedWebsite,
       });
-      // The wizard never sends an identifier, so Core has nothing to reject.
       if (!result.ok) {
-        throw new Error("Failed to create project");
+        setIdentifierFieldError(result.error.kind);
+        setStep(0);
+        return;
       }
       const { projectId, project } = result.value;
 
@@ -231,6 +263,44 @@ export function CreateProjectWizard({
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="project-wizard-identifier">
+                      {t("Wizard.name.identifierLabel")}
+                    </Label>
+                    <Input
+                      id="project-wizard-identifier"
+                      maxLength={PROJECT_IDENTIFIER_MAX_LENGTH}
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                      spellCheck={false}
+                      placeholder={t("Wizard.name.identifierPlaceholder")}
+                      value={identifier}
+                      onChange={(event) => {
+                        setIdentifier(
+                          sanitizeProjectIdentifier(event.target.value),
+                        );
+                        setIdentifierFieldError(null);
+                      }}
+                      disabled={isSubmitting}
+                      aria-invalid={Boolean(identifierError)}
+                      aria-describedby="project-wizard-identifier-hint"
+                      className="font-mono uppercase"
+                    />
+                    <p
+                      id="project-wizard-identifier-hint"
+                      role={identifierError ? "alert" : undefined}
+                      className={
+                        identifierError
+                          ? "text-destructive text-xs leading-relaxed"
+                          : "text-muted-foreground text-xs leading-relaxed"
+                      }
+                    >
+                      {identifierError ??
+                        t("Wizard.name.identifierHint", {
+                          example: `${isValidProjectIdentifier(identifier) ? identifier : "SOK"}-123`,
+                        })}
+                    </p>
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="project-wizard-website">
                       {t("Wizard.name.websiteLabel")}
                     </Label>
@@ -284,6 +354,14 @@ export function CreateProjectWizard({
                       {t("Wizard.review.nameLabel")}
                     </dt>
                     <dd className="text-sm font-medium">{trimmedName}</dd>
+                  </div>
+                  <div className="space-y-1.5">
+                    <dt className="text-muted-foreground text-xs font-medium">
+                      {t("Wizard.name.identifierLabel")}
+                    </dt>
+                    <dd className="text-muted-foreground font-mono text-sm uppercase">
+                      {identifier || t("Wizard.name.identifierPlaceholder")}
+                    </dd>
                   </div>
                   <div className="space-y-1.5">
                     <dt className="text-muted-foreground text-xs font-medium">

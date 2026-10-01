@@ -75,7 +75,7 @@ export function ProjectForm({
   const [name, setName] = useState(initialValues?.name ?? "");
   const [identifier, setIdentifier] = useState(initialValues?.identifier ?? "");
   const [identifierFieldError, setIdentifierFieldError] = useState<
-    "identifier_taken" | "identifier_immutable" | null
+    "identifier_invalid" | "identifier_taken" | "identifier_immutable" | null
   >(null);
   const [website, setWebsite] = useState(initialValues?.websiteUrl ?? "");
   const [briefing, setBriefing] = useState(initialValues?.briefing ?? "");
@@ -94,7 +94,8 @@ export function ProjectForm({
       ? t("Wizard.name.identifierTaken")
       : identifierFieldError === "identifier_immutable"
         ? t("Wizard.name.identifierImmutable")
-        : identifier && !isIdentifierValid
+        : identifierFieldError === "identifier_invalid" ||
+            (identifier && !isIdentifierValid)
           ? t("Wizard.name.identifierInvalid")
           : null;
   const isSubmitDisabled =

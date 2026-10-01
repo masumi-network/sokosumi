@@ -17,7 +17,7 @@ import {
   projectIdentifierSchema,
   SOCIAL_POST_MEDIA_MAX,
 } from "@sokosumi/utils";
-import { err, ok } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
@@ -196,6 +196,7 @@ function revalidateProjectSocialPostMutationRoutes(projectId: string) {
 
 /** Project write failures the form shows on the Identifier field rather than as a toast. */
 type ProjectIdentifierFieldError =
+  | { kind: "identifier_invalid" }
   | { kind: "identifier_taken" }
   | { kind: "identifier_immutable" };
 
@@ -214,13 +215,15 @@ function identifierFieldError(
   return null;
 }
 
-function normalizeProjectIdentifier(identifier?: string): string | undefined {
+function normalizeProjectIdentifier(
+  identifier?: string,
+): Result<string | undefined, ProjectIdentifierFieldError> {
   const normalized = identifier?.trim().toUpperCase();
-  if (!normalized) return undefined;
+  if (!normalized) return ok(undefined);
   if (!projectIdentifierSchema.safeParse(normalized).success) {
-    throw new Error("Invalid project identifier");
+    return err({ kind: "identifier_invalid" });
   }
-  return normalized;
+  return ok(normalized);
 }
 
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
@@ -268,11 +271,16 @@ export const createProject = withSession<
 
   const normalizedWebsiteUrl = normalizeOptionalWebsiteUrl(websiteUrl);
   const normalizedIdentifier = normalizeProjectIdentifier(identifier);
+  if (normalizedIdentifier.isErr()) {
+    return toActionResult(err(normalizedIdentifier.error));
+  }
 
   try {
     const project = await projectService.createProject({
       name: normalizedName,
-      ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
+      ...(normalizedIdentifier.value
+        ? { identifier: normalizedIdentifier.value }
+        : {}),
       briefing: normalizeProjectBriefing(briefing),
       websiteUrl: normalizedWebsiteUrl,
     });
@@ -305,11 +313,16 @@ export const updateProject = withSession<
       ? normalizeOptionalWebsiteUrl(websiteUrl)
       : undefined;
   const normalizedIdentifier = normalizeProjectIdentifier(identifier);
+  if (normalizedIdentifier.isErr()) {
+    return toActionResult(err(normalizedIdentifier.error));
+  }
 
   try {
     await projectService.patchProject(normalizedProjectId, {
       name: normalizedName,
-      ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
+      ...(normalizedIdentifier.value
+        ? { identifier: normalizedIdentifier.value }
+        : {}),
       ...(briefing !== undefined
         ? { briefing: normalizeProjectBriefing(briefing) }
         : {}),
