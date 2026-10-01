@@ -152,6 +152,13 @@ visibility, one assignee of any kind). At every Run, Core creates a new `READY`
 Task that carries the schedule's id in `scheduleId`. A Task never repeats; a
 one-time start is `runAt` on `POST /v1/tasks`.
 
+`expr` has five fields: minute, hour, day of month, month, day of week, read
+in `timezone`. Ranges, lists, steps, month and weekday names, `L`, and `#` work
+(`0 9 * * MON-FRI`, `0 17 * * 5L`, `0 9 * * 1#1`). A seconds field, an `@`
+macro such as `@daily`, or `H` answers **400**, on create and on a `PATCH` that
+sends `rule`. Schedules stored before this rule keep running, and a `PATCH`
+without `rule` still works on them.
+
 A Coworker needs `X-Context-*` headers, the `tasks` capability, and a
 **GRANTED** workspace grant. A missing grant is requested and the call answers
 **403** `grant_required` until a human approves; nothing parks. The
@@ -212,7 +219,9 @@ Draft, Ready, or Queued, not archived or parked, and the Coworker created it,
 is its assignee, or shares the assignee's vendor. The create is keyed on the
 Task, so a retry returns the first schedule. `occurrences` counts the Runs
 still to come, and an `M H */N * *` cron with no `intervalDays` means every N
-days, as before. A person assignee answers **422**. Every answer of the layer
+days, as before. The cron follows the five-field rule above, so a seconds field
+or `@daily` answers **400**, even when it re-sends the stored rule or resumes a
+paused schedule; nothing changes. A person assignee answers **422**. Every answer of the layer
 logs `legacyTaskScheduleShim`.
 
 ### Removed per-Task schedule routes

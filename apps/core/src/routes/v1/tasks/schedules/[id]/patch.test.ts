@@ -64,6 +64,40 @@ describe("PATCH /tasks/schedules/{id}", () => {
     resetTaskScheduleTestDb();
   });
 
+  it.each(["0 0 9 * * 1", "@daily", "H 9 * * 1", "*/H * * * *", "0 1-H * * *"])(
+    "preserves stored rule %s on blueprint edits and rejects explicit replacement",
+    async (expr) => {
+      const schedule = seedTaskSchedule({ expr });
+      const skipped = seedRun(schedule, new Date("2030-01-07T09:00:00.000Z"), {
+        state: "SKIPPED",
+      });
+      const response = await patch(schedule.id, {
+        expectedRevision: 0,
+        name: "Renamed",
+      });
+      expect(response.status).toBe(200);
+      expect(stored(schedule.id)).toMatchObject({
+        expr,
+        epochId: schedule.epochId,
+        name: "Renamed",
+      });
+      expect(runsOf(schedule.id)).toContainEqual(skipped);
+
+      const before = structuredClone(stored(schedule.id));
+      const replaced = await patch(schedule.id, {
+        expectedRevision: 1,
+        rule: { expr, timezone: "UTC", endsMode: "NEVER" },
+      });
+      expect(replaced.status).toBe(400);
+      expect(await replaced.json()).toMatchObject({
+        message: expect.stringContaining(
+          "expr must be a five-field cron expression",
+        ),
+      });
+      expect(stored(schedule.id)).toEqual(before);
+    },
+  );
+
   describe("Runs", () => {
     const RELEASED_AT = new Date("2029-12-31T09:00:00.000Z");
 

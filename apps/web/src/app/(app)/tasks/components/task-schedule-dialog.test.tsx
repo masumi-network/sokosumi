@@ -1,7 +1,7 @@
 import type { TaskSchedule } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskScheduleDialog } from "./task-schedule-dialog";
@@ -120,6 +120,8 @@ function renderDialog(
 
 describe("TaskScheduleDialog", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T10:00:00.000Z"));
     vi.clearAllMocks();
     createTaskScheduleMock.mockResolvedValue({
       ok: true,
@@ -129,6 +131,11 @@ describe("TaskScheduleDialog", () => {
       ok: true,
       value: { scheduleId: SCHEDULE.id },
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("creates a Task Schedule from the blueprint and a daily rule", async () => {
@@ -259,6 +266,10 @@ describe("TaskScheduleDialog", () => {
 
   it.each([
     ["a custom cron", { expr: "15 7 1,15 * *" }],
+    // Stored before Core required five fields; it keeps running untouched.
+    ["a six-field cron", { expr: "0 15 7 1,15 * *" }],
+    ["a macro", { expr: "@daily" }],
+    ["a hashed cron", { expr: "H 9 * * 1" }],
     [
       "an every-N-days rule",
       {
@@ -383,6 +394,191 @@ describe("TaskScheduleDialog", () => {
     expect(screen.getByText("pickADay")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
   });
+
+  it("still saves a six-field rule when the When controls are clicked but unchanged", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    // It opens as Custom; picking Custom again changes nothing.
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it.each([
+    ["@daily", "daily"],
+    ["@weekly", "weekly"],
+    ["H 9 * * 1", "weekly"],
+  ])(
+    "preserves %s when its existing preset is selected again",
+    async (expr, repeat) => {
+      const user = userEvent.setup();
+      renderDialog({
+        schedule: { ...SCHEDULE, rule: { ...SCHEDULE.rule, expr } },
+      });
+      await user.click(
+        screen.getByRole("button", { name: `repeats.${repeat}` }),
+      );
+      await user.click(screen.getByRole("button", { name: "save" }));
+      await waitFor(() =>
+        expect(updateTaskScheduleMock).toHaveBeenCalledOnce(),
+      );
+      expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "rule",
+      );
+    },
+  );
+
+  it("keeps a stored hashed rule untouched across a same-revision refresh", async () => {
+    const user = userEvent.setup();
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const schedule = {
+      ...SCHEDULE,
+      rule: { ...SCHEDULE.rule, expr: "H 9 * * 1" },
+    };
+    const { rerender } = renderDialog({ schedule });
+    random.mockReturnValue(0.9);
+    rerender(
+      <TaskScheduleDialog
+        schedule={{ ...schedule }}
+        coworkerOptions={[COWORKER]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        onClose={onClose}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("resets the edit form when a newer schedule revision arrives", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderDialog({ schedule: SCHEDULE });
+    const updated = {
+      ...SCHEDULE,
+      revision: 5,
+      rule: { ...SCHEDULE.rule, expr: "0 10 * * TUE" },
+    };
+    rerender(
+      <TaskScheduleDialog
+        schedule={updated}
+        coworkerOptions={[COWORKER]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "time" })).toHaveTextContent(
+      "10:00",
+    );
+    await user.type(screen.getByLabelText("name"), " updated");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      expectedRevision: 5,
+    });
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("preserves a legacy rule after deselecting and restoring the same weekdays", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 30 8 * * MON,TUE" },
+      },
+    });
+    const monday = document.querySelector('[data-weekday="MON"]');
+    if (!(monday instanceof HTMLElement)) throw new Error("no Monday");
+
+    await user.click(monday);
+    await user.click(monday);
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("preserves a legacy custom rule after editing an inactive preset and restoring Custom", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "repeats.weekly" }));
+    const wednesday = document.querySelector('[data-weekday="WED"]');
+    if (!(wednesday instanceof HTMLElement)) throw new Error("no Wednesday");
+    await user.click(wednesday);
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    expect(screen.getByRole("button", { name: "save" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("notes a stored six-field rule without calling it invalid until it is edited", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    const cron = screen.getByLabelText("cron");
+    expect(cron).toHaveValue("0 15 7 1,15 * *");
+    expect(cron).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByText("cronLegacy")).toBeInTheDocument();
+    expect(screen.queryByText("cronInvalid")).toBeNull();
+
+    // Still six fields: "0 15 7 1,15 * 2".
+    await user.type(cron, "{backspace}2");
+
+    expect(cron).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("cronInvalid")).toBeInTheDocument();
+  });
+
+  it.each(["0 30 8 * * MON", "@daily", "*/H * * * *", "0 1-H * * *"])(
+    "blocks saving an explicitly edited cron %s",
+    async (expr) => {
+      const user = userEvent.setup();
+      renderDialog({ schedule: SCHEDULE });
+
+      await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+      const cron = screen.getByLabelText("cron");
+      await user.clear(cron);
+      await user.type(cron, expr);
+
+      expect(cron).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByText("cronInvalid")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+    },
+  );
 
   it("keeps a private Task private instead of assigning its member", async () => {
     const user = userEvent.setup();

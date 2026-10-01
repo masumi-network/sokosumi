@@ -115,7 +115,20 @@ function useWhenSummary(when: ScheduleWhen, selection: TaskScheduleSelection) {
  * creates, and when it runs. It uses the New Task form's shell, fields and
  * pickers. Mount it only while open, so every opening starts from the props.
  */
-export function TaskScheduleDialog({
+export function TaskScheduleDialog(props: TaskScheduleDialogProps) {
+  return (
+    <TaskScheduleDialogForm
+      key={
+        props.schedule
+          ? `${props.schedule.id}:${props.schedule.revision}`
+          : "new"
+      }
+      {...props}
+    />
+  );
+}
+
+function TaskScheduleDialogForm({
   schedule,
   initialBlueprint,
   coworkerOptions,
@@ -148,22 +161,23 @@ export function TaskScheduleDialog({
     blueprint.visibility === TaskVisibility.PRIVATE,
   );
   const [isSaving, setIsSaving] = useState(false);
-  const initialSelection = useMemo<TaskScheduleSelection>(
-    () =>
-      schedule
-        ? taskScheduleRuleToSelection(schedule.rule)
-        : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
-    [schedule],
+  // Keep the baseline stable for this keyed form's lifetime. Re-reading a
+  // stored H cron on a same-revision refresh can select a different minute.
+  const [initialSelection] = useState<TaskScheduleSelection>(() =>
+    schedule
+      ? taskScheduleRuleToSelection(schedule.rule)
+      : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
   );
-  const [when, setWhen] = useState<ScheduleWhen>(() =>
-    selectionToWhen(initialSelection),
-  );
-  // An untouched rule is saved as it was read, so an edit to the blueprint
-  // never rewrites a rule the controls only approximate.
-  const [whenTouched, setWhenTouched] = useState(false);
+  const [initialWhen] = useState(() => selectionToWhen(initialSelection));
+  const [when, setWhen] = useState<ScheduleWhen>(initialWhen);
+  // Until the controls differ from what was read, the rule stays as read: an
+  // edit to the blueprint never rewrites a rule the controls only approximate.
+  const whenChanged =
+    JSON.stringify(whenToSelection(when)) !==
+    JSON.stringify(whenToSelection(initialWhen));
   const selection = useMemo(
-    () => (whenTouched ? whenToSelection(when) : initialSelection),
-    [whenTouched, when, initialSelection],
+    () => (whenChanged ? whenToSelection(when) : initialSelection),
+    [whenChanged, when, initialSelection],
   );
   const rule = useMemo(
     () => selectionToTaskScheduleRule(selection),
@@ -181,7 +195,10 @@ export function TaskScheduleDialog({
   const isPrivateSchedule = schedule
     ? schedule.visibility === TaskVisibility.PRIVATE
     : showPrivateControl && isPrivate;
-  const saveDisabled = isSaving || !name.trim() || !rule;
+  // An edit that leaves the rule alone does not send it, so a stored rule the
+  // controls reject (one from before the five-field cron) still saves.
+  const ruleRequired = !schedule || whenChanged;
+  const saveDisabled = isSaving || !name.trim() || (ruleRequired && !rule);
 
   function reportError(error: TaskScheduleActionError) {
     if (error.kind === "stale") {
@@ -192,11 +209,10 @@ export function TaskScheduleDialog({
   }
 
   async function handleSave() {
-    const trimmedName = name.trim();
-    if (!rule || !trimmedName) return;
+    if (saveDisabled) return;
 
     const input: TaskScheduleBlueprintInput = {
-      name: trimmedName,
+      name: name.trim(),
       description: description.trim() || null,
       projectId,
       ...assignee,
@@ -210,17 +226,20 @@ export function TaskScheduleDialog({
             expectedRevision: schedule.revision,
             // Replacing the rule drops skipped and moved Runs, so an edit
             // that leaves it alone does not send it.
-            ...(hasTaskScheduleChanged(initialSelection, selection)
+            ...(rule && hasTaskScheduleChanged(initialSelection, selection)
               ? { rule }
               : {}),
           })
-        : await createTaskSchedule({
+        : // A create always requires the rule; `rule &&` only narrows it.
+          rule &&
+          (await createTaskSchedule({
             ...input,
             visibility: isPrivateSchedule
               ? TaskVisibility.PRIVATE
               : TaskVisibility.PUBLIC,
             rule,
-          });
+          }));
+      if (!result) return;
       if (!result.ok) {
         reportError(result.error);
         return;
@@ -353,10 +372,8 @@ export function TaskScheduleDialog({
             </div>
             <TaskScheduleWhen
               value={when}
-              onChange={(next) => {
-                setWhen(next);
-                setWhenTouched(true);
-              }}
+              onChange={setWhen}
+              storedCron={schedule?.rule.expr}
             />
           </section>
         </div>

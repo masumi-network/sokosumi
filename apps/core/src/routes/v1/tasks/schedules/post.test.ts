@@ -179,6 +179,9 @@ describe("POST /tasks/schedules", () => {
         400,
       ],
       ["an invalid cron expression", { expr: "not a cron" }, 400],
+      ["a cron with a seconds field", { expr: "0 0 9 * * 1" }, 400],
+      ["a cron macro", { expr: "@weekly" }, 400],
+      ["a hashed cron value", { expr: "H 9 * * 1" }, 400],
       [
         "endsMode ON without endsOn",
         { expr: "0 9 * * 1", endsMode: "ON" },
