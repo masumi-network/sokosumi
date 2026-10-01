@@ -355,6 +355,38 @@ struct RealtimeEventTests {
                                     data: ["collections": ["active"], "roomId": NSNull(), "at": sentAt]).isIgnored)
   }
 
+  /// Web's `z.iso.datetime()` (zod 4.6.5 defaults): a real calendar date, `T`, hours, minutes and seconds, any number
+  /// of fractional digits, and `Z` only — no offset, nothing after it.
+  @Test(arguments: [
+    ("2026-09-09T12:00:00Z", true),
+    ("2026-09-09T12:00:00.123Z", true),
+    ("2026-09-09T23:59:59.1Z", true),
+    ("2026-09-09T00:00:00.123456789Z", true),
+    ("2024-02-29T00:00:00Z", true),
+    ("2000-02-29T00:00:00Z", true),
+    ("2026-02-30T12:00:00Z", false),
+    ("2025-02-29T00:00:00Z", false),
+    ("1900-02-29T00:00:00Z", false),
+    ("2026-04-31T00:00:00Z", false),
+    ("2026-13-01T00:00:00Z", false),
+    ("2026-09-09T12:00:00Zjunk", false),
+    ("2026-09-09T12:00:00+02:00", false),
+    ("2026-09-09T12:00:00", false),
+    ("2026-09-09T12:00Z", false),
+    ("2026-09-09T12:00:00.Z", false),
+    ("2026-09-09T24:00:00Z", false),
+    ("2026-09-09T12:00:60Z", false),
+    ("2026-09-09 12:00:00Z", false),
+    ("2026-09-09t12:00:00z", false),
+    (" 2026-09-09T12:00:00Z", false),
+    ("٢٠٢٦-09-09T12:00:00Z", false)
+  ])
+  func roomsChangedTimeFollowsWebsISODateTime(sentAt: String, accepted: Bool) {
+    let event = resolveRealtimeDelivery(channel: "chat_control:user_user_1", event: "chat_rooms_changed",
+                                        data: ["collections": ["active"], "roomId": NSNull(), "at": sentAt])
+    #expect(event.isIgnored == !accepted, "\(sentAt)")
+  }
+
   @Test func tokenFieldsSerializeForAbly() {
     let token = Components.Schemas.AblyTokenRequest(
       keyName: "app.key",
