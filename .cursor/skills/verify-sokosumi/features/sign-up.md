@@ -24,7 +24,7 @@ Preconditions:
 - **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows the **Email** textbox and **Continue with email** (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft sit **below** the email step — ignore them.
 - **Cookie banner.** If **Accept all** / consent UI covers the form, dismiss it first — it can block clicks on the form.
 - **Step 1, email.** Fill `textbox "Email"` (`[data-testid="auth-field-email"]`) and click **Continue with email**. The click asks Core (`POST /auth/sign-up/email-status`, behind the security check) whether the address already has an account. An invalid address shows an inline error and the step stays; an address that has an account shows "An account with this email already exists." and the button becomes **Log in instead**, so pick a fresh address.
-- **Step 2, name and password.** Re-snapshot and wait for `textbox "First name"` / `"Last name"` / `"Password"` (`[data-testid="auth-field-firstName|lastName|password"]`). The confirmed address sits above them in a read-only "Email" box with a **Change** button. **Send me a Magic Link** sits below the form — ignore it. The only checkbox is the optional marketing one; there is no terms checkbox, a notice under the form says creating the account accepts them.
+- **Step 2, name and password.** Re-snapshot and wait for `textbox "First name"` / `"Last name"` / `"Password"` (`[data-testid="auth-field-firstName|lastName|password"]`). The confirmed address sits above them in a read-only "Email" box with a **Change** button. **Email me a code instead** sits below the form — ignore it. The only checkbox is the optional marketing one; there is no terms checkbox, a notice under the form says creating the account accepts them.
 - **Submit.** **Click** the Register `@eN` ref (not bare `@N`); if `agent-browser get box` shows it past the viewport, run `agent-browser scrollintoview @eN` first. Prefer click over Enter. Wait for navigation away from `/signup` to **Welcome `/`**. Signup has **no** `data-testid="auth-submit"` (that testid is sign-in only).
 - **Confirm session.** Open `/agents`. Expect either `/agents` (workspace ready) or `/setup` (identity / temporary workspace onboarding). Must **not** bounce to `/signin`. Do not wait `networkidle` on Welcome/chat.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-up` then screenshot + snapshot of the post-signup authenticated view (`/` or `/setup` or `/agents`). Record the email in `account.txt` (no password).
@@ -49,7 +49,7 @@ Require HTTP 200 and a `user.email` in the body. Do **not** count API signup alo
 - Already-authenticated sessions redirect `/signup` into the app (Welcome `/`). Clear cookies or sign out before driving the form.
 - New signups without a personal workspace often hit `/setup` after leaving `/` — that is auth success, not a failed landing.
 - Email verification is off in local/core config — do not wait for a verification email. A “confirm email” banner after login is OK.
-- OAuth and magic-link signup paths are invalid with placeholder credentials.
+- OAuth and email-code signup paths are invalid with placeholder credentials.
 - Do not reuse an email that already exists; pick a fresh address per run.
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
 - Origin must be `$WEB_URL` for Core auth API calls (`INVALID_ORIGIN` otherwise).

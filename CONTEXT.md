@@ -219,7 +219,7 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 ### Account access
 
 **Security check**:
-The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
+The human check on public account-email entry points (sign-up, sign-in, password reset, email code, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
 **Sign in with Sokosumi**:

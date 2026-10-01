@@ -55,9 +55,9 @@ function countConversion(
 
 /**
  * Completes a sign-in or sign-up that did not hand Better Auth a
- * `callbackURL` (credential sign-in, credential sign-up, passkey): wait for
- * the session cookie to settle, count the conversion only if a session
- * exists, then navigate to the destination.
+ * `callbackURL` (credential sign-in, credential sign-up, passkey, email
+ * code): wait for the session cookie to settle, count the conversion only if
+ * a session exists, then navigate to the destination.
  *
  * When the OAuth provider has already answered, the page is leaving for that
  * answer and this navigates nowhere: a second navigation would deliver the
@@ -72,7 +72,7 @@ function countConversion(
  * session cookie. `replace` keeps `/signin` off the history stack. This
  * lands directly on the app, not the marketing `/auth/callback` page, so no
  * hero swap or interstitial. Same pattern as the workspace-gate leave in
- * identity-onboarding-form.client.tsx. Social and magic-link cannot use this
+ * identity-onboarding-form.client.tsx. Social sign-in cannot use this
  * — the provider round trip lands on `/auth/callback/signin` instead.
  */
 export async function finishAuthInPlace({

@@ -14,7 +14,7 @@ import {
 } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
-  renderMagicLinkEmail,
+  renderEmailCodeEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "@sokosumi/email";
@@ -32,9 +32,9 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
+  emailOTP,
   jwt,
   lastLoginMethod,
-  magicLink,
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
@@ -81,6 +81,7 @@ import { createAuthOrganizationPlugin } from "./auth-organization";
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
+  resolveEmailCodeSignInNameBody,
   resolveSignUpNameBody,
   validateUpdatedUserName,
   validateUserNameLength,
@@ -89,6 +90,7 @@ import { anchorVerificationCallbackToWebApp } from "./verification-email-callbac
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
+const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -349,6 +351,17 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
+  // The email code plugin also offers password reset, email verification and
+  // email change by code. Sokosumi keeps links for those.
+  disabledPaths: [
+    "/email-otp/check-verification-otp",
+    "/email-otp/verify-email",
+    "/email-otp/request-password-reset",
+    "/forget-password/email-otp",
+    "/email-otp/reset-password",
+    "/email-otp/request-email-change",
+    "/email-otp/change-email",
+  ],
   rateLimit: {
     storage: "database",
   },
@@ -382,6 +395,21 @@ export const auth = betterAuth({
           }
 
           return { context: { body: resolveSignUpNameBody(ctx.body) } };
+        }
+        case "/email-otp/send-verification-otp": {
+          // Codes only sign people in. Password resets and email
+          // verification keep their links.
+          if (ctx.body?.type !== "sign-in") {
+            throw new APIError("BAD_REQUEST", {
+              message: "Email codes only sign in",
+            });
+          }
+          break;
+        }
+        case "/sign-in/email-otp": {
+          return {
+            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
+          };
         }
         case "/update-user": {
           await validateUpdatedUserName(ctx);
@@ -524,32 +552,38 @@ export const auth = betterAuth({
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
     signUpEmailStatus(),
-    magicLink({
+    // A code, not a link: it goes back into the tab that asked for it, so a
+    // sign-in for another app keeps that app's state, and a mail scanner
+    // that opens links cannot use it up.
+    emailOTP({
+      otpLength: 6,
+      expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
+      allowedAttempts: 5,
+      // A resend repeats the code rather than replacing it, so whichever email
+      // arrives first works. Reuse needs the code recoverable, so it is stored
+      // encrypted with the auth secret instead of hashed.
+      storeOTP: "encrypted",
+      resendStrategy: "reuse",
       disableSignUp: false,
-      expiresIn: 60 * 10, // 10 minutes
-      storeToken: "hashed",
-      sendMagicLink: async ({ email, url }, ctx) => {
-        const locale = getEmailLocale(ctx?.request, ctx?.headers);
-        const name =
-          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
-        const renderedEmail = await renderMagicLinkEmail({
-          locale,
-          magicLink: url,
-          name,
+      sendVerificationOTP: async ({ email, otp }, ctx) => {
+        const renderedEmail = await renderEmailCodeEmail({
+          locale: getEmailLocale(ctx?.request, ctx?.headers),
+          code: otp,
+          expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
         });
 
         waitUntil(
           sendEmail({
             to: email,
-            tag: "magic-link",
+            tag: "email-code",
             subject: renderedEmail.subject,
             html: renderedEmail.html,
           }).catch((error) => {
             captureExternalServiceError(error, {
-              label: "magic_link_email",
+              label: "email_code_email",
               sentry: {
                 tags: {
-                  context: "magic_link_email",
+                  context: "email_code_email",
                 },
               },
               extra: {

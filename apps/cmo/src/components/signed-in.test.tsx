@@ -17,11 +17,14 @@ it("shows the Sokosumi account's name and email with Sign out", () => {
   expect(html).toContain('<button type="submit">Sign out</button>');
 });
 
-it("names the account by its email when it has no name", () => {
-  const html = renderToStaticMarkup(
-    <SignedIn name="" email="ada@example.com" signOut={async () => {}} />,
-  );
+it.each(["", "   ", "\t\n"])(
+  "names the account by its email when its name is %j",
+  (name) => {
+    const html = renderToStaticMarkup(
+      <SignedIn name={name} email="ada@example.com" signOut={async () => {}} />,
+    );
 
-  expect(html).toContain("<p>Signed in as ada@example.com</p>");
-  expect(html.split("ada@example.com")).toHaveLength(2);
-});
+    expect(html).toContain("<p>Signed in as ada@example.com</p>");
+    expect(html.split("ada@example.com")).toHaveLength(2);
+  },
+);

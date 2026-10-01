@@ -1,7 +1,7 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
-import { magicLink } from "better-auth/plugins/magic-link";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
@@ -25,7 +25,7 @@ function createTestAuth(
     emailVerification: { sendOnSignUp: true, sendVerificationEmail: sendEmail },
     plugins: [
       createAuthCaptchaPlugin(secretKey),
-      magicLink({ sendMagicLink: sendEmail }),
+      emailOTP({ sendVerificationOTP: sendEmail }),
     ],
     rateLimit: { enabled: false },
   });
@@ -41,6 +41,8 @@ function createTestAuth(
           email: "person@example.com",
           name: "Person",
           password: "Password123!",
+          // The email code request names what the code is for.
+          type: "sign-in",
         }),
       }),
     );
@@ -91,7 +93,7 @@ describe("auth email abuse protection", () => {
     "/sign-up/email",
     "/sign-in/email",
     "/send-verification-email",
-    "/sign-in/magic-link",
+    "/email-otp/send-verification-otp",
     "/request-password-reset",
   ])("blocks %s without a token before sending mail", async (path) => {
     const { post, sendEmail } = createTestAuth();
@@ -205,7 +207,7 @@ describe("auth email abuse protection", () => {
     for (const path of [
       "/sign-up/email",
       "/send-verification-email",
-      "/sign-in/magic-link",
+      "/email-otp/send-verification-otp",
       "/request-password-reset",
     ]) {
       expect((await post(path, `token-for-${path}`)).status).toBe(200);

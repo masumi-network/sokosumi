@@ -36,7 +36,7 @@ vi.mock("@/auth/components/social-buttons", () => ({ default: () => null }));
 
 async function submitDetails() {
   const user = userEvent.setup();
-  render(<SignUpFlow showMagicLink={false} lastUsedMethod={null} />);
+  render(<SignUpFlow lastUsedMethod={null} />);
   await user.type(
     screen.getByLabelText("Fields.Email.label"),
     "ada@example.com",

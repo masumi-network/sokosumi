@@ -77,7 +77,9 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
           returnUrl={returnUrl}
           lastUsedMethod={lastUsedMethod}
           prefilledEmail={email}
-          showMagicLink
+          // The code returns to this tab, so a sign-in for another app
+          // keeps that app's request.
+          showEmailCode
           showPasskey
         />
         <Divider labelKey="passwordDivider" />

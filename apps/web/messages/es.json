@@ -6,6 +6,20 @@
       "missingResponse": "Completa la verificación de seguridad y vuelve a intentarlo.",
       "requestFailed": "No se pudo completar la solicitud. Vuelve a intentarlo más tarde."
     },
+    "EmailCodeForm": {
+      "sent": "Enviamos un código de 6 dígitos a {email}.",
+      "sentNoAddress": "Te enviamos un código de 6 dígitos por correo.",
+      "codeLabel": "Código del correo",
+      "incomplete": "Introduce el código de 6 dígitos del correo.",
+      "invalid": "Ese código no es correcto. Revisa el correo e inténtalo de nuevo.",
+      "expired": "Este código ha caducado. Envía un código nuevo.",
+      "tooManyAttempts": "Demasiados intentos fallidos. Envía un código nuevo.",
+      "generic": "No pudimos comprobar el código. Inténtalo de nuevo.",
+      "resend": "Enviar un código nuevo",
+      "resendIn": "Nuevo código en {seconds} s",
+      "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
+      "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."
+    },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
       "description": "Actualmente experimentamos problemas con la ejecución de jobs debido a fallos técnicos de uno de nuestros proveedores externos. No te preocupes, todo volverá a la normalidad pronto.",
@@ -29,19 +43,18 @@
     },
     "ReauthDialog": {
       "confirm": "Confirmar",
-      "continueWithEmail": "Enviarme un enlace de acceso",
+      "confirmCode": "Confirmar con código",
+      "continueWithEmail": "Envíame un código",
       "continueWithGoogle": "Continuar con Google",
       "continueWithMicrosoft": "Continuar con Microsoft",
       "description": "Tu sesión es demasiado antigua para este cambio. Inicia sesión de nuevo para continuar.",
-      "magicLinkError": "No hemos podido enviar el enlace. Inténtalo otra vez.",
-      "magicLinkSent": "Enlace enviado a {email}. Ábrelo en este dispositivo para iniciar sesión de nuevo.",
+      "emailCodeError": "No pudimos enviar el código. Inténtalo de nuevo.",
       "noMethod": "Confirma primero tu dirección de correo y vuelve a intentarlo.",
       "orEmail": "O inicia sesión por correo:",
       "orSocial": "O continúa con una cuenta conectada.",
       "passwordError": "No hemos podido verificar esa contraseña.",
       "passwordLabel": "Contraseña actual",
       "rememberMe": "Mantener la sesión iniciada",
-      "resendEmail": "Enviar el enlace otra vez",
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
       "sessionLost": "Abre la página de inicio de sesión e inicia sesión de nuevo.",
       "socialError": "No hemos podido iniciar ese acceso.",
@@ -1153,21 +1166,19 @@
       "continueWith": "Continuar con {provider}",
       "passwordDivider": "o iniciar sesión con contraseña",
       "orDivider": "o",
-      "magicLinkDivider": "o sin contraseña",
+      "emailCodeProvider": "correo electrónico",
+      "emailCodeInputLabel": "Correo electrónico para el código de acceso",
+      "emailCodePlaceholder": "Introduce tu correo electrónico",
+      "emailCodeSend": "Envíame un código",
+      "emailCodeSending": "Enviando código...",
+      "emailCodeSubmit": "Iniciar sesión",
+      "emailCodeError": "No pudimos enviar un código. Inténtalo de nuevo.",
+      "emailCodeInvalidEmail": "Introduce una dirección de correo electrónico válida.",
       "success": "Sesión iniciada correctamente",
       "error": "Error al iniciar sesión",
       "lastUsed": "Usado por última vez",
       "passkeyProvider": "Passkey",
-      "passkeyError": "No hemos podido iniciar sesión con el passkey. Por favor, inténtalo de nuevo.",
-      "magicLinkProvider": "Magic Link",
-      "magicLinkInputLabel": "Correo electrónico para el Magic Link",
-      "magicLinkPlaceholder": "Introduce tu correo electrónico",
-      "magicLinkSubmit": "Envíame un Magic Link",
-      "magicLinkSubmitting": "Enviando Magic Link...",
-      "magicLinkResend": "Reenviar Magic Link",
-      "magicLinkSuccess": "Revisa tu bandeja de entrada para encontrar tu Magic Link.",
-      "magicLinkError": "No pudimos enviar un Magic Link. Inténtalo de nuevo.",
-      "magicLinkInvalidEmail": "Introduce una dirección de correo electrónico válida."
+      "passkeyError": "No hemos podido iniciar sesión con el passkey. Por favor, inténtalo de nuevo."
     },
     "Words": {
       "signUp": "Registrarse"
@@ -1280,7 +1291,12 @@
           "Login": {
             "message": "¿Ya tienes cuenta?",
             "link": "Iniciar sesión"
-          }
+          },
+          "emailCodeInstead": "Envíame un código en su lugar",
+          "emailCodeSending": "Enviando código...",
+          "usePasswordInstead": "Usar una contraseña en su lugar",
+          "codeStillWorks": "El código que enviamos sigue siendo válido.",
+          "useCodeInstead": "Usar el código en su lugar"
         }
       },
       "ForgotPassword": {
@@ -1347,9 +1363,8 @@
       "backTo": "Volver a {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un Magic Link y luego conecta Google o Microsoft en Conexiones.",
+      "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
-      "linkExpired": "Este Magic Link ha caducado o ya se usó. Solicita uno nuevo.",
       "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo."
     }
   },
