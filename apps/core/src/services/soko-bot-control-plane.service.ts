@@ -490,6 +490,12 @@ function parseTurnUsage(value: unknown): SokoBotTurnUsage {
   };
 }
 
+/** The turn spent model tokens, whatever cost the provider reported. */
+function turnRanModel(value: unknown): boolean {
+  const usage = parseTurnUsage(value);
+  return usage.inputTokens + usage.outputTokens > 0;
+}
+
 function addTurnUsage(
   current: SokoBotTurnUsage,
   value: unknown,
@@ -1697,6 +1703,7 @@ export class SokoBotControlPlane {
           eveSessionId: true,
           startedAt: true,
           costUsdMicros: true,
+          usage: true,
           status: true,
           finalAnswer: true,
           responseContract: true,
@@ -1728,6 +1735,7 @@ export class SokoBotControlPlane {
           sokoBotId: turn.sokoBotId,
           userId: turn.userId,
           costUsdMicros: turn.costUsdMicros,
+          ranModel: turnRanModel(turn.usage),
         },
         tx,
       );

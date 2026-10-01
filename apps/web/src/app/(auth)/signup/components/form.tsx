@@ -64,6 +64,8 @@ export default function SignUpForm({
   const oauthT = useTranslations("Auth.OAuthHandBack");
   const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const completedCodeRef = useRef("");
   const [prefersPassword, setPrefersPassword] = useState(false);
   const [refusedCode, setRefusedCode] = useState(0);
   const {
@@ -224,6 +226,8 @@ export default function SignUpForm({
   return (
     <BaseForm
       form={form}
+      formRef={formRef}
+      disabled={isLeaving}
       onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
       onChange={onFormStart}
     >
@@ -254,7 +258,18 @@ export default function SignUpForm({
             <EmailCodeField
               inputRef={field.ref}
               value={field.value}
+              completedCodeRef={completedCodeRef}
               onChange={field.onChange}
+              onComplete={() => {
+                // Only when Register would go through: a code typed before
+                // the names waits for the button, with nothing new marked.
+                if (
+                  !isPending &&
+                  codeStepSchema.safeParse(form.getValues()).success
+                ) {
+                  formRef.current?.requestSubmit();
+                }
+              }}
               onBlur={field.onBlur}
               error={fieldState.error?.message}
               sentAt={emailCode.sentAt}
