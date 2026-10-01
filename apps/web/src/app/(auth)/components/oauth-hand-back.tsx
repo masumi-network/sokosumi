@@ -96,7 +96,7 @@ function AutomaticHandBack({ oauthQuery, client }: HandBackRequest) {
   useMountEffect(handBack);
 
   if (hasFailed) {
-    return <HandBackError client={client} />;
+    return <OAuthRequestError client={client} />;
   }
 
   return (
@@ -190,7 +190,7 @@ function AccountChoice({
   }
 
   if (hasFailed) {
-    return <HandBackError client={client} />;
+    return <OAuthRequestError client={client} />;
   }
 
   return (
@@ -237,11 +237,16 @@ function AccountChoice({
   );
 }
 
-function HandBackError({
-  client,
-}: {
+interface OAuthRequestErrorProps {
+  /** The product to go back to, when Core could name it. */
   client?: OAuthRequestClient | undefined;
-}) {
+}
+
+/**
+ * The signed request is no longer accepted: it expired, or Core refused it.
+ * The person starts again from the product.
+ */
+export function OAuthRequestError({ client }: OAuthRequestErrorProps) {
   const t = useTranslations("Auth.OAuthHandBack");
   const clientName = client?.name;
 
