@@ -2861,6 +2861,34 @@
             "precision": "Usa como máximo {digits} decimales para {currency}."
           }
         },
+        "newCampaign": {
+          "button": "Nueva campaña",
+          "title": "Nueva campaña",
+          "note": "Las campañas se crean en pausa. Añade grupos de anuncios y anuncios en Google Ads / Meta Ads Manager y reanúdalas aquí.",
+          "name": "Nombre",
+          "budget": "Presupuesto diario ({currency})",
+          "objective": "Objetivo",
+          "objectivePlaceholder": "Selecciona un objetivo",
+          "objectives": {
+            "OUTCOME_TRAFFIC": "Tráfico",
+            "OUTCOME_AWARENESS": "Notoriedad",
+            "OUTCOME_ENGAGEMENT": "Interacción",
+            "OUTCOME_LEADS": "Clientes potenciales",
+            "OUTCOME_SALES": "Ventas"
+          },
+          "submit": "Crear campaña",
+          "saving": "Creando…",
+          "success": "Campaña creada correctamente",
+          "errors": {
+            "nameRequired": "Introduce un nombre.",
+            "nameTooLong": "Usa como máximo 255 caracteres.",
+            "budgetRequired": "Introduce un presupuesto diario mayor que 0.",
+            "wholeNumber": "Usa un número entero para {currency}.",
+            "precision": "Usa como máximo {digits} decimales para {currency}.",
+            "objectiveRequired": "Elige un objetivo",
+            "failed": "No se pudo crear la campaña"
+          }
+        },
         "success": {
           "updated": "Campaña actualizada correctamente"
         },

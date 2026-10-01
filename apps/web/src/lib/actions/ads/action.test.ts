@@ -20,6 +20,7 @@ const adsServiceMock = {
   initiateConnection: vi.fn(),
   discardConnection: vi.fn(),
   updateCampaign: vi.fn(),
+  createCampaign: vi.fn(),
 };
 
 // The real error mapper, so these tests see what the UI sees.
@@ -408,6 +409,82 @@ describe("ads actions", () => {
         ok: false,
         error: { code: "BAD_INPUT", status: 409 },
       });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createAdCampaign", () => {
+    const base = {
+      projectId: "project-1",
+      accountId: "account-1",
+      name: "  Spring sale ",
+      dailyBudget: 25.5,
+    };
+
+    it("creates a campaign, trims the name and revalidates Ads", async () => {
+      adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+      const { createAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await createAdCampaign({
+        ...base,
+        objective: "OUTCOME_TRAFFIC",
+      });
+
+      expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        {
+          name: "Spring sale",
+          dailyBudget: 25.5,
+          objective: "OUTCOME_TRAFFIC",
+        },
+      );
+      expect(result).toEqual({ ok: true, value: { id: "42" } });
+      expect(revalidatePath).toHaveBeenCalledWith("/ads");
+    });
+
+    it("leaves the objective out when there is none", async () => {
+      adsServiceMock.createCampaign.mockResolvedValue({ id: "42" });
+
+      const { createAdCampaign } = await import("./action");
+      await createAdCampaign(base);
+
+      expect(adsServiceMock.createCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        { name: "Spring sale", dailyBudget: 25.5 },
+      );
+    });
+
+    it.each([
+      ["a blank name", { name: "   " }],
+      ["a name over 255 characters", { name: "a".repeat(256) }],
+      ["a zero budget", { dailyBudget: 0 }],
+      ["an unknown objective", { objective: "OUTCOME_APP_PROMOTION" }],
+    ])("rejects %s, calling nothing", async (_name, changes) => {
+      const { createAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await createAdCampaign({
+        ...base,
+        ...changes,
+      } as Parameters<typeof createAdCampaign>[0]);
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it.each([409, 422])("tells the UI Core refused with %i", async (status) => {
+      adsServiceMock.createCampaign.mockRejectedValue(
+        await coreError("Core text", status),
+      );
+
+      const { createAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await createAdCampaign(base);
+
+      expect(result).toMatchObject({ ok: false, error: { status } });
       expect(revalidatePath).not.toHaveBeenCalled();
     });
   });

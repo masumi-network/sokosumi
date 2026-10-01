@@ -23,6 +23,11 @@ vi.mock("./ads-campaign-actions", () => ({
   ),
 }));
 
+// The sheet has its own tests; here it only has to be the empty state's action.
+vi.mock("./ads-new-campaign", () => ({
+  AdsNewCampaign: () => <button type="button">New campaign</button>,
+}));
+
 import { AdsCampaigns, formatObjective } from "./ads-campaigns";
 
 const ACTIVE: AdCampaign = {
@@ -73,6 +78,7 @@ describe("AdsCampaigns", () => {
     await renderCampaigns([]);
 
     expect(screen.getByText("No campaigns in this account yet")).toBeVisible();
+    expect(screen.getByRole("button", { name: "New campaign" })).toBeVisible();
   });
 
   it("draws every column", async () => {

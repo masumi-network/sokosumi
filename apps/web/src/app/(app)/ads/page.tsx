@@ -74,6 +74,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
         <AdsCampaignsToolbar
           accountId={account.id}
           accounts={accounts}
+          projectId={project.id}
           range={query.range}
         />
         <Suspense
