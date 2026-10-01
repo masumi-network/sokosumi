@@ -2909,8 +2909,83 @@
         }
       },
       "market": {
-        "emptyTitle": "Set up your market to see trending keywords and ads",
-        "emptyBody": "Add your keywords and country to see what is trending and which ads your market is running."
+        "loading": "Loading market…",
+        "setupTitle": "Set up your market",
+        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your market is running.",
+        "edit": "Edit market",
+        "editBody": "Trending keywords and ads follow these keywords, country and language.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Press Enter or comma to add one. Up to {max}.",
+          "keywordsPlaceholder": "For example, running shoes",
+          "keywordsFull": "Keyword limit reached",
+          "removeKeyword": "Remove {keyword}",
+          "country": "Country",
+          "countryPlaceholder": "Choose a country",
+          "language": "Language",
+          "languagePlaceholder": "Choose a language",
+          "submit": "Save market",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "success": "Market saved",
+          "errors": {
+            "keywordsRequired": "Add at least one keyword.",
+            "keywordsTooMany": "Use up to {max} keywords.",
+            "countryRequired": "Choose a country.",
+            "languageRequired": "Choose a language.",
+            "failed": "Could not save the market. Try again."
+          }
+        },
+        "keywords": {
+          "title": "Trending keywords",
+          "updated": "Updated {time}",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Monthly searches",
+            "trend": "12 months",
+            "competition": "Competition",
+            "bidRange": "Top-of-page bid (USD)"
+          },
+          "competition": {
+            "LOW": "Low",
+            "MEDIUM": "Medium",
+            "HIGH": "High"
+          },
+          "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
+          "searchesPerMonth": "{count} searches a month",
+          "emptyTitle": "No trending keywords found for this market",
+          "emptyBody": "Try other keywords or another country."
+        },
+        "ads": {
+          "title": "Ads in your market",
+          "updated": "Updated {time}",
+          "previewAlt": "Ad by {advertiser}",
+          "textAd": "Text ad",
+          "noPreview": "No preview",
+          "format": {
+            "text": "Text",
+            "image": "Image",
+            "video": "Video",
+            "other": "Other"
+          },
+          "lastShown": "Last shown {time}",
+          "viewAd": "View ad",
+          "emptyTitle": "No ads found for these advertisers yet",
+          "emptyBody": "Ads from your market's biggest advertisers appear here once they run."
+        },
+        "errors": {
+          "unavailable": {
+            "title": "Market data isn't available yet",
+            "description": "It isn't set up for Sokosumi yet."
+          },
+          "failed": {
+            "profile": "Failed to load your market",
+            "keywords": "Failed to load keywords",
+            "ads": "Failed to load ads"
+          },
+          "description": "Try again in a moment.",
+          "retry": "Try again"
+        }
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",

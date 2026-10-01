@@ -48,15 +48,18 @@ vi.mock("./components/ads-tabs", () => ({
   AdsTabs: ({
     accounts,
     campaigns,
+    market,
     projectId,
   }: {
     accounts: { id: string }[];
     campaigns: React.ReactNode;
+    market: React.ReactNode;
     projectId: string;
   }) => (
     <div data-testid="ads-tabs">
       {projectId}:{accounts.map(({ id }) => id).join(",")}
       {campaigns}
+      {market}
     </div>
   ),
 }));
@@ -79,6 +82,16 @@ vi.mock("./components/ads-campaigns-section", () => ({
     account: { id: string };
     range: string;
   }) => <div data-testid="ads-section">{`${account.id}/${range}`}</div>,
+}));
+
+vi.mock("./components/ads-market-section", () => ({
+  AdsMarketSection: ({ projectId }: { projectId: string }) => (
+    <div data-testid="ads-market">{projectId}</div>
+  ),
+}));
+
+vi.mock("./components/ads-market-skeleton", () => ({
+  AdsMarketSkeleton: () => <div>market skeleton</div>,
 }));
 
 const PROJECT = { id: "project-1", name: "Launch plan" };
@@ -215,6 +228,28 @@ describe("AdsPage", () => {
 
       expect(screen.queryByTestId("ads-section")).not.toBeInTheDocument();
     });
+  });
+
+  describe("market", () => {
+    beforeEach(() => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    });
+
+    it("loads the project's market on the Market tab, with or without accounts", async () => {
+      await visit({ projectId: "project-1", tab: "market" });
+
+      expect(screen.getByTestId("ads-market")).toHaveTextContent("project-1");
+      expect(screen.queryByTestId("ads-section")).not.toBeInTheDocument();
+    });
+
+    it.each(["campaigns", "accounts"])(
+      "does not load the market on the %s tab",
+      async (tab) => {
+        await visit({ projectId: "project-1", tab });
+
+        expect(screen.queryByTestId("ads-market")).not.toBeInTheDocument();
+      },
+    );
   });
 
   it("names the page in the document title", async () => {

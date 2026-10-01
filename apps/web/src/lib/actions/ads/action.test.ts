@@ -21,6 +21,7 @@ const adsServiceMock = {
   discardConnection: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
+  saveMarketProfile: vi.fn(),
 };
 
 // The real error mapper, so these tests see what the UI sees.
@@ -481,6 +482,68 @@ describe("ads actions", () => {
       const result = await createAdCampaign(base);
 
       expect(result).toMatchObject({ ok: false, error: { status } });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("saveAdsMarketProfile", () => {
+    const input = {
+      projectId: "project-1",
+      keywords: [" running shoes ", "trail shoes"],
+      countryCode: "DE" as const,
+      languageCode: "de" as const,
+    };
+
+    it("saves the trimmed profile and revalidates Ads", async () => {
+      const saved = { profile: null };
+      adsServiceMock.saveMarketProfile.mockResolvedValue(saved);
+
+      const { saveAdsMarketProfile } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await saveAdsMarketProfile({ ...input });
+
+      expect(adsServiceMock.saveMarketProfile).toHaveBeenCalledWith(
+        "project-1",
+        {
+          keywords: ["running shoes", "trail shoes"],
+          countryCode: "DE",
+          languageCode: "de",
+        },
+      );
+      expect(result).toEqual({ ok: true, value: saved });
+      expect(revalidatePath).toHaveBeenCalledWith("/ads");
+    });
+
+    it.each([
+      ["no keywords", { keywords: [] }],
+      [
+        "more than ten keywords",
+        { keywords: Array.from({ length: 11 }, (_, i) => `k${i}`) },
+      ],
+      ["a keyword over 80 characters", { keywords: ["x".repeat(81)] }],
+      ["an unsupported country", { countryCode: "ZZ" }],
+      ["an unsupported language", { languageCode: "xx" }],
+    ])("rejects %s, calling nothing", async (_name, override) => {
+      const { saveAdsMarketProfile } = await import("./action");
+      const result = await saveAdsMarketProfile({
+        ...input,
+        ...override,
+      } as never);
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.saveMarketProfile).not.toHaveBeenCalled();
+    });
+
+    it("keeps Core's status and does not revalidate when it refuses", async () => {
+      adsServiceMock.saveMarketProfile.mockRejectedValue(
+        await coreError("Project is closed", 409),
+      );
+
+      const { saveAdsMarketProfile } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await saveAdsMarketProfile({ ...input });
+
+      expect(result).toMatchObject({ ok: false, error: { status: 409 } });
       expect(revalidatePath).not.toHaveBeenCalled();
     });
   });

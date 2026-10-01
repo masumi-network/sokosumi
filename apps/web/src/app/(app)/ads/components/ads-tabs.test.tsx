@@ -18,6 +18,10 @@ vi.mock("./ads-campaigns-skeleton", () => ({
   AdsCampaignsSkeleton: () => <div>campaigns skeleton</div>,
 }));
 
+vi.mock("./ads-market-skeleton", () => ({
+  AdsMarketSkeleton: () => <div>market skeleton</div>,
+}));
+
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 
 import { AdsTabs } from "./ads-tabs";
@@ -27,13 +31,19 @@ function renderTabs(
   {
     accounts = [],
     campaigns = null,
-  }: { accounts?: ProjectAdAccount[]; campaigns?: React.ReactNode } = {},
+    market = null,
+  }: {
+    accounts?: ProjectAdAccount[];
+    campaigns?: React.ReactNode;
+    market?: React.ReactNode;
+  } = {},
 ) {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
       <AdsTabs
         accounts={accounts}
         campaigns={campaigns}
+        market={market}
         projectId="project-1"
       />
     </NuqsTestingAdapter>,
@@ -56,13 +66,22 @@ describe("AdsTabs", () => {
     expect(screen.getByText("campaigns.emptyTitle")).toBeVisible();
   });
 
-  it.each([
-    ["market", "market.emptyTitle"],
-    ["accounts", "accounts.emptyTitle for project-1"],
-  ])("opens the %s tab the URL names", (tab, title) => {
-    renderTabs(`?tab=${tab}`);
+  it("opens the accounts tab the URL names", () => {
+    renderTabs("?tab=accounts");
 
-    expect(screen.getByText(title)).toBeVisible();
+    expect(screen.getByText("accounts.emptyTitle for project-1")).toBeVisible();
+  });
+
+  it("shows the server-rendered market on its tab", () => {
+    renderTabs("?tab=market", { market: <div>market from the server</div> });
+
+    expect(screen.getByText("market from the server")).toBeVisible();
+  });
+
+  it("holds a skeleton while the server sends the market after a tab switch", () => {
+    renderTabs("?tab=market");
+
+    expect(screen.getByText("market skeleton")).toBeVisible();
   });
 
   it("falls back to Campaigns for a tab it does not have", () => {
@@ -81,7 +100,7 @@ describe("AdsTabs", () => {
 
     await user.click(screen.getByRole("tab", { name: "tabs.market" }));
 
-    expect(screen.getByText("market.emptyTitle")).toBeVisible();
+    expect(screen.getByText("market skeleton")).toBeVisible();
   });
 
   it("sends Campaigns' empty state on to Accounts", async () => {

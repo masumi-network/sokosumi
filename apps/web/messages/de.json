@@ -2909,8 +2909,83 @@
         }
       },
       "market": {
-        "emptyTitle": "Richte deinen Markt ein, um Trend-Keywords und Anzeigen zu sehen",
-        "emptyBody": "Füge Keywords und Land hinzu, um zu sehen, was im Trend liegt und welche Anzeigen dein Markt schaltet."
+        "loading": "Markt wird geladen…",
+        "setupTitle": "Richte deinen Markt ein",
+        "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen dein Markt schaltet.",
+        "edit": "Markt bearbeiten",
+        "editBody": "Trend-Keywords und Anzeigen richten sich nach diesen Keywords, diesem Land und dieser Sprache.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Mit Enter oder Komma hinzufügen. Bis zu {max}.",
+          "keywordsPlaceholder": "Zum Beispiel Laufschuhe",
+          "keywordsFull": "Keyword-Limit erreicht",
+          "removeKeyword": "{keyword} entfernen",
+          "country": "Land",
+          "countryPlaceholder": "Land wählen",
+          "language": "Sprache",
+          "languagePlaceholder": "Sprache wählen",
+          "submit": "Markt speichern",
+          "saving": "Wird gespeichert…",
+          "cancel": "Abbrechen",
+          "success": "Markt gespeichert",
+          "errors": {
+            "keywordsRequired": "Füge mindestens ein Keyword hinzu.",
+            "keywordsTooMany": "Nutze bis zu {max} Keywords.",
+            "countryRequired": "Wähle ein Land.",
+            "languageRequired": "Wähle eine Sprache.",
+            "failed": "Der Markt konnte nicht gespeichert werden. Versuche es erneut."
+          }
+        },
+        "keywords": {
+          "title": "Trend-Keywords",
+          "updated": "Aktualisiert {time}",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Suchen pro Monat",
+            "trend": "12 Monate",
+            "competition": "Wettbewerb",
+            "bidRange": "Gebot für Top-Platzierung (USD)"
+          },
+          "competition": {
+            "LOW": "Niedrig",
+            "MEDIUM": "Mittel",
+            "HIGH": "Hoch"
+          },
+          "trendLabel": "Suchen pro Monat über 12 Monate, von {from} auf {to}",
+          "searchesPerMonth": "{count} Suchen pro Monat",
+          "emptyTitle": "Für diesen Markt wurden keine Trend-Keywords gefunden",
+          "emptyBody": "Probiere andere Keywords oder ein anderes Land."
+        },
+        "ads": {
+          "title": "Anzeigen in deinem Markt",
+          "updated": "Aktualisiert {time}",
+          "previewAlt": "Anzeige von {advertiser}",
+          "textAd": "Textanzeige",
+          "noPreview": "Keine Vorschau",
+          "format": {
+            "text": "Text",
+            "image": "Bild",
+            "video": "Video",
+            "other": "Sonstige"
+          },
+          "lastShown": "Zuletzt gezeigt {time}",
+          "viewAd": "Anzeige ansehen",
+          "emptyTitle": "Für diese Werbetreibenden wurden noch keine Anzeigen gefunden",
+          "emptyBody": "Anzeigen der größten Werbetreibenden deines Markts erscheinen hier, sobald sie laufen."
+        },
+        "errors": {
+          "unavailable": {
+            "title": "Marktdaten sind noch nicht verfügbar",
+            "description": "Sie sind für Sokosumi noch nicht eingerichtet."
+          },
+          "failed": {
+            "profile": "Dein Markt konnte nicht geladen werden",
+            "keywords": "Keywords konnten nicht geladen werden",
+            "ads": "Anzeigen konnten nicht geladen werden"
+          },
+          "description": "Versuche es gleich noch einmal.",
+          "retry": "Erneut versuchen"
+        }
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",
