@@ -290,6 +290,36 @@ struct RealtimeEventTests {
     #expect(revokedRoomId == roomId)
   }
 
+  /// Row 31b1: Core's `chat_room_read` on the room channel (`chat-room-read-realtime.ts`), web's
+  /// `chatRoomReadEventDataSchema`: a room, a user and an ISO date.
+  @Test func roomReadResolvesOnTheRoomsOwnChannel() {
+    let channel = "chat_rooms:room_\(roomId)"
+    let event = resolveRealtimeDelivery(channel: channel, event: "chat_room_read",
+                                        data: ["roomId": roomId, "userId": "user_2", "lastReadAt": "2026-01-01T10:00:00.000Z"])
+    guard case let .roomRead(read) = event else {
+      Issue.record("expected roomRead, got \(event)")
+      return
+    }
+    #expect(read == ChatRoomReadEvent(roomId: roomId, userId: "user_2", lastReadAt: Date(timeIntervalSince1970: 1_767_261_600)))
+    let plain = resolveRealtimeDelivery(channel: channel, event: "chat_room_read",
+                                        data: ["roomId": roomId, "userId": "user_2", "lastReadAt": "2026-01-01T10:00:00Z"])
+    #expect(!plain.isIgnored)
+    for data: Any in [
+      ["roomId": "other", "userId": "user_2", "lastReadAt": "2026-01-01T10:00:00.000Z"],
+      ["roomId": roomId, "userId": "", "lastReadAt": "2026-01-01T10:00:00.000Z"],
+      ["roomId": roomId, "lastReadAt": "2026-01-01T10:00:00.000Z"],
+      ["roomId": roomId, "userId": "user_2", "lastReadAt": "yesterday"],
+      // `z.iso.datetime()` takes `Z` only, never an offset.
+      ["roomId": roomId, "userId": "user_2", "lastReadAt": "2026-01-01T12:00:00+02:00"],
+      ["roomId": roomId, "userId": "user_2"],
+      NSNull()
+    ] {
+      #expect(resolveRealtimeDelivery(channel: channel, event: "chat_room_read", data: data).isIgnored, "\(data)")
+    }
+    #expect(resolveRealtimeDelivery(channel: "chat_control:user_user_1", event: "chat_room_read",
+                                    data: ["roomId": roomId, "userId": "user_2", "lastReadAt": "2026-01-01T10:00:00.000Z"]).isIgnored)
+  }
+
   @Test func garbageIsIgnored() {
     #expect(resolveRealtimeDelivery(channel: "chat_rooms:room_\(roomId)", event: "chat_room_message", data: NSNull())
       .isIgnored)
