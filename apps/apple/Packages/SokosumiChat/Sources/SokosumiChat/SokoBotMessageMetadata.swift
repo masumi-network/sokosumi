@@ -36,6 +36,12 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
     pendingDecisionIds.count
   }
 
+  /// Web `hasSokoBotMessageFooter`: the footer holds approvals and Tasks only,
+  /// so a turn with neither leaves no line under the message (#5554).
+  public var hasFooter: Bool {
+    !pendingDecisionIds.isEmpty || !taskIds.isEmpty
+  }
+
   /// The assistant page filtered to this turn (`/personal-assistant?turn=`),
   /// where the pending approvals are resolved. Opens on web.
   public func assistantURL(webBaseURL: URL) -> URL? {
