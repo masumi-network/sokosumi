@@ -1577,7 +1577,14 @@
         "task": "Task",
         "chainDepth": "Antwort {depth} von {max} zwischen Assistenten. Schreibt eine Person hier, beginnt die Zählung von vorn.",
         "chainRoomRate": "{count} von {max} Assistenten-Nachrichten in diesem Raum in dieser Stunde.",
-        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr."
+        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
+        "source": {
+          "inbox": "Aus deinem Posteingang",
+          "standup": "Tägliches Stand-up",
+          "weeklyWrap": "Wochenrückblick",
+          "scheduled": "Geplant: {name}",
+          "taskUpdate": "Task-Update"
+        }
       }
     },
     "Tasks": {
