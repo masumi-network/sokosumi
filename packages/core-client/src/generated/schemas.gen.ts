@@ -18643,6 +18643,53 @@ export const UpdateAdCampaignRequestSchema = {
     }
 } as const;
 
+export const CreateAdCampaignResponseSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'Provider campaign id'
+        }
+    },
+    required: [
+        'id'
+    ]
+} as const;
+
+export const CreateAdCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 255,
+            example: 'Spring sale'
+        },
+        dailyBudget: {
+            type: 'number',
+            exclusiveMinimum: 0,
+            description: 'Decimal in the account currency, greater than 0, with at most the currency\'s decimal places (JPY 0, USD 2)',
+            example: 25.5
+        },
+        objective: {
+            type: 'string',
+            enum: [
+                'OUTCOME_TRAFFIC',
+                'OUTCOME_AWARENESS',
+                'OUTCOME_ENGAGEMENT',
+                'OUTCOME_LEADS',
+                'OUTCOME_SALES'
+            ],
+            description: 'Required for Meta ad accounts; ignored for Google (campaigns are Search campaigns)'
+        }
+    },
+    required: [
+        'name',
+        'dailyBudget'
+    ],
+    description: 'There is no status: a new campaign is always created paused'
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {
