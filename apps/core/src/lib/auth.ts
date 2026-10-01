@@ -50,6 +50,7 @@ import {
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
+  isProductionEnvironment,
 } from "@/config/env";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
@@ -76,6 +77,8 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
+  acceptCmoPreviewCallback,
+  jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
@@ -674,7 +677,10 @@ export const auth = betterAuth({
       // middleware, so no first-party caller needs the session.
       enableSessionForAPIKeys: false,
     }),
-    jwt({ disableSettingJwtHeader: true }),
+    jwt({
+      disableSettingJwtHeader: true,
+      ...jwtKeyStoreOptions(isProductionEnvironment(env)),
+    }),
     createAuthOrganizationPlugin(),
     passkey({
       rpID: env.BETTER_AUTH_RP_ID,
@@ -704,6 +710,10 @@ export const auth = betterAuth({
       ],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
+      // Production keeps exact redirect URI matching (ADR 0045).
+      ...(env.VERCEL_ENV === "preview"
+        ? { validateRedirectUri: acceptCmoPreviewCallback }
+        : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       ...oauthRefreshTokenOptions,
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
