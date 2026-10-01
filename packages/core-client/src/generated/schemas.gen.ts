@@ -3964,6 +3964,14 @@ export const SokoBotUsageSchema = {
         credits: {
             type: 'number',
             minimum: 0
+        },
+        delegatedCredits: {
+            type: 'number',
+            minimum: 0
+        },
+        totalCredits: {
+            type: 'number',
+            minimum: 0
         }
     },
     required: [
@@ -3975,7 +3983,9 @@ export const SokoBotUsageSchema = {
         'totalTokens',
         'costUsd',
         'billableCostUsd',
-        'credits'
+        'credits',
+        'delegatedCredits',
+        'totalCredits'
     ]
 } as const;
 
