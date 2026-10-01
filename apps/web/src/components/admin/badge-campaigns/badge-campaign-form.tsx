@@ -2,7 +2,13 @@
 
 import { AnnouncedFeature, type BadgeCampaign } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useId, useState, useTransition } from "react";
+import {
+  type FormEvent,
+  useId,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,21 +29,38 @@ import {
 const DEFAULT_CAMPAIGN_DAYS = 21;
 
 /**
- * Dates are entered in UTC: a `datetime-local` value has no zone, and reading
- * it as UTC renders the same on the server and in every admin's browser.
+ * Dates are entered in the admin's own time zone and sent to Core as UTC. A
+ * `datetime-local` value has no zone, and the browser reads it as local time.
+ * The form only shows a date the admin typed or one from the edit dialog,
+ * which renders in the browser alone, so server and client never disagree.
  */
-function toUtcInputValue(date: Date): string {
-  return date.toISOString().slice(0, 16);
+function toLocalInputValue(date: Date): string {
+  const pad = (part: number) => String(part).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-function fromUtcInputValue(value: string): string {
-  return `${value}:00.000Z`;
+function fromLocalInputValue(value: string): string {
+  return new Date(value).toISOString();
 }
 
+/** Calendar days, so the end keeps its wall-clock time across a DST change. */
 function addDays(value: string, days: number): string {
-  const date = new Date(fromUtcInputValue(value));
-  date.setUTCDate(date.getUTCDate() + days);
-  return toUtcInputValue(date);
+  const date = new Date(value);
+  date.setDate(date.getDate() + days);
+  return toLocalInputValue(date);
+}
+
+function subscribeToNothing() {
+  return () => {};
+}
+
+/** The browser's time zone; unknown while rendering on the server. */
+function useBrowserTimeZone(): string | null {
+  return useSyncExternalStore(
+    subscribeToNothing,
+    () => Intl.DateTimeFormat().resolvedOptions().timeZone,
+    () => null,
+  );
 }
 
 /** Each feature's name as the sidebar shows it, so admins pick what users see. */
@@ -61,20 +84,26 @@ export function BadgeCampaignForm({
     campaign?.feature ?? "",
   );
   const [startsAt, setStartsAt] = useState(
-    campaign ? toUtcInputValue(campaign.startsAt) : "",
+    campaign ? toLocalInputValue(campaign.startsAt) : "",
   );
   const [endsAt, setEndsAt] = useState(
-    campaign ? toUtcInputValue(campaign.endsAt) : "",
+    campaign ? toLocalInputValue(campaign.endsAt) : "",
   );
   // The default end follows the start until the admin sets one themselves.
   const [hasChosenEnd, setHasChosenEnd] = useState(Boolean(campaign));
   const [isPending, startTransition] = useTransition();
+  const timeZone = useBrowserTimeZone();
 
   function handleStartsAtChange(value: string) {
     setStartsAt(value);
     if (!hasChosenEnd && value) {
       setEndsAt(addDays(value, DEFAULT_CAMPAIGN_DAYS));
     }
+  }
+
+  /** The current minute, so the campaign is live the moment it is saved. */
+  function handleStartNow() {
+    handleStartsAtChange(toLocalInputValue(new Date()));
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -85,8 +114,8 @@ export function BadgeCampaignForm({
     }
 
     const campaignWindow = {
-      startsAt: fromUtcInputValue(startsAt),
-      endsAt: fromUtcInputValue(endsAt),
+      startsAt: fromLocalInputValue(startsAt),
+      endsAt: fromLocalInputValue(endsAt),
     };
 
     startTransition(async () => {
@@ -140,7 +169,20 @@ export function BadgeCampaignForm({
           </Select>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${fieldId}-starts`}>{t("Form.startsAt")}</Label>
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor={`${fieldId}-starts`}>{t("Form.startsAt")}</Label>
+            {campaign ? null : (
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                className="h-auto p-0"
+                onClick={handleStartNow}
+              >
+                {t("Form.startNow")}
+              </Button>
+            )}
+          </div>
           <Input
             id={`${fieldId}-starts`}
             type="datetime-local"
@@ -174,6 +216,7 @@ export function BadgeCampaignForm({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           {t("Form.audienceHelper")}
+          {timeZone ? ` ${t("Form.timeZoneHelper", { timeZone })}` : null}
         </p>
         <Button type="submit" disabled={isPending}>
           {campaign ? t("Form.save") : t("Form.create")}

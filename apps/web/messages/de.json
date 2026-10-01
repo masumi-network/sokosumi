@@ -4493,8 +4493,8 @@
         },
         "Table": {
           "feature": "Funktion",
-          "startsAt": "Start (UTC)",
-          "endsAt": "Ende (UTC)",
+          "startsAt": "Start",
+          "endsAt": "Ende",
           "status": "Status",
           "actions": "Aktionen",
           "empty": "Noch keine Kampagnen."
@@ -4502,7 +4502,8 @@
         "Actions": {
           "edit": "Daten bearbeiten",
           "endNow": "Jetzt beenden",
-          "delete": "Löschen"
+          "delete": "Löschen",
+          "startNow": "Jetzt starten"
         },
         "Form": {
           "createTitle": "Neue Kampagne",
@@ -4510,12 +4511,14 @@
           "feature": "Funktion",
           "featurePlaceholder": "Funktion wählen",
           "featureRequired": "Wähle zuerst eine Funktion.",
-          "startsAt": "Start (UTC)",
-          "endsAt": "Ende (UTC)",
+          "startsAt": "Start",
+          "endsAt": "Ende",
           "endsAtHelper": "Wird auf {days} Tage nach dem Start gesetzt, sofern du es nicht änderst.",
           "audienceHelper": "Nur Nutzer, die sich vor dem Start registriert haben, sehen das Badge.",
           "create": "Kampagne erstellen",
-          "save": "Daten speichern"
+          "save": "Daten speichern",
+          "startNow": "Jetzt starten",
+          "timeZoneHelper": "Zeiten sind in deiner Zeitzone ({timeZone})."
         },
         "Toasts": {
           "created": "Kampagne erstellt",
@@ -4523,7 +4526,8 @@
           "ended": "Kampagne beendet",
           "deleted": "Kampagne gelöscht",
           "saveFailed": "Kampagne konnte nicht gespeichert werden",
-          "deleteFailed": "Kampagne konnte nicht gelöscht werden"
+          "deleteFailed": "Kampagne konnte nicht gelöscht werden",
+          "started": "Kampagne gestartet"
         }
       }
     },

@@ -4529,8 +4529,8 @@
         },
         "Table": {
           "feature": "Feature",
-          "startsAt": "Starts (UTC)",
-          "endsAt": "Ends (UTC)",
+          "startsAt": "Starts",
+          "endsAt": "Ends",
           "status": "Status",
           "actions": "Actions",
           "empty": "No campaigns yet."
@@ -4538,7 +4538,8 @@
         "Actions": {
           "edit": "Edit dates",
           "endNow": "End now",
-          "delete": "Delete"
+          "delete": "Delete",
+          "startNow": "Start now"
         },
         "Form": {
           "createTitle": "New campaign",
@@ -4546,12 +4547,14 @@
           "feature": "Feature",
           "featurePlaceholder": "Choose a feature",
           "featureRequired": "Choose a feature first.",
-          "startsAt": "Starts (UTC)",
-          "endsAt": "Ends (UTC)",
+          "startsAt": "Starts",
+          "endsAt": "Ends",
           "endsAtHelper": "Set to {days} days after the start unless you change it.",
           "audienceHelper": "Only users who signed up before the start see the badge.",
           "create": "Create campaign",
-          "save": "Save dates"
+          "save": "Save dates",
+          "startNow": "Start now",
+          "timeZoneHelper": "Times are in your time zone ({timeZone})."
         },
         "Toasts": {
           "created": "Campaign created",
@@ -4559,7 +4562,8 @@
           "ended": "Campaign ended",
           "deleted": "Campaign deleted",
           "saveFailed": "Couldn't save the campaign",
-          "deleteFailed": "Couldn't delete the campaign"
+          "deleteFailed": "Couldn't delete the campaign",
+          "started": "Campaign started"
         }
       }
     },
