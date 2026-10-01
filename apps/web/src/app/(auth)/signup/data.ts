@@ -32,13 +32,17 @@ export const signUpNameFormData: SignUpFormData = [
   },
 ];
 
-export const signUpFormData: SignUpFormData = [
+// An email code replaces the password, so the two are rendered apart.
+export const signUpPasswordFormData: SignUpFormData = [
   {
     name: "password",
     labelKey: "Fields.Password.label",
     type: "password",
     autoComplete: "new-password",
   },
+];
+
+export const signUpMarketingFormData: SignUpFormData = [
   {
     name: "marketingOptIn",
     type: "checkbox",

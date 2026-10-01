@@ -17,7 +17,8 @@ import SocialButtons from "./social-buttons";
 
 const mockSocialSignIn = vi.fn();
 const mockPasskeySignIn = vi.fn();
-const mockMagicLinkSignIn = vi.fn();
+const mockSendEmailCode = vi.fn();
+const mockEmailCodeSignIn = vi.fn();
 const mockToastError = vi.fn();
 const mockRouterReplace = vi.fn();
 const mockLocationReplace = vi.fn();
@@ -55,8 +56,8 @@ vi.mock("next-intl", () => ({
       if (key === "continueWith") {
         return `continue-with-${values?.provider ?? "unknown"}`;
       }
-      if (key === "magicLinkProvider") {
-        return "Magic Link";
+      if (key === "emailCodeProvider") {
+        return "email code";
       }
       if (key === "passkeyProvider") {
         return "Passkey";
@@ -64,8 +65,8 @@ vi.mock("next-intl", () => ({
       if (key === "lastUsed") {
         return "last-used";
       }
-      if (key === "magicLinkInputLabel") {
-        return "magic-link-email";
+      if (key === "emailCodeInputLabel") {
+        return "email-code-email";
       }
       return key;
     };
@@ -92,7 +93,10 @@ vi.mock("@/lib/auth/auth.client", () => ({
     signIn: {
       passkey: (...args: unknown[]) => mockPasskeySignIn(...args),
       social: (...args: unknown[]) => mockSocialSignIn(...args),
-      magicLink: (...args: unknown[]) => mockMagicLinkSignIn(...args),
+      emailOtp: (...args: unknown[]) => mockEmailCodeSignIn(...args),
+    },
+    emailOtp: {
+      sendVerificationOtp: (...args: unknown[]) => mockSendEmailCode(...args),
     },
   },
 }));
@@ -165,9 +169,14 @@ describe("SocialButtons", () => {
       },
       error: null,
     });
-    mockMagicLinkSignIn.mockReset();
-    mockMagicLinkSignIn.mockResolvedValue({
-      data: { status: true },
+    mockSendEmailCode.mockReset();
+    mockSendEmailCode.mockResolvedValue({
+      data: { success: true },
+      error: null,
+    });
+    mockEmailCodeSignIn.mockReset();
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: { token: "session-token", user: { id: "user-1" } },
       error: null,
     });
     mockToastError.mockReset();
@@ -269,12 +278,12 @@ describe("SocialButtons", () => {
   it.each([
     ["google", "Google"],
     ["passkey", "Passkey"],
-    ["magic-link", "Magic Link"],
+    ["email-otp", "email code"],
   ] as const)(
     "keeps a distinct hover fill for last-used %s",
     (method, label) => {
       render(
-        <SocialButtons showPasskey showMagicLink lastUsedMethod={method} />,
+        <SocialButtons showPasskey showEmailCode lastUsedMethod={method} />,
       );
 
       const button = screen.getByRole("button", {
@@ -302,11 +311,11 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("shows an inline marker on the magic-link button", () => {
-    render(<SocialButtons showMagicLink lastUsedMethod="magic-link" />);
+  it("shows an inline marker on the email code button", () => {
+    render(<SocialButtons showEmailCode lastUsedMethod="email-otp" />);
 
     const button = screen.getByRole("button", {
-      name: "continue-with-Magic Link",
+      name: "continue-with-email code",
     });
     const lastUsedLabel = screen.getByText("last-used");
     const badgeContainer = button.parentElement;
@@ -363,21 +372,21 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("renders the passkey button between Microsoft and Magic Link", () => {
-    render(<SocialButtons showMagicLink showPasskey />);
+  it("renders the passkey button between Microsoft and the email code", () => {
+    render(<SocialButtons showEmailCode showPasskey />);
 
     const buttons = screen.getAllByRole("button");
 
     expect(buttons[0]).toHaveTextContent("continue-with-Google");
     expect(buttons[1]).toHaveTextContent("continue-with-Microsoft");
     expect(buttons[2]).toHaveTextContent("continue-with-Passkey");
-    expect(buttons[3]).toHaveTextContent("continue-with-Magic Link");
+    expect(buttons[3]).toHaveTextContent("continue-with-email code");
   });
 
   it("signs in with a passkey and redirects to the return url", async () => {
     const user = userEvent.setup();
 
-    render(<SocialButtons returnUrl="/jobs" showMagicLink showPasskey />);
+    render(<SocialButtons returnUrl="/jobs" showEmailCode showPasskey />);
 
     await user.click(
       screen.getByRole("button", { name: "continue-with-Passkey" }),
@@ -583,207 +592,214 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("reveals the magic-link panel and requests a Magic Link", async () => {
+  async function openEmailCodePanel(email = "login-user@example.com") {
     const user = userEvent.setup();
-
-    render(<SocialButtons showMagicLink />);
-
     await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+      screen.getByRole("button", { name: "continue-with-email code" }),
     );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "login-user@example.com",
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "email-code-email" }),
+      { target: { value: email } },
     );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    return user;
+  }
 
-    await waitFor(() => {
-      expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
-        email: "login-user@example.com",
-        callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
-        errorCallbackURL: window.location.href,
-      });
+  it("emails a sign-in code and then asks for it", async () => {
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
+
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
+
+    expect(mockSendEmailCode).toHaveBeenCalledWith({
+      fetchOptions: captchaFetchOptions,
+      email: "login-user@example.com",
+      type: "sign-in",
     });
-
-    expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
+    expect(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+    ).toHaveFocus();
   });
 
-  it("asks for the magic-link address with an email keyboard and no autocorrect", async () => {
-    const user = userEvent.setup();
-    render(<SocialButtons showMagicLink />);
+  it("signs in with the emailed code and goes to the return url", async () => {
+    render(<SocialButtons showEmailCode returnUrl="/jobs" />);
+    const user = await openEmailCodePanel();
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
 
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+    await user.type(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
+    await user.click(screen.getByRole("button", { name: "emailCodeSubmit" }));
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalledWith("/jobs");
+    });
+    expect(mockEmailCodeSignIn).toHaveBeenCalledWith({
+      email: "login-user@example.com",
+      otp: "042917",
+    });
+    expect(mockSignInEvent).toHaveBeenCalledWith("email-otp");
+  });
+
+  it("lets Core's OAuth provider answer a code sign-in for another app", async () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "9999999999",
+      sig: "signed-value",
+    });
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: { redirect: true, url: "https://app.cmo.xyz/api/auth/callback" },
+      error: null,
+    });
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
+    await user.click(screen.getByRole("button", { name: "emailCodeSubmit" }));
+
+    await waitFor(() => expect(mockSignInEvent).toHaveBeenCalled());
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
+  it("explains a wrong code beside the field and stays on the page", async () => {
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP" },
+    });
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+    await user.click(screen.getByRole("button", { name: "emailCodeSubmit" }));
+
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
+  it("asks again for the code when the address is edited after sending", async () => {
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
+    await screen.findByRole("textbox", { name: "codeLabel" });
+
+    fireEvent.change(
+      screen.getByRole("textbox", { name: "email-code-email" }),
+      { target: { value: "other@example.com" } },
     );
 
-    const email = screen.getByRole("textbox", { name: "magic-link-email" });
+    expect(
+      screen.queryByRole("textbox", { name: "codeLabel" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("asks for the email code address with an email keyboard and no autocorrect", async () => {
+    const user = userEvent.setup();
+    render(<SocialButtons showEmailCode />);
+
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-email code" }),
+    );
+
+    const email = screen.getByRole("textbox", { name: "email-code-email" });
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocomplete", "email");
     expect(email).toHaveAttribute("autocapitalize", "none");
     expect(email).toHaveAttribute("spellcheck", "false");
   });
 
-  it("says in its own words when the magic-link address is invalid", async () => {
-    const user = userEvent.setup();
-    render(<SocialButtons showMagicLink />);
+  it("says in its own words when the email code address is invalid", async () => {
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel("not-an-email");
 
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "not-an-email",
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
 
-    expect(mockToastError).toHaveBeenCalledWith("magicLinkInvalidEmail");
-    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalledWith("emailCodeInvalidEmail");
+    expect(mockSendEmailCode).not.toHaveBeenCalled();
   });
 
-  it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {
-    const user = userEvent.setup();
+  it("releases Send code without sending mail when the captcha is cancelled", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
-    render(<SocialButtons showMagicLink />);
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
 
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "login-user@example.com",
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
 
     expect(requestCaptchaMock).toHaveBeenCalledOnce();
     await waitFor(() =>
       expect(
-        screen.getByRole("button", { name: "magicLinkSubmit" }),
+        screen.getByRole("button", { name: "emailCodeSend" }),
       ).toBeEnabled(),
     );
-    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
-    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
+    expect(mockSendEmailCode).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("textbox", { name: "codeLabel" }),
+    ).not.toBeInTheDocument();
     expect(mockToastError).not.toHaveBeenCalled();
   });
 
-  it("shows translated captcha errors for magic-link requests", async () => {
+  it("shows translated captcha errors for email code requests", async () => {
     const error = {
       code: "VERIFICATION_FAILED",
       message: "Captcha verification failed",
     };
-    mockMagicLinkSignIn.mockResolvedValueOnce({ data: null, error });
+    mockSendEmailCode.mockResolvedValueOnce({ data: null, error });
     captchaErrorMessageMock.mockReturnValue("Translated captcha error");
     const user = userEvent.setup();
-    render(<SocialButtons showMagicLink prefilledEmail="person@example.com" />);
+    render(<SocialButtons showEmailCode prefilledEmail="person@example.com" />);
     await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+      screen.getByRole("button", { name: "continue-with-email code" }),
     );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
 
     expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
     expect(mockToastError).toHaveBeenLastCalledWith("Translated captcha error");
-    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
-  });
-
-  it("hides the magic-link panel when the trigger is clicked again", async () => {
-    const user = userEvent.setup();
-
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
     expect(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-    ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-
-    expect(
-      screen.queryByRole("textbox", { name: "magic-link-email" }),
+      screen.queryByRole("textbox", { name: "codeLabel" }),
     ).not.toBeInTheDocument();
   });
 
-  it("passes signed OAuth returnUrl when requesting a magic link", async () => {
+  it("hides the email code panel when the trigger is clicked again", async () => {
     const user = userEvent.setup();
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "test-state",
-      response_type: "code",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
 
-    render(<SocialButtons showMagicLink />);
+    render(<SocialButtons showEmailCode />);
 
     await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
+      screen.getByRole("button", { name: "continue-with-email code" }),
     );
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      {
-        target: { value: "oauth-login-user@example.com" },
-      },
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    expect(
+      screen.getByRole("textbox", { name: "email-code-email" }),
+    ).toBeInTheDocument();
 
-    await waitFor(() => {
-      expect(mockMagicLinkSignIn).toHaveBeenCalledTimes(1);
-    });
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-email code" }),
+    );
 
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
-      "oauth-login-user@example.com",
-    );
-    const magicLinkCallbackUrl = new URL(
-      mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL,
-      "https://example.com",
-    );
-    expect(magicLinkCallbackUrl.pathname).toBe("/auth/callback/signin");
-    expect(magicLinkCallbackUrl.searchParams.get("provider")).toBe(
-      "magic-link",
-    );
-    const magicLinkReturnUrl =
-      magicLinkCallbackUrl.searchParams.get("returnUrl") ?? "";
-    expect(magicLinkReturnUrl).toContain("/signin?");
-    expect(magicLinkReturnUrl).toContain("client_id=test-client");
-    expect(magicLinkReturnUrl).toContain(
-      "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
-    );
+    expect(
+      screen.queryByRole("textbox", { name: "email-code-email" }),
+    ).not.toBeInTheDocument();
   });
 
-  it("re-enables magic-link submit when the request returns an error", async () => {
-    const user = userEvent.setup();
-
-    mockMagicLinkSignIn.mockResolvedValueOnce({
+  it("re-enables Send code when the request returns an error", async () => {
+    mockSendEmailCode.mockResolvedValueOnce({
       data: null,
       error: { message: "Network failure", status: 500, statusText: "Error" },
     });
+    render(<SocialButtons showEmailCode />);
+    const user = await openEmailCodePanel();
 
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      {
-        target: { value: "login-user@example.com" },
-      },
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    await user.click(screen.getByRole("button", { name: "emailCodeSend" }));
 
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: "magicLinkSubmit" }),
+        screen.getByRole("button", { name: "emailCodeSend" }),
       ).toBeEnabled();
     });
-
     expect(mockToastError).toHaveBeenCalledWith("Network failure");
   });
 });

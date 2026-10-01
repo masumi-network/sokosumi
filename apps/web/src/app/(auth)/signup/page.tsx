@@ -71,9 +71,6 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       prefilledEmail={email}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
-      // A magic link opened in another browser cannot return to the
-      // product that sent the person here.
-      showMagicLink={!oauthRequest}
       notice={<SignInErrorNotice error={error} />}
     >
       <TermsNotice />

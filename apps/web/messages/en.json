@@ -6,6 +6,20 @@
       "missingResponse": "Complete the security check and try again.",
       "requestFailed": "Unable to complete this request. Please try again later."
     },
+    "EmailCodeForm": {
+      "sent": "We sent a 6-digit code to {email}.",
+      "sentNoAddress": "We emailed you a 6-digit code.",
+      "codeLabel": "Code from the email",
+      "incomplete": "Enter the 6-digit code from the email.",
+      "invalid": "That code is not right. Check the email and try again.",
+      "expired": "This code has expired. Send a new code.",
+      "tooManyAttempts": "Too many wrong tries. Send a new code.",
+      "generic": "We could not check the code. Try again.",
+      "resend": "Send a new code",
+      "resendIn": "Send a new code in {seconds}s",
+      "termsNotAccepted": "Accept the updated terms before signing in again.",
+      "rateLimited": "Too many tries in a row. Wait a minute, then try again."
+    },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
       "description": "We currently encounter issues with the execution of jobs due to technical issues with one of our third party providers. Don't worry everything will be back to normal in a bit.",
@@ -29,19 +43,18 @@
     },
     "ReauthDialog": {
       "confirm": "Confirm",
-      "continueWithEmail": "Email me a sign-in link",
+      "confirmCode": "Confirm with code",
+      "continueWithEmail": "Email me a code",
       "continueWithGoogle": "Continue with Google",
       "continueWithMicrosoft": "Continue with Microsoft",
       "description": "Your session is too old for this change. Sign in again to continue.",
-      "magicLinkError": "We could not send the link. Try again.",
-      "magicLinkSent": "Link sent to {email}. Open it on this device to sign in again.",
+      "emailCodeError": "We could not send the code. Try again.",
       "noMethod": "Confirm your email address first, then try again.",
       "orEmail": "Or sign in by email:",
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
       "rememberMe": "Keep me signed in",
-      "resendEmail": "Send the link again",
       "retryPrompt": "You are signed in again. Try that again now.",
       "sessionLost": "Open the sign-in page and sign in again.",
       "socialError": "We could not start that sign-in.",
@@ -1153,21 +1166,19 @@
       "continueWith": "Continue with {provider}",
       "passwordDivider": "or sign in with password",
       "orDivider": "or",
-      "magicLinkDivider": "or skip the password",
+      "emailCodeProvider": "Email",
+      "emailCodeInputLabel": "Email for sign-in code",
+      "emailCodePlaceholder": "Enter your email",
+      "emailCodeSend": "Email me a code",
+      "emailCodeSending": "Sending code...",
+      "emailCodeSubmit": "Sign in",
+      "emailCodeError": "We could not send a code. Please try again.",
+      "emailCodeInvalidEmail": "Please enter a valid email address.",
       "success": "Login successful",
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
-      "passkeyError": "We could not sign you in with a passkey. Please try again.",
-      "magicLinkProvider": "Magic Link",
-      "magicLinkInputLabel": "Email for Magic Link",
-      "magicLinkPlaceholder": "Enter your email",
-      "magicLinkSubmit": "Send me a Magic Link",
-      "magicLinkSubmitting": "Sending Magic Link...",
-      "magicLinkResend": "Resend Magic Link",
-      "magicLinkSuccess": "Check your inbox for your Magic Link.",
-      "magicLinkError": "We could not send a Magic Link. Please try again.",
-      "magicLinkInvalidEmail": "Please enter a valid email address."
+      "passkeyError": "We could not sign you in with a passkey. Please try again."
     },
     "Words": {
       "signUp": "Register"
@@ -1280,7 +1291,12 @@
           "Login": {
             "message": "Already have an account?",
             "link": "Login"
-          }
+          },
+          "emailCodeInstead": "Email me a code instead",
+          "emailCodeSending": "Sending code...",
+          "usePasswordInstead": "Use a password instead",
+          "codeStillWorks": "The code we sent still works.",
+          "useCodeInstead": "Use the code instead"
         }
       },
       "ForgotPassword": {
@@ -1347,9 +1363,8 @@
       "backTo": "Back to {client}"
     },
     "SignInError": {
-      "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or a Magic Link first, then connect Google or Microsoft under Connections.",
+      "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or an email code first, then connect Google or Microsoft under Connections.",
       "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
-      "linkExpired": "This Magic Link has expired or was already used. Request a new one.",
       "generic": "We could not sign you in. Please try again."
     }
   },
