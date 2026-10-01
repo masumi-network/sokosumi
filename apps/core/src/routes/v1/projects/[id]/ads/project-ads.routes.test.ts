@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,6 +13,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -111,6 +113,7 @@ function createApp(
   const app = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
@@ -523,9 +526,13 @@ describe("Project ads routes", () => {
     const initiate = () =>
       post(createApp(), "connections/initiate", { provider: "google_ads" });
 
-    it("maps a missing Composio configuration to 503", async () => {
+    it("maps a missing Composio configuration to 503 with a machine-readable kind", async () => {
       m.initiate.mockRejectedValue(new ComposioConfigError("not configured"));
-      expect((await initiate()).status).toBe(503);
+      const response = await initiate();
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+      });
     });
 
     it.each([

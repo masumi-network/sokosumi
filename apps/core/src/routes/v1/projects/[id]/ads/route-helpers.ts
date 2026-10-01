@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 
 import {
@@ -16,6 +17,9 @@ export function mapAdsServiceError(error: unknown): never {
   if (error instanceof ComposioConfigError) {
     throw serviceUnavailable(
       "Ads integrations are not configured on this server.",
+      {
+        kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+      },
     );
   }
   if (error instanceof ComposioApiError || error instanceof ComposioToolError) {
