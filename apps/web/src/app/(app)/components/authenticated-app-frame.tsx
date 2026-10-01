@@ -13,6 +13,7 @@ import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
 import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
+import { coreClient } from "@/lib/clients/core.client";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
@@ -33,8 +34,20 @@ import { NewTaskWizardProvider } from "./new-task-wizard-provider";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
+import {
+  type BadgeCampaignSummary,
+  FeatureBadgesProvider,
+} from "./sidebar/components/feature-badges";
 
 const EMPTY_NOTICES: Notice[] = [];
+
+/** Never rejects: a Core failure costs the sidebar its New badges, not its nav. */
+function loadBadgeCampaigns(): Promise<BadgeCampaignSummary[]> {
+  return coreClient.getMyBadgeCampaigns().catch((error: unknown) => {
+    console.error("Failed to load badge campaigns for the sidebar", error);
+    return [];
+  });
+}
 
 interface AuthenticatedAppFrameProps {
   children: React.ReactNode;
@@ -114,12 +127,17 @@ export default async function AuthenticatedAppFrame({
                       workspaceId={activeOrganizationId}
                     >
                       <NewTaskWizardProvider>
-                        <PrivateCachedAppSidebar
-                          sessionUser={session.user}
-                          activeOrganizationId={activeOrganizationId}
-                          adminMenuEnabled={adminMenuEnabled}
-                          socialMenuEnabled={socialMenuEnabled}
-                        />
+                        <FeatureBadgesProvider
+                          userId={session.user.id}
+                          campaigns={loadBadgeCampaigns()}
+                        >
+                          <PrivateCachedAppSidebar
+                            sessionUser={session.user}
+                            activeOrganizationId={activeOrganizationId}
+                            adminMenuEnabled={adminMenuEnabled}
+                            socialMenuEnabled={socialMenuEnabled}
+                          />
+                        </FeatureBadgesProvider>
                         <Suspense fallback={null}>
                           <AppShellOverlays />
                         </Suspense>

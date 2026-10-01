@@ -4,6 +4,8 @@ import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "../user-route-context.js";
+import mountPostUserBadgeCampaignSeen from "./badge-campaigns/[campaignId]/seen/post.js";
+import mountGetUserBadgeCampaigns from "./badge-campaigns/get.js";
 import mountGetUserBillingDetails from "./billing-details/get.js";
 import mountApproveUserCoworkerAccess from "./coworker-access/[accessId]/approve/post.js";
 import mountDenyUserCoworkerAccess from "./coworker-access/[accessId]/deny/post.js";
@@ -64,6 +66,8 @@ mountGetUserWorkspaceAccess(app);
 mountGetUserPendingOrganizationInvitations(app);
 mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
+mountGetUserBadgeCampaigns(app);
+mountPostUserBadgeCampaignSeen(app);
 mountGetUserFiles(app);
 mountPostUserFiles(app);
 mountPostUserUtmAttribution(app);

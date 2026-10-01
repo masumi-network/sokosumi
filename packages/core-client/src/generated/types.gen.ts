@@ -179,6 +179,43 @@ export type PatchAdminAgentMetadataOverrideBody = {
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
 };
 
+export type AdminBadgeCampaignList = Array<BadgeCampaign>;
+
+export type BadgeCampaign = {
+    id: string;
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+    createdAt: Date;
+};
+
+export const AnnouncedFeature = {
+    SOKO_BOTS: 'SOKO_BOTS',
+    NEW_TASK: 'NEW_TASK',
+    SEARCH: 'SEARCH',
+    AGENTS: 'AGENTS',
+    TASKS: 'TASKS',
+    SCHEDULES: 'SCHEDULES',
+    CONTENT_STUDIO: 'CONTENT_STUDIO',
+    SOCIAL: 'SOCIAL',
+    DRIVE: 'DRIVE',
+    THREADS: 'THREADS',
+    UNREADS: 'UNREADS'
+} as const;
+
+export type AnnouncedFeature = typeof AnnouncedFeature[keyof typeof AnnouncedFeature];
+
+export type CreateBadgeCampaignRequest = {
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+};
+
+export type UpdateBadgeCampaignRequest = {
+    startsAt: Date;
+    endsAt: Date;
+};
+
 export type AdminOrganizationOption = {
     id: string;
     name: string;
@@ -4592,6 +4629,14 @@ export const NoticeKind = { LEGAL_TERMS: 'LEGAL_TERMS', ANNOUNCEMENT: 'ANNOUNCEM
 
 export type NoticeKind = typeof NoticeKind[keyof typeof NoticeKind];
 
+export type UserBadgeCampaigns = {
+    badgeCampaigns: Array<{
+        id: string;
+        feature: AnnouncedFeature;
+        endsAt: Date;
+    }>;
+};
+
 export type BlobFile = {
     /**
      * Public URL of the uploaded file
@@ -8350,6 +8395,439 @@ export type PatchAdminAgentMetadataOverrideResponses = {
 };
 
 export type PatchAdminAgentMetadataOverrideResponse = PatchAdminAgentMetadataOverrideResponses[keyof PatchAdminAgentMetadataOverrideResponses];
+
+export type ListAdminBadgeCampaignsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type ListAdminBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsError = ListAdminBadgeCampaignsErrors[keyof ListAdminBadgeCampaignsErrors];
+
+export type ListAdminBadgeCampaignsResponses = {
+    /**
+     * List of campaigns
+     */
+    200: {
+        data: AdminBadgeCampaignList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsResponse = ListAdminBadgeCampaignsResponses[keyof ListAdminBadgeCampaignsResponses];
+
+export type CreateAdminBadgeCampaignData = {
+    body?: CreateBadgeCampaignRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type CreateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignError = CreateAdminBadgeCampaignErrors[keyof CreateAdminBadgeCampaignErrors];
+
+export type CreateAdminBadgeCampaignResponses = {
+    /**
+     * The created campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignResponse = CreateAdminBadgeCampaignResponses[keyof CreateAdminBadgeCampaignResponses];
+
+export type DeleteAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type DeleteAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminBadgeCampaignError = DeleteAdminBadgeCampaignErrors[keyof DeleteAdminBadgeCampaignErrors];
+
+export type DeleteAdminBadgeCampaignResponses = {
+    /**
+     * Campaign deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminBadgeCampaignResponse = DeleteAdminBadgeCampaignResponses[keyof DeleteAdminBadgeCampaignResponses];
+
+export type UpdateAdminBadgeCampaignData = {
+    body?: UpdateBadgeCampaignRequest;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type UpdateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps, or a started campaign's start moves into the future
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignError = UpdateAdminBadgeCampaignErrors[keyof UpdateAdminBadgeCampaignErrors];
+
+export type UpdateAdminBadgeCampaignResponses = {
+    /**
+     * The updated campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignResponse = UpdateAdminBadgeCampaignResponses[keyof UpdateAdminBadgeCampaignResponses];
+
+export type EndAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/end';
+};
+
+export type EndAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign is not running
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignError = EndAdminBadgeCampaignErrors[keyof EndAdminBadgeCampaignErrors];
+
+export type EndAdminBadgeCampaignResponses = {
+    /**
+     * The ended campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignResponse = EndAdminBadgeCampaignResponses[keyof EndAdminBadgeCampaignResponses];
 
 export type SearchAdminUsersData = {
     body?: never;
@@ -31206,6 +31684,159 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
 };
 
 export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
+
+export type GetUserBadgeCampaignsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns';
+};
+
+export type GetUserBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsError = GetUserBadgeCampaignsErrors[keyof GetUserBadgeCampaignsErrors];
+
+export type GetUserBadgeCampaignsResponses = {
+    /**
+     * Campaigns to badge for the user
+     */
+    200: {
+        data: UserBadgeCampaigns;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsResponse = GetUserBadgeCampaignsResponses[keyof GetUserBadgeCampaignsResponses];
+
+export type MarkUserBadgeCampaignSeenData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Badge campaign ID
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns/{campaignId}/seen';
+};
+
+export type MarkUserBadgeCampaignSeenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkUserBadgeCampaignSeenError = MarkUserBadgeCampaignSeenErrors[keyof MarkUserBadgeCampaignSeenErrors];
+
+export type MarkUserBadgeCampaignSeenResponses = {
+    /**
+     * Campaign marked seen
+     */
+    204: void;
+};
+
+export type MarkUserBadgeCampaignSeenResponse = MarkUserBadgeCampaignSeenResponses[keyof MarkUserBadgeCampaignSeenResponses];
 
 export type GetUsersByIdFilesData = {
     body?: never;
