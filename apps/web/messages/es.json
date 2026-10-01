@@ -1226,7 +1226,7 @@
           },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
-            "description": "Crea una con este email o introduce otro para iniciar sesión.",
+            "description": "Crea una ahora con este email.",
             "createAccount": "Crear cuenta"
           }
         }

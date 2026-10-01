@@ -1226,7 +1226,7 @@
           },
           "NoAccount": {
             "title": "No account for this address",
-            "description": "Create one with this email, or enter a different one to log in.",
+            "description": "Create one with this email now.",
             "createAccount": "Create account"
           }
         }
