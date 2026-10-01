@@ -177,7 +177,12 @@ export const sokoBotUsageSchema = z
     totalTokens: z.number().int().nonnegative(),
     costUsd: z.number().nonnegative(),
     billableCostUsd: z.number().nonnegative(),
+    /** Charged for the bot's own turns. */
     credits: z.number().nonnegative(),
+    /** Charged on Coworker Tasks and Agent jobs the bot started. */
+    delegatedCredits: z.number().nonnegative(),
+    /** Everything the bot spent: own turns plus delegated work. */
+    totalCredits: z.number().nonnegative(),
   })
   .openapi("SokoBotUsage");
 

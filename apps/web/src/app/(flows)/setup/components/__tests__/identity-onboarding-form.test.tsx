@@ -118,7 +118,11 @@ const ADA = {
   initialFirstName: "Ada",
   initialLastName: "Lovelace",
   askName: false,
+  returnUrl: "/",
 };
+
+// The page the app frame sent a new user here from, query included.
+const CHAT_INVITE = "/chat/join/abc?ref=mail";
 
 // An older account: a display name, but only one of the two parts.
 const ADA_WITHOUT_LAST_NAME = {
@@ -518,6 +522,38 @@ describe("IdentityOnboardingForm", () => {
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
     expect(screen.getByTestId("workspace-gate-leaving")).toBeTruthy();
+  });
+
+  it("ends personal setup where the user was going", async () => {
+    const user = userEvent.setup();
+    renderForm({ returnUrl: CHAT_INVITE });
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
+  });
+
+  it("ends organization setup where the user was going", async () => {
+    const user = userEvent.setup();
+    renderForm({ returnUrl: CHAT_INVITE });
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
+  });
+
+  it("leaves an already-ready gate for where the user was going", async () => {
+    renderForm({ workspaceReady: true, returnUrl: CHAT_INVITE });
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
   });
 
   it("keeps the organization wizard mounted when workspace becomes ready", async () => {

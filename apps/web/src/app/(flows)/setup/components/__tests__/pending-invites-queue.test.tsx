@@ -121,10 +121,15 @@ const joinItem: WorkspaceGateQueueItem = {
 function renderQueue(
   initialName = "Ada Lovelace",
   items: WorkspaceGateQueueItem[] = [invitationItem, joinItem],
+  returnUrl = "/",
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <PendingInvitesQueue initialName={initialName} items={items} />
+      <PendingInvitesQueue
+        initialName={initialName}
+        items={items}
+        returnUrl={returnUrl}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -265,6 +270,23 @@ describe("PendingInvitesQueue", () => {
     });
     expect(acceptInvitationMock).not.toHaveBeenCalled();
     expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the gate for where the user was going", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+
+    renderQueue("Ada Lovelace", [invitationItem], "/chat/join/abc?ref=mail");
+    await user.click(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    );
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/chat/join/abc?ref=mail");
+    });
   });
 
   it("joins via the recovered link and leaves the gate", async () => {

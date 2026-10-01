@@ -1,6 +1,7 @@
 import { convertCentsToCredits } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
+import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 
 /**
  * What one bot has spent since it was created.
@@ -25,10 +26,52 @@ export interface SokoBotUsageTotals {
   /** The billed share of `costUsd` — the agent loop alone. */
   billableCostUsd: number;
   /**
-   * What the owner was actually charged, from the usage ledger. Credits, not
-   * cents: cents are the stored unit and never cross the API boundary.
+   * What the owner was actually charged for the bot's own turns, from the
+   * usage ledger. Credits, not cents: cents are the stored unit and never
+   * cross the API boundary.
    */
   credits: number;
+  /** Charged on Coworker Tasks the bot created or assigned and Agents it hired. */
+  delegatedCredits: number;
+  /** `credits` plus `delegatedCredits`: everything the bot spent. */
+  totalCredits: number;
+}
+
+/** Delegation actions that hand work to someone who charges for it. */
+const SPENDING_TASK_ACTIONS = ["create_task", "assign_task"];
+
+async function delegatedCreditsSpent(sokoBotId: string): Promise<number> {
+  const delegations = await prisma.sokoBotDelegation.findMany({
+    where: {
+      turn: { sokoBotId },
+      OR: [
+        { taskId: { not: null }, action: { in: SPENDING_TASK_ACTIONS } },
+        { jobId: { not: null }, action: "hire_agent" },
+      ],
+    },
+    select: {
+      taskId: true,
+      job: {
+        select: {
+          transaction: { select: { amount: true } },
+          refundedTransaction: { select: { amount: true } },
+        },
+      },
+    },
+  });
+  const taskIds = [
+    ...new Set(delegations.flatMap((d) => (d.taskId ? [d.taskId] : []))),
+  ];
+  let credits = 0;
+  for (const charged of (await taskCreditsCharged(taskIds)).values())
+    credits += charged;
+  for (const { job } of delegations) {
+    const net =
+      -(job?.transaction?.amount ?? 0n) -
+      (job?.refundedTransaction?.amount ?? 0n);
+    if (net > 0n) credits += convertCentsToCredits(net);
+  }
+  return credits;
 }
 
 interface UsageRow {
@@ -74,6 +117,9 @@ export async function sokoBotUsageTotals(
     _sum: { cents: true },
   });
 
+  const ownCredits = convertCentsToCredits(charged._sum.cents ?? 0n);
+  const delegatedCredits = await delegatedCreditsSpent(sokoBotId);
+
   const inputTokens = asNumber(row?.inputTokens ?? null);
   const outputTokens = asNumber(row?.outputTokens ?? null);
   const cacheReadTokens = asNumber(row?.cacheReadTokens ?? null);
@@ -93,6 +139,8 @@ export async function sokoBotUsageTotals(
     billableCostUsd: billableMicros / 1e6,
     // Converted here rather than in the response producer so the only number
     // that leaves this service is already the user-facing one.
-    credits: convertCentsToCredits(charged._sum.cents ?? 0n),
+    credits: roundCredits(ownCredits),
+    delegatedCredits: roundCredits(delegatedCredits),
+    totalCredits: roundCredits(ownCredits + delegatedCredits),
   };
 }

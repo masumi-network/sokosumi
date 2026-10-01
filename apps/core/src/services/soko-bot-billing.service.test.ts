@@ -81,6 +81,12 @@ describe("Soko Bot billing", () => {
     expect(sokoBotUsageCents(0n)).toBe(0n);
   });
 
+  it("bills the minimum for a turn that spent tokens but reported no cost", () => {
+    // Otherwise such a turn is free and never reaches the credit history.
+    expect(sokoBotUsageCents(0n, true)).toBe(convertCreditsToCents(0.1));
+    expect(sokoBotUsageCents(0n, false)).toBe(0n);
+  });
+
   it("lets a free user start a turn with enough personal credits", async () => {
     balanceMock.mockResolvedValue(0n);
     await expect(
