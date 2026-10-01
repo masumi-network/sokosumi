@@ -20,8 +20,20 @@ function sokoBotTurnUsageIdempotencyKey(turnId: string): string {
   return `soko-bot-turn:${turnId}`;
 }
 
-export function sokoBotUsageCents(costUsdMicros: bigint): bigint {
-  if (costUsdMicros <= 0n) return 0n;
+/**
+ * A turn that ran the model bills at least the per-turn minimum, even when
+ * the provider reported no cost for it; otherwise those turns were free and
+ * left no trace in the owner's credit history.
+ */
+export function sokoBotUsageCents(
+  costUsdMicros: bigint,
+  ranModel = false,
+): bigint {
+  if (costUsdMicros <= 0n) {
+    return ranModel
+      ? convertCreditsToCents(getEnv().SOKO_BOT_MIN_TURN_CREDITS)
+      : 0n;
+  }
   const env = getEnv();
   const costUsd = Number(costUsdMicros) / 1_000_000;
   const meteredCredits = costUsd * env.SOKO_BOT_CREDITS_PER_USD;
@@ -116,10 +128,15 @@ export async function recordSokoBotTurnUsage(
     sokoBotId: string;
     userId: string;
     costUsdMicros: bigint | null;
+    /** The turn spent tokens; bills the minimum when no cost was reported. */
+    ranModel?: boolean;
   },
   tx: Prisma.TransactionClient,
 ): Promise<SokoBotUsageChargeResult> {
-  const expectedCents = sokoBotUsageCents(input.costUsdMicros ?? 0n);
+  const expectedCents = sokoBotUsageCents(
+    input.costUsdMicros ?? 0n,
+    input.ranModel,
+  );
   if (expectedCents === 0n) {
     return { chargedCents: 0n, expectedCents, shortfall: false };
   }
