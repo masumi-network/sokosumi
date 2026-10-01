@@ -16,7 +16,12 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <header className="site-header">
+          <span className="wordmark">CMO.XYZ</span>
+        </header>
+        {children}
+      </body>
     </html>
   );
 }

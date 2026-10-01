@@ -1,9 +1,20 @@
+import { Mascot } from "./mascot";
+
 interface SignedOutProps {
   /** The `error` query Sokosumi sent back, if sign in did not finish. */
   error?: string;
   createAccount: () => Promise<void>;
   signIn: () => Promise<void>;
 }
+
+/** What the agent runs, from the style guide's launch scope. */
+const SCOPE = [
+  "Social media",
+  "Content",
+  "Google and Meta ads",
+  "SEO",
+  "Images and graphics",
+];
 
 function errorMessage(error: string): string {
   if (error === "access_denied") {
@@ -18,22 +29,35 @@ function errorMessage(error: string): string {
 
 export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
   return (
-    <main>
-      <h1>CMO.XYZ</h1>
-      <p>
-        An AI agent that runs your marketing end to end. Social, content, ads,
-        SEO and graphics in one system.
-      </p>
-      {error ? <p role="alert">{errorMessage(error)}</p> : null}
-      <div className="actions">
-        <form action={createAccount}>
-          <button type="submit">Create account</button>
-        </form>
-        <form action={signIn}>
-          <button type="submit">Sign in</button>
-        </form>
+    <main className="hero">
+      <div className="hero-copy">
+        <p className="eyebrow">AI marketing agent</p>
+        <h1>Put your marketing on autopilot.</h1>
+        <p className="lead">
+          CMO.XYZ runs your marketing end to end, in one system. Not a chatbot
+          you prompt. Not a stack of separate tools.
+        </p>
+        <ul className="scope">
+          {SCOPE.map((item) => (
+            <li key={item}>{item}</li>
+          ))}
+        </ul>
+        {error ? <p role="alert">{errorMessage(error)}</p> : null}
+        <div className="actions">
+          <form action={createAccount}>
+            <button className="button" type="submit">
+              Create account
+            </button>
+          </form>
+          <form action={signIn}>
+            <button className="button button-secondary" type="submit">
+              Sign in
+            </button>
+          </form>
+        </div>
+        <p className="note">CMO uses your Sokosumi account.</p>
       </div>
-      <p className="note">CMO uses your Sokosumi account.</p>
+      <Mascot className="hero-mascot" />
     </main>
   );
 }
