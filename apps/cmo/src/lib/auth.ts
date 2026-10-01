@@ -222,8 +222,25 @@ let auth: CmoAuth | undefined;
 
 /** CMO's auth, created on first use so builds need no auth env. */
 export function getAuth(): CmoAuth {
-  auth ??= createCmoAuth(readCmoAuthConfig());
-  return auth;
+  if (auth) return auth;
+  const created = createCmoAuth(readCmoAuthConfig());
+  auth = created;
+  // Better Auth reads Core's discovery document once, at start-up, and drops
+  // the provider for good when Core does not answer: a preview's Core still
+  // deploying, or an outage. Start over on the next request instead.
+  const forget = () => {
+    if (auth === created) auth = undefined;
+  };
+  created.$context.then((context) => {
+    if (
+      !context.socialProviders.some(
+        (provider) => provider.id === SOKOSUMI_OAUTH_PROVIDER_ID,
+      )
+    ) {
+      forget();
+    }
+  }, forget);
+  return created;
 }
 
 /**

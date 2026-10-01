@@ -34,7 +34,7 @@ export function acceptCmoPreviewCallback(
 ): boolean {
   return (
     defaultResult ||
-    (registeredUris.includes(CMO_PRODUCTION_CALLBACK) &&
+    (registeredUris.some((uri) => uri === CMO_PRODUCTION_CALLBACK) &&
       CMO_PREVIEW_CALLBACK.test(redirectUri))
   );
 }
