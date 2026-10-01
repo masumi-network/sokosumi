@@ -2404,7 +2404,6 @@
           "editTitle": "Beitrag bearbeiten",
           "scheduleTitle": "Beitrag planen",
           "rescheduleTitle": "Beitrag neu planen",
-          "description": "Wähle das Ziel, schreibe den Beitrag und lege fest, wann er erscheint.",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
           "characters": "{count} / {limit}",
@@ -2413,7 +2412,6 @@
             "upload": "Hochladen",
             "uploading": "Wird hochgeladen…",
             "remove": "{name} entfernen",
-            "hint": "Hänge Bilder oder ein Video an, im Rahmen der Limits von {provider}.",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
             "alreadyAttached": "Diese Datei ist bereits angehängt.",
             "uploadDuplicate": "Im Drive existiert bereits eine Datei mit diesem Namen. Benenne sie um und versuche es erneut.",
@@ -2436,9 +2434,8 @@
           "account": "Konto",
           "accounts": "Posten auf",
           "accountOption": "{provider} {handle}",
-          "noAccounts": "Noch keine Konten verbunden. Verbinde eines im Tab Konten.",
+          "noAccounts": "Verbinde eines, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "unknownHandle": "Unbekanntes Konto",
-          "scheduledAt": "Geplanter Zeitpunkt",
           "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
           "saveDraft": "Entwurf speichern",
           "save": "Speichern",
@@ -2458,7 +2455,8 @@
             "pickTime": "Uhrzeit wählen",
             "dateSelected": "Datum: {date}",
             "timeSelected": "Uhrzeit: {time}",
-            "times": "Uhrzeiten"
+            "times": "Uhrzeiten",
+            "now": "Jetzt"
           },
           "timezone": {
             "yours": "Zeiten in deiner Zeitzone, {zone}.",
@@ -2472,7 +2470,16 @@
             "mediaPost": "Bild- oder Videobeitrag",
             "video": "Video (Text wird Titel und Beschreibung)"
           },
-          "publishNow": "Jetzt posten"
+          "publishNow": "Jetzt posten",
+          "when": "Wann",
+          "whenOptional": "Optional. Leer lassen, um einen Entwurf zu behalten.",
+          "scheduleFor": "Planen für {date}",
+          "rescheduleFor": "Neu planen für {date}",
+          "noAccountsTitle": "Noch kein Konto verbunden",
+          "connectAccount": "Konto verbinden",
+          "dismiss": "Abbrechen",
+          "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -3806,6 +3813,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Nach Bot, Besitzername oder E-Mail suchen…",
+          "outOfCredits": "Keine Credits mehr",
           "totalCount": "{count, plural, one {# Bot} other {# Bots}}",
           "loadError": "Soko Bots konnten nicht geladen werden.",
           "empty": "Keine Soko Bots gefunden.",
@@ -6704,7 +6712,8 @@
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -6808,7 +6817,8 @@
           "timezoneTitle": "Zeitzone",
           "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
           "error": "Einstellung konnte nicht gespeichert werden.",
-          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+          "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",

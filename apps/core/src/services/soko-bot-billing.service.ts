@@ -42,6 +42,79 @@ export function sokoBotUsageCents(
   );
 }
 
+/** Bots in an organization workspace bill the organization, like its Tasks. */
+export async function sokoBotPayerOrganizationId(
+  sokoBotId: string,
+  client: Pick<Prisma.TransactionClient, "sokoBot">,
+): Promise<string | null> {
+  const bot = await client.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { workspace: { select: { organizationId: true } } },
+  });
+  return bot?.workspace.organizationId ?? null;
+}
+
+function payerLabel(organizationId: string | null): string {
+  return organizationId ? "organization" : "personal";
+}
+
+/** Tells the owner once a day that self-started turns stopped for credits. */
+export async function notifySokoBotOutOfCredits(
+  sokoBotId: string,
+  now: Date = new Date(),
+): Promise<void> {
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: {
+      workspace: { select: { organization: { select: { name: true } } } },
+    },
+  });
+  if (!bot) return;
+  const payer = bot.workspace.organization?.name;
+  const { postSokoBotOwnerNotice } = await import(
+    "@/services/soko-bot-chat.service"
+  );
+  await postSokoBotOwnerNotice({
+    sokoBotId,
+    content: payer
+      ? `I'm paused: ${payer} is out of credits.`
+      : "I'm paused: you're out of credits.",
+    key: `out-of-credits:${sokoBotId}:${now.toISOString().slice(0, 10)}`,
+  });
+}
+
+/** Ids of the bots whose payer cannot fund even a minimum turn right now. */
+export async function sokoBotIdsOutOfCredits(
+  bots: { id: string; userId: string; organizationId: string | null }[],
+): Promise<Set<string>> {
+  const minimumCents = convertCreditsToCents(
+    getEnv().SOKO_BOT_MIN_TURN_CREDITS,
+  );
+  const payerKey = (bot: (typeof bots)[number]) =>
+    `${bot.userId}:${bot.organizationId ?? ""}`;
+  const payers = [...new Map(bots.map((bot) => [payerKey(bot), bot])).values()];
+  const balances = new Map(
+    await Promise.all(
+      payers.map(
+        async (bot) =>
+          [
+            payerKey(bot),
+            await creditBucketRepository.getBalance(
+              bot.userId,
+              bot.organizationId,
+              prisma,
+            ),
+          ] as const,
+      ),
+    ),
+  );
+  return new Set(
+    bots
+      .filter((bot) => (balances.get(payerKey(bot)) ?? 0n) < minimumCents)
+      .map((bot) => bot.id),
+  );
+}
+
 export async function requireSokoBotTurnFunding(
   userId: string,
   sokoBotId: string,
@@ -109,15 +182,20 @@ export async function requireSokoBotTurnFunding(
     shortfallExpectedCents > (shortfallUsage?.cents ?? 0n)
       ? shortfallExpectedCents - (shortfallUsage?.cents ?? 0n)
       : 0n;
-  const balance = await creditBucketRepository.getBalance(userId, null, prisma);
+  const organizationId = await sokoBotPayerOrganizationId(sokoBotId, prisma);
+  const balance = await creditBucketRepository.getBalance(
+    userId,
+    organizationId,
+    prisma,
+  );
   if (balance < shortfallCents) {
     throw new SokoBotBillingAccessError(
-      "Insufficient personal credits to cover the unpaid remainder from a prior Soko Bot turn.",
+      `Insufficient ${payerLabel(organizationId)} credits to cover the unpaid remainder from a prior Soko Bot turn.`,
     );
   }
   if (balance < minimumCents || balance < recentTurnCents) {
     throw new SokoBotBillingAccessError(
-      "Insufficient personal credits to start a Soko Bot turn.",
+      `Insufficient ${payerLabel(organizationId)} credits to start a Soko Bot turn.`,
     );
   }
 }
@@ -159,9 +237,10 @@ export async function recordSokoBotTurnUsage(
     };
   }
 
+  const organizationId = await sokoBotPayerOrganizationId(input.sokoBotId, tx);
   const balance = await creditBucketRepository.getBalance(
     input.userId,
-    null,
+    organizationId,
     tx,
   );
   const chargedCents = balance < expectedCents ? balance : expectedCents;
@@ -170,7 +249,7 @@ export async function recordSokoBotTurnUsage(
   }
   const consumptions = await creditBucketRepository.prepareConsumption(
     input.userId,
-    null,
+    organizationId,
     chargedCents,
     tx,
   );
@@ -178,7 +257,7 @@ export async function recordSokoBotTurnUsage(
     data: {
       amount: -chargedCents,
       userId: input.userId,
-      organizationId: null,
+      organizationId,
       creditConsumptions: { createMany: { data: consumptions } },
     },
     select: { id: true },
@@ -187,7 +266,7 @@ export async function recordSokoBotTurnUsage(
     data: {
       sokoBotId: input.sokoBotId,
       userId: input.userId,
-      organizationId: null,
+      organizationId,
       idempotencyKey,
       referenceId: input.turnId,
       cents: chargedCents,
