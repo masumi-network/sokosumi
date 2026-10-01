@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
@@ -711,6 +712,14 @@ describe("authMiddleware", () => {
       userId: "user_oauth",
       authenticationMethod: "oauth",
     });
+    // Better Auth stores the SHA-256 base64url digest of the unprefixed token.
+    expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          token: createHash("sha256").update("valid").digest("base64url"),
+        },
+      }),
+    );
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
   });
 
