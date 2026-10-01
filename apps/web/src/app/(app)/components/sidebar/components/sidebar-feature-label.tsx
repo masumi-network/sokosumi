@@ -40,12 +40,17 @@ function NewPill({ feature }: { feature: AnnouncedFeature }) {
     return null;
   }
 
+  // The pill's caps are styling; the row's accessible name gets ", New" from
+  // the hidden copy, since flex items join without a space.
   return (
-    <span
-      aria-hidden
-      className="bg-primary-quinary text-primary shrink-0 rounded-sm px-[3px] py-px text-[0.5rem] leading-none font-semibold tracking-tight uppercase"
-    >
-      {t("new")}
-    </span>
+    <>
+      <span
+        aria-hidden
+        className="bg-primary-quinary text-primary shrink-0 rounded-sm px-1 py-0.5 text-[0.625rem] leading-none font-semibold tracking-wide uppercase"
+      >
+        {t("new")}
+      </span>
+      <span className="sr-only">, {t("new")}</span>
+    </>
   );
 }
