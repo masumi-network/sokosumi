@@ -4,10 +4,11 @@ import { describe, expect, it } from "vitest";
 import { Logo } from "./logo";
 
 describe("logo", () => {
-  it("reads as the name, with the pointer mark hidden from assistive tech", () => {
+  it("reads as the name, with the public pointer mark as decoration", () => {
     const html = renderToStaticMarkup(<Logo />);
 
-    expect(html).toMatch(/<svg aria-hidden="true" class="logo-mark"/);
-    expect(html).toMatch(/<\/svg>CMO\.XYZ<\/span>$/);
+    expect(html).toContain('<img alt="" class="logo-mark"');
+    expect(html).toContain('src="/logo.svg"');
+    expect(html).toMatch(/\/>CMO\.XYZ<\/span>$/);
   });
 });
