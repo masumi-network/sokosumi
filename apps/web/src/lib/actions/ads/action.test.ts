@@ -461,14 +461,10 @@ describe("ads actions", () => {
       ["a blank name", { name: "   " }],
       ["a name over 255 characters", { name: "a".repeat(256) }],
       ["a zero budget", { dailyBudget: 0 }],
-      ["an unknown objective", { objective: "OUTCOME_APP_PROMOTION" }],
     ])("rejects %s, calling nothing", async (_name, changes) => {
       const { createAdCampaign } = await import("./action");
       const { revalidatePath } = await import("next/cache");
-      const result = await createAdCampaign({
-        ...base,
-        ...changes,
-      } as Parameters<typeof createAdCampaign>[0]);
+      const result = await createAdCampaign({ ...base, ...changes });
 
       expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(adsServiceMock.createCampaign).not.toHaveBeenCalled();

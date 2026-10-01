@@ -2802,7 +2802,7 @@
         "emptyBody": "Campaigns from Google Ads and Meta Ads appear here once an account is connected.",
         "emptyAction": "Go to accounts",
         "noCampaignsTitle": "No campaigns in this account yet",
-        "noCampaignsBody": "Campaigns appear here once this ad account has some.",
+        "noCampaignsBody": "Create one with New campaign. It starts paused.",
         "loading": "Loading campaigns…",
         "account": "Ad account",
         "rangeLabel": "Date range",
@@ -2846,27 +2846,25 @@
           "description": "It starts spending again, up to its daily budget.",
           "confirm": "Resume"
         },
+        "budget": {
+          "label": "Daily budget ({currency})",
+          "required": "Enter a daily budget greater than 0.",
+          "wholeNumber": "Use a whole number for {currency}.",
+          "precision": "Use at most {digits} decimal places for {currency}.",
+          "managedElsewhere": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there."
+        },
         "budgetDialog": {
           "title": "Change daily budget",
           "description": "{name} spends up to this amount per day.",
-          "label": "Daily budget ({currency})",
           "save": "Save budget",
           "saving": "Saving…",
           "change": "Daily budget changes from {old} to {new}.",
-          "notSet": "not set",
-          "errors": {
-            "shared": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there.",
-            "required": "Enter a daily budget greater than 0.",
-            "wholeNumber": "Use a whole number for {currency}.",
-            "precision": "Use at most {digits} decimal places for {currency}."
-          }
+          "notSet": "not set"
         },
         "newCampaign": {
-          "button": "New campaign",
           "title": "New campaign",
           "note": "Campaigns are created paused. Add ad groups and ads in Google Ads / Meta Ads Manager, then resume here.",
           "name": "Name",
-          "budget": "Daily budget ({currency})",
           "objective": "Objective",
           "objectivePlaceholder": "Select an objective",
           "objectives": {
@@ -2882,10 +2880,7 @@
           "errors": {
             "nameRequired": "Enter a name.",
             "nameTooLong": "Use at most 255 characters.",
-            "budgetRequired": "Enter a daily budget greater than 0.",
-            "wholeNumber": "Use a whole number for {currency}.",
-            "precision": "Use at most {digits} decimal places for {currency}.",
-            "objectiveRequired": "Choose an objective",
+            "objectiveRequired": "Choose an objective.",
             "failed": "Failed to create campaign"
           }
         },

@@ -1,14 +1,32 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import type { ProjectAdProvider } from "@sokosumi/core-client";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -16,22 +34,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { createAdCampaign } from "@/lib/actions/ads/action";
-import {
-  AD_CAMPAIGN_OBJECTIVES,
-  budgetStep,
-  currencyFractionDigits,
-  hasValidPrecision,
-} from "@/lib/ads/campaign";
+import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+
+import { useAdsBudget } from "./ads-budget";
 
 interface AdsNewCampaignProps {
   accountId: string;
@@ -40,59 +46,44 @@ interface AdsNewCampaignProps {
   provider: ProjectAdProvider;
 }
 
-type FieldErrors = Partial<
-  Record<"name" | "dailyBudget" | "objective", string>
->;
-
-/**
- * The form's rules, as Core states them: a name of 1 to 255 characters, a
- * budget above 0 within the currency's precision and, for Meta only, one
- * objective. Issue messages are codes the form words in the user's language.
- */
-function campaignSchema(digits: number, needsObjective: boolean) {
-  return z.object({
-    name: z.string().trim().min(1, "nameRequired").max(255, "nameTooLong"),
-    dailyBudget: z
-      .number({ error: "budgetRequired" })
-      .positive("budgetRequired")
-      .refine((value) => hasValidPrecision(value, digits), "budgetPrecision"),
-    objective: needsObjective
-      ? z.enum(AD_CAMPAIGN_OBJECTIVES, { error: "objectiveRequired" })
-      : z.undefined(),
-  });
+interface NewCampaignValues {
+  name: string;
+  dailyBudget: string;
+  objective: string;
 }
 
 /**
- * "New campaign": a button and the sheet it opens, a side sheet on desktop
- * and a bottom sheet on mobile. Core creates the campaign paused; the action
- * revalidates the page, so the list refetches and nothing updates optimistically.
+ * "New campaign": a button and the dialog it opens. Core creates the campaign
+ * paused; the action revalidates the page, so the list refetches and nothing
+ * updates optimistically.
  */
 export function AdsNewCampaign(props: AdsNewCampaignProps) {
   const t = useTranslations("App.Ads.campaigns.newCampaign");
-  const isMobile = useIsMobile();
   const [open, setOpen] = useState(false);
 
   return (
     <>
       <Button onClick={() => setOpen(true)} size="sm" type="button">
-        {t("button")}
+        {t("title")}
       </Button>
-      <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent
-          className={isMobile ? "max-h-[92dvh] overflow-y-auto" : undefined}
-          side={isMobile ? "bottom" : "right"}
-        >
-          <SheetHeader className="pr-12">
-            <SheetTitle>{t("title")}</SheetTitle>
-            <SheetDescription>{t("note")}</SheetDescription>
-          </SheetHeader>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("title")}</DialogTitle>
+            <DialogDescription>{t("note")}</DialogDescription>
+          </DialogHeader>
           <NewCampaignForm {...props} onClose={() => setOpen(false)} />
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
 
+/**
+ * The rules are Core's: a name of 1 to 255 characters, a budget above 0
+ * within the currency's precision and, for Meta only, one objective. The form
+ * mounts with the dialog, so it starts empty each time.
+ */
 function NewCampaignForm({
   accountId,
   currency,
@@ -102,175 +93,146 @@ function NewCampaignForm({
 }: AdsNewCampaignProps & { onClose: () => void }) {
   const t = useTranslations("App.Ads.campaigns.newCampaign");
   const tCampaigns = useTranslations("App.Ads.campaigns");
-  const digits = currencyFractionDigits(currency);
+  const budget = useAdsBudget(currency);
   const needsObjective = provider === "meta_ads";
-  const [name, setName] = useState("");
-  const [budget, setBudget] = useState("");
-  const [objective, setObjective] = useState("");
-  const [errors, setErrors] = useState<FieldErrors>({});
-  const [formError, setFormError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const [refusal, setRefusal] = useState<"reconnect" | "failed" | null>(null);
 
-  function precisionError(): string {
-    return digits === 0
-      ? t("errors.wholeNumber", { currency })
-      : t("errors.precision", { digits, currency });
-  }
+  const form = useForm<NewCampaignValues>({
+    resolver: zodResolver(
+      z.object({
+        name: z
+          .string()
+          .trim()
+          .min(1, t("errors.nameRequired"))
+          .max(255, t("errors.nameTooLong")),
+        dailyBudget: budget.schema,
+        objective: needsObjective
+          ? z.string().min(1, t("errors.objectiveRequired"))
+          : z.string(),
+      }),
+    ),
+    defaultValues: { name: "", dailyBudget: "", objective: "" },
+  });
 
-  function worded(code: string): string {
-    return code === "budgetPrecision" ? precisionError() : t(`errors.${code}`);
-  }
-
-  async function handleSubmit(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    const parsed = campaignSchema(digits, needsObjective).safeParse({
-      name,
-      dailyBudget: budget.trim() === "" ? Number.NaN : Number(budget),
-      objective: objective || undefined,
-    });
-    if (!parsed.success) {
-      const next: FieldErrors = {};
-      for (const issue of parsed.error.issues) {
-        const field = issue.path[0];
-        if (
-          (field === "name" ||
-            field === "dailyBudget" ||
-            field === "objective") &&
-          !next[field]
-        ) {
-          next[field] = worded(issue.message);
-        }
-      }
-      setErrors(next);
-      return;
-    }
-
-    setErrors({});
-    setFormError(null);
-    setIsSaving(true);
+  async function handleSubmit(values: NewCampaignValues): Promise<void> {
+    setRefusal(null);
+    const objective = AD_CAMPAIGN_OBJECTIVES.find(
+      (candidate) => candidate === values.objective,
+    );
     try {
       const result = await createAdCampaign({
         projectId,
         accountId,
-        ...parsed.data,
+        name: values.name,
+        dailyBudget: Number(values.dailyBudget),
+        objective,
       });
       if (result.ok) {
         toast.success(t("success"));
         onClose();
       } else if (result.error.status === 422) {
-        setErrors({ dailyBudget: precisionError() });
-      } else if (result.error.status === 409) {
-        setFormError(tCampaigns("errors.notActive.title"));
+        form.setError("dailyBudget", { message: budget.precisionMessage });
       } else {
-        setFormError(t("errors.failed"));
+        setRefusal(result.error.status === 409 ? "reconnect" : "failed");
       }
     } catch {
-      setFormError(t("errors.failed"));
-    } finally {
-      setIsSaving(false);
+      setRefusal("failed");
     }
   }
 
+  const accountsParams = new URLSearchParams({ projectId, tab: "accounts" });
+
   return (
-    <form
-      className="grid gap-5 px-4 pb-4"
-      noValidate
-      onSubmit={(event) => void handleSubmit(event)}
-    >
-      <Field error={errors.name} id="ads-campaign-name" label={t("name")}>
-        <Input
-          {...fieldProps("ads-campaign-name", errors.name)}
-          autoComplete="off"
-          maxLength={255}
-          onChange={(event) => setName(event.target.value)}
-          value={name}
-        />
-      </Field>
-      <Field
-        error={errors.dailyBudget}
-        id="ads-campaign-budget"
-        label={t("budget", { currency })}
+    <Form {...form}>
+      <form
+        className="grid gap-4"
+        noValidate
+        onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}
       >
-        <Input
-          {...fieldProps("ads-campaign-budget", errors.dailyBudget)}
-          inputMode="decimal"
-          min={0}
-          onChange={(event) => setBudget(event.target.value)}
-          step={budgetStep(digits)}
-          type="number"
-          value={budget}
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{t("name")}</FormLabel>
+              <FormControl>
+                <Input autoComplete="off" maxLength={255} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </Field>
-      {needsObjective ? (
-        <Field
-          error={errors.objective}
-          id="ads-campaign-objective"
-          label={t("objective")}
-        >
-          <Select onValueChange={setObjective} value={objective}>
-            <SelectTrigger
-              {...fieldProps("ads-campaign-objective", errors.objective)}
-              className="w-full"
-            >
-              <SelectValue placeholder={t("objectivePlaceholder")} />
-            </SelectTrigger>
-            <SelectContent>
-              {AD_CAMPAIGN_OBJECTIVES.map((candidate) => (
-                <SelectItem key={candidate} value={candidate}>
-                  {t(`objectives.${candidate}`)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-      ) : null}
-      {formError ? (
-        <p className="text-destructive text-sm" role="alert">
-          {formError}
-        </p>
-      ) : null}
-      <SheetFooter className="flex-row justify-end p-0">
-        <Button onClick={onClose} type="button" variant="ghost">
-          {tCampaigns("cancel")}
-        </Button>
-        <Button disabled={isSaving} type="submit">
-          {isSaving ? t("saving") : t("submit")}
-        </Button>
-      </SheetFooter>
-    </form>
-  );
-}
-
-/** The id and error wiring a control needs to match its `Field`. */
-function fieldProps(id: string, error: string | undefined) {
-  return {
-    id,
-    "aria-invalid": error ? true : undefined,
-    "aria-describedby": error ? `${id}-error` : undefined,
-  };
-}
-
-/** A label above a control, with the field's error beneath it. */
-function Field({
-  children,
-  error,
-  id,
-  label,
-}: {
-  children: React.ReactNode;
-  error: string | undefined;
-  id: string;
-  label: string;
-}) {
-  return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
-      {children}
-      {error ? (
-        <p className="text-destructive text-sm" id={`${id}-error`} role="alert">
-          {error}
-        </p>
-      ) : null}
-    </div>
+        <FormField
+          control={form.control}
+          name="dailyBudget"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>{budget.label}</FormLabel>
+              <FormControl>
+                <Input
+                  inputMode="decimal"
+                  min={0}
+                  step={budget.step}
+                  type="number"
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        {needsObjective ? (
+          <FormField
+            control={form.control}
+            name="objective"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>{t("objective")}</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder={t("objectivePlaceholder")} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {AD_CAMPAIGN_OBJECTIVES.map((candidate) => (
+                      <SelectItem key={candidate} value={candidate}>
+                        {t(`objectives.${candidate}`)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        ) : null}
+        {refusal ? (
+          <p className="text-destructive text-sm" role="alert">
+            {refusal === "reconnect" ? (
+              <>
+                {tCampaigns("errors.notActive.title")}{" "}
+                <Link
+                  className="underline"
+                  href={`/ads?${accountsParams.toString()}`}
+                >
+                  {tCampaigns("errors.notActive.action")}
+                </Link>
+              </>
+            ) : (
+              t("errors.failed")
+            )}
+          </p>
+        ) : null}
+        <DialogFooter>
+          <Button onClick={onClose} type="button" variant="ghost">
+            {tCampaigns("cancel")}
+          </Button>
+          <Button disabled={form.formState.isSubmitting} type="submit">
+            {form.formState.isSubmitting ? t("saving") : t("submit")}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
   );
 }

@@ -1,5 +1,5 @@
 import type { ProjectAdProvider } from "@sokosumi/core-client";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -8,24 +8,28 @@ import { createAdCampaign } from "@/lib/actions/ads/action";
 import messages from "../../../../../messages/en.json";
 import { AdsNewCampaign } from "./ads-new-campaign";
 
-const { isMobileMock, toastErrorMock, toastSuccessMock } = vi.hoisted(() => ({
-  isMobileMock: vi.fn(),
-  toastErrorMock: vi.fn(),
+const { toastSuccessMock } = vi.hoisted(() => ({
   toastSuccessMock: vi.fn(),
 }));
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: isMobileMock }));
 vi.mock("sonner", () => ({
-  toast: {
-    error: (...args: unknown[]) => toastErrorMock(...args),
-    success: (...args: unknown[]) => toastSuccessMock(...args),
-  },
+  toast: { success: (...args: unknown[]) => toastSuccessMock(...args) },
 }));
 vi.mock("@/lib/actions/ads/action", () => ({ createAdCampaign: vi.fn() }));
 
 const createMock = vi.mocked(createAdCampaign);
 
-async function openSheet(
+type CreateResult = Awaited<ReturnType<typeof createAdCampaign>>;
+
+/** Core's refusal as the action reports it: a code and the HTTP status. */
+function refused(status?: number): CreateResult {
+  return {
+    ok: false,
+    error: { code: "INTERNAL_SERVER_ERROR", message: "Core text", status },
+  };
+}
+
+async function openDialog(
   provider: ProjectAdProvider = "google_ads",
   currency = "USD",
 ) {
@@ -41,6 +45,7 @@ async function openSheet(
     </NextIntlClientProvider>,
   );
   await user.click(screen.getByRole("button", { name: "New campaign" }));
+  await screen.findByRole("dialog");
   return user;
 }
 
@@ -61,11 +66,10 @@ async function fill(
 describe("AdsNewCampaign", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    isMobileMock.mockReturnValue(false);
   });
 
-  it("opens a sheet that says campaigns are created paused", async () => {
-    await openSheet();
+  it("opens a dialog that says campaigns are created paused", async () => {
+    await openDialog();
 
     expect(screen.getByRole("dialog")).toBeVisible();
     expect(
@@ -75,32 +79,25 @@ describe("AdsNewCampaign", () => {
     ).toBeVisible();
   });
 
-  it("opens from the bottom on mobile", async () => {
-    isMobileMock.mockReturnValue(true);
-    await openSheet();
-
-    expect(screen.getByRole("dialog")).toHaveClass("inset-x-0", "bottom-0");
-  });
-
   it("has no objective field for Google", async () => {
-    await openSheet("google_ads");
+    await openDialog("google_ads");
 
     expect(screen.queryByLabelText("Objective")).toBeNull();
   });
 
   it("steps the budget by the currency's unit", async () => {
-    await openSheet("google_ads", "JPY");
+    await openDialog("google_ads", "JPY");
 
     expect(budgetInput("JPY")).toHaveAttribute("step", "1");
   });
 
   describe("validation", () => {
     it("asks for a name and a budget, calling nothing", async () => {
-      const user = await openSheet();
+      const user = await openDialog();
 
       await user.click(submit());
 
-      expect(screen.getByText("Enter a name.")).toBeVisible();
+      expect(await screen.findByText("Enter a name.")).toBeVisible();
       expect(
         screen.getByText("Enter a daily budget greater than 0."),
       ).toBeVisible();
@@ -109,59 +106,59 @@ describe("AdsNewCampaign", () => {
     });
 
     it("rejects a blank name", async () => {
-      const user = await openSheet();
+      const user = await openDialog();
 
       await fill(user, "   ", "10");
       await user.click(submit());
 
-      expect(screen.getByText("Enter a name.")).toBeVisible();
+      expect(await screen.findByText("Enter a name.")).toBeVisible();
       expect(createMock).not.toHaveBeenCalled();
     });
 
     it("rejects a budget of 0", async () => {
-      const user = await openSheet();
+      const user = await openDialog();
 
       await fill(user, "Spring sale", "0");
       await user.click(submit());
 
       expect(
-        screen.getByText("Enter a daily budget greater than 0."),
+        await screen.findByText("Enter a daily budget greater than 0."),
       ).toBeVisible();
       expect(createMock).not.toHaveBeenCalled();
     });
 
     it("rejects more decimals than the currency allows", async () => {
-      const user = await openSheet();
+      const user = await openDialog();
 
       await fill(user, "Spring sale", "10.005");
       await user.click(submit());
 
       expect(
-        screen.getByText("Use at most 2 decimal places for USD."),
+        await screen.findByText("Use at most 2 decimal places for USD."),
       ).toBeVisible();
       expect(createMock).not.toHaveBeenCalled();
     });
 
     it("asks for a whole number in JPY", async () => {
-      const user = await openSheet("google_ads", "JPY");
+      const user = await openDialog("google_ads", "JPY");
 
       await user.type(nameInput(), "Spring sale");
       await user.type(budgetInput("JPY"), "500.5");
       await user.click(submit());
 
-      expect(screen.getByText("Use a whole number for JPY.")).toBeVisible();
+      expect(
+        await screen.findByText("Use a whole number for JPY."),
+      ).toBeVisible();
       expect(createMock).not.toHaveBeenCalled();
     });
 
     it("requires an objective for Meta", async () => {
-      const user = await openSheet("meta_ads");
+      const user = await openDialog("meta_ads");
 
       await fill(user, "Spring sale", "10");
       await user.click(submit());
 
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Choose an objective",
-      );
+      expect(await screen.findByText("Choose an objective.")).toBeVisible();
       expect(createMock).not.toHaveBeenCalled();
     });
   });
@@ -169,7 +166,7 @@ describe("AdsNewCampaign", () => {
   describe("submit", () => {
     it("creates a Google campaign with no objective, then closes and says so", async () => {
       createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
-      const user = await openSheet();
+      const user = await openDialog();
 
       await fill(user, "  Spring sale ", "25.5");
       await user.click(submit());
@@ -191,7 +188,7 @@ describe("AdsNewCampaign", () => {
 
     it("sends the chosen objective for Meta", async () => {
       createMock.mockResolvedValue({ ok: true, value: { id: "42" } });
-      const user = await openSheet("meta_ads");
+      const user = await openDialog("meta_ads");
 
       await fill(user, "Spring sale", "10");
       await user.click(screen.getByRole("combobox", { name: "Objective" }));
@@ -205,12 +202,9 @@ describe("AdsNewCampaign", () => {
       );
     });
 
-    it("tells the precision on 422 and keeps the form open", async () => {
-      createMock.mockResolvedValue({
-        ok: false,
-        error: { code: "BAD_INPUT", message: "Core text", status: 422 },
-      });
-      const user = await openSheet();
+    it("tells the precision on 422 and keeps the dialog open", async () => {
+      createMock.mockResolvedValue(refused(422));
+      const user = await openDialog();
 
       await fill(user, "Spring sale", "10");
       await user.click(submit());
@@ -223,48 +217,41 @@ describe("AdsNewCampaign", () => {
       expect(nameInput()).toHaveValue("Spring sale");
     });
 
-    it("asks to reconnect on 409", async () => {
-      createMock.mockResolvedValue({
-        ok: false,
-        error: { code: "BAD_INPUT", message: "Core text", status: 409 },
-      });
-      const user = await openSheet();
+    it("asks to reconnect on 409, with a link to Accounts", async () => {
+      createMock.mockResolvedValue(refused(409));
+      const user = await openDialog();
 
       await fill(user, "Spring sale", "10");
       await user.click(submit());
 
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("Reconnect this account in Accounts");
       expect(
-        await screen.findByText("Reconnect this account in Accounts"),
-      ).toBeVisible();
+        within(alert).getByRole("link", { name: "Go to accounts" }),
+      ).toHaveAttribute("href", "/ads?projectId=project-1&tab=accounts");
       expect(screen.queryByText("Core text")).toBeNull();
     });
 
-    it.each([
-      [
-        "a Core failure",
-        { code: "INTERNAL_SERVER_ERROR", message: "Core text" },
-      ],
-      [
-        "a bad gateway",
-        { code: "INTERNAL_SERVER_ERROR", message: "x", status: 502 },
-      ],
-    ])("shows a generic message for %s", async (_name, error) => {
-      createMock.mockResolvedValue({ ok: false, error } as never);
-      const user = await openSheet();
+    it.each([[undefined], [502]])(
+      "shows a generic message for a Core failure (status %s)",
+      async (status) => {
+        createMock.mockResolvedValue(refused(status));
+        const user = await openDialog();
 
-      await fill(user, "Spring sale", "10");
-      await user.click(submit());
+        await fill(user, "Spring sale", "10");
+        await user.click(submit());
 
-      expect(
-        await screen.findByText("Failed to create campaign"),
-      ).toBeVisible();
-      expect(screen.queryByText("Core text")).toBeNull();
-      expect(toastSuccessMock).not.toHaveBeenCalled();
-    });
+        expect(
+          await screen.findByText("Failed to create campaign"),
+        ).toBeVisible();
+        expect(screen.queryByText("Core text")).toBeNull();
+        expect(toastSuccessMock).not.toHaveBeenCalled();
+      },
+    );
 
     it("shows the generic message when the action throws", async () => {
       createMock.mockRejectedValue(new Error("network"));
-      const user = await openSheet();
+      const user = await openDialog();
 
       await fill(user, "Spring sale", "10");
       await user.click(submit());

@@ -1,10 +1,13 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import type { AdCampaign, ProjectAdProvider } from "@sokosumi/core-client";
 import { MoreHorizontal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import * as z from "zod";
 
 import {
   AlertDialog,
@@ -31,14 +34,18 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { updateAdCampaign } from "@/lib/actions/ads/action";
 import {
-  budgetStep,
-  currencyFractionDigits,
-  hasValidPrecision,
-} from "@/lib/ads/campaign";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { updateAdCampaign } from "@/lib/actions/ads/action";
+
+import { useAdsBudget } from "./ads-budget";
 
 type CampaignDialog = "pause" | "resume" | "budget";
 
@@ -177,73 +184,52 @@ function BudgetDialog({
   provider,
 }: DialogProps) {
   const t = useTranslations("App.Ads.campaigns.budgetDialog");
+  const tBudget = useTranslations("App.Ads.campaigns.budget");
   const tCampaigns = useTranslations("App.Ads.campaigns");
   const tProvider = useTranslations("App.Ads.accounts.providers");
   const formatter = useFormatter();
-  const digits = currencyFractionDigits(currency);
-  const [value, setValue] = useState(
-    campaign.dailyBudget === null ? "" : String(campaign.dailyBudget),
-  );
-  const [error, setError] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
+  const budget = useAdsBudget(currency);
+  const form = useForm<{ dailyBudget: string }>({
+    resolver: zodResolver(z.object({ dailyBudget: budget.schema })),
+    defaultValues: {
+      dailyBudget:
+        campaign.dailyBudget === null ? "" : String(campaign.dailyBudget),
+    },
+  });
 
-  const budget = Number(value);
-  const isValid =
-    value.trim() !== "" &&
-    Number.isFinite(budget) &&
-    budget > 0 &&
-    hasValidPrecision(budget, digits);
-  const isUnchanged = isValid && budget === campaign.dailyBudget;
+  const value = form.watch("dailyBudget");
+  const isValid = budget.schema.safeParse(value).success;
+  const isUnchanged = isValid && Number(value) === campaign.dailyBudget;
   const money = (amount: number) =>
     formatter.number(amount, { style: "currency", currency });
 
-  function precisionError(): string {
-    return digits === 0
-      ? t("errors.wholeNumber", { currency })
-      : t("errors.precision", { digits, currency });
-  }
-
-  function validationError(): string | null {
-    if (value.trim() === "" || !Number.isFinite(budget) || budget <= 0) {
-      return t("errors.required");
-    }
-    return hasValidPrecision(budget, digits) ? null : precisionError();
-  }
-
-  function refusalError(status: number | undefined): string {
+  function refusalMessage(status: number | undefined): string {
     if (status === 409) {
-      return t("errors.shared", { provider: tProvider(provider) });
+      return tBudget("managedElsewhere", { provider: tProvider(provider) });
     }
-    return status === 422 ? precisionError() : tCampaigns("errors.update");
+    return status === 422
+      ? budget.precisionMessage
+      : tCampaigns("errors.update");
   }
 
-  async function handleSubmit(event: React.FormEvent): Promise<void> {
-    event.preventDefault();
-    const invalid = validationError();
-    if (invalid) {
-      setError(invalid);
-      return;
-    }
-
-    setError(null);
-    setIsSaving(true);
+  async function handleSubmit(values: { dailyBudget: string }): Promise<void> {
     try {
       const result = await updateAdCampaign({
         projectId,
         accountId,
         campaignId: campaign.id,
-        dailyBudget: budget,
+        dailyBudget: Number(values.dailyBudget),
       });
       if (result.ok) {
         toast.success(tCampaigns("success.updated"));
         onClose();
       } else {
-        setError(refusalError(result.error.status));
+        form.setError("dailyBudget", {
+          message: refusalMessage(result.error.status),
+        });
       }
     } catch {
-      setError(tCampaigns("errors.update"));
-    } finally {
-      setIsSaving(false);
+      form.setError("dailyBudget", { message: tCampaigns("errors.update") });
     }
   }
 
@@ -255,60 +241,61 @@ function BudgetDialog({
       }}
     >
       <DialogContent>
-        <form
-          className="grid gap-4"
-          noValidate
-          onSubmit={(event) => void handleSubmit(event)}
-        >
-          <DialogHeader>
-            <DialogTitle>{t("title")}</DialogTitle>
-            <DialogDescription>
-              {t("description", { name: campaign.name })}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-2">
-            <Label htmlFor="ads-daily-budget">{t("label", { currency })}</Label>
-            <Input
-              aria-describedby={error ? "ads-daily-budget-error" : undefined}
-              aria-invalid={error ? true : undefined}
-              id="ads-daily-budget"
-              inputMode="decimal"
-              min={0}
-              onChange={(event) => setValue(event.target.value)}
-              step={budgetStep(digits)}
-              type="number"
-              value={value}
+        <Form {...form}>
+          <form
+            className="grid gap-4"
+            noValidate
+            onSubmit={(event) => void form.handleSubmit(handleSubmit)(event)}
+          >
+            <DialogHeader>
+              <DialogTitle>{t("title")}</DialogTitle>
+              <DialogDescription>
+                {t("description", { name: campaign.name })}
+              </DialogDescription>
+            </DialogHeader>
+            <FormField
+              control={form.control}
+              name="dailyBudget"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{budget.label}</FormLabel>
+                  <FormControl>
+                    <Input
+                      inputMode="decimal"
+                      min={0}
+                      step={budget.step}
+                      type="number"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                  {isValid && !isUnchanged ? (
+                    <p className="text-muted-foreground text-sm" role="status">
+                      {t("change", {
+                        old:
+                          campaign.dailyBudget === null
+                            ? t("notSet")
+                            : money(campaign.dailyBudget),
+                        new: money(Number(value)),
+                      })}
+                    </p>
+                  ) : null}
+                </FormItem>
+              )}
             />
-            {error ? (
-              <p
-                className="text-destructive text-sm"
-                id="ads-daily-budget-error"
-                role="alert"
+            <DialogFooter>
+              <Button onClick={onClose} type="button" variant="ghost">
+                {tCampaigns("cancel")}
+              </Button>
+              <Button
+                disabled={form.formState.isSubmitting || isUnchanged}
+                type="submit"
               >
-                {error}
-              </p>
-            ) : null}
-            {isValid && !isUnchanged ? (
-              <p className="text-muted-foreground text-sm" role="status">
-                {t("change", {
-                  old:
-                    campaign.dailyBudget === null
-                      ? t("notSet")
-                      : money(campaign.dailyBudget),
-                  new: money(budget),
-                })}
-              </p>
-            ) : null}
-          </div>
-          <DialogFooter>
-            <Button onClick={onClose} type="button" variant="ghost">
-              {tCampaigns("cancel")}
-            </Button>
-            <Button disabled={isSaving || isUnchanged} type="submit">
-              {isSaving ? t("saving") : t("save")}
-            </Button>
-          </DialogFooter>
-        </form>
+                {form.formState.isSubmitting ? t("saving") : t("save")}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );

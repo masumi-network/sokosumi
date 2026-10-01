@@ -1,15 +1,8 @@
-import type { CreateAdCampaignRequest } from "@sokosumi/core-client";
+import { CreateAdCampaignRequestSchema } from "@sokosumi/core-client/schemas";
 
-/** Objectives Core accepts for a new Meta campaign. */
-export const AD_CAMPAIGN_OBJECTIVES = [
-  "OUTCOME_TRAFFIC",
-  "OUTCOME_AWARENESS",
-  "OUTCOME_ENGAGEMENT",
-  "OUTCOME_LEADS",
-  "OUTCOME_SALES",
-] as const satisfies readonly NonNullable<
-  CreateAdCampaignRequest["objective"]
->[];
+/** Objectives Core accepts for a new Meta campaign, from its API schema. */
+export const AD_CAMPAIGN_OBJECTIVES =
+  CreateAdCampaignRequestSchema.properties.objective.enum;
 
 /** Decimal places the currency allows: 2 for USD, 0 for JPY. */
 export function currencyFractionDigits(currency: string): number {

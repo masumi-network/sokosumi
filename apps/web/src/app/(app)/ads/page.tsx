@@ -72,7 +72,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     account && query.tab === "campaigns" ? (
       <div className="flex flex-col gap-6">
         <AdsCampaignsToolbar
-          accountId={account.id}
+          account={account}
           accounts={accounts}
           projectId={project.id}
           range={query.range}

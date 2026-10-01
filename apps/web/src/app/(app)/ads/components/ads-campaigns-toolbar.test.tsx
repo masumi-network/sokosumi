@@ -5,7 +5,6 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => false }));
 vi.mock("@/lib/actions/ads/action", () => ({ createAdCampaign: vi.fn() }));
 
 import messages from "../../../../../messages/en.json";
@@ -19,14 +18,13 @@ const ACCOUNTS = [
 function renderToolbar(
   accounts: ProjectAdAccount[],
   range: "7d" | "30d" = "30d",
-  accountId = accounts[0]?.id ?? "none",
 ) {
   const onUrlUpdate = vi.fn();
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
         <AdsCampaignsToolbar
-          accountId={accountId}
+          account={accounts[0]}
           accounts={accounts}
           projectId="project-1"
           range={range}
@@ -75,10 +73,5 @@ describe("AdsCampaignsToolbar", () => {
     renderToolbar(ACCOUNTS);
 
     expect(screen.getByRole("button", { name: "New campaign" })).toBeVisible();
-  });
-
-  it("offers no New campaign without a selected account", () => {
-    renderToolbar([]);
-    expect(screen.queryByRole("button", { name: "New campaign" })).toBeNull();
   });
 });

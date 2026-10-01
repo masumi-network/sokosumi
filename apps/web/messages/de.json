@@ -2802,7 +2802,7 @@
         "emptyBody": "Kampagnen aus Google Ads und Meta Ads erscheinen hier, sobald ein Konto verbunden ist.",
         "emptyAction": "Zu den Konten",
         "noCampaignsTitle": "Noch keine Kampagnen in diesem Konto",
-        "noCampaignsBody": "Kampagnen erscheinen hier, sobald dieses Werbekonto welche hat.",
+        "noCampaignsBody": "Erstelle eine mit „Neue Kampagne“. Sie startet pausiert.",
         "loading": "Kampagnen werden geladen…",
         "account": "Werbekonto",
         "rangeLabel": "Zeitraum",
@@ -2846,27 +2846,25 @@
           "description": "Die Kampagne gibt wieder Geld aus, bis zu ihrem Tagesbudget.",
           "confirm": "Fortsetzen"
         },
+        "budget": {
+          "label": "Tagesbudget ({currency})",
+          "required": "Gib ein Tagesbudget über 0 ein.",
+          "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
+          "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}.",
+          "managedElsewhere": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort."
+        },
         "budgetDialog": {
           "title": "Tagesbudget ändern",
           "description": "{name} gibt pro Tag höchstens diesen Betrag aus.",
-          "label": "Tagesbudget ({currency})",
           "save": "Budget speichern",
           "saving": "Wird gespeichert…",
           "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
-          "notSet": "nicht festgelegt",
-          "errors": {
-            "shared": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort.",
-            "required": "Gib ein Tagesbudget über 0 ein.",
-            "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
-            "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}."
-          }
+          "notSet": "nicht festgelegt"
         },
         "newCampaign": {
-          "button": "Neue Kampagne",
           "title": "Neue Kampagne",
           "note": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen in Google Ads / Meta Ads Manager hinzu und setze sie dann hier fort.",
           "name": "Name",
-          "budget": "Tagesbudget ({currency})",
           "objective": "Ziel",
           "objectivePlaceholder": "Ziel auswählen",
           "objectives": {
@@ -2882,10 +2880,7 @@
           "errors": {
             "nameRequired": "Gib einen Namen ein.",
             "nameTooLong": "Verwende höchstens 255 Zeichen.",
-            "budgetRequired": "Gib ein Tagesbudget über 0 ein.",
-            "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
-            "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}.",
-            "objectiveRequired": "Wähle ein Ziel",
+            "objectiveRequired": "Wähle ein Ziel.",
             "failed": "Kampagne konnte nicht erstellt werden"
           }
         },

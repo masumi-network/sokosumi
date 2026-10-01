@@ -23,40 +23,39 @@ const queryParsers = {
 
 interface AdsCampaignsToolbarProps {
   accounts: ProjectAdAccount[];
-  accountId: string;
+  account: ProjectAdAccount;
   projectId: string;
   range: RangeParam;
 }
 
 /**
  * Account and range, kept in `?account=` and `?range=` so the server loads
- * what the URL names. The switcher only appears with two or more accounts,
- * and "New campaign" only while one of them is selected.
+ * what the URL names. The switcher only appears with two or more accounts.
+ * "New campaign" creates in the selected account.
  */
 export function AdsCampaignsToolbar({
   accounts,
-  accountId,
+  account,
   projectId,
   range,
 }: AdsCampaignsToolbarProps) {
   const t = useTranslations("App.Ads.campaigns");
   const [, setQuery] = useQueryStates(queryParsers, { shallow: false });
-  const selected = accounts.find(({ id }) => id === accountId);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       {accounts.length > 1 ? (
         <Select
-          value={accountId}
+          value={account.id}
           onValueChange={(value) => void setQuery({ account: value })}
         >
           <SelectTrigger aria-label={t("account")} className="w-64 max-w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {accounts.map((account) => (
-              <SelectItem key={account.id} value={account.id}>
-                {account.name}
+            {accounts.map((candidate) => (
+              <SelectItem key={candidate.id} value={candidate.id}>
+                {candidate.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -81,14 +80,12 @@ export function AdsCampaignsToolbar({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-        {selected ? (
-          <AdsNewCampaign
-            accountId={selected.id}
-            currency={selected.currency}
-            projectId={projectId}
-            provider={selected.provider}
-          />
-        ) : null}
+        <AdsNewCampaign
+          accountId={account.id}
+          currency={account.currency}
+          projectId={projectId}
+          provider={account.provider}
+        />
       </div>
     </div>
   );

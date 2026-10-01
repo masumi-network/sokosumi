@@ -13,7 +13,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AdsCampaignActions } from "./ads-campaign-actions";
-import { AdsNewCampaign } from "./ads-new-campaign";
 
 /** What a metric shows when the provider has no value for it. */
 const NO_VALUE = "—";
@@ -66,14 +65,6 @@ export async function AdsCampaigns({
   if (campaigns.length === 0) {
     return (
       <EmptyState
-        action={
-          <AdsNewCampaign
-            accountId={accountId}
-            currency={currency}
-            projectId={projectId}
-            provider={provider}
-          />
-        }
         description={t("noCampaignsBody")}
         title={t("noCampaignsTitle")}
       />
