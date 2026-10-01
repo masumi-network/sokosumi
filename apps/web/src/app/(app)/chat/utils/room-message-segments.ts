@@ -122,3 +122,8 @@ export function segmentRoomMessageContent(
 
   return segments;
 }
+
+/** Whether the message ends in a row of attachments rather than text. */
+export function endsWithAttachmentRow(content: string): boolean {
+  return segmentRoomMessageContent(content).at(-1)?.kind === "files";
+}

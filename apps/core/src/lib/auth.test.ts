@@ -29,6 +29,7 @@ const {
   jwtPluginMock,
   lastLoginMethodPluginMock,
   oauthProviderPluginMock,
+  getOAuthProviderStateMock,
   oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
@@ -45,6 +46,7 @@ const {
   prismaVerificationCreateManyMock,
   reconcileActiveStripeBackedSubscriptionMock,
   renderEmailCodeEmailMock,
+  renderVerificationEmailMock,
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
   stripeCreateUserCustomerMock,
@@ -121,6 +123,9 @@ const {
     verification: {
       createMany: prismaVerificationCreateManyMock,
     },
+    oauthClient: {
+      findFirst: vi.fn(),
+    },
   };
 
   return {
@@ -141,6 +146,7 @@ const {
     jwtPluginMock: vi.fn(),
     lastLoginMethodPluginMock: vi.fn(),
     oauthProviderPluginMock: vi.fn(),
+    getOAuthProviderStateMock: vi.fn(),
     oAuthProxyPluginMock: vi.fn(),
     openAPIPluginMock: vi.fn(),
     organizationPluginMock: vi.fn(),
@@ -158,6 +164,7 @@ const {
     prismaOrganizationFindUniqueMock,
     reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
     renderEmailCodeEmailMock: vi.fn(),
+    renderVerificationEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
     sentryCaptureExceptionMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
@@ -254,6 +261,7 @@ vi.mock("@better-auth/api-key", () => ({
 
 vi.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
+  getOAuthProviderState: () => getOAuthProviderStateMock(),
 }));
 
 vi.mock("@better-auth/i18n", () => ({
@@ -429,6 +437,8 @@ vi.mock("@/helpers/design-md-metadata-auth", () => ({
 vi.mock("@sokosumi/email", () => ({
   renderEmailCodeEmail: (...args: unknown[]) =>
     renderEmailCodeEmailMock(...args),
+  renderVerificationEmail: (...args: unknown[]) =>
+    renderVerificationEmailMock(...args),
 }));
 
 describe("core auth config", () => {
@@ -453,6 +463,12 @@ describe("core auth config", () => {
     reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
     sendEmailMock.mockResolvedValue({ id: "email_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
+    getOAuthProviderStateMock.mockResolvedValue(null);
+    prismaMock.oauthClient.findFirst.mockResolvedValue(null);
+    renderVerificationEmailMock.mockResolvedValue({
+      html: "<html>verification</html>",
+      subject: "Sokosumi - Verify your email address",
+    });
     renderEmailCodeEmailMock.mockResolvedValue({
       html: "<html>email code</html>",
       subject: "Your Sokosumi code: 042917",
@@ -1537,6 +1553,120 @@ describe("core auth config", () => {
       tag: "email-code",
       subject: "Your Sokosumi code: 042917",
       html: "<html>email code</html>",
+    });
+  });
+
+  describe("verification email", () => {
+    type SendVerificationEmail = (
+      data: { user: { id: string; email: string; name: string }; url: string },
+      request?: Request,
+    ) => Promise<void>;
+
+    const VERIFY_URL =
+      "https://example.com/auth/verify-email?token=abc&callbackURL=%2F";
+    const user = { id: "user_1", email: "ada@example.com", name: "Ada" };
+
+    async function sendVerificationEmail(): Promise<void> {
+      await import("./auth");
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailVerification: { sendVerificationEmail: SendVerificationEmail };
+          },
+        ]
+      >;
+      await config.emailVerification.sendVerificationEmail(
+        { user, url: VERIFY_URL },
+        new Request("https://example.com/auth/sign-up/email", {
+          headers: { "accept-language": "en" },
+        }),
+      );
+      await flushWaitUntil();
+    }
+
+    function renderedLinkCallback(): string | null {
+      const [[props]] = renderVerificationEmailMock.mock.calls as Array<
+        [{ verificationLink: string }]
+      >;
+      return new URL(props.verificationLink).searchParams.get("callbackURL");
+    }
+
+    it("names the app a sign-up came from and sends the link back to it", async () => {
+      getOAuthProviderStateMock.mockResolvedValue({
+        query: "response_type=code&client_id=cmo-client&scope=openid",
+      });
+      prismaMock.oauthClient.findFirst.mockResolvedValue({ name: "CMO" });
+
+      await sendVerificationEmail();
+
+      expect(prismaMock.oauthClient.findFirst).toHaveBeenCalledWith({
+        where: { clientId: "cmo-client", disabled: false },
+        select: { name: true },
+      });
+      expect(renderVerificationEmailMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Ada", clientName: "CMO" }),
+      );
+      expect(renderedLinkCallback()).toBe(
+        "https://preprod.sokosumi.com/auth/email-confirmed?client_id=cmo-client",
+      );
+      expect(sendEmailMock).toHaveBeenCalledWith({
+        to: "ada@example.com",
+        tag: "verification-email",
+        subject: "Sokosumi - Verify your email address",
+        html: "<html>verification</html>",
+      });
+    });
+
+    it("keeps Sokosumi's email and link for a sign-up without an OAuth request", async () => {
+      await sendVerificationEmail();
+
+      expect(prismaMock.oauthClient.findFirst).not.toHaveBeenCalled();
+      expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+        locale: "en",
+        name: "Ada",
+        verificationLink: expect.any(String),
+      });
+      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+    });
+
+    it.each([null, "", "   "])(
+      "keeps Sokosumi's email and link when the client has no name (%j)",
+      async (name) => {
+        getOAuthProviderStateMock.mockResolvedValue({
+          query: "response_type=code&client_id=unnamed",
+        });
+        prismaMock.oauthClient.findFirst.mockResolvedValue({ name });
+
+        await sendVerificationEmail();
+
+        expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+          locale: "en",
+          name: "Ada",
+          verificationLink: expect.any(String),
+        });
+        expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+      },
+    );
+
+    it("still sends Sokosumi's email when the client lookup fails", async () => {
+      getOAuthProviderStateMock.mockResolvedValue({
+        query: "response_type=code&client_id=cmo-client",
+      });
+      const lookupError = new Error("database unavailable");
+      prismaMock.oauthClient.findFirst.mockRejectedValue(lookupError);
+
+      await sendVerificationEmail();
+
+      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+      expect(sendEmailMock).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "ada@example.com" }),
+      );
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+        lookupError,
+        expect.objectContaining({
+          tags: { context: "verification_email_client" },
+        }),
+      );
     });
   });
 
