@@ -75,6 +75,7 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
     getSchedule: (scheduleId: string) => getScheduleMock(scheduleId),
     listUpcomingRuns: (scheduleId: string, params: unknown) =>
       listUpcomingRunsMock(scheduleId, params),
+    listManualRuns: async () => [],
   },
 }));
 

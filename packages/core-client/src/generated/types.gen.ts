@@ -6909,15 +6909,19 @@ export type TaskScheduleRun = {
      */
     effectiveScheduledAt: Date;
     /**
+     * Run now: released by hand outside the rule, and not counted toward an end-after-N rule
+     */
+    manual: boolean;
+    /**
      * Task this Run created
      */
     releasedTaskId: string | null;
     /**
-     * Person who last skipped, moved, or restored it
+     * Person who ran it now, or last skipped, moved, or restored it
      */
     actorUserId: string | null;
     /**
-     * Coworker that last skipped, moved, or restored it
+     * Coworker that ran it now, or last skipped, moved, or restored it
      */
     actorCoworkerId: string | null;
     updatedAt: Date;
@@ -6929,6 +6933,13 @@ export type TaskScheduleRunUpdate = {
      */
     revision: number;
     run: TaskScheduleRun;
+};
+
+export type CreateTaskScheduleRunRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -49305,6 +49316,10 @@ export type GetTasksSchedulesByIdRunsData = {
          * Only Runs before this time
          */
         to?: Date;
+        /**
+         * Only Run now Runs (true) or only the rule's Runs (false)
+         */
+        manual?: 'true' | 'false';
     };
     url: '/tasks/schedules/{id}/runs';
 };
@@ -49374,6 +49389,125 @@ export type GetTasksSchedulesByIdRunsResponses = {
 };
 
 export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
+
+export type PostTasksSchedulesByIdRunsData = {
+    body?: CreateTaskScheduleRunRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/runs';
+};
+
+export type PostTasksSchedulesByIdRunsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsError = PostTasksSchedulesByIdRunsErrors[keyof PostTasksSchedulesByIdRunsErrors];
+
+export type PostTasksSchedulesByIdRunsResponses = {
+    /**
+     * Run created
+     */
+    201: {
+        data: TaskScheduleRunUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsResponse = PostTasksSchedulesByIdRunsResponses[keyof PostTasksSchedulesByIdRunsResponses];
 
 export type PatchTasksSchedulesByIdRunsByRunIdData = {
     body?: UpdateTaskScheduleRunRequest;

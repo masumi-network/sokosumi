@@ -259,6 +259,13 @@ export const taskScheduleRunListQuerySchema =
       description: "Only Runs before this time",
       example: "2026-11-01T00:00:00.000Z",
     }),
+    manual: z
+      .enum(["true", "false"])
+      .optional()
+      .openapi({
+        param: { name: "manual", in: "query" },
+        description: "Only Run now Runs (true) or only the rule's Runs (false)",
+      }),
   });
 
 /**
@@ -280,14 +287,21 @@ export const taskScheduleRunSchema = z
     effectiveScheduledAt: dateTimeSchema.openapi({
       description: "Time the Run holds; differs from the rule when moved",
     }),
+    manual: z.boolean().openapi({
+      description:
+        "Run now: released by hand outside the rule, and not counted toward an end-after-N rule",
+      example: false,
+    }),
     releasedTaskId: z.string().nullable().openapi({
       description: "Task this Run created",
     }),
     actorUserId: z.string().nullable().openapi({
-      description: "Person who last skipped, moved, or restored it",
+      description:
+        "Person who ran it now, or last skipped, moved, or restored it",
     }),
     actorCoworkerId: z.string().nullable().openapi({
-      description: "Coworker that last skipped, moved, or restored it",
+      description:
+        "Coworker that ran it now, or last skipped, moved, or restored it",
     }),
     updatedAt: dateTimeSchema,
   })
@@ -327,6 +341,10 @@ export const updateTaskScheduleRunRequestSchema = z
   ])
   .openapi("UpdateTaskScheduleRunRequest");
 
+export const createTaskScheduleRunRequestSchema = z
+  .object(runChangePrecondition)
+  .openapi("CreateTaskScheduleRunRequest");
+
 export const taskScheduleRunUpdateSchema = z
   .object({
     revision: z.number().int().nonnegative().openapi({
@@ -340,6 +358,9 @@ export const taskScheduleRunUpdateSchema = z
 export type TaskScheduleRule = z.infer<typeof taskScheduleRuleSchema>;
 export type TaskScheduleRunListQuery = z.infer<
   typeof taskScheduleRunListQuerySchema
+>;
+export type CreateTaskScheduleRunRequest = z.infer<
+  typeof createTaskScheduleRunRequestSchema
 >;
 export type UpdateTaskScheduleRunRequest = z.infer<
   typeof updateTaskScheduleRunRequestSchema

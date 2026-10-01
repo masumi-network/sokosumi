@@ -3088,7 +3088,7 @@ enum TaskScheduleRunState {
 
 /// SQL-only checks (Prisma cannot express them): a released Run has its Task
 /// and only a released one does; at most one actor; a PROJECT source has its
-/// project and no other source does.
+/// project and no other source does; a manual Run is released.
 model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -3107,6 +3107,9 @@ model TaskScheduleRun {
   effectiveScheduledAt DateTime
 
   state TaskScheduleRunState
+  /// Run now (ADR 0047): released by hand, outside the rule, and not counted
+  /// toward an end-after-N rule.
+  manual Boolean @default(false)
 
   sourceWorkspaceId String             @db.Uuid
   sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
@@ -3114,8 +3117,8 @@ model TaskScheduleRun {
   sourceProjectId   String?            @db.Uuid
   sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
-  /// Who last skipped, moved, or restored this Run: a person or a
-  /// Coworker vendor, at most one of them.
+  /// Who ran this Run now, or last skipped, moved, or restored it: a person
+  /// or a Coworker vendor, at most one of them.
   actorUserId     String?
   actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   actorCoworkerId String?

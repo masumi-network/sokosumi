@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   TaskSchedule,
   TaskScheduleAssignees,
   TaskScheduleRun,
@@ -85,16 +86,38 @@ export const taskScheduleService = (() => {
     await coreClient.deleteTaskScheduleById(id);
   }
 
-  /** The next Runs from `from` on, in time order. */
+  /** The rule's next Runs from `from` on, in time order. */
   async function listUpcomingRuns(
     id: string,
     params: { from: Date; limit: number },
   ): Promise<TaskScheduleRun[]> {
     const result = await coreClient.listTaskScheduleRuns(id, {
       from: params.from,
+      manual: "false",
       limit: params.limit,
     });
     return result.data;
+  }
+
+  /** The Run now Runs from `from` on, oldest first. */
+  async function listManualRuns(
+    id: string,
+    params: { from: Date; limit: number },
+  ): Promise<TaskScheduleRun[]> {
+    const result = await coreClient.listTaskScheduleRuns(id, {
+      from: params.from,
+      manual: "true",
+      limit: params.limit,
+    });
+    return result.data;
+  }
+
+  /** Run now: one extra Run that creates its Task at once. */
+  async function runNow(
+    id: string,
+    body: CreateTaskScheduleRunRequest,
+  ): Promise<TaskScheduleRunUpdate> {
+    return (await coreClient.createTaskScheduleRun(id, body)).data;
   }
 
   /** Skips, moves, or restores one upcoming Run; the rule stays as it is. */
@@ -115,6 +138,8 @@ export const taskScheduleService = (() => {
     changeScheduleState,
     deleteSchedule,
     listUpcomingRuns,
+    listManualRuns,
+    runNow,
     changeRun,
   };
 })();

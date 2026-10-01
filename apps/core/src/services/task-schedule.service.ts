@@ -32,7 +32,10 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import { isOperationIdUniqueConstraintError } from "@/helpers/prisma";
+import {
+  isOperationIdUniqueConstraintError,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {
@@ -53,6 +56,7 @@ import {
 } from "@/middleware/workspace";
 import type {
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   TaskScheduleListQuery,
   TaskScheduleRule,
   TaskScheduleRunListQuery,
@@ -65,11 +69,13 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 import {
+  announceReleasedTasks,
   cancelMissedTaskScheduleRuns,
   isRunException,
   moveTaskScheduleRunsToProject,
   projectTaskScheduleRuns,
   RUN_HORIZON_MS,
+  releaseManualTaskScheduleRun,
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
@@ -446,6 +452,7 @@ export async function listTaskScheduleRuns(
       gte: query.from ? new Date(query.from) : undefined,
       lt: query.to ? new Date(query.to) : undefined,
     },
+    manual: query.manual === undefined ? undefined : query.manual === "true",
   };
   const [rows, total] = await Promise.all([
     prisma.taskScheduleRun.findMany({
@@ -852,6 +859,60 @@ export async function changeTaskScheduleRun(
 }
 
 /**
+ * Run now (ADR 0047) on an Active or Paused schedule: one extra Run, released
+ * at once. The rule, its planned Runs, and `nextRunAt` stay as they are.
+ * Revision-checked, so a repeated submit creates one Task.
+ */
+export async function runTaskScheduleNow(
+  vars: RouteVars,
+  id: string,
+  { expectedRevision }: CreateTaskScheduleRunRequest,
+): Promise<{ revision: number; run: TaskScheduleRun }> {
+  const actor = await resolveScheduleActor(vars);
+
+  const { run, task } = await prisma.$transaction(async (tx) => {
+    const current = await findReadableSchedule(actor, id, tx);
+    requireScheduleWriteAccess(actor, current);
+    if (current.state === TaskScheduleState.ENDED) {
+      throwStateConflict("An Ended Task Schedule cannot run");
+    }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
+    if (current.revision !== expectedRevision) {
+      throwRevisionConflict();
+    }
+    // Claimed first, so a concurrent edit or a second submit fails before any
+    // Task. Every change bumps the revision, so a lost claim is a stale one.
+    const { count } = await tx.taskSchedule.updateMany({
+      where: { id, state: current.state, revision: expectedRevision },
+      data: { revision: { increment: 1 } },
+    });
+    if (count !== 1) {
+      throwRevisionConflict();
+    }
+    try {
+      return await releaseManualTaskScheduleRun(
+        tx,
+        current,
+        new Date(),
+        actorColumns(actor),
+      );
+    } catch (error) {
+      // The Run's time fell on a rule time to the millisecond.
+      if (isPrismaUniqueViolation(error)) {
+        throw conflict("Another Run holds this time; try again", {
+          kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
+        });
+      }
+      throw error;
+    }
+  });
+  await announceReleasedTasks([task]);
+  return { revision: expectedRevision + 1, run };
+}
+
+/**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
  * null (ADR 0041).
  */
@@ -911,6 +972,7 @@ export function mapTaskScheduleRun(run: TaskScheduleRun) {
     state: run.state,
     originalScheduledAt: run.originalScheduledAt,
     effectiveScheduledAt: run.effectiveScheduledAt,
+    manual: run.manual,
     releasedTaskId: run.releasedTaskId,
     actorUserId: run.actorUserId,
     actorCoworkerId: run.actorCoworkerId,
