@@ -73,6 +73,7 @@ export const userBadgeCampaignsResponseSchema = z
       z.object({
         id: z.string(),
         feature: announcedFeatureSchema,
+        endsAt: dateTimeSchema,
       }),
     ),
   })

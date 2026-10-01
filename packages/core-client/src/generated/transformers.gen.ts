@@ -1950,7 +1950,16 @@ export const postUsersByIdNoticesByNoticeIdAcknowledgeResponseTransformer = asyn
     return data;
 };
 
+const userBadgeCampaignsSchemaResponseTransformer = (data: any) => {
+    data.badgeCampaigns = data.badgeCampaigns.map((item: any) => {
+        item.endsAt = new Date(item.endsAt);
+        return item;
+    });
+    return data;
+};
+
 export const getUserBadgeCampaignsResponseTransformer = async (data: any): Promise<GetUserBadgeCampaignsResponse> => {
+    data.data = userBadgeCampaignsSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

@@ -3,12 +3,14 @@ import { createRoute } from "@hono/zod-openapi";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   badgeCampaignIdParamsSchema,
   badgeCampaignSchema,
 } from "@/schemas/badge-campaign.schema";
+
+import { lockBadgeCampaign } from "../../campaign-lock";
 
 const route = createRoute({
   method: "post",
@@ -30,20 +32,27 @@ const route = createRoute({
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
-    const now = new Date();
 
-    const campaign = await prisma.badgeCampaign.findUnique({ where: { id } });
-    if (!campaign) {
-      throw notFound("Badge campaign not found");
-    }
-    if (campaign.startsAt > now || campaign.endsAt <= now) {
-      throw conflict("Only a running campaign can be ended");
-    }
+    const ended = await serializableTransaction(async (tx) => {
+      await lockBadgeCampaign(tx, id);
+      const campaign = await tx.badgeCampaign.findUnique({ where: { id } });
+      if (!campaign) {
+        throw notFound("Badge campaign not found");
+      }
+      const now = new Date();
+      if (campaign.startsAt > now || campaign.endsAt <= now) {
+        throw conflict("Only a running campaign can be ended");
+      }
 
-    const ended = await prisma.badgeCampaign.update({
-      where: { id },
-      data: { endsAt: now },
-    });
+      const updated = await tx.$executeRaw`
+        WITH clock AS (SELECT clock_timestamp() AT TIME ZONE 'UTC' AS now)
+        UPDATE "badge_campaign" SET "endsAt" = ${now}, "updatedAt" = ${now}
+        FROM clock WHERE "id" = ${id}
+          AND "startsAt" <= clock.now AND "endsAt" > clock.now
+      `;
+      if (!updated) throw conflict("Only a running campaign can be ended");
+      return tx.badgeCampaign.findUniqueOrThrow({ where: { id } });
+    }, "Badge campaign changed concurrently; try again");
 
     return ok(c, badgeCampaignSchema.parse(ended));
   });

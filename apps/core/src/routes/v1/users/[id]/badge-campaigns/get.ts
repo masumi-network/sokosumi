@@ -59,7 +59,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
         endsAt: { gt: now },
         seenBy: { none: { userId: resolvedUserId } },
       },
-      select: { id: true, feature: true },
+      select: { id: true, feature: true, endsAt: true },
     });
 
     return ok(c, userBadgeCampaignsResponseSchema.parse({ badgeCampaigns }));

@@ -4626,6 +4626,7 @@ export type UserBadgeCampaigns = {
     badgeCampaigns: Array<{
         id: string;
         feature: AnnouncedFeature;
+        endsAt: Date;
     }>;
 };
 

@@ -127,7 +127,10 @@ export default async function AuthenticatedAppFrame({
                       workspaceId={activeOrganizationId}
                     >
                       <NewTaskWizardProvider>
-                        <FeatureBadgesProvider campaigns={loadBadgeCampaigns()}>
+                        <FeatureBadgesProvider
+                          userId={session.user.id}
+                          campaigns={loadBadgeCampaigns()}
+                        >
                           <PrivateCachedAppSidebar
                             sessionUser={session.user}
                             activeOrganizationId={activeOrganizationId}

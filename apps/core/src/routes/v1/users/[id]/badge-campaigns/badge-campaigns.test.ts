@@ -86,7 +86,11 @@ describe("users/{id}/badge-campaigns", () => {
 
   it("returns the live campaigns that started after sign-up and are not seen", async () => {
     campaignFindManyMock.mockResolvedValueOnce([
-      { id: CAMPAIGN_ID, feature: "DRIVE" },
+      {
+        id: CAMPAIGN_ID,
+        feature: "DRIVE",
+        endsAt: new Date("2026-10-22T00:00:00Z"),
+      },
     ]);
 
     const response = await createApp().request(
@@ -96,7 +100,13 @@ describe("users/{id}/badge-campaigns", () => {
 
     expect(response.status).toBe(200);
     expect(body.data).toEqual({
-      badgeCampaigns: [{ id: CAMPAIGN_ID, feature: "DRIVE" }],
+      badgeCampaigns: [
+        {
+          id: CAMPAIGN_ID,
+          feature: "DRIVE",
+          endsAt: "2026-10-22T00:00:00.000Z",
+        },
+      ],
     });
     expect(campaignFindManyMock).toHaveBeenCalledWith({
       where: {
@@ -107,7 +117,7 @@ describe("users/{id}/badge-campaigns", () => {
         endsAt: { gt: NOW },
         seenBy: { none: { userId: "user_123" } },
       },
-      select: { id: true, feature: true },
+      select: { id: true, feature: true, endsAt: true },
     });
   });
 

@@ -17,31 +17,39 @@ import mountCreateAdminBadgeCampaign from "./post";
 
 const {
   createMock,
-  deleteMock,
   findFirstMock,
   findManyMock,
   findUniqueMock,
   updateMock,
+  transactionMock,
+  executeMock,
   authContextState,
 } = vi.hoisted(() => ({
   authContextState: { current: null as AuthenticationContext | null },
   createMock: vi.fn(),
-  deleteMock: vi.fn(),
   findFirstMock: vi.fn(),
   findManyMock: vi.fn(),
   findUniqueMock: vi.fn(),
   updateMock: vi.fn(),
+  transactionMock: vi.fn(),
+  executeMock: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: transactionMock,
     badgeCampaign: {
-      create: createMock,
-      delete: deleteMock,
-      findFirst: findFirstMock,
       findMany: findManyMock,
-      findUnique: findUniqueMock,
-      update: updateMock,
+      // A write or invariant read outside the callback is a regression.
+      create: vi.fn(() => {
+        throw new Error("write outside transaction");
+      }),
+      findFirst: vi.fn(() => {
+        throw new Error("overlap outside transaction");
+      }),
+      findUnique: vi.fn(() => {
+        throw new Error("lifecycle read outside transaction");
+      }),
     },
   },
 }));
@@ -116,6 +124,20 @@ describe("admin badge campaigns", () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(NOW);
     findFirstMock.mockResolvedValue(null);
+    executeMock.mockResolvedValue(1);
+    transactionMock.mockImplementation(async (callback) =>
+      callback({
+        $queryRaw: vi.fn().mockResolvedValue([]),
+        $executeRaw: executeMock,
+        badgeCampaign: {
+          create: createMock,
+          findFirst: findFirstMock,
+          findUnique: findUniqueMock,
+          update: updateMock,
+          findUniqueOrThrow: updateMock,
+        },
+      }),
+    );
   });
 
   afterEach(() => {
@@ -168,6 +190,19 @@ describe("admin badge campaigns", () => {
         endsAt: new Date("2026-10-26T00:00:00.000Z"),
         createdById: "user_admin",
       },
+    });
+  });
+
+  it("checks overlap and writes inside a Serializable transaction", async () => {
+    createMock.mockResolvedValueOnce(campaignRow());
+    const response = await jsonRequest("POST", "/", {
+      feature: "DRIVE",
+      startsAt: "2026-10-05T00:00:00.000Z",
+      endsAt: "2026-10-26T00:00:00.000Z",
+    });
+    expect(response.status).toBe(200);
+    expect(transactionMock).toHaveBeenCalledWith(expect.any(Function), {
+      isolationLevel: "Serializable",
     });
   });
 
@@ -234,13 +269,14 @@ describe("admin badge campaigns", () => {
       },
       select: { id: true },
     });
-    expect(updateMock).toHaveBeenCalledWith({
-      where: { id: CAMPAIGN_ID },
-      data: {
-        startsAt: new Date("2026-09-20T00:00:00.000Z"),
-        endsAt: new Date("2026-10-01T12:00:00.000Z"),
-      },
-    });
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      new Date("2026-09-20T00:00:00.000Z"),
+      NOW,
+      NOW,
+      CAMPAIGN_ID,
+      new Date("2026-09-20T00:00:00.000Z"),
+    );
   });
 
   it("returns 404 when patching a missing campaign", async () => {
@@ -264,7 +300,17 @@ describe("admin badge campaigns", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(deleteMock).toHaveBeenCalledWith({ where: { id: CAMPAIGN_ID } });
+    expect(executeMock).toHaveBeenCalledWith(expect.any(Array), CAMPAIGN_ID);
+  });
+
+  it("rejects deletion when the start arrives at the write boundary", async () => {
+    findUniqueMock.mockResolvedValueOnce(campaignRow());
+    executeMock.mockResolvedValueOnce(0);
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}`,
+      { method: "DELETE" },
+    );
+    expect(response.status).toBe(409);
   });
 
   it("refuses to delete a campaign that has started", async () => {
@@ -278,7 +324,7 @@ describe("admin badge campaigns", () => {
     );
 
     expect(response.status).toBe(409);
-    expect(deleteMock).not.toHaveBeenCalled();
+    expect(executeMock).not.toHaveBeenCalled();
   });
 
   it("refuses to move a started campaign's start into the future", async () => {
@@ -312,10 +358,12 @@ describe("admin badge campaigns", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(updateMock).toHaveBeenCalledWith({
-      where: { id: CAMPAIGN_ID },
-      data: { endsAt: NOW },
-    });
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      NOW,
+      NOW,
+      CAMPAIGN_ID,
+    );
   });
 
   it("refuses to end a campaign that is not running", async () => {

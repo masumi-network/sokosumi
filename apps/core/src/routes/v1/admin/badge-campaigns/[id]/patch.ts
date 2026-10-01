@@ -3,14 +3,14 @@ import { createRoute } from "@hono/zod-openapi";
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   badgeCampaignIdParamsSchema,
   badgeCampaignSchema,
   updateBadgeCampaignRequestSchema,
 } from "@/schemas/badge-campaign.schema";
-
+import { lockBadgeCampaign } from "../campaign-lock";
 import { assertNoOverlappingBadgeCampaign } from "../overlap";
 
 const route = createRoute({
@@ -47,28 +47,42 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const startsAt = new Date(body.startsAt);
     const endsAt = new Date(body.endsAt);
 
-    const existing = await prisma.badgeCampaign.findUnique({ where: { id } });
-    if (!existing) {
-      throw notFound("Badge campaign not found");
-    }
-    // Un-starting a campaign would make it deletable, and deleting drops who
-    // saw it: a started campaign is ended, never rewound.
-    const now = new Date();
-    if (existing.startsAt <= now && startsAt > now) {
-      throw conflict("A started campaign's start cannot move into the future");
-    }
+    const campaign = await serializableTransaction(async (tx) => {
+      await lockBadgeCampaign(tx, id);
+      const existing = await tx.badgeCampaign.findUnique({ where: { id } });
+      if (!existing) {
+        throw notFound("Badge campaign not found");
+      }
+      await assertNoOverlappingBadgeCampaign(tx, {
+        feature: existing.feature,
+        startsAt,
+        endsAt,
+        excludeId: id,
+      });
 
-    await assertNoOverlappingBadgeCampaign({
-      feature: existing.feature,
-      startsAt,
-      endsAt,
-      excludeId: id,
-    });
+      // Un-starting a campaign would make it deletable, and deleting drops who
+      // saw it: a started campaign is ended, never rewound.
+      const now = new Date();
+      if (existing.startsAt <= now && startsAt > now) {
+        throw conflict(
+          "A started campaign's start cannot move into the future",
+        );
+      }
 
-    const campaign = await prisma.badgeCampaign.update({
-      where: { id },
-      data: { startsAt, endsAt },
-    });
+      // now()/CURRENT_TIMESTAMP freeze at transaction start. Sample the
+      // database clock at the mutation, after any lock/network waits.
+      const updated = await tx.$executeRaw`
+        WITH clock AS (SELECT clock_timestamp() AT TIME ZONE 'UTC' AS now)
+        UPDATE "badge_campaign" SET "startsAt" = ${startsAt}, "endsAt" = ${endsAt}, "updatedAt" = ${now}
+        FROM clock WHERE "id" = ${id}
+          AND ("startsAt" > clock.now OR ${startsAt} <= clock.now)
+      `;
+      if (!updated)
+        throw conflict(
+          "A started campaign's start cannot move into the future",
+        );
+      return tx.badgeCampaign.findUniqueOrThrow({ where: { id } });
+    }, "Badge campaigns changed concurrently; try again");
 
     return ok(c, badgeCampaignSchema.parse(campaign));
   });

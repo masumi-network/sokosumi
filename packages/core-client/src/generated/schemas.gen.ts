@@ -15731,11 +15731,17 @@ export const UserBadgeCampaignsSchema = {
                     },
                     feature: {
                         $ref: '#/components/schemas/AnnouncedFeature'
+                    },
+                    endsAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
                     }
                 },
                 required: [
                     'id',
-                    'feature'
+                    'feature',
+                    'endsAt'
                 ]
             }
         }

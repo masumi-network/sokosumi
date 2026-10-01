@@ -2,7 +2,7 @@ import { createRoute } from "@hono/zod-openapi";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import {
@@ -43,15 +43,17 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const startsAt = new Date(body.startsAt);
     const endsAt = new Date(body.endsAt);
 
-    await assertNoOverlappingBadgeCampaign({
-      feature: body.feature,
-      startsAt,
-      endsAt,
-    });
+    const campaign = await serializableTransaction(async (tx) => {
+      await assertNoOverlappingBadgeCampaign(tx, {
+        feature: body.feature,
+        startsAt,
+        endsAt,
+      });
 
-    const campaign = await prisma.badgeCampaign.create({
-      data: { feature: body.feature, startsAt, endsAt, createdById: userId },
-    });
+      return tx.badgeCampaign.create({
+        data: { feature: body.feature, startsAt, endsAt, createdById: userId },
+      });
+    }, "Badge campaigns changed concurrently; try again");
 
     return ok(c, badgeCampaignSchema.parse(campaign));
   });
