@@ -4624,6 +4624,23 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -4648,6 +4665,9 @@ export const TaskSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -4771,10 +4791,13 @@ export const TaskSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
@@ -4853,6 +4876,14 @@ export const ProjectSummarySchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         logo: {
             type: [
                 'string',
@@ -4865,6 +4896,7 @@ export const ProjectSummarySchema = {
     required: [
         'id',
         'name',
+        'identifier',
         'logo'
     ]
 } as const;
@@ -5182,6 +5214,19 @@ export const TaskVisibilitySchema = {
     ],
     example: 'PUBLIC',
     description: 'PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner\'s Soko Bot, and the assigned coworker\'s vendor family. Set at create; immutable.'
+} as const;
+
+export const TaskPrioritySchema = {
+    type: 'string',
+    enum: [
+        'URGENT',
+        'HIGH',
+        'MEDIUM',
+        'LOW',
+        'NONE'
+    ],
+    example: 'NONE',
+    description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
 } as const;
 
 export const TaskEventSchema = {
@@ -5901,7 +5946,8 @@ export const TaskLinkSchema = {
             id: 'tsk_b',
             name: 'Review onboarding copy',
             status: 'READY',
-            archivedAt: null
+            archivedAt: null,
+            identifier: 'SOK-12'
         },
         note: 'Blocked until onboarding copy is approved'
     }
@@ -5948,19 +5994,29 @@ export const TaskLinkPeerTaskSchema = {
             ],
             format: 'date-time',
             example: null
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-12',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the peer has no project.'
         }
     },
     required: [
         'id',
         'name',
         'status',
-        'archivedAt'
+        'archivedAt',
+        'identifier'
     ],
     example: {
         id: 'tsk_b',
         name: 'Review onboarding copy',
         status: 'READY',
-        archivedAt: null
+        archivedAt: null,
+        identifier: 'SOK-12'
     }
 } as const;
 
@@ -16847,6 +16903,14 @@ export const ProjectSchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         briefing: {
             type: [
                 'string',
@@ -16968,6 +17032,7 @@ export const ProjectSchema = {
         'id',
         'workspaceId',
         'name',
+        'identifier',
         'briefing',
         'briefingUrl',
         'latestUpdate',
@@ -17017,6 +17082,12 @@ export const CreateProjectRequestSchema = {
             ],
             maxLength: 2048,
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.',
+            example: 'SOK'
         }
     },
     required: [
@@ -18944,6 +19015,12 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
+            example: 'SOK'
         }
     }
 } as const;
@@ -22960,6 +23037,23 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -22984,6 +23078,9 @@ export const TaskListItemSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -23061,10 +23158,13 @@ export const TaskListItemSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',

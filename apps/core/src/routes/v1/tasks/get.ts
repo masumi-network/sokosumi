@@ -96,12 +96,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt", "updatedAt"])
+  .enum(["createdAt", "updatedAt", "priority"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.",
     example: "createdAt",
   });
 
@@ -344,7 +344,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const orderBy =
       sort === "updatedAt"
         ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
-        : ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const);
+        : sort === "priority"
+          ? ([
+              { priority: "asc" as const },
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const)
+          : ([
+              { createdAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

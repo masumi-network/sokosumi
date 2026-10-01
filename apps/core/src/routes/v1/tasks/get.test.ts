@@ -1,4 +1,4 @@
-import { TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { TaskPriority, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -170,6 +170,8 @@ function createTask() {
     name: "Task A",
     description: null,
     status: TaskStatus.READY,
+    priority: TaskPriority.NONE,
+    number: null,
     _count: {
       events: 0,
       jobs: 0,
@@ -674,6 +676,64 @@ describe("GET /tasks", () => {
 
     expect(response.status).toBe(422);
     expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("sorts by priority, then most recently updated, with sort=priority", async () => {
+    const response = await createApp().request(
+      "http://localhost/?sort=priority",
+    );
+
+    expect(response.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ priority: "asc" }, { updatedAt: "desc" }, { id: "desc" }],
+      }),
+    );
+  });
+
+  it("returns the priority of each Task", async () => {
+    taskFindManyMock.mockResolvedValue([
+      { ...createTask(), priority: TaskPriority.HIGH },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+
+    const response = await createApp().request("http://localhost/");
+    const body = await response.json();
+
+    expect(body.data[0].priority).toBe(TaskPriority.HIGH);
+  });
+
+  it("returns the number and identifier of each Task", async () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    taskFindManyMock.mockResolvedValue([
+      {
+        ...createTask(),
+        projectId,
+        project: {
+          id: projectId,
+          name: "Sokosumi",
+          identifier: "SOK",
+          logo: null,
+        },
+        number: 7,
+      },
+      createTask(),
+    ]);
+    taskCountMock.mockResolvedValue(2);
+
+    const response = await createApp().request("http://localhost/");
+    const body = await response.json();
+
+    expect(body.data[0]).toMatchObject({ number: 7, identifier: "SOK-7" });
+    expect(body.data[1]).toMatchObject({ number: null, identifier: null });
+  });
+
+  it("selects only the project identifier fields for the list", async () => {
+    await createApp().request("http://localhost/");
+
+    expect(taskFindManyMock.mock.calls[0]![0].include.project).toEqual({
+      select: { id: true, name: true, identifier: true, logo: true },
+    });
   });
 
   it("no longer sorts by the removed nextRunAt", async () => {
