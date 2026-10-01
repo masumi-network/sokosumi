@@ -165,6 +165,63 @@ struct ChatRefreshSchedulerTests {
     clock.fireAll()
   }
 
+  /// Web `requestCollections`: an invalidation naming one collection never re-reads the other two.
+  @Test func sidebarRequestReadsExactlyTheNamedCollections() async {
+    let clock = RefreshClock()
+    let recovery = SidebarCollectionsRecovery(sleep: clock.sleep)
+    var reads: [ChatRoomCollection] = []
+    recovery.start(Set(ChatRoomCollection.allCases), foreground: true, healthy: true) { reads.append($0) }
+    recovery.requestRefresh([.archived])
+    await waitUntil { reads == [.archived] && !recovery.isRefreshing }
+    recovery.requestRefresh([.active, .invitations])
+    await waitUntil { reads.count == 3 && !recovery.isRefreshing }
+    #expect(reads == [.archived, .active, .invitations])
+    recovery.stop()
+    clock.fireAll()
+  }
+
+  /// A personal workspace starts no Archived reader, so a request for it reads nothing.
+  @Test func sidebarCollectionNotStartedIgnoresRequests() async {
+    let clock = RefreshClock()
+    let recovery = SidebarCollectionsRecovery(sleep: clock.sleep)
+    var reads: [ChatRoomCollection] = []
+    recovery.start([.active, .invitations], foreground: true, healthy: true) { reads.append($0) }
+    await waitUntil { clock.intervals.count == 2 }
+    #expect(clock.intervals == [.seconds(60), .seconds(60)])
+    recovery.requestRefresh([.archived])
+    await Task.yield()
+    #expect(reads.isEmpty)
+    recovery.requestRefresh([.archived, .invitations])
+    await waitUntil { reads == [.invitations] }
+    recovery.stop()
+    clock.fireAll()
+  }
+
+  /// A burst of events while a collection reads queues one follow-up for it and leaves the others alone.
+  @Test func sidebarBurstCoalescesPerCollection() async {
+    let clock = RefreshClock()
+    let recovery = SidebarCollectionsRecovery(sleep: clock.sleep)
+    var reads: [ChatRoomCollection] = []
+    var finish: CheckedContinuation<Void, Never>?
+    recovery.start(Set(ChatRoomCollection.allCases), foreground: true, healthy: true) { collection in
+      reads.append(collection)
+      if reads.count == 1 {
+        await withCheckedContinuation { finish = $0 }
+      }
+    }
+    recovery.requestRefresh([.active])
+    await waitUntil { finish != nil }
+    recovery.requestRefresh([.active])
+    recovery.requestRefresh([.active])
+    #expect(reads == [.active])
+    finish?.resume()
+    await waitUntil { reads == [.active, .active] && !recovery.isRefreshing }
+    await Task.yield()
+    #expect(reads == [.active, .active])
+    recovery.stop()
+    clock.fireAll()
+  }
+
   private func waitUntil(_ condition: () -> Bool) async {
     for _ in 0 ..< 1000 {
       if condition() {

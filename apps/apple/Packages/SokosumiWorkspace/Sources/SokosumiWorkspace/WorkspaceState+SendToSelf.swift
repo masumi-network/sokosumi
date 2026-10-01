@@ -16,7 +16,7 @@ public extension WorkspaceState {
     do {
       let saved = try await ChatService().sendMessageToSelf(client: client, roomId: message.roomId, messageId: message.id,
                                                             organizationSlug: selection?.workspace.organizationSlug)
-      // Open uses openRoomLink, which only selects listed rooms. Apple ignores chat_rooms_changed.
+      // Open uses openRoomLink, which only selects listed rooms; Core's chat_rooms_changed for the Self Direct may land after the alert.
       if !rooms.contains(where: { $0.id == saved.roomId }) {
         await refreshRooms(auth: auth)
       }
