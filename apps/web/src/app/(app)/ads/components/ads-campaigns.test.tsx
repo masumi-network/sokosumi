@@ -23,7 +23,7 @@ vi.mock("./ads-campaign-actions", () => ({
   ),
 }));
 
-import { AdsCampaigns } from "./ads-campaigns";
+import { AdsCampaigns, formatObjective } from "./ads-campaigns";
 
 const ACTIVE: AdCampaign = {
   id: "1",
@@ -104,7 +104,7 @@ describe("AdsCampaigns", () => {
         .getAllByRole("cell")
         .map((cell) => cell.textContent),
     ).toEqual([
-      "Spring saleSEARCH",
+      "Spring saleSearch",
       "Active",
       "$25.00",
       "$1,234.50",
@@ -133,6 +133,19 @@ describe("AdsCampaigns", () => {
     ]);
   });
 
+  it("hides Impressions and CPC below xl so the table fits", async () => {
+    await renderCampaigns();
+
+    for (const name of ["Impressions", "CPC"]) {
+      expect(table().getByRole("columnheader", { name }).className).toContain(
+        "hidden xl:table-cell",
+      );
+    }
+    expect(
+      table().getByRole("columnheader", { name: "Clicks" }).className,
+    ).not.toContain("hidden");
+  });
+
   it("formats money without decimals for JPY", async () => {
     await renderCampaigns([ACTIVE], "JPY");
 
@@ -151,5 +164,17 @@ describe("AdsCampaigns", () => {
     expect(
       within(first).getByRole("button", { name: "menu Spring sale" }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("formatObjective", () => {
+  it.each([
+    ["SEARCH", "Search"],
+    ["OUTCOME_TRAFFIC", "Traffic"],
+    ["OUTCOME_APP_PROMOTION", "App promotion"],
+    ["PERFORMANCE_MAX", "Performance max"],
+    ["Something new", "Something new"],
+  ])("shows %s as %s", (objective, expected) => {
+    expect(formatObjective(objective)).toBe(expected);
   });
 });

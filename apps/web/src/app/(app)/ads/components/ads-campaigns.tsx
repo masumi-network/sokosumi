@@ -27,6 +27,19 @@ const NUMERIC_COLUMNS = [
   "conversions",
 ] as const;
 
+/** Provider enums read as words: "OUTCOME_TRAFFIC" becomes "Traffic". */
+export function formatObjective(objective: string): string {
+  const words = objective
+    .replace(/^OUTCOME_/, "")
+    .replaceAll("_", " ")
+    .toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** Dropped below `xl` so the table fits a laptop without scrolling sideways. */
+const WIDE_ONLY_COLUMNS: ReadonlySet<string> = new Set(["impressions", "cpc"]);
+const WIDE_ONLY_CLASS = "hidden xl:table-cell";
+
 interface AdsCampaignsProps {
   accountId: string;
   campaigns: AdCampaign[];
@@ -131,7 +144,10 @@ export async function AdsCampaigns({
               {NUMERIC_COLUMNS.map((column) => (
                 <TableHead
                   key={column}
-                  className="text-muted-foreground text-right font-normal"
+                  className={cn(
+                    "text-muted-foreground text-right font-normal",
+                    WIDE_ONLY_COLUMNS.has(column) && WIDE_ONLY_CLASS,
+                  )}
                 >
                   {t(`columns.${column}`)}
                 </TableHead>
@@ -146,13 +162,19 @@ export async function AdsCampaigns({
                   <p className="truncate font-medium">{campaign.name}</p>
                   {campaign.objective ? (
                     <p className="text-muted-foreground truncate text-xs">
-                      {campaign.objective}
+                      {formatObjective(campaign.objective)}
                     </p>
                   ) : null}
                 </TableCell>
                 <TableCell>{status(campaign)}</TableCell>
                 {NUMERIC_COLUMNS.map((column) => (
-                  <TableCell key={column} className="text-right tabular-nums">
+                  <TableCell
+                    key={column}
+                    className={cn(
+                      "text-right tabular-nums",
+                      WIDE_ONLY_COLUMNS.has(column) && WIDE_ONLY_CLASS,
+                    )}
+                  >
                     {cells[column](campaign)}
                   </TableCell>
                 ))}
