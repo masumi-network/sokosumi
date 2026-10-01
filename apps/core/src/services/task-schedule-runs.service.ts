@@ -438,6 +438,35 @@ function createTaskFromBlueprint(
 }
 
 /**
+ * Run now (ADR 0047): a Run released at `now` with its Task, outside the
+ * rule. It plans nothing and leaves `releasedCount` alone, so an end-after-N
+ * rule still makes all of its own Runs.
+ */
+export async function releaseManualTaskScheduleRun(
+  tx: Prisma.TransactionClient,
+  schedule: TaskSchedule,
+  now: Date,
+  actor: Pick<TaskScheduleRun, "actorUserId" | "actorCoworkerId">,
+): Promise<{ run: TaskScheduleRun; task: ReleasedTask }> {
+  const task = await createTaskFromBlueprint(tx, schedule);
+  const run = await tx.taskScheduleRun.create({
+    data: {
+      scheduleId: schedule.id,
+      epochId: schedule.epochId,
+      originalScheduledAt: now,
+      effectiveScheduledAt: now,
+      state: TaskScheduleRunState.RELEASED,
+      manual: true,
+      releasedTaskId: task.id,
+      ...getRunSource(schedule),
+      ...actor,
+      timezone: schedule.timezone,
+    },
+  });
+  return { run, task };
+}
+
+/**
  * Creates the Task of each planned Run due in `due`, oldest first and of any
  * epoch (a rule edit keeps the Runs already owed). Each Run is claimed by
  * moving it from planned to released, so a retried release never creates a

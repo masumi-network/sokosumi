@@ -10,10 +10,12 @@ const {
   deleteTaskScheduleMock,
   pushMock,
   refreshMock,
+  runTaskScheduleNowMock,
   toastMock,
 } = vi.hoisted(() => ({
   changeTaskScheduleStateMock: vi.fn(),
   deleteTaskScheduleMock: vi.fn(),
+  runTaskScheduleNowMock: vi.fn(),
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   toastMock: { success: vi.fn(), error: vi.fn() },
@@ -32,6 +34,7 @@ vi.mock("sonner", () => ({ toast: toastMock }));
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   changeTaskScheduleState: changeTaskScheduleStateMock,
   deleteTaskSchedule: deleteTaskScheduleMock,
+  runTaskScheduleNow: runTaskScheduleNowMock,
 }));
 
 vi.mock("./task-schedule-dialog", () => ({
@@ -95,7 +98,34 @@ describe("TaskScheduleActions", () => {
     vi.clearAllMocks();
     changeTaskScheduleStateMock.mockResolvedValue(OK);
     deleteTaskScheduleMock.mockResolvedValue(OK);
+    runTaskScheduleNowMock.mockResolvedValue({
+      ok: true,
+      value: { scheduleId: SCHEDULE_ID, taskId: "task_now" },
+    });
   });
+
+  it.each(["ACTIVE", "PAUSED"] as const)(
+    "runs a %s schedule now and links to the new Task",
+    async (state) => {
+      const user = userEvent.setup();
+      renderActions(state);
+
+      await user.click(screen.getByRole("button", { name: "runNow" }));
+
+      expect(runTaskScheduleNowMock).toHaveBeenCalledWith({
+        scheduleId: SCHEDULE_ID,
+        expectedRevision: 1,
+      });
+      await waitFor(() => expect(refreshMock).toHaveBeenCalled());
+      expect(toastMock.success).toHaveBeenCalledWith("ranNow", {
+        duration: Infinity,
+        closeButton: true,
+        action: { label: "openTask", onClick: expect.any(Function) },
+      });
+      toastMock.success.mock.calls[0][1].action.onClick();
+      expect(pushMock).toHaveBeenCalledWith("/tasks/task_now");
+    },
+  );
 
   it("pauses an Active schedule", async () => {
     const user = userEvent.setup();
@@ -110,6 +140,30 @@ describe("TaskScheduleActions", () => {
     });
     await waitFor(() => expect(refreshMock).toHaveBeenCalled());
     expect(toastMock.success).toHaveBeenCalledWith("paused");
+  });
+
+  it("blocks another Run now submit while the first is pending", async () => {
+    let complete: (() => void) | undefined;
+    runTaskScheduleNowMock.mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        complete = resolve;
+      });
+      return { ok: false, error: { kind: "failed", message: "Failed" } };
+    });
+    const user = userEvent.setup();
+    renderActions("ACTIVE");
+    const button = screen.getByRole("button", { name: "runNow" });
+
+    await user.click(button);
+    expect(button).toBeDisabled();
+    await user.click(button);
+    expect(runTaskScheduleNowMock).toHaveBeenCalledTimes(1);
+    expect(complete).toBeDefined();
+    complete?.();
+    await waitFor(() => expect(button).not.toBeDisabled());
+    expect(toastMock.error).toHaveBeenCalledWith("failed");
+    expect(toastMock.success).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
   });
 
   it("resumes a Paused schedule", async () => {
@@ -158,7 +212,7 @@ describe("TaskScheduleActions", () => {
   it("leaves an Ended schedule nothing to change but deleting it", () => {
     renderActions("ENDED");
 
-    for (const name of ["edit", "pause", "resume", "end"]) {
+    for (const name of ["edit", "pause", "resume", "end", "runNow"]) {
       expect(screen.queryByRole("button", { name })).toBeNull();
     }
     expect(screen.getByRole("button", { name: "delete" })).toBeInTheDocument();
