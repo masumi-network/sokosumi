@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -16,6 +17,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
+  isSameTabClick,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
@@ -42,6 +44,11 @@ export interface EmailStepDetour {
   description: string;
   label: string;
   href: string;
+  /**
+   * Work that takes the person there, e.g. emailing a code first. The link
+   * spins until it has navigated. A click for another tab just opens `href`.
+   */
+  follow?: (email: string, signal: AbortSignal) => Promise<void>;
 }
 
 interface EmailStepProps {
@@ -60,7 +67,7 @@ interface EmailStepProps {
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
-  onContinue: (email: string) => Promise<void> | void;
+  onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
 }
@@ -95,9 +102,14 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  // Set at once, so a second click before the spinner renders is ignored.
+  const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
+  const mounted = useRef(false);
+  const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailStepFormSchemaType>({
     resolver: zodResolver(
       emailStepFormSchema(useTranslations("Library.Auth.Schema")),
@@ -115,6 +127,7 @@ export function EmailStep({
   ];
 
   useMountEffect(() => {
+    mounted.current = true;
     // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
     const emailHint = takeAuthEmailHint();
@@ -127,6 +140,10 @@ export function EmailStep({
     if (autoFocus || useHint) {
       form.setFocus("email");
     }
+    return () => {
+      mounted.current = false;
+      pending.current?.abort();
+    };
   });
 
   const { isSubmitting } = form.formState;
@@ -139,13 +156,40 @@ export function EmailStep({
     detourLinkRef.current?.focus();
   }, [isDetoured, isSubmitting]);
 
+  async function followDetour(
+    email: string,
+    follow: NonNullable<EmailStepDetour["follow"]>,
+  ) {
+    const controller = new AbortController();
+    pending.current = controller;
+    isFollowingRef.current = true;
+    setIsFollowing(true);
+    await follow(email, controller.signal);
+    // Done, the page is leaving; keep spinning until it has.
+    if (!controller.signal.aborted) return;
+    isFollowingRef.current = false;
+    if (mounted.current) setIsFollowing(false);
+  }
+
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
+    if (!mounted.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    function isCurrent() {
+      return (
+        mounted.current &&
+        !controller.signal.aborted &&
+        form.getValues("email").trim() === email
+      );
+    }
     await runWithCaptcha(async (fetchOptions) => {
+      if (!isCurrent()) return;
       const result = await authClient.$fetch<{ exists: boolean }>(
         "/sign-up/email-status",
         { method: "POST", body: { email }, headers: fetchOptions.headers },
       );
 
+      if (!isCurrent()) return;
       if (result.error) {
         // The auth client adds the page's OAuth request to every call, this
         // one included, and Core refuses the call when that request is stale.
@@ -167,7 +211,7 @@ export function EmailStep({
         return;
       }
 
-      await onContinue(email);
+      await onContinue(email, controller.signal);
     });
   }
 
@@ -176,6 +220,9 @@ export function EmailStep({
       form={form}
       onSubmit={handleSubmit}
       onChange={() => {
+        pending.current?.abort();
+        isFollowingRef.current = false;
+        setIsFollowing(false);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -252,19 +299,30 @@ export function EmailStep({
                 href={detour.href}
                 inert={!isDetoured}
                 aria-describedby={isDetoured ? noticeId : undefined}
+                aria-busy={isFollowing || undefined}
+                aria-disabled={isFollowing || undefined}
                 onAuxClick={() => takeAuthEmailHint()}
                 onClick={(event) => {
                   const shownFor = performance.now() - detouredSince.current;
-                  if (shownFor < DETOUR_GRACE_MS) {
+                  if (shownFor < DETOUR_GRACE_MS || isFollowingRef.current) {
                     event.preventDefault();
                     return;
                   }
-                  rememberAuthEmailHintOnClick(
-                    event,
-                    emailLocked ? "" : form.getValues("email"),
-                  );
+                  const email = emailLocked ? "" : form.getValues("email");
+                  if (detour.follow && email && isSameTabClick(event)) {
+                    event.preventDefault();
+                    void followDetour(email, detour.follow);
+                    return;
+                  }
+                  rememberAuthEmailHintOnClick(event, email);
                 }}
               >
+                {isFollowing ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
+                  />
+                ) : null}
                 {detour.label}
               </Link>
             </Button>

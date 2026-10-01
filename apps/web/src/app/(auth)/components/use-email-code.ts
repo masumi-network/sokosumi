@@ -45,18 +45,25 @@ export function useEmailCode({
   const [sentAt, setSentAt] = useState(0);
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
-  // chose a code. The pages count the choice.
-  async function sendCode(email: string) {
+  // chose a code. The pages count the choice. Resolves to the send time, or
+  // `null` when no code went out.
+  async function sendCode(
+    email: string,
+    options: { signal?: AbortSignal } = {},
+  ): Promise<number | null> {
     setIsSending(true);
+    let sentAt: number | null = null;
 
     try {
       await runWithCaptcha(async (fetchOptions) => {
+        if (options.signal?.aborted) return;
         const result = await authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
           type: "sign-in",
         });
 
+        if (options.signal?.aborted) return;
         if (result.error) {
           toast.error(
             getErrorMessage(
@@ -67,14 +74,21 @@ export function useEmailCode({
           return;
         }
 
-        setSentTo(email);
-        setSentAt(Date.now());
+        sentAt = Date.now();
+        adoptSentCode(email, sentAt);
       });
     } catch (_error) {
-      toast.error(t("emailCodeError"));
+      if (!options.signal?.aborted) toast.error(t("emailCodeError"));
     } finally {
       setIsSending(false);
     }
+    return sentAt;
+  }
+
+  /** A code another page sent, e.g. sign-in before it handed over to sign-up. */
+  function adoptSentCode(email: string, at: number) {
+    setSentTo(email);
+    setSentAt(at);
   }
 
   async function signInWithCode(
@@ -97,7 +111,15 @@ export function useEmailCode({
     return undefined;
   }
 
-  return { captcha, isSending, sentTo, sentAt, sendCode, signInWithCode };
+  return {
+    captcha,
+    isSending,
+    sentTo,
+    sentAt,
+    sendCode,
+    adoptSentCode,
+    signInWithCode,
+  };
 }
 
 export type EmailCode = ReturnType<typeof useEmailCode>;
