@@ -45,11 +45,15 @@ describe("Task Schedule Run lists", () => {
 
     expect(runs).toContainEqual(currentRun);
     expect(listRunsMock).toHaveBeenCalledTimes(2);
-    const windowEnd = listRunsMock.mock.calls[0][1].to;
-    expect(windowEnd).toBeInstanceOf(Date);
+    // No upper bound: a Run now made a moment ago carries Core's clock.
+    expect(listRunsMock).toHaveBeenNthCalledWith(1, "schedule", {
+      from,
+      manual: "true",
+      limit: 100,
+      cursor: undefined,
+    });
     expect(listRunsMock).toHaveBeenNthCalledWith(2, "schedule", {
       from,
-      to: windowEnd,
       manual: "true",
       limit: 100,
       cursor: "archived-run-99",

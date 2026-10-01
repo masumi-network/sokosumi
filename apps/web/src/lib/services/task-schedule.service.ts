@@ -99,18 +99,19 @@ export const taskScheduleService = (() => {
     return result.data;
   }
 
-  /** All Run now Runs in this window; `limit` is the Core page size. */
+  /**
+   * All Run now Runs from `from` on; `limit` is the Core page size. No upper
+   * bound: a Run now Run carries Core's clock, which may run ahead of Web's.
+   */
   async function listManualRuns(
     id: string,
     params: { from: Date; limit: number },
   ): Promise<TaskScheduleRun[]> {
     const runs: TaskScheduleRun[] = [];
-    const to = new Date();
     let cursor: string | undefined;
     do {
       const result = await coreClient.listTaskScheduleRuns(id, {
         from: params.from,
-        to,
         manual: "true",
         limit: params.limit,
         cursor,
