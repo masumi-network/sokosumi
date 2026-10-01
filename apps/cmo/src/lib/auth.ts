@@ -224,8 +224,9 @@ let auth: CmoAuth | undefined;
 export function getAuth(): CmoAuth {
   if (auth) return auth;
   const config = readCmoAuthConfig();
-  auth = createCmoAuth(config);
-  auth.$context.then((context) => {
+  const created = createCmoAuth(config);
+  auth = created;
+  created.$context.then((context) => {
     if (
       context.socialProviders.some(
         (provider) => provider.id === SOKOSUMI_OAUTH_PROVIDER_ID,
@@ -233,6 +234,9 @@ export function getAuth(): CmoAuth {
     ) {
       return;
     }
+    // Better Auth discovers Core once per instance. A preview's first request
+    // can beat its branch's Core deploy, so discover again on the next one.
+    if (auth === created) auth = undefined;
     // Better Auth only says it skipped the provider, not which URL failed.
     const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
     fetch(discoveryUrl).then(
