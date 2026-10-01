@@ -1,5 +1,5 @@
 import { TaskStatus } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { TaskRelatedTasks } from "@/app/tasks/components/task-related-tasks";
 
@@ -11,121 +11,137 @@ vi.mock("next/navigation", () => ({
 
 const relationLabels = {
   related: "Related",
-  blocks: "Blocks",
+  blocks: "Blocking",
   blocked_by: "Blocked by",
   parent: "Sub-task",
   child: "Parent task",
   duplicate: "Duplicate",
 };
 
-describe("TaskRelatedTasks", () => {
-  it("renders the section title and empty copy when there are no linked tasks", () => {
-    render(
-      <TaskRelatedTasks
-        title="Linked tasks"
-        emptyLabel="No linked tasks yet."
-        tasks={[]}
-        relationLabels={relationLabels}
-      />,
-    );
+const statusLabels = {
+  [TaskStatus.READY]: "Ready",
+  [TaskStatus.DRAFT]: "Draft",
+} as Record<TaskStatus, string>;
 
-    expect(
-      screen.getByRole("heading", { name: "Linked tasks" }),
-    ).toBeInTheDocument();
-    expect(screen.getByText("No linked tasks yet.")).toBeInTheDocument();
+function renderRelated(
+  tasks: React.ComponentProps<typeof TaskRelatedTasks>["tasks"],
+) {
+  return render(
+    <TaskRelatedTasks
+      title="Linked tasks"
+      tasks={tasks}
+      relationLabels={relationLabels}
+      statusLabels={statusLabels}
+    />,
+  );
+}
+
+describe("TaskRelatedTasks", () => {
+  it("renders nothing when there are no linked tasks", () => {
+    const { container } = renderRelated([]);
+
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("renders icon-only relation badges with accessible names and native title hints", () => {
-    render(
-      <TaskRelatedTasks
-        title="Linked tasks"
-        emptyLabel="No linked tasks yet."
-        relationLabels={relationLabels}
-        tasks={[
-          {
-            id: "task-2",
-            name: "Design follow-up",
-            status: TaskStatus.READY,
-            relation: "related",
-          },
-          {
-            id: "task-3",
-            name: "Dependency cleanup",
-            status: TaskStatus.DRAFT,
-            relation: "duplicate",
-          },
-          {
-            id: "task-4",
-            name: "Draft API schema",
-            status: TaskStatus.READY,
-            relation: "parent",
-          },
-          {
-            id: "task-5",
-            name: "Master roadmap",
-            status: TaskStatus.READY,
-            relation: "child",
-          },
-        ]}
-      />,
-    );
+  it("groups rows under relation subheadings in a fixed order", () => {
+    renderRelated([
+      {
+        id: "t-dup",
+        name: "Dup",
+        status: TaskStatus.DRAFT,
+        relation: "duplicate",
+      },
+      {
+        id: "t-rel",
+        name: "Rel",
+        status: TaskStatus.READY,
+        relation: "related",
+      },
+      {
+        id: "t-sub",
+        name: "Sub",
+        status: TaskStatus.READY,
+        relation: "parent",
+      },
+      { id: "t-par", name: "Par", status: TaskStatus.READY, relation: "child" },
+      {
+        id: "t-blk",
+        name: "Blk",
+        status: TaskStatus.READY,
+        relation: "blocks",
+      },
+      {
+        id: "t-by",
+        name: "By",
+        status: TaskStatus.READY,
+        relation: "blocked_by",
+      },
+    ]);
 
     expect(
-      screen.getByRole("heading", { name: "Linked tasks" }),
+      screen.getByRole("heading", { level: 2, name: "Linked tasks" }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("link", { name: /Design follow-up/i }),
-    ).toHaveAttribute("href", "/tasks/task-2");
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((heading) => heading.textContent),
+    ).toEqual([
+      "Blocked by",
+      "Blocking",
+      "Parent task",
+      "Sub-task",
+      "Related",
+      "Duplicate",
+    ]);
+  });
+
+  it("lists each task once, linked, under its own group and without a relation badge", () => {
+    renderRelated([
+      {
+        id: "task-2",
+        name: "Design follow-up",
+        status: TaskStatus.READY,
+        relation: "related",
+      },
+      {
+        id: "task-3",
+        name: "API migration",
+        status: TaskStatus.DRAFT,
+        relation: "blocks",
+      },
+      {
+        id: "task-4",
+        name: "Schema update",
+        status: TaskStatus.READY,
+        relation: "blocks",
+      },
+    ]);
+
+    const blocksGroup = screen.getByRole("group", { name: "Blocking" });
+    expect(within(blocksGroup).getAllByRole("link")).toHaveLength(2);
     expect(
-      screen.getByRole("link", { name: /Dependency cleanup/i }),
+      within(blocksGroup).getByRole("link", { name: /API migration/ }),
     ).toHaveAttribute("href", "/tasks/task-3");
     expect(
-      screen.getByRole("link", { name: /Draft API schema/i }),
-    ).toHaveAttribute("href", "/tasks/task-4");
-    expect(
-      screen.getByRole("link", { name: /Master roadmap/i }),
-    ).toHaveAttribute("href", "/tasks/task-5");
-
-    expect(screen.getByLabelText("Related")).toBeInTheDocument();
-    expect(screen.getByLabelText("Duplicate")).toBeInTheDocument();
-    expect(screen.getByLabelText("Sub-task")).toBeInTheDocument();
-    expect(screen.getByLabelText("Parent task")).toBeInTheDocument();
-    expect(screen.queryByText("Related")).not.toBeInTheDocument();
-
-    expect(screen.getByLabelText("Related")).toHaveAttribute(
-      "title",
-      "Related",
-    );
-    expect(screen.getByLabelText("Duplicate")).toHaveAttribute(
-      "title",
-      "Duplicate",
-    );
+      screen.getByRole("link", { name: /Design follow-up/ }),
+    ).toHaveAttribute("href", "/tasks/task-2");
+    for (const link of screen.getAllByRole("link")) {
+      expect(link).not.toHaveTextContent(/Related|Blocking/);
+      expect(within(link).queryByLabelText(/Related|Blocking/)).toBeNull();
+    }
   });
 
-  it("uses destructive relation badges for blocking states", () => {
-    render(
-      <TaskRelatedTasks
-        title="Linked tasks"
-        emptyLabel="No linked tasks yet."
-        relationLabels={relationLabels}
-        tasks={[
-          {
-            id: "task-2",
-            name: "API migration",
-            status: TaskStatus.READY,
-            relation: "blocks",
-          },
-          {
-            id: "task-3",
-            name: "Schema update",
-            status: TaskStatus.DRAFT,
-            relation: "blocked_by",
-          },
-        ]}
-      />,
-    );
+  it("omits groups that have no tasks", () => {
+    renderRelated([
+      {
+        id: "task-2",
+        name: "Only one",
+        status: TaskStatus.READY,
+        relation: "related",
+      },
+    ]);
 
-    expect(screen.getByLabelText("Blocks")).toHaveClass("text-destructive");
-    expect(screen.getByLabelText("Blocked by")).toHaveClass("text-destructive");
+    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+    expect(screen.queryByText("Blocking")).not.toBeInTheDocument();
   });
 });

@@ -99,7 +99,7 @@ vi.mock("next-intl", () => ({
         taskPickerError: "Failed to load tasks",
         taskPickerLoadMoreError: "Failed to load more tasks",
         "relations.related": "Related",
-        "relations.blocks": "Blocks",
+        "relations.blocks": "Blocking",
         "relations.blockedBy": "Blocked by",
         "relations.subtask": "Sub-task",
         "relations.duplicate": "Duplicate",

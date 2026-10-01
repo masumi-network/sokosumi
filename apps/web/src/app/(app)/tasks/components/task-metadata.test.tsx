@@ -54,7 +54,6 @@ const baseStatusFieldLabels = {
 };
 
 const baseLabels = {
-  visibility: "Visibility",
   privateBadge: "Private",
   status: "Status",
   statusLabels: baseStatusLabels,
@@ -216,11 +215,8 @@ describe("TaskMetadata", () => {
       task: createTask({ visibility: "PRIVATE" }),
     });
 
-    expect(
-      screen.getByRole("group", { name: "Visibility: Private" }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole("group", { name: "Private" })).toBeInTheDocument();
     expect(screen.getByText("Private")).toBeInTheDocument();
-    expect(screen.queryByText("Visibility")).not.toBeInTheDocument();
     unmount();
 
     renderTaskMetadata({ task: createTask({ visibility: "PUBLIC" }) });

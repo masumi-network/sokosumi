@@ -1679,7 +1679,6 @@
         "description": "Descripción",
         "context": "Contexto",
         "linkedTasksTitle": "Tareas vinculadas",
-        "linkedTasksEmpty": "Aún no hay tareas vinculadas.",
         "jobs": "Jobs",
         "jobsEmpty": "Aún sin jobs.",
         "jobsUntitled": "Job sin título",

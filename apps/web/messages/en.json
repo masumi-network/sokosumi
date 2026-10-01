@@ -1680,7 +1680,6 @@
         "description": "Description",
         "context": "Context",
         "linkedTasksTitle": "Linked tasks",
-        "linkedTasksEmpty": "No linked tasks yet.",
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
@@ -1782,7 +1781,7 @@
           "createRelatedDialogTitle": "{relation} task...",
           "relations": {
             "related": "Related",
-            "blocks": "Blocks",
+            "blocks": "Blocking",
             "blockedBy": "Blocked by",
             "parent": "Parent task",
             "subtask": "Sub-task",

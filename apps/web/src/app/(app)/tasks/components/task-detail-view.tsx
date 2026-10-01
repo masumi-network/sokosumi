@@ -125,7 +125,10 @@ export async function TaskDetailView({
   const linkedTasks = mapVisibleTaskLinks(task.links);
   const parentTask = linkedTasks.find((link) => link.relation === "child");
 
-  const t = await translationsPromise;
+  const [t, tStatus] = await Promise.all([
+    translationsPromise,
+    getTranslations("App.Tasks.Filters.statusOptions"),
+  ]);
 
   return (
     <div className="min-h-full w-full">
@@ -204,35 +207,36 @@ export async function TaskDetailView({
           </div>
 
           <aside className={TASK_DETAIL_SIDEBAR_CLASS}>
-            <Suspense
-              fallback={
-                <TaskSectionFallback title={t("properties")} rows={4} />
-              }
-            >
-              <TaskMetadataSection
-                task={task}
-                forceReadOnly={forceReadOnly}
-                hasAssignedSeatPromise={hasAssignedSeatPromise}
-                projectPromise={projectPromise}
+            <div className="space-y-6">
+              <Suspense
+                fallback={
+                  <TaskSectionFallback title={t("properties")} rows={4} />
+                }
+              >
+                <TaskMetadataSection
+                  task={task}
+                  forceReadOnly={forceReadOnly}
+                  hasAssignedSeatPromise={hasAssignedSeatPromise}
+                  projectPromise={projectPromise}
+                />
+              </Suspense>
+              <TaskRelatedTasks
+                title={t("linkedTasksTitle")}
+                tasks={linkedTasks}
+                relationLabels={{
+                  related: t("actions.relations.related"),
+                  blocks: t("actions.relations.blocks"),
+                  blocked_by: t("actions.relations.blockedBy"),
+                  parent: t("actions.relations.subtask"),
+                  child: t("actions.relations.parent"),
+                  duplicate: t("actions.relations.duplicate"),
+                }}
+                statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
               />
-            </Suspense>
+            </div>
           </aside>
 
           <div className={TASK_DETAIL_MAIN_CLASS}>
-            <TaskRelatedTasks
-              title={t("linkedTasksTitle")}
-              emptyLabel={t("linkedTasksEmpty")}
-              tasks={linkedTasks}
-              relationLabels={{
-                related: t("actions.relations.related"),
-                blocks: t("actions.relations.blocks"),
-                blocked_by: t("actions.relations.blockedBy"),
-                parent: t("actions.relations.subtask"),
-                child: t("actions.relations.parent"),
-                duplicate: t("actions.relations.duplicate"),
-              }}
-            />
-
             <TaskFiles
               taskId={task.id}
               title={t("files")}
@@ -464,7 +468,7 @@ async function TaskMetadataSection({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="contents">
       <TaskMetadata
         title={t("properties")}
         taskId={task.id}
@@ -486,7 +490,6 @@ async function TaskMetadataSection({
           ) : null
         }
         labels={{
-          visibility: t("visibility"),
           privateBadge: t("privateBadge"),
           status: t("status"),
           statusLabels,
