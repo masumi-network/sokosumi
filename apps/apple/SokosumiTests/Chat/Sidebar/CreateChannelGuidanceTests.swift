@@ -77,6 +77,27 @@
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "create-channel-participants-\(dark ? "dark" : "light").png")
       }
 
+      /// Web's create dialog loads the caller's role with the roster and shows its member notice when that read fails
+      /// (`loadChatComposeRosterAction` → `membersLoadFailed`), so the sheet offers the notice and Retry, not the
+      /// details. Recorded light beside dark.
+      @Test func roleReadFailureShowsTheMemberNotice() async throws {
+        let failed = ChannelRoster(recipients: roster.recipients, isOwnerOrAdmin: false, roleLoadFailed: true)
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let model = ChannelCreation()
+          model.draft.setSlug("launch-planning")
+          let (host, window) = mount(model, dark: dark, roster: failed)
+          defer { window.orderOut(nil) }
+          try await waitForLoad(model, in: host)
+          #expect(model.participantsUnavailable && !model.canAdvance)
+          let bitmap = try await render(host, in: window, expecting: ["load organization members"], absent: ["Display name", "Visibility"])
+          try Self.expectWindowBackground(bitmap, dark: dark)
+          try columns.append([#require(bitmap.cgImage)])
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "create-channel-role-failed.png")
+      }
+
       /// Drives the sheet's own slug check (`.task(id:)` through `checkSlug`) into each state and reads the line it draws.
       @Test(arguments: CreateChannelHandleLine.allCases, [false, true])
       func handleLineReplacesItsHelp(line: CreateChannelHandleLine, dark: Bool) async throws {
@@ -144,9 +165,9 @@
         return model
       }
 
-      private func mount(_ model: ChannelCreation, dark: Bool,
+      private func mount(_ model: ChannelCreation, dark: Bool, roster: ChannelRoster? = nil,
                          checkSlug: @escaping (String) async throws -> Bool = { _ in true }) -> (NSHostingView<some View>, NSWindow) {
-        let roster = roster
+        let roster = roster ?? self.roster
         let content = CreateChannelView(currentUserId: "me", organizationName: "Acme", model: model,
                                         load: { roster }, checkSlug: checkSlug, create: { _, _ in
                                           Issue.record("Rendering must not create a channel")
