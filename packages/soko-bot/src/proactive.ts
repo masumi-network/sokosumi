@@ -53,7 +53,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Friday afternoon: what got done, what slipped, and what is queued for next week.",
     prompt:
-      "Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.",
+      'Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Open with one line from "This week in numbers" (Tasks completed, your turns, credits). Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.',
   },
   {
     key: "meeting-prep",
@@ -89,7 +89,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Monday mornings: how full the week is, deadlines, your goals, and where to protect time.",
     prompt:
-      "Monday plan. From the packet below and your memory: how full this week's calendar is (busiest days), deadlines this week, the goals you know of, and two or three blocks of time worth protecting, with why. Under 12 lines. Write the plan's three main points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.",
+      "Monday plan. From the packet below and your memory: one line on last week from \"Last week in numbers\", how full this week's calendar is (busiest days), deadlines this week, the goals you know of, and two or three blocks of time worth protecting, with why. Under 12 lines. Write the plan's three main points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.",
   },
   {
     key: "monthly-review",
@@ -98,7 +98,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "First of the month: progress on your goals, what last month's work cost, and invoices or subscriptions seen in mail.",
     prompt:
-      "Monthly review. From the packet below and your memory: progress on the goals you know of, what last month's delegated work cost by Coworker, and recurring invoices or subscriptions seen in mail (name, amount if shown, how often). Under 12 lines; suggest one thing to change. When there is nothing to review, answer exactly: Nothing to add.",
+      "Monthly review. Lead with \"Last 31 days in numbers\" as 4 to 5 short bullets: the owner's Tasks (created, completed, failed, how many through you), chat (the owner's messages, your turns), credits (total, yours, the top Coworkers), and the team (who completed what). Then progress on the goals in your memory, recurring invoices or subscriptions seen in mail (name, amount if shown, how often), two or three insights the numbers show, and one thing to change. Under 15 lines. Quote the numbers as given; never estimate them. Tasks the packet names as someone else's are not the owner's. When there is nothing to review, answer exactly: Nothing to add.",
   },
   {
     key: "memory-cleanup",
@@ -107,7 +107,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Sunday evenings, silently: drops goals and follow-ups that are done or out of date.",
     prompt:
-      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the owner unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
+      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed or belong to someone else, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the owner unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
   },
 ];
 
