@@ -349,25 +349,35 @@ describe("buildSignUpUrlFromSignIn", () => {
     expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
   });
 
-  it("preserves returnUrl and email in signup link", () => {
+  it("preserves returnUrl in signup link", () => {
     expect(
       buildSignUpUrlFromSignIn({
         returnUrl: "/accept-invitation/invite_123?foo=bar",
-        email: "user@example.com",
       }),
-    ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
-    );
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
   });
 
   it("carries the OAuth request as the sign-up page's own query", () => {
     expect(
       buildSignUpUrlFromSignIn({
         oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
-        email: "user@example.com",
+        returnUrl: "/agents",
       }),
     ).toBe(
-      "/signup?client_id=client_1&exp=1772367377&sig=signed&email=user%40example.com",
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&returnUrl=%2Fagents",
+    );
+  });
+});
+
+describe("buildSignUpUrlFromSignIn with an invitation", () => {
+  it("keeps the invited address and its invitation, which sign-up locks", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        returnUrl: "/accept-invitation/inv_1",
+        invitation: { id: "inv_1", email: "invited@example.com" },
+      }),
+    ).toBe(
+      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
     );
   });
 });

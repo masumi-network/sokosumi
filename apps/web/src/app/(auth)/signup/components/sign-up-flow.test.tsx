@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
+import {
+  rememberAuthEmailHint,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaFetchOptions,
@@ -94,6 +97,7 @@ describe("SignUpFlow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
+    window.sessionStorage.clear();
     emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
   });
 
@@ -180,6 +184,41 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "ada@example.com" }),
     );
+  });
+
+  it("starts from the email sign-in handed over, editable", async () => {
+    const user = userEvent.setup();
+    rememberAuthEmailHint("ada@exmaple.com");
+
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+
+    await waitFor(() => {
+      expect(emailField()).toHaveValue("ada@exmaple.com");
+    });
+    expect(emailField()).toBeEnabled();
+
+    await user.clear(emailField());
+    await continueWith(user, "ada@example.com");
+
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: "ada@example.com" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "changeEmail" }),
+    ).toBeInTheDocument();
+  });
+
+  it("uses the handed-over email once", async () => {
+    rememberAuthEmailHint("ada@example.com");
+    const first = render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    await waitFor(() => {
+      expect(emailField()).toHaveValue("ada@example.com");
+    });
+    first.unmount();
+
+    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+
+    expect(emailField()).toHaveValue("");
   });
 
   function notice() {
@@ -277,7 +316,7 @@ describe("SignUpFlow", () => {
       now += 401;
       fireEvent.click(logInLink());
 
-      expect(takeSignInEmailHint()).toBe("ada@example.com");
+      expect(takeAuthEmailHint()).toBe("ada@example.com");
     });
 
     it("ignores the second click of a double-click on the button it replaced", async () => {
@@ -287,7 +326,7 @@ describe("SignUpFlow", () => {
       const followed = fireEvent.click(logInLink());
 
       expect(followed).toBe(false);
-      expect(takeSignInEmailHint()).toBeNull();
+      expect(takeAuthEmailHint()).toBeNull();
     });
   });
 
@@ -400,6 +439,48 @@ describe("SignUpFlow", () => {
     expect(
       screen.queryByRole("button", { name: "changeEmail" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps a locked invitation email over a handed-over one", () => {
+    rememberAuthEmailHint("ada@example.com");
+
+    render(
+      <SignUpFlow
+        showMagicLink
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
+      />,
+    );
+
+    expect(emailField()).toHaveValue("invited@example.com");
+    expect(emailField()).toBeDisabled();
+    // Taken all the same, so it does not turn up on a later visit.
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("leaves an email from the query editable without an invitation", async () => {
+    const user = userEvent.setup();
+    render(
+      <SignUpFlow
+        showMagicLink
+        lastUsedMethod={null}
+        prefilledEmail="ada@exmaple.com"
+      />,
+    );
+
+    expect(emailField()).toBeEnabled();
+    expect(emailField()).toHaveValue("ada@exmaple.com");
+
+    await user.clear(emailField());
+    await continueWith(user, "ada@example.com");
+
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: "ada@example.com" }),
+    );
+    expect(
+      screen.getByRole("button", { name: "changeEmail" }),
+    ).toBeInTheDocument();
   });
 
   it("focuses the recovery link when an invitation email already exists", async () => {

@@ -21,8 +21,11 @@ import {
   buildSignUpUrlFromSignIn,
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
+import {
+  rememberAuthEmailHint,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
-import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
 import type { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
@@ -33,12 +36,15 @@ import {
 interface SignInFormProps {
   returnUrl?: string | undefined;
   prefilledEmail?: string | undefined;
+  /** The invitation `prefilledEmail` belongs to; it stays fixed on sign-up. */
+  invitationId?: string | undefined;
   isLastUsedEmailLogin?: boolean;
 }
 
 export default function SignInForm({
   returnUrl,
   prefilledEmail,
+  invitationId,
   isLastUsedEmailLogin = false,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
@@ -77,7 +83,7 @@ export default function SignInForm({
   // Sign-up sends a person who already has an account here with the email
   // they typed. It is a starting value, not a locked one like `prefilledEmail`.
   useMountEffect(() => {
-    const emailHint = takeSignInEmailHint();
+    const emailHint = takeAuthEmailHint();
     if (!emailHint || prefilledEmail) {
       return;
     }
@@ -155,17 +161,17 @@ export default function SignInForm({
       `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
     [email],
   );
-  const signUpUrl = useMemo(
-    () =>
-      buildSignUpUrlFromSignIn({
-        returnUrl,
-        oauthQuery: returnUrl
-          ? undefined
-          : buildSignedOAuthQueryFromSearchParams(searchParams),
-        email: prefilledEmail ?? email,
-      }),
-    [returnUrl, searchParams, prefilledEmail, email],
-  );
+  const invitation =
+    invitationId && prefilledEmail
+      ? { id: invitationId, email: prefilledEmail }
+      : undefined;
+  const signUpUrl = buildSignUpUrlFromSignIn({
+    returnUrl,
+    oauthQuery: returnUrl
+      ? undefined
+      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    invitation,
+  });
 
   const { isSubmitting } = form.formState;
   const isPending = isSubmitting || isLeaving;
@@ -203,6 +209,13 @@ export default function SignInForm({
             </span>
             <Link
               href={signUpUrl}
+              // A typed email stays out of the link, which would lock it on
+              // sign-up. Only an invitation's address belongs there.
+              onClick={() => {
+                if (!invitation) {
+                  rememberAuthEmailHint(form.getValues("email"));
+                }
+              }}
               className="text-primary text-sm font-medium hover:underline"
             >
               {t("Register.link")}

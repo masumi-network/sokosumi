@@ -129,9 +129,10 @@ export async function waitForAuthSession<TSession = unknown>({
 
 interface BuildAuthPageUrlParams {
   returnUrl?: string;
-  email?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;
+  /** An invitation's fixed address, which the next page locks. */
+  invitation?: { id: string; email: string } | undefined;
 }
 
 export interface AuthRedirectSearchParams {
@@ -162,30 +163,33 @@ export async function getRedirectQueryString(
 
 function buildAuthPageUrl(
   path: "/signin" | "/signup",
-  { returnUrl, email, oauthQuery }: BuildAuthPageUrlParams,
+  { returnUrl, oauthQuery, invitation }: BuildAuthPageUrlParams,
 ): string {
   const searchParams = new URLSearchParams(oauthQuery);
 
   if (returnUrl) {
     searchParams.set("returnUrl", returnUrl);
   }
-  if (email) {
-    searchParams.set("email", email);
+  if (invitation) {
+    searchParams.set("email", invitation.email);
+    searchParams.set("invitationId", invitation.id);
   }
 
   const query = searchParams.toString();
   return query ? `${path}?${query}` : path;
 }
 
+// No typed email in either direction: a query email locks the field, so a
+// typed or mistyped address would trap the person. It goes over as an
+// editable starting value instead: see `auth-email-hint.ts`. Only an
+// invitation's address travels in the query, with its id, because sign-up
+// keeps that one fixed.
 export function buildSignUpUrlFromSignIn(
   params: BuildAuthPageUrlParams,
 ): string {
   return buildAuthPageUrl("/signup", params);
 }
 
-// No email: sign-in locks a prefilled email field, so a typed sign-up email
-// would trap a person who meant to use another account. A typed email goes
-// over as an editable starting value instead: see `sign-in-email-hint.ts`.
 export function buildSignInUrlFromSignUp({
   returnUrl,
   oauthQuery,

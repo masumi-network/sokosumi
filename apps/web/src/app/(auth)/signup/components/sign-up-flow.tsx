@@ -55,6 +55,9 @@ export default function SignUpFlow({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
+  // An invitation fixes the address. Any other query email is only a
+  // starting value, so a mistyped one can still be fixed.
+  const emailLocked = Boolean(invitationId && prefilledEmail);
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
@@ -83,8 +86,7 @@ export default function SignUpFlow({
           <ConfirmedEmail
             email={email}
             onChange={
-              // An invitation fixes the address.
-              prefilledEmail
+              emailLocked
                 ? undefined
                 : () => {
                     setCameBack(true);
@@ -118,7 +120,7 @@ export default function SignUpFlow({
         {notice}
         <SignUpEmailStep
           defaultEmail={email}
-          emailLocked={Boolean(prefilledEmail)}
+          emailLocked={emailLocked}
           autoFocus={cameBack}
           onFormStart={handleFormStart}
           onContinue={(confirmedEmail) => {
