@@ -125,6 +125,64 @@ describe("meeting prep", () => {
     });
   });
 
+  it("searches a year of mail per person and drops calendar notices", async () => {
+    calendarMock.mockResolvedValue([
+      event({
+        attendees: ["patrick@nmkr.io", "ingo@hoc.de", "andric@hoc.de"],
+      }),
+    ]);
+    inboxMock.mockImplementation(async (_integration, options) =>
+      options.query.includes("andric@hoc.de")
+        ? [
+            message({
+              id: "m-2",
+              from: "Andric <andric@hoc.de>",
+              subject: "Re: Masumi deck",
+              receivedAt: "2026-06-02T09:00:00.000Z",
+            }),
+          ]
+        : [
+            message({
+              from: "Ingo <ingo@hoc.de>",
+              subject: "Accepted: Next Steps Masumi @ Thu 2 Oct",
+            }),
+          ],
+    );
+    const packet = await buildRhythmPacket({
+      key: "meeting-prep",
+      bot,
+      now: slotAt,
+      dayStart: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    const text = packet.lines.join("\n");
+    expect(inboxMock).toHaveBeenCalledWith(gmail, {
+      query:
+        "{from:andric@hoc.de to:andric@hoc.de cc:andric@hoc.de} -filename:ics",
+      since: new Date("2025-10-01T10:00:00.000Z"),
+      limit: 8,
+    });
+    expect(text).toContain("Last mail with andric@hoc.de:");
+    expect(text).toContain("Re: Masumi deck");
+    expect(text).toContain("No mail with ingo@hoc.de by address");
+    expect(text).not.toContain("Accepted:");
+  });
+
+  it("searches Outlook by participant", async () => {
+    const outlook = { provider: { id: "outlook" } };
+    integrationsMock.mockResolvedValue([outlook]);
+    calendarMock.mockResolvedValue([event({})]);
+    await buildRhythmPacket({
+      key: "meeting-prep",
+      bot,
+      now: slotAt,
+      dayStart: new Date("2026-10-01T00:00:00.000Z"),
+    });
+    expect(inboxMock).toHaveBeenCalledWith(
+      outlook,
+      expect.objectContaining({ query: "participants:anna@acme.com" }),
+    );
+  });
+
   it("skips internal meetings and meetings outside the window", async () => {
     calendarMock.mockResolvedValue([
       event({ attendees: ["patrick@nmkr.io", "albina@nmkr.io"] }),
