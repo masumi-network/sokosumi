@@ -405,19 +405,29 @@ const taskSchedule = {
     async ({ where }: { where: { id: string } }) =>
       taskScheduleTestDb.schedules.find((row) => row.id === where.id) ?? null,
   ),
-  findUniqueOrThrow: vi.fn(async ({ where }: { where: { id: string } }) => {
-    const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
-    if (!row) throw new Error(`No TaskSchedule ${where.id}`);
-    return row;
-  }),
+  findUniqueOrThrow: vi.fn(
+    async ({
+      where,
+      include,
+    }: {
+      where: { id: string };
+      include?: Record<string, unknown>;
+    }) => {
+      const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
+      if (!row) throw new Error(`No TaskSchedule ${where.id}`);
+      return withInclude(row, include);
+    },
+  ),
   findMany: vi.fn(
     async ({
       where,
+      include,
       take,
       skip,
       cursor,
     }: {
       where: Where;
+      include?: Record<string, unknown>;
       take?: number;
       skip?: number;
       cursor?: { id: string };
@@ -431,7 +441,9 @@ const taskSchedule = {
         const index = rows.findIndex((row) => row.id === cursor.id);
         rows = rows.slice(index + (skip ?? 0));
       }
-      return rows.slice(0, take ?? rows.length);
+      return rows
+        .slice(0, take ?? rows.length)
+        .map((row) => withInclude(row, include));
     },
   ),
   count: vi.fn(
@@ -440,14 +452,22 @@ const taskSchedule = {
         .length,
   ),
   update: vi.fn(
-    async ({ where, data }: { where: { id: string }; data: Data }) => {
+    async ({
+      where,
+      data,
+      include,
+    }: {
+      where: { id: string };
+      data: Data;
+      include?: Record<string, unknown>;
+    }) => {
       const row = taskScheduleTestDb.schedules.find((r) => r.id === where.id);
       if (!row) throw new Error(`No TaskSchedule ${where.id}`);
       const updated = applyData(row, data);
       taskScheduleTestDb.schedules = taskScheduleTestDb.schedules.map((r) =>
         r.id === where.id ? updated : r,
       );
-      return updated;
+      return withInclude(updated, include);
     },
   ),
   updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
@@ -604,8 +624,11 @@ export const taskScheduleTestPrisma = {
         return row
           ? {
               ...row,
-              schedule: taskScheduleTestDb.schedules.find(
-                (schedule) => schedule.id === row.scheduleId,
+              schedule: withInclude(
+                taskScheduleTestDb.schedules.find(
+                  (schedule) => schedule.id === row.scheduleId,
+                ) as TaskSchedule,
+                { assignee: true },
               ),
             }
           : null;

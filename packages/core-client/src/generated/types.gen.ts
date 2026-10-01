@@ -6768,6 +6768,10 @@ export type TaskSchedule = {
     assigneeUserId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).
+     */
+    canWrite: boolean;
 };
 
 export const TaskScheduleState = {

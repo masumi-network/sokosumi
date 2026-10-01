@@ -217,7 +217,7 @@ describe("POST /tasks/schedules/{id}/runs", () => {
     expect(taskScheduleTestDb.tasks).toHaveLength(0);
   });
 
-  it("lets only the owner run a workspace-visible schedule", async () => {
+  it("lets another member run a workspace-visible schedule for its owner", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await send(
@@ -226,8 +226,12 @@ describe("POST /tasks/schedules/{id}/runs", () => {
       createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
     );
 
-    expect(response.status).toBe(403);
-    expect(taskScheduleTestDb.tasks).toHaveLength(0);
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      data: { run: { manual: true, actorUserId: MEMBER_ID } },
+    });
+    expect(taskScheduleTestDb.tasks).toHaveLength(1);
+    expect(taskScheduleTestDb.tasks[0]?.ownerId).toBe(OWNER_ID);
   });
 
   it("lets a granted Coworker run a schedule it created and records it", async () => {

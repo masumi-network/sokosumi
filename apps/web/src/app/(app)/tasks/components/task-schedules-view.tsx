@@ -47,8 +47,6 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
-  /** Only the owner of a schedule can change it from its row. */
-  currentUserId: string | null;
 }
 
 /**
@@ -66,7 +64,6 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
-  currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const [viewMode, setViewMode] = useState(defaultViewMode);
@@ -233,7 +230,6 @@ export function TaskSchedulesView({
                 assigneeDisplayOptions={assigneeDisplayOptions}
                 canCreatePrivate={canCreatePrivate}
                 coworkerOptions={coworkerOptions}
-                currentUserId={currentUserId}
                 onChanged={handleScheduleChanged}
                 key={schedule.id}
                 projectOptions={projectOptions}

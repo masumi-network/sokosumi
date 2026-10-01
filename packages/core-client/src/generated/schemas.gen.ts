@@ -23765,6 +23765,10 @@ export const TaskScheduleSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        canWrite: {
+            type: 'boolean',
+            description: 'Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).'
         }
     },
     required: [
@@ -23789,7 +23793,8 @@ export const TaskScheduleSchema = {
         'assigneeSokoBotId',
         'assigneeUserId',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'canWrite'
     ]
 } as const;
 

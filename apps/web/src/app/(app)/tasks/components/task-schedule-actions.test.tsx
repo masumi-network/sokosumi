@@ -77,6 +77,7 @@ function schedule(state: TaskSchedule["state"]): TaskSchedule {
     assigneeUserId: null,
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+    canWrite: true,
   };
 }
 
@@ -156,6 +157,9 @@ describe("TaskScheduleActions", () => {
 
     await user.click(button);
     expect(button).toBeDisabled();
+    for (const control of screen.getAllByRole("button")) {
+      expect(control).toBeDisabled();
+    }
     await user.click(button);
     expect(runTaskScheduleNowMock).toHaveBeenCalledTimes(1);
     expect(complete).toBeDefined();

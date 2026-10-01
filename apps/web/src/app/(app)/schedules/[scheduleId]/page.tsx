@@ -137,7 +137,7 @@ async function TaskScheduleDetailContent({
                   <ArrowLeft className="size-4" aria-hidden />
                   {t("Detail.back")}
                 </Link>
-                {session.user.id === schedule.ownerId ? (
+                {schedule.canWrite ? (
                   <TaskScheduleActions
                     schedule={schedule}
                     coworkerOptions={assigneeOptions.selectableOptions}
