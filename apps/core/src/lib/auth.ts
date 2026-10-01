@@ -79,6 +79,7 @@ import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
   acceptCmoPreviewCallback,
   jwtKeyStoreOptions,
+  OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
@@ -718,7 +719,7 @@ export const auth = betterAuth({
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
-        opaqueAccessToken: "soko_access_token_",
+        opaqueAccessToken: OAUTH_ACCESS_TOKEN_PREFIX,
         refreshToken: OAUTH_REFRESH_TOKEN_PREFIX,
         clientSecret: "soko_client_secret_",
       },

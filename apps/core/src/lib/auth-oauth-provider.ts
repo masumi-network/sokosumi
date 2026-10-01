@@ -4,6 +4,7 @@ import type { OAuthOptions } from "@better-auth/oauth-provider";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
+export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
 
 export const oauthRefreshTokenOptions = {
