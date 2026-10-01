@@ -4828,6 +4828,14 @@ export type User = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    firstName: string | null;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    lastName: string | null;
     email: string;
     emailVerified: boolean;
     image?: string | null;

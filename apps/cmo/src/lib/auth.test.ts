@@ -35,6 +35,8 @@ interface FakeCore {
   userLookupDown: boolean;
   /** How often CMO has called `/v1/users/me`. */
   userLookups: number;
+  /** The names `/v1/users/me` answers with. */
+  user: { name: string; firstName: string | null; lastName: string | null };
   /** What `/v1/users/me/workspace-access` answers. */
   workspaceAccess: {
     hasPersonalWorkspace: boolean;
@@ -181,7 +183,7 @@ async function createFakeCore(): Promise<FakeCore> {
             id: "user_1",
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
-            name: "Ada Lovelace",
+            ...fake.user,
             email: "ada@example.com",
             emailVerified: true,
             image: null,
@@ -264,6 +266,7 @@ async function createFakeCore(): Promise<FakeCore> {
     discoveryDown: false,
     userLookupDown: false,
     userLookups: 0,
+    user: { name: "Ada Lovelace", firstName: "Ada", lastName: "Lovelace" },
     workspaceAccess: {
       hasPersonalWorkspace: true,
       hasOrganizationMembership: false,
@@ -517,6 +520,29 @@ describe("CMO auth handler", () => {
     });
   });
 
+  it("names the session after the person's first and last name, not their display name", async () => {
+    core.user = { name: "Ada", firstName: "Ada", lastName: "Lovelace" };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
+  it("names the session after the display name when Sokosumi has no name parts", async () => {
+    // Magic-link sign-ups and accounts from before the name parts.
+    core.user = { name: "Ada L.", firstName: null, lastName: null };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada L.",
+      email: "ada@example.com",
+    });
+  });
+
   it("keeps the Sokosumi tokens out of readable cookies", async () => {
     await signIn(auth, jar, core);
 
@@ -674,6 +700,38 @@ describe("CMO auth handler", () => {
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
     await renew(auth, jar);
     expect(core.refreshCount()).toBe(2);
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
+  it("takes the person's current name from Sokosumi when it renews", async () => {
+    await signIn(auth, jar, core);
+    core.user = { name: "Ada", firstName: "Augusta Ada", lastName: "King" };
+
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Augusta Ada King",
+      email: "ada@example.com",
+    });
+    // Rewriting the session keeps the rotated refresh token.
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+    expect(core.refreshCount()).toBe(2);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("keeps the name it has while Core cannot answer", async () => {
+    await signIn(auth, jar, core);
+    core.user = { name: "Ada", firstName: "Augusta Ada", lastName: "King" };
+    core.userLookupDown = true;
+
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+
     expect(await sessionUser(auth, jar)).toEqual({
       name: "Ada Lovelace",
       email: "ada@example.com",

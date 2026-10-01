@@ -114,6 +114,14 @@ export const userSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
+    firstName: z.string().nullable().openapi({
+      description: "Null when never given, as for magic-link sign-up",
+      example: "John",
+    }),
+    lastName: z.string().nullable().openapi({
+      description: "Null when never given, as for magic-link sign-up",
+      example: "Doe",
+    }),
     email: z.email().openapi({ example: "john.doe@example.com" }),
     emailVerified: z.boolean().openapi({ example: true }),
     image: z

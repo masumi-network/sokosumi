@@ -16296,6 +16296,22 @@ export const UserSchema = {
             type: 'string',
             example: 'John Doe'
         },
+        firstName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'John'
+        },
+        lastName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'Doe'
+        },
         email: {
             type: 'string',
             format: 'email',
@@ -16322,6 +16338,8 @@ export const UserSchema = {
         'createdAt',
         'updatedAt',
         'name',
+        'firstName',
+        'lastName',
         'email',
         'emailVerified',
         'role'
