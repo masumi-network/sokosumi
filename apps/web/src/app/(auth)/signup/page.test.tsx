@@ -1,5 +1,5 @@
 import { render, screen } from "@testing-library/react";
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -127,6 +127,9 @@ describe("SignUp page", () => {
       screen.getByRole("link", { name: "backToSokosumi" }),
     ).toHaveAttribute("href", "/");
     expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(handBackMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
   });
 
   it("names the app a signed-in person came from when their request has expired", async () => {
@@ -153,7 +156,51 @@ describe("SignUp page", () => {
     );
     expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
     expect(handBackMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicMock).toHaveBeenCalledOnce();
+    expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
   });
+
+  it.each([ok(null), err({ reason: "http", status: 503 })])(
+    "keeps the expired error generic when the session client lookup fails (%o)",
+    async (result) => {
+      getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
+      getOAuthClientPublicMock.mockResolvedValue(result);
+      const { default: Page } = await import("./page");
+      render(
+        await Page({
+          searchParams: Promise.resolve({
+            ...OAUTH_SEARCH_PARAMS,
+            exp: String(NOW / 1000 - 60),
+          }),
+        }),
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("errorDescription");
+      expect(
+        screen.getByRole("link", { name: "backToSokosumi" }),
+      ).toHaveAttribute("href", "/");
+      expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+      expect(handBackMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([String(NOW / 1000 - 30), "soon"])(
+    "leaves boundary or malformed expiry with the existing form (%s)",
+    async (exp) => {
+      getOAuthClientPublicPreloginMock.mockResolvedValue(null);
+      const { default: Page } = await import("./page");
+      render(
+        await Page({
+          searchParams: Promise.resolve({ ...OAUTH_SEARCH_PARAMS, exp }),
+        }),
+      );
+      expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(handBackMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledOnce();
+    },
+  );
 
   it("reads the last-login cookie using the configured preview prefix", async () => {
     const { default: SignUpPage } = await import("./page");

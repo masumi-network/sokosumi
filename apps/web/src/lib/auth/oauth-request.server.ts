@@ -92,7 +92,7 @@ export async function readOAuthRequest(
   if (oauthRequestHasExpired(query)) {
     return {
       query,
-      client: await getExpiredRequestClient(clientId),
+      client: await getExpiredRequestClient(query),
       canHandBack: false,
       accountToConfirm: undefined,
       hasExpired: true,
@@ -129,9 +129,19 @@ export async function readOAuthRequest(
  * still names the client to a person who is signed in.
  */
 async function getExpiredRequestClient(
-  clientId: string,
+  query: string,
 ): Promise<OAuthRequestClient | undefined> {
-  if (!(await getSession())) {
+  const params = new URLSearchParams(query);
+  const clientId = params.get("client_id");
+  // Do not attribute malformed requests or fields outside the signed
+  // parameter manifest to a product through the session-only lookup.
+  if (
+    !clientId ||
+    params.getAll("client_id").length !== 1 ||
+    !params.get("sig") ||
+    params.getAll("sig").length !== 1 ||
+    !(await getSession())
+  ) {
     return undefined;
   }
   const result = await getOAuthClientPublic(clientId);

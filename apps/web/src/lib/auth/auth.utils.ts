@@ -428,9 +428,17 @@ const OAUTH_REQUEST_CLOCK_SKEW_MS = 30_000;
  * refuses it.
  */
 export function oauthRequestHasExpired(oauthQuery: string): boolean {
-  return !(
-    oauthRequestExpiresAt(oauthQuery) + OAUTH_REQUEST_CLOCK_SKEW_MS >
-    Date.now()
+  const expirations = new URLSearchParams(oauthQuery).getAll("exp");
+  // This shortcut only recognizes the integer seconds Core issues. Missing,
+  // ambiguous or malformed expiry still needs Core's request validation.
+  if (expirations.length !== 1 || !/^[1-9]\d*$/.test(expirations[0] ?? "")) {
+    return false;
+  }
+  const expiresAt = oauthRequestExpiresAt(oauthQuery);
+  return (
+    Number.isSafeInteger(expiresAt) &&
+    Number.isFinite(new Date(expiresAt).getTime()) &&
+    Date.now() > expiresAt + OAUTH_REQUEST_CLOCK_SKEW_MS
   );
 }
 

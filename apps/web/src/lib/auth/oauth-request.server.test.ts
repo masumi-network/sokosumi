@@ -1,6 +1,6 @@
 import { err, ok } from "neverthrow";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
+import type { AuthRedirectSearchParams } from "./auth.utils";
 import { readOAuthRequest } from "./oauth-request.server";
 
 const getSessionMock = vi.fn();
@@ -37,7 +37,7 @@ function signedInSince(createdAt: string) {
   };
 }
 
-function read(searchParams: Record<string, string>) {
+function read(searchParams: AuthRedirectSearchParams) {
   return readOAuthRequest(Promise.resolve(searchParams));
 }
 
@@ -159,6 +159,59 @@ describe("readOAuthRequest", () => {
         await read({ ...SIGNED, exp: String(NOW / 1000 - 5) }),
       ).toMatchObject({ hasExpired: false, client: { name: "CMO" } });
     });
+  });
+
+  it.each<AuthRedirectSearchParams>([
+    { exp: "soon" },
+    { exp: "0" },
+    { exp: [String(NOW / 1000 - 60), String(NOW / 1000 + 600)] },
+    { exp: [""] },
+    { ba_param: ["ba_param", "client_id"] },
+  ])(
+    "leaves malformed expiry to Core instead of the named expired shortcut (%o)",
+    async (extra) => {
+      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:00:00Z"));
+      getOAuthClientPublicPreloginMock.mockResolvedValue(null);
+      getOAuthClientPublicMock.mockResolvedValue(ok({ client_name: "CMO" }));
+
+      expect(await read({ ...SIGNED, ...extra })).toMatchObject({
+        hasExpired: false,
+        client: undefined,
+      });
+      expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.each<AuthRedirectSearchParams>([
+    { sig: [""] },
+    { sig: ["signed-value", "second-signature"] },
+    { client_id: ["cmo", "another-app"] },
+    { ba_param: ["ba_param", "exp"] },
+  ])(
+    "keeps an expired malformed identity generic without client lookups (%o)",
+    async (extra) => {
+      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:00:00Z"));
+      getOAuthClientPublicMock.mockResolvedValue(ok({ client_name: "CMO" }));
+
+      expect(
+        await read({ ...SIGNED, exp: String(NOW / 1000 - 60), ...extra }),
+      ).toMatchObject({
+        hasExpired: true,
+        client: undefined,
+        canHandBack: false,
+      });
+      expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("leaves exactly thirty seconds past expiry to Core", async () => {
+    expect(
+      await read({ ...SIGNED, exp: String(NOW / 1000 - 30) }),
+    ).toMatchObject({ hasExpired: false });
+    expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledOnce();
+    expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
   });
 
   describe("when the product asks for a new account", () => {
