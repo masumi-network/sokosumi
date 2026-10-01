@@ -1,6 +1,9 @@
 # Run Soko Bot inside Core
 
-- Status: Accepted
+- Status: Accepted. Amended by [ADR 0043](0043-soko-bot-runs-in-per-bot-sandboxes.md).
+
+The current default is `SOKO_BOT_RUNTIME_ADAPTER=sandbox`. The Eve and
+in-process bodies below are history, not the live loop.
 
 The original Eve-service decision was superseded 2026-08-27. That text is
 recorded at the bottom.
