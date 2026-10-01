@@ -1623,21 +1623,24 @@ describe("core auth config", () => {
       expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
     });
 
-    it("keeps Sokosumi's email and link when the client has no name or is gone", async () => {
-      getOAuthProviderStateMock.mockResolvedValue({
-        query: "response_type=code&client_id=unnamed",
-      });
-      prismaMock.oauthClient.findFirst.mockResolvedValue({ name: null });
+    it.each([null, "", "   "])(
+      "keeps Sokosumi's email and link when the client has no name (%j)",
+      async (name) => {
+        getOAuthProviderStateMock.mockResolvedValue({
+          query: "response_type=code&client_id=unnamed",
+        });
+        prismaMock.oauthClient.findFirst.mockResolvedValue({ name });
 
-      await sendVerificationEmail();
+        await sendVerificationEmail();
 
-      expect(renderVerificationEmailMock).toHaveBeenCalledWith({
-        locale: "en",
-        name: "Ada",
-        verificationLink: expect.any(String),
-      });
-      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
-    });
+        expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+          locale: "en",
+          name: "Ada",
+          verificationLink: expect.any(String),
+        });
+        expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+      },
+    );
 
     it("still sends Sokosumi's email when the client lookup fails", async () => {
       getOAuthProviderStateMock.mockResolvedValue({

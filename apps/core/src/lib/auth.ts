@@ -133,7 +133,7 @@ async function getSignUpOAuthClient(): Promise<SignUpOAuthClient | undefined> {
       where: { clientId, disabled: false },
       select: { name: true },
     });
-    return client?.name ? { clientId, name: client.name } : undefined;
+    return client?.name?.trim() ? { clientId, name: client.name } : undefined;
   } catch (error) {
     captureExternalServiceError(error, {
       label: "verification_email_client",
