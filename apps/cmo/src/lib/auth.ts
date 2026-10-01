@@ -2,15 +2,21 @@ import {
   getUsersById,
   getUsersByIdWorkspaceAccess,
   postUsersByIdPersonalWorkspace,
+  type User,
 } from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
-import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
 import {
   applySetCookies,
   getAccountCookie,
   getCookies,
   parseCookies,
+  setSessionCookie,
 } from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
@@ -43,6 +49,14 @@ const CLIENT_IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"];
 
 /** Core's refresh tokens last 90 days; the session never outlives them. */
 const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
+
+/** The person's full name, or their display name when Sokosumi has no parts. */
+function personName(user: User): string {
+  return (
+    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
+    user.name.trim()
+  );
+}
 
 /**
  * Sign in with Sokosumi. Better Auth runs stateless: no database, the session
@@ -187,7 +201,18 @@ export function createCmoAuth(config: CmoAuthConfig) {
           ?.includes(ctx.context.authCookies.accountData.name);
         if (!refreshed) return;
         const result = await getCoreUser(tokens.accessToken).catch(() => null);
-        if (result?.data) return;
+        if (result?.data) {
+          // The session cookie keeps the sign-in name for up to 90 days.
+          const name = personName(result.data.data);
+          const session = await getSessionFromCtx(ctx);
+          if (session && session.user.name !== name) {
+            await setSessionCookie(ctx, {
+              session: session.session,
+              user: { ...session.user, name },
+            });
+          }
+          return;
+        }
         const status = result?.response?.status;
         throw new APIError(
           status === 401 || status === 403
@@ -221,7 +246,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
               return {
                 id: user.id,
                 sub: user.id,
-                name: user.name,
+                name: personName(user),
                 email: user.email,
                 emailVerified: user.emailVerified,
                 image: user.image ?? undefined,
