@@ -82,9 +82,26 @@ async function calendar(
   return events.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
+/** Mail from or to one address, in each provider's search syntax. */
+function participantQuery(providerId: string, email: string): string {
+  return providerId === "gmail"
+    ? `{from:${email} to:${email} cc:${email}} -filename:ics`
+    : `participants:${email}`;
+}
+
+/** Invitations and RSVPs say a meeting exists, not what was said. */
+const CALENDAR_NOTICE =
+  /^(invitation|updated invitation|accepted|declined|tentatively accepted|canceled event|cancelled event)\b[^:]*:/i;
+
 async function mail(
   bot: RhythmBot,
-  options: { query?: string; since?: Date; limit: number; gmailOnly?: boolean },
+  options: {
+    query?: string;
+    participant?: string;
+    since?: Date;
+    limit: number;
+    gmailOnly?: boolean;
+  },
 ): Promise<SokoBotInboxMessage[] | null> {
   const integrations = (await activeIntegrationsForBot(bot.id, "email")).filter(
     (integration) => !options.gmailOnly || integration.provider.id === "gmail",
@@ -94,7 +111,11 @@ async function mail(
   for (const integration of integrations)
     messages.push(
       ...(await fetchInboxMessages(integration, {
-        query: integration.provider.id === "gmail" ? options.query : undefined,
+        query: options.participant
+          ? participantQuery(integration.provider.id, options.participant)
+          : integration.provider.id === "gmail"
+            ? options.query
+            : undefined,
         since: options.since,
         limit: options.limit,
       }).catch(() => [])),
@@ -196,21 +217,24 @@ async function meetingPrep(
       lines.push(
         `- Agenda: ${event.description.replace(/\s+/g, " ").slice(0, 300)}`,
       );
-    const threads =
-      (await mail(bot, {
-        query: external
-          .slice(0, 3)
-          .map((email) => `from:${email} OR to:${email}`)
-          .join(" OR "),
-        since: new Date(slotAt.getTime() - 60 * DAY_MS),
-        limit: 5,
-      })) ?? [];
-    if (threads.length > 0) {
-      lines.push("- Last mail with them:");
+    // One search per person, so whoever has the most mail can't crowd the
+    // others out of a shared result.
+    for (const email of external.slice(0, 4)) {
+      const recent = (
+        (await mail(bot, {
+          participant: email,
+          since: new Date(slotAt.getTime() - 365 * DAY_MS),
+          limit: 8,
+        })) ?? []
+      )
+        .filter((m) => !CALENDAR_NOTICE.test(m.subject))
+        .sort((a, b) => b.receivedAt.localeCompare(a.receivedAt))
+        .slice(0, 3);
       lines.push(
-        ...threads
-          .slice(0, 5)
-          .map((m) => `  ${mailLine(m, bot.ingestTimezone)}`),
+        recent.length > 0
+          ? `- Last mail with ${email}:`
+          : `- No mail with ${email} by address in the last year`,
+        ...recent.map((m) => `  ${mailLine(m, bot.ingestTimezone)}`),
       );
     }
     const companies = [
