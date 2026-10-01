@@ -3146,6 +3146,16 @@
         },
         "Detail": {
           "noExpiry": "Sin caducidad"
+        },
+        "ChangeCredits": {
+          "title": "Cambiar créditos por mes",
+          "description": "Se aplica a cada mes aún no otorgado. Los meses ya otorgados conservan sus créditos.",
+          "label": "Créditos / mes",
+          "min": "Mín. {min, number}",
+          "cancel": "Cancelar",
+          "submit": "Guardar",
+          "success": "Créditos por mes actualizados",
+          "error": "No se pudieron actualizar los créditos por mes"
         }
       },
       "Overview": {

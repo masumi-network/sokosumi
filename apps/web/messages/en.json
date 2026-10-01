@@ -3182,6 +3182,16 @@
         },
         "Detail": {
           "noExpiry": "No expiry"
+        },
+        "ChangeCredits": {
+          "title": "Change credits per month",
+          "description": "Applies to every month not yet granted. Months already granted keep their credits.",
+          "label": "Credits / month",
+          "min": "Min {min, number}",
+          "cancel": "Cancel",
+          "submit": "Save",
+          "success": "Credits per month updated",
+          "error": "Failed to update credits per month"
         }
       },
       "Invoices": {
