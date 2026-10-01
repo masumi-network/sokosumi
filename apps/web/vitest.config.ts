@@ -113,7 +113,7 @@ export default defineConfig({
           exclude: [
             ...defaultExclude,
             ...DOM_TEST_TS,
-            "src/**/*.webkit.test.ts",
+            "src/**/*.webkit.test.{ts,tsx}",
           ],
         },
       },
@@ -123,6 +123,7 @@ export default defineConfig({
           name: "happy-dom",
           environment: "happy-dom",
           include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
+          exclude: [...defaultExclude, "src/**/*.webkit.test.{ts,tsx}"],
         },
       },
     ],

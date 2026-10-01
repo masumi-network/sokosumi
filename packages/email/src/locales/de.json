@@ -16,7 +16,13 @@
       "message": "Bestätige deine E-Mail-Adresse über den Button unten. So bleibt dein Account sicher.",
       "button": "E-Mail bestätigen",
       "linkInstructions": "Oder kopiere diese URL und füge sie in deinen Browser ein:",
-      "footer": "Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren."
+      "footer": "Wenn du kein Konto erstellt hast, kannst du diese E-Mail ignorieren.",
+      "client": {
+        "subject": "Bestätige deine E-Mail-Adresse für {client}",
+        "title": "Bestätige deine E-Mail-Adresse für {client}",
+        "message": "Du hast dich mit einem Sokosumi-Konto bei {client} registriert. Bestätige deine E-Mail-Adresse über den Button unten.",
+        "button": "E-Mail bestätigen"
+      }
     },
     "invitation": {
       "subject": "Sokosumi - Organisationseinladung",
