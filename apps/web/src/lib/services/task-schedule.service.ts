@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   TaskSchedule,
   TaskScheduleAssignees,
   TaskScheduleRun,
@@ -85,16 +86,48 @@ export const taskScheduleService = (() => {
     await coreClient.deleteTaskScheduleById(id);
   }
 
-  /** The next Runs from `from` on, in time order. */
+  /** The rule's next Runs from `from` on, in time order. */
   async function listUpcomingRuns(
     id: string,
     params: { from: Date; limit: number },
   ): Promise<TaskScheduleRun[]> {
     const result = await coreClient.listTaskScheduleRuns(id, {
       from: params.from,
+      manual: "false",
       limit: params.limit,
     });
     return result.data;
+  }
+
+  /**
+   * All Run now Runs from `from` on; `limit` is the Core page size. No upper
+   * bound: a Run now Run carries Core's clock, which may run ahead of Web's.
+   */
+  async function listManualRuns(
+    id: string,
+    params: { from: Date; limit: number },
+  ): Promise<TaskScheduleRun[]> {
+    const runs: TaskScheduleRun[] = [];
+    let cursor: string | undefined;
+    do {
+      const result = await coreClient.listTaskScheduleRuns(id, {
+        from: params.from,
+        manual: "true",
+        limit: params.limit,
+        cursor,
+      });
+      runs.push(...result.data);
+      cursor = result.meta?.pagination?.nextCursor ?? undefined;
+    } while (cursor);
+    return runs;
+  }
+
+  /** Run now: one extra Run that creates its Task at once. */
+  async function runNow(
+    id: string,
+    body: CreateTaskScheduleRunRequest,
+  ): Promise<TaskScheduleRunUpdate> {
+    return (await coreClient.createTaskScheduleRun(id, body)).data;
   }
 
   /** Skips, moves, or restores one upcoming Run; the rule stays as it is. */
@@ -115,6 +148,8 @@ export const taskScheduleService = (() => {
     changeScheduleState,
     deleteSchedule,
     listUpcomingRuns,
+    listManualRuns,
+    runNow,
     changeRun,
   };
 })();
