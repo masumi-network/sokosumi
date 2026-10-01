@@ -134,6 +134,7 @@ import {
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
+import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type {
   RoomTranscriptCache,
@@ -3166,6 +3167,10 @@ function RoomView({
                 localCalendarReady &&
                 !showDaySeparator &&
                 isMessageContinuation(previousMessage, message)
+              }
+              newestEndsInAttachment={
+                message.id === newestMessageId &&
+                endsWithAttachmentRow(message.content)
               }
               seenBy={
                 seenByReaders.length > 0 ? (
