@@ -413,6 +413,39 @@ struct WorkspaceStateTests {
     #expect(!state.archivedChannels.canDelete)
   }
 
+  /// Row 32b2: a failed role read still fills the Archived section, with Delete off until a read knows the role.
+  @Test func archivedSectionSurvivesARoleReadFailure() async throws {
+    func envelope(_ data: String) -> String {
+      #"{"data":\#(data),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#
+    }
+    let unavailable = #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/users/me/organizations/org_1/member","method":"GET"}}"#
+    let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (500, unavailable), (200, roomsBody(names: ["design"])),
+      (200, owner), (200, roomsBody(names: ["design"])),
+      (500, unavailable), (200, roomsBody(names: ["design", "launch"]))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.map(\.name) == ["design"])
+    #expect(!state.archivedChannels.canDelete)
+    #expect(state.phase == .ready)
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.canDelete)
+    // Web's later archived reads never touch the gate, so a failed role read leaves Delete in place.
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.map(\.name) == ["design", "launch"])
+    #expect(state.archivedChannels.canDelete)
+    #expect(transport.remainingStubs == 0)
+  }
+
   @Test func channelLifecycleWaitsForOtherChannelMutations() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let general = "550e8400-e29b-41d4-a716-446655440000"

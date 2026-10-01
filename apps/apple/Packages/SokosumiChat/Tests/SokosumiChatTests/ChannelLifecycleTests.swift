@@ -56,4 +56,25 @@ struct ChannelLifecycleTests {
     model.reset()
     #expect(model.rooms.isEmpty && !model.canDelete)
   }
+
+  /// Row 32b2: a failed role read still lists the rows. Web's first render turns it into no Delete, and its later
+  /// archived reads never touch the gate, so a later failed read keeps whatever the gate was.
+  @Test func aFailedRoleReadListsTheRowsAndLeavesTheDeleteGate() async {
+    let model = ArchivedChannels()
+    await model.load { .init(rooms: [room(id: "b", name: "beta"), room(id: "a", name: "alpha")], canDelete: false, roleLoadFailed: true) }
+    #expect(model.rooms.map(\.id) == ["a", "b"])
+    #expect(!model.canDelete)
+
+    // A later read that knows the role brings Delete back; a failed one after it leaves Delete in place.
+    await model.load { .init(rooms: [room(id: "a", name: "alpha")], canDelete: true) }
+    #expect(model.canDelete)
+    await model.load { .init(rooms: [room(id: "c", name: "gamma")], canDelete: false, roleLoadFailed: true) }
+    #expect(model.rooms.map(\.id) == ["c"])
+    #expect(model.canDelete)
+
+    // A workspace switch starts the gate over.
+    model.reset()
+    await model.load { .init(rooms: [room(id: "c", name: "gamma")], canDelete: false, roleLoadFailed: true) }
+    #expect(model.rooms.map(\.id) == ["c"] && !model.canDelete)
+  }
 }
