@@ -72,9 +72,13 @@ export function runtimeEvent(
 
 /**
  * How many times an append re-reads the tail after losing `(turnId, startIndex)`
- * to another writer.
+ * to another writer. Each round has one winner, so a model's batch of parallel
+ * tool calls, each its own request, needs about as many rounds as calls; with
+ * five, three of thirteen parallel archives failed before they ran.
  */
-const MAX_APPEND_ATTEMPTS = 5;
+const MAX_APPEND_ATTEMPTS = 25;
+/** Spreads the retries so the losers of one round don't collide again. */
+const APPEND_RETRY_JITTER_MS = 40;
 
 /**
  * Serverless invocations share no memory: every runtime appends here and the
@@ -140,6 +144,9 @@ export class RuntimeEventLog {
           throw error;
         }
         this.index = null;
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.random() * APPEND_RETRY_JITTER_MS),
+        );
       }
     }
   }

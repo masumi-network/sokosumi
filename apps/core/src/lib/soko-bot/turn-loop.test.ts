@@ -6,18 +6,23 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  eventFindFirst,
+  eventCreate,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  eventFindFirst: vi.fn(),
+  eventCreate: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
+    sokoBotRuntimeEvent: { findFirst: eventFindFirst, create: eventCreate },
   },
 }));
 vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
@@ -26,7 +31,44 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { contextBlock, finishTurn, latestExchange } from "./turn-loop";
+import {
+  contextBlock,
+  finishTurn,
+  latestExchange,
+  RuntimeEventLog,
+  runtimeEvent,
+} from "./turn-loop";
+
+describe("RuntimeEventLog", () => {
+  it("lands every event when a batch of parallel requests appends at once", async () => {
+    const taken = new Set<number>();
+    eventFindFirst.mockImplementation(async () =>
+      taken.size ? { startIndex: Math.max(...taken) } : null,
+    );
+    eventCreate.mockImplementation(
+      async ({ data }: { data: { startIndex: number } }) => {
+        // Every request reads the tail before any of them writes.
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        if (taken.has(data.startIndex))
+          throw Object.assign(new Error("Unique constraint"), {
+            code: "P2002",
+          });
+        taken.add(data.startIndex);
+      },
+    );
+    // Each tool call is its own request with its own log, as in production.
+    await Promise.all(
+      Array.from({ length: 13 }, () =>
+        new RuntimeEventLog("turn-one", "session-one").append(
+          runtimeEvent("actions.requested", { actions: [] }),
+        ),
+      ),
+    );
+    expect([...taken].sort((a, b) => a - b)).toEqual(
+      Array.from({ length: 13 }, (_, index) => index),
+    );
+  });
+});
 
 describe("contextBlock", () => {
   it("states the reply language last, after the packet and the latest exchange", () => {
