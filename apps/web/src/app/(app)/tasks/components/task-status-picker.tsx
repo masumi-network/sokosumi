@@ -21,6 +21,11 @@ import {
   MARKER_ICONS,
   StatusMarker,
 } from "@/components/ui/status-marker";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { isEditableKeyboardTarget } from "@/lib/utils/is-editable-keyboard-target";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
@@ -132,43 +137,54 @@ export function TaskStatusPicker({
     />
   );
 
-  return (
-    <Popover open={open} onOpenChange={handleOpenChange}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          role="combobox"
-          aria-expanded={open}
-          aria-label={labels.ariaLabel}
-          disabled={disabled || isPending}
+  const trigger = (
+    <button
+      type="button"
+      role="combobox"
+      aria-expanded={open}
+      aria-label={labels.ariaLabel}
+      disabled={disabled || isPending}
+      className={cn(
+        "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+        variant === "row" &&
+          "hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm",
+      )}
+    >
+      {variant === "row" ? (
+        <>
+          <span className="flex size-5 shrink-0 items-center justify-center">
+            {statusMarker}
+          </span>
+          <span className="truncate">{labels.statusLabels[value]}</span>
+        </>
+      ) : (
+        <span
           className={cn(
-            "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
-            variant === "row" &&
-              "hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center justify-start gap-2 rounded-md px-2 text-sm",
+            "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+            style.box,
+            style.label,
           )}
         >
-          {variant === "row" ? (
-            <>
-              <span className="flex size-5 shrink-0 items-center justify-center">
-                {statusMarker}
-              </span>
-              <span className="truncate">{labels.statusLabels[value]}</span>
-            </>
-          ) : (
-            <span
-              className={cn(
-                "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
-                style.box,
-                style.label,
-              )}
-            >
-              {statusMarker}
-              <span>{labels.statusLabels[value]}</span>
-              <ChevronDown className="size-3 opacity-70" aria-hidden />
-            </span>
-          )}
-        </button>
-      </PopoverTrigger>
+          {statusMarker}
+          <span>{labels.statusLabels[value]}</span>
+          <ChevronDown className="size-3 opacity-70" aria-hidden />
+        </span>
+      )}
+    </button>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      {variant === "row" ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="left">{labels.ariaLabel}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      )}
       <PopoverContent align={align} className="w-64 p-0">
         <Command onKeyDown={handleListKeyDown}>
           <div className="relative">

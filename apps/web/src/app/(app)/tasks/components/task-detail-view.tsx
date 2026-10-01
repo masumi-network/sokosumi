@@ -501,6 +501,7 @@ async function TaskMetadataSection({
           schedule: t("schedule"),
           assignee: t("assignee"),
           noAssignee: t("noAssignee"),
+          memberFallback: t("memberFallback"),
           personalAssistantFallback: tTasks("personalAssistant"),
         }}
         statusFieldLabels={{
