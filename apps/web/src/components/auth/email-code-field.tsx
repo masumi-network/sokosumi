@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type Ref, useId } from "react";
+import { type Ref, useId, useRef } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -50,6 +50,13 @@ export function useDescribeEmailCodeError() {
 interface EmailCodeFieldProps {
   value: string;
   onChange: (value: string) => void;
+  /**
+   * Called when the value becomes a whole code, typed, pasted or autofilled,
+   * so the page can spend it without the button. Not again for the code it
+   * last handed over, or the one the field opened on: sending that again,
+   * refused or declined, is the button's.
+   */
+  onComplete: (code: string) => void;
   onBlur?: () => void;
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
@@ -69,6 +76,7 @@ interface EmailCodeFieldProps {
 export function EmailCodeField({
   value,
   onChange,
+  onComplete,
   onBlur,
   email,
   error,
@@ -83,6 +91,7 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
+  const completedCode = useRef(value.length === EMAIL_CODE_LENGTH ? value : "");
 
   return (
     <div className="grid gap-2">
@@ -106,9 +115,17 @@ export function EmailCodeField({
         className="text-center font-mono tracking-[0.3em]"
         value={value}
         onChange={(event) => {
-          onChange(
-            event.target.value.replace(/\D/g, "").slice(0, EMAIL_CODE_LENGTH),
-          );
+          const code = event.target.value
+            .replace(/\D/g, "")
+            .slice(0, EMAIL_CODE_LENGTH);
+          onChange(code);
+          if (
+            code.length === EMAIL_CODE_LENGTH &&
+            code !== completedCode.current
+          ) {
+            completedCode.current = code;
+            onComplete(code);
+          }
         }}
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}

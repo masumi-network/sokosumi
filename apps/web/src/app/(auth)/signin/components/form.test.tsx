@@ -1,5 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { track } from "@vercel/analytics";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -172,6 +173,87 @@ describe("SignInForm", () => {
       );
       expect(onPendingChange).toHaveBeenCalledWith(true);
       expect(screen.getByRole("button", { name: "submit" })).toBeDisabled();
+    });
+
+    it("signs in as soon as the sixth digit is typed, without the button", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode();
+      const { onPendingChange } = renderForm({
+        initialMethod: "code",
+        emailCode,
+      });
+
+      await user.type(codeField(), "042917");
+
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledExactlyOnceWith(
+          EMAIL,
+          "042917",
+        ),
+      );
+      expect(track).toHaveBeenCalledWith("Sign In", { provider: "email-otp" });
+      expect(onPendingChange).toHaveBeenCalledWith(true);
+    });
+
+    it("signs in with a pasted code that carries a dash", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode();
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.click(codeField());
+      await user.paste("042-917");
+
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledExactlyOnceWith(
+          EMAIL,
+          "042917",
+        ),
+      );
+    });
+
+    it("shows the step as busy while the code is checked, and sends it once", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi.fn(() => new Promise<undefined>(() => {})),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.type(codeField(), "042917");
+
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "submit" })).toBeDisabled(),
+      );
+      expect(codeField()).toBeDisabled();
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+    });
+
+    it("does not send a refused code again until it changes", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi
+          .fn()
+          .mockResolvedValue({ code: "INVALID_OTP", message: "Invalid OTP" }),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.type(codeField(), "000000");
+      await waitFor(() =>
+        expect(codeField()).toHaveAccessibleDescription(/invalid$/),
+      );
+      await waitFor(() => expect(codeField()).toHaveFocus());
+
+      // Taking a digit back and typing it again is still the refused code.
+      await user.type(codeField(), "{Backspace}0");
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+
+      await user.type(codeField(), "{Backspace}7");
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
+          EMAIL,
+          "000007",
+        ),
+      );
+      expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2);
     });
 
     it("asks for all six digits before sending anything", async () => {

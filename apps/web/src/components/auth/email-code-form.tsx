@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import { Button } from "@/components/ui/button";
 
@@ -53,14 +54,20 @@ export function EmailCodeForm({
   const [isAccepted, setIsAccepted] = useState(false);
 
   function showError(message: string) {
-    setError(message);
-    // Submitting left focus on the button; send it back to the field.
+    // The field is disabled while a code is checked; enable it first, so
+    // focus can return to it. Moving there is what reads the error out.
+    flushSync(() => {
+      setError(message);
+      setIsVerifying(false);
+    });
     fieldRef.current?.focus();
   }
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (code.length !== EMAIL_CODE_LENGTH) {
+  // The button and a completed field both end here, so a code is spent one
+  // way only. The field hands its code over before the state holding it has
+  // rendered.
+  const submitCode = async (submitted: string) => {
+    if (submitted.length !== EMAIL_CODE_LENGTH) {
       showError(t("incomplete"));
       return;
     }
@@ -68,7 +75,7 @@ export function EmailCodeForm({
     setError(null);
     setIsVerifying(true);
     try {
-      const answer = await onSubmitCode(code);
+      const answer = await onSubmitCode(submitted);
       if (answer === false) {
         return;
       }
@@ -88,6 +95,11 @@ export function EmailCodeForm({
 
   const isLocked = isVerifying || isAccepted;
 
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void submitCode(code);
+  };
+
   return (
     <form noValidate className="flex flex-col gap-3" onSubmit={handleSubmit}>
       <EmailCodeField
@@ -96,12 +108,15 @@ export function EmailCodeForm({
         autoFocus
         value={code}
         onChange={setCode}
+        onComplete={(completed) => {
+          if (!isLocked) void submitCode(completed);
+        }}
         email={email}
         error={error ?? undefined}
         sentAt={sentAt}
         onResend={onResend}
         isResending={isResending || isLocked}
-        disabled={isAccepted}
+        disabled={isLocked}
       />
       <Button type="submit" disabled={isLocked}>
         {isLocked ? (

@@ -238,6 +238,9 @@ export default function SignInForm({
               inputRef={field.ref}
               value={field.value}
               onChange={field.onChange}
+              onComplete={() => {
+                if (!isPending) void form.handleSubmit(handleCodeSubmit)();
+              }}
               onBlur={field.onBlur}
               error={fieldState.error?.message}
               sentAt={emailCode.sentAt}

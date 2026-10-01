@@ -49,6 +49,18 @@ describe("EmailCodeForm", () => {
     expect(onSubmitCode).toHaveBeenCalledWith("042917");
   });
 
+  it("submits as soon as the sixth digit is typed", async () => {
+    const user = userEvent.setup();
+    const { onSubmitCode } = renderForm();
+
+    await user.type(
+      screen.getByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
+
+    expect(onSubmitCode).toHaveBeenCalledExactlyOnceWith("042917");
+  });
+
   it("asks for all six digits before sending anything", async () => {
     const user = userEvent.setup();
     const { onSubmitCode } = renderForm();

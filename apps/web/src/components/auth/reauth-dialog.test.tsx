@@ -263,21 +263,74 @@ describe("ReauthDialog", () => {
       email: "owner@example.com",
       type: "sign-in",
     });
+    // The sixth digit confirms; Confirm is not needed.
     await user.type(
       await screen.findByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
 
     await waitFor(() => {
       expect(onReauthenticated).toHaveBeenCalledTimes(1);
     });
-    expect(mockSignInEmailCode).toHaveBeenCalledWith({
+    expect(mockSignInEmailCode).toHaveBeenCalledExactlyOnceWith({
       email: "owner@example.com",
       otp: "042917",
     });
     expect(onOpenChange).toHaveBeenCalledWith(false);
     expect(mockDiscardRetiredAblyRealtimeClient).toHaveBeenCalled();
+  });
+
+  it("checks a typed code once, with Confirm busy meanwhile", async () => {
+    mockSignInEmailCode.mockReturnValue(new Promise(() => {}));
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "042917");
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "confirmCode" }),
+      ).toBeDisabled(),
+    );
+    // Like the sign-in step: nothing changes the code while it is checked.
+    expect(code).toBeDisabled();
+    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+  });
+
+  it("announces a refused code and sends it again only once it changes", async () => {
+    mockSignInEmailCode.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP" },
+    });
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+
+    // Focus returns to the field once it is enabled again, and the field's
+    // description, which now names the refusal, is what gets read out.
+    await waitFor(() => expect(code).toHaveFocus());
+    expect(code).toBeEnabled();
+    expect(code).toHaveAccessibleDescription(/invalid$/);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Taking a digit back and typing it again is still the refused code.
+    await user.type(code, "{Backspace}0");
+    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+
+    // Confirm still sends the same code on purpose.
+    await user.click(screen.getByRole("button", { name: "confirmCode" }));
+    await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
+
+    await user.type(code, "{Backspace}7");
+    await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(3));
+    expect(mockSignInEmailCode).toHaveBeenLastCalledWith({
+      email: "owner@example.com",
+      otp: "000007",
+    });
   });
 
   it("keeps the dialog open on a wrong code and says so beside the field", async () => {

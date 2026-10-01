@@ -654,6 +654,56 @@ describe("SignUpForm email code", () => {
     expect(mockHandleUtmConversion).toHaveBeenCalledOnce();
   });
 
+  it("creates the account as soon as the sixth digit follows the names", async () => {
+    const { db, emailedCodes } = connectToEmailCodeHandler();
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+
+    await user.type(code, emailedCodes[0] ?? "");
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalled();
+    });
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    expect(db.user).toEqual([
+      expect.objectContaining({ firstName: "Ada", lastName: "Lovelace" }),
+    ]);
+  });
+
+  it("waits for the button when the code comes before the names", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+    await user.click(code);
+    await user.paste("042 917");
+
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+    // Nothing new is marked: the names were never submitted.
+    expect(screen.getByLabelText("Fields.FirstName.label")).not.toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(code).not.toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveFocus();
+
+    // Register still sends it once the names are in.
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+    });
+    await typeNames(user);
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() =>
+      expect(mockEmailCodeSignIn).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ email: EMAIL, otp: "042917" }),
+      ),
+    );
+  });
+
   it("keeps the first email's code working after a resend", async () => {
     const { emailedCodes } = connectToEmailCodeHandler();
     const sendCode = (body: Record<string, unknown>) =>

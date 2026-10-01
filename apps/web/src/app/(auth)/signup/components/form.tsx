@@ -255,6 +255,16 @@ export default function SignUpForm({
               inputRef={field.ref}
               value={field.value}
               onChange={field.onChange}
+              onComplete={() => {
+                // Only when Register would go through: a code typed before
+                // the names waits for the button, with nothing new marked.
+                if (
+                  !isPending &&
+                  codeStepSchema.safeParse(form.getValues()).success
+                ) {
+                  void form.handleSubmit(handleCodeSubmit)();
+                }
+              }}
               onBlur={field.onBlur}
               error={fieldState.error?.message}
               sentAt={emailCode.sentAt}
