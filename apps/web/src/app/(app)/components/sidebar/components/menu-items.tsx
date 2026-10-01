@@ -36,6 +36,8 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
+import { SidebarNewBadge } from "./sidebar-new-badge";
+
 interface MenuItemConfig {
   key: string;
   href?: string;
@@ -45,6 +47,7 @@ interface MenuItemConfig {
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
+  isNew?: boolean;
 }
 
 /**
@@ -150,6 +153,7 @@ function ScopedMenuItems({
       href: "/studio",
       label: t("contentStudio"),
       Icon: ImagePlus,
+      isNew: true,
     },
     // Social used to be a tab inside a project. It is a destination of its
     // own now, scoped the same way the studio is, and it is still behind the
@@ -161,6 +165,7 @@ function ScopedMenuItems({
             href: "/social",
             label: t("social"),
             Icon: Share2,
+            isNew: true,
           },
         ]
       : []),
@@ -172,6 +177,7 @@ function ScopedMenuItems({
             href: "/drive",
             label: t("drive"),
             Icon: HardDrive,
+            isNew: true,
           },
         ]
       : []),
@@ -197,6 +203,7 @@ function ScopedMenuItems({
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
+                isNew,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
                 // The pill wears the rail square's 4px inset and 4px padding
@@ -234,6 +241,7 @@ function ScopedMenuItems({
                     >
                       {label}
                     </span>
+                    {isNew ? <SidebarNewBadge /> : null}
                   </>
                 );
 

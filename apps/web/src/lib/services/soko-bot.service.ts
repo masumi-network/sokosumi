@@ -31,6 +31,10 @@ import {
   type SokoBotChatState,
   toSokoBotChatState,
 } from "@/lib/soko-bot/chat-state";
+import {
+  missingConnections,
+  type SokoBotConnectPromptState,
+} from "@/lib/soko-bot/connect-prompt";
 
 /** Turns the chat surface renders and polls; keeps one Core round-trip small. */
 export const SOKO_BOT_RECENT_TURN_LIMIT = 20;
@@ -155,6 +159,19 @@ export const sokoBotService = {
   async listIntegrations(): Promise<SokoBotIntegrations> {
     const response = await coreClient.listMySokoBotIntegrations();
     return response.data;
+  },
+
+  /** Null when there is no bot, integrations are off, or nothing is missing. */
+  async getConnectPromptState(): Promise<SokoBotConnectPromptState | null> {
+    const [bot, { configured, integrations }] = await Promise.all([
+      this.getMine(),
+      this.listIntegrations(),
+    ]);
+    if (!bot || !configured) return null;
+    const missing = missingConnections(integrations);
+    return missing.length > 0
+      ? { botId: bot.id, botName: bot.name ?? "Soko Bot", missing }
+      : null;
   },
 
   async searchIntegrationCatalog(

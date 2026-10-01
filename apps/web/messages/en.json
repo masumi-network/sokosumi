@@ -318,7 +318,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social",
+      "social": "Social Scheduling",
       "evaluations": "Model evaluations"
     },
     "Jobs": {
@@ -1568,6 +1568,10 @@
         }
       },
       "SokoBot": {
+        "connectPrompt": "Connect your mail and calendar so {bot} can prep your meetings and chase follow-ups.",
+        "connectProvider": "Connect {name}",
+        "connectDismiss": "Dismiss",
+        "connectError": "Could not start the connection.",
         "feedbackAsk": "Useful?",
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
@@ -2816,7 +2820,7 @@
       "creditsCheckedOn": "Price checked {date}"
     },
     "Social": {
-      "title": "Social",
+      "title": "Social Scheduling",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
@@ -2869,6 +2873,7 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "New",
           "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
@@ -2884,7 +2889,7 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social"
+          "social": "Social Scheduling"
         },
         "ChatLists": {
           "title": "Recent Chats",
