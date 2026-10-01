@@ -21,6 +21,7 @@ import options from "./list_image_options";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
+// eve@0.68 ToolContext has no `messages` — do not add until eve is bumped.
 const ctx: Parameters<typeof generate.execute>[1] = {
   getSandbox: vi.fn(),
   getToken: vi.fn(),
@@ -30,7 +31,6 @@ const ctx: Parameters<typeof generate.execute>[1] = {
   abortSignal: new AbortController().signal,
   callId: "call-1",
   toolName: "generate_image",
-  messages: [],
   session: {
     id: "session-1",
     turn: { id: "turn-1", sequence: 1 },
