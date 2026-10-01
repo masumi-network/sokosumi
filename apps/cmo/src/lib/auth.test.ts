@@ -426,6 +426,13 @@ describe("CMO auth handler", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("cache-control")).toBe("no-store");
+    const stateCookies = response.headers.getSetCookie();
+    expect(stateCookies).toHaveLength(1);
+    expect(stateCookies[0]).toMatch(/^__Secure-cmo.oauth_state=/);
+    for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) {
+      expect(stateCookies[0]).toContain(attribute);
+    }
+    expect(stateCookies[0]).not.toMatch(/domain=/i);
     const authorizeUrl = response.headers.get("location") ?? "";
     expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
     await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
@@ -433,6 +440,112 @@ describe("CMO auth handler", () => {
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
+  });
+
+  it.each([
+    ["purpose", "prefetch"],
+    ["next-router-prefetch", "1"],
+    ["next-router-segment-prefetch", "/_tree"],
+    ["sec-purpose", "prefetch;prerender"],
+  ])(
+    "keeps an active sign-in usable after speculative link requests (%o)",
+    async (name, value) => {
+      const started = await followLink(jar, "/signin");
+      const approval = core.approve(started.headers.get("location") ?? "");
+      const cookies = jar.header();
+
+      for (const path of ["/signup", "/signin"] as const) {
+        const response = await LINK_ROUTES[path](
+          new Request(`${CMO}${path}`, {
+            headers: { [name]: value, cookie: jar.header() },
+          }),
+        );
+        jar.store(response);
+        expect(response.status).toBe(204);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.has("location")).toBe(false);
+        expect(response.headers.getSetCookie()).toEqual([]);
+        expect(jar.header()).toBe(cookies);
+      }
+
+      await send(auth, jar, callbackPath(approval));
+      expect(await sessionUser(auth, jar)).toEqual({
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      });
+    },
+  );
+
+  it.each(["/signup", "/signin"] as const)(
+    "returns an uncached retry response when Core discovery fails on %s",
+    async (path) => {
+      core.discoveryDown = true;
+      vi.mocked(getAuth).mockReturnValue(
+        createCmoAuth({
+          baseURL: CMO,
+          coreBaseUrl: CORE,
+          clientId: CLIENT_ID,
+          clientSecret: CLIENT_SECRET,
+          secret: "a-cookie-secret-that-is-at-least-32-characters",
+        }),
+      );
+
+      const response = await followLink(jar, path);
+
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.has("location")).toBe(false);
+      expect(response.headers.getSetCookie()).toEqual([]);
+      expect(await response.text()).toContain("Try again");
+    },
+  );
+
+  it("returns an uncached error instead of redirecting when auth returns no URL", async () => {
+    const signInSocial = auth.api.signInSocial;
+    vi.spyOn(auth.api, "signInSocial").mockImplementation(async (input) => {
+      const result = await signInSocial(input);
+      if (
+        "response" in result &&
+        result.response &&
+        typeof result.response === "object" &&
+        "url" in result.response
+      ) {
+        result.response.url = "";
+      }
+      return result;
+    });
+
+    const response = await followLink(jar, "/signin");
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.has("location")).toBe(false);
+  });
+
+  it("rejects a link callback when the browser drops its forwarded state cookie", async () => {
+    const response = await followLink(jar, "/signin");
+    const approval = core.approve(response.headers.get("location") ?? "");
+    const emptyJar = new CookieJar();
+
+    const callback = await send(auth, emptyJar, callbackPath(approval));
+
+    expect(callback.headers.get("location")).toBe(
+      `${CMO}/?error=state_mismatch`,
+    );
+    expect(await sessionUser(auth, emptyJar)).toBeNull();
+  });
+
+  it("starts a new link flow when the CMO session has expired", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + 91 * 24 * 60 * 60 * 1000);
+
+    const response = await followLink(jar, "/signin");
+    const authorizeUrl = response.headers.get("location") ?? "";
+
+    expect(new URL(authorizeUrl).pathname).toBe("/auth/oauth2/authorize");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
+    expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
   it("sends a link home when the person is already signed in to CMO", async () => {
@@ -897,47 +1010,56 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).toBeNull();
   });
 
-  it("signs a preview in through production CMO's proxy", async () => {
-    const preview = createCmoAuth({
-      baseURL: PREVIEW,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-preview-cookie-secret-of-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-    });
-    const previewJar = new CookieJar(PREVIEW);
+  it.each(["auth handler", "link"])(
+    "signs a preview in through production CMO's proxy from a %s",
+    async (entry) => {
+      const preview = createCmoAuth({
+        baseURL: PREVIEW,
+        coreBaseUrl: CORE,
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        secret: "a-preview-cookie-secret-of-at-least-32-characters",
+        oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
+      });
+      const previewJar = new CookieJar(PREVIEW);
 
-    const authorizeUrl = await startSignIn(preview, previewJar);
-    expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
-      CALLBACK,
-    );
+      vi.mocked(getAuth).mockReturnValue(preview);
+      const authorizeUrl =
+        entry === "link"
+          ? ((await followLink(previewJar, "/signup")).headers.get(
+              "location",
+            ) ?? "")
+          : await startSignIn(preview, previewJar);
+      expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
+        CALLBACK,
+      );
 
-    // Core sends the browser to production, which hands off to the preview.
-    const handoff = await send(
-      auth,
-      jar,
-      callbackPath(core.approve(authorizeUrl)),
-    );
-    const location = new URL(handoff.headers.get("location") ?? "");
-    expect(location.origin).toBe(PREVIEW);
-    expect(jar.names()).toEqual([]);
+      // Core sends the browser to production, which hands off to the preview.
+      const handoff = await send(
+        auth,
+        jar,
+        callbackPath(core.approve(authorizeUrl)),
+      );
+      const location = new URL(handoff.headers.get("location") ?? "");
+      expect(location.origin).toBe(PREVIEW);
+      expect(jar.names()).toEqual([]);
 
-    const done = await send(
-      preview,
-      previewJar,
-      `${location.pathname}${location.search}`,
-    );
-    expect(done.headers.get("location")).toBe("/");
-    expect(await sessionUser(preview, previewJar)).toEqual({
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
+      const done = await send(
+        preview,
+        previewJar,
+        `${location.pathname}${location.search}`,
+      );
+      expect(done.headers.get("location")).toBe("/");
+      expect(await sessionUser(preview, previewJar)).toEqual({
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      });
 
-    // The preview received the refresh token and renews on its own.
-    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(preview, previewJar);
-    expect(core.refreshCount()).toBe(1);
-    expect(await sessionUser(preview, previewJar)).not.toBeNull();
-  });
+      // The preview received the refresh token and renews on its own.
+      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+      await renew(preview, previewJar);
+      expect(core.refreshCount()).toBe(1);
+      expect(await sessionUser(preview, previewJar)).not.toBeNull();
+    },
+  );
 });

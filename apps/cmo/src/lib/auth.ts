@@ -18,6 +18,7 @@ import { nextCookies } from "better-auth/next-js";
 import { decryptOAuthToken } from "better-auth/oauth2";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
+import { unstable_rethrow } from "next/navigation";
 
 import { readCmoAuthConfig } from "./auth-config";
 import {
@@ -282,16 +283,37 @@ export async function sokosumiSignInRedirect(
   options: SokosumiSignInOptions,
 ): Promise<Response> {
   const headers = new Headers({ location: "/", "cache-control": "no-store" });
-  if (!(await auth.api.getSession({ headers: request.headers }))) {
-    const { url, setCookies } = await startSokosumiSignIn(
-      auth,
-      request.headers,
-      options,
-    );
-    headers.set("location", url);
-    for (const cookie of setCookies) headers.append("set-cookie", cookie);
+  // The proxy skips renewal for prefetch, but the route still runs. A new
+  // state cookie here would invalidate a sign-in already in progress.
+  if (
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-router-segment-prefetch") ||
+    request.headers.get("purpose") === "prefetch" ||
+    request.headers.get("sec-purpose")?.includes("prefetch")
+  ) {
+    headers.delete("location");
+    return new Response(null, { status: 204, headers });
   }
-  return new Response(null, { status: 302, headers });
+  try {
+    if (!(await auth.api.getSession({ headers: request.headers }))) {
+      const { url, setCookies } = await startSokosumiSignIn(
+        auth,
+        request.headers,
+        options,
+      );
+      headers.set("location", url);
+      for (const cookie of setCookies) headers.append("set-cookie", cookie);
+    }
+    return new Response(null, { status: 302, headers });
+  } catch (error) {
+    // Preserve Next's request-time rendering signals from headers/cookies.
+    unstable_rethrow(error);
+    headers.delete("location");
+    return new Response("CMO is temporarily unavailable. Try again.", {
+      status: 503,
+      headers,
+    });
+  }
 }
 
 function withSetCookies(from: Response): Response {

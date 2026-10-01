@@ -9,18 +9,20 @@ import { getAuth, renewSession } from "./lib/auth";
  */
 export async function proxy(request: NextRequest) {
   const renewal = await renewSession(getAuth(), request);
+  const headers = new Headers(renewal.headers);
+  if (["/signup", "/signin"].includes(request.nextUrl.pathname)) {
+    headers.set("cache-control", "no-store");
+  }
   if (renewal.status === 503) {
     return new NextResponse("CMO is temporarily unavailable. Try again.", {
       status: 503,
-      headers: renewal.headers,
+      headers,
     });
   }
   const cookies = renewal.headers.getSetCookie();
   if (cookies.length === 0) return NextResponse.next();
 
-  const response = NextResponse.redirect(request.nextUrl);
-  for (const cookie of cookies) response.headers.append("set-cookie", cookie);
-  return response;
+  return NextResponse.redirect(request.nextUrl, { headers });
 }
 
 export const config = {
@@ -35,6 +37,7 @@ export const config = {
         { type: "header", key: "next-router-prefetch" },
         { type: "header", key: "next-router-segment-prefetch" },
         { type: "header", key: "purpose", value: "prefetch" },
+        { type: "header", key: "sec-purpose", value: "prefetch.*" },
       ],
     },
   ],
