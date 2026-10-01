@@ -134,11 +134,11 @@ export default function SignUpFlow({
           }}
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail) => {
+          onContinue={async (confirmedEmail, signal) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
-            await emailCode.sendCode(confirmedEmail);
-            setStep("details");
+            await emailCode.sendCode(confirmedEmail, { signal });
+            if (!signal.aborted) setStep("details");
           }}
         />
         <Divider />

@@ -249,7 +249,7 @@ describe("SignInFlow", () => {
     await new Promise((resolve) => setTimeout(resolve, 450));
     await user.click(createAccount);
 
-    // Sign-up need not ask Core again before emailing the code.
+    // Sign-up rechecks this address, then continues without another click.
     expect(takeAuthEmailHintEntry()).toEqual({
       email: "new@example.com",
       noAccount: true,

@@ -163,13 +163,13 @@ export default function SignInFlow({
           onFormStart={handleFormStart}
           onEmailChange={setTypedEmail}
           continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail) => {
+          onContinue={async (confirmedEmail, signal) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
             if (initialMethod === "code") {
-              await emailCode.sendCode(confirmedEmail);
+              await emailCode.sendCode(confirmedEmail, { signal });
             }
-            setStep("method");
+            if (!signal.aborted) setStep("method");
           }}
         />
         <Divider />

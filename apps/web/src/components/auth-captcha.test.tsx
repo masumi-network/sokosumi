@@ -9,6 +9,9 @@ import { useState } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { EmailStep } from "@/auth/components/email-step";
+import { rememberAuthEmailHint } from "@/lib/auth/auth-email-hint";
+
 import {
   type AuthCaptchaEntry,
   type CaptchaFetchOptions,
@@ -23,6 +26,12 @@ const reset = vi.fn(() => {
 });
 const result = vi.fn();
 const submitAction = vi.fn(async (options: CaptchaFetchOptions) => options);
+const emailStatus = vi.fn();
+const continueSignup = vi.fn();
+
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: { $fetch: (...args: unknown[]) => emailStatus(...args) },
+}));
 
 vi.mock("@/config/env.public", () => ({
   getEnvPublicConfig: () => ({ NEXT_PUBLIC_TURNSTILE_SITE_KEY: siteKey }),
@@ -111,6 +120,9 @@ beforeEach(() => {
   resolvedTheme = "dark";
   widgetProps = undefined;
   token = undefined;
+  emailStatus.mockReset();
+  continueSignup.mockReset();
+  window.sessionStorage.clear();
 });
 
 afterEach(() => vi.useRealTimers());
@@ -184,6 +196,43 @@ describe("useAuthCaptcha", () => {
     expect(result).toHaveBeenCalledWith(null);
     expect(submitAction).not.toHaveBeenCalled();
     expect(screen.getByText("Submit")).toBeEnabled();
+  });
+
+  it("keeps an automatic signup on step 1 with the existing alert after eight seconds", async () => {
+    vi.useFakeTimers();
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+    render(
+      <EmailStep
+        defaultEmail=""
+        emailLocked={false}
+        autoFocus={false}
+        autoComplete="email"
+        captchaEntry="signup"
+        detour={{
+          when: "exists",
+          title: "Account exists",
+          description: "Log in",
+          label: "Log in",
+          href: "/signin",
+        }}
+        onFormStart={() => {}}
+        onContinue={continueSignup}
+      />,
+    );
+    await act(async () => {});
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeDisabled();
+    await act(() => vi.advanceTimersByTimeAsync(7_999));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await act(() => vi.advanceTimersByTimeAsync(1));
+    expect(screen.getByRole("alert")).toHaveTextContent("error");
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeEnabled();
+    expect(screen.getByLabelText("label")).toHaveValue("ada@example.com");
+    expect(emailStatus).not.toHaveBeenCalled();
+    expect(continueSignup).not.toHaveBeenCalled();
   });
 
   it("asks the visitor to finish the check instead of blaming a blocker after an unsolved timeout", async () => {

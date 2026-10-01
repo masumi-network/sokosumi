@@ -61,7 +61,7 @@ interface EmailStepProps {
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
-  onContinue: (email: string) => Promise<void> | void;
+  onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
 }
@@ -99,6 +99,9 @@ export function EmailStep({
   const detouredSince = useRef(0);
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
+  const formRef = useRef<HTMLFormElement>(null);
+  const mounted = useRef(false);
+  const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailStepFormSchemaType>({
     resolver: zodResolver(
       emailStepFormSchema(useTranslations("Library.Auth.Schema")),
@@ -116,6 +119,7 @@ export function EmailStep({
   ];
 
   useMountEffect(() => {
+    mounted.current = true;
     // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
     const emailHint = takeAuthEmailHintEntry();
@@ -129,12 +133,14 @@ export function EmailStep({
     // one, so the step goes on as if Continue were pressed. It still asks
     // Core, in case an account has appeared since.
     if (useHint && emailHint.noAccount && detour.when === "exists") {
-      void form.handleSubmit(handleSubmit)();
-      return;
-    }
-    if (autoFocus || useHint) {
+      formRef.current?.requestSubmit();
+    } else if (autoFocus || useHint) {
       form.setFocus("email");
     }
+    return () => {
+      mounted.current = false;
+      pending.current?.abort();
+    };
   });
 
   const { isSubmitting } = form.formState;
@@ -148,12 +154,24 @@ export function EmailStep({
   }, [isDetoured, isSubmitting]);
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
+    if (!mounted.current) return;
+    const controller = new AbortController();
+    pending.current = controller;
+    function isCurrent() {
+      return (
+        mounted.current &&
+        !controller.signal.aborted &&
+        form.getValues("email").trim() === email
+      );
+    }
     await runWithCaptcha(async (fetchOptions) => {
+      if (!isCurrent()) return;
       const result = await authClient.$fetch<{ exists: boolean }>(
         "/sign-up/email-status",
         { method: "POST", body: { email }, headers: fetchOptions.headers },
       );
 
+      if (!isCurrent()) return;
       if (result.error) {
         // The auth client adds the page's OAuth request to every call, this
         // one included, and Core refuses the call when that request is stale.
@@ -175,15 +193,17 @@ export function EmailStep({
         return;
       }
 
-      await onContinue(email);
+      await onContinue(email, controller.signal);
     });
   }
 
   return (
     <BaseForm
       form={form}
+      formRef={formRef}
       onSubmit={handleSubmit}
       onChange={() => {
+        pending.current?.abort();
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();

@@ -46,17 +46,22 @@ export function useEmailCode({
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
   // chose a code. The pages count the choice.
-  async function sendCode(email: string) {
+  async function sendCode(
+    email: string,
+    options: { signal?: AbortSignal } = {},
+  ) {
     setIsSending(true);
 
     try {
       await runWithCaptcha(async (fetchOptions) => {
+        if (options.signal?.aborted) return;
         const result = await authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
           type: "sign-in",
         });
 
+        if (options.signal?.aborted) return;
         if (result.error) {
           toast.error(
             getErrorMessage(
@@ -71,7 +76,7 @@ export function useEmailCode({
         setSentAt(Date.now());
       });
     } catch (_error) {
-      toast.error(t("emailCodeError"));
+      if (!options.signal?.aborted) toast.error(t("emailCodeError"));
     } finally {
       setIsSending(false);
     }
