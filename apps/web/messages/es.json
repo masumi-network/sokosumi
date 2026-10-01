@@ -1328,6 +1328,7 @@
       "text": "Al crear una cuenta, aceptas los <terms>Términos de uso</terms> y la <privacy>Política de privacidad</privacy>."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Volver a Sokosumi",
       "continuing": "Continuando…",
       "continuingTo": "Continuando a {client}…",
       "errorTitle": "No se puede continuar",
@@ -1341,6 +1342,9 @@
       "useAnotherAccount": "Usar otra cuenta",
       "accountCheckError": "No se pudo comprobar tu cuenta. Inténtalo de nuevo.",
       "signOutError": "No se pudo cerrar la sesión. Inténtalo de nuevo."
+    },
+    "OAuthClient": {
+      "backTo": "Volver a {client}"
     },
     "SignInError": {
       "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un Magic Link y luego conecta Google o Microsoft en Conexiones.",
@@ -7627,7 +7631,7 @@
   "WorkspaceGate": {
     "title": "Configura tu espacio de trabajo",
     "identityTitle": "¿Cómo quieres trabajar?",
-    "identityDescriptionConfirm": "Confirma tu nombre y elige una opción.",
+    "identityDescriptionChoose": "Elige una opción.",
     "identityDescriptionEnter": "Introduce tu nombre.",
     "pendingInvitesTitle": "Tienes invitaciones pendientes",
     "pendingInvitesDescriptionInvitations": "Acepta una invitación de organización para abrir Sokosumi en esa organización.",

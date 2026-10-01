@@ -58,6 +58,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 
 const OAUTH_QUERY = "client_id=cmo&exp=1772367377&sig=signed";
+const CMO = { name: "CMO", uri: "https://cmo.xyz/", logoUri: undefined };
 const CREATE_QUERY = `${OAUTH_QUERY}&prompt=create`;
 // Core signs a request for ten minutes; `exp` is in seconds.
 const EXPIRES_AT = 1772367377 * 1000;
@@ -96,7 +97,7 @@ describe("OAuthHandBack", () => {
     // StrictMode mounts twice; a second hand-back would issue a second code.
     render(
       <StrictMode>
-        <OAuthHandBack oauthQuery={OAUTH_QUERY} clientName="CMO" />
+        <OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />
       </StrictMode>,
     );
 
@@ -117,10 +118,15 @@ describe("OAuthHandBack", () => {
       error: { status: 400, message: "invalid_signature" },
     });
 
-    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} clientName="CMO" />);
+    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "errorDescriptionFor:CMO",
+    );
+    // The request is dead; the way out is back to the product.
+    expect(screen.getByRole("link", { name: "backTo:CMO" })).toHaveAttribute(
+      "href",
+      "https://cmo.xyz/",
     );
   });
 
@@ -139,7 +145,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -159,6 +165,22 @@ describe("OAuthHandBack", () => {
       ).toBeInTheDocument();
     });
 
+    it("offers the way back to the product instead of choosing", () => {
+      render(
+        <OAuthHandBack
+          oauthQuery={CREATE_QUERY}
+          client={CMO}
+          accountToConfirm={ACCOUNT}
+        />,
+      );
+
+      expect(screen.getByRole("link", { name: "backTo:CMO" })).toHaveAttribute(
+        "href",
+        "https://cmo.xyz/",
+      );
+      expect(mockContinue).not.toHaveBeenCalled();
+    });
+
     it("hands the request back exactly once as the signed-in account", async () => {
       const user = userEvent.setup();
       mockContinue.mockResolvedValue({
@@ -172,7 +194,7 @@ describe("OAuthHandBack", () => {
         <StrictMode>
           <OAuthHandBack
             oauthQuery={CREATE_QUERY}
-            clientName="CMO"
+            client={CMO}
             accountToConfirm={ACCOUNT}
           />
         </StrictMode>,
@@ -298,7 +320,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -320,7 +342,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -350,7 +372,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -378,7 +400,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -404,7 +426,7 @@ describe("OAuthHandBack", () => {
       render(
         <OAuthHandBack
           oauthQuery={CREATE_QUERY}
-          clientName="CMO"
+          client={CMO}
           accountToConfirm={ACCOUNT}
         />,
       );
@@ -425,4 +447,26 @@ describe("OAuthHandBack", () => {
       ).toBeEnabled();
     });
   });
+
+  it.each([
+    undefined,
+    { name: "CMO", uri: undefined, logoUri: undefined },
+    { name: "CMO", uri: undefined, logoUri: "https://cmo.xyz/logo.png" },
+  ])(
+    "offers an exit from a failed request without a client home (%o)",
+    async (client) => {
+      mockContinue.mockResolvedValue({
+        data: null,
+        error: { status: 400, message: "invalid_signature" },
+      });
+
+      render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={client} />);
+
+      await screen.findByRole("alert");
+      expect(
+        screen.getByRole("link", { name: "backToSokosumi" }),
+      ).toHaveAttribute("href", "/");
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+    },
+  );
 });

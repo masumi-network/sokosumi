@@ -39,7 +39,11 @@ describe("readOAuthRequest", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     getSessionMock.mockResolvedValue(null);
-    getOAuthClientPublicPreloginMock.mockResolvedValue({ client_name: "CMO" });
+    getOAuthClientPublicPreloginMock.mockResolvedValue({
+      client_name: "CMO",
+      client_uri: "https://cmo.xyz",
+      logo_uri: "https://cmo.xyz/logo.png",
+    });
   });
 
   it("finds no request on a page without a signed OAuth query", async () => {
@@ -53,7 +57,11 @@ describe("readOAuthRequest", () => {
   it("names the client and shows the form to a person who is not signed in", async () => {
     expect(await read({ ...SIGNED, email: "ada@example.com" })).toEqual({
       query: SIGNED_QUERY,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz/",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
       canHandBack: false,
     });
     expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledWith(
@@ -67,7 +75,11 @@ describe("readOAuthRequest", () => {
 
     expect(await read(SIGNED)).toEqual({
       query: SIGNED_QUERY,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz/",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
       canHandBack: true,
       accountToConfirm: undefined,
     });
@@ -138,6 +150,66 @@ describe("readOAuthRequest", () => {
   it("leaves the client unnamed when Core cannot name it", async () => {
     getOAuthClientPublicPreloginMock.mockResolvedValue(null);
 
-    expect(await read(SIGNED)).toMatchObject({ clientName: undefined });
+    expect(await read(SIGNED)).toMatchObject({ client: undefined });
   });
+
+  it("leaves the client unnamed when its row has no name", async () => {
+    getOAuthClientPublicPreloginMock.mockResolvedValue({
+      client_uri: "https://cmo.xyz",
+      logo_uri: "https://cmo.xyz/logo.png",
+    });
+
+    expect(await read(SIGNED)).toMatchObject({ client: undefined });
+  });
+
+  it("names the client without a link or logo its row does not carry", async () => {
+    getOAuthClientPublicPreloginMock.mockResolvedValue({ client_name: "CMO" });
+
+    expect(await read(SIGNED)).toMatchObject({
+      client: { name: "CMO", uri: undefined, logoUri: undefined },
+    });
+  });
+
+  it.each([
+    "",
+    "   ",
+    "https%3A%2F%2Fcmo.xyz",
+    "http://cmo.xyz",
+    "javascript:alert(1)",
+    "data:image/png;base64,AAAA",
+    "//cmo.xyz",
+    "not a url",
+  ])("drops a client link and logo that are not https (%s)", async (value) => {
+    getOAuthClientPublicPreloginMock.mockResolvedValue({
+      client_name: "CMO",
+      client_uri: value,
+      logo_uri: value,
+    });
+
+    expect(await read(SIGNED)).toMatchObject({
+      client: { name: "CMO", uri: undefined, logoUri: undefined },
+    });
+  });
+
+  it.each([
+    [" https://cmo.xyz/logo.png ", "https://cmo.xyz/logo.png"],
+    ["https:logo.png", "https://logo.png/"],
+    ["https:/logo.png", "https://logo.png/"],
+    ["https://cmo.xyz/\nlogo.png", "https://cmo.xyz/logo.png"],
+    ["https://cmo.xyz/a%20b.png", "https://cmo.xyz/a%20b.png"],
+  ])(
+    "normalizes HTTPS metadata before rendering (%s)",
+    async (value, expected) => {
+      getOAuthClientPublicPreloginMock.mockResolvedValue({
+        client_name: "CMO",
+        client_uri: value,
+        logo_uri: value,
+      });
+
+      expect(await read(SIGNED)).toMatchObject({
+        query: SIGNED_QUERY,
+        client: { name: "CMO", uri: expected, logoUri: expected },
+      });
+    },
+  );
 });

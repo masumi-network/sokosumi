@@ -467,7 +467,7 @@ describe("SignUpFlow", () => {
       <SignUpFlow
         lastUsedMethod={null}
         showMagicLink={false}
-        clientName="CMO"
+        client={{ name: "CMO", uri: undefined, logoUri: undefined }}
       />,
     );
 
