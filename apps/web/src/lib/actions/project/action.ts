@@ -194,22 +194,24 @@ function revalidateProjectSocialPostMutationRoutes(projectId: string) {
   revalidatePath("/calendar");
 }
 
-/** The one project write failure the form shows on a field rather than as a toast. */
-interface ProjectIdentifierTakenError {
-  kind: "identifier_taken";
-}
+/** Project write failures the form shows on the Identifier field rather than as a toast. */
+type ProjectIdentifierFieldError =
+  | { kind: "identifier_taken" }
+  | { kind: "identifier_immutable" };
 
-type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierTakenError>;
+type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierFieldError>;
 
-function isIdentifierTaken(error: unknown): boolean {
-  return (
-    error instanceof CoreApiRequestError &&
-    error.kind === CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN
-  );
-}
-
-function identifierTaken<T>(): ProjectMutationResult<T> {
-  return toActionResult(err({ kind: "identifier_taken" as const }));
+function identifierFieldError(
+  error: unknown,
+): ProjectIdentifierFieldError | null {
+  if (!(error instanceof CoreApiRequestError)) return null;
+  if (error.kind === CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN) {
+    return { kind: "identifier_taken" };
+  }
+  if (error.kind === CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE) {
+    return { kind: "identifier_immutable" };
+  }
+  return null;
 }
 
 function normalizeProjectIdentifier(identifier?: string): string | undefined {
@@ -278,7 +280,8 @@ export const createProject = withSession<
     revalidatePath("/projects");
     return toActionResult(ok({ projectId: project.id, project }));
   } catch (error) {
-    if (isIdentifierTaken(error)) return identifierTaken();
+    const fieldError = identifierFieldError(error);
+    if (fieldError) return toActionResult(err(fieldError));
     console.error("Failed to create project", error);
     throwCoreActionError(error, "Failed to create project");
   }
@@ -319,7 +322,8 @@ export const updateProject = withSession<
     revalidateProjectMutationRoutes(normalizedProjectId);
     return toActionResult(ok({ projectId: normalizedProjectId }));
   } catch (error) {
-    if (isIdentifierTaken(error)) return identifierTaken();
+    const fieldError = identifierFieldError(error);
+    if (fieldError) return toActionResult(err(fieldError));
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
   }

@@ -95,7 +95,13 @@ export function TaskMetadataPriorityField({
         )}
       >
         <span className="flex size-5 shrink-0 items-center justify-center">
-          <TaskPriorityIcon priority={current} />
+          <TaskPriorityIcon
+            priority={current}
+            className={cn(
+              current === "URGENT" && "text-destructive",
+              current === "NONE" && "text-muted-foreground",
+            )}
+          />
         </span>
         <span
           className={cn(
@@ -132,7 +138,13 @@ export function TaskMetadataPriorityField({
                 data-current={level === current || undefined}
                 onSelect={() => handleSelect(level)}
               >
-                <TaskPriorityIcon priority={level} />
+                <TaskPriorityIcon
+                  priority={level}
+                  className={cn(
+                    level === "URGENT" && "text-destructive",
+                    level === "NONE" && "text-muted-foreground",
+                  )}
+                />
                 <span className="flex-1 truncate">{labels.levels[level]}</span>
                 {level === current ? (
                   <Check className="size-4" aria-hidden />

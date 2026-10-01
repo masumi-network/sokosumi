@@ -2244,7 +2244,8 @@
           "identifierPlaceholder": "Auto",
           "identifierHint": "Used in task IDs, e.g. {example}",
           "identifierInvalid": "Use 2-7 letters or digits, starting with a letter.",
-          "identifierTaken": "This identifier is already used in this workspace."
+          "identifierTaken": "This identifier is already used in this workspace.",
+          "identifierImmutable": "This identifier can't change after tasks have been numbered."
         },
         "briefing": {
           "title": "Write the briefing",

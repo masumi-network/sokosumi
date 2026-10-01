@@ -26,8 +26,8 @@ interface TaskPriorityIconProps {
 
 /**
  * Linear-style priority glyph in `currentColor`: dashes for none, one to three
- * signal bars for low to high, a filled "!" square for urgent. Urgent takes
- * the destructive token, the only accent; none is muted.
+ * signal bars for low to high, a filled "!" square for urgent. Callers set
+ * accent colour (e.g. destructive for urgent, muted for none).
  */
 export function TaskPriorityIcon({
   priority,
@@ -38,12 +38,7 @@ export function TaskPriorityIcon({
     <svg
       viewBox="0 0 16 16"
       fill="currentColor"
-      className={cn(
-        "size-4 shrink-0",
-        priority === "URGENT" && "text-destructive",
-        priority === "NONE" && "text-muted-foreground",
-        className,
-      )}
+      className={cn("size-4 shrink-0", className)}
       role={label ? "img" : undefined}
       aria-label={label}
       aria-hidden={label ? undefined : true}

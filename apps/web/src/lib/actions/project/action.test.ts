@@ -200,6 +200,22 @@ describe("project actions", () => {
     ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
   });
 
+  it("returns identifier_immutable when Core answers PROJECT_IDENTIFIER_IMMUTABLE", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    projectServiceMock.patchProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier cannot be changed", {
+        status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE,
+      }),
+    );
+
+    const { updateProject } = await import("./action");
+
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "NEW" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_immutable" } });
+  });
+
   it("does not treat a bare 409 as identifier_taken", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     toCoreApiActionErrorMock.mockReturnValue({
