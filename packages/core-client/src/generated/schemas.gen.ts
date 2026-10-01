@@ -4877,11 +4877,8 @@ export const ProjectSummarySchema = {
             example: 'Q1 research'
         },
         identifier: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Task ID prefix; null only for projects without one.',
+            type: 'string',
+            description: 'Task ID prefix unique within the workspace.',
             example: 'SOK'
         },
         logo: {
@@ -16904,11 +16901,8 @@ export const ProjectSchema = {
             example: 'Q1 research'
         },
         identifier: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'Task ID prefix; null only for projects without one.',
+            type: 'string',
+            description: 'Task ID prefix unique within the workspace.',
             example: 'SOK'
         },
         briefing: {

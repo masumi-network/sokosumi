@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -105,7 +106,7 @@ const sampleProject = {
   name: "P",
   filesToken: "secret_token",
   websiteUrl: null,
-  identifier: null,
+  identifier: "SOK",
   logo: null,
   designMdUrl: null,
   designMdExtractionId: null,
@@ -316,6 +317,8 @@ describe("PATCH /projects/{id}", () => {
       body: JSON.stringify({ identifier: "SOK" }),
     });
     expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN);
     expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
   });
 

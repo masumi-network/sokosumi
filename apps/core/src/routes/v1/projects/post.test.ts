@@ -1,5 +1,7 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceVariables } from "@/middleware/workspace";
@@ -97,6 +99,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
   });
 
   mountPostProject(app);
+  app.onError(errorHandler);
   return app;
 }
 
@@ -116,7 +119,7 @@ describe("POST /projects", () => {
       name: "Alpha",
       filesToken: null,
       websiteUrl: null,
-      identifier: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,
@@ -203,7 +206,9 @@ describe("POST /projects", () => {
     });
 
     expect(res.status).toBe(409);
-    expect(await res.text()).toContain("Project identifier");
+    const body = (await res.json()) as { kind?: string; message?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN);
+    expect(body.message).toContain("Project identifier");
   });
 
   it("stores one token and uploads a briefing under it", async () => {
@@ -213,7 +218,7 @@ describe("POST /projects", () => {
       name: "Alpha",
       filesToken: "secret_token",
       websiteUrl: null,
-      identifier: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,
@@ -287,7 +292,7 @@ describe("POST /projects", () => {
       name: "Branded",
       filesToken: null,
       websiteUrl: "https://example.com",
-      identifier: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,

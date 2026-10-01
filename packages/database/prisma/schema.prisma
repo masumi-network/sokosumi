@@ -444,6 +444,7 @@ model Project {
   name                    String
   /// Short task-id prefix (e.g. SOK), unique per workspace. Filled by the
   /// project_set_identifier trigger when omitted. Format enforced by a DB CHECK.
+  /// Optional so Prisma create can omit the column and let the trigger fill it.
   identifier              String?
   filesToken              String?
   briefing                String?
