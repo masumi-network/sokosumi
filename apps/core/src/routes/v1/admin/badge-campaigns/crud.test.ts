@@ -12,6 +12,7 @@ import { requireAdminAuthContext } from "@/middleware/auth";
 import mountDeleteAdminBadgeCampaign from "./[id]/delete";
 import mountEndAdminBadgeCampaign from "./[id]/end/post";
 import mountPatchAdminBadgeCampaign from "./[id]/patch";
+import mountStartAdminBadgeCampaign from "./[id]/start/post";
 import mountListAdminBadgeCampaigns from "./get";
 import mountCreateAdminBadgeCampaign from "./post";
 
@@ -106,6 +107,7 @@ function createApp() {
   mountPatchAdminBadgeCampaign(app);
   mountDeleteAdminBadgeCampaign(app);
   mountEndAdminBadgeCampaign(app);
+  mountStartAdminBadgeCampaign(app);
   return app;
 }
 
@@ -364,6 +366,60 @@ describe("admin badge campaigns", () => {
       NOW,
       CAMPAIGN_ID,
     );
+  });
+
+  it("starts a scheduled campaign at Core's clock", async () => {
+    findUniqueMock.mockResolvedValueOnce(campaignRow());
+    updateMock.mockResolvedValueOnce(campaignRow({ startsAt: NOW }));
+
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}/start`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(findFirstMock).toHaveBeenCalledWith({
+      where: {
+        feature: "DRIVE",
+        startsAt: { lt: new Date("2026-10-26T00:00:00.000Z") },
+        endsAt: { gt: NOW },
+        id: { not: CAMPAIGN_ID },
+      },
+      select: { id: true },
+    });
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.any(Array),
+      NOW,
+      NOW,
+      CAMPAIGN_ID,
+    );
+  });
+
+  it("refuses to start a campaign that has started", async () => {
+    findUniqueMock.mockResolvedValueOnce(
+      campaignRow({ startsAt: new Date("2026-09-30T00:00:00.000Z") }),
+    );
+
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}/start`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(409);
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to start a campaign that would overlap another", async () => {
+    findUniqueMock.mockResolvedValueOnce(campaignRow());
+    findFirstMock.mockResolvedValueOnce({ id: "other" });
+
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}/start`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(409);
+    expect(executeMock).not.toHaveBeenCalled();
   });
 
   it("refuses to end a campaign that is not running", async () => {

@@ -469,6 +469,7 @@ import {
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
   setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
+  startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   stopAdminImpersonation as coreStopAdminImpersonation,
@@ -3756,6 +3757,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     return response.data;
   }
 
+  async function startAdminBadgeCampaign(id: string) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreStartAdminBadgeCampaign({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to start badge campaign",
+    );
+
+    return response.data;
+  }
+
   async function endAdminBadgeCampaign(id: string) {
     const response = await executeCoreOperation(
       getClient,
@@ -5956,6 +5972,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listAdminBadgeCampaigns,
     createAdminBadgeCampaign,
     updateAdminBadgeCampaign,
+    startAdminBadgeCampaign,
     endAdminBadgeCampaign,
     deleteAdminBadgeCampaign,
     listAdminVendors,
