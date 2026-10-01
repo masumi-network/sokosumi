@@ -31,20 +31,18 @@ const GoogleCalendarLogo: Logo = ({ className }) => (
   </svg>
 );
 
-const MicrosoftTeamsLogo: Logo = ({ className }) => (
+const OutlookLogo: Logo = ({ className }) => (
   <svg viewBox="0 0 24 24" className={className} aria-hidden>
-    <circle cx="19" cy="6.5" r="2.5" fill="#5059c9" />
+    <path fill="#0364b8" d="M8 3h13a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H8z" />
+    <path fill="#28a8ea" d="M8 3h7v6H8z" />
+    <path fill="#0078d4" d="M15 3h7v6h-7zM8 9h7v6H8z" />
+    <path fill="#50d9ff" d="M15 9h7v6h-7z" />
+    <path fill="#1490df" d="M8 15h7v6H8z" />
+    <rect x="2" y="7" width="11" height="11" rx="1.5" fill="#0f78d4" />
     <path
-      fill="#5059c9"
-      d="M16 10h6a1 1 0 0 1 1 1v4.5a4 4 0 0 1-4 4h-.3A4 4 0 0 1 16 15.5z"
+      fill="#fff"
+      d="M7.5 9.6c-1.7 0-2.8 1.3-2.8 2.9s1.1 2.9 2.8 2.9 2.8-1.3 2.8-2.9-1.1-2.9-2.8-2.9zm0 4.6c-.9 0-1.4-.8-1.4-1.7s.5-1.7 1.4-1.7 1.4.8 1.4 1.7-.5 1.7-1.4 1.7z"
     />
-    <circle cx="12.5" cy="5" r="3.5" fill="#7b83eb" />
-    <path
-      fill="#7b83eb"
-      d="M7.5 10h10a1 1 0 0 1 1 1v5.5a6 6 0 0 1-12 0V11a1 1 0 0 1 1-1z"
-    />
-    <rect x="1" y="7" width="11" height="11" rx="1.5" fill="#4b53bc" />
-    <path fill="#fff" d="M9.2 9.8H3.8v1.4h1.9v5h1.6v-5h1.9z" />
   </svg>
 );
 
@@ -52,5 +50,5 @@ const MicrosoftTeamsLogo: Logo = ({ className }) => (
 export const SOKO_BOT_PROVIDER_LOGOS: Record<string, Logo> = {
   gmail: GmailLogo,
   googlecalendar: GoogleCalendarLogo,
-  microsoft_teams: MicrosoftTeamsLogo,
+  outlook: OutlookLogo,
 };

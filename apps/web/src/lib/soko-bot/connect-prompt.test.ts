@@ -20,7 +20,7 @@ function integration(
 }
 
 describe("connectOffers", () => {
-  it("offers Gmail, Google Calendar and Teams while nothing is connected", () => {
+  it("offers Gmail, Google Calendar and Outlook while nothing is connected", () => {
     expect(
       connectOffers([
         integration("gmail", ["email"], "DISCONNECTED"),
@@ -29,11 +29,7 @@ describe("connectOffers", () => {
     ).toEqual([
       { provider: "gmail", name: "Gmail", connected: false },
       { provider: "googlecalendar", name: "Google Calendar", connected: false },
-      {
-        provider: "microsoft_teams",
-        name: "Microsoft Teams",
-        connected: false,
-      },
+      { provider: "outlook", name: "Outlook", connected: false },
     ]);
   });
 
@@ -42,16 +38,15 @@ describe("connectOffers", () => {
       connectOffers([
         integration("gmail", ["email"], "ACTIVE"),
         integration("googlecalendar", ["calendar"], "FAILED"),
-        integration("microsoft_teams", [], "ACTIVE"),
       ]),
     ).toEqual([
       { provider: "gmail", name: "Gmail", connected: true },
       { provider: "googlecalendar", name: "Google Calendar", connected: false },
-      { provider: "microsoft_teams", name: "Microsoft Teams", connected: true },
+      { provider: "outlook", name: "Outlook", connected: false },
     ]);
   });
 
-  it("hides once mail and calendar are both covered, by any provider", () => {
+  it("hides once Outlook covers mail and calendar", () => {
     expect(
       connectOffers([integration("outlook", ["email", "calendar"], "ACTIVE")]),
     ).toEqual([]);

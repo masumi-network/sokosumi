@@ -13,15 +13,11 @@ export interface SokoBotConnectPromptState {
   offers: SokoBotConnectOffer[];
 }
 
-/**
- * Gmail and Google Calendar feed the bot's briefs and meeting prep; Teams is a
- * Composio toolkit the bot uses through its integration tools. All three go
- * through the same connect flow.
- */
+/** Outlook covers mail and calendar in one connection. */
 const PROMPT_PROVIDERS = [
   { provider: "gmail", name: "Gmail" },
   { provider: "googlecalendar", name: "Google Calendar" },
-  { provider: "microsoft_teams", name: "Microsoft Teams" },
+  { provider: "outlook", name: "Outlook" },
 ] as const;
 
 /**
