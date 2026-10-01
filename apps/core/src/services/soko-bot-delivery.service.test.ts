@@ -262,6 +262,34 @@ describe("durable delivery", () => {
     });
   });
 
+  it("tags an unprompted message with the schedule that started it", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "SCHEDULE",
+          scheduleRun: {
+            schedule: { name: "Daily stand-up", systemKey: "standup" },
+          },
+        }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          metadata: {
+            soko_bot: {
+              turn_id: "turn",
+              source: "SCHEDULE",
+              schedule_name: "Daily stand-up",
+              schedule_key: "standup",
+            },
+          },
+        }),
+      }),
+    );
+  });
+
   it("retries publication after a crash without touching persisted content", async () => {
     mocks.find.mockResolvedValue(
       delivery({ status: "PERSISTED", messageId: "message" }),
