@@ -54,6 +54,7 @@ function buildTaskLink() {
       name: "Peer task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   };
 }

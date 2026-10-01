@@ -98,6 +98,7 @@ describe("DELETE /projects/{id}/jobs/{jobId}", () => {
       workspaceId: WORKSPACE_ID,
       name: "P",
       websiteUrl: null,
+      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,

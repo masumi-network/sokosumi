@@ -8,6 +8,7 @@ describe("ProjectDetailHeader", () => {
     const { container } = render(
       <ProjectDetailHeader
         projectName="Example project"
+        projectIdentifier="SOK"
         websiteUrl="https://www.example.com/about"
         backLabel="Back"
         metadata={[
@@ -27,6 +28,7 @@ describe("ProjectDetailHeader", () => {
     expect(
       screen.queryByRole("link", { name: "Back" }),
     ).not.toBeInTheDocument();
+    expect(screen.getByText("SOK")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
       "href",
       "https://www.example.com/about",

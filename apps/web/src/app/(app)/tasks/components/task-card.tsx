@@ -4,11 +4,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
+import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -62,8 +64,17 @@ export function TaskCard({
             compact ? "line-clamp-1" : "line-clamp-2",
           )}
         >
+          <TaskPriorityMark
+            priority={task.priority}
+            className="mr-1.5 inline-block align-[-2px]"
+          />
+          {task.identifier ? (
+            <span className="text-muted-foreground mr-1.5 text-xs font-normal tabular-nums">
+              {task.identifier}
+            </span>
+          ) : null}
           <TaskDetailLink
-            href={`/tasks/${task.id}`}
+            href={taskHref(task)}
             title={task.name}
             className="after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-ring"
           >

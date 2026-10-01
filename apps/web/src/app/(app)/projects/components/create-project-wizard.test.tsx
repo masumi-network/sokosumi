@@ -67,6 +67,7 @@ const CREATED_PROJECT = {
   id: "project-1",
   workspaceId: "workspace-1",
   name: "Launch plan",
+  identifier: "LAUNCH",
   briefing: null,
   briefingUrl: null,
   websiteUrl: null,
@@ -98,8 +99,11 @@ describe("CreateProjectWizard", () => {
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(
@@ -164,8 +168,11 @@ describe("CreateProjectWizard", () => {
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(
@@ -234,8 +241,11 @@ describe("CreateProjectWizard", () => {
     const onOpenChange = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(
@@ -277,6 +287,90 @@ describe("CreateProjectWizard", () => {
       expect.objectContaining({ id: "project-1" }),
     );
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it("sends a typed identifier on create", async () => {
+    const user = userEvent.setup();
+    const createProjectMock = vi.mocked(createProject);
+    createProjectMock.mockResolvedValue({
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
+    });
+
+    render(
+      <CreateProjectWizard open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.type(
+      screen.getByLabelText("App.Projects.NewProject.name"),
+      "Spring launch",
+    );
+    await user.type(
+      screen.getByLabelText("App.Projects.Wizard.name.identifierLabel"),
+      "lp",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.create" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectMock).toHaveBeenCalledWith({
+        name: "Spring launch",
+        identifier: "LP",
+        briefing: null,
+        websiteUrl: null,
+      });
+    });
+  });
+
+  it("shows a taken identifier on the field and returns to the name step", async () => {
+    const user = userEvent.setup();
+    const createProjectMock = vi.mocked(createProject);
+    createProjectMock.mockResolvedValue({
+      ok: false,
+      error: { kind: "identifier_taken" },
+    });
+
+    render(
+      <CreateProjectWizard open onOpenChange={vi.fn()} onSuccess={vi.fn()} />,
+    );
+
+    await user.type(
+      screen.getByLabelText("App.Projects.NewProject.name"),
+      "Spring launch",
+    );
+    await user.type(
+      screen.getByLabelText("App.Projects.Wizard.name.identifierLabel"),
+      "SOK",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.next" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "App.Projects.Wizard.nav.create" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("App.Projects.Wizard.name.identifierTaken"),
+      ).toBeInTheDocument();
+    });
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByLabelText("App.Projects.Wizard.name.identifierLabel"),
+    ).toBeInTheDocument();
   });
 
   it("hands focus back through onCloseAutoFocus when it closes", async () => {

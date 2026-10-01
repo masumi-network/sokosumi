@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
@@ -35,11 +36,13 @@ const resolveProjectSiteIconMock = vi.fn();
 
 class CoreApiRequestError extends Error {
   status?: number;
+  kind?: string;
 
-  constructor(message: string, options?: { status?: number }) {
+  constructor(message: string, options?: { status?: number; kind?: string }) {
     super(message);
     this.name = "CoreApiRequestError";
     this.status = options?.status;
+    this.kind = options?.kind;
   }
 }
 
@@ -130,7 +133,104 @@ describe("project actions", () => {
       websiteUrl: null,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
-    expect(result.projectId).toBe("project-1");
+    expect(result).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.objectContaining({ projectId: "project-1" }),
+      }),
+    );
+  });
+
+  it("passes an uppercased identifier through on create", async () => {
+    projectServiceMock.createProject.mockResolvedValue(buildProject());
+
+    const { createProject } = await import("./action");
+    await createProject({ name: "Launch plan", identifier: " web1 " });
+
+    expect(projectServiceMock.createProject).toHaveBeenCalledWith(
+      expect.objectContaining({ identifier: "WEB1" }),
+    );
+  });
+
+  it("omits the identifier on create when it is blank so Core derives one", async () => {
+    projectServiceMock.createProject.mockResolvedValue(buildProject());
+
+    const { createProject } = await import("./action");
+    await createProject({ name: "Launch plan", identifier: "  " });
+
+    expect(
+      projectServiceMock.createProject.mock.calls.at(-1)?.[0],
+    ).not.toHaveProperty("identifier");
+  });
+
+  it("returns identifier_invalid when the identifier fails the schema", async () => {
+    const { createProject, updateProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "1AB" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "A" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
+    expect(projectServiceMock.createProject).not.toHaveBeenCalled();
+    expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
+  });
+
+  it("returns identifier_taken when Core answers PROJECT_IDENTIFIER_TAKEN", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    projectServiceMock.createProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier already in use", {
+        status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+      }),
+    );
+    projectServiceMock.patchProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier already in use", {
+        status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+      }),
+    );
+
+    const { createProject, updateProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "SOK" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "SOK" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
+  });
+
+  it("returns identifier_immutable when Core answers PROJECT_IDENTIFIER_IMMUTABLE", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    projectServiceMock.patchProject.mockRejectedValue(
+      new CoreApiRequestError("Project identifier cannot be changed", {
+        status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE,
+      }),
+    );
+
+    const { updateProject } = await import("./action");
+
+    await expect(
+      updateProject({ projectId: "project-1", name: "N", identifier: "NEW" }),
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_immutable" } });
+  });
+
+  it("does not treat a bare 409 as identifier_taken", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Something else conflicted",
+    });
+    projectServiceMock.createProject.mockRejectedValue(
+      new CoreApiRequestError("Something else conflicted", { status: 409 }),
+    );
+
+    const { createProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "SOK" }),
+    ).rejects.toThrow("Something else conflicted");
   });
 
   it("omits briefing from the patch when the caller did not pass it", async () => {
@@ -222,7 +322,7 @@ describe("project actions", () => {
     });
     expect(revalidatePath).toHaveBeenCalledWith("/projects");
     expect(revalidatePath).toHaveBeenCalledWith("/projects/project-1");
-    expect(result).toEqual({ projectId: "project-1" });
+    expect(result).toEqual({ ok: true, value: { projectId: "project-1" } });
   });
 
   it("closes a project with normalized input and revalidates calendar routes", async () => {

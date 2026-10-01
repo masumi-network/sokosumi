@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { errorHandler } from "@/helpers/error-handler";
@@ -105,6 +106,7 @@ const sampleProject = {
   name: "P",
   filesToken: "secret_token",
   websiteUrl: null,
+  identifier: "SOK",
   logo: null,
   designMdUrl: null,
   designMdExtractionId: null,
@@ -122,6 +124,7 @@ const sampleProject = {
   calendarRevision: 0,
   closingAt: null,
   closedAt: null,
+  taskCounter: 0,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -267,6 +270,143 @@ describe("PATCH /projects/{id}", () => {
     expect(body.data.name).toBe("New");
   });
 
+  it("updates the identifier alone, uppercased", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock
+      .mockResolvedValueOnce(sampleProject)
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        identifier: "WEB",
+      });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "web" }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(1, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID, taskCounter: 0 },
+      data: { identifier: "WEB" },
+    });
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: { projectRevision: { increment: 1 } },
+    });
+    const body = (await res.json()) as { data: { identifier: string } };
+    expect(body.data.identifier).toBe("WEB");
+  });
+
+  it("gates a real identifier rename on taskCounter 0", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock
+      .mockResolvedValueOnce(sampleProject)
+      .mockResolvedValueOnce({ ...sampleProject, identifier: "NEW" });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "NEW" }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(1, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID, taskCounter: 0 },
+      data: { identifier: "NEW" },
+    });
+  });
+
+  it("returns 409 when a concurrent task create races the identifier rename", async () => {
+    projectFindFirstMock
+      .mockResolvedValueOnce(sampleProject)
+      .mockResolvedValueOnce({ taskCounter: 1 });
+    projectUpdateManyMock.mockResolvedValue({ count: 0 });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "NEW" }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE);
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID, taskCounter: 0 },
+      data: { identifier: "NEW" },
+    });
+    expect(projectUpdateManyMock).toHaveBeenCalledOnce();
+    expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid identifier", async () => {
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "w" }),
+    });
+    expect(res.status).toBe(422);
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the identifier is taken in the workspace", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    projectUpdateManyMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["workspaceId", "identifier"] },
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "SOK" }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN);
+    expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when changing the identifier after task numbers exist", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      taskCounter: 1,
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "NEW" }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string; message?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE);
+    expect(body.message).toContain("task numbers");
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a no-op identifier patch after task numbers exist", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      taskCounter: 3,
+    });
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "sok" }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalled();
+  });
+
   it("uploads a briefing before one scoped project update", async () => {
     projectUpdateManyMock.mockResolvedValue({ count: 1 });
     projectFindFirstMock
@@ -301,6 +441,77 @@ describe("PATCH /projects/{id}", () => {
           "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
         projectRevision: { increment: 1 },
       },
+    });
+  });
+
+  it("commits an identifier rename before uploading a briefing", async () => {
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    projectFindFirstMock
+      .mockResolvedValueOnce(sampleProject)
+      .mockResolvedValueOnce({
+        ...sampleProject,
+        identifier: "NEW",
+        briefing: "Updated briefing",
+        briefingUrl:
+          "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+      });
+    const app = createApp();
+    mountPatchProject(app);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: "NEW",
+        briefing: "Updated briefing",
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(1, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID, taskCounter: 0 },
+      data: { identifier: "NEW" },
+    });
+    expect(uploadProjectBriefingFileMock).toHaveBeenCalledWith(
+      PROJECT_ID,
+      "secret_token",
+      "Updated briefing",
+    );
+    expect(projectUpdateManyMock).toHaveBeenNthCalledWith(2, {
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID },
+      data: {
+        briefing: "Updated briefing",
+        briefingUrl:
+          "https://blob.example/projects/project_1/secret_token/BRIEFING.md",
+        projectRevision: { increment: 1 },
+      },
+    });
+  });
+
+  it("does not upload a briefing when a combined identifier rename conflicts", async () => {
+    projectFindFirstMock.mockResolvedValue(sampleProject);
+    projectUpdateManyMock.mockRejectedValue({
+      code: "P2002",
+      meta: { target: ["workspaceId", "identifier"] },
+    });
+    const app = createApp();
+    mountPatchProject(app);
+
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        identifier: "TAKEN",
+        briefing: "Rejected briefing",
+      }),
+    });
+
+    expect(res.status).toBe(409);
+    expect(uploadProjectBriefingFileMock).not.toHaveBeenCalled();
+    expect(projectUpdateManyMock).toHaveBeenCalledOnce();
+    expect(projectUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: PROJECT_ID, workspaceId: WORKSPACE_ID, taskCounter: 0 },
+      data: { identifier: "TAKEN" },
     });
   });
 

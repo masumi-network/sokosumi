@@ -1,6 +1,12 @@
 "use client";
 
-import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
+import {
+  isEmptyOrValidWebsiteUrl,
+  isValidProjectIdentifier,
+  normalizeWebsiteUrl,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  sanitizeProjectIdentifier,
+} from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -33,6 +39,7 @@ export interface ProjectFormLabels {
 
 interface ProjectFormInitialValues {
   name?: string;
+  identifier?: string | null;
   briefing?: string | null;
   websiteUrl?: string | null;
 }
@@ -66,12 +73,37 @@ export function ProjectForm({
   const t = useTranslations("App.Projects");
   const isModal = variant === "modal";
   const [name, setName] = useState(initialValues?.name ?? "");
+  const [identifier, setIdentifier] = useState(initialValues?.identifier ?? "");
+  const [identifierFieldError, setIdentifierFieldError] = useState<
+    "identifier_invalid" | "identifier_taken" | "identifier_immutable" | null
+  >(null);
   const [website, setWebsite] = useState(initialValues?.websiteUrl ?? "");
   const [briefing, setBriefing] = useState(initialValues?.briefing ?? "");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [brandSetupUrl, setBrandSetupUrl] = useState<string | null>(null);
   const isWebsiteValid = isEmptyOrValidWebsiteUrl(website);
-  const isSubmitDisabled = !name.trim() || !isWebsiteValid || isSubmitting;
+  // Create may leave it empty (Core derives one from the name). Edit cannot
+  // clear a saved one: Core has no way to null it.
+  const isIdentifierRequired =
+    mode === "edit" && Boolean(initialValues?.identifier);
+  const isIdentifierValid = identifier
+    ? isValidProjectIdentifier(identifier)
+    : !isIdentifierRequired;
+  const identifierError =
+    identifierFieldError === "identifier_taken"
+      ? t("Wizard.name.identifierTaken")
+      : identifierFieldError === "identifier_immutable"
+        ? t("Wizard.name.identifierImmutable")
+        : identifierFieldError === "identifier_invalid" ||
+            (identifier && !isIdentifierValid)
+          ? t("Wizard.name.identifierInvalid")
+          : null;
+  const isSubmitDisabled =
+    !name.trim() ||
+    !isWebsiteValid ||
+    !isIdentifierValid ||
+    identifierFieldError !== null ||
+    isSubmitting;
 
   function updateSubmitting(nextIsSubmitting: boolean) {
     setIsSubmitting(nextIsSubmitting);
@@ -89,6 +121,7 @@ export function ProjectForm({
       const previousWebsite = initialValues?.websiteUrl ?? null;
       const input = {
         name: trimmedName,
+        ...(identifier ? { identifier } : {}),
         briefing: briefing.trim() || null,
         websiteUrl: normalizedWebsite,
       };
@@ -100,6 +133,11 @@ export function ProjectForm({
               projectId: projectId ?? "",
               ...input,
             });
+
+      if (!result.ok) {
+        setIdentifierFieldError(result.error.kind);
+        return;
+      }
 
       if (mode === "create" && creationSource) {
         track("Project created", {
@@ -114,12 +152,13 @@ export function ProjectForm({
         return;
       }
 
+      const savedProjectId = result.value.projectId;
       if (onSuccess) {
-        onSuccess(result.projectId, trimmedName);
+        onSuccess(savedProjectId, trimmedName);
         return;
       }
 
-      router.push(`/projects/${result.projectId}`);
+      router.push(`/projects/${savedProjectId}`);
     } catch (error) {
       console.error("Failed to save project", error);
       toast.error(labels.error);
@@ -186,6 +225,49 @@ export function ProjectForm({
                   disabled={isSubmitting}
                   autoFocus
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="project-identifier">
+                  {t("Wizard.name.identifierLabel")}
+                </Label>
+                <Input
+                  id="project-identifier"
+                  maxLength={PROJECT_IDENTIFIER_MAX_LENGTH}
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={
+                    mode === "create"
+                      ? t("Wizard.name.identifierPlaceholder")
+                      : undefined
+                  }
+                  value={identifier}
+                  onChange={(event) => {
+                    setIdentifier(
+                      sanitizeProjectIdentifier(event.target.value),
+                    );
+                    setIdentifierFieldError(null);
+                  }}
+                  disabled={isSubmitting}
+                  aria-invalid={Boolean(identifierError)}
+                  aria-describedby="project-identifier-hint"
+                  className="font-mono uppercase"
+                />
+                <p
+                  id="project-identifier-hint"
+                  role={identifierError ? "alert" : undefined}
+                  className={
+                    identifierError
+                      ? "text-destructive text-xs leading-relaxed"
+                      : "text-muted-foreground text-xs leading-relaxed"
+                  }
+                >
+                  {identifierError ??
+                    t("Wizard.name.identifierHint", {
+                      example: `${isValidProjectIdentifier(identifier) ? identifier : "SOK"}-123`,
+                    })}
+                </p>
               </div>
 
               <div className="space-y-2">
