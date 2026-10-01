@@ -57,18 +57,37 @@ interface FeatureBadgesValue {
   userId: string;
   campaigns: Promise<BadgeCampaignSummary[]>;
   seenIds: ReadonlySet<string>;
-  markSeen: (campaignId: string) => void;
+  markSeen: (campaign: BadgeCampaignSummary) => void;
+  /**
+   * Pills the reader has opened, by campaign: lingering, fading, then gone.
+   * Kept here because Core stops listing a campaign once it is seen, so the
+   * next read would otherwise drop the pill before it has lingered.
+   */
+  pillExits: ReadonlyMap<string, PillExit>;
   /** The running campaigns as last read, for rows that report use on click. */
   latestCampaigns: RefObject<BadgeCampaignSummary[]>;
 }
+
+interface PillExit {
+  feature: AnnouncedFeature;
+  stage: "lingering" | "fading" | "gone";
+}
+
+/**
+ * How long a seen pill stays after the reader lands on its feature, so it
+ * goes once the new page is up rather than as the link is pressed.
+ */
+export const PILL_LINGER_MS = 1500;
+/** The fade itself; matches `duration-200` on the pill. */
+export const PILL_FADE_MS = 200;
 
 const FeatureBadgesContext = createContext<FeatureBadgesValue | null>(null);
 
 /**
  * Holds the reader's running Badge campaigns for the sidebar. `campaigns` is
  * an unawaited promise from the frame, so nav paints without waiting on Core
- * and only the pills suspend. Seen state is kept here as well as in Core, so
- * a pill drops the moment the reader opens its feature.
+ * and only the pills suspend. Opening a feature tells Core at once; the pill
+ * lingers for `PILL_LINGER_MS` once the new page is up, then fades out.
  */
 export function FeatureBadgesProvider({
   userId,
@@ -80,14 +99,32 @@ export function FeatureBadgesProvider({
   children: ReactNode;
 }) {
   const [seenIds, setSeenIds] = useState<ReadonlySet<string>>(new Set());
+  const [pillExits, setPillExits] = useState<ReadonlyMap<string, PillExit>>(
+    new Map(),
+  );
   const requestedIds = useRef(new Set<string>());
+  const exitTimers = useRef(new Map<string, number[]>());
   const mounted = useRef(true);
   useMountEffect(() => {
     mounted.current = true;
+    const timers = exitTimers.current;
     return () => {
       mounted.current = false;
+      for (const ids of timers.values()) ids.forEach(window.clearTimeout);
+      timers.clear();
     };
   });
+
+  const scheduleExit = useCallback(({ id, feature }: BadgeCampaignSummary) => {
+    if (exitTimers.current.has(id)) return;
+    const setStage = (stage: PillExit["stage"]) =>
+      setPillExits((current) => new Map(current).set(id, { feature, stage }));
+    setStage("lingering");
+    exitTimers.current.set(id, [
+      window.setTimeout(() => setStage("fading"), PILL_LINGER_MS),
+      window.setTimeout(() => setStage("gone"), PILL_LINGER_MS + PILL_FADE_MS),
+    ]);
+  }, []);
 
   const { mutate } = useMutation({
     mutationFn: async (campaignId: string) => {
@@ -106,20 +143,29 @@ export function FeatureBadgesProvider({
     onError: (_error, campaignId) => requestedIds.current.delete(campaignId),
   });
   const markSeen = useCallback(
-    (campaignId: string) => {
-      if (requestedIds.current.has(campaignId)) return;
-      requestedIds.current.add(campaignId);
-      setSeenIds((current) => new Set(current).add(campaignId));
-      mutate(campaignId);
+    (campaign: BadgeCampaignSummary) => {
+      // Core hears at once; the pill only leaves after it lingers.
+      scheduleExit(campaign);
+      if (requestedIds.current.has(campaign.id)) return;
+      requestedIds.current.add(campaign.id);
+      setSeenIds((current) => new Set(current).add(campaign.id));
+      mutate(campaign.id);
     },
-    [mutate],
+    [mutate, scheduleExit],
   );
 
   const latestCampaigns = useRef<BadgeCampaignSummary[]>([]);
 
   return (
     <FeatureBadgesContext
-      value={{ userId, campaigns, seenIds, markSeen, latestCampaigns }}
+      value={{
+        userId,
+        campaigns,
+        seenIds,
+        markSeen,
+        pillExits,
+        latestCampaigns,
+      }}
     >
       {children}
       <Suspense fallback={null}>
@@ -193,7 +239,7 @@ function MarkSeenOnOpen() {
         isFeatureOpen(campaign.feature, pathname) ||
         seenIds.has(campaign.id)
       ) {
-        markSeen(campaign.id);
+        markSeen(campaign);
       }
     }
   }, [resolved, dataUpdatedAt, pathname, markSeen, seenIds, latestCampaigns]);
@@ -203,15 +249,17 @@ function MarkSeenOnOpen() {
 /**
  * For features that are actions rather than pages (New task, Search,
  * Unreads): call the returned function when the reader uses the feature.
- * Outside the provider it does nothing.
+ * Pages are left to the visit observer, so their pill counts from the moment
+ * the new page is up, not from the click. Outside the provider it does nothing.
  */
 export function useMarkFeatureSeen(): (feature: AnnouncedFeature) => void {
   const value = use(FeatureBadgesContext);
   return useCallback(
     (feature: AnnouncedFeature) => {
+      if (FEATURE_PATHS[feature].length > 0) return;
       for (const campaign of value?.latestCampaigns.current ?? []) {
         if (campaign.feature === feature) {
-          value?.markSeen(campaign.id);
+          value?.markSeen(campaign);
         }
       }
     },
@@ -219,13 +267,24 @@ export function useMarkFeatureSeen(): (feature: AnnouncedFeature) => void {
   );
 }
 
-/** True while the reader should see the New badge on this feature's row. */
-export function useHasNewBadge(feature: AnnouncedFeature): boolean {
+/**
+ * Whether this feature's row shows the New badge: `shown`, `fading` while it
+ * leaves after the reader opened the feature, or `none`.
+ */
+export function useNewBadgeState(
+  feature: AnnouncedFeature,
+): "shown" | "fading" | "none" {
   const value = use(FeatureBadgesContext);
   // Instant Nav's shell renders the sidebar outside the provider: no badge.
   const campaigns = value ? useCampaigns(value).data : [];
-  return campaigns.some(
-    (campaign) =>
-      campaign.feature === feature && !value?.seenIds.has(campaign.id),
+  const exits = [...(value?.pillExits.values() ?? [])].filter(
+    (exit) => exit.feature === feature,
   );
+  if (exits.some((exit) => exit.stage === "lingering")) return "shown";
+  if (exits.some((exit) => exit.stage === "fading")) return "fading";
+  const unopened = campaigns.some(
+    (campaign) =>
+      campaign.feature === feature && !value?.pillExits.has(campaign.id),
+  );
+  return unopened ? "shown" : "none";
 }

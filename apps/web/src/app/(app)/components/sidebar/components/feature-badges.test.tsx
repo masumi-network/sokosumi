@@ -22,6 +22,8 @@ vi.mock("@/lib/actions/badge-campaign/action", () => ({
 import {
   type BadgeCampaignSummary,
   FeatureBadgesProvider,
+  PILL_FADE_MS,
+  PILL_LINGER_MS,
   useMarkFeatureSeen,
 } from "./feature-badges";
 import { SidebarFeatureLabel } from "./sidebar-feature-label";
@@ -41,6 +43,13 @@ function settled<T>(value: T): Promise<T> {
   return Object.assign(Promise.resolve(value), {
     status: "fulfilled",
     value,
+  });
+}
+
+/** Lets a seen pill linger and fade all the way out. */
+async function passPillExit() {
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(PILL_LINGER_MS + PILL_FADE_MS);
   });
 }
 
@@ -128,6 +137,7 @@ describe("New badges in the sidebar", () => {
       await vi.advanceTimersByTimeAsync(1001);
     });
     expect(markSeenMock).toHaveBeenCalledTimes(2);
+    await passPillExit();
     expect(screen.getByTestId("drive")).toHaveTextContent(/^Drive$/);
   });
 
@@ -279,6 +289,17 @@ describe("New badges in the sidebar", () => {
 
     expect(markSeenMock).toHaveBeenCalledTimes(1);
     expect(markSeenMock).toHaveBeenCalledWith("campaign-drive");
+    // Core hears at once; the pill lingers on the new page, fades, then goes.
+    expect(screen.getByTestId("drive")).toHaveTextContent("Drivenew");
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PILL_LINGER_MS);
+    });
+    expect(screen.getByText("new", { selector: "[aria-hidden]" })).toHaveClass(
+      "opacity-0",
+    );
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(PILL_FADE_MS);
+    });
     expect(screen.getByTestId("drive")).toHaveTextContent(/^Drive$/);
   });
 
@@ -288,7 +309,38 @@ describe("New badges in the sidebar", () => {
     await renderRows([DRIVE_CAMPAIGN]);
 
     expect(markSeenMock).toHaveBeenCalledWith("campaign-drive");
+    expect(screen.getByTestId("drive")).toHaveTextContent("Drivenew");
+    await passPillExit();
     expect(screen.getByTestId("drive")).toHaveTextContent(/^Drive$/);
+  });
+
+  it("leaves page features to the visit, not the click", async () => {
+    function DriveLink() {
+      const markFeatureSeen = useMarkFeatureSeen();
+      return (
+        <button type="button" onClick={() => markFeatureSeen("DRIVE")}>
+          <SidebarFeatureLabel label="Drive" feature="DRIVE" />
+        </button>
+      );
+    }
+    render(
+      <FeatureBadgesProvider
+        userId="user_123"
+        campaigns={settled([DRIVE_CAMPAIGN])}
+      >
+        <DriveLink />
+      </FeatureBadgesProvider>,
+      { wrapper: Wrapper },
+    );
+    await act(async () => {});
+
+    await act(async () => {
+      screen.getByRole("button").click();
+    });
+    await passPillExit();
+
+    expect(markSeenMock).not.toHaveBeenCalled();
+    expect(screen.getByRole("button")).toHaveTextContent("Drivenew");
   });
 
   it("does not match a path that only shares a prefix", async () => {
@@ -337,6 +389,8 @@ describe("New badges in the sidebar", () => {
     });
 
     expect(markSeenMock).toHaveBeenCalledWith("campaign-search");
+    expect(screen.getByRole("button")).toHaveTextContent("Searchnew");
+    await passPillExit();
     expect(screen.getByRole("button")).toHaveTextContent(/^Search$/);
   });
 });

@@ -1,8 +1,9 @@
 import type { AnnouncedFeature } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
+import { cn } from "@/lib/utils";
 
-import { useHasNewBadge } from "./feature-badges";
+import { useNewBadgeState } from "./feature-badges";
 
 /**
  * The label span's classes for a row that can carry a "New" pill: one line
@@ -35,18 +36,23 @@ export function SidebarFeatureLabel({
 
 function NewPill({ feature }: { feature: AnnouncedFeature }) {
   const t = useTranslations("App.Sidebar.Content.MenuItems");
-  const hasNewBadge = useHasNewBadge(feature);
-  if (!hasNewBadge) {
+  const state = useNewBadgeState(feature);
+  if (state === "none") {
     return null;
   }
 
   // The pill's caps are styling; the row's accessible name gets ", New" from
-  // the hidden copy, since flex items join without a space.
+  // the hidden copy, since flex items join without a space. Leaving, it fades
+  // on opacity alone (`PILL_FADE_MS`); reduced motion skips the fade.
   return (
     <>
       <span
         aria-hidden
-        className="bg-primary-quinary text-primary shrink-0 rounded-sm px-1 py-0.5 text-[0.625rem] leading-none font-semibold tracking-wide uppercase"
+        className={cn(
+          "bg-primary-quinary text-primary shrink-0 rounded-sm px-1 py-0.5 text-[0.625rem] leading-none font-semibold tracking-wide uppercase",
+          "transition-opacity duration-200 ease-out motion-reduce:transition-none",
+          state === "fading" && "opacity-0",
+        )}
       >
         {t("new")}
       </span>
