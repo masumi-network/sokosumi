@@ -2802,7 +2802,7 @@
         "emptyBody": "Las campañas de Google Ads y Meta Ads aparecerán aquí cuando conectes una cuenta.",
         "emptyAction": "Ir a cuentas",
         "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
-        "noCampaignsBody": "Las campañas aparecerán aquí cuando esta cuenta publicitaria tenga alguna.",
+        "noCampaignsBody": "Crea una con «Nueva campaña». Empieza en pausa.",
         "loading": "Cargando campañas…",
         "account": "Cuenta publicitaria",
         "rangeLabel": "Período",
@@ -2846,19 +2846,45 @@
           "description": "Volverá a gastar, hasta su presupuesto diario.",
           "confirm": "Reanudar"
         },
+        "budget": {
+          "label": "Presupuesto diario ({currency})",
+          "required": "Introduce un presupuesto diario mayor que 0.",
+          "wholeNumber": "Usa un número entero para {currency}.",
+          "precision": "Usa como máximo {digits} decimales para {currency}.",
+          "managedElsewhere": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí."
+        },
         "budgetDialog": {
           "title": "Cambiar presupuesto diario",
           "description": "{name} gasta como máximo esta cantidad al día.",
-          "label": "Presupuesto diario ({currency})",
           "save": "Guardar presupuesto",
           "saving": "Guardando…",
           "change": "El presupuesto diario cambia de {old} a {new}.",
-          "notSet": "sin definir",
+          "notSet": "sin definir"
+        },
+        "newCampaign": {
+          "title": "Nueva campaña",
+          "note": {
+            "google_ads": "Las campañas se crean en pausa. Añade grupos de anuncios y anuncios en Google Ads y reanúdalas aquí.",
+            "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
+          },
+          "name": "Nombre",
+          "objective": "Objetivo",
+          "objectivePlaceholder": "Selecciona un objetivo",
+          "objectives": {
+            "OUTCOME_TRAFFIC": "Tráfico",
+            "OUTCOME_AWARENESS": "Notoriedad",
+            "OUTCOME_ENGAGEMENT": "Interacción",
+            "OUTCOME_LEADS": "Clientes potenciales",
+            "OUTCOME_SALES": "Ventas"
+          },
+          "submit": "Crear campaña",
+          "saving": "Creando…",
+          "success": "Campaña creada correctamente",
           "errors": {
-            "shared": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí.",
-            "required": "Introduce un presupuesto diario mayor que 0.",
-            "wholeNumber": "Usa un número entero para {currency}.",
-            "precision": "Usa como máximo {digits} decimales para {currency}."
+            "nameRequired": "Introduce un nombre.",
+            "nameTooLong": "Usa como máximo 255 caracteres.",
+            "objectiveRequired": "Elige un objetivo.",
+            "failed": "No se pudo crear la campaña"
           }
         },
         "success": {

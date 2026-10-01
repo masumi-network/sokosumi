@@ -63,12 +63,12 @@ vi.mock("./components/ads-tabs", () => ({
 
 vi.mock("./components/ads-campaigns-toolbar", () => ({
   AdsCampaignsToolbar: ({
-    accountId,
+    account,
     range,
   }: {
-    accountId: string;
+    account: { id: string };
     range: string;
-  }) => <div data-testid="ads-toolbar">{`${accountId}/${range}`}</div>,
+  }) => <div data-testid="ads-toolbar">{`${account.id}/${range}`}</div>,
 }));
 
 vi.mock("./components/ads-campaigns-section", () => ({

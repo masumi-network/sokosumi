@@ -2,6 +2,8 @@ import "server-only";
 
 import type {
   AdRange,
+  CreateAdCampaignRequest,
+  CreateAdCampaignResponse,
   FinalizeProjectAdConnectionResponse,
   InitiateProjectSocialConnectionResponse,
   ListAdCampaignsResponse,
@@ -98,6 +100,19 @@ export const adsService = (() => {
     );
   }
 
+  async function createCampaign(
+    projectId: string,
+    accountId: string,
+    campaign: CreateAdCampaignRequest,
+  ): Promise<CreateAdCampaignResponse> {
+    const result =
+      await coreClient.postProjectsByIdAdsAccountsByAccountIdCampaigns(
+        { id: projectId, accountId },
+        campaign,
+      );
+    return result.data;
+  }
+
   return {
     listAccounts,
     initiateConnection,
@@ -107,5 +122,6 @@ export const adsService = (() => {
     discardConnection,
     listCampaigns,
     updateCampaign,
+    createCampaign,
   };
 })();
