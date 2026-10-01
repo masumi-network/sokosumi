@@ -13,15 +13,23 @@ private func rosterEnvelope(_ data: String) -> String {
 }
 
 private actor RosterTransport: ClientTransport {
-  let replies: [String: (Int, String)]
+  var replies: [String: (Int, String)]
   private(set) var requests: [HTTPRequest] = []
+  private(set) var patchBodies: [Data] = []
 
   init(_ replies: [String: (Int, String)]) {
     self.replies = replies
   }
 
-  func send(_ request: HTTPRequest, body _: HTTPBody?, baseURL _: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
+  func recoverMembers(_ body: String) {
+    replies["get/organizations/{id}/members"] = (200, body)
+  }
+
+  func send(_ request: HTTPRequest, body: HTTPBody?, baseURL _: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
     requests.append(request)
+    if request.method == .patch, let body {
+      try await patchBodies.append(Data(Array(collecting: body, upTo: 1_000_000)))
+    }
     let reply = replies[operationID] ?? (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#)
     return (.init(status: .init(code: reply.0)), HTTPBody(reply.1))
   }
@@ -43,6 +51,19 @@ private func memberFixture(id: String, name: String) -> String {
   """
 }
 
+private func editableRoomFixture() throws -> Components.Schemas.ChatRoom {
+  try Components.Schemas.ChatRoom(
+    id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+    discoverability: ._private, createdByUserId: "me", createdAt: Date(timeIntervalSince1970: 1_767_225_600), updatedAt: Date(timeIntervalSince1970: 1_767_225_600),
+    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+    userMembers: [.init(id: "me", name: "Me", email: "me@example.com", presence: .online),
+                  .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .offline),
+                  .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
+                        access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest")))],
+    coworkerMembers: [.init(id: "ai", name: "Helper", slug: "helper", presence: .online)], sokoBotMembers: []
+  )
+}
+
 struct ChatRecipientRosterTests {
   @Test(arguments: ["member", "admin", "owner"])
   func channelRosterIncludesCreatorAndRole(role: String) async throws {
@@ -57,6 +78,85 @@ struct ChatRecipientRosterTests {
     let roster = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     #expect(roster.recipients.targets.map(\.id) == [.human("me")])
     #expect(roster.isOwnerOrAdmin == (role != "member"))
+  }
+
+  @MainActor
+  @Test(arguments: ["member", "owner"])
+  func failedMemberPageSaveAndRecoveredSelectionUseEncodedPatch(role: String) async throws {
+    let room = try editableRoomFixture()
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .custom { date, encoder in
+      let formatter = ISO8601DateFormatter()
+      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+      var container = encoder.singleValueContainer()
+      try container.encode(formatter.string(from: date))
+    }
+    let encodedRoom = try #require(String(data: encoder.encode(room), encoding: .utf8))
+    let response = rosterEnvelope(encodedRoom)
+    let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"\#(role)","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
+      "get/organizations/{id}/members": (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#),
+      "getMySokoBot": (200, rosterEnvelope(#"{"sokoBot":\#(assistantFixture)}"#)),
+      "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(membership)),
+      "patch/chats/rooms/{id}": (200, response)
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let model = ChannelEditing(room: room)
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(model.membersLoadFailed && model.canSave)
+    model.draft.recipients.remove(.coworker("ai"))
+    model.draft.recipients.insert(.sokoBot("bot"))
+    let submit: (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool = { draft, permissions in
+      _ = try await ChatService().updateRoom(client: client, roomId: room.id,
+                                             request: draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: room), organizationSlug: "team")
+      return true
+    }
+    #expect(await model.save(using: submit))
+    #expect(model.errorMessage == nil)
+    let failedData = try #require(await transport.patchBodies.first)
+    let failedBody = try #require(JSONSerialization.jsonObject(with: failedData) as? [String: Any])
+    #expect(failedBody["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect((failedBody["coworkerIds"] as? [String])?.isEmpty == true)
+    #expect(failedBody["sokoBotIds"] as? [String] == ["bot"])
+    #expect((failedBody["name"] != nil) == (role == "owner"))
+    await transport.recoverMembers(rosterEnvelope("[" + [memberFixture(id: "me", name: "Me"), memberFixture(id: "peer", name: "Peer"),
+                                                         memberFixture(id: "new", name: "New")].joined(separator: ",") + "]"))
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(!model.membersLoadFailed)
+    #expect(model.draft.recipients == [.human("me"), .human("peer"), .sokoBot("bot")])
+    model.draft.recipients.remove(.human("peer"))
+    model.draft.recipients.insert(.human("new"))
+    #expect(await model.save(using: submit))
+    #expect(model.errorMessage == nil)
+    let recoveredData = try #require(await transport.patchBodies.last)
+    let recoveredBody = try #require(JSONSerialization.jsonObject(with: recoveredData) as? [String: Any])
+    #expect(recoveredBody["memberUserIds"] as? [String] == ["me", "new"])
+    #expect(recoveredBody["sokoBotIds"] as? [String] == ["bot"])
+  }
+
+  @MainActor
+  @Test(arguments: ["get/coworkers", "get/users/{id}/organizations/{organizationId}/member"])
+  func channelRosterDependencyFailureStillBlocksSave(operation: String) async throws {
+    let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"owner","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
+    var replies: [String: (Int, String)] = [
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(membership))
+    ]
+    replies[operation] = (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#)
+    let transport = RosterTransport(replies)
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let room = Components.Schemas.ChatRoom(id: "channel", organizationId: "org", name: "Team", kind: .channel,
+                                           isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
+                                           unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+                                           userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+    let model = ChannelEditing(room: room)
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(model.roster == nil)
+    #expect(model.errorMessage != nil)
+    #expect(!model.canSave)
   }
 
   @Test func rosterMatchesWebFilteringAndWorkspace() async throws {

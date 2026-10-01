@@ -142,17 +142,18 @@ struct ChatServiceTests {
     let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
-    var draft = ChannelEditDraft(room: .init(
+    let currentRoom = Components.Schemas.ChatRoom(
       id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
       markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
-    ))
+    )
+    var draft = ChannelEditDraft(room: currentRoom)
     draft.setName(" Renamed ")
     draft.setTopic("  ")
     draft.visibility = .external
     draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
     let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
-    let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
+    let update = draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: currentRoom)
     let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
     #expect(result.id == "channel")
     let request = try #require(transport.requests.first).request
