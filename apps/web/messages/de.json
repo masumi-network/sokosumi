@@ -6765,7 +6765,12 @@
         "showFewer": "Weniger anzeigen",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
-        "kindsMailCalendar": "Liest Posteingang und Kalender"
+        "kindsMailCalendar": "Liest Posteingang und Kalender",
+        "connectedNotRead": "Verbunden · wird gelesen, wenn ein Briefing oder Termin es braucht",
+        "lastRead": "Verbunden · gelesen {when}",
+        "connectedTools": "Verbunden",
+        "manage": "Verwalten",
+        "browseAll": "Alle Apps ansehen"
       },
       "Schedules": {
         "builtIn": "Eingebaut",
@@ -7029,13 +7034,19 @@
         },
         "Usage": {
           "title": "Nutzung",
-          "description": "Alles, was dieser Assistent seit seiner Erstellung verbraucht hat.",
+          "description": "Alles, was dieser Assistent seit seiner Erstellung ausgegeben hat, einschließlich der beauftragten Coworker und Agents.",
           "credits": "Verbrauchte Credits",
           "turns": "in {count, plural, one {# Durchlauf} other {# Durchläufen}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
-          "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf"
+          "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
+          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Alles für eigene Durchläufe"
+        },
+        "Connectors": {
+          "title": "Tools",
+          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {
