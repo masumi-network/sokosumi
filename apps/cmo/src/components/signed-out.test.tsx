@@ -22,7 +22,9 @@ describe("signed-out page", () => {
     expect(html.indexOf("Create account")).toBeLessThan(
       html.indexOf("Sign in</button>"),
     );
-    expect(html).toContain("CMO uses your Sokosumi account.");
+    expect(html).toContain(
+      'CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.',
+    );
     expect(html).not.toContain('role="alert"');
   });
 

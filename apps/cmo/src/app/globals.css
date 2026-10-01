@@ -198,6 +198,15 @@ p {
   font-size: 0.875rem;
 }
 
+.note a {
+  color: var(--foreground);
+  text-underline-offset: 3px;
+}
+
+.note a:hover {
+  text-decoration-thickness: 2px;
+}
+
 .account {
   display: flex;
   flex-direction: column;

@@ -55,7 +55,9 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
             </button>
           </form>
         </div>
-        <p className="note">CMO uses your Sokosumi account.</p>
+        <p className="note">
+          CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.
+        </p>
       </div>
       <Mascot className="hero-mascot" />
     </main>
