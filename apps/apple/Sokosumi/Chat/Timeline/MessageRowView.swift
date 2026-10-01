@@ -4,7 +4,6 @@ import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
-  import AppKit
 
   /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
@@ -80,20 +79,12 @@ import SwiftUI
     @Environment(\.timeFormat) private var timeFormat
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
-    @State private var pinError: String?
-    @State private var showsPinError = false
-    @State private var reactionError: String?
-    @State private var showsReactionError = false
     @State private var confirmsDeletion = false
     @State private var isDeleting = false
-    @State private var deletionError: String?
-    @State private var showsDeletionError = false
     @State private var isRetryingMention = false
-    @State private var mentionRetryError: String?
-    @State private var showsMentionRetryError = false
     @State private var isSendingToSelf = false
     @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
-    @State private var sendToSelfError: String?
+    @State private var failure: Failure?
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
@@ -104,6 +95,12 @@ import SwiftUI
     private enum MessageAction: Hashable {
       case quote, reply, more, react
       case quickReaction(Int)
+    }
+
+    /// One OK-dismiss alert for pin, reaction, delete, mention retry, and send-to-self failures.
+    private struct Failure {
+      let title: String
+      let message: String
     }
 
     private var showsActions: Bool {
@@ -150,8 +147,7 @@ import SwiftUI
             ReactionEmojiHistory().record(emoji)
           }
         } catch {
-          reactionError = friendlyMessage(for: error)
-          showsReactionError = true
+          failure = Failure(title: "Couldn’t update reaction", message: friendlyMessage(for: error))
         }
       }
     }
@@ -162,8 +158,7 @@ import SwiftUI
       Task { @MainActor in
         defer { isDeleting = false }
         do { try await onDelete() } catch {
-          deletionError = friendlyMessage(for: error)
-          showsDeletionError = true
+          failure = Failure(title: "Couldn’t delete message", message: friendlyMessage(for: error))
         }
       }
     }
@@ -176,8 +171,7 @@ import SwiftUI
       Task { @MainActor in
         defer { isRetryingMention = false }
         do { try await onRetryMention() } catch {
-          mentionRetryError = friendlyMessage(for: error)
-          showsMentionRetryError = true
+          failure = Failure(title: "Couldn’t retry the mention", message: friendlyMessage(for: error))
         }
       }
     }
@@ -356,13 +350,10 @@ import SwiftUI
           isHovered = hovering
         }
       }
-      .alert("Couldn’t update pin", isPresented: $showsPinError) {
+      .alert(failure?.title ?? "", item: $failure) { _ in
         Button("OK", role: .cancel) {}
-      } message: { Text(pinError ?? "Try again.") }
-      .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(reactionError ?? "Try again.")
+      } message: { failure in
+        Text(failure.message)
       }
       .alert("Sent to yourself", isPresented: Binding(get: { sentToSelf != nil }, set: {
         if !$0 {
@@ -372,28 +363,11 @@ import SwiftUI
         Button("Open") { openSavedMessage(saved) }
         Button("OK", role: .cancel) {}
       }
-      .alert("Couldn’t send to yourself", isPresented: Binding(get: { sendToSelfError != nil }, set: {
-        if !$0 {
-          sendToSelfError = nil
-        }
-      })) {
-        Button("OK", role: .cancel) {}
-      } message: { Text(sendToSelfError ?? "Try again.") }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
       } message: {
         Text("This message will be deleted for everyone. This cannot be undone.")
-      }
-      .alert("Couldn’t delete message", isPresented: $showsDeletionError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(deletionError ?? "Try again.")
-      }
-      .alert("Couldn’t retry the mention", isPresented: $showsMentionRetryError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(mentionRetryError ?? "Try again.")
       }
       // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
       .overlay { menuArea }
@@ -518,8 +492,7 @@ import SwiftUI
       guard let url = ChatLink.href(roomId: message.roomId, messageId: message.id, webBaseURL: CoreSettings.webBaseURL) else {
         return
       }
-      NSPasteboard.general.clearContents()
-      _ = NSPasteboard.general.setString(url.absoluteString, forType: .string)
+      PlatformPasteboard.copy(url.absoluteString)
     }
 
     private var sendToSelfButton: some View {
@@ -535,7 +508,7 @@ import SwiftUI
         do {
           sentToSelf = try await onSendToSelf()
         } catch {
-          sendToSelfError = friendlyMessage(for: error)
+          failure = Failure(title: "Couldn’t send to yourself", message: friendlyMessage(for: error))
         }
       }
     }
@@ -563,8 +536,8 @@ import SwiftUI
       Task { @MainActor in
         do {
           try await onTogglePin?()
-        } catch { pinError = friendlyMessage(for: error)
-          showsPinError = true
+        } catch {
+          failure = Failure(title: "Couldn’t update pin", message: friendlyMessage(for: error))
         }
       }
     }
