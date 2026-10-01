@@ -205,7 +205,8 @@ is its assignee, or shares the assignee's vendor. The create is keyed on the
 Task, so a retry returns the first schedule. `occurrences` counts the Runs
 still to come, and an `M H */N * *` cron with no `intervalDays` means every N
 days, as before. The cron follows the five-field rule above, so a seconds field
-or `@daily` answers **400**. A person assignee answers **422**. Every answer of the layer
+or `@daily` answers **400**, even when it re-sends the stored rule or resumes a
+paused schedule; nothing changes. A person assignee answers **422**. Every answer of the layer
 logs `legacyTaskScheduleShim`.
 
 ### Removed per-Task schedule routes
