@@ -4522,12 +4522,6 @@
         "title": "Feature badges",
         "description": "A campaign puts a New badge on one sidebar feature. Users who signed up before it starts see the badge until it ends or until they open the feature.",
         "loadFailed": "Couldn't load the campaigns. Reload to try again.",
-        "Features": {
-          "SOKO_BOTS": "Soko Bots",
-          "CONTENT_STUDIO": "Content Studio",
-          "SOCIAL": "Social",
-          "DRIVE": "Drive"
-        },
         "Status": {
           "scheduled": "Scheduled",
           "live": "Live",

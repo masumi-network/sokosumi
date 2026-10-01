@@ -26,7 +26,10 @@ import {
   endAdminBadgeCampaignAction,
 } from "@/lib/actions/admin-badge-campaigns/action";
 
-import { BadgeCampaignForm } from "./badge-campaign-form";
+import {
+  type AnnouncedFeatureLabels,
+  BadgeCampaignForm,
+} from "./badge-campaign-form";
 
 export type BadgeCampaignStatus = "scheduled" | "live" | "ended";
 
@@ -36,7 +39,13 @@ export interface BadgeCampaignRow {
   status: BadgeCampaignStatus;
 }
 
-export function BadgeCampaignsTable({ rows }: { rows: BadgeCampaignRow[] }) {
+export function BadgeCampaignsTable({
+  rows,
+  featureLabels,
+}: {
+  rows: BadgeCampaignRow[];
+  featureLabels: AnnouncedFeatureLabels;
+}) {
   const t = useTranslations("App.Admin.BadgeCampaigns");
   const formatter = useFormatter();
   const [editing, setEditing] = useState<BadgeCampaign | null>(null);
@@ -96,7 +105,7 @@ export function BadgeCampaignsTable({ rows }: { rows: BadgeCampaignRow[] }) {
           {rows.map(({ campaign, status }) => (
             <TableRow key={campaign.id}>
               <TableCell className="font-medium">
-                {t(`Features.${campaign.feature}`)}
+                {featureLabels[campaign.feature]}
               </TableCell>
               <TableCell className="tabular-nums">
                 {formatUtc(campaign.startsAt)}
@@ -157,11 +166,12 @@ export function BadgeCampaignsTable({ rows }: { rows: BadgeCampaignRow[] }) {
           <DialogHeader>
             <DialogTitle>{t("Form.editTitle")}</DialogTitle>
             <DialogDescription>
-              {editing ? t(`Features.${editing.feature}`) : null}
+              {editing ? featureLabels[editing.feature] : null}
             </DialogDescription>
           </DialogHeader>
           {editing ? (
             <BadgeCampaignForm
+              featureLabels={featureLabels}
               campaign={editing}
               onSaved={() => setEditing(null)}
             />

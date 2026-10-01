@@ -22,6 +22,7 @@ vi.mock("@/lib/actions/badge-campaign/action", () => ({
 import {
   type BadgeCampaignSummary,
   FeatureBadgesProvider,
+  useMarkFeatureSeen,
 } from "./feature-badges";
 import { SidebarFeatureLabel } from "./sidebar-feature-label";
 
@@ -302,5 +303,40 @@ describe("New badges in the sidebar", () => {
     render(<SidebarFeatureLabel label="Drive" feature="DRIVE" />);
 
     expect(screen.queryByText("new")).toBeNull();
+  });
+
+  it("marks an action feature seen when the reader uses it", async () => {
+    function SearchRow() {
+      const markFeatureSeen = useMarkFeatureSeen();
+      return (
+        <button type="button" onClick={() => markFeatureSeen("SEARCH")}>
+          <SidebarFeatureLabel label="Search" feature="SEARCH" />
+        </button>
+      );
+    }
+    render(
+      <FeatureBadgesProvider
+        userId="user_123"
+        campaigns={settled([
+          {
+            id: "campaign-search",
+            feature: "SEARCH",
+            endsAt: DRIVE_CAMPAIGN.endsAt,
+          },
+        ])}
+      >
+        <SearchRow />
+      </FeatureBadgesProvider>,
+      { wrapper: Wrapper },
+    );
+    await act(async () => {});
+    expect(screen.getByRole("button")).toHaveTextContent("Searchnew");
+
+    await act(async () => {
+      screen.getByRole("button").click();
+    });
+
+    expect(markSeenMock).toHaveBeenCalledWith("campaign-search");
+    expect(screen.getByRole("button")).toHaveTextContent(/^Search$/);
   });
 });

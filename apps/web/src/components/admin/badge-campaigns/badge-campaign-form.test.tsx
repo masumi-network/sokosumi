@@ -7,11 +7,19 @@ vi.mock("@/lib/actions/admin-badge-campaigns/action", () => ({
   updateAdminBadgeCampaignAction: vi.fn(),
 }));
 
-import { BadgeCampaignForm } from "./badge-campaign-form";
+import { AnnouncedFeature } from "@sokosumi/core-client";
+import {
+  type AnnouncedFeatureLabels,
+  BadgeCampaignForm,
+} from "./badge-campaign-form";
+
+const LABELS = Object.fromEntries(
+  Object.values(AnnouncedFeature).map((feature) => [feature, feature]),
+) as AnnouncedFeatureLabels;
 
 describe("badge campaign UTC dates", () => {
   it("defaults to 21 UTC days across a daylight-saving boundary", () => {
-    render(<BadgeCampaignForm />);
+    render(<BadgeCampaignForm featureLabels={LABELS} />);
     fireEvent.change(screen.getByLabelText("Form.startsAt"), {
       target: { value: "2026-10-20T23:30" },
     });
@@ -20,7 +28,7 @@ describe("badge campaign UTC dates", () => {
     );
   });
   it("preserves the admin's explicit end after another start selection", () => {
-    render(<BadgeCampaignForm />);
+    render(<BadgeCampaignForm featureLabels={LABELS} />);
     fireEvent.change(screen.getByLabelText("Form.startsAt"), {
       target: { value: "2026-10-20T23:30" },
     });

@@ -8,6 +8,8 @@ import {
   usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
+import { ANNOUNCED_FEATURES } from "@/schemas/badge-campaign.schema";
+
 import mountPostUserBadgeCampaignSeen from "./[campaignId]/seen/post";
 import mountGetUserBadgeCampaigns from "./get";
 
@@ -111,7 +113,7 @@ describe("users/{id}/badge-campaigns", () => {
     expect(campaignFindManyMock).toHaveBeenCalledWith({
       where: {
         feature: {
-          in: ["SOKO_BOTS", "CONTENT_STUDIO", "SOCIAL", "DRIVE"],
+          in: [...ANNOUNCED_FEATURES],
         },
         startsAt: { lte: NOW, gt: SIGNED_UP_AT },
         endsAt: { gt: NOW },

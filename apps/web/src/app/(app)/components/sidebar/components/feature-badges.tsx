@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 import {
   createContext,
   type ReactNode,
+  type RefObject,
   Suspense,
   use,
   useCallback,
@@ -18,6 +19,8 @@ import {
   useRef,
   useState,
 } from "react";
+import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
+import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
@@ -25,12 +28,23 @@ import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
 export type BadgeCampaignSummary = UserBadgeCampaigns["badgeCampaigns"][number];
 
-/** Where each Announced feature lives: opening any of these is opening it. */
+/**
+ * Where each Announced feature lives: opening any of these is opening it.
+ * New task, Search and Unreads are actions, not pages; their rows report use
+ * through `useMarkFeatureSeen` instead.
+ */
 const FEATURE_PATHS: Record<AnnouncedFeature, readonly string[]> = {
   SOKO_BOTS: [SOKO_BOTS_ROUTE, SOKO_BOT_ROUTE],
+  NEW_TASK: [],
+  SEARCH: [],
+  AGENTS: ["/agents"],
+  TASKS: ["/tasks"],
+  SCHEDULES: [TASK_SCHEDULES_PATH],
   CONTENT_STUDIO: ["/studio"],
   SOCIAL: ["/social"],
   DRIVE: ["/drive"],
+  THREADS: [CHAT_THREADS_PATH],
+  UNREADS: [],
 };
 
 function isFeatureOpen(feature: AnnouncedFeature, pathname: string) {
@@ -44,6 +58,8 @@ interface FeatureBadgesValue {
   campaigns: Promise<BadgeCampaignSummary[]>;
   seenIds: ReadonlySet<string>;
   markSeen: (campaignId: string) => void;
+  /** The running campaigns as last read, for rows that report use on click. */
+  latestCampaigns: RefObject<BadgeCampaignSummary[]>;
 }
 
 const FeatureBadgesContext = createContext<FeatureBadgesValue | null>(null);
@@ -99,8 +115,12 @@ export function FeatureBadgesProvider({
     [mutate],
   );
 
+  const latestCampaigns = useRef<BadgeCampaignSummary[]>([]);
+
   return (
-    <FeatureBadgesContext value={{ userId, campaigns, seenIds, markSeen }}>
+    <FeatureBadgesContext
+      value={{ userId, campaigns, seenIds, markSeen, latestCampaigns }}
+    >
       {children}
       <Suspense fallback={null}>
         <MarkSeenOnOpen />
@@ -165,8 +185,9 @@ function MarkSeenOnOpen() {
       void refetch();
     }
   }, [pathname, refetch]);
-  const { markSeen, seenIds } = value;
+  const { markSeen, seenIds, latestCampaigns } = value;
   useEffect(() => {
+    latestCampaigns.current = resolved;
     for (const campaign of resolved) {
       if (
         isFeatureOpen(campaign.feature, pathname) ||
@@ -175,8 +196,27 @@ function MarkSeenOnOpen() {
         markSeen(campaign.id);
       }
     }
-  }, [resolved, dataUpdatedAt, pathname, markSeen, seenIds]);
+  }, [resolved, dataUpdatedAt, pathname, markSeen, seenIds, latestCampaigns]);
   return null;
+}
+
+/**
+ * For features that are actions rather than pages (New task, Search,
+ * Unreads): call the returned function when the reader uses the feature.
+ * Outside the provider it does nothing.
+ */
+export function useMarkFeatureSeen(): (feature: AnnouncedFeature) => void {
+  const value = use(FeatureBadgesContext);
+  return useCallback(
+    (feature: AnnouncedFeature) => {
+      for (const campaign of value?.latestCampaigns.current ?? []) {
+        if (campaign.feature === feature) {
+          value?.markSeen(campaign.id);
+        }
+      }
+    },
+    [value],
+  );
 }
 
 /** True while the reader should see the New badge on this feature's row. */

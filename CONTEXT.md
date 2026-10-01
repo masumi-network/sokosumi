@@ -219,7 +219,7 @@ _Avoid_: Profile menu (unless a separate account menu is introduced), notificati
 ### Feature badges
 
 **Announced feature**:
-A stable, named destination in the App chrome that a Badge campaign can point at, such as Drive or Content Studio. The set is fixed by the product; admins choose from it, they never invent one.
+An item of the sidebar menu that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
 _Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
 
 **Badge campaign**:

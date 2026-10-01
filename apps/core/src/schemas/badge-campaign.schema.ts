@@ -3,16 +3,24 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 
 /**
- * The Announced features a Badge campaign can point at. Each one is a sidebar
- * destination that exists in code, so admins pick from this list rather than
- * typing a key. Adding one is a change here plus the row in Web; the column
- * is a plain string, so no migration.
+ * The Announced features a Badge campaign can point at: every item of the
+ * sidebar menu, in sidebar order. They exist in code, so admins pick from
+ * this list rather than typing a key. Adding one is a change here plus the
+ * row in Web; the column is a plain string, so no migration. Keys are stable
+ * and need not match the sidebar label (DRIVE is shown as Files).
  */
 export const ANNOUNCED_FEATURES = [
   "SOKO_BOTS",
+  "NEW_TASK",
+  "SEARCH",
+  "AGENTS",
+  "TASKS",
+  "SCHEDULES",
   "CONTENT_STUDIO",
   "SOCIAL",
   "DRIVE",
+  "THREADS",
+  "UNREADS",
 ] as const;
 
 export const announcedFeatureSchema = z

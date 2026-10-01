@@ -191,9 +191,16 @@ export type BadgeCampaign = {
 
 export const AnnouncedFeature = {
     SOKO_BOTS: 'SOKO_BOTS',
+    NEW_TASK: 'NEW_TASK',
+    SEARCH: 'SEARCH',
+    AGENTS: 'AGENTS',
+    TASKS: 'TASKS',
+    SCHEDULES: 'SCHEDULES',
     CONTENT_STUDIO: 'CONTENT_STUDIO',
     SOCIAL: 'SOCIAL',
-    DRIVE: 'DRIVE'
+    DRIVE: 'DRIVE',
+    THREADS: 'THREADS',
+    UNREADS: 'UNREADS'
 } as const;
 
 export type AnnouncedFeature = typeof AnnouncedFeature[keyof typeof AnnouncedFeature];

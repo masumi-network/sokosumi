@@ -778,9 +778,16 @@ export const AnnouncedFeatureSchema = {
     type: 'string',
     enum: [
         'SOKO_BOTS',
+        'NEW_TASK',
+        'SEARCH',
+        'AGENTS',
+        'TASKS',
+        'SCHEDULES',
         'CONTENT_STUDIO',
         'SOCIAL',
-        'DRIVE'
+        'DRIVE',
+        'THREADS',
+        'UNREADS'
     ],
     example: 'DRIVE'
 } as const;

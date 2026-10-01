@@ -40,13 +40,18 @@ function addDays(value: string, days: number): string {
   return toUtcInputValue(date);
 }
 
+/** Each feature's name as the sidebar shows it, so admins pick what users see. */
+export type AnnouncedFeatureLabels = Record<AnnouncedFeature, string>;
+
 interface BadgeCampaignFormProps {
+  featureLabels: AnnouncedFeatureLabels;
   /** Edit this campaign's dates. Omitted, the form creates a campaign. */
   campaign?: BadgeCampaign;
   onSaved?: () => void;
 }
 
 export function BadgeCampaignForm({
+  featureLabels,
   campaign,
   onSaved,
 }: BadgeCampaignFormProps) {
@@ -128,7 +133,7 @@ export function BadgeCampaignForm({
             <SelectContent>
               {Object.values(AnnouncedFeature).map((value) => (
                 <SelectItem key={value} value={value}>
-                  {t(`Features.${value}`)}
+                  {featureLabels[value]}
                 </SelectItem>
               ))}
             </SelectContent>
