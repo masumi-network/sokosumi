@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { ADS_TABS, adsSearchParams } from "../ads-query";
 import { AdsAccounts } from "./ads-accounts";
-import { AdsCampaignsSkeleton } from "./ads-campaigns-skeleton";
+import { AdsRowsSkeleton } from "./ads-skeleton";
 
 interface AdsTabsProps {
   accounts: ProjectAdAccount[];
@@ -27,15 +27,22 @@ interface AdsTabsProps {
    * is on Campaigns, so it is absent for a moment after switching back.
    */
   campaigns: React.ReactNode;
+  /** The server-rendered Market tab, present only while the URL is on it. */
+  market: React.ReactNode;
   projectId: string;
 }
 
 /**
  * Ads' three tabs, driven by `?tab=`. Campaigns is the default and keeps the
- * URL clean. Market is an empty state until its own ticket fills it. Switching
- * tabs asks the server for the page again so it only loads what is shown.
+ * URL clean. Switching tabs asks the server for the page again so it only
+ * loads what is shown.
  */
-export function AdsTabs({ accounts, campaigns, projectId }: AdsTabsProps) {
+export function AdsTabs({
+  accounts,
+  campaigns,
+  market,
+  projectId,
+}: AdsTabsProps) {
   const t = useTranslations("App.Ads");
   const [tab, setTab] = useQueryState(
     "tab",
@@ -81,15 +88,10 @@ export function AdsTabs({ accounts, campaigns, projectId }: AdsTabsProps) {
             title={t("campaigns.emptyTitle")}
           />
         ) : (
-          (campaigns ?? <AdsCampaignsSkeleton />)
+          (campaigns ?? <AdsRowsSkeleton />)
         )}
       </TabsContent>
-      <TabsContent value="market">
-        <EmptyState
-          description={t("market.emptyBody")}
-          title={t("market.emptyTitle")}
-        />
-      </TabsContent>
+      <TabsContent value="market">{market ?? <AdsRowsSkeleton />}</TabsContent>
       <TabsContent value="accounts">
         <AdsAccounts accounts={accounts} projectId={projectId} />
       </TabsContent>

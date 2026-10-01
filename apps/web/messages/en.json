@@ -2792,6 +2792,12 @@
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "tabsLabel": "Ads sections",
       "loading": "Loading ads…",
+      "updated": "Updated {time}",
+      "loadError": {
+        "unavailableDescription": "It is not set up for Sokosumi yet.",
+        "failedDescription": "Try again in a moment.",
+        "retry": "Try again"
+      },
       "tabs": {
         "campaigns": "Campaigns",
         "market": "Market",
@@ -2803,7 +2809,6 @@
         "emptyAction": "Go to accounts",
         "noCampaignsTitle": "No campaigns in this account yet",
         "noCampaignsBody": "Create one with New campaign. It starts paused.",
-        "loading": "Loading campaigns…",
         "account": "Ad account",
         "rangeLabel": "Date range",
         "range": {
@@ -2898,19 +2903,83 @@
             "action": "Go to accounts"
           },
           "unavailable": {
-            "title": "{provider} isn't available yet",
-            "description": "It is not set up for Sokosumi yet."
+            "title": "{provider} isn't available yet"
           },
           "failed": {
-            "title": "Failed to load campaigns",
-            "description": "Try again in a moment.",
-            "retry": "Try again"
+            "title": "Failed to load campaigns"
           }
         }
       },
       "market": {
-        "emptyTitle": "Set up your market to see trending keywords and ads",
-        "emptyBody": "Add your keywords and country to see what is trending and which ads your market is running."
+        "setupTitle": "Set up your market",
+        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your market is running.",
+        "edit": "Edit market",
+        "editBody": "Trending keywords and ads follow these keywords, country and language.",
+        "form": {
+          "keywords": "Keywords",
+          "keywordsHint": "Press Enter or comma to add one. Up to {max}.",
+          "keywordsPlaceholder": "For example, running shoes",
+          "keywordsFull": "Keyword limit reached",
+          "removeKeyword": "Remove {keyword}",
+          "country": "Country",
+          "countryPlaceholder": "Choose a country",
+          "language": "Language",
+          "languagePlaceholder": "Choose a language",
+          "submit": "Save market",
+          "saving": "Saving…",
+          "cancel": "Cancel",
+          "success": "Market saved successfully",
+          "errors": {
+            "keywordsRequired": "Add at least one keyword.",
+            "keywordsTooMany": "Use up to {max} keywords.",
+            "countryRequired": "Choose a country.",
+            "languageRequired": "Choose a language.",
+            "failed": "Failed to save market"
+          }
+        },
+        "keywords": {
+          "title": "Trending keywords",
+          "columns": {
+            "keyword": "Keyword",
+            "searches": "Monthly searches",
+            "trend": "12 months",
+            "competition": "Competition",
+            "bidRange": "Top-of-page bid"
+          },
+          "competition": {
+            "LOW": "Low",
+            "MEDIUM": "Medium",
+            "HIGH": "High"
+          },
+          "trendLabel": "Monthly searches over 12 months, from {from} to {to}",
+          "searchesPerMonth": "{count} searches a month",
+          "emptyTitle": "No trending keywords found for this market",
+          "emptyBody": "Try other keywords or another country."
+        },
+        "ads": {
+          "title": "Ads in your market",
+          "previewAlt": "Ad by {advertiser}",
+          "textAd": "Text ad",
+          "noPreview": "No preview",
+          "format": {
+            "text": "Text",
+            "image": "Image",
+            "video": "Video",
+            "other": "Other"
+          },
+          "lastShown": "Last shown {time}",
+          "viewAd": "View ad",
+          "emptyTitle": "No ads found for these advertisers yet",
+          "emptyBody": "Ads from your market's biggest advertisers appear here once they run."
+        },
+        "errors": {
+          "unavailable": "Market data isn't available yet",
+          "failed": {
+            "profile": "Failed to load your market",
+            "keywords": "Failed to load keywords",
+            "ads": "Failed to load ads"
+          }
+        }
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",

@@ -16,6 +16,7 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
+import { createMarketProfileSchema } from "@/lib/ads/market";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -165,5 +166,15 @@ export const createAdCampaign = adsAction(
     });
     revalidatePath("/ads");
     return campaign;
+  },
+);
+
+/** Saves the market profile Core reads trending keywords and ads for. */
+export const saveAdsMarketProfile = adsAction(
+  createMarketProfileSchema().extend({ projectId: trimmedId }),
+  async ({ projectId, ...profile }) => {
+    const saved = await adsService.saveMarketProfile(projectId, profile);
+    revalidatePath("/ads");
+    return saved;
   },
 );

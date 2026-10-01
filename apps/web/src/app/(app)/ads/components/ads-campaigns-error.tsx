@@ -2,13 +2,15 @@
 
 import type { ProjectAdProvider } from "@sokosumi/core-client";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
 
-export type CampaignsLoadError = "not_active" | "unavailable" | "failed";
+import { AdsErrorState } from "./ads-error-state";
+import type { AdsLoadError } from "./ads-load-error";
+
+export type CampaignsLoadError = "not_active" | AdsLoadError;
 
 interface AdsCampaignsErrorProps {
   kind: CampaignsLoadError;
@@ -24,7 +26,6 @@ export function AdsCampaignsError({
 }: AdsCampaignsErrorProps) {
   const t = useTranslations("App.Ads.campaigns.errors");
   const tProvider = useTranslations("App.Ads.accounts.providers");
-  const router = useRouter();
 
   if (kind === "not_active") {
     const params = new URLSearchParams({ projectId, tab: "accounts" });
@@ -43,24 +44,13 @@ export function AdsCampaignsError({
     );
   }
 
-  if (kind === "unavailable") {
-    return (
-      <EmptyState
-        description={t("unavailable.description")}
-        title={t("unavailable.title", { provider: tProvider(provider) })}
-      />
-    );
-  }
-
   return (
-    <EmptyState
-      action={
-        <Button onClick={() => router.refresh()} type="button">
-          {t("failed.retry")}
-        </Button>
-      }
-      description={t("failed.description")}
-      title={t("failed.title")}
+    <AdsErrorState
+      failedTitle={t("failed.title")}
+      kind={kind}
+      unavailableTitle={t("unavailable.title", {
+        provider: tProvider(provider),
+      })}
     />
   );
 }
