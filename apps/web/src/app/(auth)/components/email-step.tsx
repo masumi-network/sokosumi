@@ -18,6 +18,7 @@ import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
+  takeAuthEmailHintEntry,
 } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
 import {
@@ -117,12 +118,19 @@ export function EmailStep({
   useMountEffect(() => {
     // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
-    const emailHint = takeAuthEmailHint();
+    const emailHint = takeAuthEmailHintEntry();
     const useHint =
       emailHint !== null && !emailLocked && !form.getValues("email").trim();
     if (useHint) {
-      form.setValue("email", emailHint);
-      onEmailChange?.(emailHint);
+      form.setValue("email", emailHint.email);
+      onEmailChange?.(emailHint.email);
+    }
+    // Sign-in has just found no account and the person chose to create
+    // one, so the step goes on as if Continue were pressed. It still asks
+    // Core, in case an account has appeared since.
+    if (useHint && emailHint.noAccount && detour.when === "exists") {
+      void form.handleSubmit(handleSubmit)();
+      return;
     }
     if (autoFocus || useHint) {
       form.setFocus("email");
@@ -262,6 +270,8 @@ export function EmailStep({
                   rememberAuthEmailHintOnClick(
                     event,
                     emailLocked ? "" : form.getValues("email"),
+                    // What this step just learned, so sign-up can go on.
+                    { noAccount: detour.when === "missing" },
                   );
                 }}
               >

@@ -4,6 +4,7 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
+  takeAuthEmailHintEntry,
 } from "./auth-email-hint";
 
 describe("auth email hint", () => {
@@ -15,20 +16,6 @@ describe("auth email hint", () => {
     vi.restoreAllMocks();
   });
 
-  it("hands the remembered email over once", () => {
-    rememberAuthEmailHint("  ada@example.com ");
-
-    expect(takeAuthEmailHint()).toBe("ada@example.com");
-    expect(takeAuthEmailHint()).toBeNull();
-  });
-
-  it("remembers nothing for a blank email", () => {
-    rememberAuthEmailHint("stale@example.com");
-    rememberAuthEmailHint("   ");
-
-    expect(takeAuthEmailHint()).toBeNull();
-  });
-
   const plainClick = {
     defaultPrevented: false,
     button: 0,
@@ -37,6 +24,62 @@ describe("auth email hint", () => {
     shiftKey: false,
     altKey: false,
   };
+
+  it("hands the remembered email over once", () => {
+    rememberAuthEmailHint("  ada@example.com ");
+
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("hands over that sign-in found no account for the email", () => {
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+
+    expect(takeAuthEmailHintEntry()).toEqual({
+      email: "ada@example.com",
+      noAccount: true,
+    });
+    expect(takeAuthEmailHintEntry()).toBeNull();
+  });
+
+  it("does not carry an earlier no-account finding to a later email", () => {
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+    rememberAuthEmailHint("bob@example.com");
+
+    expect(takeAuthEmailHintEntry()).toEqual({
+      email: "bob@example.com",
+      noAccount: false,
+    });
+  });
+
+  it("drops the no-account finding with the email it belongs to", () => {
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+    rememberAuthEmailHintOnClick(plainClick, "bob@example.com");
+
+    expect(takeAuthEmailHintEntry()).toEqual({
+      email: "bob@example.com",
+      noAccount: false,
+    });
+  });
+
+  it("remembers the no-account finding for a plain click", () => {
+    rememberAuthEmailHintOnClick(plainClick, "ada@example.com", {
+      noAccount: true,
+    });
+
+    expect(takeAuthEmailHintEntry()).toEqual({
+      email: "ada@example.com",
+      noAccount: true,
+    });
+  });
+
+  it("remembers nothing for a blank email", () => {
+    rememberAuthEmailHint("stale@example.com");
+    rememberAuthEmailHint("   ");
+
+    expect(takeAuthEmailHint()).toBeNull();
+  });
 
   it("remembers the email for a plain click", () => {
     rememberAuthEmailHintOnClick(plainClick, "ada@example.com");

@@ -250,6 +250,48 @@ describe("SignUpFlow", () => {
     ).toBeInTheDocument();
   });
 
+  it("goes on to step 2 when sign-in has just found no account", async () => {
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await waitFor(() => {
+      expect(signUpFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          email: "ada@example.com",
+          emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
+        }),
+      );
+    });
+    expect(sendEmailCodeMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays on the email when the account exists by now", async () => {
+    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await waitFor(() => {
+      expect(notice()).toHaveAttribute("data-state", "open");
+    });
+    expect(emailField()).toHaveValue("ada@example.com");
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("waits for Continue when the handed-over email was not checked", async () => {
+    rememberAuthEmailHint("ada@example.com");
+
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await waitFor(() => {
+      expect(emailField()).toHaveValue("ada@example.com");
+    });
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
   it("uses the handed-over email once", async () => {
     rememberAuthEmailHint("ada@example.com");
     const first = render(<SignUpFlow lastUsedMethod={null} />);

@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   rememberAuthEmailHint,
   takeAuthEmailHint,
+  takeAuthEmailHintEntry,
 } from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
@@ -248,7 +249,11 @@ describe("SignInFlow", () => {
     await new Promise((resolve) => setTimeout(resolve, 450));
     await user.click(createAccount);
 
-    expect(takeAuthEmailHint()).toBe("new@example.com");
+    // Sign-up need not ask Core again before emailing the code.
+    expect(takeAuthEmailHintEntry()).toEqual({
+      email: "new@example.com",
+      noAccount: true,
+    });
   });
 
   it("carries the OAuth request to sign-up", async () => {
