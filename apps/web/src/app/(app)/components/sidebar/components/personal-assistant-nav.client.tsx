@@ -24,7 +24,10 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
-import { SidebarNewBadge } from "./sidebar-new-badge";
+import {
+  SIDEBAR_NEW_LABEL_CLASS,
+  SidebarLabelWithNew,
+} from "./sidebar-new-badge";
 
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's
@@ -84,12 +87,12 @@ export default function PersonalAssistantNav({
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
                       SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      SIDEBAR_NEW_LABEL_CLASS,
                       "font-medium",
                     )}
                   >
-                    {t("sokoBot")}
+                    <SidebarLabelWithNew label={t("sokoBot")} />
                   </span>
-                  <SidebarNewBadge />
                 </Link>
               </SheetClose>
             </SidebarMenuButton>

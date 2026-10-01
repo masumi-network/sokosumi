@@ -13,8 +13,11 @@ import {
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import type { CoworkerOption } from "@/lib/types/coworker";
-
 import type { SchedulesViewMode } from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +90,9 @@ export function TaskScheduleRow({
   return (
     <li
       className={cn(
-        "bg-background press hover:bg-card-background-hover relative flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 transition-colors",
+        HOLDER_ITEM_CLASS,
+        HOLDER_ITEM_HOVER_CLASS,
+        "press relative flex min-w-0 flex-col gap-3 p-3 transition-colors",
         viewMode === "list" && "lg:flex-row lg:items-center",
       )}
       data-testid="schedule-row"
