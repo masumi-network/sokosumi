@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { OAuthOptions } from "@better-auth/oauth-provider";
+import { symmetricDecrypt } from "better-auth/crypto";
+import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
 
@@ -13,6 +15,75 @@ export const oauthRefreshTokenOptions = {
   // response instead of signing the person out (default: 0, off).
   refreshTokenReuseInterval: 30,
 } satisfies Partial<OAuthOptions>;
+
+/** Production CMO's callback: marks the CMO client in a preview database. */
+const CMO_PRODUCTION_CALLBACK =
+  "https://app.cmo.xyz/api/auth/callback/sokosumi";
+
+/** A CMO preview's branch alias, truncated with a hash when the branch is long. */
+const CMO_PREVIEW_CALLBACK =
+  /^https:\/\/sokosumi-cmo-git-[a-z0-9-]+\.preview\.cmo\.xyz\/api\/auth\/callback\/sokosumi$/;
+
+/**
+ * Preview Core only: lets the CMO client sign a CMO preview in at its own
+ * callback, so a preview never needs its URI written into the preview
+ * database (ADR 0045). Every other client and URI must match exactly.
+ */
+export function acceptCmoPreviewCallback(
+  redirectUri: string,
+  registeredUris: readonly string[],
+  defaultResult: boolean,
+): boolean {
+  return (
+    defaultResult ||
+    (registeredUris.some((uri) => uri === CMO_PRODUCTION_CALLBACK) &&
+      CMO_PREVIEW_CALLBACK.test(redirectUri))
+  );
+}
+
+type GetJwks = NonNullable<NonNullable<JwtOptions["adapter"]>["getJwks"]>;
+
+/**
+ * The signing keys this Core can decrypt. A database forked from production
+ * (a preview, a Neon agent branch) holds production's keys, encrypted with a
+ * secret this Core does not have, so signing an ID token fails. Leaving them
+ * out lets Better Auth create a key of this Core's own.
+ */
+async function readDecryptableJwks(
+  ctx: Parameters<GetJwks>[0],
+): Promise<Jwk[]> {
+  const keys = await ctx.context.adapter.findMany<Jwk>({ model: "jwks" });
+  const decryptable = await Promise.all(
+    keys.map((key) =>
+      symmetricDecrypt({
+        key: ctx.context.secretConfig,
+        data: JSON.parse(key.privateKey),
+      }).then(
+        () => true,
+        () => false,
+      ),
+    ),
+  );
+  const usable = keys.filter((_key, index) => decryptable[index]);
+  if (usable.length < keys.length) {
+    ctx.context.logger.warn(
+      `Skipped ${keys.length - usable.length} JWKS signing key(s) encrypted with another secret`,
+    );
+  }
+  return usable;
+}
+
+/**
+ * Outside production, signing skips keys encrypted with another secret.
+ * Production keeps the default key store: there an undecryptable key means
+ * a wrong BETTER_AUTH_SECRET, and replacing the key would break every ID
+ * token clients already hold, so it must fail loudly.
+ */
+export function jwtKeyStoreOptions(
+  isProduction: boolean,
+): Pick<JwtOptions, "adapter"> {
+  return isProduction ? {} : { adapter: { getJwks: readDecryptableJwks } };
+}
 
 interface OAuthRefreshTokenBody {
   grant_type: "refresh_token";

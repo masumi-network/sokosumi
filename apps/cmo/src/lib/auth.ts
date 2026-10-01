@@ -17,7 +17,6 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { decryptOAuthToken } from "better-auth/oauth2";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
-import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
 import { unstable_rethrow } from "next/navigation";
 
 import { readCmoAuthConfig } from "./auth-config";
@@ -36,12 +35,6 @@ export interface CmoAuthConfig {
   clientSecret: string;
   /** Encrypts CMO's session and token cookies. */
   secret: string;
-  /**
-   * On Vercel: Core only knows production CMO's callback, so production
-   * exchanges the code and hands a preview its tokens, encrypted with a
-   * secret both share (ADR 0045). Production skips the proxy for itself.
-   */
-  oauthProxy?: { productionURL: string; secret: string };
 }
 
 /** Vercel's client IP headers, as Core reads them. */
@@ -129,22 +122,11 @@ export function createCmoAuth(config: CmoAuthConfig) {
     // Better Auth only enables this in production by default; keep tests honest.
     rateLimit: { enabled: true },
     // Where a failure goes when it carries no errorCallbackURL: a callback
-    // whose state is gone (expired, another browser, Back), or a failed
-    // preview proxy hand-off. The signed-out page explains it; Better Auth's
-    // bare error page does not.
+    // whose state is gone (expired, another browser, Back). The signed-out
+    // page explains it; Better Auth's bare error page does not.
     onAPIError: { errorURL: new URL("/", config.baseURL).href },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (
-          ctx.path === "/sign-in/social" &&
-          typeof ctx.body?.errorCallbackURL === "string"
-        ) {
-          // Production handles preview callbacks; preserve the caller's origin.
-          ctx.body.errorCallbackURL = new URL(
-            ctx.body.errorCallbackURL,
-            config.baseURL,
-          ).href;
-        }
         if (ctx.path !== "/sign-out") return;
         const account = await getAccountCookie(ctx);
         if (!account?.refreshToken) return;
@@ -229,16 +211,6 @@ export function createCmoAuth(config: CmoAuthConfig) {
           },
         ],
       }),
-      ...(config.oauthProxy
-        ? [
-            oAuthProxy({
-              productionURL: config.oauthProxy.productionURL,
-              // Server actions carry no request URL; name the origin.
-              currentURL: config.baseURL,
-              secret: config.oauthProxy.secret,
-            }),
-          ]
-        : []),
       nextCookies(),
     ],
   });
@@ -250,7 +222,28 @@ let auth: CmoAuth | undefined;
 
 /** CMO's auth, created on first use so builds need no auth env. */
 export function getAuth(): CmoAuth {
-  auth ??= createCmoAuth(readCmoAuthConfig());
+  if (auth) return auth;
+  const config = readCmoAuthConfig();
+  auth = createCmoAuth(config);
+  auth.$context.then((context) => {
+    if (
+      context.socialProviders.some(
+        (provider) => provider.id === SOKOSUMI_OAUTH_PROVIDER_ID,
+      )
+    ) {
+      return;
+    }
+    // Better Auth only says it skipped the provider, not which URL failed.
+    const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+    fetch(discoveryUrl).then(
+      (response) =>
+        console.error(
+          `Core discovery failed: ${discoveryUrl} answered ${response.status}`,
+        ),
+      (error: unknown) =>
+        console.error(`Core discovery failed: ${discoveryUrl}`, error),
+    );
+  });
   return auth;
 }
 

@@ -19,8 +19,6 @@ vi.mock("./auth", async (importOriginal) => ({
 }));
 
 const CMO = "https://app.cmo.xyz";
-const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
-const PROXY_SECRET = "a-proxy-secret-shared-by-production-and-previews";
 const CORE = "https://core.test";
 const ISSUER = `${CORE}/auth`;
 const CLIENT_ID = "cmo-client";
@@ -373,14 +371,12 @@ describe("CMO auth handler", () => {
     });
     core = await createFakeCore();
     vi.stubGlobal("fetch", core.fetch);
-    // Production runs the proxy for previews and skips it for itself.
     auth = createCmoAuth({
       baseURL: CMO,
       coreBaseUrl: CORE,
       clientId: CLIENT_ID,
       clientSecret: CLIENT_SECRET,
       secret: "a-cookie-secret-that-is-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
     });
     jar = new CookieJar();
     vi.mocked(getAuth).mockReturnValue(auth);
@@ -958,9 +954,7 @@ describe("CMO auth handler", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `${CMO}/?error=access_denied`,
-    );
+    expect(response.headers.get("location")).toBe("/?error=access_denied");
     expect(await sessionUser(auth, jar)).toBeNull();
   });
 
@@ -977,32 +971,6 @@ describe("CMO auth handler", () => {
     );
   });
 
-  it("returns declined preview consent to the preview even with a production session", async () => {
-    await signIn(auth, jar, core);
-    const preview = createCmoAuth({
-      baseURL: PREVIEW,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-preview-cookie-secret-of-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-    });
-    const previewJar = new CookieJar(PREVIEW);
-    const { state } = core.approve(await startSignIn(preview, previewJar));
-
-    const declined = await send(
-      auth,
-      jar,
-      `/api/auth/callback/sokosumi?error=access_denied&state=${encodeURIComponent(state)}`,
-    );
-
-    expect(declined.headers.get("location")).toBe(
-      `${PREVIEW}/?error=access_denied`,
-    );
-    expect(await sessionUser(preview, previewJar)).toBeNull();
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
-
   it("refuses a user Core does not accept", async () => {
     const { code, state } = core.approve(await startSignIn(auth, jar));
     core.refuseUser();
@@ -1013,62 +981,7 @@ describe("CMO auth handler", () => {
       `/api/auth/callback/sokosumi?code=${code}&state=${state}`,
     );
 
-    expect(response.headers.get("location")).toMatch(
-      /^https:\/\/app\.cmo\.xyz\/\?error=/,
-    );
+    expect(response.headers.get("location")).toMatch(/^\/\?error=/);
     expect(await sessionUser(auth, jar)).toBeNull();
   });
-
-  it.each(["auth handler", "link"])(
-    "signs a preview in through production CMO's proxy from a %s",
-    async (entry) => {
-      const preview = createCmoAuth({
-        baseURL: PREVIEW,
-        coreBaseUrl: CORE,
-        clientId: CLIENT_ID,
-        clientSecret: CLIENT_SECRET,
-        secret: "a-preview-cookie-secret-of-at-least-32-characters",
-        oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-      });
-      const previewJar = new CookieJar(PREVIEW);
-
-      vi.mocked(getAuth).mockReturnValue(preview);
-      const authorizeUrl =
-        entry === "link"
-          ? ((await followLink(previewJar, "/signup")).headers.get(
-              "location",
-            ) ?? "")
-          : await startSignIn(preview, previewJar);
-      expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
-        CALLBACK,
-      );
-
-      // Core sends the browser to production, which hands off to the preview.
-      const handoff = await send(
-        auth,
-        jar,
-        callbackPath(core.approve(authorizeUrl)),
-      );
-      const location = new URL(handoff.headers.get("location") ?? "");
-      expect(location.origin).toBe(PREVIEW);
-      expect(jar.names()).toEqual([]);
-
-      const done = await send(
-        preview,
-        previewJar,
-        `${location.pathname}${location.search}`,
-      );
-      expect(done.headers.get("location")).toBe("/");
-      expect(await sessionUser(preview, previewJar)).toEqual({
-        name: "Ada Lovelace",
-        email: "ada@example.com",
-      });
-
-      // The preview received the refresh token and renews on its own.
-      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-      await renew(preview, previewJar);
-      expect(core.refreshCount()).toBe(1);
-      expect(await sessionUser(preview, previewJar)).not.toBeNull();
-    },
-  );
 });

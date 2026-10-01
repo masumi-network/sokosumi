@@ -375,8 +375,8 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
  * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
  * there is.
  */
-function isProductionEnvironment(
-  value: z.infer<typeof baseEnvSchema>,
+export function isProductionEnvironment(
+  value: Pick<z.infer<typeof baseEnvSchema>, "VERCEL_ENV" | "NODE_ENV">,
 ): boolean {
   if (value.VERCEL_ENV) {
     return value.VERCEL_ENV === "production";
