@@ -490,7 +490,7 @@ async function TaskMetadataSection({
   });
 
   return (
-    <div className="space-y-6">
+    <div className="contents">
       <TaskMetadata
         title={t("properties")}
         taskId={task.id}
@@ -513,7 +513,6 @@ async function TaskMetadataSection({
           ) : null
         }
         labels={{
-          visibility: t("visibility"),
           privateBadge: t("privateBadge"),
           status: t("status"),
           statusLabels,

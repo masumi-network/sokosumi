@@ -1,18 +1,11 @@
-import { type TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
+import type { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
 
+import type { VisibleTaskLink } from "./task-detail-api-types";
 import { TaskRelationRow } from "./task-relation-row";
-
-interface RelatedTaskSummary {
-  id: string;
-  name: string;
-  identifier: string | null;
-  status: TaskStatus;
-  relation: TaskLinkRelation;
-}
 
 interface TaskRelatedTasksProps {
   title: string;
-  tasks: RelatedTaskSummary[];
+  tasks: VisibleTaskLink[];
   relationLabels: Record<TaskLinkRelation, string>;
   statusLabels: Record<TaskStatus, string>;
   hrefBasePath?: string;
@@ -37,12 +30,22 @@ export function TaskRelatedTasks({
 }: TaskRelatedTasksProps) {
   if (tasks.length === 0) return null;
 
+  const groups = new Map<TaskLinkRelation, VisibleTaskLink[]>();
+  for (const task of tasks) {
+    const group = groups.get(task.relation);
+    if (group) {
+      group.push(task);
+    } else {
+      groups.set(task.relation, [task]);
+    }
+  }
+
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
       {RELATION_ORDER.map((relation) => {
-        const group = tasks.filter((task) => task.relation === relation);
-        if (group.length === 0) return null;
+        const group = groups.get(relation);
+        if (!group?.length) return null;
         return (
           <div
             key={relation}

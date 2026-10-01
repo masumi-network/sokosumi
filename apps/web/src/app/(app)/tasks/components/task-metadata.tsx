@@ -27,7 +27,6 @@ import { TaskPriorityIcon } from "./task-priority-icon";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
-  visibility: string;
   privateBadge: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
@@ -253,8 +252,7 @@ export function TaskMetadata({
 
         {task.visibility === "PRIVATE" ? (
           <PropertyRow
-            label={labels.visibility}
-            value={labels.privateBadge}
+            label={labels.privateBadge}
             icon={<Lock className="text-muted-foreground size-4" />}
           >
             <span className="truncate">{labels.privateBadge}</span>
@@ -265,18 +263,15 @@ export function TaskMetadata({
   );
 }
 
-function PropertyRow({
-  label,
-  value,
-  icon,
-  children,
-}: {
+interface PropertyRowProps {
   label: string;
   value?: string;
   /** Sits in a fixed slot so every row's text starts at the same x. */
   icon: ReactNode;
   children: ReactNode;
-}) {
+}
+
+function PropertyRow({ label, value, icon, children }: PropertyRowProps) {
   const description = value ? `${label}: ${value}` : label;
   return (
     <Tooltip>
