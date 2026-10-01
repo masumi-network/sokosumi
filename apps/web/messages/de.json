@@ -1674,6 +1674,8 @@
         "noProject": "Kein Projekt",
         "personalWorkspace": "Persönlich",
         "coworker": "Coworker",
+        "created": "Erstellt",
+        "updated": "Aktualisiert",
         "description": "Beschreibung",
         "context": "Kontext",
         "linkedTasksTitle": "Verknüpfte Aufgaben",
