@@ -4,6 +4,7 @@ import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
 import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
+import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
@@ -56,9 +57,11 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     );
   }
 
+  const accounts = await adsService.listAccounts(project.id);
+
   return (
     <AdsPageShell title={t("title")}>
-      <AdsTabs />
+      <AdsTabs accounts={accounts} projectId={project.id} />
     </AdsPageShell>
   );
 }

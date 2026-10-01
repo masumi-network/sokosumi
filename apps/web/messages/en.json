@@ -2808,7 +2808,42 @@
       },
       "accounts": {
         "emptyTitle": "No ad accounts connected yet",
-        "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns."
+        "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns.",
+        "connect": "Connect {provider}",
+        "unavailable": "{provider} isn't available yet",
+        "noAccountsFound": "No ad accounts found for this login",
+        "listLabel": "Connected ad accounts",
+        "disconnect": "Disconnect",
+        "disconnectLabel": "Disconnect {name}",
+        "cancel": "Cancel",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "Disconnect {name}?",
+          "description": "Its campaigns will no longer appear here. You can connect it again at any time.",
+          "confirm": "Disconnect"
+        },
+        "picker": {
+          "title": "Choose ad accounts",
+          "description": "Select the {provider} accounts to manage in this project.",
+          "listLabel": "Available ad accounts",
+          "confirm": "Connect selected",
+          "confirming": "Connecting…"
+        },
+        "success": {
+          "connected": "Ad accounts connected successfully",
+          "disconnected": "Ad account disconnected successfully"
+        },
+        "errors": {
+          "connect": "Failed to connect {provider}",
+          "attach": "Failed to connect ad accounts",
+          "disconnect": "Failed to disconnect ad account",
+          "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
+          "timeout": "Authorization took too long. Try again.",
+          "inFlight": "Another connection is already in progress."
+        }
       },
       "error": {
         "title": "Failed to load ads",

@@ -2808,7 +2808,42 @@
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
-        "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto."
+        "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto.",
+        "connect": "Conectar {provider}",
+        "unavailable": "{provider} aún no está disponible",
+        "noAccountsFound": "No se encontraron cuentas publicitarias para este inicio de sesión",
+        "listLabel": "Cuentas publicitarias conectadas",
+        "disconnect": "Desconectar",
+        "disconnectLabel": "Desconectar {name}",
+        "cancel": "Cancelar",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "¿Desconectar {name}?",
+          "description": "Sus campañas dejarán de aparecer aquí. Puedes volver a conectarla en cualquier momento.",
+          "confirm": "Desconectar"
+        },
+        "picker": {
+          "title": "Elige cuentas publicitarias",
+          "description": "Selecciona las cuentas de {provider} que se gestionarán en este proyecto.",
+          "listLabel": "Cuentas publicitarias disponibles",
+          "confirm": "Conectar selección",
+          "confirming": "Conectando…"
+        },
+        "success": {
+          "connected": "Cuentas publicitarias conectadas correctamente",
+          "disconnected": "Cuenta publicitaria desconectada correctamente"
+        },
+        "errors": {
+          "connect": "No se pudo conectar {provider}",
+          "attach": "No se pudieron conectar las cuentas publicitarias",
+          "disconnect": "No se pudo desconectar la cuenta publicitaria",
+          "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
+          "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
+          "inFlight": "Ya hay una conexión en curso."
+        }
       },
       "error": {
         "title": "No se pudieron cargar los anuncios",

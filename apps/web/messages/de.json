@@ -2808,7 +2808,42 @@
       },
       "accounts": {
         "emptyTitle": "Noch keine Werbekonten verbunden",
-        "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten."
+        "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten.",
+        "connect": "{provider} verbinden",
+        "unavailable": "{provider} ist noch nicht verfügbar",
+        "noAccountsFound": "Für diesen Login wurden keine Werbekonten gefunden",
+        "listLabel": "Verbundene Werbekonten",
+        "disconnect": "Trennen",
+        "disconnectLabel": "{name} trennen",
+        "cancel": "Abbrechen",
+        "providers": {
+          "google_ads": "Google Ads",
+          "meta_ads": "Meta Ads"
+        },
+        "disconnectDialog": {
+          "title": "{name} trennen?",
+          "description": "Die Kampagnen erscheinen hier nicht mehr. Du kannst das Konto jederzeit wieder verbinden.",
+          "confirm": "Trennen"
+        },
+        "picker": {
+          "title": "Werbekonten auswählen",
+          "description": "Wähle die {provider}-Konten, die in diesem Projekt verwaltet werden sollen.",
+          "listLabel": "Verfügbare Werbekonten",
+          "confirm": "Auswahl verbinden",
+          "confirming": "Wird verbunden…"
+        },
+        "success": {
+          "connected": "Werbekonten erfolgreich verbunden",
+          "disconnected": "Werbekonto erfolgreich getrennt"
+        },
+        "errors": {
+          "connect": "{provider} konnte nicht verbunden werden",
+          "attach": "Werbekonten konnten nicht verbunden werden",
+          "disconnect": "Werbekonto konnte nicht getrennt werden",
+          "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
+          "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
+          "inFlight": "Es läuft bereits eine Verbindung."
+        }
       },
       "error": {
         "title": "Ads konnten nicht geladen werden",
