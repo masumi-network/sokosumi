@@ -385,6 +385,25 @@ describe("TaskScheduleDialog", () => {
     expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
   });
 
+  it("still saves a six-field rule when the When controls are clicked but unchanged", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    // It opens as Custom; picking Custom again changes nothing.
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
   it("blocks saving a custom cron that is not five fields", async () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });

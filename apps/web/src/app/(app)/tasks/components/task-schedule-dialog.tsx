@@ -155,15 +155,17 @@ export function TaskScheduleDialog({
         : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
     [schedule],
   );
-  const [when, setWhen] = useState<ScheduleWhen>(() =>
-    selectionToWhen(initialSelection),
+  const initialWhen = useMemo(
+    () => selectionToWhen(initialSelection),
+    [initialSelection],
   );
-  // An untouched rule is saved as it was read, so an edit to the blueprint
-  // never rewrites a rule the controls only approximate.
-  const [whenTouched, setWhenTouched] = useState(false);
+  const [when, setWhen] = useState<ScheduleWhen>(initialWhen);
+  // Until the controls differ from what was read, the rule stays as read: an
+  // edit to the blueprint never rewrites a rule the controls only approximate.
+  const whenChanged = JSON.stringify(when) !== JSON.stringify(initialWhen);
   const selection = useMemo(
-    () => (whenTouched ? whenToSelection(when) : initialSelection),
-    [whenTouched, when, initialSelection],
+    () => (whenChanged ? whenToSelection(when) : initialSelection),
+    [whenChanged, when, initialSelection],
   );
   const rule = useMemo(
     () => selectionToTaskScheduleRule(selection),
@@ -183,7 +185,7 @@ export function TaskScheduleDialog({
     : showPrivateControl && isPrivate;
   // An edit that leaves the rule alone does not send it, so a stored rule the
   // controls reject (one from before the five-field cron) still saves.
-  const ruleRequired = !schedule || whenTouched;
+  const ruleRequired = !schedule || whenChanged;
   const saveDisabled = isSaving || !name.trim() || (ruleRequired && !rule);
 
   function reportError(error: TaskScheduleActionError) {
@@ -195,11 +197,10 @@ export function TaskScheduleDialog({
   }
 
   async function handleSave() {
-    const trimmedName = name.trim();
-    if (!trimmedName || (ruleRequired && !rule)) return;
+    if (saveDisabled) return;
 
     const input: TaskScheduleBlueprintInput = {
-      name: trimmedName,
+      name: name.trim(),
       description: description.trim() || null,
       projectId,
       ...assignee,
@@ -217,7 +218,8 @@ export function TaskScheduleDialog({
               ? { rule }
               : {}),
           })
-        : rule &&
+        : // A create always requires the rule; `rule &&` only narrows it.
+          rule &&
           (await createTaskSchedule({
             ...input,
             visibility: isPrivateSchedule
@@ -356,13 +358,7 @@ export function TaskScheduleDialog({
                 {schedule ? t("futureOnlyNotice") : t("createDescription")}
               </p>
             </div>
-            <TaskScheduleWhen
-              value={when}
-              onChange={(next) => {
-                setWhen(next);
-                setWhenTouched(true);
-              }}
-            />
+            <TaskScheduleWhen value={when} onChange={setWhen} />
           </section>
         </div>
 

@@ -1,5 +1,5 @@
 import { TaskScheduleEndsMode } from "@sokosumi/database";
-import { isFiveFieldCronExpression, isValidTimezone } from "@sokosumi/utils";
+import { isTaskScheduleCronShape, isValidTimezone } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
 import { badRequest, unprocessableEntity } from "@/helpers/error";
@@ -191,7 +191,7 @@ export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
     throw badRequest("timezone is invalid");
   }
 
-  if (!isFiveFieldCronExpression(rule.expr)) {
+  if (!isTaskScheduleCronShape(rule.expr)) {
     throw badRequest(
       "expr must be a five-field cron expression: minute, hour, day of month, month, day of week",
     );

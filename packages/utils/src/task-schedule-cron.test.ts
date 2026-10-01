@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { isFiveFieldCronExpression } from "./cron-expression.js";
+import { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 
-describe("isFiveFieldCronExpression", () => {
+describe("isTaskScheduleCronShape", () => {
   it.each([
     "0 9 * * *",
     "*/15 * * * *",
@@ -14,7 +14,7 @@ describe("isFiveFieldCronExpression", () => {
     "0 9 ? * THU",
     "  0   9 * * *  ",
   ])("accepts %s", (expr) => {
-    expect(isFiveFieldCronExpression(expr)).toBe(true);
+    expect(isTaskScheduleCronShape(expr)).toBe(true);
   });
 
   it.each([
@@ -24,8 +24,11 @@ describe("isFiveFieldCronExpression", () => {
     ["a hashed minute", "H 9 * * *"],
     ["a hashed step", "H/15 * * * *"],
     ["a hashed list item", "0,h 9 * * *"],
+    ["a hashed step value", "*/H * * * *"],
+    ["a hashed range end", "0 1-H * * *"],
+    ["a hashed step after a range", "0-59/H * * * *"],
     ["an empty string", ""],
   ])("rejects %s", (_label, expr) => {
-    expect(isFiveFieldCronExpression(expr)).toBe(false);
+    expect(isTaskScheduleCronShape(expr)).toBe(false);
   });
 });

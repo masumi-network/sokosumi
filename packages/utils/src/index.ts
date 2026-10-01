@@ -151,7 +151,6 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
-export { isFiveFieldCronExpression } from "./cron-expression.js";
 export {
   createDataTableSchema,
   tableBatchSchema,
@@ -426,6 +425,7 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
