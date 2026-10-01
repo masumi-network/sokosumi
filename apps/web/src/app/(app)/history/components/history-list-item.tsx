@@ -69,7 +69,7 @@ export function HistoryListItem({
     />
   );
 
-  // Coworker seats, Soko Bot usage and unattributed spends have no page behind
+  // Coworker seats, top ups and unattributed spends have no page behind
   // them, so those rows are text rather than a link to nowhere.
   if (!href) {
     return <div className={rowClassName}>{content}</div>;

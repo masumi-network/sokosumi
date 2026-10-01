@@ -6677,7 +6677,8 @@
         "submitting": "Creating…",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
-        "avatarLabel": "Picture"
+        "avatarLabel": "Picture",
+        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -6775,7 +6776,8 @@
           "limitUsage": "{used} of {limit} self-started turns used today.",
           "timezoneTitle": "Timezone",
           "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
-          "error": "Could not save the setting."
+          "error": "Could not save the setting.",
+          "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
         },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
