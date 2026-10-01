@@ -3,12 +3,16 @@ import Foundation
 
 public struct ChannelRoster: Sendable {
   public let recipients: ChatRecipientRoster
-  /// Organization owner/admin: may create External channels and manage channel settings.
+  /// Organization owner/admin: may create External channels and manage channel settings. False when the role could not be read.
   public let isOwnerOrAdmin: Bool
+  /// The caller's own membership could not be read (403, 500, an undocumented status or no response; web
+  /// `rooms/[roomId]/page.tsx`): editing falls back to a member's rights, and creating blocks as web's dialog does.
+  public let roleLoadFailed: Bool
 
-  public init(recipients: ChatRecipientRoster, isOwnerOrAdmin: Bool) {
+  public init(recipients: ChatRecipientRoster, isOwnerOrAdmin: Bool, roleLoadFailed: Bool = false) {
     self.recipients = recipients
-    self.isOwnerOrAdmin = isOwnerOrAdmin
+    self.isOwnerOrAdmin = isOwnerOrAdmin && !roleLoadFailed
+    self.roleLoadFailed = roleLoadFailed
   }
 
   /// Web's `members.length` in "Add all {count} members of {organization}": every organization member, the creator included.
@@ -57,8 +61,14 @@ public final class ChannelCreation: ObservableObject {
 
   public init() {}
 
+  /// Web's create dialog shows its member notice and creates nothing when the member page or the caller's role
+  /// failed (`loadChatComposeRosterAction` turns either into `membersLoadFailed`).
+  public var participantsUnavailable: Bool {
+    roster.map { $0.recipients.membersLoadFailed || $0.roleLoadFailed } ?? false
+  }
+
   public var canAdvance: Bool {
-    !loading && !creating && roster?.recipients.membersLoadFailed == false && draft.isValid
+    !loading && !creating && roster != nil && !participantsUnavailable && draft.isValid
       && availability == .free && checkedSlug == draft.canonicalSlug
   }
 
@@ -140,7 +150,7 @@ public final class ChannelCreation: ObservableObject {
 
   public func create(using submit: (ChannelDraft, ChatRecipientRoster) async throws -> Bool) async -> Bool {
     guard step == .participants, !creating, !loading, draft.isValid,
-          let roster, !roster.recipients.membersLoadFailed,
+          let roster, !participantsUnavailable,
           draft.visibility != .external || roster.isOwnerOrAdmin else { return false }
     creating = true
     errorMessage = nil
