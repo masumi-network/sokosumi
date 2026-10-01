@@ -254,34 +254,23 @@ describe("SignIn page", () => {
     expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
   });
 
-  it("offers the magic link without an OAuth request", async () => {
+  it("offers the email code without an OAuth request", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve({}) }));
 
     expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: true }),
+      expect.objectContaining({ showEmailCode: true }),
     );
   });
 
-  it("hides the magic link while signing in for another app", async () => {
+  it("offers the email code while signing in for another app", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
     expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: false }),
-    );
-  });
-
-  it("hides the magic link even when the product cannot be loaded", async () => {
-    getOAuthClientPublicPreloginMock.mockResolvedValue(null);
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
-
-    expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: false }),
+      expect.objectContaining({ showEmailCode: true }),
     );
   });
 

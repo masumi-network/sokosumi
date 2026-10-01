@@ -10,7 +10,7 @@ export function SignedIn({ name, email, signOut }: SignedInProps) {
   return (
     <main>
       <h1>CMO.XYZ</h1>
-      {/* A Magic Link sign-up leaves the Sokosumi account without a name. */}
+      {/* An email-code sign-up from Sokosumi's sign-in page has no name. */}
       <p>Signed in as {hasName ? name : email}</p>
       {hasName && <p className="note">{email}</p>}
       <form action={signOut}>

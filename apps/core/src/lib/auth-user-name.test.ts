@@ -2,10 +2,11 @@ import { betterAuthUserAdditionalFields } from "@sokosumi/utils";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
-import { magicLink } from "better-auth/plugins/magic-link";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
 import {
+  resolveEmailCodeSignInNameBody,
   resolveSignUpNameBody,
   validateUpdatedUserName,
   validateUserNameLength,
@@ -14,7 +15,7 @@ import {
 // A real Better Auth instance: the point is that the before hook runs ahead of
 // the endpoint's own body validation, which still requires `name`.
 function createTestAuth() {
-  let magicLinkUrl = "";
+  let emailCode = "";
   // Read through `db`: the adapter swaps the arrays when a transaction commits.
   const db: Record<string, Array<Record<string, unknown>>> = {
     user: [],
@@ -41,9 +42,9 @@ function createTestAuth() {
       },
     },
     plugins: [
-      magicLink({
-        sendMagicLink: async ({ url }) => {
-          magicLinkUrl = url;
+      emailOTP({
+        sendVerificationOTP: async ({ otp }) => {
+          emailCode = otp;
         },
       }),
     ],
@@ -51,6 +52,11 @@ function createTestAuth() {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-up/email") {
           return { context: { body: resolveSignUpNameBody(ctx.body) } };
+        }
+        if (ctx.path === "/sign-in/email-otp") {
+          return {
+            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
+          };
         }
         if (ctx.path === "/update-user") {
           await validateUpdatedUserName(ctx);
@@ -72,15 +78,28 @@ function createTestAuth() {
       }),
     );
   }
-  async function signInWithMagicLink() {
+  async function signInWithEmailCode(body: Record<string, unknown> = {}) {
     await auth.handler(
-      new Request("https://auth.example.com/auth/sign-in/magic-link", {
+      new Request(
+        "https://auth.example.com/auth/email-otp/send-verification-otp",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ email: "ada@example.com", type: "sign-in" }),
+        },
+      ),
+    );
+    return auth.handler(
+      new Request("https://auth.example.com/auth/sign-in/email-otp", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ email: "ada@example.com" }),
+        body: JSON.stringify({
+          email: "ada@example.com",
+          otp: emailCode,
+          ...body,
+        }),
       }),
     );
-    return auth.handler(new Request(magicLinkUrl));
   }
   async function updateUser(body: Record<string, unknown>, response: Response) {
     const cookie = response.headers
@@ -99,16 +118,16 @@ function createTestAuth() {
       }),
     );
   }
-  return { signUp, signInWithMagicLink, updateUser, db };
+  return { signUp, signInWithEmailCode, updateUser, db };
 }
 
 describe("email sign-up name", () => {
-  it("stores no name parts for a new Magic Link account", async () => {
-    const { signInWithMagicLink, db } = createTestAuth();
+  it("stores no name parts for a new email-code account without a name", async () => {
+    const { signInWithEmailCode, db } = createTestAuth();
 
-    const response = await signInWithMagicLink();
+    const response = await signInWithEmailCode();
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(200);
     expect(db.user[0]).toMatchObject({
       name: "",
       firstName: null,
@@ -116,8 +135,34 @@ describe("email sign-up name", () => {
     });
   });
 
+  it("derives the display name from the names sent with the code", async () => {
+    const { signInWithEmailCode, db } = createTestAuth();
+
+    const response = await signInWithEmailCode({
+      firstName: " Ada ",
+      lastName: "Lovelace",
+    });
+
+    expect(response.status).toBe(200);
+    expect(db.user[0]).toMatchObject({
+      name: "Ada Lovelace",
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+  });
+
+  it("refuses an email-code sign-up that sends only one name part", async () => {
+    const { signInWithEmailCode, db } = createTestAuth();
+
+    const response = await signInWithEmailCode({ firstName: "Ada" });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "NAME_REQUIRED" });
+    expect(db.user).toHaveLength(0);
+  });
+
   it("leaves a legacy user's null parts and chosen display name untouched on sign-in", async () => {
-    const { signInWithMagicLink, db } = createTestAuth();
+    const { signInWithEmailCode, db } = createTestAuth();
     db.user.push({
       id: "legacy-user",
       email: "ada@example.com",
@@ -129,9 +174,9 @@ describe("email sign-up name", () => {
       updatedAt: new Date(),
     });
 
-    const response = await signInWithMagicLink();
+    const response = await signInWithEmailCode();
 
-    expect(response.status).toBe(302);
+    expect(response.status).toBe(200);
     expect(db.user[0]).toMatchObject({
       name: "Countess of Lovelace",
       firstName: null,
@@ -286,9 +331,9 @@ describe("email sign-up name", () => {
     });
   });
 
-  it("accepts onboarding a Magic Link user with names over the old individual cap", async () => {
-    const { signInWithMagicLink, updateUser, db } = createTestAuth();
-    const session = await signInWithMagicLink();
+  it("accepts onboarding an email-code user with names over the old individual cap", async () => {
+    const { signInWithEmailCode, updateUser, db } = createTestAuth();
+    const session = await signInWithEmailCode();
 
     const response = await updateUser(
       {

@@ -1,8 +1,7 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 
 import Divider from "@/auth/components/divider";
 import SocialButtons, {
@@ -10,14 +9,12 @@ import SocialButtons, {
 } from "@/auth/components/social-buttons";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 import { SignUpEmailStep } from "./email-step";
 import SignUpForm from "./form";
 import SignUpHeader from "./header";
-import { SignUpMagicLink } from "./magic-link";
 import SignInLink from "./sign-in-link";
 
 interface SignUpFlowProps {
@@ -27,7 +24,6 @@ interface SignUpFlowProps {
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
   lastUsedMethod: SignInMethodId | null;
-  showMagicLink: boolean;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -36,8 +32,8 @@ interface SignUpFlowProps {
 
 /**
  * Sign-up in two steps. The first asks for the email beside the providers;
- * the second asks for name and password, or sends a Magic Link to the email
- * already given.
+ * the second asks for name and password, or name and a code emailed to the
+ * address already given.
  */
 export default function SignUpFlow({
   invitationId,
@@ -45,16 +41,10 @@ export default function SignUpFlow({
   prefilledEmail,
   returnUrl,
   lastUsedMethod,
-  showMagicLink,
   notice,
   children,
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
-  const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
@@ -99,12 +89,6 @@ export default function SignUpFlow({
             onFormStart={handleFormStart}
             onPendingChange={setIsDetailsPending}
           />
-          {showMagicLink ? (
-            <>
-              <Divider labelKey="magicLinkDivider" />
-              <SignUpMagicLink email={email} returnUrl={effectiveReturnUrl} />
-            </>
-          ) : null}
           {children}
         </div>
       </div>

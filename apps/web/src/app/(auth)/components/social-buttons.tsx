@@ -18,6 +18,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
@@ -30,16 +31,16 @@ import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 
-import { useMagicLinkRequest } from "./use-magic-link-request";
+import { useEmailCode } from "./use-email-code";
 
 export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
+export type SignInMethodId = SocialButtonProviderId | "passkey" | "email-otp";
 
 interface SocialButtonsProps {
   returnUrl?: string;
   lastUsedMethod?: SignInMethodId | null;
   prefilledEmail?: string;
-  showMagicLink?: boolean;
+  showEmailCode?: boolean;
   showPasskey?: boolean;
 }
 
@@ -64,7 +65,7 @@ export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
   prefilledEmail,
-  showMagicLink = false,
+  showEmailCode = false,
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
@@ -75,16 +76,19 @@ export default function SocialButtons({
   );
   const {
     captcha,
-    isRequesting: isRequestingMagicLink,
-    sentTo: magicLinkSentTo,
-    requestMagicLink,
-  } = useMagicLinkRequest(effectiveReturnUrl);
-  const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
-  const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
+    isSending: isSendingEmailCode,
+    sentTo: emailCodeSentTo,
+    sendCode,
+    signInWithCode,
+  } = useEmailCode({ eventType: "signIn", returnUrl: effectiveReturnUrl });
+  const [emailCodeEmail, setEmailCodeEmail] = useState(prefilledEmail ?? "");
+  const [isEmailCodeVisible, setIsEmailCodeVisible] = useState(false);
   const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  const hasMagicLinkSuccess =
-    magicLinkEmail.trim().length > 0 &&
-    magicLinkEmail.trim() === magicLinkSentTo;
+  // Editing the address after sending asks for a new code.
+  const trimmedEmailCodeEmail = emailCodeEmail.trim();
+  const wasEmailCodeSent =
+    trimmedEmailCodeEmail.length > 0 &&
+    trimmedEmailCodeEmail === emailCodeSentTo;
 
   const finishPasskeySignIn = useCallback(
     (result: unknown) =>
@@ -178,20 +182,19 @@ export default function SocialButtons({
     };
   }, [finishPasskeySignIn, showPasskey]);
 
-  const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleEmailCodeSend = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const trimmedEmail = magicLinkEmail.trim();
-    if (!emailSchema().safeParse(trimmedEmail).success) {
-      toast.error(t("magicLinkInvalidEmail"));
+    if (!emailSchema().safeParse(trimmedEmailCodeEmail).success) {
+      toast.error(t("emailCodeInvalidEmail"));
       return;
     }
 
-    await requestMagicLink(trimmedEmail);
+    await sendCode(trimmedEmailCodeEmail);
   };
 
-  const handleMagicLinkClick = () => {
-    setIsMagicLinkVisible((currentValue) => !currentValue);
+  const handleEmailCodeClick = () => {
+    setIsEmailCodeVisible((currentValue) => !currentValue);
   };
 
   const handleClick = async (key: SocialButtonProviderId) => {
@@ -279,9 +282,9 @@ export default function SocialButtons({
           </Button>
         </div>
       )}
-      {showMagicLink && (
+      {showEmailCode && (
         <div className="relative">
-          {lastUsedMethod === "magic-link" && (
+          {lastUsedMethod === "email-otp" && (
             <span
               aria-hidden="true"
               className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
@@ -294,55 +297,65 @@ export default function SocialButtons({
             variant="secondary"
             className={cn(
               "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
-              lastUsedMethod === "magic-link"
+              lastUsedMethod === "email-otp"
                 ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
-            onClick={handleMagicLinkClick}
+            onClick={handleEmailCodeClick}
           >
             <Mail className="size-4" />
-            {t("continueWith", { provider: t("magicLinkProvider") })}
+            {t("continueWith", { provider: t("emailCodeProvider") })}
           </Button>
         </div>
       )}
-      {showMagicLink && isMagicLinkVisible && (
-        // The submit handler validates and toasts in the page's language.
-        <form
-          noValidate
-          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
-          onSubmit={handleMagicLinkSubmit}
-        >
-          {hasMagicLinkSuccess && (
-            <p className="text-muted-foreground text-center text-sm">
-              {t("magicLinkSuccess")}
-            </p>
-          )}
-          <Input
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="text-center placeholder:text-center"
-            value={magicLinkEmail}
-            onChange={(event) => {
-              setMagicLinkEmail(event.target.value);
-            }}
-            placeholder={t("magicLinkPlaceholder")}
-            aria-label={t("magicLinkInputLabel")}
-          />
-          {captcha}
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={isRequestingMagicLink}
+      {showEmailCode && isEmailCodeVisible && (
+        <div className="bg-card-background flex flex-col gap-4 rounded-md border p-4">
+          {/* The submit handler validates and toasts in the page's language. */}
+          <form
+            noValidate
+            className="flex flex-col gap-2"
+            onSubmit={handleEmailCodeSend}
           >
-            {isRequestingMagicLink
-              ? t("magicLinkSubmitting")
-              : hasMagicLinkSuccess
-                ? t("magicLinkResend")
-                : t("magicLinkSubmit")}
-          </Button>
-        </form>
+            <Input
+              type="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="text-center placeholder:text-center"
+              value={emailCodeEmail}
+              onChange={(event) => {
+                setEmailCodeEmail(event.target.value);
+              }}
+              placeholder={t("emailCodePlaceholder")}
+              aria-label={t("emailCodeInputLabel")}
+            />
+            {captcha}
+            {wasEmailCodeSent ? null : (
+              <Button
+                type="submit"
+                variant="outline"
+                disabled={isSendingEmailCode}
+              >
+                {isSendingEmailCode
+                  ? t("emailCodeSending")
+                  : t("emailCodeSend")}
+              </Button>
+            )}
+          </form>
+          {wasEmailCodeSent ? (
+            <EmailCodeForm
+              email={trimmedEmailCodeEmail}
+              submitLabel={t("emailCodeSubmit")}
+              onSubmitCode={(code) =>
+                signInWithCode(trimmedEmailCodeEmail, code)
+              }
+              onResend={() => {
+                void sendCode(trimmedEmailCodeEmail);
+              }}
+              isResending={isSendingEmailCode}
+            />
+          ) : null}
+        </div>
       )}
     </div>
   );

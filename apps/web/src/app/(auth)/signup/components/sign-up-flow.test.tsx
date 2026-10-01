@@ -14,7 +14,6 @@ import SignUpFlow from "./sign-up-flow";
 
 const socialButtonsMock = vi.fn();
 const signUpFormMock = vi.fn();
-const magicLinkMock = vi.fn();
 const emailStatusMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
@@ -71,13 +70,6 @@ vi.mock("./form", () => ({
   },
 }));
 
-vi.mock("./magic-link", () => ({
-  SignUpMagicLink: (props: unknown) => {
-    magicLinkMock(props);
-    return <div data-testid="magic-link" />;
-  },
-}));
-
 function emailField() {
   return screen.getByLabelText("Fields.Email.label");
 }
@@ -97,10 +89,8 @@ describe("SignUpFlow", () => {
     emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
   });
 
-  it("opens on the email step beside the providers, without Magic Link", () => {
-    render(
-      <SignUpFlow showMagicLink lastUsedMethod="google" returnUrl="/agents" />,
-    );
+  it("opens on the email step beside the providers", () => {
+    render(<SignUpFlow lastUsedMethod="google" returnUrl="/agents" />);
 
     expect(emailField()).toHaveAttribute("type", "email");
     expect(emailField()).toHaveAttribute("autocomplete", "email");
@@ -112,12 +102,11 @@ describe("SignUpFlow", () => {
       lastUsedMethod: "google",
     });
     expect(signUpFormMock).not.toHaveBeenCalled();
-    expect(screen.queryByTestId("magic-link")).not.toBeInTheDocument();
   });
 
   it("stays on the email step while the address is invalid", async () => {
     const user = userEvent.setup();
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     await continueWith(user, "not-an-email");
 
@@ -126,11 +115,9 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
-  it("carries the confirmed email to the details step and the Magic Link", async () => {
+  it("carries the confirmed email to the details step", async () => {
     const user = userEvent.setup();
-    render(
-      <SignUpFlow showMagicLink lastUsedMethod={null} returnUrl="/agents" />,
-    );
+    render(<SignUpFlow lastUsedMethod={null} returnUrl="/agents" />);
 
     await continueWith(user, "ada@example.com");
 
@@ -148,10 +135,6 @@ describe("SignUpFlow", () => {
         returnUrl: "/agents",
       }),
     );
-    expect(magicLinkMock).toHaveBeenLastCalledWith({
-      email: "ada@example.com",
-      returnUrl: "/agents",
-    });
     // The confirmed address stands where the email field was, under its label.
     expect(
       screen.getByRole("group", { name: "Fields.Email.label" }),
@@ -164,11 +147,7 @@ describe("SignUpFlow", () => {
   it("checks and carries a handed-over address without its trailing space", async () => {
     const user = userEvent.setup();
     render(
-      <SignUpFlow
-        showMagicLink
-        lastUsedMethod={null}
-        prefilledEmail="ada@example.com "
-      />,
+      <SignUpFlow lastUsedMethod={null} prefilledEmail="ada@example.com " />,
     );
 
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
@@ -197,7 +176,7 @@ describe("SignUpFlow", () => {
   it("grows a notice around the button for a person who already has an account", async () => {
     const user = userEvent.setup();
     mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
     // Closed: the notice is there for the transition, but says and offers
     // nothing.
     expect(notice()).toHaveAttribute("data-state", "closed");
@@ -261,7 +240,7 @@ describe("SignUpFlow", () => {
 
     async function openNotice() {
       const user = userEvent.setup();
-      render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+      render(<SignUpFlow lastUsedMethod={null} />);
       await continueWith(user, "ada@example.com");
       await waitFor(() => {
         expect(notice()).toHaveAttribute("data-state", "open");
@@ -297,7 +276,7 @@ describe("SignUpFlow", () => {
       data: { exists: true },
       error: null,
     });
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
     await waitFor(() => {
       expect(notice()).toHaveAttribute("data-state", "open");
@@ -323,7 +302,7 @@ describe("SignUpFlow", () => {
       data: null,
       error: { status: 429, statusText: "", message: "Too many requests" },
     });
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -342,7 +321,7 @@ describe("SignUpFlow", () => {
       data: null,
       error: { status: 400, statusText: "", error: "invalid_signature" },
     });
-    render(<SignUpFlow showMagicLink={false} lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -355,7 +334,7 @@ describe("SignUpFlow", () => {
   it("asks Core nothing when the security check is cancelled", async () => {
     const user = userEvent.setup();
     requestCaptchaMock.mockResolvedValueOnce(null);
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -365,7 +344,7 @@ describe("SignUpFlow", () => {
 
   it("returns to the email step with the address kept and focused", async () => {
     const user = userEvent.setup();
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
 
     await user.click(screen.getByRole("button", { name: "changeEmail" }));
@@ -379,7 +358,6 @@ describe("SignUpFlow", () => {
     const user = userEvent.setup();
     render(
       <SignUpFlow
-        showMagicLink
         lastUsedMethod={null}
         prefilledEmail="invited@example.com"
         invitationId="inv_1"
@@ -410,7 +388,6 @@ describe("SignUpFlow", () => {
     });
     render(
       <SignUpFlow
-        showMagicLink
         lastUsedMethod={null}
         prefilledEmail="invited@example.com"
         invitationId="inv_1"
@@ -433,7 +410,7 @@ describe("SignUpFlow", () => {
 
   it("counts the register view once and the form start once across steps", async () => {
     const user = userEvent.setup();
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
     expect(fireGTMEvent.viewRegisterArea).toHaveBeenCalledTimes(1);
     expect(fireGTMEvent.registerFormStart).not.toHaveBeenCalled();
 
@@ -445,7 +422,7 @@ describe("SignUpFlow", () => {
   });
 
   it("links to sign-in without a query when there is no OAuth request", () => {
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
       "href",
@@ -466,7 +443,6 @@ describe("SignUpFlow", () => {
     render(
       <SignUpFlow
         lastUsedMethod={null}
-        showMagicLink={false}
         client={{ name: "CMO", uri: undefined, logoUri: undefined }}
       />,
     );
@@ -479,16 +455,13 @@ describe("SignUpFlow", () => {
 
     await continueWith(user, "ada@example.com");
 
-    // A magic link opened in another browser cannot return to the product
-    // that sent the person here, so the step offers none.
     expect(signUpFormMock).toHaveBeenCalled();
-    expect(screen.queryByTestId("magic-link")).not.toBeInTheDocument();
   });
 
   it("shows what the page passes in under the methods of both steps", async () => {
     const user = userEvent.setup();
     render(
-      <SignUpFlow showMagicLink lastUsedMethod={null}>
+      <SignUpFlow lastUsedMethod={null}>
         <p>terms notice</p>
       </SignUpFlow>,
     );
@@ -505,7 +478,7 @@ describe("SignUpFlow", () => {
       returnUrl: "/accept-invitation/invite_123",
     });
 
-    render(<SignUpFlow showMagicLink lastUsedMethod={null} />);
+    render(<SignUpFlow lastUsedMethod={null} />);
 
     expect(screen.getByRole("link", { name: "Login.link" })).toHaveAttribute(
       "href",

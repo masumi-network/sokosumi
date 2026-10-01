@@ -42,7 +42,7 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NA
 
 ### Manual UI recipe
 
-- **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Magic Link sit **above** the password form — ignore them.
+- **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Email code sit **above** the password form — ignore them.
 - **Fill credentials.** Either `agent-browser auth login sokosumi --username-selector '[data-testid="auth-field-email"]' --password-selector '[data-testid="auth-field-currentPassword"]'` (vault) or `agent-browser fill` those same testids. Prefer CSS testids over snapshot refs so OAuth buttons are not selected by accident.
 - **Submit.** Wait briefly after fill (~400ms), then `agent-browser press Enter` if still on `/signin`. Expect a full document load straight to Welcome `/` (or `returnUrl`); there is no callback hop for credential login. The leave waits for the session first (~200ms plus a `getSession`), so give it a condition poll, not a fixed sleep. Do **not** `wait --load networkidle` here; Ably can hang that wait on chat-adjacent shells.
 - **Persist.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there. Fixture users with a workspace should land on the coworker gallery; brand-new users may hit `/setup` instead — that still proves auth if not `/signin`.
@@ -80,7 +80,7 @@ Computer-use notes (live-proved):
 
 - **Do not invent users.** Run `verify-sokosumi credentials-status` (or doctor). If `verify_credentials_email=unset`, stop and report missing `VERIFY_SOKOSUMI_*` secrets — do not create `you-*@sokosumi.test` accounts for general UI proof.
 - **Prefer harness auth first:** `verify-sokosumi sign-in` (agent-browser) reads `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` from the process env. Computer-use should drive post-login UI. Typing a Runtime Secret password in the GUI fails because tool output redacts it as `[REDACTED]`.
-- If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
+- If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Scroll past Google / Microsoft / Passkey / Email code. The email code also has its **own** email field + “Email me a code” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
 - **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting` or `isLeaving`).
 - Submit with **Enter** (or the purple **Login** button under the password form).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.
@@ -89,9 +89,9 @@ Computer-use notes (live-proved):
 ## Gotchas
 
 - Prefer `verify-sokosumi sign-in` over ad-hoc clicks — most cloud-agent failures are OAuth/passkey focus steal, submit-click races, missing fixtures, or cookie-domain traps.
-- Only OAuth and magic-link pass through `/auth/callback/signin`; credential and passkey finish in place and then replace the document. Harness `wait_leave_auth_page` polls until the URL is off both the auth entry pages and the callback path; `assert_authed_url` still allows `/auth/callback/`.
+- Only OAuth passes through `/auth/callback/signin`; credential, passkey and email code finish in place and then replace the document. Harness `wait_leave_auth_page` polls until the URL is off both the auth entry pages and the callback path; `assert_authed_url` still allows `/auth/callback/`.
 - Clicking `[data-testid="auth-submit"]` after vault fill can no-op; always submit with Enter after a short wait.
-- OAuth, magic-link, and passkey are not valid verification paths with placeholder credentials. Passkey also runs conditional mediation (`autoFill`) when the browser supports it — that can steal focus from the email field (`autoComplete="username webauthn"`).
+- OAuth, email code, and passkey are not valid verification paths with placeholder credentials. Passkey also runs conditional mediation (`autoFill`) when the browser supports it — that can steal focus from the email field (`autoComplete="username webauthn"`).
 - Wrong password / missing fixtures leave the user on `/signin` (Core returns non-2xx). Doctor `fixture_auth=fail` on a **cloud-agent** branch means provision/seed first. On a **coworker / shared Neon** it means use the vault or [Sign up](./sign-up.md) — do not seed Alice onto that database, and do not keep retrying the Alice form.
 - Fixtures exist only on cloud-agent Neon branches.
 - `127.0.0.1` can break auth cookies/origin; stick to `localhost`.

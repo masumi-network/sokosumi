@@ -6,6 +6,18 @@
       "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
       "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut."
     },
+    "EmailCodeForm": {
+      "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
+      "codeLabel": "Code",
+      "incomplete": "Gib den 6-stelligen Code aus der E-Mail ein.",
+      "invalid": "Dieser Code stimmt nicht. Prüfe die E-Mail und versuche es erneut.",
+      "expired": "Dieser Code ist abgelaufen. Sende einen neuen Code.",
+      "tooManyAttempts": "Zu viele falsche Versuche. Sende einen neuen Code.",
+      "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
+      "resend": "Neuen Code senden",
+      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
+      "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
+    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
@@ -29,19 +41,18 @@
     },
     "ReauthDialog": {
       "confirm": "Bestätigen",
-      "continueWithEmail": "Anmeldelink per E-Mail senden",
+      "confirmCode": "Mit Code bestätigen",
+      "continueWithEmail": "Code per E-Mail senden",
       "continueWithGoogle": "Mit Google fortfahren",
       "continueWithMicrosoft": "Mit Microsoft fortfahren",
       "description": "Deine Sitzung ist für diese Änderung zu alt. Melde dich erneut an, um fortzufahren.",
-      "magicLinkError": "Der Link konnte nicht gesendet werden. Versuche es erneut.",
-      "magicLinkSent": "Link an {email} gesendet. Öffne ihn auf diesem Gerät, um dich erneut anzumelden.",
+      "emailCodeError": "Wir konnten den Code nicht senden. Versuche es erneut.",
       "noMethod": "Bestätige zuerst deine E-Mail-Adresse und versuche es dann erneut.",
       "orEmail": "Oder per E-Mail anmelden:",
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
       "rememberMe": "Angemeldet bleiben",
-      "resendEmail": "Link erneut senden",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1153,21 +1164,20 @@
       "continueWith": "Weiter mit {provider}",
       "passwordDivider": "oder mit Passwort anmelden",
       "orDivider": "oder",
-      "magicLinkDivider": "oder ohne Passwort",
+      "emailCodeDivider": "oder ohne Passwort",
+      "emailCodeProvider": "E-Mail-Code",
+      "emailCodeInputLabel": "E-Mail für den Anmeldecode",
+      "emailCodePlaceholder": "E-Mail-Adresse eingeben",
+      "emailCodeSend": "Code per E-Mail senden",
+      "emailCodeSending": "Code wird gesendet...",
+      "emailCodeSubmit": "Anmelden",
+      "emailCodeError": "Wir konnten keinen Code senden. Bitte versuche es erneut.",
+      "emailCodeInvalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
       "success": "Anmeldung erfolgreich",
       "error": "Anmeldung fehlgeschlagen",
       "lastUsed": "Zuletzt verwendet",
       "passkeyProvider": "Passkey",
-      "passkeyError": "Anmeldung mit Passkey ist fehlgeschlagen. Bitte versuche es erneut.",
-      "magicLinkProvider": "Magic Link",
-      "magicLinkInputLabel": "E-Mail für den Magic Link",
-      "magicLinkPlaceholder": "E-Mail eingeben",
-      "magicLinkSubmit": "Sende mir einen Magic Link",
-      "magicLinkSubmitting": "Magic Link wird gesendet...",
-      "magicLinkResend": "Magic Link erneut senden",
-      "magicLinkSuccess": "Prüfe deinen Posteingang auf deinen Magic Link.",
-      "magicLinkError": "Wir konnten keinen Magic Link senden. Bitte versuche es erneut.",
-      "magicLinkInvalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein."
+      "passkeyError": "Anmeldung mit Passkey ist fehlgeschlagen. Bitte versuche es erneut."
     },
     "Words": {
       "signUp": "Registrieren"
@@ -1280,7 +1290,10 @@
           "Login": {
             "message": "Bereits ein Konto?",
             "link": "Anmelden"
-          }
+          },
+          "emailCodeInstead": "Stattdessen Code per E-Mail senden",
+          "emailCodeSending": "Code wird gesendet...",
+          "usePasswordInstead": "Stattdessen ein Passwort verwenden"
         }
       },
       "ForgotPassword": {
@@ -1347,9 +1360,8 @@
       "backTo": "Zurück zu {client}"
     },
     "SignInError": {
-      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem Magic Link an und verbinde Google oder Microsoft danach unter Verbindungen.",
+      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
-      "linkExpired": "Dieser Magic Link ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
       "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut."
     }
   },
