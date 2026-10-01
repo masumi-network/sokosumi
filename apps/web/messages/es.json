@@ -2019,37 +2019,6 @@
           "monthlyWithDayTime": "Mensualmente (día {day}, {time})",
           "monthlyEveryNWithDayTime": "Cada {n} meses (día {day}, {time})",
           "custom": "Cron personalizado"
-        },
-        "firstRun": "Primera ejecución",
-        "timeOfDay": "Hora del día",
-        "repeatEvery": "Repetir cada",
-        "repeatOn": "Repetir en",
-        "ends": "Termina",
-        "never": "Nunca",
-        "on": "En la fecha",
-        "after": "Tras",
-        "occurrences": "ejecuciones",
-        "pickDate": "Elegir una fecha",
-        "preview": "Vista previa",
-        "noPreview": "Sin próximas ejecuciones",
-        "timezone": "Zona horaria",
-        "customCron": "Expresión cron personalizada",
-        "customCronValid": "Expresión cron válida",
-        "unit": {
-          "day": "día(s)",
-          "week": "semana(s)",
-          "month": "mes(es)"
-        },
-        "save": "Guardar",
-        "cancel": "Cancelar",
-        "errors": {
-          "required": "Este campo es obligatorio.",
-          "futureDateTime": "Selecciona una fecha y hora futuras.",
-          "invalidTime": "Introduce una hora válida (HH:MM).",
-          "positiveInteger": "Introduce un número entero positivo.",
-          "selectAtLeastOneWeekday": "Selecciona al menos un día de la semana.",
-          "endDateInPast": "La fecha de fin no puede estar en el pasado.",
-          "invalidCron": "Introduce una expresión cron válida para la zona horaria seleccionada."
         }
       },
       "RunAt": {
@@ -2105,6 +2074,56 @@
           "errors": {
             "stale": "Esta programación cambió en otro lugar. Recarga la página e inténtalo de nuevo.",
             "saveFailed": "No se pudo guardar la programación."
+          },
+          "When": {
+            "title": "Cuándo",
+            "repeat": "Repetir",
+            "repeats": {
+              "daily": "Cada día",
+              "weekdays": "Días laborables",
+              "weekly": "Semanal",
+              "monthly": "Mensual",
+              "interval": "Cada pocos días",
+              "custom": "Personalizado"
+            },
+            "on": "El",
+            "pickADay": "Elige al menos un día",
+            "dayOfMonth": "Día del mes",
+            "dayN": "Día {day}",
+            "shortMonths": "Se saltan los meses sin este día",
+            "every": "Cada",
+            "days": "días",
+            "starting": "desde",
+            "startDate": "Fecha de inicio",
+            "pickDate": "Elige una fecha",
+            "cron": "Cron",
+            "cronHelp": "Cinco campos: minuto, hora, día, mes, día de la semana.",
+            "cronInvalid": "Esa expresión cron no es válida.",
+            "at": "A las",
+            "time": "Hora",
+            "timeSearch": "Escribe una hora, p. ej. 08:30",
+            "useTime": "Usar {time}",
+            "timezone": "Zona horaria",
+            "timezoneSearch": "Buscar zonas horarias",
+            "noTimezone": "No se encontró ninguna zona horaria",
+            "ends": "Termina",
+            "endsNever": "Nunca",
+            "endsOn": "En una fecha",
+            "endsAfter": "Tras varias ejecuciones",
+            "endDate": "Fecha de fin",
+            "runs": "ejecuciones",
+            "summary": {
+              "daily": "Cada día a las {time}",
+              "weekdays": "Cada día laborable a las {time}",
+              "weekly": "Cada {days} a las {time}",
+              "monthly": "Cada mes el día {day} a las {time}",
+              "interval": "Cada {n} días a las {time}",
+              "custom": "Programación personalizada",
+              "incomplete": "Elige cuándo se ejecuta"
+            },
+            "next": "Próxima: {date}",
+            "noNext": "No hay ejecuciones próximas",
+            "nextRuns": "Próximas ejecuciones"
           }
         },
         "Actions": {

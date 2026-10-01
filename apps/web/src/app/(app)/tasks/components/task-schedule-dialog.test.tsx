@@ -1,5 +1,5 @@
 import type { TaskSchedule } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -289,13 +289,16 @@ describe("TaskScheduleDialog", () => {
       },
     };
 
-    it("previews every third day from the anchor, not every day", () => {
+    it("lists every third day from the anchor as the next runs", async () => {
+      const user = userEvent.setup();
       renderDialog({ schedule: EVERY_THREE_DAYS });
 
-      const preview = screen
+      await user.click(screen.getByRole("button", { name: /next/ }));
+
+      const runs = screen
         .getAllByRole("listitem")
         .map((item) => item.textContent);
-      expect(preview).toEqual([
+      expect(runs).toEqual([
         "2030-01-07T09:00:00.000Z",
         "2030-01-10T09:00:00.000Z",
         "2030-01-13T09:00:00.000Z",
@@ -306,9 +309,10 @@ describe("TaskScheduleDialog", () => {
       const user = userEvent.setup();
       renderDialog({ schedule: EVERY_THREE_DAYS });
 
-      const timeOfDay = screen.getByLabelText("timeOfDay");
-      expect(timeOfDay).toHaveValue("10:00");
-      fireEvent.change(timeOfDay, { target: { value: "07:15" } });
+      const time = screen.getByRole("button", { name: "time" });
+      expect(time).toHaveTextContent("10:00");
+      await user.click(time);
+      await user.click(screen.getByRole("option", { name: "07:15" }));
       await user.click(screen.getByRole("button", { name: "save" }));
 
       await waitFor(() =>
@@ -325,19 +329,51 @@ describe("TaskScheduleDialog", () => {
     });
   });
 
-  it("sends the new rule when the time changes", async () => {
+  it("sends the new rule when the time changes, typed to the minute", async () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
 
-    fireEvent.change(screen.getByLabelText("firstRun"), {
-      target: { value: "2030-01-14T10:45" },
-    });
+    await user.click(screen.getByRole("button", { name: "time" }));
+    await user.type(screen.getByPlaceholderText("timeSearch"), "10:40");
+    await user.click(screen.getByRole("option", { name: "useTime" }));
     await user.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
     expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
-      rule: { expr: "45 10 * * MON", timezone: "Europe/Berlin" },
+      rule: { expr: "40 10 * * MON", timezone: "Europe/Berlin" },
     });
+  });
+
+  it("repeats on the weekdays picked as chips", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    expect(
+      screen.getByRole("button", { name: "repeats.weekly" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    // Monday is on; add Wednesday.
+    const wednesday = document.querySelector('[data-weekday="WED"]');
+    if (!(wednesday instanceof HTMLElement)) throw new Error("no Wednesday");
+    await user.click(wednesday);
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      rule: { expr: "30 8 * * MON,WED" },
+    });
+  });
+
+  it("blocks saving a weekly rule with no day", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    const monday = document.querySelector('[data-weekday="MON"]');
+    if (!(monday instanceof HTMLElement)) throw new Error("no Monday");
+    expect(monday).toHaveAttribute("aria-pressed", "true");
+    await user.click(monday);
+
+    expect(screen.getByText("pickADay")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
   });
 
   it("keeps a private Task private instead of assigning its member", async () => {
@@ -352,7 +388,9 @@ describe("TaskScheduleDialog", () => {
       },
     });
 
-    expect(screen.getByRole("switch")).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "privateLabel" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "create" }));
 
     await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
