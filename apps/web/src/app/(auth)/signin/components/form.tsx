@@ -22,7 +22,7 @@ import {
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
 import {
-  rememberAuthEmailHint,
+  rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -211,9 +211,9 @@ export default function SignInForm({
               href={signUpUrl}
               // A typed email stays out of the link, which would lock it on
               // sign-up. Only an invitation's address belongs there.
-              onClick={() => {
+              onClick={(event) => {
                 if (!invitation) {
-                  rememberAuthEmailHint(form.getValues("email"));
+                  rememberAuthEmailHintOnClick(event, form.getValues("email"));
                 }
               }}
               className="text-primary text-sm font-medium hover:underline"

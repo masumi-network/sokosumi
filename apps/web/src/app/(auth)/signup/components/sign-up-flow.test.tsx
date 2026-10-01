@@ -319,6 +319,15 @@ describe("SignUpFlow", () => {
       expect(takeAuthEmailHint()).toBe("ada@example.com");
     });
 
+    it("leaves no email behind when sign-in opens in another tab", async () => {
+      await openNotice();
+
+      now += 401;
+      fireEvent.click(logInLink(), { ctrlKey: true });
+
+      expect(takeAuthEmailHint()).toBeNull();
+    });
+
     it("ignores the second click of a double-click on the button it replaced", async () => {
       await openNotice();
 

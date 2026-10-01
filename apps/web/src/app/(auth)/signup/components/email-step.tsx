@@ -17,7 +17,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
-  rememberAuthEmailHint,
+  rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
 import {
@@ -227,7 +227,7 @@ export function SignUpEmailStep({
                     event.preventDefault();
                     return;
                   }
-                  rememberAuthEmailHint(form.getValues("email"));
+                  rememberAuthEmailHintOnClick(event, form.getValues("email"));
                 }}
               >
                 {t("AccountExists.logIn")}

@@ -452,6 +452,23 @@ describe("SignInForm", () => {
     expect(takeAuthEmailHint()).toBe("ada@exmaple.com");
   });
 
+  it("leaves no email behind when register opens in another tab", async () => {
+    const user = userEvent.setup();
+    render(<SignInForm />);
+    await user.type(
+      screen.getByPlaceholderText("Fields.Email.placeholder"),
+      "ada@example.com",
+    );
+
+    // The other tab cannot read this tab's hint, so this tab would show it
+    // on its next sign-in or sign-up instead.
+    fireEvent.click(screen.getByRole("link", { name: "Register.link" }), {
+      metaKey: true,
+    });
+
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
   it("keeps an invitation's address and id on the register link", () => {
     render(
       <SignInForm

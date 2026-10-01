@@ -19,6 +19,30 @@ export function rememberAuthEmailHint(email: string): void {
   }
 }
 
+/**
+ * Remembers the hint for a link click that stays in this tab. A modified
+ * click opens the page elsewhere, which cannot read this tab's storage, so
+ * the hint would linger here for this tab's next visit instead.
+ */
+export function rememberAuthEmailHintOnClick(
+  event: Pick<
+    MouseEvent,
+    "button" | "metaKey" | "ctrlKey" | "shiftKey" | "altKey"
+  >,
+  email: string,
+): void {
+  if (
+    event.button !== 0 ||
+    event.metaKey ||
+    event.ctrlKey ||
+    event.shiftKey ||
+    event.altKey
+  ) {
+    return;
+  }
+  rememberAuthEmailHint(email);
+}
+
 /** Reads the hint once; the next visit to either page starts empty again. */
 export function takeAuthEmailHint(): string | null {
   if (typeof window === "undefined") {

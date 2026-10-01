@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { rememberAuthEmailHint, takeAuthEmailHint } from "./auth-email-hint";
+import {
+  rememberAuthEmailHint,
+  rememberAuthEmailHintOnClick,
+  takeAuthEmailHint,
+} from "./auth-email-hint";
 
 describe("auth email hint", () => {
   beforeEach(() => {
@@ -20,6 +24,35 @@ describe("auth email hint", () => {
 
   it("remembers nothing for a blank email", () => {
     rememberAuthEmailHint("   ");
+
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  const plainClick = {
+    button: 0,
+    metaKey: false,
+    ctrlKey: false,
+    shiftKey: false,
+    altKey: false,
+  };
+
+  it("remembers the email for a plain click", () => {
+    rememberAuthEmailHintOnClick(plainClick, "ada@example.com");
+
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+  });
+
+  it.each([
+    { metaKey: true },
+    { ctrlKey: true },
+    { shiftKey: true },
+    { altKey: true },
+    { button: 1 },
+  ])("remembers nothing for a click that leaves this tab (%o)", (modifier) => {
+    rememberAuthEmailHintOnClick(
+      { ...plainClick, ...modifier },
+      "ada@example.com",
+    );
 
     expect(takeAuthEmailHint()).toBeNull();
   });
