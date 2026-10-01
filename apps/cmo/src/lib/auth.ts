@@ -53,7 +53,8 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 /** The person's full name, or their display name when Sokosumi has no parts. */
 function personName(user: User): string {
   return (
-    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") || user.name
+    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
+    user.name.trim()
   );
 }
 

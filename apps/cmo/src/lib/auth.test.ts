@@ -543,6 +543,18 @@ describe("CMO auth handler", () => {
     });
   });
 
+  it("leaves the session name empty when Sokosumi has only blanks", async () => {
+    // The signed-in view then names the account by its email.
+    core.user = { name: "  ", firstName: null, lastName: null };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "",
+      email: "ada@example.com",
+    });
+  });
+
   it("keeps the Sokosumi tokens out of readable cookies", async () => {
     await signIn(auth, jar, core);
 
