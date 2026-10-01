@@ -9,6 +9,10 @@ import {
 } from "@sokosumi/utils";
 import { z } from "zod";
 
+import {
+  cmoSaveBrandBrainInputSchema,
+  cmoSaveStrategyInputSchema,
+} from "./cmo.js";
 import type { SokoBotCapability } from "./policy.js";
 
 const emptyInputSchema = z.object({}).strict();
@@ -505,6 +509,8 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   workspace_search: sokoBotWorkspaceSearchInputSchema,
   update_plan: sokoBotUpdatePlanInputSchema,
   run_subagent: sokoBotRunSubagentInputSchema,
+  save_brand_brain: cmoSaveBrandBrainInputSchema,
+  save_strategy: cmoSaveStrategyInputSchema,
   list_tables: z.object({
     taskId: z.string().max(200).optional(),
     cursor: z.uuid().optional(),
@@ -596,6 +602,10 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Write down or update your step-by-step plan for this turn. Use it for work with several steps, keep exactly one step in_progress, and mark steps done as you finish them.",
   run_subagent:
     "Hand a self-contained research or analysis question to a helper that can search the web, fetch pages and read your workspace, and get its written findings back. The helper cannot change anything. Give it the full context it needs in the task text.",
+  save_brand_brain:
+    "Save the owner's Brand Brain (summary, voice with do/don't and example lines, audience, products, competitors, channels). Replaces the saved one, so send the complete Brand Brain. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
+  save_strategy:
+    "Save the marketing strategy for a month: summary, goals, pillars, channels with cadence and autonomy (drafts, ask, autopilot), the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), reviewMode and weeklyReviews. Replaces the saved one, so send the complete strategy. Only the owner changes a channel's autonomy unless they ask you to.",
   manage_reminder:
     "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:

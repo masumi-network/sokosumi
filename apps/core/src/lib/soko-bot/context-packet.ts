@@ -494,6 +494,17 @@ export class ContextPacketBuilder {
     if (!workspace) throw new Error("Workspace is not accessible");
 
     const organizationId = workspace.organizationId;
+    // Cuso (CMO) reads its Brand Brain and strategy here on every turn; null
+    // for every other bot. A teammate's question never sees the plan, and a
+    // failed read leaves the plan out rather than failing the turn.
+    const marketing =
+      input.audience === "TEAMMATE"
+        ? null
+        : await import("@/services/cmo.service")
+            .then(({ loadCmoMarketingContext }) =>
+              loadCmoMarketingContext(input.sokoBotId),
+            )
+            .catch(() => null);
     const billingPromise = buildCreditsPayload({
       userId: input.userId,
       organizationId,
@@ -947,6 +958,7 @@ export class ContextPacketBuilder {
       },
       workspace: {
         reminders,
+        ...(marketing ? { marketing } : {}),
         id: boundedIdentifier(workspace.id),
         scope: organizationId ? "organization" : "personal",
         plan: sanitizeText(

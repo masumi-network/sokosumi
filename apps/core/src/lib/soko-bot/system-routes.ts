@@ -51,6 +51,22 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "Weekly wrap: summarise and update memory.",
   },
+  /**
+   * CMO daily run: draft, design and schedule the calendar's next entries.
+   * Publishing is still gated per channel by the CMO autonomy and the
+   * subscription inside the social tools.
+   */
+  "cmo-daily-run": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    reason: "CMO daily run: prepare and schedule the next calendar entries.",
+  },
+  /** CMO weekly review: measure, then improve or propose a better plan. */
+  "cmo-weekly-review": {
+    route: "MANAGE_WORK",
+    writeScope: "WORK",
+    reason: "CMO weekly review: measure and improve the strategy.",
+  },
 } as const satisfies Record<string, PresetRoute>;
 
 export function systemScheduleRoute(

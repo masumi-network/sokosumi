@@ -10,9 +10,13 @@ const {
   getEnvMock,
   memoryFindFirstMock,
   nudgeFindManyMock,
+  scheduleCreateMock,
+  scheduleFindManyMock,
   taskFindManyMock,
   turnCountMock,
 } = vi.hoisted(() => ({
+  scheduleCreateMock: vi.fn(),
+  scheduleFindManyMock: vi.fn(),
   botFindUniqueOrThrowMock: vi.fn(),
   delegationFindManyMock: vi.fn(),
   getEnvMock: vi.fn(),
@@ -33,6 +37,10 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     task: { findMany: taskFindManyMock },
+    sokoBotSchedule: {
+      findMany: scheduleFindManyMock,
+      create: scheduleCreateMock,
+    },
   },
 }));
 
@@ -46,9 +54,28 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 
 import {
   buildSystemBeatMessage,
+  ensureSystemSchedules,
   followUpsBlock,
   proactiveGate,
 } from "./soko-bot-proactive.service";
+
+describe("ensureSystemSchedules", () => {
+  it("gives a CMO bot the marketing rhythms instead of the stand-up", async () => {
+    scheduleFindManyMock.mockResolvedValue([]);
+    scheduleCreateMock.mockResolvedValue({});
+    await ensureSystemSchedules({
+      id: "bot-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      ingestTimezone: "Europe/Berlin",
+      versionId: "cmo-v1",
+    });
+    const keys = scheduleCreateMock.mock.calls.map(
+      (call) => call[0].data.systemKey,
+    );
+    expect(keys).toEqual(["cmo-daily-run", "cmo-weekly-review"]);
+  });
+});
 
 describe("followUpsBlock", () => {
   const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";

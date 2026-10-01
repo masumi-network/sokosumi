@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   redactSokoBotSensitiveText,
+  SOKO_BOT_CMO_SCHEDULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { HTTPException } from "hono/http-exception";
@@ -436,9 +437,10 @@ export class SokoBotSchedulesSyncService {
             },
           });
           if (bot) {
-            const rhythm = SOKO_BOT_SYSTEM_SCHEDULES.find(
-              (candidate) => candidate.key === schedule.systemKey,
-            );
+            const rhythm = [
+              ...SOKO_BOT_SYSTEM_SCHEDULES,
+              ...SOKO_BOT_CMO_SCHEDULES,
+            ].find((candidate) => candidate.key === schedule.systemKey);
             const beat = await buildSystemBeatMessage({
               bot: {
                 id: bot.id,

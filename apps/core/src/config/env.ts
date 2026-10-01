@@ -191,6 +191,18 @@ const baseEnvSchema = z.object({
     .default("false")
     .transform((value) => value.trim().toLowerCase() === "true"),
 
+  // CMO.xyz: subscription plans (Better Auth plan names, comma separated)
+  // that let Cuso schedule and publish for a CMO organization.
+  CMO_SUBSCRIPTION_PLANS: z
+    .string()
+    .default("cmo,starter,standard,pro")
+    .transform((value) =>
+      value
+        .split(",")
+        .map((plan) => plan.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+
   // Temporary overlay (ADR 0010): org-first membership also gets a personal
   // workspace. Default false is ADR 0005 (personal optional).
   REQUIRE_PERSONAL_WORKSPACE: z
