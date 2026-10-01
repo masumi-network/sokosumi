@@ -461,7 +461,9 @@ describe("CMO auth handler", () => {
           }),
         );
         jar.store(response);
-        expect(response.status).toBe(204);
+        // Chrome serves a 2xx prefetch for the click itself, and a 204
+        // swallows that click. Any other status makes it navigate for real.
+        expect(response.status).toBe(403);
         expect(response.headers.get("cache-control")).toBe("no-store");
         expect(response.headers.has("location")).toBe(false);
         expect(response.headers.getSetCookie()).toEqual([]);
@@ -490,9 +492,16 @@ describe("CMO auth handler", () => {
         }),
       );
 
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
       const response = await followLink(jar, path);
 
       expect(response.status).toBe(503);
+      expect(logged).toHaveBeenCalledWith(
+        "Starting Sign in with Sokosumi failed",
+        expect.anything(),
+      );
+      logged.mockRestore();
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(response.headers.has("location")).toBe(false);
       expect(response.headers.getSetCookie()).toEqual([]);

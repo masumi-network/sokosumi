@@ -284,7 +284,8 @@ export async function sokosumiSignInRedirect(
 ): Promise<Response> {
   const headers = new Headers({ location: "/", "cache-control": "no-store" });
   // The proxy skips renewal for prefetch, but the route still runs. A new
-  // state cookie here would invalidate a sign-in already in progress.
+  // state cookie here would invalidate a sign-in already in progress. Not a
+  // 2xx: Chrome serves a 2xx prefetch for the click, and a 204 swallows it.
   if (
     request.headers.has("next-router-prefetch") ||
     request.headers.has("next-router-segment-prefetch") ||
@@ -292,7 +293,7 @@ export async function sokosumiSignInRedirect(
     request.headers.get("sec-purpose")?.includes("prefetch")
   ) {
     headers.delete("location");
-    return new Response(null, { status: 204, headers });
+    return new Response(null, { status: 403, headers });
   }
   try {
     if (!(await auth.api.getSession({ headers: request.headers }))) {
@@ -308,6 +309,7 @@ export async function sokosumiSignInRedirect(
   } catch (error) {
     // Preserve Next's request-time rendering signals from headers/cookies.
     unstable_rethrow(error);
+    console.error("Starting Sign in with Sokosumi failed", error);
     headers.delete("location");
     return new Response("CMO is temporarily unavailable. Try again.", {
       status: 503,

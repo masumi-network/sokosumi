@@ -9,10 +9,9 @@ import { getAuth, renewSession } from "./lib/auth";
  */
 export async function proxy(request: NextRequest) {
   const renewal = await renewSession(getAuth(), request);
+  // Renewal redirects and outages belong to one visitor; never cache them.
   const headers = new Headers(renewal.headers);
-  if (["/signup", "/signin"].includes(request.nextUrl.pathname)) {
-    headers.set("cache-control", "no-store");
-  }
+  headers.set("cache-control", "no-store");
   if (renewal.status === 503) {
     return new NextResponse("CMO is temporarily unavailable. Try again.", {
       status: 503,

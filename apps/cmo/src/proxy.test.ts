@@ -29,7 +29,7 @@ it("returns Core outages without rendering the page or losing rotated cookies", 
   expect(response.headers.has("x-middleware-next")).toBe(false);
 });
 
-it.each(["/signup", "/signin"])(
+it.each(["/", "/signup", "/signin"])(
   "keeps renewal redirects and outages uncached on %s",
   async (path) => {
     const cookie =
