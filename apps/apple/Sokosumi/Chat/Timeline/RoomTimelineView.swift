@@ -167,6 +167,9 @@ import SwiftUI
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
       let channels = workspaces.composerChannels
+      // Seen by rides the newest row only; asked once per pass.
+      let readReceipts = workspaces.roomReadReceipts
+      let newestMessageId = messages.last?.id
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
@@ -249,7 +252,8 @@ import SwiftUI
                                  } },
                                  onSendToSelf: sendToSelfAction(for: message),
                                  horizontalInset: 12,
-                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
+                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                 }
               }
               .background {

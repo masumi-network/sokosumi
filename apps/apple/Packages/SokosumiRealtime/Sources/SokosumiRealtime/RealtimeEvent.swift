@@ -24,6 +24,8 @@ public enum ResolvedRealtimeDelivery: Sendable {
   /// The watched room's typing channel is subscribed, and may or may not be published to. Nil: the
   /// token does not grant it or could not be minted, so the room shows nobody.
   case typingChannel(roomId: String, canPublish: Bool?)
+  /// A member's Room last-read moved (row 31b1, web `useChatRoomRealtime`'s `onRoomRead`).
+  case roomRead(ChatRoomReadEvent)
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -92,8 +94,18 @@ func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any
   ))
 }
 
-/// Pins, notifications, membership revokes and rooms changed: events identified by name alone. Nil for every other event.
+/// Pins, read receipts, notifications, membership revokes and rooms changed: events identified by name alone. Nil for every
+/// other event.
 private func resolveNamedDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery? {
+  if eventName == chatRoomReadEventName {
+    // Web's `chatRoomReadEventDataSchema` (its `lastReadAt` is `z.iso.datetime()`), and the room must be the channel's own.
+    guard let roomId = parseChatRoomId(fromChannelName: channel),
+          let dict = data as? [String: Any], dict["roomId"] as? String == roomId,
+          let userId = dict["userId"] as? String, !userId.isEmpty,
+          let sentAt = dict["lastReadAt"] as? String, isZodISODateTime(sentAt),
+          let lastReadAt = realtimeDate(from: sentAt) else { return .ignored }
+    return .roomRead(ChatRoomReadEvent(roomId: roomId, userId: userId, lastReadAt: lastReadAt))
+  }
   if eventName == chatRoomPinnedMessageEventName {
     guard let roomId = parseChatRoomId(fromChannelName: channel),
           let pin = decodeRealtimeValue(data, as: PinEvent.self),
