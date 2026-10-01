@@ -135,7 +135,11 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
 interface CreateOrganizationWizardProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  /** After the organization exists, Finish or dismiss leaves via this hook. */
+  /**
+   * After the organization exists, Finish or dismiss hands off here. The
+   * wizard stays open on its ready step until the caller navigates away, so
+   * nothing behind it shows while the app loads.
+   */
   onOrganizationReady?: (organizationId: string) => void;
 }
 
@@ -156,6 +160,7 @@ export function CreateOrganizationWizard({
   const [organizationName, setOrganizationName] = useState("");
   const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null);
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState("");
   const logoUrlRef = useRef(logoUrl);
@@ -177,6 +182,8 @@ export function CreateOrganizationWizard({
   const brandStartedRef = useRef(false);
   const linkStartedRef = useRef(false);
   const orgCreateInFlightRef = useRef(false);
+  // Lock callbacks synchronously, before React renders the pending state.
+  const leavingRef = useRef(false);
   /** Last values actually persisted, so a step-back edit can be detected. */
   const savedValuesRef = useRef<{ name: string; url: string } | null>(null);
   /**
@@ -229,6 +236,8 @@ export function CreateOrganizationWizard({
     setOrganizationName("");
     setNormalizedUrl(null);
     setIsCreatingOrg(false);
+    setIsLeaving(false);
+    leavingRef.current = false;
     setLogoUrl("");
     setIsResolvingLogo(false);
     setPendingLogoFiles([]);
@@ -454,7 +463,7 @@ export function CreateOrganizationWizard({
 
   // Step 3 — mint the shareable invite link once (retry via button on failure).
   const mintInviteLink = useCallback(async () => {
-    if (!organizationId) return;
+    if (!organizationId || leavingRef.current) return;
     setIsCreatingLink(true);
     setLinkFailed(false);
     try {
@@ -477,11 +486,16 @@ export function CreateOrganizationWizard({
   }, [organizationId, t]);
 
   useEffect(() => {
-    if (step === SUCCESS_STEP && organizationId && !linkStartedRef.current) {
+    if (
+      step === SUCCESS_STEP &&
+      organizationId &&
+      !isLeaving &&
+      !linkStartedRef.current
+    ) {
       linkStartedRef.current = true;
       void mintInviteLink();
     }
-  }, [step, organizationId, mintInviteLink]);
+  }, [step, organizationId, isLeaving, mintInviteLink]);
 
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
@@ -524,7 +538,7 @@ export function CreateOrganizationWizard({
   }, [logoUrl, persistLogo]);
 
   const handleCopyLink = useCallback(async () => {
-    if (!inviteLink) return;
+    if (!inviteLink || leavingRef.current) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
@@ -535,7 +549,7 @@ export function CreateOrganizationWizard({
   }, [inviteLink, t]);
 
   const handleSendInvites = useCallback(async () => {
-    if (!organizationId || !emails.trim()) return;
+    if (!organizationId || !emails.trim() || leavingRef.current) return;
     setIsSendingInvites(true);
     try {
       const result = await inviteOrganizationMembersBulk({
@@ -560,35 +574,31 @@ export function CreateOrganizationWizard({
     }
   }, [organizationId, emails, t]);
 
+  /** Returns whether the wizard may close now. */
   const completeOrganization = useCallback(
-    (orgId: string) => {
+    (orgId: string): boolean => {
       if (onOrganizationReady) {
+        leavingRef.current = true;
+        setIsLeaving(true);
+        setStep(SUCCESS_STEP);
         onOrganizationReady(orgId);
-        return;
+        return false;
       }
       void handleSelectWorkspace(orgId, {
         shouldRedirectAgentJobsBasePath: false,
       });
+      return true;
     },
     [handleSelectWorkspace, onOrganizationReady],
   );
 
-  const handleFinish = useCallback(() => {
-    if (!organizationId) {
-      onOpenChange(false);
-      return;
-    }
-    completeOrganization(organizationId);
-    onOpenChange(false);
-  }, [completeOrganization, onOpenChange, organizationId]);
-
-  const isBusy = isCreatingOrg || isUploadingLogo;
+  const isBusy = isCreatingOrg || isUploadingLogo || isLeaving;
   const brandDomain = normalizedUrl ? getDomainLabel(normalizedUrl) : "";
 
   const handleRequestClose = (nextOpen: boolean) => {
-    if (isBusy) return;
-    if (!nextOpen && organizationId) {
-      completeOrganization(organizationId);
+    if (isBusy || orgCreateInFlightRef.current || leavingRef.current) return;
+    if (!nextOpen && organizationId && !completeOrganization(organizationId)) {
+      return;
     }
     onOpenChange(nextOpen);
   };
@@ -941,7 +951,7 @@ export function CreateOrganizationWizard({
                         variant="ghost"
                         size="sm"
                         className="ml-auto h-9 shrink-0 transition-colors duration-200"
-                        disabled={isCreatingLink}
+                        disabled={isCreatingLink || isLeaving}
                         onClick={() => void mintInviteLink()}
                       >
                         <RotateCw className="size-4" />
@@ -955,7 +965,7 @@ export function CreateOrganizationWizard({
                         variant="ghost"
                         size="sm"
                         className="ml-auto h-9 shrink-0 transition-colors duration-200"
-                        disabled={!inviteLink || isCreatingLink}
+                        disabled={!inviteLink || isCreatingLink || isLeaving}
                         onClick={() => void handleCopyLink()}
                         aria-label={
                           copied ? t("Invite.copied") : t("Invite.copy")
@@ -980,6 +990,7 @@ export function CreateOrganizationWizard({
 
                   <Textarea
                     rows={2}
+                    disabled={isLeaving}
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
@@ -994,7 +1005,7 @@ export function CreateOrganizationWizard({
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0"
-                      disabled={!emails.trim() || isSendingInvites}
+                      disabled={!emails.trim() || isSendingInvites || isLeaving}
                       onClick={() => void handleSendInvites()}
                     >
                       {isSendingInvites && (
@@ -1088,8 +1099,12 @@ export function CreateOrganizationWizard({
               variant="primary"
               size="lg"
               className="h-11 w-full px-6"
-              onClick={handleFinish}
+              onClick={() => handleRequestClose(false)}
+              disabled={isBusy}
             >
+              {isLeaving && (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {t("Nav.finish")}
             </Button>
           )}
