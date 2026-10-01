@@ -84,6 +84,7 @@ import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 import {
+  ANSWERED_DIRECTLY,
   introduceSokoBot,
   persistSokoBotChatTurn,
   postSokoBotOwnerNotice,
@@ -188,6 +189,18 @@ describe("persistSokoBotChatTurn", () => {
     expect(teammateReasoning).toHaveLength(1);
     expect(JSON.stringify(teammateReasoning)).not.toContain(
       "Checked the board for stuck work.",
+    );
+  });
+
+  it("gives an answer with no summary and no tools a Thought too", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn({ events: [] }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    const metadata = messageUpdate.mock.calls[0][0].data.metadata;
+    expect(metadata.reasoning).toEqual([
+      { type: "reasoning", text: ANSWERED_DIRECTLY },
+    ]);
+    expect(metadata.thought_timing_ms).toEqual(
+      expect.objectContaining({ start: expect.any(Number) }),
     );
   });
 
