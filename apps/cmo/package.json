@@ -20,6 +20,7 @@
   "dependencies": {
     "@sokosumi/core-client": "workspace:*",
     "@sokosumi/utils": "workspace:*",
+    "@vercel/related-projects": "1.1.1",
     "better-auth": "1.7.6",
     "next": "16.3.8",
     "react": "19.3.0",
