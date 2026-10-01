@@ -4,6 +4,7 @@ import {
   isSokoBotSandboxCapability,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import {
   badGateway,
@@ -96,7 +97,20 @@ function logFor(claims: TurnTokenClaims): RuntimeEventLog {
   return new RuntimeEventLog(claims.turnId, claims.sessionId);
 }
 
-/** Cancelled, paused or expired turns answer 409; the runner stops on it. */
+/**
+ * Cancelled, paused or expired turns answer 409 with this kind; the runner
+ * stops on it. Any other 409, such as a write that lost a race, is only that
+ * call's failure.
+ */
+function turnInactive(error: unknown) {
+  return conflict(
+    error instanceof Error ? error.message : "Turn is not active",
+    {
+      kind: CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE,
+    },
+  );
+}
+
 async function authorizeTurn(claims: TurnTokenClaims) {
   const { sokoBotRuntimeService } = await import(
     "@/services/soko-bot-runtime.service"
@@ -107,9 +121,7 @@ async function authorizeTurn(claims: TurnTokenClaims) {
       turnId: claims.turnId,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
 }
 
@@ -130,9 +142,7 @@ export async function startSandboxTurn(
       sandbox: true,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
   const started = await prisma.sokoBotRuntimeEvent.findFirst({
     where: { turnId: claims.turnId, type: "turn.started" },
