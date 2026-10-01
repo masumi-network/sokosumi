@@ -24,6 +24,8 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
+import { SidebarNewBadge } from "./sidebar-new-badge";
+
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's
  * assistants, and where a person creates their own. Set apart from the rest
@@ -87,6 +89,7 @@ export default function PersonalAssistantNav({
                   >
                     {t("sokoBot")}
                   </span>
+                  <SidebarNewBadge />
                 </Link>
               </SheetClose>
             </SidebarMenuButton>

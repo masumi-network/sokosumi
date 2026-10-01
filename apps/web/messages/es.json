@@ -302,7 +302,7 @@
       "studio": "Content Studio",
       "design-md": "Diseño",
       "memory": "Memoria",
-      "social": "Social",
+      "social": "Programación social",
       "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
@@ -1568,6 +1568,10 @@
         }
       },
       "SokoBot": {
+        "connectPrompt": "Conecta tu correo y tu calendario para que {bot} prepare tus reuniones y haga seguimiento.",
+        "connectProvider": "Conectar {name}",
+        "connectDismiss": "Descartar",
+        "connectError": "No se pudo iniciar la conexión.",
         "feedbackAsk": "¿Útil?",
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
@@ -2809,7 +2813,7 @@
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
     "Social": {
-      "title": "Social",
+      "title": "Programación social",
       "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
@@ -2862,6 +2866,7 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "Nuevo",
           "newTask": "Nueva tarea",
           "search": "Buscar",
           "exploreAgents": "Agentes",
@@ -2877,7 +2882,7 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Social"
+          "social": "Programación social"
         },
         "ChatLists": {
           "title": "Chats Recientes",
