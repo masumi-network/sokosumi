@@ -63,10 +63,8 @@ vi.mock(
           <button
             type="button"
             data-testid="wizard-complete"
-            onClick={() => {
-              onOrganizationReady?.("org-1");
-              onOpenChange(false);
-            }}
+            // The real wizard stays open after handing off, until navigation.
+            onClick={() => onOrganizationReady?.("org-1")}
           >
             wizard complete
           </button>
