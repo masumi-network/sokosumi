@@ -1,5 +1,6 @@
 "use client";
 
+import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { parseAsStringLiteral, useQueryState } from "nuqs";
 
@@ -15,16 +16,24 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+import { AdsAccounts } from "./ads-accounts";
+
 const ADS_TABS = ["campaigns", "market", "accounts"] as const;
 
 /** An unknown `?tab=` parses to null, which falls back to Campaigns. */
 const tabParser = parseAsStringLiteral(ADS_TABS).withDefault("campaigns");
 
+interface AdsTabsProps {
+  accounts: ProjectAdAccount[];
+  projectId: string;
+}
+
 /**
  * Ads' three tabs, driven by `?tab=`. Campaigns is the default and keeps the
- * URL clean. Each panel is an empty state until its own ticket fills it.
+ * URL clean. Campaigns and Market are empty states until their own tickets
+ * fill them.
  */
-export function AdsTabs() {
+export function AdsTabs({ accounts, projectId }: AdsTabsProps) {
   const t = useTranslations("App.Ads");
   const [tab, setTab] = useQueryState("tab", tabParser);
 
@@ -73,10 +82,7 @@ export function AdsTabs() {
         />
       </TabsContent>
       <TabsContent value="accounts">
-        <EmptyState
-          description={t("accounts.emptyBody")}
-          title={t("accounts.emptyTitle")}
-        />
+        <AdsAccounts accounts={accounts} projectId={projectId} />
       </TabsContent>
     </Tabs>
   );

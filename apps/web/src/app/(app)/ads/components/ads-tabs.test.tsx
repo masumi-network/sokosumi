@@ -7,12 +7,19 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
+// The Accounts tab has its own tests; here it only has to be the panel shown.
+vi.mock("./ads-accounts", () => ({
+  AdsAccounts: ({ projectId }: { projectId: string }) => (
+    <div>accounts.emptyTitle for {projectId}</div>
+  ),
+}));
+
 import { AdsTabs } from "./ads-tabs";
 
 function renderTabs(searchParams = "") {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
-      <AdsTabs />
+      <AdsTabs accounts={[]} projectId="project-1" />
     </NuqsTestingAdapter>,
   );
 }
@@ -35,7 +42,7 @@ describe("AdsTabs", () => {
 
   it.each([
     ["market", "market.emptyTitle"],
-    ["accounts", "accounts.emptyTitle"],
+    ["accounts", "accounts.emptyTitle for project-1"],
   ])("opens the %s tab the URL names", (tab, title) => {
     renderTabs(`?tab=${tab}`);
 
@@ -69,6 +76,6 @@ describe("AdsTabs", () => {
       screen.getByRole("button", { name: "campaigns.emptyAction" }),
     );
 
-    expect(screen.getByText("accounts.emptyTitle")).toBeVisible();
+    expect(screen.getByText("accounts.emptyTitle for project-1")).toBeVisible();
   });
 });

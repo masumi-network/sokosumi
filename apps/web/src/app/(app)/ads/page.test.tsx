@@ -1,14 +1,19 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { hasSocialBetaAccessMock, notFoundMock, projectServiceMock } =
-  vi.hoisted(() => ({
-    hasSocialBetaAccessMock: vi.fn(),
-    notFoundMock: vi.fn(() => {
-      throw new Error("NEXT_NOT_FOUND");
-    }),
-    projectServiceMock: { getProjectById: vi.fn() },
-  }));
+const {
+  adsServiceMock,
+  hasSocialBetaAccessMock,
+  notFoundMock,
+  projectServiceMock,
+} = vi.hoisted(() => ({
+  adsServiceMock: { listAccounts: vi.fn() },
+  hasSocialBetaAccessMock: vi.fn(),
+  notFoundMock: vi.fn(() => {
+    throw new Error("NEXT_NOT_FOUND");
+  }),
+  projectServiceMock: { getProjectById: vi.fn() },
+}));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
@@ -17,6 +22,10 @@ vi.mock("next/navigation", () => ({ notFound: notFoundMock }));
 vi.mock("next-intl/server", () => ({
   getTranslations: async (namespace: string) => (key: string) =>
     `${namespace}.${key}`,
+}));
+
+vi.mock("@/lib/services/ads.service", () => ({
+  adsService: adsServiceMock,
 }));
 
 vi.mock("@/lib/services/project.service", () => ({
@@ -36,7 +45,17 @@ vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
 }));
 
 vi.mock("./components/ads-tabs", () => ({
-  AdsTabs: () => <div data-testid="ads-tabs" />,
+  AdsTabs: ({
+    accounts,
+    projectId,
+  }: {
+    accounts: { id: string }[];
+    projectId: string;
+  }) => (
+    <div data-testid="ads-tabs">
+      {projectId}:{accounts.map(({ id }) => id).join(",")}
+    </div>
+  ),
 }));
 
 const PROJECT = { id: "project-1", name: "Launch plan" };
@@ -50,6 +69,7 @@ describe("AdsPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     hasSocialBetaAccessMock.mockResolvedValue(true);
+    adsServiceMock.listAccounts.mockResolvedValue([]);
   });
 
   it("stays hidden outside the beta, reading nothing", async () => {
@@ -61,6 +81,7 @@ describe("AdsPage", () => {
     ).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFoundMock).toHaveBeenCalled();
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
+    expect(adsServiceMock.listAccounts).not.toHaveBeenCalled();
   });
 
   it("asks which project to work in when no scope is set", async () => {
@@ -102,6 +123,18 @@ describe("AdsPage", () => {
     expect(heading).toHaveClass("sr-only");
     expect(screen.queryByText("Launch plan")).not.toBeInTheDocument();
     expect(screen.getByTestId("ads-tabs")).toBeInTheDocument();
+  });
+
+  it("hands the tabs the project's ad accounts", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    adsServiceMock.listAccounts.mockResolvedValue([{ id: "account-1" }]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(adsServiceMock.listAccounts).toHaveBeenCalledWith("project-1");
+    expect(screen.getByTestId("ads-tabs")).toHaveTextContent(
+      "project-1:account-1",
+    );
   });
 
   it("names the page in the document title", async () => {
