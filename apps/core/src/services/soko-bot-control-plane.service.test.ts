@@ -855,6 +855,71 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("routes a teammate's yes on their own words and the reply to them", async () => {
+    jevEvaluate.mockResolvedValue(
+      jevRoute("MANAGE_WORK", { writeScope: "CHAT" }),
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.source === "CHAT"
+        ? {
+            status: "COMPLETED",
+            finalAnswer: "Want me to send Sandro this joke in his chat?",
+          }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "teammate-yes",
+      leaseToken: "teammate-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "teammate-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "teammate-yes-client",
+      message: "Patrick (a teammate, not your owner) asked:\nyes",
+      chat: {
+        mentionId: "mention_1",
+        responseMessageId: "message_1",
+        requestedByUserId: "user_teammate",
+        classifyMessage: "yes",
+      },
+    });
+
+    const request = jevEvaluate.mock.calls[0][0];
+    expect(request.state.message).toBe("yes");
+    expect(request.state.previousReply).toBe(
+      "Want me to send Sandro this joke in his chat?",
+    );
+    const replyQuery = turnFindFirstMock.mock.calls.find(
+      ([query]) => query?.where?.source === "CHAT",
+    )?.[0];
+    expect(replyQuery.where).toMatchObject({
+      requestedByUserId: "user_teammate",
+      chatMention: { message: { roomId: "room-1" } },
+    });
+    expect(intentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ requesterId: "user_teammate" }),
+      }),
+    );
+  });
+
   it("gives a bare yes no referent when the newest turn did not complete", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
     botFindFirstMock.mockResolvedValue(adminBot());
