@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
+import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookiesMock = vi.fn();
 const getMock = vi.fn();
@@ -9,17 +10,19 @@ const getEnvSecretsMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
+const getOAuthClientPublicMock = vi.fn();
 
+// The clock reads 10:00:00; Core signs a request for ten minutes.
+const NOW = Date.parse("2026-09-30T10:00:00.000Z");
 const OAUTH_SEARCH_PARAMS = {
   client_id: "cmo",
   redirect_uri: "https://app.cmo.xyz/api/auth/callback/sokosumi",
-  exp: "1772367377",
+  exp: String(NOW / 1000 + 600),
   sig: "signed-value",
 };
 // When Core signed the request (`ba_iat`, in milliseconds).
-const REQUEST_SIGNED_AT = Date.parse("2026-09-30T10:00:00.000Z");
-const OAUTH_QUERY =
-  "client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=1772367377&sig=signed-value";
+const REQUEST_SIGNED_AT = NOW;
+const OAUTH_QUERY = `client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=${NOW / 1000 + 600}&sig=signed-value`;
 
 vi.mock("next/headers", () => ({
   cookies: () => cookiesMock(),
@@ -62,8 +65,10 @@ vi.mock("@/auth/components/terms-notice", () => ({
   default: () => <div data-testid="terms-notice" />,
 }));
 
-vi.mock("@/auth/components/oauth-hand-back", () => ({
-  __esModule: true,
+vi.mock("@/auth/components/oauth-hand-back", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/auth/components/oauth-hand-back")
+  >()),
   default: (props: unknown) => {
     handBackMock(props);
     return <div data-testid="oauth-hand-back" />;
@@ -72,12 +77,15 @@ vi.mock("@/auth/components/oauth-hand-back", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   getSession: () => getSessionMock(),
+  getOAuthClientPublic: (clientId: string) =>
+    getOAuthClientPublicMock(clientId),
   getOAuthClientPublicPrelogin: (clientId: string, oauthQuery: string) =>
     getOAuthClientPublicPreloginMock(clientId, oauthQuery),
 }));
 
 describe("SignUp page", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
     vi.clearAllMocks();
     getMock.mockReturnValue({ value: "email-otp" });
     cookiesMock.mockResolvedValue({
@@ -96,6 +104,103 @@ describe("SignUp page", () => {
       logo_uri: "https://cmo.xyz/logo.png",
     });
   });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("says the request from another app has expired instead of showing the form", async () => {
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          exp: String(NOW / 1000 - 60),
+        }),
+      }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("errorTitle");
+    expect(screen.getByRole("alert")).toHaveTextContent("errorDescription");
+    expect(
+      screen.getByRole("link", { name: "backToSokosumi" }),
+    ).toHaveAttribute("href", "/");
+    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(handBackMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+  });
+
+  it("names the app a signed-in person came from when their request has expired", async () => {
+    getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
+    getOAuthClientPublicMock.mockResolvedValue(
+      ok({ client_name: "CMO", client_uri: "https://cmo.xyz" }),
+    );
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          ...OAUTH_SEARCH_PARAMS,
+          exp: String(NOW / 1000 - 60),
+        }),
+      }),
+    );
+
+    expect(screen.getByRole("alert")).toHaveTextContent("errorTitleFor");
+    expect(screen.getByRole("alert")).toHaveTextContent("errorDescriptionFor");
+    expect(screen.getByRole("link", { name: "backTo" })).toHaveAttribute(
+      "href",
+      "https://cmo.xyz/",
+    );
+    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(handBackMock).not.toHaveBeenCalled();
+    expect(getOAuthClientPublicMock).toHaveBeenCalledOnce();
+    expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+  });
+
+  it.each([ok(null), err({ reason: "http", status: 503 })])(
+    "keeps the expired error generic when the session client lookup fails (%o)",
+    async (result) => {
+      getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
+      getOAuthClientPublicMock.mockResolvedValue(result);
+      const { default: Page } = await import("./page");
+      render(
+        await Page({
+          searchParams: Promise.resolve({
+            ...OAUTH_SEARCH_PARAMS,
+            exp: String(NOW / 1000 - 60),
+          }),
+        }),
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent("errorDescription");
+      expect(
+        screen.getByRole("link", { name: "backToSokosumi" }),
+      ).toHaveAttribute("href", "/");
+      expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+      expect(handBackMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([String(NOW / 1000 - 30), "soon"])(
+    "leaves boundary or malformed expiry with the existing form (%s)",
+    async (exp) => {
+      getOAuthClientPublicPreloginMock.mockResolvedValue(null);
+      const { default: Page } = await import("./page");
+      render(
+        await Page({
+          searchParams: Promise.resolve({ ...OAUTH_SEARCH_PARAMS, exp }),
+        }),
+      );
+      expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      expect(handBackMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledOnce();
+    },
+  );
 
   it("reads the last-login cookie using the configured preview prefix", async () => {
     const { default: SignUpPage } = await import("./page");

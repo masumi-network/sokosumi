@@ -264,22 +264,7 @@ p {
   opacity: 0;
 }
 
-.mascot-motion {
-  position: absolute;
-  top: calc(100% + 8px);
-  inset-inline-start: 50%;
-  transform: translateX(-50%);
-  min-height: 32px;
-  padding: 0 12px;
-  font-size: 0.875rem;
-  white-space: nowrap;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .mascot-motion {
-    display: none;
-  }
-
   .button,
   .mascot-still,
   .mascot-stage {

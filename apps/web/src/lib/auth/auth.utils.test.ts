@@ -21,6 +21,7 @@ import {
   normalizeAuthReturnUrl,
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
+  oauthRequestHasExpired,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -96,6 +97,51 @@ describe("oauthRequestExpiresSoon", () => {
     ["an unreadable", "client_id=cmo&exp=soon"],
   ])("treats a request with %s expiry as expiring", (_kind, query) => {
     expect(oauthRequestExpiresSoon(query)).toBe(true);
+  });
+});
+
+describe("oauthRequestHasExpired", () => {
+  const EXPIRES_AT = Date.parse("2026-09-30T10:10:00Z");
+  const QUERY = `client_id=cmo&exp=${EXPIRES_AT / 1000}&sig=signed-value`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["before expiry", -1, false],
+    ["at expiry", 0, false],
+    ["inside the margin", 29_999, false],
+    ["at the margin", 30_000, false],
+    ["beyond the margin", 30_001, true],
+  ])("reads a request %s", (_when, elapsed, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + elapsed });
+    expect(oauthRequestHasExpired(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    "",
+    "exp=",
+    "exp=soon",
+    "exp=NaN",
+    "exp=Infinity",
+    "exp=-Infinity",
+    "exp=0",
+    "exp=-1",
+    "exp=1.5",
+    "exp=1e3",
+    "exp=0x10",
+    "exp=01",
+    "exp=+1",
+    "exp=9007199254740993",
+    "exp=8640000000001",
+    "exp=1&exp=9999999999",
+    "exp=9999999999&exp=1",
+  ])("leaves malformed expiry to Core (%s)", (expiry) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + 60_000 });
+    expect(
+      oauthRequestHasExpired(`client_id=cmo&${expiry}&sig=signed-value`),
+    ).toBe(false);
   });
 });
 
