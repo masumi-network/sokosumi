@@ -24,6 +24,11 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -42,8 +47,6 @@ type Format = Awaited<ReturnType<typeof getFormatter>>;
 
 const HERO_FACES = 5;
 const STACK_SHOWN = 8;
-/** The Agents page's card surface. */
-const CARD_CLASS = "bg-card border-border rounded-2xl border";
 
 function initials(name: string): string {
   return name
@@ -197,93 +200,99 @@ export async function YourAssistantSection({
   ]);
   const bot = me?.bot ?? null;
   const shell = cn(
-    CARD_CLASS,
-    "border-primary-tertiary flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6",
+    HOLDER_ITEM_CLASS,
+    "border-primary-tertiary flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5",
   );
 
   return (
     <section className="space-y-6">
       <SectionHeader title={t("yourAssistantTitle")} />
-      {!bot || !me ? (
-        <div className={shell}>
-          <span className="bg-primary-quinary text-primary inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
-            <Plus aria-hidden className="size-6" />
-          </span>
-          <div className="min-w-0 flex-1 space-y-1">
-            <p className="text-foreground text-lg font-medium">
-              {t("noAssistantYou")}
-            </p>
-            <p className="text-muted-foreground text-sm">
-              {t("createAssistantHint")}
-            </p>
-          </div>
-          {/* The hero carries the primary "Create"; this one stays secondary. */}
-          <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link href={SOKO_BOT_ROUTE}>
-              {t("createAssistant")}
-              <ArrowRight aria-hidden className="size-4" />
-            </Link>
-          </Button>
-        </div>
-      ) : (
-        <div className={shell}>
-          <div className="flex min-w-0 flex-1 items-start gap-4">
-            <BotFace
-              bot={bot}
-              ownerId={me.userId}
-              className="size-14 sm:size-16"
-            />
-            <div className="min-w-0 space-y-1.5">
-              <div className="flex min-w-0 items-center gap-2">
-                <h3 className="text-foreground truncate text-lg font-medium">
-                  {botName(bot, t)}
-                </h3>
-                <SokoBotStatusChip
-                  status={bot.status}
-                  label={tStatus(bot.status)}
-                  size="sm"
-                />
-              </div>
-              <p className="text-muted-foreground text-sm">{t("roleLine")}</p>
-              <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-                {stats ? (
-                  <>
-                    <Stat icon={<ListTodo aria-hidden className="size-3.5" />}>
-                      {t("statsTasks", {
-                        count: stats.totals.tasks,
-                        days: stats.days,
-                      })}
-                    </Stat>
-                    <Stat
-                      icon={<MessageSquare aria-hidden className="size-3.5" />}
-                    >
-                      {t("statsMessages", {
-                        count: stats.totals.messages,
-                        days: stats.days,
-                      })}
-                    </Stat>
-                  </>
-                ) : null}
-                <LastActive bot={bot} t={t} format={format} />
-              </div>
+      <div className={HOLDER_CLASS}>
+        {!bot || !me ? (
+          <div className={shell}>
+            <span className="bg-primary-quinary text-primary inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
+              <Plus aria-hidden className="size-6" />
+            </span>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-foreground text-lg font-medium">
+                {t("noAssistantYou")}
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {t("createAssistantHint")}
+              </p>
             </div>
-          </div>
-          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            {/* The hero carries the primary "Create"; this one stays secondary. */}
             <Button asChild variant="outline" className="w-full sm:w-auto">
               <Link href={SOKO_BOT_ROUTE}>
-                <Settings aria-hidden className="size-4" />
-                {t("manage")}
+                {t("createAssistant")}
+                <ArrowRight aria-hidden className="size-4" />
               </Link>
             </Button>
-            <ChatWithBotButton
-              sokoBotId={bot.id}
-              label={t("chat")}
-              errorLabel={t("chatError")}
-              className="w-full sm:w-auto"
-            />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className={shell}>
+            <div className="flex min-w-0 flex-1 items-start gap-4">
+              <BotFace
+                bot={bot}
+                ownerId={me.userId}
+                className="size-14 sm:size-16"
+              />
+              <div className="min-w-0 space-y-1.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <h3 className="text-foreground truncate text-lg font-medium">
+                    {botName(bot, t)}
+                  </h3>
+                  <SokoBotStatusChip
+                    status={bot.status}
+                    label={tStatus(bot.status)}
+                    size="sm"
+                  />
+                </div>
+                <p className="text-muted-foreground text-sm">{t("roleLine")}</p>
+                <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                  {stats ? (
+                    <>
+                      <Stat
+                        icon={<ListTodo aria-hidden className="size-3.5" />}
+                      >
+                        {t("statsTasks", {
+                          count: stats.totals.tasks,
+                          days: stats.days,
+                        })}
+                      </Stat>
+                      <Stat
+                        icon={
+                          <MessageSquare aria-hidden className="size-3.5" />
+                        }
+                      >
+                        {t("statsMessages", {
+                          count: stats.totals.messages,
+                          days: stats.days,
+                        })}
+                      </Stat>
+                    </>
+                  ) : null}
+                  <LastActive bot={bot} t={t} format={format} />
+                </div>
+              </div>
+            </div>
+            <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+              <Button asChild variant="outline" className="w-full sm:w-auto">
+                <Link href={SOKO_BOT_ROUTE}>
+                  <Settings aria-hidden className="size-4" />
+                  {t("manage")}
+                </Link>
+              </Button>
+              <ChatWithBotButton
+                sokoBotId={bot.id}
+                label={t("chat")}
+                errorLabel={t("chatError")}
+                className="w-full sm:w-auto"
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </section>
   );
 }
@@ -316,8 +325,9 @@ function PairCard({
         label={t("messageBot", { name })}
         errorLabel={t("chatError")}
         className={cn(
-          CARD_CLASS,
-          "hover:bg-card-background group flex size-full flex-col gap-4 p-4 transition-colors",
+          HOLDER_ITEM_CLASS,
+          HOLDER_ITEM_HOVER_CLASS,
+          "group flex size-full flex-col gap-3 p-3 transition-colors",
         )}
       >
         <span className="flex min-w-0 items-center gap-3">
@@ -336,7 +346,7 @@ function PairCard({
           <PersonAvatar member={member} />
           <span className="truncate">{member.name}</span>
         </span>
-        <span className="border-border text-muted-foreground mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs">
+        <span className="border-border text-muted-foreground mt-auto flex items-center justify-between gap-2 border-t pt-2.5 text-xs">
           <LastActive bot={bot} t={t} format={format} />
           <span
             aria-hidden
@@ -354,7 +364,7 @@ function PairCard({
 function NotSetUpLine({ members, t }: { members: Member[]; t: Translate }) {
   if (members.length === 0) return null;
   return (
-    <div className="text-muted-foreground flex items-center gap-3 text-sm">
+    <div className="text-muted-foreground flex items-center gap-3 px-2 py-1 text-sm">
       <span>{t("notSetUp")}</span>
       <ul className="flex -space-x-1">
         {members.slice(0, STACK_SHOWN).map((member) => (
@@ -388,6 +398,7 @@ export async function TeamSection({ team }: { team: SokoBotTeam }) {
   const others = team.members.filter((member) => !member.isYou);
   const paired = others.filter((member) => member.bot).sort(byLiveliness);
   const unpaired = others.filter((member) => !member.bot);
+  const isPersonal = team.workspace.kind === "personal";
 
   return (
     <section className="space-y-6">
@@ -399,27 +410,31 @@ export async function TeamSection({ team }: { team: SokoBotTeam }) {
             : undefined
         }
       />
-      {paired.length > 0 ? (
-        <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
-          {paired.map((member) =>
-            member.bot ? (
-              <PairCard
-                key={member.userId}
-                member={member}
-                bot={member.bot}
-                t={t}
-                tStatus={tStatus}
-                format={format}
-              />
-            ) : null,
-          )}
-        </ul>
-      ) : team.workspace.kind === "personal" ? (
-        <p className="text-muted-foreground text-sm">
-          {t("teamDescriptionPersonal")}
-        </p>
+      {paired.length > 0 || unpaired.length > 0 || isPersonal ? (
+        <div className={cn(HOLDER_CLASS, "flex flex-col gap-2")}>
+          {paired.length > 0 ? (
+            <ul className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
+              {paired.map((member) =>
+                member.bot ? (
+                  <PairCard
+                    key={member.userId}
+                    member={member}
+                    bot={member.bot}
+                    t={t}
+                    tStatus={tStatus}
+                    format={format}
+                  />
+                ) : null,
+              )}
+            </ul>
+          ) : isPersonal ? (
+            <p className="text-muted-foreground px-2 py-1 text-sm">
+              {t("teamDescriptionPersonal")}
+            </p>
+          ) : null}
+          <NotSetUpLine members={unpaired} t={t} />
+        </div>
       ) : null}
-      <NotSetUpLine members={unpaired} t={t} />
     </section>
   );
 }

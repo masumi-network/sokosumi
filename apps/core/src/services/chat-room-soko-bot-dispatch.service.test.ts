@@ -68,11 +68,15 @@ function input(
         },
       },
       responseMessageId: null,
-      sokoBot: { id: "bot-a", userId: "user-a", archivedAt: null },
+      sokoBot: {
+        id: "bot-a",
+        userId: "user-a",
+        workspaceId: "workspace-a",
+        archivedAt: null,
+      },
       sokoBotId: "bot-a",
     },
     userId: "user-a",
-    workspaceId: "workspace-a",
     failWithShell: fail,
     askedByBot: false,
     chainDepth: 0,
@@ -101,6 +105,21 @@ describe("Soko Bot mention dispatch", () => {
           responseMessageId: "response-a",
         }),
       }),
+    );
+  });
+  it("runs the mentioned bot in its own workspace, not the room's", async () => {
+    // A personal-scope room (organizationId null) with the owner's org bot:
+    // the turn must still run that bot, in its organization workspace.
+    const base = input();
+    await runSokoBotMentionDispatch({
+      ...base,
+      mention: {
+        ...base.mention,
+        sokoBot: { ...base.mention.sokoBot, workspaceId: "org-workspace" },
+      },
+    });
+    expect(startTurn).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "org-workspace" }),
     );
   });
   it("hands the bot the quoted message when the body is empty", async () => {
