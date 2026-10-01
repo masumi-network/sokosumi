@@ -16,7 +16,13 @@
       "message": "Use the button below to verify your email address. This keeps your account secure.",
       "button": "Verify email",
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "If you didn't create an account, you can safely ignore this email."
+      "footer": "If you didn't create an account, you can safely ignore this email.",
+      "client": {
+        "subject": "Confirm your email for {client}",
+        "title": "Confirm your email for {client}",
+        "message": "You signed up for {client} with a Sokosumi account. Use the button below to confirm your email address.",
+        "button": "Confirm email"
+      }
     },
     "invitation": {
       "subject": "Sokosumi - Organization Invitation",
