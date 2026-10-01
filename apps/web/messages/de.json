@@ -2020,37 +2020,6 @@
           "monthlyWithDayTime": "Monatlich (am {day}., {time})",
           "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
           "custom": "Benutzerdefinierter Cron"
-        },
-        "firstRun": "Erster Lauf",
-        "timeOfDay": "Uhrzeit",
-        "repeatEvery": "Wiederholen alle",
-        "repeatOn": "Wiederholen am",
-        "ends": "Endet",
-        "never": "Nie",
-        "on": "Am Datum",
-        "after": "Nach",
-        "occurrences": "Läufen",
-        "pickDate": "Datum auswählen",
-        "preview": "Vorschau",
-        "noPreview": "Keine anstehenden Läufe",
-        "timezone": "Zeitzone",
-        "customCron": "Benutzerdefinierter Cron-Ausdruck",
-        "customCronValid": "Gültiger Cron-Ausdruck",
-        "unit": {
-          "day": "Tag(e)",
-          "week": "Woche(n)",
-          "month": "Monat(e)"
-        },
-        "save": "Speichern",
-        "cancel": "Abbrechen",
-        "errors": {
-          "required": "Dieses Feld ist erforderlich.",
-          "futureDateTime": "Wähle ein Datum und eine Uhrzeit in der Zukunft.",
-          "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
-          "positiveInteger": "Gib eine positive ganze Zahl ein.",
-          "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag.",
-          "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen.",
-          "invalidCron": "Gib einen gültigen Cron-Ausdruck für die ausgewählte Zeitzone ein."
         }
       },
       "RunAt": {
@@ -2106,6 +2075,56 @@
           "errors": {
             "stale": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Seite neu und versuche es erneut.",
             "saveFailed": "Der Zeitplan ließ sich nicht speichern."
+          },
+          "When": {
+            "title": "Wann",
+            "repeat": "Wiederholen",
+            "repeats": {
+              "daily": "Täglich",
+              "weekdays": "Werktags",
+              "weekly": "Wöchentlich",
+              "monthly": "Monatlich",
+              "interval": "Alle paar Tage",
+              "custom": "Eigene"
+            },
+            "on": "Am",
+            "pickADay": "Wähle mindestens einen Tag",
+            "dayOfMonth": "Tag im Monat",
+            "dayN": "Tag {day}",
+            "shortMonths": "Monate ohne diesen Tag werden übersprungen",
+            "every": "Alle",
+            "days": "Tage",
+            "starting": "ab",
+            "startDate": "Startdatum",
+            "pickDate": "Datum wählen",
+            "cron": "Cron",
+            "cronHelp": "Fünf Felder: Minute, Stunde, Tag, Monat, Wochentag.",
+            "cronInvalid": "Dieser Cron-Ausdruck ist ungültig.",
+            "at": "Um",
+            "time": "Uhrzeit",
+            "timeSearch": "Uhrzeit eingeben, z. B. 08:30",
+            "useTime": "{time} verwenden",
+            "timezone": "Zeitzone",
+            "timezoneSearch": "Zeitzonen suchen",
+            "noTimezone": "Keine Zeitzone gefunden",
+            "ends": "Endet",
+            "endsNever": "Nie",
+            "endsOn": "An einem Datum",
+            "endsAfter": "Nach einer Anzahl Läufe",
+            "endDate": "Enddatum",
+            "runs": "Läufe",
+            "summary": {
+              "daily": "Jeden Tag um {time}",
+              "weekdays": "Jeden Werktag um {time}",
+              "weekly": "Jeden {days} um {time}",
+              "monthly": "Jeden Monat am {day}. um {time}",
+              "interval": "Alle {n} Tage um {time}",
+              "custom": "Eigener Zeitplan",
+              "incomplete": "Wähle, wann das läuft"
+            },
+            "next": "Nächster: {date}",
+            "noNext": "Keine anstehenden Läufe",
+            "nextRuns": "Nächste Läufe"
           }
         },
         "Actions": {
