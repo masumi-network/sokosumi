@@ -1961,7 +1961,7 @@ export const getEnterpriseContractsById = <ThrowOnError extends boolean = false>
 });
 
 /**
- * Update a draft enterprise contract (admin only)
+ * Update a draft enterprise contract, or change creditsPerMonth on an active one for every period not yet granted (admin only)
  */
 export const patchEnterpriseContractsById = <ThrowOnError extends boolean = false>(options: Options<PatchEnterpriseContractsByIdData, ThrowOnError>): RequestResult<PatchEnterpriseContractsByIdResponses, PatchEnterpriseContractsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchEnterpriseContractsByIdResponses, PatchEnterpriseContractsByIdErrors, ThrowOnError>({
     responseTransformer: patchEnterpriseContractsByIdResponseTransformer,
