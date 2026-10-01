@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { TeamRoster, YourAssistantCard } from "./roster";
+import { SokoBotsHero, TeamSection, YourAssistantSection } from "./roster";
 
 vi.mock("next-intl/server", () => ({
   getTranslations: async () => (key: string) => key,
@@ -26,9 +26,15 @@ vi.mock("./open-bot-chat.client", () => ({
       {children}
     </button>
   ),
-  ChatWithBotButton: ({ sokoBotId }: { sokoBotId: string }) => (
+  ChatWithBotButton: ({
+    sokoBotId,
+    label,
+  }: {
+    sokoBotId: string;
+    label: string;
+  }) => (
     <button type="button" data-chat={sokoBotId}>
-      chat
+      {label}
     </button>
   ),
 }));
@@ -98,9 +104,9 @@ const team = {
   ],
 } as SokoBotTeam;
 
-describe("TeamRoster", () => {
+describe("TeamSection", () => {
   it("sorts running first, then by last activity, and leaves your bot out", async () => {
-    render(await TeamRoster({ team }));
+    render(await TeamSection({ team }));
 
     const order = screen
       .getAllByRole("button")
@@ -114,23 +120,23 @@ describe("TeamRoster", () => {
   });
 
   it("shows a status chip only when the bot is not idle", async () => {
-    render(await TeamRoster({ team }));
+    render(await TeamSection({ team }));
 
     expect(screen.getByText("RUNNING")).toBeInTheDocument();
     expect(screen.queryByText("IDLE")).toBeNull();
   });
 
   it("puts people without an assistant on the not-set-up line", async () => {
-    render(await TeamRoster({ team }));
+    render(await TeamSection({ team }));
 
     expect(screen.getByText("notSetUp")).toBeInTheDocument();
     expect(screen.getByText("Sandro")).toBeInTheDocument();
   });
 });
 
-describe("YourAssistantCard", () => {
+describe("YourAssistantSection", () => {
   it("shows your bot with chat and settings", async () => {
-    render(await YourAssistantCard({ me, stats: null }));
+    render(await YourAssistantSection({ me, stats: null }));
 
     expect(screen.getByText("Joseph")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "chat" }).dataset.chat).toBe(
@@ -140,7 +146,35 @@ describe("YourAssistantCard", () => {
   });
 
   it("offers to create one when you have none", async () => {
-    render(await YourAssistantCard({ me: { ...me, bot: null }, stats: null }));
+    render(
+      await YourAssistantSection({ me: { ...me, bot: null }, stats: null }),
+    );
+
+    expect(
+      screen.getByRole("link", { name: "createAssistant" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("SokoBotsHero", () => {
+  it("explains Soko Bots and offers a chat with your own bot", async () => {
+    render(await SokoBotsHero({ team }));
+
+    expect(
+      screen.getByRole("heading", { level: 1, name: "heroTitle" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("heroBody")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "chatWith" }).dataset.chat).toBe(
+      "bot-joseph",
+    );
+  });
+
+  it("offers to create a bot when you have none", async () => {
+    const withoutMine = {
+      ...team,
+      members: team.members.map((m) => (m.isYou ? { ...m, bot: null } : m)),
+    };
+    render(await SokoBotsHero({ team: withoutMine }));
 
     expect(
       screen.getByRole("link", { name: "createAssistant" }),
